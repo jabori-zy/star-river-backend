@@ -1,0 +1,128 @@
+#![allow(unused_variables, unused_imports, dead_code)]
+use exchange_client::binance::{BinanceExchange, BinanceKlineInterval};
+use exchange_client::binance::binance_http_client::BinanceHttpClient;
+use exchange_client::binance::binance_ws_client::BinanceWsClient;
+use futures::StreamExt;
+use exchange_client::binance::market_stream::klines;
+use exchange_client::ExchangeClient;
+use event_center::EventCenter;
+use event_center::Channel;
+use indicator_engine::IndicatorEngine;
+use tokio::sync::Mutex;
+use std::sync::Arc;
+use types::indicator::Indicators;
+use types::indicator_config::SMAConfig;
+use types::market::{Exchange, KlineInterval};
+use data_cache::CacheEngine;
+use tracing::Level;
+use tracing_subscriber;
+use tokio::sync::mpsc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
+
+    // if std::env::var_os("RUST_LOG").is_none() {
+    //     std::env::set_var("RUST_LOG", "info");
+
+
+    // tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        // filter spans/events with level TRACE or higher.
+        .with_max_level(Level::DEBUG)
+        // build but do not install the subscriber.
+        .init();
+
+    
+
+    let event_center = Arc::new(Mutex::new(EventCenter::new()));
+    let (indicator_publisher, indicator_receiver) = {
+        let event_center = event_center.lock().await;
+        let receiver = event_center.subscribe(Channel::Indicator).unwrap();
+        let publisher = event_center.get_publisher(Channel::Indicator).unwrap();
+        (publisher, receiver)
+    };
+    let binance_publisher = {
+        let event_center = event_center.lock().await;
+        event_center.get_publisher(Channel::Market).unwrap()
+    };
+
+
+    let cache_engine_publisher = {
+        let event_center = event_center.lock().await;
+        event_center.get_publisher(Channel::Market).unwrap()
+    };
+
+    let cache_engine = Arc::new(Mutex::new(CacheEngine::new(event_center.clone(), cache_engine_publisher)));
+
+    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(event_center.clone(), cache_engine.clone(), indicator_publisher, indicator_receiver)));
+
+    let binance_exchange = Arc::new(Mutex::new(BinanceExchange::new(event_center.clone(), binance_publisher)));
+    
+
+    tokio::spawn(async move {
+        let mut binance_exchange = binance_exchange.lock().await;
+        binance_exchange.init_exchange().await.unwrap();
+        binance_exchange.get_kline_series("BTCUSDT", KlineInterval::Minutes1, Some(1), None, None).await.unwrap();
+        binance_exchange.get_kline_series("BTCUSDT", KlineInterval::Minutes1, Some(1), None, None).await.unwrap();
+
+        binance_exchange.subscribe_kline_stream("BTCUSDT", KlineInterval::Minutes1).await.unwrap();
+
+        binance_exchange.get_socket_stream().await.unwrap();
+        let sma_config = SMAConfig {
+            period: 14
+        };
+        binance_exchange.subscribe_indicator("BTCUSDT", Indicators::SimpleMovingAverage(sma_config)).await.unwrap();
+
+        let sma_config = SMAConfig {
+            period: 26
+        };
+        binance_exchange.subscribe_indicator("BTCUSDT", Indicators::SimpleMovingAverage(sma_config)).await.unwrap();
+
+    });
+
+
+
+    let cache_engine_clone = cache_engine.clone();
+    let market_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Market).unwrap()
+    };
+    let command_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Command).unwrap()
+    };
+    tokio::spawn(async move {
+        let mut cache_engine = cache_engine_clone.lock().await;
+        cache_engine.start(market_event_receiver, command_event_receiver).await;
+    });
+
+    // let cache_engine = cache_engine.clone();
+    // tokio::spawn(async move {
+    //     loop {
+    //         let cache_engine = cache_engine.try_lock();
+    //         if let Ok(cache_engine) = cache_engine {
+    //             tracing::debug!("获取锁成功");
+    //         }
+    //         else {
+    //                 tracing::error!("获取锁失败");
+    //         }
+    //         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    //     }
+    // });
+
+
+
+    let indicator_engine = indicator_engine.clone();
+    tokio::spawn(async move {
+        let indicator_engine = indicator_engine.lock().await;
+        indicator_engine.listen().await;
+    });
+
+
+
+
+    // 保持主程序运行
+    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+    Ok(())
+
+}
