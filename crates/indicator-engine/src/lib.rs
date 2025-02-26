@@ -70,7 +70,7 @@ impl IndicatorEngine {
         
         let indicator_cache_manager = cache_engine.indicator_cache_manager.lock().await;
         
-        let indicator_list = indicator_cache_manager.get_kline_series_sub_indicator(
+        let indicator_list = indicator_cache_manager.get_klineseries_subscribed_indicator(
             kline_series_event.clone().exchange,
             kline_series_event.clone().symbol,
             kline_series_event.clone().interval

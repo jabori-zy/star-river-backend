@@ -130,7 +130,7 @@ impl MarketDataEngine{
     pub async fn subscribe_indicator(&mut self, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators) -> Result<(), String> {
         match exchange {
             Exchange::Binance => {
-                let binance = self.exchanges.get(&exchange).unwrap();
+                let binance = self.exchanges.get(&exchange).expect("Binance交易所未初始化");
                 let binance = binance.lock().await;
                 let binance = binance.as_any().downcast_ref::<BinanceExchange>().unwrap();
                 binance.subscribe_indicator(&symbol, interval, indicator).await.unwrap();

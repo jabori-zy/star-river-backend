@@ -6,6 +6,7 @@ use strum::{EnumString, Display};
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, EnumString, Display, Serialize, Deserialize)]
+#[serde(tag = "type", content = "config")]
 pub enum Indicators {
     // 简单移动平均线
     #[strum(serialize = "sma")]

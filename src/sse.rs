@@ -19,10 +19,17 @@ pub async fn sse_handler(
     let market_event_receiver = event_center.subscribe(Channel::Market).expect("订阅Market通道失败");
 
     let stream = tokio_stream::wrappers::BroadcastStream::new(market_event_receiver)
+    .filter(|result| {
+        result.as_ref().map_or(true, |event| {
+            event.get_channel() == Channel::Market || event.get_channel() == Channel::Indicator
+        })
+    })
     .map(|result| {
         result.map(|event| {
             let json = serde_json::to_string(&event).unwrap();
             Event::default().data(json)
+
+
         })
         .unwrap_or_else(|e| {
             Event::default().data(format!("Error: {}", e))

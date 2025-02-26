@@ -4,7 +4,7 @@ use types::market::{Kline, Exchange, KlineSeries};
 use crate::binance::BinanceKlineInterval;
 use strum::Display;
 use strum::EnumString;
-use event_center::market_event::{MarketEvent, ExchangeKlineSeriesEventInfo, ExchangeKlineEventInfo};
+use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
 use utils::get_utc8_timestamp;
 use event_center::Event;
 use tokio::sync::broadcast;
@@ -58,7 +58,8 @@ impl BinanceDataProcessor {
             interval: interval.clone().into(),
             series: klines,
         };
-        let exchange_klineseries_update_event_config = ExchangeKlineSeriesEventInfo {
+        // 
+        let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEventInfo {
             exchange: Exchange::Binance,
             event_timestamp: get_utc8_timestamp(),
             symbol: symbol.to_string(),
@@ -66,7 +67,7 @@ impl BinanceDataProcessor {
             kline_series,
         };
         // 发送k线系列更新事件
-        let exchange_klineseries_update_event = MarketEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
+        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
         // let event_center = self.event_center.lock().await;
         // event_center.publish(exchange_klineseries_update_event).expect("发送k线系列更新事件失败");
         let _ = binance_publisher.send(exchange_klineseries_update_event);
@@ -98,7 +99,7 @@ impl BinanceDataProcessor {
             volume: volume,
         };
 
-        let exchange_kline_update_event_config = ExchangeKlineEventInfo {
+        let exchange_kline_update_event_config = ExchangeKlineUpdateEventInfo {
             exchange: Exchange::Binance,
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
@@ -106,7 +107,7 @@ impl BinanceDataProcessor {
             event_timestamp: get_utc8_timestamp(),
         };
 
-        let event = MarketEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();  
+        let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();  
         // let event_center = self.event_center.lock().await;
         // event_center.publish(event).expect("发送k线更新事件失败");
         let _ = binance_publisher.send(event);

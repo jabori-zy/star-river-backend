@@ -3,13 +3,12 @@ pub mod indicator_cache_manager;
 
 use utils::get_utc8_timestamp;
 use std::collections::HashMap;
-use event_center::EventCenter;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use event_center::Event;
 use std::time::Duration;
 use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, IndicatorCacheManagerCommand};
-use event_center::market_event::MarketEvent;
+use event_center::exchange_event::ExchangeEvent;
 use std::collections::VecDeque;
 use types::cache::KlineCacheKey;
 use types::market::Kline;
@@ -115,18 +114,18 @@ impl CacheEngine {
         }
     }
 
-    async fn listen(&mut self, 
-        mut market_rx: broadcast::Receiver<Event>,
+    async fn listen(&mut self,
+        mut exchange_rx: broadcast::Receiver<Event>,
         mut command_rx: broadcast::Receiver<Event>,
         internal_tx: mpsc::Sender<Event>,
     ) {
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    Ok(event) = market_rx.recv() => {
+                    Ok(event) = command_rx.recv() => {
                         let _ = internal_tx.send(event).await;
                     }
-                    Ok(event) = command_rx.recv() => {
+                    Ok(event) = exchange_rx.recv() => {
                         let _ = internal_tx.send(event).await;
                     }
                 }
@@ -134,10 +133,12 @@ impl CacheEngine {
         });
     }
 
+    // 处理接收到的事件
     async fn handle_events(internal_rx: &mut mpsc::Receiver<Event>, 
         kline_cache_manager: Arc<Mutex<CacheManager<KlineCacheKey, Kline>>>, 
         indicator_cache_manager: Arc<Mutex<CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>>>>,
-        event_publisher: broadcast::Sender<Event>) {
+        event_publisher: broadcast::Sender<Event>
+    ) {
         
         loop {
             let event = internal_rx.recv().await.unwrap();
@@ -145,17 +146,19 @@ impl CacheEngine {
                 Event::Command(command_event) => {
                     CacheEngine::handle_command_event(command_event, kline_cache_manager.clone(), indicator_cache_manager.clone()).await;
                 }
-                Event::Market(market_event) => {
-                    CacheEngine::handle_market_event(market_event, kline_cache_manager.clone(), event_publisher.clone()).await;
+                Event::Exchange(exchange_event) => {
+                    CacheEngine::handle_exchange_event(exchange_event, kline_cache_manager.clone(), event_publisher.clone()).await;
                 }
                 _ => {}
             }
         }
     }
 
-    async fn handle_command_event(command_event: CommandEvent, 
+    async fn handle_command_event(
+        command_event: CommandEvent, 
         kline_cache_manager: Arc<Mutex<CacheManager<KlineCacheKey, Kline>>>, 
-        indicator_cache_manager: Arc<Mutex<CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>>>>) {
+        indicator_cache_manager: Arc<Mutex<CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>>>>
+    ) {
 
         let mut kline_cache_manager = kline_cache_manager.lock().await;
         let mut indicator_cache_manager = indicator_cache_manager.lock().await;
@@ -178,47 +181,42 @@ impl CacheEngine {
         }
     }
 
-    async fn handle_market_event(market_event: MarketEvent, 
+    async fn handle_exchange_event(
+        exchange_event: ExchangeEvent, 
         kline_cache_manager: Arc<Mutex<CacheManager<KlineCacheKey, Kline>>>,
-        event_publisher: broadcast::Sender<Event>) {
+        event_publisher: broadcast::Sender<Event>
+    ) 
+    {
         
         let mut kline_cache_manager = kline_cache_manager.lock().await;
-        
-        match market_event {
-            MarketEvent::ExchangeKlineUpdate(event) => {
+
+        match exchange_event {
+            // 交易所单根k线更新
+            ExchangeEvent::ExchangeKlineUpdate(event) => {
                 kline_cache_manager.update_kline_cache(event, event_publisher).await;
             }
-            MarketEvent::ExchangeKlineSeriesUpdate(event) => {
+            // 交易所k线系列更新
+            ExchangeEvent::ExchangeKlineSeriesUpdate(event) => {
                 kline_cache_manager.initialize_kline_series_cache(event).await;
             }
             _ => {}
         }
     }
 
-    pub async fn start(&mut self, market_event_receiver: broadcast::Receiver<Event>, command_event_receiver: broadcast::Receiver<Event>) {
+    pub async fn start(&mut self, exchange_event_receiver: broadcast::Receiver<Event>, command_event_receiver: broadcast::Receiver<Event>) {
         // 创建channel用于内部通信
         let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
         
-        // 订阅外部的事件
-        // let (market_rx, command_rx) = {
-        //     let event_center = self.event_center.lock().await;
-        //     (
-        //         event_center.subscribe(Channel::Market).unwrap(),
-        //         event_center.subscribe(Channel::Command).unwrap(),
-        //     )
-        // };
 
         // 接收外部消息，并在内部传递消息
-        self.listen(market_event_receiver, command_event_receiver, internal_tx).await;
+        self.listen(exchange_event_receiver, command_event_receiver, internal_tx).await;
         
-
 
         let kline_cache_manager: Arc<Mutex<CacheManager<KlineCacheKey, Kline>>> = self.kline_cache_manager.clone();
         let indicator_cache_manager: Arc<Mutex<CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>>>> = self.indicator_cache_manager.clone();
         let event_publisher = self.event_publisher.clone();
         tokio::spawn(async move {
-            CacheEngine::handle_events(&mut internal_rx, kline_cache_manager, indicator_cache_manager, event_publisher).await;
-            
+            CacheEngine::handle_events(&mut internal_rx, kline_cache_manager, indicator_cache_manager, event_publisher).await;   
         });
 
         tracing::info!("数据缓存引擎启动成功, 开始监听...");

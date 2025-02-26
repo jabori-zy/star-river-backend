@@ -1,9 +1,11 @@
 pub mod market_event;
 pub mod command_event;
 pub mod indicator_event;
+pub mod exchange_event;
 
 use market_event::MarketEvent;
 use command_event::CommandEvent;
+use exchange_event::ExchangeEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -23,6 +25,7 @@ pub enum Channel {
     Position,
     Indicator,
     Command,
+    Exchange,
 }
 
 impl Channel {
@@ -33,6 +36,9 @@ impl Channel {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum Event {
+    #[strum(serialize = "exchange")]
+    #[serde(rename = "exchange")]
+    Exchange(ExchangeEvent),
     #[strum(serialize = "market")]
     #[serde(rename = "market")]
     Market(MarketEvent),
@@ -50,22 +56,12 @@ impl Event {
             Event::Market(_) => Channel::Market,
             Event::Indicator(_) => Channel::Indicator,
             Event::Command(_) => Channel::Command,
+            Event::Exchange(_) => Channel::Exchange,
         }
     }
 }
 
 
-// #[derive(Debug, Clone)]
-// pub struct Event {
-//     pub channel: Channel,
-//     pub event_name: String,
-//     pub exchange: Exchange,
-//     pub symbol: String,
-//     pub metadata: serde_json::Value,
-//     pub payload: serde_json::Value,
-//     pub timestamp: i64,
-
-// }
 
 #[derive(Debug)]
 pub enum EventCenterError {

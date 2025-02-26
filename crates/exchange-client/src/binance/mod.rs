@@ -202,11 +202,6 @@ impl ExchangeClient for BinanceExchange {
         let command = KlineCacheManagerCommand::SubscribeKline(params);
         let command_event = CommandEvent::KlineCacheManager(command);
 
-        // {
-        //     let event_center = self.event_center.lock().await;
-        //     event_center.publish(command_event.clone().into()).unwrap();
-        //     tracing::debug!("发送命令成功: {:?}", command_event);
-        // }
         // 使用binance_publisher发送命令
         let _ = self.binance_publisher.send(command_event.clone().into());
 
@@ -215,7 +210,7 @@ impl ExchangeClient for BinanceExchange {
         let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, start_time, end_time).await?;
         // 发送到数据处理器，处理数据
         let data_processor = self.data_processor.lock().await;
-        data_processor.process_kline_series(symbol, binance_interval.clone(), klines.clone(), self.binance_publisher.clone()).await;
+        data_processor.process_kline_series(symbol, binance_interval, klines, self.binance_publisher.clone()).await;
         Ok(())
 
     }

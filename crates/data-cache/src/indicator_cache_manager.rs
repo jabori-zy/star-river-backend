@@ -47,9 +47,9 @@ impl CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>> {
         self.cache.keys().cloned().collect()
     }
 
-    // 传入kline-series-cache-key，返回所有依赖的indicator-cache-key
-    pub fn get_kline_series_sub_indicator(&self, exchange: Exchange, symbol: String, interval: KlineInterval) -> Vec<IndicatorCacheKey> {
-        tracing::debug!("获取K线订阅的指标: {:?}-{:?}-{:?}", exchange, symbol, interval);
+    // 获取k线系列需要计算的指标
+    pub fn get_klineseries_subscribed_indicator(&self, exchange: Exchange, symbol: String, interval: KlineInterval) -> Vec<IndicatorCacheKey> {
+        tracing::debug!("获取K线系列订阅的指标: {:?}-{:?}-{:?}", exchange, symbol, interval);
         let mut sub_indicator_key_list = Vec::new();
         for (key, _) in self.cache.iter() {
             // 如果key的symbol和interval和exchange都匹配，则加入sub_indicator_key_list

@@ -5,7 +5,7 @@ pub mod websocket;
 pub mod sse;
 
 
-use axum::{routing::get, Router, routing::any};
+use axum::{routing::{get, post}, Router, routing::any};
 use axum::extract::State;
 
 use std::net::SocketAddr;
@@ -14,12 +14,12 @@ use tower_http::cors::{Any, CorsLayer};
 use axum::http::HeaderValue;
 use crate::star_river::StarRiver;
 use crate::api::market_api::subscribe_kline_stream;
-use crate::api::market_api::subscribe_indicator;
+use crate::api::indicator_api::subscribe_indicator;
 use crate::api::market_api::get_heartbeat_lock;
 use crate::sse::sse_handler;
 use tracing::Level;
-use event_center::Channel;
 use crate::websocket::ws_handler;
+use crate::star_river::init_app;
 
 #[tokio::main]
 async fn main() {
@@ -44,14 +44,13 @@ async fn main() {
         .route("/", get(hello_world))
         .route("/subscribe_kline_stream", get(subscribe_kline_stream))
         .route("/get_heartbeat_lock", get(get_heartbeat_lock))
-        .route("/subscribe_indicator", get(subscribe_indicator))
+        .route("/subscribe_indicator", post(subscribe_indicator))
         .route("/ws", any(ws_handler))
         .route("/sse", get(sse_handler))
         .layer(cors)
         .with_state(star_river.clone());
 
     // 初始化app
-    start_heartbeat(State(star_river.clone())).await;
     init_app(State(star_river)).await;
 
     
@@ -81,27 +80,7 @@ async fn hello_world() -> String {
 
 
 
-async fn init_app(State(app_state): State<StarRiver>) {
-    tokio::spawn(async move {
-        let market_event_receiver = app_state.event_center.lock().await.subscribe(Channel::Market).unwrap();
-        let command_event_receiver = app_state.event_center.lock().await.subscribe(Channel::Command).unwrap();
-        // 启动缓存引擎
-        let mut cache_engine = app_state.cache_engine.lock().await;
-        cache_engine.start(market_event_receiver, command_event_receiver).await;
-
-        // 启动指标引擎
-        let indicator_event_receiver = app_state.event_center.lock().await.subscribe(Channel::Indicator).unwrap();
-        let indicator_engine = app_state.indicator_engine.lock().await;
-        indicator_engine.listen(indicator_event_receiver).await;
-    });
-}
 
 
-async fn start_heartbeat(star_river: State<StarRiver>) {
-    let heartbeat = star_river.heartbeat.clone();
-    tokio::spawn(async move {
-        let heartbeat = heartbeat.lock().await;
-        heartbeat.start().await.unwrap();
-        tracing::info!("心跳已启动");
-    });
-}
+
+

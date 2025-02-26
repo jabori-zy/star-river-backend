@@ -1,9 +1,10 @@
 use crate::{CacheManager, CacheEntry};
-use event_center::market_event::{KlineSeriesEventInfo, ExchangeKlineEventInfo, ExchangeKlineSeriesEventInfo};
+
+use event_center::exchange_event::{ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
+use event_center::market_event::{MarketEvent, KlineSeriesEventInfo};
 use types::market::Kline;
 use std::collections::VecDeque;
 use utils::get_utc8_timestamp;
-use event_center::market_event::MarketEvent;
 use types::market::KlineSeries;
 use crate::KlineCacheKey;
 use tokio::sync::broadcast;
@@ -48,11 +49,11 @@ impl From<CacheEntry<KlineCacheKey, Kline>> for KlineSeries {
 
 impl CacheManager<KlineCacheKey, Kline> {
     // 初始化k线缓存
-    pub async fn initialize_kline_series_cache(&mut self, exchange_kline_series_event: ExchangeKlineSeriesEventInfo) {
+    pub async fn initialize_kline_series_cache(&mut self, exchange_klineseries_event: ExchangeKlineSeriesUpdateEventInfo) {
         // 从事件中解析出CacheKey
-        let exchange =exchange_kline_series_event.exchange;
-        let symbol = exchange_kline_series_event.symbol;
-        let interval = exchange_kline_series_event.interval;
+        let exchange =exchange_klineseries_event.exchange;
+        let symbol = exchange_klineseries_event.symbol;
+        let interval = exchange_klineseries_event.interval;
         let cache_key = KlineCacheKey {
             exchange,
             symbol,
@@ -66,7 +67,7 @@ impl CacheManager<KlineCacheKey, Kline> {
         }
 
         // 初始化缓存
-        let kline_series = exchange_kline_series_event.kline_series;
+        let kline_series = exchange_klineseries_event.kline_series;
 
         let cache_entry = self.cache.get_mut(&cache_key).unwrap();
         cache_entry.initialize(kline_series.series.into_iter().collect());
@@ -74,7 +75,7 @@ impl CacheManager<KlineCacheKey, Kline> {
 
     }
 
-    pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineEventInfo, event_publisher: broadcast::Sender<Event>) {    
+    pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineUpdateEventInfo, event_publisher: broadcast::Sender<Event>) {    
         // tracing::debug!("更新k线缓存, kline_update_event: {:?}", kline_update_event);
 
         let exchange = kline_update_event.exchange;
@@ -94,21 +95,21 @@ impl CacheManager<KlineCacheKey, Kline> {
 
         let cache_entry: &mut CacheEntry<KlineCacheKey, Kline> = self.cache.get_mut(&cache_key).unwrap();
         cache_entry.insert_or_update(kline_update_event.kline);
-        tracing::debug!("更新k线缓存成功, cache_entry: {:?}", cache_entry);
+        // tracing::debug!("更新k线缓存成功, cache_entry: {:?}", cache_entry);
 
         // 发布事件
         
-        let kline_series_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesEventInfo {
+        let klineseries_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesEventInfo {
             exchange,
             symbol,
             interval,
             kline_series: KlineSeries::from(cache_entry.clone()),
             event_timestamp: get_utc8_timestamp()
         }).into();
-        tracing::info!("发布k线缓存事件: {:?}", kline_series_update_event);
+        // tracing::info!("发布k线缓存事件: {:?}", klineseries_update_event);
         // let event_center: tokio::sync::MutexGuard<'_, event_center::EventCenter> = self.event_center.lock().await;
         // event_center.publish(kline_series_update_event).unwrap(); 
-        let _ = event_publisher.send(kline_series_update_event);
+        let _ = event_publisher.send(klineseries_update_event);
         
         
     }
