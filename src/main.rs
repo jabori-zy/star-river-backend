@@ -1,8 +1,11 @@
 pub mod star_river;
 pub mod market_engine;
 pub mod api;
+pub mod websocket;
+pub mod sse;
 
-use axum::{routing::get, Router};
+
+use axum::{routing::get, Router, routing::any};
 use axum::extract::State;
 
 use std::net::SocketAddr;
@@ -13,8 +16,10 @@ use crate::star_river::StarRiver;
 use crate::api::market_api::subscribe_kline_stream;
 use crate::api::market_api::subscribe_indicator;
 use crate::api::market_api::get_heartbeat_lock;
+use crate::sse::sse_handler;
 use tracing::Level;
 use event_center::Channel;
+use crate::websocket::ws_handler;
 
 #[tokio::main]
 async fn main() {
@@ -40,6 +45,8 @@ async fn main() {
         .route("/subscribe_kline_stream", get(subscribe_kline_stream))
         .route("/get_heartbeat_lock", get(get_heartbeat_lock))
         .route("/subscribe_indicator", get(subscribe_indicator))
+        .route("/ws", any(ws_handler))
+        .route("/sse", get(sse_handler))
         .layer(cors)
         .with_state(star_river.clone());
 
@@ -59,7 +66,7 @@ async fn main() {
     // run it
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     tracing::info!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
 

@@ -1,0 +1,39 @@
+use axum::response::sse::{Event, Sse};
+use futures::stream::Stream;
+use std::{convert::Infallible, time::Duration};
+use tokio_stream::StreamExt;
+
+use crate::StarRiver;
+use axum::extract::State;
+use event_center::Channel;
+
+
+
+pub async fn sse_handler(
+    State(star_river): State<StarRiver>
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    tracing::info!("SSE连接成功");
+
+    let event_center = star_river.event_center.lock().await;
+
+    let market_event_receiver = event_center.subscribe(Channel::Market).expect("订阅Market通道失败");
+
+    let stream = tokio_stream::wrappers::BroadcastStream::new(market_event_receiver)
+    .map(|result| {
+        result.map(|event| {
+            let json = serde_json::to_string(&event).unwrap();
+            Event::default().data(json)
+        })
+        .unwrap_or_else(|e| {
+            Event::default().data(format!("Error: {}", e))
+        })
+
+    })
+    .map(Ok::<_, Infallible>);
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(1))
+            .text("keep-alive"),
+    )
+}

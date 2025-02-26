@@ -1,15 +1,8 @@
 [workspace]
 resolver = "2"
 members = [ 
-    "crates/heartbeat",
-    "crates/types",
-    "crates/utils",
-    "crates/event-center",
-    "crates/exchange-client",
-    "crates/data-cache",
-    "crates/indicator-engine",
-    "crates/zero_mq",
-    
+    "crates/*",
+    "examples/*"
     ]
 
 
@@ -21,13 +14,16 @@ edition = "2021"
 
 
 [workspace.dependencies]
-axum = { version = "0.8.1", features = ["macros"] }
+axum = { version = "0.8.1", features = ["macros", "ws", "query","json"] }
+axum-extra = {version = "0.10.0", features = ["typed-header"]}
+headers = "0.4.0"
+tokio-stream = {version = "0.1.17", features = ["sync"]}
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = {version = "0.3.19", features = ["env-filter"]}
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.139"
-tower-http = { version = "0.6.2", features = ["cors"] }
+tower-http = { version = "0.6.2", features = ["cors","fs", "trace"] }
 uuid = { version = "1.14.0", features = ["v4"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 strum = {version = "0.27.0", features = ["derive"]}
@@ -51,12 +47,17 @@ edition = "2021"
 
 [dependencies]
 axum.workspace = true
+axum-extra.workspace = true
+headers.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tower-http.workspace = true
+futures-util.workspace = true
+futures.workspace = true
 heartbeat = { path = "crates/heartbeat" }
 exchange-client = { path = "crates/exchange-client" }
 data-cache = { path = "crates/data-cache" }

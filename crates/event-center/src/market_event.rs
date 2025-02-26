@@ -7,14 +7,19 @@ use crate::Event;
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum MarketEvent {
     #[strum(serialize = "exchange-kline-series-update")]
+    #[serde(rename = "exchange-kline-series-update")]
     ExchangeKlineSeriesUpdate(ExchangeKlineSeriesEventInfo),
     #[strum(serialize = "exchange-kline-update")]
+    #[serde(rename = "exchange-kline-update")]
     ExchangeKlineUpdate(ExchangeKlineEventInfo),
     #[strum(serialize = "kline-update")]
+    #[serde(rename = "kline-update")]
     KlineUpdate(KlineEventInfo),
     #[strum(serialize = "kline-series-update")]
+    #[serde(rename = "kline-series-update")]
     KlineSeriesUpdate(KlineSeriesEventInfo),
     #[strum(serialize = "ticker-price-update")]
+    #[serde(rename = "ticker-price-update")]
     TickerPriceUpdate(TickerPriceEventInfo),
 }
 

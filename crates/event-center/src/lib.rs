@@ -34,10 +34,13 @@ impl Channel {
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum Event {
     #[strum(serialize = "market")]
+    #[serde(rename = "market")]
     Market(MarketEvent),
     #[strum(serialize = "indicator")]
+    #[serde(rename = "indicator")]
     Indicator(IndicatorEvent),
     #[strum(serialize = "command")]
+    #[serde(rename = "command")]
     Command(CommandEvent),
 }
 
