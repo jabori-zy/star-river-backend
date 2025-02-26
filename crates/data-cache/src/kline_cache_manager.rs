@@ -58,7 +58,7 @@ impl CacheManager<KlineCacheKey, Kline> {
             symbol,
             interval,
         };
-        tracing::debug!("初始化k线缓存, cache_key: {:?}", cache_key);
+        // tracing::debug!("初始化k线缓存, cache_key: {:?}", cache_key);
 
         // 判断key是否已存在，如果不存在，则添加订阅
         if !self.cache.contains_key(&cache_key) {
@@ -70,12 +70,12 @@ impl CacheManager<KlineCacheKey, Kline> {
 
         let cache_entry = self.cache.get_mut(&cache_key).unwrap();
         cache_entry.initialize(kline_series.series.into_iter().collect());
-        tracing::debug!("初始化k线缓存成功, cache_entry: {:?}", cache_entry);
+        // tracing::debug!("初始化k线缓存成功, cache_entry: {:?}", cache_entry);
 
     }
 
     pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineEventInfo, event_publisher: broadcast::Sender<Event>) {    
-        tracing::debug!("更新k线缓存, kline_update_event: {:?}", kline_update_event);
+        // tracing::debug!("更新k线缓存, kline_update_event: {:?}", kline_update_event);
 
         let exchange = kline_update_event.exchange;
         let symbol = kline_update_event.symbol;

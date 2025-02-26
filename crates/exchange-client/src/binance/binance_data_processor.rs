@@ -125,15 +125,13 @@ impl BinanceDataProcessor {
             
             match stream_event {
                 BinanceStreamEvent::Kline => {
-                    tracing::debug!("stream事件为: {:?}", stream_event);
+                    // tracing::debug!("stream事件为: {:?}", stream_event);
                     self.process_stream_kline(raw_stream, binance_publisher).await.expect("处理k线数据失败");
                 }
                 _ => {
                     tracing::warn!("不支持的事件类型: {:?}", stream_event);
                 }
             }
-        } else {
-            tracing::warn!("raw_stream没有data");
         }
     }
     

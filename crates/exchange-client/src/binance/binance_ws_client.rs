@@ -22,10 +22,10 @@ pub struct BinanceWsClient;
 
 impl BinanceWsClient {
     pub async fn connect(url: &str) -> Result<(WebSocketState, Response), Error> {
+        let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
-
-        tracing::info!("Connected to {}", url);
-        tracing::debug!("Response: {:?}", response.status());
+        let duration = start.elapsed();
+        tracing::info!("连接至币安websocket服务器成功, 耗时: {:?}。 响应状态: {:?}", duration, response.status());
         
         Ok((WebSocketState::new(socket), response))
 
@@ -81,7 +81,7 @@ impl WebSocketState {
 
         let message = Message::text(s);
 
-        tracing::debug!("Sent message: {:?}", message);
+        // tracing::debug!("Sent message: {:?}", message);
         
         
         

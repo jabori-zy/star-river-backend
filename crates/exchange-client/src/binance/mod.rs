@@ -22,7 +22,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
-use event_center::EventCenter;
 use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, SubscribeKlineParams, IndicatorCacheManagerCommand, SubscribeIndicatorParams};
 use types::cache::{KlineCacheKey, IndicatorCacheKey};
 use utils::get_utc8_timestamp;
@@ -171,9 +170,7 @@ pub struct BinanceExchange {
     http_client: BinanceHttpClient,
     websocket_state: Arc<Mutex<Option<WebSocketState>>>, // 可以在线程间传递
     data_processor: Arc<Mutex<BinanceDataProcessor>>,
-    pub event_center: Arc<Mutex<EventCenter>>,
     binance_publisher: broadcast::Sender<Event>,
-
     is_process_stream: Arc<AtomicBool>,
 }
 
@@ -236,6 +233,7 @@ impl ExchangeClient for BinanceExchange {
 
         let mut websocket_state = self.websocket_state.lock().await;
         if let Some(state) = websocket_state.as_mut() {
+            tracing::debug!("订阅k线流, symbol: {:?}, interval: {:?}", symbol, interval);
             state.subscribe([&klines(symbol, binance_interval).into()]).await;
         }
         Ok(())
@@ -248,6 +246,7 @@ impl ExchangeClient for BinanceExchange {
             tracing::warn!("binance已开始处理流数据, 无需重复获取!");
             return Ok(());
         }
+        tracing::debug!("开始binance处理流数据");
         // 如果当前没有处理流，则开始处理流,设置状态为true
         self.is_process_stream.store(true, std::sync::atomic::Ordering::Relaxed);
 
@@ -283,14 +282,13 @@ impl ExchangeClient for BinanceExchange {
 
 
 impl BinanceExchange {
-    pub fn new(event_center: Arc<Mutex<EventCenter>>, binance_publisher: broadcast::Sender<Event>) -> Self {
+    pub fn new(binance_publisher: broadcast::Sender<Event>) -> Self {
         Self {
             server_time: None,
             info: None,
             http_client: BinanceHttpClient::new(),
             websocket_state: Arc::new(Mutex::new(None)),
             data_processor: Arc::new(Mutex::new(BinanceDataProcessor::new())),
-            event_center,
             binance_publisher,
             is_process_stream: Arc::new(AtomicBool::new(false)),
         }
@@ -308,12 +306,13 @@ impl BinanceExchange {
         
     }
 
-    pub async fn subscribe_indicator(&self, symbol: &str, indicator: Indicators) -> Result<(), String> {
+    pub async fn subscribe_indicator(&self, symbol: &str, interval: KlineInterval, indicator: Indicators) -> Result<(), String> {
         let ind_cache_key = IndicatorCacheKey {
             exchange: Exchange::Binance,
             symbol: symbol.to_string(),
+            interval,
             indicator,
-            interval: KlineInterval::Minutes1,
+            
         };
         let params = SubscribeIndicatorParams {
             cache_key: ind_cache_key,
@@ -323,11 +322,8 @@ impl BinanceExchange {
         };
         let command = IndicatorCacheManagerCommand::SubscribeIndicator(params);
         let command_event = CommandEvent::IndicatorCacheManager(command);
-        {
-            let event_center = self.event_center.lock().await;
-            event_center.publish(command_event.clone().into()).unwrap();
-            tracing::debug!("发送订阅指标命令成功: {:?}", command_event);
-        }
+        let _ = self.binance_publisher.send(command_event.into());
+
         Ok(())
     }
 

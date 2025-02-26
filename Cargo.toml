@@ -21,8 +21,8 @@ edition = "2021"
 
 
 [workspace.dependencies]
-axum = "0.8.1"
-tokio = { version = "1.0", features = ["full", "tracing"] }
+axum = { version = "0.8.1", features = ["macros"] }
+tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 serde = { version = "1.0.215", features = ["derive"] }
@@ -64,6 +64,7 @@ indicator-engine = { path = "crates/indicator-engine" }
 types = { path = "crates/types" }
 utils = { path = "crates/utils" }
 event-center = {path = "crates/event-center"}
+
 
 [profile.release]
 opt-level = 'z'     # 优化大小

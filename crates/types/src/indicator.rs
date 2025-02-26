@@ -9,6 +9,7 @@ use strum::{EnumString, Display};
 pub enum Indicators {
     // 简单移动平均线
     #[strum(serialize = "sma")]
+    #[serde(rename = "sma")]
     SimpleMovingAverage(SMAConfig),
 }
 

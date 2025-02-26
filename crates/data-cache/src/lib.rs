@@ -55,17 +55,17 @@ impl<K: CacheKey, T: Debug> CacheEntry<K, T> {
 
 pub struct CacheManager<K: CacheKey, T> {
     pub cache: HashMap<K, CacheEntry<K, T>>,
-    pub event_center: Arc<Mutex<EventCenter>>,
+    // pub event_center: Arc<Mutex<EventCenter>>,
     pub max_cache_size: usize
 }
 
 
 
 impl<K: CacheKey, T: Debug> CacheManager<K, T> {
-    pub fn new(event_center: Arc<Mutex<EventCenter>>) -> Self {
+    pub fn new() -> Self {
         Self { 
             cache: HashMap::new(), 
-            event_center, 
+            // event_center, 
             max_cache_size: 1000, 
         }
     }
@@ -93,24 +93,24 @@ impl<K: CacheKey, T: Debug> CacheManager<K, T> {
 
 
 
-
+#[derive(Clone)]
 pub struct CacheEngine {
     pub kline_cache_manager: Arc<Mutex<CacheManager<KlineCacheKey, Kline>>>,
     pub indicator_cache_manager: Arc<Mutex<CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>>>>,
-    event_center: Arc<Mutex<EventCenter>>,
+    // event_center: Arc<Mutex<EventCenter>>,
     event_publisher: broadcast::Sender<Event>,
 }
 
 
 impl CacheEngine {
     pub fn new(
-        event_center: Arc<Mutex<EventCenter>>, 
+        // event_center: Arc<Mutex<EventCenter>>, 
         event_publisher: broadcast::Sender<Event>, 
     ) -> Self {
         Self {
-            kline_cache_manager: Arc::new(Mutex::new(CacheManager::new(event_center.clone()))),
-            indicator_cache_manager: Arc::new(Mutex::new(CacheManager::new(event_center.clone()))),
-            event_center,
+            kline_cache_manager: Arc::new(Mutex::new(CacheManager::new())),
+            indicator_cache_manager: Arc::new(Mutex::new(CacheManager::new())),
+            // event_center,
             event_publisher,
         }
     }
@@ -220,6 +220,8 @@ impl CacheEngine {
             CacheEngine::handle_events(&mut internal_rx, kline_cache_manager, indicator_cache_manager, event_publisher).await;
             
         });
+
+        tracing::info!("数据缓存引擎启动成功, 开始监听...");
 
 
     }

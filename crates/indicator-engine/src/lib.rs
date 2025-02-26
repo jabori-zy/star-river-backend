@@ -27,42 +27,33 @@ use crate::talib::TALib;
 use data_cache::CacheEngine;
 
 
-
+#[derive(Clone)]
 pub struct IndicatorEngine{
     // 需要计算的指标
     talib: Arc<TALib>,
-    event_center: Arc<Mutex<EventCenter>>,
     cache_engine: Arc<Mutex<CacheEngine>>,
     event_publisher: broadcast::Sender<Event>,
-    event_receiver: broadcast::Receiver<Event>
 
 }
 
 impl IndicatorEngine {
 
     pub fn new(
-        event_center: Arc<Mutex<EventCenter>>, 
         cache_engine: Arc<Mutex<CacheEngine>>, 
         event_publisher: broadcast::Sender<Event>,
-        event_receiver: broadcast::Receiver<Event>
     ) -> Self {
         let talib = Arc::new(TALib::init().unwrap());
         Self { 
-            talib, 
-            event_center,
+            talib,
             cache_engine,
             event_publisher,
-            event_receiver
         }
     }
 
-    pub async fn listen(&self) {
-        let mut receiver = {
-            let event_center = self.event_center.lock().await;
-            event_center.subscribe(Channel::Market).unwrap()
-        };
+    pub async fn listen(&self, mut event_receiver: broadcast::Receiver<Event>) {
+        tracing::info!("指标引擎启动成功, 开始监听...");
 
-        while let Ok(event) = receiver.recv().await {
+        while let Ok(event) = event_receiver.recv().await {
             match event {
                 Event::Market(MarketEvent::KlineSeriesUpdate(kline_series_event)) => {
                     self.calculate_indicator(kline_series_event).await;

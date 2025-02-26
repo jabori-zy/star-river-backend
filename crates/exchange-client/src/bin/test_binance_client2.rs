@@ -14,7 +14,7 @@ use types::indicator::Indicators;
 use types::indicator_config::SMAConfig;
 use types::market::{Exchange, KlineInterval};
 use data_cache::CacheEngine;
-use tracing::Level;
+use tracing::{event, Level};
 use tracing_subscriber;
 use tokio::sync::mpsc;
 
@@ -52,9 +52,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         event_center.get_publisher(Channel::Market).unwrap()
     };
 
-    let cache_engine = Arc::new(Mutex::new(CacheEngine::new(event_center.clone(), cache_engine_publisher)));
+    let cache_engine = Arc::new(Mutex::new(CacheEngine::new(cache_engine_publisher)));
 
-    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(event_center.clone(), cache_engine.clone(), indicator_publisher, indicator_receiver)));
+    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(cache_engine.clone(), indicator_publisher)));
 
     let binance_exchange = Arc::new(Mutex::new(BinanceExchange::new(event_center.clone(), binance_publisher)));
     
@@ -113,13 +113,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 
     let indicator_engine = indicator_engine.clone();
+    let indicator_receiver = event_center.lock().await.subscribe(Channel::Market).unwrap();
     tokio::spawn(async move {
         let indicator_engine = indicator_engine.lock().await;
-        indicator_engine.listen().await;
+        indicator_engine.listen(indicator_receiver).await;
     });
-
-
-
 
     // 保持主程序运行
     tokio::time::sleep(std::time::Duration::from_secs(3600)).await;

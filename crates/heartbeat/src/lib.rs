@@ -73,17 +73,13 @@ impl Heartbeat {
         }
     }
 
-    pub async fn start(&mut self) -> Result<(), String> {
+    pub async fn start(&self) -> Result<(), String> {
         if self.running.load(Ordering::Relaxed) {
             tracing::warn!("Heartbeat is already running");
             return Ok(());
         }
 
-
-
         self.running.store(true, Ordering::Relaxed);
-
-
 
         let count = Arc::clone(&self.count);
         let all_tasks = Arc::clone(&self.all_tasks);
@@ -109,7 +105,7 @@ impl Heartbeat {
                         }
                     }
                 ).unwrap();
-                tracing::trace!("Heartbeat #{}", current_count);
+                // tracing::debug!("Heartbeat #{}", current_count);
                 Heartbeat::do_task(&all_tasks, current_count).await;
 
 
