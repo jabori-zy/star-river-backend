@@ -15,6 +15,7 @@ pub struct KlineParams {
     exchange: String,
     symbol: String,
     interval: String,
+    limit: Option<u32>,
 }
 
 #[axum::debug_handler]
@@ -23,7 +24,7 @@ pub async fn subscribe_kline_stream(State(star_river): State<StarRiver>, Query(p
     let exchange = Exchange::from_str(&params.exchange).expect("Invalid exchange");
     let interval = KlineInterval::from_str(&params.interval).expect("Invalid kline interval");
 
-    let binance_publisher = star_river.event_center.lock().await.get_publisher(Channel::Market).unwrap();
+    let event_publisher = star_river.event_center.lock().await.get_publisher1();
     // 注册交易所
     let market_engine = star_river.market_engine.clone();
     let heartbeat = {
@@ -32,9 +33,9 @@ pub async fn subscribe_kline_stream(State(star_river): State<StarRiver>, Query(p
     };
     heartbeat.run_async_task_once("订阅k线".to_string(), async move {
         let mut market_engine = market_engine.lock().await;
-        market_engine.register_exchange(exchange.clone(), binance_publisher).await.expect("Failed to register exchange");
+        market_engine.register_exchange(exchange.clone(), event_publisher).await.expect("Failed to register exchange");
 
-        if let Err(e) = market_engine.get_kline_series(exchange.clone(), params.symbol.clone(), interval.clone(), None, None, Some(1)).await {
+        if let Err(e) = market_engine.get_kline_series(exchange.clone(), params.symbol.clone(), interval.clone(), None, None, params.limit).await {
             tracing::error!("Failed to get kline series: {}", e);
         };
 

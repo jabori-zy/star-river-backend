@@ -23,15 +23,15 @@ impl StarRiver {
     pub fn new() -> Self {
         
         let event_center = EventCenter::new();
-        let datacache_publisher = event_center.get_publisher(Channel::Market).expect("Failed to get datacache publisher");
-        let indicator_publisher = event_center.get_publisher(Channel::Indicator).expect("Failed to get indicator publisher");
-        let cache_engine = Arc::new(Mutex::new(CacheEngine::new(datacache_publisher)));
+        let event_publisher = event_center.get_publisher1();
+        let cache_engine = Arc::new(Mutex::new(CacheEngine::new(event_publisher.clone())));
+        
         Self { 
             heartbeat: Arc::new(Mutex::new(Heartbeat::new(1000))),
             market_engine: Arc::new(Mutex::new(MarketDataEngine::new())),
             event_center: Arc::new(Mutex::new(event_center)),
             cache_engine: cache_engine.clone(),
-            indicator_engine: Arc::new(Mutex::new(IndicatorEngine::new(cache_engine, indicator_publisher))),
+            indicator_engine: Arc::new(Mutex::new(IndicatorEngine::new(cache_engine, event_publisher))),
         }
     }
 }
@@ -54,21 +54,23 @@ async fn start_heartbeat(star_river: State<StarRiver>) {
 }
 
 async fn start_cache_engine(star_river: State<StarRiver>) {
-    let market_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Market).unwrap();
-    let command_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Command).unwrap();
+    let exchange_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Exchange).expect("订阅交易所通道失败");
+    let indicator_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Indicator).expect("订阅指标通道失败");
+    let command_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Command).expect("订阅命令通道失败");
     let cache_engine = star_river.cache_engine.clone();
     tokio::spawn(async move {
         let mut cache_engine = cache_engine.lock().await;
-        cache_engine.start(market_event_receiver, command_event_receiver).await;
+        cache_engine.start(exchange_event_receiver, command_event_receiver, indicator_event_receiver).await;
     });
 }
 
 async fn start_indicator_engine(star_river: State<StarRiver>) {
-    let indicator_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Indicator).unwrap();
+    let market_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Market).unwrap();
+    let response_event_receiver = star_river.event_center.lock().await.subscribe(Channel::Response).unwrap();
     let indicator_engine = star_river.indicator_engine.clone();
     tokio::spawn(async move {
         let indicator_engine = indicator_engine.lock().await;
-        indicator_engine.listen(indicator_event_receiver).await;
+        indicator_engine.start(market_event_receiver, response_event_receiver).await;
     });
 }
 

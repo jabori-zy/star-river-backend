@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use event_center::EventCenter;
 use event_center::Event;
 use types::indicator::Indicators;
+use event_center::EventPublisher;
 
 
 #[derive(Clone)]
@@ -46,11 +47,11 @@ impl MarketDataEngine{
     }
     
     // 选择想要初始化的交易所
-    pub async fn register_exchange(&mut self, exchange: Exchange, binance_pulisher: broadcast::Sender<Event> ) -> Result<(), String> {
+    pub async fn register_exchange(&mut self, exchange: Exchange, event_publisher: EventPublisher) -> Result<(), String> {
         match exchange {
             Exchange::Binance => {
                 // 当类型为Box<dyn Trait Bound>时，需要显式地指定类型
-                let mut binance_exchange = Box::new(BinanceExchange::new(binance_pulisher)) as Box<dyn ExchangeClient>;
+                let mut binance_exchange = Box::new(BinanceExchange::new(event_publisher)) as Box<dyn ExchangeClient>;
                 binance_exchange.connect_websocket().await?;
                 
                 tracing::info!("{}交易所注册成功!", exchange);

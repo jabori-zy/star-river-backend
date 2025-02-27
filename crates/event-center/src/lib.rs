@@ -2,10 +2,12 @@ pub mod market_event;
 pub mod command_event;
 pub mod indicator_event;
 pub mod exchange_event;
+pub mod response_event;
 
 use market_event::MarketEvent;
 use command_event::CommandEvent;
 use exchange_event::ExchangeEvent;
+use response_event::ResponseEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -13,6 +15,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use tokio::sync::broadcast;
 use indicator_event::IndicatorEvent;
+use std::sync::Arc;
 
 
 
@@ -26,6 +29,7 @@ pub enum Channel {
     Indicator,
     Command,
     Exchange,
+    Response,
 }
 
 impl Channel {
@@ -48,6 +52,9 @@ pub enum Event {
     #[strum(serialize = "command")]
     #[serde(rename = "command")]
     Command(CommandEvent),
+    #[strum(serialize = "response")]
+    #[serde(rename = "response")]
+    Response(ResponseEvent),
 }
 
 impl Event {
@@ -57,6 +64,7 @@ impl Event {
             Event::Indicator(_) => Channel::Indicator,
             Event::Command(_) => Channel::Command,
             Event::Exchange(_) => Channel::Exchange,
+            Event::Response(_) => Channel::Response,
         }
     }
 }
@@ -142,6 +150,43 @@ impl EventCenter {
             .get(&channel)
             .ok_or(EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
         Ok(sender.clone())
+    }
+
+    pub fn get_publisher1(&self) -> EventPublisher {
+        // 只克隆 Arc，非常轻量
+        EventPublisher::new(self.channels.clone())
+    }
+
+
+}
+
+
+#[derive(Clone)]
+pub struct EventPublisher {
+    channels: Arc<HashMap<Channel, broadcast::Sender<Event>>>,
+}
+
+impl EventPublisher {
+    pub fn new(channels: HashMap<Channel, broadcast::Sender<Event>>) -> Self {
+        Self { 
+            channels: Arc::new(channels) 
+        }
+    }
+
+    pub fn publish(&self, event: Event) -> Result<(), EventCenterError> {
+        let channel = event.get_channel();
+        // 使用 get 而不是 get_channel() 来避免额外的匹配开销
+        let sender = self.channels.get(&channel)
+            .ok_or_else(|| EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
+
+        // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
+        
+        sender.send(event).map_err(|e| 
+            EventCenterError::EventSendError(format!("Failed to send event: {}", e))
+        )?;
+
+        
+        Ok(())
     }
 }
 

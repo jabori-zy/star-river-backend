@@ -16,7 +16,7 @@ use crate::star_river::StarRiver;
 use crate::api::market_api::subscribe_kline_stream;
 use crate::api::indicator_api::subscribe_indicator;
 use crate::api::market_api::get_heartbeat_lock;
-use crate::sse::sse_handler;
+use crate::sse::{market_sse_handler, indicator_sse_handler};
 use tracing::Level;
 use crate::websocket::ws_handler;
 use crate::star_river::init_app;
@@ -26,7 +26,7 @@ async fn main() {
     // 设置生产环境的日志级别
     tracing_subscriber::fmt()
         // filter spans/events with level TRACE or higher.
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::INFO)
         // build but do not install the subscriber.
         .init();
 
@@ -46,7 +46,8 @@ async fn main() {
         .route("/get_heartbeat_lock", get(get_heartbeat_lock))
         .route("/subscribe_indicator", post(subscribe_indicator))
         .route("/ws", any(ws_handler))
-        .route("/sse", get(sse_handler))
+        .route("/market_sse", get(market_sse_handler))
+        .route("/indicator_sse", get(indicator_sse_handler))
         .layer(cors)
         .with_state(star_river.clone());
 

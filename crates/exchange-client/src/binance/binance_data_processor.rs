@@ -6,9 +6,7 @@ use strum::Display;
 use strum::EnumString;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
 use utils::get_utc8_timestamp;
-use event_center::Event;
-use tokio::sync::broadcast;
-
+use event_center::EventPublisher;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {
@@ -39,7 +37,7 @@ impl BinanceDataProcessor {
     }
 
     // 处理k线系列
-    pub async fn process_kline_series(&self, symbol: &str, interval: BinanceKlineInterval, raw_data: Vec<serde_json::Value>, binance_publisher: broadcast::Sender<Event>) {
+    pub async fn process_kline_series(&self, symbol: &str, interval: BinanceKlineInterval, raw_data: Vec<serde_json::Value>, event_publisher: EventPublisher) {
         let klines = raw_data
             .iter()
             .map(|k| Kline {
@@ -70,7 +68,7 @@ impl BinanceDataProcessor {
         let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
         // let event_center = self.event_center.lock().await;
         // event_center.publish(exchange_klineseries_update_event).expect("发送k线系列更新事件失败");
-        let _ = binance_publisher.send(exchange_klineseries_update_event);
+        let _ = event_publisher.publish(exchange_klineseries_update_event);
         
         
     }
@@ -80,7 +78,7 @@ impl BinanceDataProcessor {
     // 发送两个事件
     // 1. k线缓存更新之后，推送整个k线数据到
     // 2. k线缓存大小事件
-    pub async fn process_stream_kline(&self, raw_stream: serde_json::Value, binance_publisher: broadcast::Sender<Event>) -> Result<(), String> {
+    pub async fn process_stream_kline(&self, raw_stream: serde_json::Value, event_publisher: EventPublisher) -> Result<(), String> {
         let k = &raw_stream["data"]["k"];
         let timestamp = k["t"].as_i64().expect("解析timestamp失败");
         let symbol = k["s"].as_str().expect("解析symbol失败");
@@ -110,7 +108,7 @@ impl BinanceDataProcessor {
         let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();  
         // let event_center = self.event_center.lock().await;
         // event_center.publish(event).expect("发送k线更新事件失败");
-        let _ = binance_publisher.send(event);
+        let _ = event_publisher.publish(event);
 
         
         Ok(())
@@ -118,7 +116,7 @@ impl BinanceDataProcessor {
 
 
     // 处理stream流数据
-    pub async fn process_stream(&self, raw_stream: serde_json::Value, binance_publisher: broadcast::Sender<Event>) {
+    pub async fn process_stream(&self, raw_stream: serde_json::Value, event_publisher: EventPublisher) {
         if raw_stream.get("data").is_some() {
             // log::info!("process_stream-binance: {:?}", raw_stream);
             let event = raw_stream["data"]["e"].as_str().expect("解析stream_event失败");
@@ -127,7 +125,7 @@ impl BinanceDataProcessor {
             match stream_event {
                 BinanceStreamEvent::Kline => {
                     // tracing::debug!("stream事件为: {:?}", stream_event);
-                    self.process_stream_kline(raw_stream, binance_publisher).await.expect("处理k线数据失败");
+                    self.process_stream_kline(raw_stream, event_publisher).await.expect("处理k线数据失败");
                 }
                 _ => {
                     tracing::warn!("不支持的事件类型: {:?}", stream_event);

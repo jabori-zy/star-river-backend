@@ -9,6 +9,7 @@ use types::market::KlineSeries;
 use crate::KlineCacheKey;
 use tokio::sync::broadcast;
 use event_center::Event;
+use event_center::EventPublisher;
 
 
 impl CacheEntry<KlineCacheKey, Kline> {
@@ -75,7 +76,7 @@ impl CacheManager<KlineCacheKey, Kline> {
 
     }
 
-    pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineUpdateEventInfo, event_publisher: broadcast::Sender<Event>) {    
+    pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineUpdateEventInfo, event_publisher: EventPublisher) {    
         // tracing::debug!("更新k线缓存, kline_update_event: {:?}", kline_update_event);
 
         let exchange = kline_update_event.exchange;
@@ -109,7 +110,7 @@ impl CacheManager<KlineCacheKey, Kline> {
         // tracing::info!("发布k线缓存事件: {:?}", klineseries_update_event);
         // let event_center: tokio::sync::MutexGuard<'_, event_center::EventCenter> = self.event_center.lock().await;
         // event_center.publish(kline_series_update_event).unwrap(); 
-        let _ = event_publisher.send(klineseries_update_event);
+        let _ = event_publisher.publish(klineseries_update_event);
         
         
     }

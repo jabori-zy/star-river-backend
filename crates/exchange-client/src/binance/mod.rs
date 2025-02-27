@@ -26,8 +26,8 @@ use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, Subscr
 use types::cache::{KlineCacheKey, IndicatorCacheKey};
 use utils::get_utc8_timestamp;
 use types::indicator::Indicators;
-use event_center::Event;
-use tokio::sync::broadcast;
+use event_center::EventPublisher;
+
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
@@ -170,8 +170,8 @@ pub struct BinanceExchange {
     http_client: BinanceHttpClient,
     websocket_state: Arc<Mutex<Option<WebSocketState>>>, // 可以在线程间传递
     data_processor: Arc<Mutex<BinanceDataProcessor>>,
-    binance_publisher: broadcast::Sender<Event>,
     is_process_stream: Arc<AtomicBool>,
+    event_publisher: EventPublisher,
 }
 
 #[async_trait]
@@ -203,14 +203,15 @@ impl ExchangeClient for BinanceExchange {
         let command_event = CommandEvent::KlineCacheManager(command);
 
         // 使用binance_publisher发送命令
-        let _ = self.binance_publisher.send(command_event.clone().into());
+        // let _ = self.binance_publisher.send(command_event.clone().into());
+        let _ = self.event_publisher.publish(command_event.clone().into());
 
         let binance_interval = BinanceKlineInterval::from(interval);
 
         let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, start_time, end_time).await?;
         // 发送到数据处理器，处理数据
         let data_processor = self.data_processor.lock().await;
-        data_processor.process_kline_series(symbol, binance_interval, klines, self.binance_publisher.clone()).await;
+        data_processor.process_kline_series(symbol, binance_interval, klines, self.event_publisher.clone()).await;
         Ok(())
 
     }
@@ -249,7 +250,7 @@ impl ExchangeClient for BinanceExchange {
         let data_processor = self.data_processor.clone();
 
 
-        let binance_publisher = self.binance_publisher.clone();
+        let binance_publisher = self.event_publisher.clone();
         let future = async move {
             loop {
                 let receive_message = {
@@ -277,15 +278,15 @@ impl ExchangeClient for BinanceExchange {
 
 
 impl BinanceExchange {
-    pub fn new(binance_publisher: broadcast::Sender<Event>) -> Self {
+    pub fn new(event_publisher: EventPublisher) -> Self {
         Self {
             server_time: None,
             info: None,
             http_client: BinanceHttpClient::new(),
             websocket_state: Arc::new(Mutex::new(None)),
             data_processor: Arc::new(Mutex::new(BinanceDataProcessor::new())),
-            binance_publisher,
             is_process_stream: Arc::new(AtomicBool::new(false)),
+            event_publisher,
         }
     }
     
@@ -317,7 +318,7 @@ impl BinanceExchange {
         };
         let command = IndicatorCacheManagerCommand::SubscribeIndicator(params);
         let command_event = CommandEvent::IndicatorCacheManager(command);
-        let _ = self.binance_publisher.send(command_event.into());
+        let _ = self.event_publisher.publish(command_event.into());
 
         Ok(())
     }

@@ -1,10 +1,14 @@
 use crate::{CacheManager, CacheEntry};
 use std::collections::VecDeque;
+use event_center::response_event::{CacheEngineResponse, ResponseEvent};
 use types::market::Exchange;
 use utils::get_utc8_timestamp;
 use types::indicator::IndicatorData;
 use types::cache::IndicatorCacheKey;
 use types::market::KlineInterval;
+use event_center::command_event::GetSubscribedIndicatorParams;
+use event_center::response_event::{SubscribedIndicatorResponse};
+use event_center::EventPublisher;
 
 // 修改 CacheEntry 以接受实现了 Indicator 特征的类型
 impl CacheEntry<IndicatorCacheKey, Box<dyn IndicatorData>> {
@@ -48,16 +52,28 @@ impl CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>> {
     }
 
     // 获取k线系列需要计算的指标
-    pub fn get_klineseries_subscribed_indicator(&self, exchange: Exchange, symbol: String, interval: KlineInterval) -> Vec<IndicatorCacheKey> {
-        tracing::debug!("获取K线系列订阅的指标: {:?}-{:?}-{:?}", exchange, symbol, interval);
+    pub fn get_subscribed_indicator(&self, params: GetSubscribedIndicatorParams, event_publisher: EventPublisher) {
+        tracing::debug!("接收到的参数: {:?}", params);
         let mut sub_indicator_key_list = Vec::new();
         for (key, _) in self.cache.iter() {
             // 如果key的symbol和interval和exchange都匹配，则加入sub_indicator_key_list
-            if key.symbol == symbol && key.interval == interval && key.exchange == exchange {
+            if key.symbol == params.symbol && key.interval == params.interval && key.exchange == params.exchange {
                 sub_indicator_key_list.push(key.clone());
             }
         }
-        sub_indicator_key_list
+
+        
+        
+        let response_id = params.request_id;
+        let response = CacheEngineResponse::SubscribedIndicator(SubscribedIndicatorResponse {
+            indicator_cache_key_list: sub_indicator_key_list,
+            response_timestamp: get_utc8_timestamp(),
+            response_id: response_id,
+        });
+        let response_event = ResponseEvent::CacheEngine(response);
+        tracing::debug!("返回值发送成功 {:?}", response_event);
+        event_publisher.publish(response_event.into()).expect("返回值发送失败");
+
     }
 
 }
