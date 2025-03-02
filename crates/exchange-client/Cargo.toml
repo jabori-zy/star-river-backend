@@ -11,6 +11,7 @@ event-center = {path = "../event-center"}
 indicator-engine = {path = "../indicator-engine"}
 utils = {path = "../utils"}
 data-cache = {path = "../data-cache"}
+strategy = {path = "../strategy"}
 
 strum.workspace = true
 strum_macros.workspace = true

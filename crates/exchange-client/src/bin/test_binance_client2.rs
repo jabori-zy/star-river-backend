@@ -17,6 +17,7 @@ use data_cache::CacheEngine;
 use tracing::{event, Level};
 use tracing_subscriber;
 use tokio::sync::mpsc;
+use strategy::strategy::Strategy;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -35,48 +36,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     
 
     let event_center = Arc::new(Mutex::new(EventCenter::new()));
-    let (indicator_publisher, indicator_receiver) = {
-        let event_center = event_center.lock().await;
-        let receiver = event_center.subscribe(Channel::Indicator).unwrap();
-        let publisher = event_center.get_publisher(Channel::Indicator).unwrap();
-        (publisher, receiver)
-    };
-    let binance_publisher = {
-        let event_center = event_center.lock().await;
-        event_center.get_publisher(Channel::Market).unwrap()
-    };
 
 
     let cache_engine_publisher = {
         let event_center = event_center.lock().await;
-        event_center.get_publisher(Channel::Market).unwrap()
+        event_center.get_publisher1()
     };
 
     let cache_engine = Arc::new(Mutex::new(CacheEngine::new(cache_engine_publisher)));
 
-    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(cache_engine.clone(), indicator_publisher)));
 
-    let binance_exchange = Arc::new(Mutex::new(BinanceExchange::new(event_center.clone(), binance_publisher)));
+    let indicator_engine_publisher = {
+        let event_center = event_center.lock().await;
+        event_center.get_publisher1()
+    };
+    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(indicator_engine_publisher)));
+
+
+    let binance_publisher = {
+        let event_center = event_center.lock().await;
+        event_center.get_publisher1()
+    };
+    let binance_exchange = Arc::new(Mutex::new(BinanceExchange::new(binance_publisher)));
     
 
     tokio::spawn(async move {
         let mut binance_exchange = binance_exchange.lock().await;
         binance_exchange.init_exchange().await.unwrap();
-        binance_exchange.get_kline_series("BTCUSDT", KlineInterval::Minutes1, Some(1), None, None).await.unwrap();
-        binance_exchange.get_kline_series("BTCUSDT", KlineInterval::Minutes1, Some(1), None, None).await.unwrap();
+        binance_exchange.get_kline_series("BTCUSDT", KlineInterval::Minutes1, Some(20), None, None).await.unwrap();
 
         binance_exchange.subscribe_kline_stream("BTCUSDT", KlineInterval::Minutes1).await.unwrap();
 
         binance_exchange.get_socket_stream().await.unwrap();
-        let sma_config = SMAConfig {
-            period: 14
-        };
-        binance_exchange.subscribe_indicator("BTCUSDT", Indicators::SimpleMovingAverage(sma_config)).await.unwrap();
-
-        let sma_config = SMAConfig {
-            period: 26
-        };
-        binance_exchange.subscribe_indicator("BTCUSDT", Indicators::SimpleMovingAverage(sma_config)).await.unwrap();
 
     });
 
@@ -91,32 +82,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let event_center = event_center.lock().await;
         event_center.subscribe(Channel::Command).unwrap()
     };
+
+    let event_center_clone = event_center.clone();
     tokio::spawn(async move {
+        let exchange_event_receiver = event_center_clone.lock().await.subscribe(Channel::Exchange).unwrap();
+        let indicator_event_receiver = event_center_clone.lock().await.subscribe(Channel::Indicator).unwrap();
+        let command_event_receiver = event_center_clone.lock().await.subscribe(Channel::Command).unwrap();
         let mut cache_engine = cache_engine_clone.lock().await;
-        cache_engine.start(market_event_receiver, command_event_receiver).await;
+        cache_engine.start(exchange_event_receiver, indicator_event_receiver, command_event_receiver).await;
     });
 
-    // let cache_engine = cache_engine.clone();
-    // tokio::spawn(async move {
-    //     loop {
-    //         let cache_engine = cache_engine.try_lock();
-    //         if let Ok(cache_engine) = cache_engine {
-    //             tracing::debug!("获取锁成功");
-    //         }
-    //         else {
-    //                 tracing::error!("获取锁失败");
-    //         }
-    //         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    //     }
-    // });
+    let node_event_publisher = {
+        let event_center = event_center.lock().await;
+        event_center.get_publisher1()
+    };
+    let response_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Response).unwrap()
+    };
+    tokio::spawn(async move {
+        let mut strategy = Strategy::new("test_strategy".to_string());
+        let data_source_node_id = strategy.add_data_source_node("BTCUSDT".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, market_event_receiver);
+        let sma_config = SMAConfig { period: 3 };
+        let indicator_node_id = strategy.add_indicator_node("SMA14".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, Indicators::SimpleMovingAverage(sma_config), node_event_publisher, response_event_receiver);
+        
+        strategy.add_edge(&data_source_node_id, &indicator_node_id);
+        strategy.run().await;
+    });
+
 
 
 
     let indicator_engine = indicator_engine.clone();
-    let indicator_receiver = event_center.lock().await.subscribe(Channel::Market).unwrap();
+    let market_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Market).unwrap()
+    };
+    let command_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Command).unwrap()
+    };
+    let response_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Response).unwrap()
+    };
     tokio::spawn(async move {
         let indicator_engine = indicator_engine.lock().await;
-        indicator_engine.listen(indicator_receiver).await;
+        indicator_engine.start(command_event_receiver, response_event_receiver).await;
     });
 
     // 保持主程序运行
