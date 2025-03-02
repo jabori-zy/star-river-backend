@@ -8,6 +8,7 @@ use exchange_client::ExchangeClient;
 use event_center::EventCenter;
 use event_center::Channel;
 use indicator_engine::IndicatorEngine;
+use strategy::condition_node::ConditionNode;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use types::indicator::Indicators;
@@ -18,6 +19,8 @@ use tracing::{event, Level};
 use tracing_subscriber;
 use tokio::sync::mpsc;
 use strategy::strategy::Strategy;
+use strategy::condition_node::ConditionType;
+use strategy::condition_node::Condition;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -106,7 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let sma_config = SMAConfig { period: 3 };
         let indicator_node_id = strategy.add_indicator_node("SMA14".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, Indicators::SimpleMovingAverage(sma_config), node_event_publisher, response_event_receiver);
         
+        let mut condition_node = ConditionNode::new("condition_node".to_string(), ConditionType::And);
+        condition_node.add_condition(Condition::new(data_source_node_id, ">", indicator_node_id));
+        let condition_node_id = strategy.add_condition_node(condition_node);
+
         strategy.add_edge(&data_source_node_id, &indicator_node_id);
+        strategy.add_edge(&indicator_node_id, &condition_node_id);
         strategy.run().await;
     });
 
