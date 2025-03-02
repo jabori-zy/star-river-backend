@@ -109,7 +109,6 @@ pub struct CacheEngine {
 
 impl CacheEngine {
     pub fn new(
-        // event_center: Arc<Mutex<EventCenter>>, 
         event_publisher: EventPublisher, 
     ) -> Self {
         Self {
@@ -191,6 +190,7 @@ impl CacheEngine {
                     }
                 }
             }
+            _ => {}
         }
     }
 
@@ -211,6 +211,7 @@ impl CacheEngine {
     async fn handle_indicator_event(&self, indicator_event: IndicatorEvent) {
         // tracing::info!("处理指标事件: {:?}", indicator_event);
     }
+    
     pub async fn start(
         &mut self, 
         exchange_event_receiver: broadcast::Receiver<Event>, 

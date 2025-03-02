@@ -1,3 +1,10 @@
+pub mod strategy;
+pub mod data_source_node;
+pub mod indicator_node;
+pub mod condition_node;
+pub mod message;
+
+
 use tokio::sync::broadcast;
 use std::fmt::Debug;
 use std::any::Any;
@@ -6,23 +13,15 @@ use chrono::{DateTime, Utc};
 use tokio::sync::broadcast::error::SendError;
 use std::error::Error;
 use async_trait::async_trait;
+use types::market::KlineSeries;
+use types::indicator::{Indicators, IndicatorData};
+use serde::{Deserialize, Serialize};
+use crate::message::NodeMessage;
 
-#[derive(Debug, Clone)]
-pub struct NodeMessage {
-    pub from_node_id: Uuid,
-    pub from_node_name: String,
-    pub value: f64,
-    pub message_type: MessageType,
-    pub batch_id: String,
-    pub timestamp: i64,
-}
 
-#[derive(Debug, Clone)]
-pub enum MessageType {
-    Kline,
-    Indicator,
-    Signal,
-}
+
+
+
 
 // 节点类型
 #[derive(Debug, Clone)]
@@ -87,13 +86,6 @@ impl NodeTrait for StartNode {
 }
 
 
-
-
-
-
-
-
-
 #[derive(Debug, Clone)]
 pub struct NodeSender {
     pub node_id: String,
@@ -153,6 +145,7 @@ pub struct Edge {
     pub source: NodeType,
     pub target: NodeType,
 }
+
 
 
 

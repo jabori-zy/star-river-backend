@@ -23,12 +23,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, Display, Eq, Hash, PartialEq)]
 pub enum Channel {
     Market,
+    Exchange,
     Trade,
     Order,
     Position,
     Indicator,
     Command,
-    Exchange,
     Response,
 }
 
@@ -162,7 +162,7 @@ impl EventCenter {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EventPublisher {
     channels: Arc<HashMap<Channel, broadcast::Sender<Event>>>,
 }
@@ -180,7 +180,7 @@ impl EventPublisher {
         let sender = self.channels.get(&channel)
             .ok_or_else(|| EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
 
-        tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
+        // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
         
         sender.send(event).map_err(|e| 
             EventCenterError::EventSendError(format!("Failed to send event: {}", e))

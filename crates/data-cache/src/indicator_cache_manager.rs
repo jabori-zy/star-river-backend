@@ -71,7 +71,7 @@ impl CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>> {
             response_id: response_id,
         });
         let response_event = ResponseEvent::CacheEngine(response);
-        tracing::debug!("返回值发送成功 {:?}", response_event);
+        // tracing::debug!("返回值发送成功 {:?}", response_event);
         event_publisher.publish(response_event.into()).expect("返回值发送失败");
 
     }

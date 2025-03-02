@@ -1,4 +1,4 @@
-use crate::node::*;
+use crate::*;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use types::indicator::Indicators;
 use crate::data_source_node::DataSourceNode;
 use crate::indicator_node::IndicatorNode;
 use crate::condition_node::{ConditionNode, Condition, ConditionType, Operator};
-
+use event_center::{Event, EventPublisher};
 
 // 策略图
 pub struct Strategy {
@@ -29,7 +29,7 @@ impl Strategy {
         }
     }
 
-    pub fn add_data_source_node(&mut self, name: String, exchange: Exchange, symbol: String, interval: KlineInterval) -> Uuid {
+    pub fn add_data_source_node(&mut self, name: String, exchange: Exchange, symbol: String, interval: KlineInterval, market_event_receiver: broadcast::Receiver<Event>) -> Uuid {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         let node_id = Uuid::new_v4();
         let node = DataSourceNode {
@@ -41,6 +41,7 @@ impl Strategy {
             interval,
             sender: NodeSender::new(node_id.to_string(), tx),
             receivers: Vec::new(),
+            market_event_receiver,
         };
         let node = Box::new(node);
         let node_index = self.graph.add_node(node);
@@ -48,16 +49,23 @@ impl Strategy {
         node_id
     }
 
-    pub fn add_indicator_node(&mut self, name: String, indicator: Indicators) -> Uuid {
+    pub fn add_indicator_node(&mut self, name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Uuid {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         let node_id = Uuid::new_v4();
         let node = IndicatorNode {
             id: node_id,
             name,
             node_type: NodeType::Indicator,
+            exchange,
+            symbol,
+            interval,
             indicator,
-            sender: NodeSender::new(node_id.to_string(), tx),
-            receivers: Vec::new(),
+            node_sender: NodeSender::new(node_id.to_string(), tx),
+            node_receivers: Vec::new(), 
+            event_publisher,
+            response_event_receiver,
+            current_batch_id: None,
+            request_id: None,
         };
         let node = Box::new(node);
         let node_index = self.graph.add_node(node);

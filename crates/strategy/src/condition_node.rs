@@ -5,7 +5,7 @@ use uuid::Uuid;
 use std::error::Error;
 use async_trait::async_trait;
 use tokio::sync::broadcast;
-use crate::node::*;
+use crate::*;
 use serde::{Serialize, Deserialize};
 use strum::EnumString;
 use std::str::FromStr;
@@ -19,7 +19,7 @@ pub struct ConditionNode {
     pub name: String,
     pub condition_type: ConditionType,
     pub conditions: Vec<Condition>,
-    pub input_values: HashMap<Uuid, f64>,
+    pub input_values: HashMap<Uuid, NodeMessage>,
     pub sender: NodeSender,
     pub receivers: Vec<NodeReceiver>,
     pub current_batch_id: Option<String>,
@@ -54,30 +54,35 @@ impl NodeTrait for ConditionNode {
         let mut combined_stream = select_all(streams);
         while let Some(result) = combined_stream.next().await {
             let message = result.unwrap();
-            println!("条件节点收到数据: batch_id={}, from={}, value={}", 
-                message.batch_id, message.from_node_name, message.value);
+            match message {
+                NodeMessage::Indicator(indicator_message) => {
+                    println!("条件节点收到数据: batch_id={}, from={}, message={:?}", 
+                        indicator_message.batch_id, indicator_message.from_node_name, indicator_message.indicator);
+                }
+                _ => {}
+            }
 
-            // let is_new_batch = self.update_value(message.from_node_id, message.value, message.batch_id.clone());
-            self.update_value(message.from_node_id, message.value, message.batch_id.clone());
+        //     // let is_new_batch = self.update_value(message.from_node_id, message.value, message.batch_id.clone());
+        //     self.update_value(message.from_node_id, message.message, message.batch_id.clone());
 
-            // 检查是否收集完整
-            if self.is_batch_complete()  && !self.is_processing {
-                println!("开始处理批次 {}", self.current_batch_id.as_ref().unwrap());
-                self.is_processing = true;
-                let result = self.evaluate();
-                println!("批次{}信号结果: {}", self.current_batch_id.as_ref().unwrap(), result);
+        //     // 检查是否收集完整
+        //     if self.is_batch_complete()  && !self.is_processing {
+        //         println!("开始处理批次 {}", self.current_batch_id.as_ref().unwrap());
+        //         self.is_processing = true;
+        //         // let result = self.evaluate();
+        //         // println!("批次{}信号结果: {}", self.current_batch_id.as_ref().unwrap(), result);
 
-                // 完成处理
-                println!("批次处理完成");
-                println!("+++++++++++++++++++++++++++++++");
-                self.is_processing = false;
+        //         // 完成处理
+        //         println!("批次处理完成");
+        //         println!("+++++++++++++++++++++++++++++++");
+        //         self.is_processing = false;
                 
-            }
-            else if self.is_processing {
-                println!("新数据到达时正在处理中，跳过当前处理");
-            }
+        //     }
+        //     else if self.is_processing {
+        //         println!("新数据到达时正在处理中，跳过当前处理");
+        //     }
 
-            // tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        //     // tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
         Ok(())
         
@@ -114,21 +119,21 @@ impl ConditionNode {
         self.conditions.clone()
     }
 
-    pub fn get_input_values(&self) -> HashMap<Uuid, f64> {
-        self.input_values.clone()
-    }
+    // pub fn get_input_values(&self) -> HashMap<Uuid, Message> {
+    //     self.input_values.clone()
+    // }
 
-    fn update_value(&mut self, from_node_id: Uuid, value: f64, batch_id: String) {
-        // 收到新批次数据时，直接清空旧数据开始新的处理
-        if self.current_batch_id.as_ref() != Some(&batch_id) {
-            println!("收到新批次数据，清空旧数据");
-            self.input_values.clear();
-            self.current_batch_id = Some(batch_id);
-            self.is_processing = false;  // 重置处理状态
-        }
+    // fn update_value(&mut self, from_node_id: Uuid, message: Message, batch_id: String) {
+    //     // 收到新批次数据时，直接清空旧数据开始新的处理
+    //     if self.current_batch_id.as_ref() != Some(&batch_id) {
+    //         println!("收到新批次数据，清空旧数据");
+    //         self.input_values.clear();
+    //         self.current_batch_id = Some(batch_id);
+    //         self.is_processing = false;  // 重置处理状态
+    //     }
         
-        self.input_values.insert(from_node_id, value);
-    }
+    //     self.input_values.insert(from_node_id, message);
+    // }
 
     // 检查当前批次是否接收完整
     fn is_batch_complete(&self) -> bool {
@@ -138,37 +143,38 @@ impl ConditionNode {
 
 
     // 评估单个条件
-    fn evaluate_single_condition(&self, condition: &Condition) -> bool {
-        let left_value = match self.input_values.get(&condition.left_value_node_id) {
-            Some(value) => *value,
-            None => return false, // 如果没有值，条件判断失败
-        };
+    // fn evaluate_single_condition(&self, condition: &Condition) -> bool {
+    //     let left_value = match self.input_values.get(&condition.left_value_node_id) {
+    //         Some(value) => *value,
+    //         None => return false, // 如果没有值，条件判断失败
+    //     };
 
-        let right_value = match self.input_values.get(&condition.right_value_node_id) {
-            Some(value) => *value,
-            None => return false,
-        };
+    //     let right_value = match self.input_values.get(&condition.right_value_node_id) {
+    //         Some(value) => *value,
+    //         None => return false,
+    //     };
+    //     true
 
-        match condition.operator {
-            Operator::GreaterThan => left_value > right_value,
-            Operator::LessThan => left_value < right_value,
-            Operator::Equal => (left_value - right_value).abs() < f64::EPSILON,
-            Operator::GreaterThanOrEqual => left_value >= right_value,
-            Operator::LessThanOrEqual => left_value <= right_value,
-            Operator::NotEqual => left_value != right_value,
-        }
-    }
+        // match condition.operator {
+        //     Operator::GreaterThan => left_value > right_value,
+        //     Operator::LessThan => left_value < right_value,
+        //     Operator::Equal => (left_value - right_value).abs() < f64::EPSILON,
+        //     Operator::GreaterThanOrEqual => left_value >= right_value,
+        //     Operator::LessThanOrEqual => left_value <= right_value,
+        //     Operator::NotEqual => left_value != right_value,
+        // }
+    // }
 
-    pub fn evaluate(&self) -> bool {
-        match &self.condition_type {
-            ConditionType::And => {
-                self.conditions.iter().all(|condition| self.evaluate_single_condition(condition))
-            }
-            ConditionType::Or => {
-                self.conditions.iter().any(|condition| self.evaluate_single_condition(condition))
-            }
-        }
-    }
+    // pub fn evaluate(&self) -> bool {
+    //     match &self.condition_type {
+    //         ConditionType::And => {
+    //             self.conditions.iter().all(|condition| self.evaluate_single_condition(condition))
+    //         }
+    //         ConditionType::Or => {
+    //             self.conditions.iter().any(|condition| self.evaluate_single_condition(condition))
+    //         }
+    //     }
+    // }
 
 
 }

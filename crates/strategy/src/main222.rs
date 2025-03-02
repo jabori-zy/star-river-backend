@@ -10,6 +10,7 @@ use strategy::*;
 use types::market::*;
 use types::indicator::*;
 use types::indicator_config::*;
+use event_center::*;
 
 #[tokio::main]
 async fn main() {
@@ -22,11 +23,13 @@ async fn main() {
     };
     // let indicator_node_14 = IndicatorNode::new(Indicators::SimpleMovingAverage(sma_config_14));
     // let indicator_node_20 = IndicatorNode::new(Indicators::SimpleMovingAverage(sma_config_20));
+    let event_center = EventCenter::new();
+    let market_event_receiver = event_center.subscribe(Channel::Market).unwrap();
 
     let mut strategy = Strategy::new("test".to_string());
-    let data_source_node_id = strategy.add_data_source_node("BTCUSDT".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1);
-    let indicator_node_14_id = strategy.add_indicator_node("SMA14".to_string(), Indicators::SimpleMovingAverage(sma_config_14));
-    let indicator_node_20_id = strategy.add_indicator_node("SMA20".to_string(), Indicators::SimpleMovingAverage(sma_config_20));
+    let data_source_node_id = strategy.add_data_source_node("BTCUSDT".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, market_event_receiver);
+    let indicator_node_14_id = strategy.add_indicator_node("SMA14".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, Indicators::SimpleMovingAverage(sma_config_14));
+    let indicator_node_20_id = strategy.add_indicator_node("SMA20".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, Indicators::SimpleMovingAverage(sma_config_20));
 
     // 添加条件
     let condition1 = Condition::new(indicator_node_14_id, ">", indicator_node_20_id);

@@ -5,12 +5,14 @@ use types::cache::{KlineCacheKey, IndicatorCacheKey};
 use crate::Event;
 use types::market::{Exchange, KlineInterval};
 use uuid::Uuid;
-use tokio::sync::oneshot;
+use types::indicator::Indicators;
+use types::market::KlineSeries;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum CommandEvent {
     KlineCacheManager(KlineCacheManagerCommand),
     IndicatorCacheManager(IndicatorCacheManagerCommand),
+    IndicatorEngine(IndicatorEngineCommand),
 }
 
 impl From<CommandEvent> for Event {
@@ -61,6 +63,30 @@ pub struct GetSubscribedIndicatorParams {
     pub timestamp:i64,
     pub request_id: Uuid,
 }
+
+
+// 指标引擎命令
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum IndicatorEngineCommand {
+    #[strum(serialize = "calculate-indicator")]
+    CalculateIndicator(CalculateIndicatorParams), // 计算指标
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CalculateIndicatorParams {
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub indicator: Indicators,
+    pub kline_series: KlineSeries,
+    pub sender: String,
+    pub command_timestamp:i64,
+    pub request_id: Uuid,
+    pub batch_id: String,
+}
+
+
 
 
 

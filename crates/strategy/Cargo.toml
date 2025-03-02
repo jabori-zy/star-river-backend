@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 types = {path = "../types"}
 utils = {path = "../utils"}
+event-center = {path = "../event-center"}
 petgraph = "0.7.1"
 tokio = { version = "1.41.1", features = ["full"] }
 rand = "0.8.5"
@@ -18,3 +19,4 @@ async-trait.workspace = true
 serde = { version = "1.0.215", features = ["derive"] }
 strum = "0.27.1"
 chrono.workspace = true
+tracing.workspace = true
