@@ -26,7 +26,7 @@ async fn main() {
     // 设置生产环境的日志级别
     tracing_subscriber::fmt()
         // filter spans/events with level TRACE or higher.
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         // build but do not install the subscriber.
         .init();
 

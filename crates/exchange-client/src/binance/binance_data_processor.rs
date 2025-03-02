@@ -7,6 +7,7 @@ use strum::EnumString;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
 use utils::get_utc8_timestamp;
 use event_center::EventPublisher;
+use utils::generate_batch_id;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {
@@ -63,6 +64,7 @@ impl BinanceDataProcessor {
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
             kline_series,
+            batch_id: generate_batch_id(),
         };
         // 发送k线系列更新事件
         let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
@@ -103,6 +105,7 @@ impl BinanceDataProcessor {
             interval: interval.clone().into(),
             kline: new_kline,
             event_timestamp: get_utc8_timestamp(),
+            batch_id: generate_batch_id(),
         };
 
         let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();  

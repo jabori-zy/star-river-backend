@@ -5,7 +5,7 @@ mod talib_bindings;
 mod talib;
 
 use std::sync::Arc;
-use event_center::market_event::{MarketEvent, KlineSeriesEventInfo};
+use event_center::market_event::{MarketEvent, KlineSeriesUpdateEventInfo};
 use event_center::response_event::{self, CacheEngineResponse};
 use tokio::sync::Mutex;
 use event_center::EventCenter;
@@ -42,7 +42,7 @@ pub struct IndicatorEngine{
     talib: Arc<TALib>,
     cache_engine: Arc<Mutex<CacheEngine>>,
     event_publisher: EventPublisher,
-    kline_series_cache: Arc<RwLock<HashMap<Uuid, KlineSeriesEventInfo>>>,
+    kline_series_cache: Arc<RwLock<HashMap<Uuid, KlineSeriesUpdateEventInfo>>>,
 }
 
 impl IndicatorEngine {
@@ -171,7 +171,7 @@ impl IndicatorEngine {
         
     }
 
-    async fn handle_indicator(talib: Arc<TALib>, indicator_cache_key: IndicatorCacheKey, kline_series_event: KlineSeriesEventInfo, event_publisher: EventPublisher) {
+    async fn handle_indicator(talib: Arc<TALib>, indicator_cache_key: IndicatorCacheKey, kline_series_event: KlineSeriesUpdateEventInfo, event_publisher: EventPublisher) {
         match indicator_cache_key.indicator {
             Indicators::SimpleMovingAverage(sma_config) => {
                 let sma = IndicatorEngine::calculate_sma(talib, &sma_config.period, kline_series_event, event_publisher).await;
@@ -181,9 +181,8 @@ impl IndicatorEngine {
         }
     }
 
-    async fn get_subscribed_indicator(&mut self, kline_series_event: KlineSeriesEventInfo) {
+    async fn get_subscribed_indicator(&mut self, kline_series_event: KlineSeriesUpdateEventInfo) {
         // 生成请求id
-        tracing::debug!("接收K线系列更新事件, 生成请求id, 发送命令获取k线订阅的指标列表");
         let request_id = Uuid::new_v4();
         let params = GetSubscribedIndicatorParams {
             exchange: kline_series_event.clone().exchange,
@@ -210,7 +209,7 @@ impl IndicatorEngine {
     }
 
 
-    async fn calculate_sma(talib: Arc<TALib>, period: &i32, kline_event: KlineSeriesEventInfo, event_publisher: EventPublisher) -> Result<(), String> {
+    async fn calculate_sma(talib: Arc<TALib>, period: &i32, kline_event: KlineSeriesUpdateEventInfo, event_publisher: EventPublisher) -> Result<(), String> {
         let kline_series = kline_event.kline_series.clone();
         let timestamp_list: Vec<i64> = kline_series.series.iter().map(|v| v.timestamp).collect();  
         let close: Vec<f64> = kline_series.series.iter().map(|v| v.close).collect();

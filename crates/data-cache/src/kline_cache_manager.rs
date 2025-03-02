@@ -1,34 +1,35 @@
 use crate::{CacheManager, CacheEntry};
 
 use event_center::exchange_event::{ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
-use event_center::market_event::{MarketEvent, KlineSeriesEventInfo};
+use event_center::market_event::{MarketEvent, KlineSeriesUpdateEventInfo};
 use types::market::Kline;
 use std::collections::VecDeque;
 use utils::get_utc8_timestamp;
 use types::market::KlineSeries;
 use crate::KlineCacheKey;
-use tokio::sync::broadcast;
-use event_center::Event;
 use event_center::EventPublisher;
 
 
 impl CacheEntry<KlineCacheKey, Kline> {
-    pub fn initialize(&mut self, data: VecDeque<Kline>) {
+    pub fn initialize(&mut self, batch_id: String, data: VecDeque<Kline>) {
+        self.batch_id = Some(batch_id);
         self.data = data;
         self.is_fresh = true;
         self.updated_at = get_utc8_timestamp();
     }
 
-    pub fn insert_or_update(&mut self, kline: Kline) {
+    pub fn insert_or_update(&mut self, kline: Kline, batch_id: String) {
         // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k
         if self.data.back().unwrap().timestamp == kline.timestamp {
             self.data.pop_back();
             self.data.push_back(kline);
             self.is_fresh = true;
+            self.batch_id = Some(batch_id);
             self.updated_at = get_utc8_timestamp();
         } else {
             self.data.push_back(kline);
             self.is_fresh = true;
+            self.batch_id = Some(batch_id);
             self.updated_at = get_utc8_timestamp();
         }
 
@@ -69,9 +70,10 @@ impl CacheManager<KlineCacheKey, Kline> {
 
         // 初始化缓存
         let kline_series = exchange_klineseries_event.kline_series;
+        let batch_id = exchange_klineseries_event.batch_id;
 
         let cache_entry = self.cache.get_mut(&cache_key).unwrap();
-        cache_entry.initialize(kline_series.series.into_iter().collect());
+        cache_entry.initialize(batch_id, kline_series.series.into_iter().collect());
         // tracing::debug!("初始化k线缓存成功, cache_entry: {:?}", cache_entry);
 
     }
@@ -95,17 +97,19 @@ impl CacheManager<KlineCacheKey, Kline> {
         }
 
         let cache_entry: &mut CacheEntry<KlineCacheKey, Kline> = self.cache.get_mut(&cache_key).unwrap();
-        cache_entry.insert_or_update(kline_update_event.kline);
+        let batch_id = cache_entry.batch_id.clone().unwrap();
+        cache_entry.insert_or_update(kline_update_event.kline, batch_id.clone());
         // tracing::debug!("更新k线缓存成功, cache_entry: {:?}", cache_entry);
 
         // 发布事件
         
-        let klineseries_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesEventInfo {
+        let klineseries_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesUpdateEventInfo {
             exchange,
             symbol,
             interval,
             kline_series: KlineSeries::from(cache_entry.clone()),
-            event_timestamp: get_utc8_timestamp()
+            event_timestamp: get_utc8_timestamp(),
+            batch_id,
         }).into();
         // tracing::info!("发布k线缓存事件: {:?}", klineseries_update_event);
         // let event_center: tokio::sync::MutexGuard<'_, event_center::EventCenter> = self.event_center.lock().await;

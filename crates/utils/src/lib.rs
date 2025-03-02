@@ -20,3 +20,11 @@ pub fn timestamp_to_utc8(timestamp: i64) -> String {
     let china_timezone = FixedOffset::east_opt(8 * 3600).unwrap();
     DateTime::<Utc>::from_timestamp_millis(timestamp).unwrap().with_timezone(&china_timezone).format("%Y-%m-%d %H:%M:%S").to_string()
 }
+
+// 生成一个唯一的batch_id
+pub fn generate_batch_id() -> String {
+    let timestamp = get_utc8_timestamp();
+    let random = rand::random::<u16>();
+    format!("{}-{}", timestamp, random)
+}
+

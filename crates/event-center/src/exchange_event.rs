@@ -33,6 +33,7 @@ pub struct ExchangeKlineSeriesUpdateEventInfo {
     pub interval: KlineInterval,
     pub kline_series: KlineSeries,
     pub event_timestamp: i64,
+    pub batch_id: String,
 }
 
 
@@ -43,6 +44,7 @@ pub struct ExchangeKlineUpdateEventInfo {
     pub interval: KlineInterval,
     pub kline: Kline,
     pub event_timestamp: i64,
+    pub batch_id: String,
 }
 
 

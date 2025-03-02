@@ -33,6 +33,7 @@ use event_center::EventPublisher;
 #[derive(Debug, Clone)]
 pub struct CacheEntry<K: CacheKey, T> {
     pub key: K,
+    pub batch_id: Option<String>,
     pub data: VecDeque<T>,
     pub created_at: i64,
     pub updated_at: i64,
@@ -45,6 +46,7 @@ impl<K: CacheKey, T: Debug> CacheEntry<K, T> {
     pub fn new(key: K, max_size: usize, ttl: Duration) -> Self {
         Self { 
             key,
+            batch_id: None,
             data: VecDeque::<T>::new(), 
             created_at: get_utc8_timestamp(), 
             updated_at: get_utc8_timestamp(), 

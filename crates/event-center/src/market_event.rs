@@ -12,7 +12,7 @@ pub enum MarketEvent {
     KlineUpdate(KlineEventInfo),
     #[strum(serialize = "kline-series-update")]
     #[serde(rename = "kline-series-update")]
-    KlineSeriesUpdate(KlineSeriesEventInfo),
+    KlineSeriesUpdate(KlineSeriesUpdateEventInfo),
     #[strum(serialize = "ticker-price-update")]
     #[serde(rename = "ticker-price-update")]
     TickerPriceUpdate(TickerPriceEventInfo),
@@ -56,12 +56,13 @@ pub struct KlineEventInfo{
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineSeriesEventInfo{
+pub struct KlineSeriesUpdateEventInfo{
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline_series: KlineSeries,
     pub event_timestamp: i64,
+    pub batch_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
