@@ -23,8 +23,6 @@ pub async fn market_sse_handler(
         result.map(|event| {
             let json = serde_json::to_string(&event).unwrap();
             Event::default().data(json)
-
-
         })
         .unwrap_or_else(|e| {
             Event::default().data(format!("Error: {}", e))

@@ -5,6 +5,7 @@ use crate::Event;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "event_name")]
 pub enum MarketEvent {
     #[strum(serialize = "kline-update")]
     #[serde(rename = "kline-update")]
