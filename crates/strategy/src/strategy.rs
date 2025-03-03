@@ -7,9 +7,11 @@ use tokio::sync::broadcast;
 use types::market::{Exchange, KlineInterval};
 use types::indicator::Indicators;
 use crate::data_source_node::DataSourceNode;
-use crate::indicator_node::IndicatorNode;
+use crate::indicator_node::{IndicatorNode, IndicatorNodeState};
 use crate::condition_node::{ConditionNode, Condition, ConditionType, Operator};
 use event_center::{Event, EventPublisher};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 // 策略图
 pub struct Strategy {
@@ -64,8 +66,10 @@ impl Strategy {
             node_receivers: Vec::new(), 
             event_publisher,
             response_event_receiver,
-            current_batch_id: None,
-            request_id: None,
+            state: Arc::new(RwLock::new(IndicatorNodeState {
+                current_batch_id: None,
+                request_id: None,
+            })),
         };
         let node = Box::new(node);
         let node_index = self.graph.add_node(node);

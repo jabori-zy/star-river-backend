@@ -158,6 +158,10 @@ impl EventCenter {
         EventPublisher::new(self.channels.clone())
     }
 
+    pub fn get_receiver(&self) -> EventReceiver {
+        EventReceiver::new(self)
+    }
+
 
 }
 
@@ -191,12 +195,46 @@ impl EventPublisher {
     }
 }
 
+#[derive(Debug)]
+pub struct EventReceiver {
+    pub market: broadcast::Receiver<Event>,
+    pub exchange: broadcast::Receiver<Event>,
+    pub trade: broadcast::Receiver<Event>,
+    pub order: broadcast::Receiver<Event>,
+    pub position: broadcast::Receiver<Event>,
+    pub indicator: broadcast::Receiver<Event>,
+    pub command: broadcast::Receiver<Event>,
+    pub response: broadcast::Receiver<Event>,
+}
 
+impl Clone for EventReceiver {
+    fn clone(&self) -> Self {
+        Self {
+            market: self.market.resubscribe(),
+            exchange: self.exchange.resubscribe(),
+            trade: self.trade.resubscribe(),
+            order: self.order.resubscribe(),
+            position: self.position.resubscribe(),
+            indicator: self.indicator.resubscribe(),
+            command: self.command.resubscribe(),
+            response: self.response.resubscribe(),
+        }
+    }
+}
 
-
-
-
-
-
+impl EventReceiver {
+    pub fn new(event_center: &EventCenter) -> Self {
+        Self {
+            market: event_center.subscribe(Channel::Market).unwrap(),
+            exchange: event_center.subscribe(Channel::Exchange).unwrap(),
+            trade: event_center.subscribe(Channel::Trade).unwrap(),
+            order: event_center.subscribe(Channel::Order).unwrap(),
+            position: event_center.subscribe(Channel::Position).unwrap(),
+            indicator: event_center.subscribe(Channel::Indicator).unwrap(),
+            command: event_center.subscribe(Channel::Command).unwrap(),
+            response: event_center.subscribe(Channel::Response).unwrap(),
+        }
+    }
+}
 
 
