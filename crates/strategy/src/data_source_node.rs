@@ -54,21 +54,16 @@ impl DataSourceNode {
 
 #[async_trait]
 impl NodeTrait for DataSourceNode {
-    fn id(&self) -> Uuid {
-        self.id
-    }
     fn as_any(&self) -> &dyn Any {
         self
     }
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
     }
-    fn get_sender(&self) -> NodeSender {
+    async fn get_sender(&self) -> NodeSender {
         self.sender.clone()
     }
-    fn get_ref_sender(&mut self) -> &mut NodeSender {
-        &mut self.sender
-    }
+
     fn push_receiver(&mut self, receiver: NodeReceiver) {
         self.receivers.push(receiver);
     }

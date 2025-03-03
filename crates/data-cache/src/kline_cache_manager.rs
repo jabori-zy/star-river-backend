@@ -101,7 +101,7 @@ impl CacheManager<KlineCacheKey, Kline> {
         // tracing::debug!("更新k线缓存成功, cache_entry: {:?}", cache_entry);
 
         // 发布事件
-        self.publish_kline_series(event_publisher, cache_key, 10).await;
+        self.publish_kline_series(event_publisher, cache_key, 1).await;
         
         // let klineseries_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesUpdateEventInfo {
         //     exchange,

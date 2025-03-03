@@ -18,12 +18,20 @@ use crate::message::IndicatorMessage;
 use tokio::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use types::indicator::SMASeries;
 
 // 将需要共享的状态提取出来
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeState { 
+    pub node_id: Uuid,
+    pub node_name: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub indicator: Indicators,
     pub current_batch_id: Option<String>,
     pub request_id: Option<Uuid>,
+    pub node_sender: NodeSender,
 
 
 }
@@ -31,38 +39,20 @@ pub struct IndicatorNodeState {
 // 指标节点
 #[derive(Debug)]
 pub struct IndicatorNode {
-    pub id: Uuid,
-    pub name: String,
-    pub exchange: Exchange,
-    pub symbol: String,
-    pub interval: KlineInterval,
     pub node_type: NodeType,
-    pub indicator: Indicators,
-    pub node_sender: NodeSender,
     pub node_receivers: Vec<NodeReceiver>,
     pub event_publisher: EventPublisher,
     pub response_event_receiver: broadcast::Receiver<Event>,
-    // pub current_batch_id: Option<String>,
-    // pub request_id: Option<Uuid>,
     pub state: Arc<RwLock<IndicatorNodeState>>,
 }
 
 impl Clone for IndicatorNode {
     fn clone(&self) -> Self {
-        Self { 
-            id: self.id.clone(), 
-            name: self.name.clone(), 
-            exchange: self.exchange.clone(), 
-            symbol: self.symbol.clone(), 
-            interval: self.interval.clone(), 
+        Self {  
             node_type: self.node_type.clone(), 
-            indicator: self.indicator.clone(),
-            node_sender: self.node_sender.clone(),
             node_receivers: self.node_receivers.clone(),
             event_publisher: self.event_publisher.clone(),
             response_event_receiver: self.response_event_receiver.resubscribe(),
-            // current_batch_id: self.current_batch_id.clone(),
-            // request_id: self.request_id.clone(),
             state: self.state.clone(),
         }
     }
@@ -72,26 +62,24 @@ impl Clone for IndicatorNode {
 
 
 impl IndicatorNode {
-    pub fn new(name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Self {
+    pub fn new(node_name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         let node_id = Uuid::new_v4();
         Self { 
-            id: node_id, 
-            name, 
-            exchange,
-            symbol,
-            interval,
-            node_type: NodeType::Indicator, 
-            indicator, 
-            node_sender: NodeSender::new(node_id.to_string(), tx), 
+            node_type: NodeType::Indicator,
             node_receivers: Vec::new(),
             event_publisher,
             response_event_receiver,
-            // current_batch_id: None,
-            // request_id: None,
             state: Arc::new(RwLock::new(IndicatorNodeState {
+                node_id,
+                node_name,
+                exchange,
+                symbol,
+                interval,
+                indicator,
                 current_batch_id: None,
                 request_id: None,
+                node_sender: NodeSender::new(node_id.to_string(), tx),
             })),
         }
     }
@@ -118,17 +106,19 @@ impl IndicatorNode {
             let event = internal_rx.recv().await.unwrap();
             match event {
                 Event::Response(response_event) => {
-                    IndicatorNode::handle_response_event(response_event).await;
+                    // 处理接收到的事件
+                    IndicatorNode::handle_response_event(state.clone(), response_event).await;
                 }
                 _ => {}
             }
         }
     }
 
-    async fn handle_response_event(response_event: ResponseEvent) {
+    // 处理接收到的事件
+    async fn handle_response_event(state: Arc<RwLock<IndicatorNodeState>>, response_event: ResponseEvent) {
         match response_event {
             ResponseEvent::IndicatorEngine(indicator_engine_response) => {
-                tracing::info!("指标节点接收到指标引擎返回的计算结果: {:?}", indicator_engine_response);
+                IndicatorNode::handle_indicator_engine_response(state, indicator_engine_response).await;
             }
             _ => {}
         }
@@ -136,10 +126,35 @@ impl IndicatorNode {
     
     // 处理指标引擎返回的计算结果
     async fn handle_indicator_engine_response(state: Arc<RwLock<IndicatorNodeState>>, indicator_engine_response: IndicatorEngineResponse) {
-        tracing::info!("指标节点接收到指标引擎返回的计算结果: {:?}", indicator_engine_response);
         match indicator_engine_response {
             IndicatorEngineResponse::CalculateIndicatorFinish(calculate_indicator_response) => {
-                tracing::info!("指标节点接收到指标引擎返回的计算结果: {:?}", calculate_indicator_response);
+                let (current_batch_id, request_id) = {
+                    let state_guard = state.read().await;
+                    (state_guard.current_batch_id.clone().unwrap(), state_guard.request_id.clone().unwrap())
+                };
+                let response_batch_id = calculate_indicator_response.batch_id;
+                let response_id = calculate_indicator_response.response_id;
+                // 如果请求id和批次id都匹配，则认为计算结果有效
+                if current_batch_id == response_batch_id && request_id == response_id {
+                    // 计算结果有效
+                    let indicator = calculate_indicator_response.indicator;
+                    let indicator_value = calculate_indicator_response.value;
+                    let state_guard = state.read().await;
+                    let indicator_message = IndicatorMessage {
+                        from_node_id: state_guard.node_id.clone(),
+                        from_node_name: state_guard.node_name.clone(),
+                        exchange: state_guard.exchange.clone(),
+                        symbol: state_guard.symbol.clone(),
+                        interval: state_guard.interval.clone(),
+                        indicator: indicator,
+                        data: indicator_value,
+                        batch_id: current_batch_id,
+                        message_timestamp: get_utc8_timestamp(),
+                    };
+                    state_guard.node_sender.send(NodeMessage::Indicator(indicator_message)).unwrap();
+                }
+                
+                
 
             }
             _ => {}
@@ -148,16 +163,7 @@ impl IndicatorNode {
 
     // 监听节点传递过来的message
     async fn listen_message(&mut self) {
-        let indicator = self.indicator.clone();
-        let node_name = self.name.clone();
-        let node_id = self.id.clone();
         let event_publisher = self.event_publisher.clone();
-
-        // 更新 node state 的 request_id
-        {
-            let mut state_guard = self.state.write().await;
-            state_guard.request_id = Some(Uuid::new_v4());
-        }  // 锁在这里自动释放
 
         // 创建一个流，用于接收节点传递过来的message
         let streams: Vec<_> = self.node_receivers.iter()
@@ -170,26 +176,37 @@ impl IndicatorNode {
         tokio::spawn(async move {
             while let Some(receive_message) = combined_stream.next().await {
                 if let Ok(receive_message) = receive_message {
-                    println!("指标节点{}接收到数据: {:?}", node_name, receive_message);
+                    println!("指标节点接收到数据: {:?}", receive_message);
                     match receive_message {
                         NodeMessage::KlineSeries(kline_series_message) => {
-                            // 向指标引擎发送计算指令
-                            let request_id = {
-                                let state_guard = state.write().await;
-                                state_guard.request_id.clone().unwrap()
-                            };// 锁在这里自动释放
+
+                            let request_id = Uuid::new_v4();
+                            let batch_id = kline_series_message.batch_id;
+
+                            let (node_id, indicator) = {
+                                let state_guard = state.read().await;
+                                (state_guard.node_id.clone(), state_guard.indicator.clone())
+                            };
                             
+                
                             let calculate_indicator_params = CalculateIndicatorParams {
                                 exchange: kline_series_message.exchange,
                                 symbol: kline_series_message.symbol,
                                 interval: kline_series_message.interval,
-                                indicator: indicator.clone(),
+                                indicator: indicator,
                                 kline_series: kline_series_message.kline_series,
                                 sender: node_id.to_string(),
                                 command_timestamp: get_utc8_timestamp(),
                                 request_id: request_id,
-                                batch_id: kline_series_message.batch_id,
+                                batch_id: batch_id.clone(),
                             };
+                            // 设置state
+                            {
+                                let mut state_guard = state.write().await;
+                                state_guard.current_batch_id = Some(batch_id);
+                                state_guard.request_id = Some(request_id);
+                            }
+
                             let event = Event::Command(CommandEvent::IndicatorEngine(IndicatorEngineCommand::CalculateIndicator(calculate_indicator_params)));
                             event_publisher.publish(event).unwrap();
                         }
@@ -203,21 +220,16 @@ impl IndicatorNode {
 
 #[async_trait]
 impl NodeTrait for IndicatorNode {
-    fn id(&self) -> Uuid {
-        self.id
-    }
     fn as_any(&self) -> &dyn Any {
         self
     }
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
     }
-    fn get_sender(&self) -> NodeSender {
-        self.node_sender.clone()
+    async fn get_sender(&self) -> NodeSender {
+        self.state.read().await.node_sender.clone()
     }
-    fn get_ref_sender(&mut self) -> &mut NodeSender {
-        &mut self.node_sender
-    }
+
     fn push_receiver(&mut self, receiver: NodeReceiver) {
         self.node_receivers.push(receiver);
     }

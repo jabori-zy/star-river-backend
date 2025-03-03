@@ -113,8 +113,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         condition_node.add_condition(Condition::new(data_source_node_id, ">", indicator_node_id));
         let condition_node_id = strategy.add_condition_node(condition_node);
 
-        strategy.add_edge(&data_source_node_id, &indicator_node_id);
-        strategy.add_edge(&indicator_node_id, &condition_node_id);
+        strategy.add_edge(&data_source_node_id, &indicator_node_id).await;
+        strategy.add_edge(&indicator_node_id, &condition_node_id).await;
         strategy.run().await;
     });
 

@@ -34,11 +34,9 @@ pub enum NodeType {
 
 #[async_trait]
 pub trait NodeTrait: Debug + Send + Sync {
-    fn id(&self) -> Uuid;
     fn as_any(&self) -> &dyn Any;
     fn clone_box(&self) -> Box<dyn NodeTrait>;
-    fn get_sender(&self) -> NodeSender;
-    fn get_ref_sender(&mut self) -> &mut NodeSender;
+    async fn get_sender(&self) -> NodeSender;
     fn push_receiver(&mut self, receiver: NodeReceiver);
     async fn run(&mut self) -> Result<(), Box<dyn Error>>;
 }
@@ -62,21 +60,16 @@ pub struct StartNode {
 
 #[async_trait]
 impl NodeTrait for StartNode {
-    fn id(&self) -> Uuid {
-        self.id
-    }
     fn as_any(&self) -> &dyn Any {
         self
     }
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
     }
-    fn get_sender(&self) -> NodeSender {
+    async fn get_sender(&self) -> NodeSender {
         self.sender.clone()
     }
-    fn get_ref_sender(&mut self) -> &mut NodeSender {
-        &mut self.sender
-    }
+
     fn push_receiver(&mut self, receiver: NodeReceiver) {
         self.receivers.push(receiver);
     }

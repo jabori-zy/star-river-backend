@@ -12,6 +12,16 @@ use std::str::FromStr;
 use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::stream::StreamExt;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+
+#[derive(Debug)]
+pub struct ConditionNodeState {
+    pub current_batch_id: Option<String>,
+    pub is_processing: bool,
+}
+
 
 #[derive(Debug, Clone)]
 pub struct ConditionNode {
@@ -22,45 +32,27 @@ pub struct ConditionNode {
     pub input_values: HashMap<Uuid, NodeMessage>,
     pub sender: NodeSender,
     pub receivers: Vec<NodeReceiver>,
-    pub current_batch_id: Option<String>,
-    pub is_processing: bool,
+    pub state: Arc<RwLock<ConditionNodeState>>,
 }
 
 #[async_trait]
 impl NodeTrait for ConditionNode {
-    fn id(&self) -> Uuid {
-        self.id
-    }
     fn as_any(&self) -> &dyn Any {
         self
     }
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
     }
-    fn get_sender(&self) -> NodeSender {
+    async fn get_sender(&self) -> NodeSender {
         self.sender.clone()
     }
-    fn get_ref_sender(&mut self) -> &mut NodeSender {
-        &mut self.sender
-    }
+
     fn push_receiver(&mut self, receiver: NodeReceiver) {
         self.receivers.push(receiver);
     }
     async fn run(&mut self) -> Result<(), Box<dyn Error>> {
         println!("条件节点开始运行");
-        let streams: Vec<_> = self.receivers.iter()
-            .map(|receiver| BroadcastStream::new(receiver.get_receiver()))
-            .collect();
-        let mut combined_stream = select_all(streams);
-        while let Some(result) = combined_stream.next().await {
-            let message = result.unwrap();
-            match message {
-                NodeMessage::Indicator(indicator_message) => {
-                    println!("条件节点收到数据: batch_id={}, from={}, message={:?}", 
-                        indicator_message.batch_id, indicator_message.from_node_name, indicator_message.indicator);
-                }
-                _ => {}
-            }
+        self.listen_message().await;
 
         //     // let is_new_batch = self.update_value(message.from_node_id, message.value, message.batch_id.clone());
         //     self.update_value(message.from_node_id, message.message, message.batch_id.clone());
@@ -83,7 +75,7 @@ impl NodeTrait for ConditionNode {
         //     }
 
         //     // tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
+        // }
         Ok(())
         
     }
@@ -103,8 +95,10 @@ impl ConditionNode {
             input_values: HashMap::new(), 
             sender: NodeSender::new(Uuid::new_v4().to_string(), tx), 
             receivers: Vec::new(),
-            current_batch_id: None,
-            is_processing: false,
+            state: Arc::new(RwLock::new(ConditionNodeState {
+                current_batch_id: None,
+                is_processing: false,
+            })),
         }
     }
 
@@ -117,6 +111,24 @@ impl ConditionNode {
 
     pub fn get_condition(&self) -> Vec<Condition> {
         self.conditions.clone()
+    }
+
+    pub async fn listen_message(&mut self) {
+        let streams: Vec<_> = self.receivers.iter()
+            .map(|receiver| BroadcastStream::new(receiver.get_receiver()))
+            .collect();
+        let mut combined_stream = select_all(streams);
+        while let Some(result) = combined_stream.next().await {
+            let message = result.unwrap();
+            match message {
+                NodeMessage::Indicator(indicator_message) => {
+                    println!("条件节点收到数据: batch_id={}, from={}, message={:?}", 
+                        indicator_message.batch_id, indicator_message.from_node_name, indicator_message.data);
+                }
+                _ => {}
+            }
+        }
+
     }
 
     // pub fn get_input_values(&self) -> HashMap<Uuid, Message> {

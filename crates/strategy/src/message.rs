@@ -48,7 +48,8 @@ pub struct IndicatorMessage {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub indicator: Box<dyn IndicatorData>,
+    pub indicator: Indicators,
+    pub data: Box<dyn IndicatorData>,
     pub batch_id: String,
     pub message_timestamp: i64,
 }
@@ -61,7 +62,8 @@ impl Clone for IndicatorMessage {
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             interval: self.interval.clone(),
-            indicator: self.indicator.clone_box(),
+            indicator: self.indicator.clone(),
+            data: self.data.clone_box(),
             batch_id: self.batch_id.clone(),
             message_timestamp: self.message_timestamp,
         }

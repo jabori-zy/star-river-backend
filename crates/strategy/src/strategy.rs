@@ -55,20 +55,20 @@ impl Strategy {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         let node_id = Uuid::new_v4();
         let node = IndicatorNode {
-            id: node_id,
-            name,
             node_type: NodeType::Indicator,
-            exchange,
-            symbol,
-            interval,
-            indicator,
-            node_sender: NodeSender::new(node_id.to_string(), tx),
             node_receivers: Vec::new(), 
             event_publisher,
             response_event_receiver,
             state: Arc::new(RwLock::new(IndicatorNodeState {
+                node_id,
+                node_name: name,
+                exchange,
+                symbol,
+                interval,
+                indicator,
                 current_batch_id: None,
                 request_id: None,
+                node_sender: NodeSender::new(node_id.to_string(), tx),
             })),
         };
         let node = Box::new(node);
@@ -85,20 +85,20 @@ impl Strategy {
         node_id
     }
 
-    pub fn add_edge(&mut self, from: &Uuid, to: &Uuid) {
+    pub async fn add_edge(&mut self, from: &Uuid, to: &Uuid) {
         if let (Some(&source), Some(&target)) = (
             self.node_indices.get(from),
             self.node_indices.get(to)
         ){
             // 先获取源节点的发送者
-            let sender = self.graph.node_weight(source).unwrap().get_sender();
+            let sender = self.graph.node_weight(source).unwrap().get_sender().await;
             println!("sender: {:?}", sender);
 
             if let Some(target_node) = self.graph.node_weight_mut(target) {
                 let receiver = sender.subscribe();
                 // 获取接收者数量
-                let receiver_count = sender.receiver_count();
-                println!("{} 添加了一个接收者, 接收者数量 = {}", target_node.id(), receiver_count);
+                // let receiver_count = sender.receiver_count();
+                // println!("{} 添加了一个接收者, 接收者数量 = {}", target_node.name, receiver_count);
                 target_node.push_receiver(receiver);
             }
             println!("添加边: {:?} -> {:?}", source, target);
