@@ -1,0 +1,28 @@
+[package]
+name = "exchange-client"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+types = {path = "../types"}
+event-center = {path = "../event-center"}
+indicator-engine = {path = "../indicator-engine"}
+utils = {path = "../utils"}
+data-cache = {path = "../data-cache"}
+strategy = {path = "../strategy"}
+
+strum.workspace = true
+strum_macros.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+futures.workspace = true
+reqwest.workspace = true
+tokio-tungstenite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zeromq.workspace = true
