@@ -7,7 +7,6 @@ use types::market::{Exchange, KlineInterval};
 use axum::response::IntoResponse;
 use serde::Deserialize;
 use axum::extract::Query;
-use event_center::Channel;
 
 
 #[derive(Deserialize)]

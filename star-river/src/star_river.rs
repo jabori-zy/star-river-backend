@@ -60,7 +60,7 @@ async fn start_cache_engine(star_river: State<StarRiver>) {
     let cache_engine = star_river.cache_engine.clone();
     tokio::spawn(async move {
         let mut cache_engine = cache_engine.lock().await;
-        cache_engine.start(exchange_event_receiver, command_event_receiver, indicator_event_receiver).await;
+        cache_engine.start(exchange_event_receiver, indicator_event_receiver, command_event_receiver).await;
     });
 }
 

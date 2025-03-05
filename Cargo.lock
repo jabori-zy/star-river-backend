@@ -3055,7 +3055,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
-name = "star-river-backend"
+name = "star-river"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -3079,6 +3079,14 @@ dependencies = [
  "tracing-subscriber",
  "types",
  "utils",
+]
+
+[[package]]
+name = "star-river-backend"
+version = "0.1.0"
+dependencies = [
+ "star-river",
+ "tokio",
 ]
 
 [[package]]
@@ -4147,16 +4155,6 @@ dependencies = [
  "quote",
  "syn 2.0.98",
  "synstructure",
-]
-
-[[package]]
-name = "zero_mq"
-version = "0.1.0"
-dependencies = [
- "serde",
- "strum 0.27.1",
- "tokio",
- "zeromq",
 ]
 
 [[package]]
