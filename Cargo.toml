@@ -67,6 +67,9 @@ types = { path = "crates/types" }
 utils = { path = "crates/utils" }
 event-center = {path = "crates/event-center"}
 
+database = { path = "crates/database" }
+migration = { path = "crates/migration" }
+
 
 [profile.release]
 opt-level = 'z'     # 优化大小

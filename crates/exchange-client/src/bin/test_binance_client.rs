@@ -34,8 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     // let mut indicator_engine = IndicatorEngine::new(event_center_clone1.clone());
 
-    let binance_exchange = Arc::new(Mutex::new(BinanceExchange::new(binance_publisher)));
-    binance_exchange.lock().await.init_exchange().await.unwrap();
+    // let binance_exchange = Arc::new(Mutex::new(BinanceExchange::new(binance_publisher)));
+    // binance_exchange.lock().await.init_exchange().await.unwrap();
     // let cache_engine = Arc::new(Mutex::new(CacheEngine::new(event_center.clone())));
 
     // tokio::spawn(async move {

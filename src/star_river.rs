@@ -31,7 +31,7 @@ impl StarRiver {
             market_engine: Arc::new(Mutex::new(MarketDataEngine::new())),
             event_center: Arc::new(Mutex::new(event_center)),
             cache_engine: cache_engine.clone(),
-            indicator_engine: Arc::new(Mutex::new(IndicatorEngine::new(cache_engine, event_publisher))),
+            indicator_engine: Arc::new(Mutex::new(IndicatorEngine::new(event_publisher))),
         }
     }
 }
