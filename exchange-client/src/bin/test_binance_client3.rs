@@ -58,7 +58,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let event_center = event_center.lock().await;
         event_center.get_publisher1()
     };
-    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(indicator_engine_publisher)));
+    let command_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Command).unwrap()
+    };
+    let response_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Response).unwrap()
+    };
+    let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(command_event_receiver, response_event_receiver, indicator_engine_publisher)));
 
 
     let binance_publisher = {
@@ -98,49 +106,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         cache_engine.start().await;
     });
 
-    // let node_event_publisher = {
-    //     let event_center = event_center.lock().await;
-    //     event_center.get_publisher1()
-    // };
-    // let response_event_receiver = {
-    //     let event_center = event_center.lock().await;
-    //     event_center.subscribe(Channel::Response).unwrap()
-    // };
-    // tokio::spawn(async move {
-    //     let mut strategy = Strategy::new("test_strategy".to_string());
-    //     let data_source_node_id = strategy.add_data_source_node("BTCUSDT".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, market_event_receiver);
-    //     let sma_config = SMAConfig { period: 3 };
-    //     let indicator_node_id = strategy.add_indicator_node("SMA14".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, Indicators::SimpleMovingAverage(sma_config), node_event_publisher, response_event_receiver);
+    let node_event_publisher = {
+        let event_center = event_center.lock().await;
+        event_center.get_publisher1()
+    };
+    let response_event_receiver = {
+        let event_center = event_center.lock().await;
+        event_center.subscribe(Channel::Response).unwrap()
+    };
+    tokio::spawn(async move {
+        let mut strategy = Strategy::new("test_strategy".to_string());
+        let data_source_node_id = strategy.add_data_source_node("BTCUSDT".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, market_event_receiver);
+        let sma_config = SMAConfig { period: 3 };
+        let indicator_node_id = strategy.add_indicator_node("SMA14".to_string(), Exchange::Binance, "BTCUSDT".to_string(), KlineInterval::Minutes1, Indicators::SimpleMovingAverage(sma_config), node_event_publisher, response_event_receiver);
         
-    //     let mut condition_node = ConditionNode::new("condition_node".to_string(), ConditionType::And);
-    //     condition_node.add_condition(Condition::new(data_source_node_id, ">", indicator_node_id));
-    //     let condition_node_id = strategy.add_condition_node(condition_node);
+        let mut condition_node = ConditionNode::new("condition_node".to_string(), ConditionType::And);
+        condition_node.add_condition(Condition::new(data_source_node_id, ">", indicator_node_id));
+        let condition_node_id = strategy.add_condition_node(condition_node);
 
-    //     strategy.add_edge(&data_source_node_id, &indicator_node_id).await;
-    //     strategy.add_edge(&indicator_node_id, &condition_node_id).await;
-    //     strategy.run().await;
-    // });
-
-
+        strategy.add_edge(&data_source_node_id, &indicator_node_id).await;
+        strategy.add_edge(&indicator_node_id, &condition_node_id).await;
+        strategy.run().await;
+    });
 
 
-    // let indicator_engine = indicator_engine.clone();
-    // let market_event_receiver = {
-    //     let event_center = event_center.lock().await;
-    //     event_center.subscribe(Channel::Market).unwrap()
-    // };
-    // let command_event_receiver = {
-    //     let event_center = event_center.lock().await;
-    //     event_center.subscribe(Channel::Command).unwrap()
-    // };
-    // let response_event_receiver = {
-    //     let event_center = event_center.lock().await;
-    //     event_center.subscribe(Channel::Response).unwrap()
-    // };
-    // tokio::spawn(async move {
-    //     let indicator_engine = indicator_engine.lock().await;
-    //     indicator_engine.start(command_event_receiver, response_event_receiver).await;
-    // });
+
+
+    let indicator_engine = indicator_engine.clone();
+    tokio::spawn(async move {
+        let indicator_engine = indicator_engine.lock().await;
+        indicator_engine.start().await;
+    });
 
     // 保持主程序运行
     tokio::time::sleep(std::time::Duration::from_secs(3600)).await;

@@ -36,48 +36,77 @@ use types::cache::IndicatorCacheKey;
 use std::sync::RwLock;
 use futures::future::join_all;
 
+
 #[derive(Clone)]
+pub struct IndicatorEngineState {
+    pub kline_series_cache: HashMap<Uuid, KlineSeriesUpdateEventInfo>,
+
+}
+
 pub struct IndicatorEngine{
-    // 需要计算的指标
+    // 计算引擎
     talib: Arc<TALib>,
-    event_publisher: EventPublisher,
-    kline_series_cache: Arc<RwLock<HashMap<Uuid, KlineSeriesUpdateEventInfo>>>,
+   
+    // 状态管理
+    indicator_engine_state: Arc<RwLock<IndicatorEngineState>>,
+    // 事件通信
+    event_publisher: Arc<EventPublisher>,
+    command_event_receiver: broadcast::Receiver<Event>,
+    response_event_receiver: broadcast::Receiver<Event>,
+}
+
+impl Clone for IndicatorEngine {
+    fn clone(&self) -> Self {
+        Self {
+            talib: self.talib.clone(),
+            event_publisher: self.event_publisher.clone(),
+            indicator_engine_state: self.indicator_engine_state.clone(),
+            command_event_receiver: self.command_event_receiver.resubscribe(),
+            response_event_receiver: self.response_event_receiver.resubscribe(),
+        }
+    }
 }
 
 impl IndicatorEngine {
 
     pub fn new(
+        command_event_receiver: broadcast::Receiver<Event>,
+        response_event_receiver: broadcast::Receiver<Event>,
         event_publisher: EventPublisher,
     ) -> Self {
         let talib = Arc::new(TALib::init().unwrap());
         Self { 
             talib,
-            event_publisher,
-            kline_series_cache: Arc::new(RwLock::new(HashMap::new())),
+            event_publisher: Arc::new(event_publisher),
+            command_event_receiver,
+            response_event_receiver,
+            indicator_engine_state: Arc::new(RwLock::new(IndicatorEngineState {
+                kline_series_cache: HashMap::new(),
+            })),
         }
     }
 
     pub async fn start(
         &self,
-        command_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
     ) {
         let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
-        self.listen(command_event_receiver, response_event_receiver, internal_tx).await;
+        self.listen(internal_tx).await;
 
-        let mut indicator_engine = self.clone();
+        let indicator_engine_state = self.indicator_engine_state.clone();
+        let talib = self.talib.clone();
+        let event_publisher = self.event_publisher.clone();
         tokio::spawn(async move {
-            indicator_engine.handle_events(internal_rx).await;
+            IndicatorEngine::handle_events(&talib, event_publisher, indicator_engine_state, internal_rx).await;
         });
     }
 
     async fn listen(
         &self, 
-        mut command_receiver: broadcast::Receiver<Event>,
-        mut response_receiver: broadcast::Receiver<Event>,
         internal_tx: mpsc::Sender<Event>,
     ) {
         tracing::info!("指标引擎启动成功, 开始监听...");
+        let mut response_receiver = self.response_event_receiver.resubscribe();
+        let mut command_receiver = self.command_event_receiver.resubscribe();
 
         tokio::spawn(async move {
             loop {
@@ -95,7 +124,7 @@ impl IndicatorEngine {
     }
 
     // 处理接收到的事件
-    async fn handle_events(&mut self, mut internal_rx: mpsc::Receiver<Event>) {
+    async fn handle_events(talib: &TALib, event_publisher: Arc<EventPublisher>, state: Arc<RwLock<IndicatorEngineState>>, mut internal_rx: mpsc::Receiver<Event>) {
         loop {
             let event = internal_rx.recv().await.unwrap();
             match event {
@@ -103,7 +132,7 @@ impl IndicatorEngine {
                 //     self.handle_response_event(response_event).await;
                 // }
                 Event::Command(command_event) => {
-                    self.handle_command_event(command_event).await;
+                    IndicatorEngine::handle_command_event(talib, event_publisher.clone(), command_event, state.clone()).await;
                 }
                 _ => {}
             }
@@ -111,12 +140,12 @@ impl IndicatorEngine {
     }
 
     // 处理命令事件
-    async fn handle_command_event(&mut self, command_event: CommandEvent) {
+    async fn handle_command_event(talib: &TALib, event_publisher: Arc<EventPublisher>, command_event: CommandEvent, state: Arc<RwLock<IndicatorEngineState>>) {
         match command_event {
             CommandEvent::IndicatorEngine(indicator_engine_command) => {
                 match indicator_engine_command {
                     IndicatorEngineCommand::CalculateIndicator(calculate_indicator_params) => {
-                        self.calculate_indicator(calculate_indicator_params).await;
+                        IndicatorEngine::calculate_indicator(talib, event_publisher, calculate_indicator_params, state.clone()).await;
                     }
                 }
             }
@@ -140,14 +169,14 @@ impl IndicatorEngine {
     //     }
     // }
 
-    async fn calculate_indicator(&mut self, calculate_indicator_params: CalculateIndicatorParams) {
+    async fn calculate_indicator(talib: &TALib, event_publisher: Arc<EventPublisher>, calculate_indicator_params: CalculateIndicatorParams, state: Arc<RwLock<IndicatorEngineState>>) {
         tracing::info!("接收到计算指标命令: {:?}", calculate_indicator_params);
         let indicator = calculate_indicator_params.indicator.clone();
 
         match indicator {
             Indicators::SimpleMovingAverage(sma_config) => {
                 let period = sma_config.period;
-                IndicatorEngine::calculate_sma(self.talib.clone(), &period, calculate_indicator_params, self.event_publisher.clone()).await.unwrap();
+                IndicatorEngine::calculate_sma(talib, &period, calculate_indicator_params, event_publisher).await.unwrap();
             }
             _ => {}
         }
@@ -156,7 +185,7 @@ impl IndicatorEngine {
         
     }
 
-    async fn calculate_sma(talib: Arc<TALib>, period: &i32, calculate_params: CalculateIndicatorParams, event_publisher: EventPublisher) -> Result<(), String> {
+    async fn calculate_sma(talib: &TALib, period: &i32, calculate_params: CalculateIndicatorParams, event_publisher: Arc<EventPublisher>) -> Result<(), String> {
         let kline_series = calculate_params.kline_series.clone();
         let timestamp_list: Vec<i64> = kline_series.series.iter().map(|v| v.timestamp).collect();  
         let close: Vec<f64> = kline_series.series.iter().map(|v| v.close).collect();

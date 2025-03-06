@@ -1,6 +1,6 @@
 use crate::talib_bindings::*;
 
-
+#[derive(Clone)]
 pub struct TALib;
 
 
