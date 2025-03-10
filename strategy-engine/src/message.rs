@@ -30,7 +30,7 @@ pub enum NodeMessage {
 // k线系列消息
 #[derive(Debug, Clone)]
 pub struct KlineSeriesMessage {
-    pub from_node_id: Uuid,
+    pub from_node_id: String,
     pub from_node_name: String,
     pub exchange: Exchange,
     pub symbol: String,
@@ -43,7 +43,7 @@ pub struct KlineSeriesMessage {
 // 指标消息
 #[derive(Debug)]
 pub struct IndicatorMessage {
-    pub from_node_id: Uuid,
+    pub from_node_id: String,
     pub from_node_name: String,
     pub exchange: Exchange,
     pub symbol: String,
@@ -57,7 +57,7 @@ pub struct IndicatorMessage {
 impl Clone for IndicatorMessage {
     fn clone(&self) -> Self {
         IndicatorMessage {
-            from_node_id: self.from_node_id,
+            from_node_id: self.from_node_id.clone(),
             from_node_name: self.from_node_name.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),

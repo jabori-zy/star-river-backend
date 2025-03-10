@@ -1,7 +1,7 @@
 pub mod kline_cache_manager;
 pub mod indicator_cache_manager;
 
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -49,8 +49,8 @@ impl<K: CacheKey, T: Debug> CacheEntry<K, T> {
             key,
             batch_id: None,
             data: VecDeque::<T>::new(), 
-            created_at: get_utc8_timestamp(), 
-            updated_at: get_utc8_timestamp(), 
+            created_at: get_utc8_timestamp_millis(), 
+            updated_at: get_utc8_timestamp_millis(), 
             max_size, 
             is_fresh: false, 
             ttl 

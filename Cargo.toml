@@ -10,7 +10,7 @@ members = [
     "heartbeat",
     "indicator-engine",
     "migration",
-    "strategy",
+    "strategy-engine",
     "types",
     "utils",
 ]
@@ -42,7 +42,9 @@ tokio-tungstenite = { version = "0.26.1",features = ["native-tls"] }
 zip = "2.2.2"
 sysinfo = {version="0.33.1", features = [] }
 async-trait = {version = "0.1.86"}
+# 数据库
 sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio"] }
+sea-orm = { version = "1.1.7", features = [ "sqlx-sqlite","runtime-tokio", "macros", "chrono","with-chrono","with-json","serde_json" ] }
 reqwest = { version = "0.12.12", features = ["json"] }
 futures-util = "0.3.31"
 zeromq = {version = "0.4.1", features = ["tokio"]}

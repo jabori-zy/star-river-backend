@@ -1,31 +1,45 @@
 pub mod entities;
-
-use sea_orm::{Database, DatabaseConnection, DbErr};
+pub mod mutation;
+pub mod query;
+use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use std::env;
 use std::path::PathBuf;
 use sea_orm_migration::MigratorTrait;
 use migration::Migrator;
-
-
+use event_center::{Event, EventPublisher};
+use event_center::command_event::CommandEvent;
+use event_center::command_event::DatabaseCommand;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
+use log::LevelFilter;
 
 
 
 pub struct DatabaseManager {
     pub path: PathBuf,
     pub conn: DatabaseConnection,
+    event_publisher: EventPublisher,
+    command_event_receiver: broadcast::Receiver<Event>,
 }
 
 impl DatabaseManager {
 
-    pub async fn new() -> Self {
+    pub async fn new(
+        command_event_receiver: broadcast::Receiver<Event>,
+        event_publisher: EventPublisher,
+    ) -> Self {
         let path = Self::get_database_path().unwrap();
         // 初始化数据库
         let conn = Self::create_database(&path).await.unwrap();
-        Self { path, conn }
+        Self { path, conn, command_event_receiver, event_publisher }
     }
 
     pub async fn migrate(&self) {
         Migrator::up(&self.conn, None).await.unwrap();
+    }
+
+    pub fn get_conn(&self) -> DatabaseConnection {
+        self.conn.clone()
     }
 
 
@@ -57,8 +71,13 @@ impl DatabaseManager {
 
         // 创建数据库文件
         let db_path = path.join("db.sqlite");
-        let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
-        let conn = Database::connect(database_url).await.unwrap();
+        // let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
+        let path = PathBuf::from("D:/project/star-river-backend/database/db/db.sqlite");
+        let database_url = format!("sqlite:{}?mode=rwc", path.display());
+        tracing::info!("数据库路径: {}", database_url);
+        let mut opt = ConnectOptions::new(database_url);
+        opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);
+        let conn = Database::connect(opt).await.unwrap();
         Ok(conn)
     }
 
@@ -69,5 +88,47 @@ impl DatabaseManager {
 
     pub async fn close(self) {
         self.conn.close().await.unwrap();
+    }
+
+    pub async fn listen(
+        &self,
+        internal_tx: mpsc::Sender<Event>,
+    ) {
+        tracing::info!("数据库启动成功, 开始监听...");
+        let mut command_receiver = self.command_event_receiver.resubscribe();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    Ok(event) = command_receiver.recv() => {
+                        let _ = internal_tx.send(event).await;
+                    }
+                }
+            }
+        });
+    }
+
+    async fn handle_events(mut internal_rx: mpsc::Receiver<Event>) {
+        tokio::spawn(async move {
+            loop {
+                let event = internal_rx.recv().await.unwrap();
+                match event {
+                    Event::Command(CommandEvent::Database(database_cmd)) => {
+                        match database_cmd {
+                            DatabaseCommand::CreateStrategy(create_strategy_params) => {
+                                tracing::info!("创建策略: {:?}", create_strategy_params);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        });       
+        
+    }
+    pub async fn start(&self) {
+        let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
+        self.listen(internal_tx).await;
+
+        Self::handle_events(internal_rx).await;
     }
 }

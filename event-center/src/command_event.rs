@@ -13,6 +13,7 @@ pub enum CommandEvent {
     KlineCacheManager(KlineCacheManagerCommand),
     IndicatorCacheManager(IndicatorCacheManagerCommand),
     IndicatorEngine(IndicatorEngineCommand),
+    Database(DatabaseCommand),
 }
 
 impl From<CommandEvent> for Event {
@@ -84,6 +85,21 @@ pub struct CalculateIndicatorParams {
     pub command_timestamp:i64,
     pub request_id: Uuid,
     pub batch_id: String,
+}
+
+
+// 数据库命令
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum DatabaseCommand {
+    #[strum(serialize = "create-strategy")]
+    // 创建策略
+    CreateStrategy(CreateStrategyParams),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateStrategyParams {
+    pub name: String,
+    pub description: String,
 }
 
 

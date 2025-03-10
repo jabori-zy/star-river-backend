@@ -24,7 +24,7 @@ use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, SubscribeKlineParams, IndicatorCacheManagerCommand, SubscribeIndicatorParams};
 use types::cache::{KlineCacheKey, IndicatorCacheKey};
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use types::indicator::Indicators;
 use event_center::EventPublisher;
 
@@ -196,7 +196,7 @@ impl ExchangeClient for BinanceExchange {
         let params = SubscribeKlineParams {
             cache_key,
             sender: "binance_exchange".to_string(),
-            timestamp: get_utc8_timestamp(),
+            timestamp: get_utc8_timestamp_millis(),
 
         };
         let command = KlineCacheManagerCommand::SubscribeKline(params);
@@ -313,7 +313,7 @@ impl BinanceExchange {
         let params = SubscribeIndicatorParams {
             cache_key: ind_cache_key,
             sender: "binance_exchange".to_string(),
-            timestamp: get_utc8_timestamp(),
+            timestamp: get_utc8_timestamp_millis(),
 
         };
         let command = IndicatorCacheManagerCommand::SubscribeIndicator(params);

@@ -13,17 +13,16 @@ use crate::*;
 use event_center::{Event, EventPublisher};
 use event_center::command_event::{CalculateIndicatorParams, CommandEvent, IndicatorEngineCommand};
 use event_center::response_event::{ResponseEvent, IndicatorEngineResponse};
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use crate::message::IndicatorMessage;
 use tokio::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::indicator::SMASeries;
 
 // 将需要共享的状态提取出来
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeState { 
-    pub node_id: Uuid,
+    pub node_id: String,
     pub node_name: String,
     pub exchange: Exchange,
     pub symbol: String,
@@ -32,8 +31,6 @@ pub struct IndicatorNodeState {
     pub current_batch_id: Option<String>,
     pub request_id: Option<Uuid>,
     pub node_sender: NodeSender,
-
-
 }
 
 // 指标节点
@@ -62,16 +59,15 @@ impl Clone for IndicatorNode {
 
 
 impl IndicatorNode {
-    pub fn new(node_name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Self {
+    pub fn new(node_id: String, node_name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
-        let node_id = Uuid::new_v4();
         Self { 
-            node_type: NodeType::Indicator,
+            node_type: NodeType::IndicatorNode,
             node_receivers: Vec::new(),
             event_publisher,
             response_event_receiver,
             state: Arc::new(RwLock::new(IndicatorNodeState {
-                node_id,
+                node_id: node_id.clone(),
                 node_name,
                 exchange,
                 symbol,
@@ -79,7 +75,7 @@ impl IndicatorNode {
                 indicator,
                 current_batch_id: None,
                 request_id: None,
-                node_sender: NodeSender::new(node_id.to_string(), tx),
+                node_sender: NodeSender::new(node_id, tx),
             })),
         }
     }
@@ -140,6 +136,7 @@ impl IndicatorNode {
                     let indicator = calculate_indicator_response.indicator;
                     let indicator_value = calculate_indicator_response.value;
                     let state_guard = state.read().await;
+                    
                     let indicator_message = IndicatorMessage {
                         from_node_id: state_guard.node_id.clone(),
                         from_node_name: state_guard.node_name.clone(),
@@ -149,7 +146,7 @@ impl IndicatorNode {
                         indicator: indicator,
                         data: indicator_value,
                         batch_id: current_batch_id,
-                        message_timestamp: get_utc8_timestamp(),
+                        message_timestamp: get_utc8_timestamp_millis(),
                     };
                     state_guard.node_sender.send(NodeMessage::Indicator(indicator_message)).unwrap();
                 }
@@ -196,7 +193,7 @@ impl IndicatorNode {
                                 indicator: indicator,
                                 kline_series: kline_series_message.kline_series,
                                 sender: node_id.to_string(),
-                                command_timestamp: get_utc8_timestamp(),
+                                command_timestamp: get_utc8_timestamp_millis(),
                                 request_id: request_id,
                                 batch_id: batch_id.clone(),
                             };
@@ -226,6 +223,7 @@ impl NodeTrait for IndicatorNode {
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
     }
+
     async fn get_sender(&self) -> NodeSender {
         self.state.read().await.node_sender.clone()
     }
@@ -233,6 +231,7 @@ impl NodeTrait for IndicatorNode {
     fn push_receiver(&mut self, receiver: NodeReceiver) {
         self.node_receivers.push(receiver);
     }
+
     async fn run(&mut self) -> Result<(), Box<dyn Error>> {
         println!("IndicatorNode run");
         // 创建内部通信通道

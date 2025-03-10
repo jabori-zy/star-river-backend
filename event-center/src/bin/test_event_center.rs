@@ -2,7 +2,7 @@ use event_center::{Channel, Event};
 use types::market::{Kline, Exchange, KlineInterval};
 use event_center::market_event::MarketEvent;
 use event_center::market_event::KlineEventInfo;
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use event_center::EventCenter;
 
 fn main() {
@@ -25,7 +25,7 @@ fn main() {
         symbol: "BTCUSDT".to_string(),
         interval: KlineInterval::Minutes1,
         kline,
-        event_timestamp: get_utc8_timestamp(),
+        event_timestamp: get_utc8_timestamp_millis(),
     };
 
     let kline_update_event = MarketEvent::KlineUpdate(kline_update_event_config);

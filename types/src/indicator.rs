@@ -1,5 +1,6 @@
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fmt::Debug;
 use std::any::Any;
 use crate::indicator_config::SMAConfig;
@@ -13,6 +14,18 @@ pub enum Indicators {
     #[strum(serialize = "sma")]
     #[serde(rename = "sma")]
     SimpleMovingAverage(SMAConfig),
+}
+
+impl Indicators {
+    pub fn update_config(&mut self, config: &Value) {
+        match self {
+            Indicators::SimpleMovingAverage(sma_config) => {
+                if let Some(period) = config.get("period").and_then(|v| v.as_i64()) {
+                    sma_config.period = period as i32;
+                }
+            }
+        }
+    }
 }
 
 #[typetag::serde(tag = "type")]

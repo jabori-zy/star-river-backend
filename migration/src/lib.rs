@@ -1,5 +1,5 @@
 
-// sea-orm-cli migrate refresh -d ./crates/migration
+// sea-orm-cli migrate refresh -d ./migration
 pub use sea_orm_migration::prelude::*;
 mod m20240101_000001_create_strategy_info_table;
 

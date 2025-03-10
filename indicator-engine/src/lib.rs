@@ -28,7 +28,7 @@ use types::indicator::Indicators;
 use crate::talib::TALib;
 use data_cache::CacheEngine;
 use event_center::command_event::{CommandEvent, GetSubscribedIndicatorParams, IndicatorCacheManagerCommand, IndicatorEngineCommand, CalculateIndicatorParams};
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use event_center::EventPublisher;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -132,7 +132,7 @@ impl IndicatorEngine {
                 //     self.handle_response_event(response_event).await;
                 // }
                 Event::Command(command_event) => {
-                    IndicatorEngine::handle_command_event(talib, event_publisher.clone(), command_event, state.clone()).await;
+                    Self::handle_command_event(talib, event_publisher.clone(), command_event, state.clone()).await;
                 }
                 _ => {}
             }
@@ -145,7 +145,7 @@ impl IndicatorEngine {
             CommandEvent::IndicatorEngine(indicator_engine_command) => {
                 match indicator_engine_command {
                     IndicatorEngineCommand::CalculateIndicator(calculate_indicator_params) => {
-                        IndicatorEngine::calculate_indicator(talib, event_publisher, calculate_indicator_params, state.clone()).await;
+                        Self::calculate_indicator(talib, event_publisher, calculate_indicator_params, state.clone()).await;
                     }
                 }
             }
@@ -176,7 +176,7 @@ impl IndicatorEngine {
         match indicator {
             Indicators::SimpleMovingAverage(sma_config) => {
                 let period = sma_config.period;
-                IndicatorEngine::calculate_sma(talib, &period, calculate_indicator_params, event_publisher).await.unwrap();
+                Self::calculate_sma(talib, &period, calculate_indicator_params, event_publisher).await.unwrap();
             }
             _ => {}
         }
@@ -210,7 +210,7 @@ impl IndicatorEngine {
             interval: calculate_params.interval.clone(),
             indicator: calculate_params.indicator.clone(),
             value: Box::new(sma_series),
-            response_timestamp: get_utc8_timestamp(),
+            response_timestamp: get_utc8_timestamp_millis(),
             response_id: calculate_params.request_id.clone(),
             batch_id: calculate_params.batch_id.clone(),
         };

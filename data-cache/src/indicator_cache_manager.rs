@@ -2,7 +2,7 @@ use crate::{CacheManager, CacheEntry};
 use std::collections::VecDeque;
 use event_center::response_event::{CacheEngineResponse, ResponseEvent};
 use types::market::Exchange;
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use types::indicator::IndicatorData;
 use types::cache::IndicatorCacheKey;
 use types::market::KlineInterval;
@@ -15,7 +15,7 @@ impl CacheEntry<IndicatorCacheKey, Box<dyn IndicatorData>> {
     pub fn initialize(&mut self, data: VecDeque<Box<dyn IndicatorData>>) {
         self.data = data;
         self.is_fresh = true;
-        self.updated_at = get_utc8_timestamp();
+        self.updated_at = get_utc8_timestamp_millis();
     }
     pub fn insert_or_update(&mut self, indicator_data: Box<dyn IndicatorData>) {}
         // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k
@@ -67,7 +67,7 @@ impl CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>> {
         let response_id = params.request_id;
         let response = CacheEngineResponse::SubscribedIndicator(SubscribedIndicatorResponse {
             indicator_cache_key_list: sub_indicator_key_list,
-            response_timestamp: get_utc8_timestamp(),
+            response_timestamp: get_utc8_timestamp_millis(),
             response_id: response_id,
         });
         let response_event = ResponseEvent::CacheEngine(response);

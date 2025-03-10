@@ -25,7 +25,7 @@ pub struct ConditionNodeState {
 
 #[derive(Debug, Clone)]
 pub struct ConditionNode {
-    pub id: Uuid,
+    pub node_id: i32,
     pub name: String,
     pub condition_type: ConditionType,
     pub conditions: Vec<Condition>,
@@ -43,13 +43,16 @@ impl NodeTrait for ConditionNode {
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
     }
+
     async fn get_sender(&self) -> NodeSender {
         self.sender.clone()
     }
 
-    fn push_receiver(&mut self, receiver: NodeReceiver) {
+    fn push_receiver(&mut self, receiver: NodeReceiver) {  
         self.receivers.push(receiver);
     }
+
+
     async fn run(&mut self) -> Result<(), Box<dyn Error>> {
         println!("条件节点开始运行");
         self.listen_message().await;
@@ -85,15 +88,15 @@ impl NodeTrait for ConditionNode {
 
 impl ConditionNode {
 
-    pub fn new(name: String, condition_type: ConditionType) -> Self {
+    pub fn new(node_id: i32, name: String, condition_type: ConditionType) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         Self { 
-            id: Uuid::new_v4(), 
+            node_id, 
             name, 
             condition_type, 
             conditions: vec![],
             input_values: HashMap::new(), 
-            sender: NodeSender::new(Uuid::new_v4().to_string(), tx), 
+            sender: NodeSender::new(node_id.to_string(), tx), 
             receivers: Vec::new(),
             state: Arc::new(RwLock::new(ConditionNodeState {
                 current_batch_id: None,

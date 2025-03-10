@@ -25,10 +25,12 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(StrategyInfo::Name).string().not_null())
                     .col(ColumnDef::new(StrategyInfo::Description).string().not_null())
-                    .col(ColumnDef::new(StrategyInfo::Status).integer().not_null())
-                    .col(ColumnDef::new(StrategyInfo::IsDeleted).integer().not_null())
-                    .col(ColumnDef::new(StrategyInfo::CreatedTime).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(StrategyInfo::UpdatedTime).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(StrategyInfo::Status).integer().not_null().default(0))
+                    .col(ColumnDef::new(StrategyInfo::IsDeleted).integer().not_null().default(0))
+                    .col(ColumnDef::new(StrategyInfo::Nodes).json())
+                    .col(ColumnDef::new(StrategyInfo::Edges).json())
+                    .col(ColumnDef::new(StrategyInfo::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(StrategyInfo::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     // .foreign_key(
                     //     ForeignKey::create()
                     //         .name("fk-strategy_info-bakery_id")
@@ -55,8 +57,10 @@ pub enum StrategyInfo {
     Id,
     Name,//策略名称
     Description,//策略描述
-    Status,//策略状态 0=开启 1=关闭
+    Status,//策略状态 1=开启 0=关闭
     IsDeleted,//是否删除 0=正常 1=删除
+    Nodes,//节点
+    Edges,//边
     CreatedTime,//创建时间
     UpdatedTime,//更新时间
 }

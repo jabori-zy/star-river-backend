@@ -1,5 +1,5 @@
 [package]
-name = "strategy"
+name = "strategy-engine"
 version.workspace = true
 description.workspace = true
 authors.workspace = true
@@ -9,6 +9,9 @@ edition.workspace = true
 types = {path = "../types"}
 utils = {path = "../utils"}
 event-center = {path = "../event-center"}
+database = {path = "../database"}
+# 数据库
+sea-orm.workspace = true
 petgraph = "0.7.1"
 tokio = { version = "1.41.1", features = ["full"] }
 rand = "0.8.5"
@@ -20,3 +23,6 @@ serde = { version = "1.0.215", features = ["derive"] }
 strum = "0.27.1"
 chrono.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
+strum_macros.workspace = true

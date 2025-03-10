@@ -703,6 +703,8 @@ name = "database"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "event-center",
+ "log",
  "migration",
  "sea-orm",
  "sea-orm-migration",
@@ -710,6 +712,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tracing",
+ "utils",
 ]
 
 [[package]]
@@ -823,6 +826,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "reqwest",
+ "sea-orm",
  "serde",
  "serde_json",
  "strum 0.27.1",
@@ -858,7 +862,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "strategy",
+ "strategy-engine",
  "strum 0.27.1",
  "strum_macros",
  "tokio",
@@ -3060,6 +3064,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "axum-extra",
+ "chrono",
  "data-cache",
  "database",
  "event-center",
@@ -3070,6 +3075,7 @@ dependencies = [
  "heartbeat",
  "indicator-engine",
  "migration",
+ "sea-orm",
  "serde",
  "serde_json",
  "tokio",
@@ -3096,20 +3102,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
-name = "strategy"
+name = "strategy-engine"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "database",
  "event-center",
  "futures",
  "petgraph",
  "rand 0.8.5",
+ "sea-orm",
  "serde",
+ "serde_json",
  "strum 0.27.1",
+ "strum_macros",
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-subscriber",
  "types",
  "utils",
  "uuid",

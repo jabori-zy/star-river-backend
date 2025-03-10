@@ -1,8 +1,7 @@
 pub mod strategy;
-pub mod data_source_node;
-pub mod indicator_node;
-pub mod condition_node;
+pub mod node;
 pub mod message;
+pub mod engine;
 
 
 use tokio::sync::broadcast;
@@ -17,19 +16,45 @@ use types::market::KlineSeries;
 use types::indicator::{Indicators, IndicatorData};
 use serde::{Deserialize, Serialize};
 use crate::message::NodeMessage;
-
-
-
-
+use sea_orm::prelude::*;
+use strum::EnumString;
+use strum_macros::Display;
+use std::str::FromStr;
 
 
 // 节点类型
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum NodeType {
-    Start,
-    DataSource,
-    Indicator,
-    Condition,
+    #[strum(serialize = "start_node")]
+    StartNode,
+    #[strum(serialize = "live_data_node")]
+    LiveDataNode,
+    #[strum(serialize = "data_source_node")]
+    DataSourceNode,
+    #[strum(serialize = "indicator_node")]
+    IndicatorNode,
+    #[strum(serialize = "condition_node")]
+    ConditionNode,
+}
+
+impl FromStr for NodeType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // 处理指标节点的特殊情况
+        if s.ends_with("indicator_node") {
+            return Ok(NodeType::IndicatorNode);
+        }
+
+        // 其他节点类型保持原有的下划线命名方式
+        match s {
+            "start_node" => Ok(NodeType::StartNode),
+            "live_data_node" => Ok(NodeType::LiveDataNode),
+            "data_source_node" => Ok(NodeType::DataSourceNode),
+            "condition_node" => Ok(NodeType::ConditionNode),
+            _ => Err(format!("Unknown node type: {}", s))
+        }
+    }
 }
 
 #[async_trait]
@@ -44,37 +69,6 @@ pub trait NodeTrait: Debug + Send + Sync {
 impl Clone for Box<dyn NodeTrait> {
     fn clone(&self) -> Self {
         self.clone_box()
-    }
-}
-
-
-// 开始节点
-#[derive(Debug, Clone)]
-pub struct StartNode {
-    pub id: Uuid,
-    pub node_type: NodeType,
-    pub sender: NodeSender,
-    pub receivers: Vec<NodeReceiver>,
-}
-
-
-#[async_trait]
-impl NodeTrait for StartNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn clone_box(&self) -> Box<dyn NodeTrait> {
-        Box::new(self.clone())
-    }
-    async fn get_sender(&self) -> NodeSender {
-        self.sender.clone()
-    }
-
-    fn push_receiver(&mut self, receiver: NodeReceiver) {
-        self.receivers.push(receiver);
-    }
-    async fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        Ok(())
     }
 }
 
@@ -138,6 +132,9 @@ pub struct Edge {
     pub source: NodeType,
     pub target: NodeType,
 }
+
+
+
 
 
 

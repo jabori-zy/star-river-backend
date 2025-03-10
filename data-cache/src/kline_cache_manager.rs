@@ -4,7 +4,7 @@ use event_center::exchange_event::{ExchangeKlineSeriesUpdateEventInfo, ExchangeK
 use event_center::market_event::{MarketEvent, KlineSeriesUpdateEventInfo};
 use types::market::Kline;
 use std::collections::VecDeque;
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use types::market::KlineSeries;
 use crate::KlineCacheKey;
 use event_center::EventPublisher;
@@ -15,7 +15,7 @@ impl CacheEntry<KlineCacheKey, Kline> {
         self.batch_id = Some(batch_id);
         self.data = data;
         self.is_fresh = true;
-        self.updated_at = get_utc8_timestamp();
+        self.updated_at = get_utc8_timestamp_millis();
     }
 
     pub fn insert_or_update(&mut self, kline: Kline, batch_id: String) {
@@ -25,12 +25,12 @@ impl CacheEntry<KlineCacheKey, Kline> {
             self.data.push_back(kline);
             self.is_fresh = true;
             self.batch_id = Some(batch_id);
-            self.updated_at = get_utc8_timestamp();
+            self.updated_at = get_utc8_timestamp_millis();
         } else {
             self.data.push_back(kline);
             self.is_fresh = true;
             self.batch_id = Some(batch_id);
-            self.updated_at = get_utc8_timestamp();
+            self.updated_at = get_utc8_timestamp_millis();
         }
 
     }
@@ -135,7 +135,7 @@ impl CacheManager<KlineCacheKey, Kline> {
             symbol: cache_key.symbol,
             interval: cache_key.interval,
             kline_series,
-            event_timestamp: get_utc8_timestamp(),
+            event_timestamp: get_utc8_timestamp_millis(),
             batch_id: cache_entry.batch_id.as_ref().unwrap().clone(),
         }).into();
         let _ = event_publisher.publish(kline_series_update_event);

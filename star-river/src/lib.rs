@@ -6,7 +6,7 @@ pub mod websocket;
 pub mod sse;
 
 
-use axum::{routing::{get, post}, Router, routing::any};
+use axum::{routing::{get, post, delete}, Router, routing::any};
 use axum::extract::State;
 
 use std::net::SocketAddr;
@@ -17,6 +17,8 @@ use crate::star_river::StarRiver;
 use crate::api::market_api::subscribe_kline_stream;
 use crate::api::indicator_api::subscribe_indicator;
 use crate::api::market_api::get_heartbeat_lock;
+use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy};
+use crate::api::query_api::{get_strategy_list, get_strategy_by_id};
 use crate::sse::{market_sse_handler, indicator_sse_handler};
 use tracing::Level;
 use crate::websocket::ws_handler;
@@ -39,7 +41,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     .allow_headers(Any);
 
     // 创建app状态
-    let star_river = StarRiver::new();
+    let star_river = StarRiver::new().await;
 
     let app = Router::new()
         .route("/", get(hello_world))
@@ -49,6 +51,11 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/ws", any(ws_handler))
         .route("/market_sse", get(market_sse_handler))
         .route("/indicator_sse", get(indicator_sse_handler))
+        .route("/create_strategy", post(create_strategy))
+        .route("/get_strategy_list", get(get_strategy_list))
+        .route("/update_strategy", post(update_strategy))
+        .route("/delete_strategy", delete(delete_strategy))
+        .route("/get_strategy", get(get_strategy_by_id))
         .layer(cors)
         .with_state(star_river.clone());
 

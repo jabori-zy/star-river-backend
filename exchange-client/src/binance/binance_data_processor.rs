@@ -5,7 +5,7 @@ use crate::binance::BinanceKlineInterval;
 use strum::Display;
 use strum::EnumString;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
-use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use event_center::EventPublisher;
 use utils::generate_batch_id;
 
@@ -60,7 +60,7 @@ impl BinanceDataProcessor {
         // 
         let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEventInfo {
             exchange: Exchange::Binance,
-            event_timestamp: get_utc8_timestamp(),
+            event_timestamp: get_utc8_timestamp_millis(),
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
             kline_series,
@@ -104,7 +104,7 @@ impl BinanceDataProcessor {
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
             kline: new_kline,
-            event_timestamp: get_utc8_timestamp(),
+            event_timestamp: get_utc8_timestamp_millis(),
             batch_id: generate_batch_id(),
         };
 
