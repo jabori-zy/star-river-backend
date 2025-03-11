@@ -62,7 +62,8 @@ impl<K: CacheKey, T: Debug> CacheEntry<K, T> {
 #[derive(Debug)]
 pub struct CacheManager<K: CacheKey, T> {
     pub cache: HashMap<K, CacheEntry<K, T>>,
-    // pub event_center: Arc<Mutex<EventCenter>>,
+    // 缓存key有哪些策略共同使用
+    pub subscribed_strategy: HashMap<K, Vec<i32>>,
     pub max_cache_size: usize
 }
 
@@ -72,28 +73,29 @@ impl<K: CacheKey, T: Debug> CacheManager<K, T> {
     pub fn new() -> Self {
         Self { 
             cache: HashMap::new(), 
-            // event_center, 
+            subscribed_strategy: HashMap::new(), 
             max_cache_size: 1000, 
         }
     }
 
     // 添加订阅
-    pub fn subscribe(&mut self, key: K) {
+    pub fn add_cache_key(&mut self, strategy_id: i32, cache_key: K) {
         // 如果key已经存在，则返回
-        if self.cache.contains_key(&key) {
-            tracing::warn!("缓存键已存在: {:?}", key);
+        if self.cache.contains_key(&cache_key) {
+            tracing::warn!("k线缓存键已存在: {:?}", cache_key);
             return;
         }
 
 
-        let cache_entry = CacheEntry::new(key.clone(), self.max_cache_size, Duration::from_secs(60));
-        self.cache.insert(key.clone(), cache_entry);
+        let cache_entry = CacheEntry::new(cache_key.clone(), self.max_cache_size, Duration::from_secs(60));
+        self.cache.insert(cache_key.clone(), cache_entry);
 
-        
-        tracing::debug!("添加订阅成功: {:?}", key);
+        // 添加订阅的策略id
+        self.subscribed_strategy.entry(cache_key.clone()).or_insert(Vec::new()).push(strategy_id);
+        tracing::debug!("添加k线缓存键成功: {:?}", cache_key);
     }
 
-    pub fn remove_subscription(&mut self, key: K) {
+    pub fn remove_kline_cache_key(&mut self, key: K) {
         self.cache.remove(&key);
     }
 }
@@ -109,10 +111,6 @@ pub struct CacheEngineState {
 
 #[derive(Debug)]
 pub struct CacheEngine {
-    // pub kline_cache_manager: Arc<Mutex<CacheManager<KlineCacheKey, Kline>>>,
-    // pub indicator_cache_manager: Arc<Mutex<CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>>>>,
-    // event_center: Arc<Mutex<EventCenter>>,
-    // event_publisher: EventPublisher,
     state: Arc<RwLock<CacheEngineState>>,
     exchange_event_receiver: broadcast::Receiver<Event>, 
     indicator_event_receiver: broadcast::Receiver<Event>,
@@ -201,24 +199,25 @@ impl CacheEngine {
             CommandEvent::KlineCacheManager(command) => {
                 match command {
 
-                    KlineCacheManagerCommand::SubscribeKline(params) => {
+                    KlineCacheManagerCommand::AddKlineCacheKey(params) => {
                         let kline_cache_manager = &mut state.write().await.kline_cache_manager;
-                        kline_cache_manager.subscribe(params.cache_key);
+                        kline_cache_manager.add_cache_key(params.strategy_id, params.cache_key);
                     }
                 }
             }
             // 处理指标缓存的命令
             CommandEvent::IndicatorCacheManager(command) => {
                 match command {
-                    IndicatorCacheManagerCommand::SubscribeIndicator(params) => {
-                        let indicator_cache_manager = &mut state.write().await.indicator_cache_manager;
-                        indicator_cache_manager.subscribe(params.cache_key);
-                    }
+                    // IndicatorCacheManagerCommand::SubscribeIndicator(params) => {
+                    //     let indicator_cache_manager = &mut state.write().await.indicator_cache_manager;
+                    //     indicator_cache_manager.add_cache_key(params.cache_key);
+                    // }
                     IndicatorCacheManagerCommand::GetSubscribedIndicator(params) => {
                         let event_publisher = state.read().await.event_publisher.clone();
                         let indicator_cache_manager = &mut state.write().await.indicator_cache_manager;
                         indicator_cache_manager.get_subscribed_indicator(params, event_publisher);
                     }
+                    _ => {}
                 }
             }
             _ => {}

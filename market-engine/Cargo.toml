@@ -1,0 +1,20 @@
+[package]
+name = "market-engine"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+exchange-client = { path = "../exchange-client" }
+event-center = { path = "../event-center" }
+indicator-engine = { path = "../indicator-engine" }
+data-cache = { path = "../data-cache" }
+types = { path = "../types" }
+utils = { path = "../utils" }
+uuid.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+serde.workspace = true

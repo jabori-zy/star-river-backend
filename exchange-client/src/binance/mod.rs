@@ -22,7 +22,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
-use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, SubscribeKlineParams, IndicatorCacheManagerCommand, SubscribeIndicatorParams};
+use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, AddKlineCacheKeyParams, IndicatorCacheManagerCommand, SubscribeIndicatorParams};
 use types::cache::{KlineCacheKey, IndicatorCacheKey};
 use utils::get_utc8_timestamp_millis;
 use types::indicator::Indicators;
@@ -187,25 +187,6 @@ impl ExchangeClient for BinanceExchange {
 
     // 获取k线系列
     async fn get_kline_series(&mut self, symbol: &str, interval: KlineInterval, limit: Option<u32>, start_time: Option<u64>, end_time: Option<u64>) -> Result<(), String> {
-        // 调用缓存器的订阅事件
-        let cache_key = KlineCacheKey {
-            exchange: Exchange::Binance,
-            symbol: symbol.to_string(),
-            interval: interval.clone(),
-        };
-        let params = SubscribeKlineParams {
-            cache_key,
-            sender: "binance_exchange".to_string(),
-            timestamp: get_utc8_timestamp_millis(),
-
-        };
-        let command = KlineCacheManagerCommand::SubscribeKline(params);
-        let command_event = CommandEvent::KlineCacheManager(command);
-
-        // 使用binance_publisher发送命令
-        // let _ = self.binance_publisher.send(command_event.clone().into());
-        let _ = self.event_publisher.publish(command_event.clone().into());
-
         let binance_interval = BinanceKlineInterval::from(interval);
 
         let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, start_time, end_time).await?;

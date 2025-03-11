@@ -37,9 +37,9 @@ impl CacheEntry<IndicatorCacheKey, Box<dyn IndicatorData>> {
 impl CacheManager<IndicatorCacheKey, Box<dyn IndicatorData>> {
     pub async fn initialize_indicator_cache(&mut self, indicator_cache_key: IndicatorCacheKey) {
         // 判断key是否已存在，如果不存在，则添加订阅
-        if !self.cache.contains_key(&indicator_cache_key) {
-            self.subscribe(indicator_cache_key.clone());
-        }
+        // if !self.cache.contains_key(&indicator_cache_key) {
+        //     self.add_cache_key(indicator_cache_key.clone());
+        // }
         
     }
 

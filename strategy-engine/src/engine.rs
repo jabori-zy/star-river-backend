@@ -117,7 +117,7 @@ impl StrategyEngine {
     pub async fn create_strategy_by_info(&mut self, strategy_info: StrategyInfo) -> Result<i32, String> {
         let strategy_id = strategy_info.id;
 
-        let strategy = Strategy::new(strategy_info, self.event_publisher.clone(), self.market_event_receiver.resubscribe()).await;
+        let strategy = Strategy::new(strategy_info, self.event_publisher.clone(), self.market_event_receiver.resubscribe(), self.response_event_receiver.resubscribe()).await;
         self.strategy_list.insert(strategy_id, strategy);
 
         Ok(strategy_id)

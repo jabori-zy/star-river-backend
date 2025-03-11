@@ -862,7 +862,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "strategy-engine",
  "strum 0.27.1",
  "strum_macros",
  "tokio",
@@ -1663,6 +1662,24 @@ name = "log"
 version = "0.4.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
+
+[[package]]
+name = "market-engine"
+version = "0.1.0"
+dependencies = [
+ "data-cache",
+ "event-center",
+ "exchange-client",
+ "futures",
+ "indicator-engine",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "types",
+ "utils",
+ "uuid",
+]
 
 [[package]]
 name = "matchers"
@@ -3107,9 +3124,11 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "data-cache",
  "database",
  "event-center",
  "futures",
+ "market-engine",
  "petgraph",
  "rand 0.8.5",
  "sea-orm",

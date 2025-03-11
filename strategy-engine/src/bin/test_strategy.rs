@@ -4,14 +4,15 @@ use database::DatabaseManager;
 use event_center::Channel;
 use tracing::Level;
 use tracing_subscriber;
-use strategy_engine::strategy::Strategy;
+use market_engine::MarketDataEngine;
+use data_cache::CacheEngine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing_subscriber::fmt()
     // filter spans/events with level TRACE or higher.
-    .with_max_level(Level::INFO)
+    .with_max_level(Level::DEBUG)
     // build but do not install the subscriber.
     .init();
 
@@ -23,7 +24,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_publisher = event_center.get_publisher1();
     let database_manager = DatabaseManager::new(command_event_receiver, event_publisher).await;
 
+    // 初始化市场引擎
+    let market_engine_event_publisher = event_center.get_publisher1();
+    let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+    let market_event_receiver = event_center.subscribe(Channel::Market).unwrap();
+    let mut market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, market_event_receiver);
+
+    // 初始化缓存引擎
+    let cache_engine_event_publisher = event_center.get_publisher1();
+    let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+    let exchange_event_receiver = event_center.subscribe(Channel::Exchange).unwrap();
+    let indicator_event_receiver = event_center.subscribe(Channel::Indicator).unwrap();
+    let mut cache_engine = CacheEngine::new(exchange_event_receiver, indicator_event_receiver, command_event_receiver, cache_engine_event_publisher);
+
     // 初始化策略引擎
+    
     let strategy_engine_event_publisher = event_center.get_publisher1();
     let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
     let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
@@ -31,15 +46,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database = database_manager.get_conn();
     let mut strategy_engine = StrategyEngine::new(market_event_receiver, command_event_receiver, response_event_receiver, strategy_engine_event_publisher, database);
 
+
     tokio::spawn(async move {
         database_manager.start().await;
         
     });
 
-    let market_event_receiver = event_center.subscribe(Channel::Market).unwrap();
+    // 启动市场引擎
+    tokio::spawn(async move {
+        market_engine.run().await.unwrap();
+    });
+
+    // 启动缓存引擎
+    tokio::spawn(async move {
+        cache_engine.start().await;
+    });
+
     tokio::spawn(async move {
         strategy_engine.start().await.unwrap();
-        println!("策略引擎启动成功");
         // strategy_engine.create_strategy("test".to_string(), "test_description".to_string()).await.unwrap();
         let strategy_info = strategy_engine.get_strategy_by_id(9).await.unwrap();
         let strategy_id = strategy_engine.create_strategy_by_info(strategy_info).await.unwrap();

@@ -22,6 +22,7 @@ use tokio::sync::RwLock;
 // 将需要共享的状态提取出来
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeState { 
+    pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
     pub exchange: Exchange,
@@ -45,7 +46,7 @@ pub struct IndicatorNode {
 
 impl Clone for IndicatorNode {
     fn clone(&self) -> Self {
-        Self {  
+        Self {
             node_type: self.node_type.clone(), 
             node_receivers: self.node_receivers.clone(),
             event_publisher: self.event_publisher.clone(),
@@ -59,7 +60,7 @@ impl Clone for IndicatorNode {
 
 
 impl IndicatorNode {
-    pub fn new(node_id: String, node_name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Self {
+    pub fn new(strategy_id: i32, node_id: String, node_name: String, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: Indicators, event_publisher: EventPublisher, response_event_receiver: broadcast::Receiver<Event>) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         Self { 
             node_type: NodeType::IndicatorNode,
@@ -67,6 +68,7 @@ impl IndicatorNode {
             event_publisher,
             response_event_receiver,
             state: Arc::new(RwLock::new(IndicatorNodeState {
+                strategy_id,
                 node_id: node_id.clone(),
                 node_name,
                 exchange,

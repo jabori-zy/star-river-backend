@@ -14,6 +14,7 @@ pub enum CommandEvent {
     IndicatorCacheManager(IndicatorCacheManagerCommand),
     IndicatorEngine(IndicatorEngineCommand),
     Database(DatabaseCommand),
+    MarketDataEngine(MarketDataEngineCommand),
 }
 
 impl From<CommandEvent> for Event {
@@ -25,13 +26,14 @@ impl From<CommandEvent> for Event {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum KlineCacheManagerCommand {
-    #[strum(serialize = "subscribe-kline")]
-    SubscribeKline(SubscribeKlineParams),
+    #[strum(serialize = "add-kline-cache-key")]
+    AddKlineCacheKey(AddKlineCacheKeyParams),
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubscribeKlineParams {
+pub struct AddKlineCacheKeyParams {
+    pub strategy_id: i32,
     pub cache_key: KlineCacheKey,
     pub sender: String,
     pub timestamp:i64,
@@ -104,6 +106,21 @@ pub struct CreateStrategyParams {
 
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum MarketDataEngineCommand {
+    #[strum(serialize = "subscribe-kline-stream")]
+    SubscribeKlineStream(SubscribeKlineStreamParams),
+}
 
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscribeKlineStreamParams {
+    pub strategy_id: i32,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub sender: String,
+    pub timestamp:i64,
+    pub request_id: Uuid,
+}
 

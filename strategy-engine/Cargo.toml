@@ -10,6 +10,8 @@ types = {path = "../types"}
 utils = {path = "../utils"}
 event-center = {path = "../event-center"}
 database = {path = "../database"}
+market-engine = {path = "../market-engine"}
+data-cache = {path = "../data-cache"}
 # 数据库
 sea-orm.workspace = true
 petgraph = "0.7.1"

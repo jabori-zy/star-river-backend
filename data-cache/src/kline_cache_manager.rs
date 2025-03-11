@@ -62,9 +62,9 @@ impl CacheManager<KlineCacheKey, Kline> {
         // tracing::debug!("初始化k线缓存, cache_key: {:?}", cache_key);
 
         // 判断key是否已存在，如果不存在，则添加订阅
-        if !self.cache.contains_key(&cache_key) {
-            self.subscribe(cache_key.clone());
-        }
+        // if !self.cache.contains_key(&cache_key) {
+        //     self.add_cache_key(cache_key.clone());
+        // }
 
         // 初始化缓存
         let kline_series = exchange_klineseries_event.kline_series;
@@ -103,19 +103,6 @@ impl CacheManager<KlineCacheKey, Kline> {
         // 发布事件
         self.publish_kline_series(event_publisher, cache_key, 1).await;
         
-        // let klineseries_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesUpdateEventInfo {
-        //     exchange,
-        //     symbol,
-        //     interval,
-        //     kline_series: KlineSeries::from(cache_entry.clone()),
-        //     event_timestamp: get_utc8_timestamp(),
-        //     batch_id,
-        // }).into();
-        // // tracing::info!("发布k线缓存事件: {:?}", klineseries_update_event);
-        // // let event_center: tokio::sync::MutexGuard<'_, event_center::EventCenter> = self.event_center.lock().await;
-        // // event_center.publish(kline_series_update_event).unwrap(); 
-        // let _ = event_publisher.publish(klineseries_update_event);
-        
         
     }
 
@@ -138,6 +125,6 @@ impl CacheManager<KlineCacheKey, Kline> {
             event_timestamp: get_utc8_timestamp_millis(),
             batch_id: cache_entry.batch_id.as_ref().unwrap().clone(),
         }).into();
-        let _ = event_publisher.publish(kline_series_update_event);
+        event_publisher.publish(kline_series_update_event).unwrap();
     }
 }

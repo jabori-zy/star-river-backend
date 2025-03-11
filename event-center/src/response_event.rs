@@ -10,6 +10,7 @@ use types::indicator::{Indicators, IndicatorData};
 pub enum ResponseEvent {
     CacheEngine(CacheEngineResponse),
     IndicatorEngine(IndicatorEngineResponse),
+    MarketDataEngine(MarketDataEngineResponse),
 }
 
 impl From<ResponseEvent> for Event {
@@ -52,3 +53,20 @@ pub struct CalculateIndicatorResponse {
     pub response_id: Uuid,
     pub batch_id: String,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MarketDataEngineResponse {
+    SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscribeKlineStreamSuccessResponse {
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub response_timestamp: i64,
+    pub response_id: Uuid,
+}
+

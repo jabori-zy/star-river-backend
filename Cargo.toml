@@ -12,7 +12,7 @@ members = [
     "migration",
     "strategy-engine",
     "types",
-    "utils",
+    "utils", "market-engine",
 ]
 
 [workspace.package]
