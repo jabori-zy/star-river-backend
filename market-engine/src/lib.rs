@@ -156,6 +156,7 @@ impl MarketDataEngine{
         exchange.get_socket_stream().await.unwrap();
 
         let request_id = params.request_id;
+        tracing::warn!("市场数据引擎订阅K线流成功, 请求节点:{}, 请求id: {}", params.node_id, request_id);
 
         // 都成功后，发送响应事件
         let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse {

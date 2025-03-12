@@ -28,6 +28,9 @@ pub struct LiveDataNodeState {
     pub interval: KlineInterval,
     pub node_sender: NodeSender,
     pub request_id: Option<Uuid>,
+    pub data_subscribed: bool,
+    pub is_running: bool,
+    
 }
 
 
@@ -82,6 +85,8 @@ impl LiveDataNode {
                 interval, 
                 node_sender: NodeSender::new(node_id, tx), 
                 request_id: None,
+                data_subscribed: false,
+                is_running: false,
             })), 
         }
     }
@@ -91,6 +96,7 @@ impl LiveDataNode {
         let request_id = Uuid::new_v4();
         let params = SubscribeKlineStreamParams {
             strategy_id: state.strategy_id.clone(),
+            node_id: state.node_id.clone(),
             exchange: state.exchange.clone(),
             symbol: state.symbol.clone(),
             interval: state.interval.clone(),
@@ -102,7 +108,7 @@ impl LiveDataNode {
         state.request_id = Some(request_id);
 
         let command_event = CommandEvent::MarketDataEngine(MarketDataEngineCommand::SubscribeKlineStream(params));
-        tracing::info!("LiveDataNode 发送命令--订阅k线流: {:?}", command_event);
+        tracing::info!("{}订阅k线流: {:?}", state.node_id, command_event);
         self.event_publisher.publish(command_event.into()).unwrap();
         Ok(())
     }
@@ -145,9 +151,62 @@ impl LiveDataNode {
         });
     }
     async fn handle_market_event(state: Arc<RwLock<LiveDataNodeState>>, market_event: MarketEvent) {
+        // 先获取读锁，检查状态
+        let state_guard = state.read().await;
+        
+        // 判断是否正在运行
+        if !state_guard.is_running {
+            return;
+        }
+
+        // 判断数据是否订阅成功
+        if !state_guard.data_subscribed {
+            return;
+        }
+
+        // 处理市场事件
         match market_event {
             MarketEvent::KlineSeriesUpdate(kline_series_update) => {
-                tracing::info!("K线流更新: {:?}", kline_series_update);
+                // 只获取当前节点支持的数据
+                let exchange = state_guard.exchange.clone();
+                let symbol = state_guard.symbol.clone();
+                let interval = state_guard.interval.clone();
+                if exchange != kline_series_update.exchange || symbol != kline_series_update.symbol || interval != kline_series_update.interval {
+                    return;
+                }
+                // 这里不需要再获取锁，因为我们只需要读取数据
+                let kline_series_message = KlineSeriesMessage {
+                    from_node_id: state_guard.node_id.clone(),
+                    from_node_name: state_guard.node_name.clone(),
+                    exchange: kline_series_update.exchange,
+                    symbol: kline_series_update.symbol,
+                    interval: kline_series_update.interval,
+                    kline_series: kline_series_update.kline_series.clone(),
+                    batch_id: kline_series_update.batch_id.clone(),
+                    message_timestamp: get_utc8_timestamp_millis(),
+                };
+                let message = NodeMessage::KlineSeries(kline_series_message);
+                match state_guard.node_sender.send(message.clone()) {
+                    Ok(receiver_count) => {
+                        tracing::info!("+++++++++++++++++++++++++++++++");
+                        tracing::info!("批次id: {}", kline_series_update.batch_id);
+                        tracing::info!(
+                            "数据源节点{}发送数据: {:?} 发送成功, 接收者数量 = {}", 
+                            state_guard.node_id,
+                            message, 
+                            receiver_count
+                        );
+                    },
+                    Err(e) => {
+                        tracing::error!(
+                            "数据源节点{}发送数据: {:?} 发送失败: 错误 = {:?}, 接收者数量 = {}", 
+                            state_guard.node_id,
+                            message,
+                            e,
+                            state_guard.node_sender.receiver_count()
+                        );
+                    }
+                }
             }
             _ => {}
         }
@@ -156,17 +215,18 @@ impl LiveDataNode {
     async fn handle_response_event(state: Arc<RwLock<LiveDataNodeState>>, response_event: ResponseEvent) {
         match response_event {
             ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(subscribe_kline_stream_success_response)) => {
-                // 处理接收到的事件
                 let mut state_guard = state.write().await;
-                let request_id = state_guard.request_id.unwrap();
-                // 如果请求id相同，则认为订阅成功
+                let request_id = match state_guard.request_id {
+                    Some(id) => id,
+                    None => return,
+                };
+
                 if request_id == subscribe_kline_stream_success_response.response_id {
-                    tracing::info!("K线流订阅成功: {:?}", subscribe_kline_stream_success_response);
-                    // 清空请求id
+                    tracing::info!("{}: K线流订阅成功: {:?}, 开始推送数据", state_guard.node_id, subscribe_kline_stream_success_response);
+                    state_guard.data_subscribed = true;
+                    
                     state_guard.request_id = None;
                 }
-
-
             }
             _ => {}
         }
@@ -193,7 +253,11 @@ impl NodeTrait for LiveDataNode {
 
 
     async fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("LiveDataNode run");
+        tracing::info!("LiveDataNode run");
+        {
+            let mut state_guard = self.state.write().await;
+            state_guard.is_running = true;
+        }
 
         let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
 
@@ -205,51 +269,7 @@ impl NodeTrait for LiveDataNode {
         });
         // 先订阅k线流
         self.subscribe_kline_stream().await?;
-        // // 监听市场事件
-        // while let Ok(event) = self.market_event_receiver.recv().await {
-        //     println!("market_event: {:?}", event);
 
-        //     match event {
-        //         Event::Market(market_event) => {
-        //             match market_event {
-        //                 MarketEvent::KlineSeriesUpdate(kline_series_update) => {
-        //                     let kline_series_message = KlineSeriesMessage {
-        //                         from_node_id: self.state.read().await.node_id.clone(),
-        //                         from_node_name: self.state.read().await.node_name.clone(),
-        //                         exchange: kline_series_update.exchange,
-        //                         symbol: kline_series_update.symbol,
-        //                         interval: kline_series_update.interval,
-        //                         kline_series: kline_series_update.kline_series.clone(),
-        //                         batch_id: kline_series_update.batch_id.clone(),
-        //                         message_timestamp: get_utc8_timestamp_millis(),
-        //                     };
-        //                     let message = NodeMessage::KlineSeries(kline_series_message);
-        //                     let state = self.state.read().await;
-        //                     match state.node_sender.send(message.clone()) {
-        //                         Ok(receiver_count) => {
-        //                             println!("+++++++++++++++++++++++++++++++");
-        //                             println!("批次id: {}", kline_series_update.batch_id);
-        //                             println!(
-        //                                 "数据源节点发送数据: {:?} 发送成功", 
-        //                                 message, 
-        //                             );
-        //                         },
-        //                         Err(e) => {
-        //                             println!(
-        //                                 "数据源节点发送数据: {:?} 发送失败: 错误 = {:?}, 接收者数量 = {}", 
-        //                                 message,
-        //                                 e,
-        //                                 state.node_sender.receiver_count()
-        //                             );
-        //                         }
-        //                     }
-        //                 }
-        //                 _ => {}
-        //             }
-        //         }
-        //         _ => {}
-        //     }
-        // }
         Ok(())
     }
 }

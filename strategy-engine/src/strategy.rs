@@ -17,6 +17,7 @@ use tokio::sync::RwLock;
 use database::entities::strategy_info::Model as StrategyInfo;
 use serde_json::Value;
 use std::str::FromStr;
+use tokio::join;
 
 #[derive(Debug)]
 // 策略图
@@ -216,6 +217,8 @@ impl Strategy {
                 exchange,
                 symbol,
                 interval,
+                data_subscribed: false,
+                is_running: false,
                 node_sender: NodeSender::new(node_id.clone(), tx),
                 request_id: None,
             })),
@@ -314,16 +317,17 @@ impl Strategy {
     }
 
     pub async fn run(&mut self) {
-        let mut handles = Vec::new();
-
-        let nodes = self.topological_sort();
+        let nodes = self.topological_sort();  // 假设这个方法返回按拓扑排序的节点
 
         for node in nodes {
             let mut node = node.clone();
+            // 使用 tokio::join! 确保节点按顺序执行
             let handle = tokio::spawn(async move {
                 node.run().await.unwrap();
             });
-            handles.push(handle);
+
+            // 等待当前节点完成后再继续
+            join!(handle).0.unwrap();
         }
     }
 }

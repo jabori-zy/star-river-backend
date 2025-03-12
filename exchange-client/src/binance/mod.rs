@@ -205,7 +205,6 @@ impl ExchangeClient for BinanceExchange {
 
     // 订阅k线流
     async fn subscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval) -> Result<(), String> {    
-        tracing::debug!("订阅k线流, symbol: {:?}, interval: {:?}", symbol, interval);
         let binance_interval = BinanceKlineInterval::from(interval.clone());
 
         let mut websocket_state = self.websocket_state.lock().await;

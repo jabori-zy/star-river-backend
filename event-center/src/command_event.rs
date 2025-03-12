@@ -116,6 +116,7 @@ pub enum MarketDataEngineCommand {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscribeKlineStreamParams {
     pub strategy_id: i32,
+    pub node_id: String,
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,

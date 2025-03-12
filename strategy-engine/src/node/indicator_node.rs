@@ -175,7 +175,7 @@ impl IndicatorNode {
         tokio::spawn(async move {
             while let Some(receive_message) = combined_stream.next().await {
                 if let Ok(receive_message) = receive_message {
-                    println!("指标节点接收到数据: {:?}", receive_message);
+                    // tracing::info!("指标节点接收到数据: {:?}", receive_message);
                     match receive_message {
                         NodeMessage::KlineSeries(kline_series_message) => {
 
