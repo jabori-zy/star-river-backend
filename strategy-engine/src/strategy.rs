@@ -10,7 +10,8 @@ use types::indicator_config::SMAConfig;
 use crate::node::live_data_node::{LiveDataNode, LiveDataNodeState};
 use crate::node::indicator_node::{IndicatorNode, IndicatorNodeState};
 use crate::node::start_node::StartNode;
-use crate::node::condition_node::{ConditionNode, Condition, ConditionType, Operator};
+use crate::node::if_else_node::{IfElseNode, ComparisonOperator};
+use crate::node::buy_node::BuyNode;
 use event_center::{Event, EventPublisher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -18,6 +19,7 @@ use database::entities::strategy_info::Model as StrategyInfo;
 use serde_json::Value;
 use std::str::FromStr;
 use tokio::join;
+use crate::node::if_else_node::Case;
 
 #[derive(Debug)]
 // 策略图
@@ -61,8 +63,15 @@ impl Strategy {
         if let Some(nodes_str) = strategy_info.nodes {
             if let Ok(nodes) = serde_json::from_str::<Vec<Value>>(&nodes_str.to_string()) {
                 for node_config in nodes {
-                    tracing::debug!("node_config: {:?}", node_config);
-                    Self::add_node(&mut graph, &mut node_indices, &node_config, event_publisher.clone(), market_event_receiver.resubscribe(), response_event_receiver.resubscribe());
+                    // tracing::debug!("node_config: {:?}", node_config);
+                    Self::add_node(
+                        &mut graph, 
+                        &mut node_indices, 
+                        &node_config, 
+                        event_publisher.clone(), 
+                        market_event_receiver.resubscribe(), 
+                        response_event_receiver.resubscribe()
+                    ).await;
 
                 }
             }
@@ -72,10 +81,11 @@ impl Strategy {
             if let Ok(edges) = serde_json::from_str::<Vec<Value>>(&edges_str.to_string()) {
                 // tracing::debug!("edges: {:?}", edges);
                 for edge_config in edges {
-                    let from = edge_config["source"].as_str().unwrap();
-                    let to = edge_config["target"].as_str().unwrap();
+                    let source_handle = edge_config["sourceHandle"].as_str().unwrap();
+                    let from_node_id = edge_config["source"].as_str().unwrap();
+                    let to_node_id = edge_config["target"].as_str().unwrap();
 
-                    Self::add_edge(&mut graph, &mut node_indices, from, to).await;
+                    Self::add_edge(&mut graph, &mut node_indices, from_node_id, source_handle, to_node_id).await;
                 }
             }
         }
@@ -90,7 +100,7 @@ impl Strategy {
         }
     }
 
-    fn add_node(
+    async fn add_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: &Value,
@@ -106,25 +116,27 @@ impl Strategy {
             NodeType::StartNode => {
                 let node_data = node_config["data"].clone();
                 let node_id = node_config["id"].as_str().unwrap();
-                let node_name = "起始节点".to_string();
+                let node_name = node_data["nodeName"].as_str().unwrap_or_default();
                 Self::add_start_node(
                     graph, 
                     node_indices,
                     node_id.to_string(), 
                     node_name.to_string()
-                );
+                ).await;
             }
             // 指标节点
             NodeType::IndicatorNode => {
                 let node_data = node_config["data"].clone();
                 let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
                 let node_id = node_config["id"].as_str().unwrap();
-                let indicator_name = node_data["indicatorName"].as_str().unwrap_or_default();
-                let mut indicator = Indicators::from_str(indicator_name).unwrap();
-                let indicator_config = node_data["indicatorConfig"].clone();
-                indicator.update_config(&indicator_config);
-                let node_name = "指标节点".to_string();
-                let exchange = Exchange::Binance;
+                let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+
+                let indicator_name = node_data["indicatorName"].as_str().unwrap_or_default(); // 指标名称
+                let mut indicator = Indicators::from_str(indicator_name).unwrap(); // 转换成指标
+                let indicator_config = node_data["indicatorConfig"].clone(); // 指标配置
+                indicator.update_config(&indicator_config); // 更新指标配置
+
+                let exchange = Exchange::Binance; // 交易所
                 let symbol = "BTCUSDT".to_string();
                 let interval = KlineInterval::Minutes1;
                 
@@ -141,7 +153,7 @@ impl Strategy {
                     indicator,
                     event_publisher.clone(),
                     response_event_receiver
-                );
+                ).await;
                 
             }
             // 实时数据节点
@@ -149,8 +161,7 @@ impl Strategy {
                 let node_data = node_config["data"].clone();
                 let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
                 let node_id = node_config["id"].as_str().unwrap();
-                // let node_name = node_config["name"].as_str().unwrap();
-                let node_name = "实时数据节点".to_string();
+                let node_name = node_data["nodeName"].as_str().unwrap_or_default();
                 
                 let exchange = node_data["exchange"].as_str().unwrap();
                 let symbol = node_data["symbol"].as_str().unwrap();
@@ -170,7 +181,35 @@ impl Strategy {
                     event_publisher,
                     market_event_receiver,
                     response_event_receiver
-                );
+                ).await;
+                
+            }
+            // 条件分支节点
+            NodeType::IfElseNode => {
+                let node_data = node_config["data"].clone();
+                let node_id = node_config["id"].as_str().unwrap();
+                let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+                let cases: Vec<Case> = serde_json::from_value(node_data["cases"].clone())
+                    .unwrap_or_else(|e| panic!("Failed to parse cases: {}", e));
+                Self::add_if_else_node(
+                    graph,
+                    node_indices,
+                    node_id.to_string(),
+                    node_name.to_string(),
+                    cases
+                ).await;
+            }
+            // 买入节点
+            NodeType::BuyNode => {
+                let node_data = node_config["data"].clone();
+                let node_id = node_config["id"].as_str().unwrap();
+                let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+                Self::add_buy_node(
+                    graph,
+                    node_indices,
+                    node_id.to_string(),
+                    node_name.to_string()
+                ).await;
                 
             }
             _ => {
@@ -181,21 +220,19 @@ impl Strategy {
 
     }
 
-    fn add_start_node(
+    async fn add_start_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
         node_id: String, 
         node_name: String
     ) {
-        let node = StartNode::new(node_id.clone(), node_name);
+        let node = StartNode::new(node_id.clone(), node_name).init_node().await;
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);
     }
 
-
-
-    pub fn add_live_data_node(
+    pub async fn add_live_data_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
         strategy_id: i32,
@@ -209,31 +246,14 @@ impl Strategy {
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
-        let node = LiveDataNode {
-            state: Arc::new(RwLock::new(LiveDataNodeState {
-                strategy_id,
-                node_id: node_id.clone(),    
-                node_name,
-                exchange,
-                symbol,
-                interval,
-                data_subscribed: false,
-                is_running: false,
-                node_sender: NodeSender::new(node_id.clone(), tx),
-                request_id: None,
-            })),
-            node_receivers: Vec::new(),
-            node_type: NodeType::DataSourceNode,
-            market_event_receiver,
-            event_publisher,
-            response_event_receiver,
-        };
+        let node = LiveDataNode::new(strategy_id, node_id.clone(), node_name, exchange, symbol, interval, event_publisher, market_event_receiver, response_event_receiver).init_node().await;
+
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);
     }
 
-    pub fn add_indicator_node(
+    pub async fn add_indicator_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
         strategy_id: i32,
@@ -247,61 +267,61 @@ impl Strategy {
         response_event_receiver: broadcast::Receiver<Event>
     ) {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
-
-        let node = IndicatorNode {
-            node_type: NodeType::IndicatorNode,
-            node_receivers: Vec::new(), 
-            event_publisher,
-            response_event_receiver,
-            state: Arc::new(RwLock::new(IndicatorNodeState {
-                strategy_id,
-                node_id: node_id.clone(),
-                node_name,
-                exchange,
-                symbol,
-                interval,
-                indicator,
-                current_batch_id: None,
-                request_id: None,
-                node_sender: NodeSender::new(node_id.clone(), tx),
-            })),
-        };
+        let node = IndicatorNode::new(strategy_id, node_id.clone(), node_name, exchange, symbol, interval, indicator, event_publisher, response_event_receiver).init_node().await;
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);
     }
 
-    // pub fn add_condition_node(&mut self, condition_node: ConditionNode) -> i32 {
-    //     let node_id = condition_node.node_id;
-    //     let node = Box::new(condition_node);
-    //     let node_index = self.graph.add_node(node);
-    //     self.node_indices.insert(node_id, node_index);
-    //     node_id
-    // }
+    pub async fn add_if_else_node(
+        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
+        node_indices: &mut HashMap<String, NodeIndex>, 
+        node_id: String, 
+        node_name: String,
+        cases: Vec<Case>
+    ) {
+        let node = Box::new(IfElseNode::new(node_id.clone(), node_name.clone(), cases).init_node().await);
+        let node_index = graph.add_node(node);
+        node_indices.insert(node_id, node_index);
+    }
 
+    pub async fn add_buy_node(
+        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
+        node_indices: &mut HashMap<String, NodeIndex>,
+        node_id: String,
+        node_name: String
+    ) {
+        let node = Box::new(BuyNode::new(node_id.clone(), node_name.clone()).init_node().await);
+        let node_index = graph.add_node(node);
+        node_indices.insert(node_id, node_index);
+    }
+
+    // 添加边
     pub async fn add_edge(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
-        from_id: &str, 
-        to_id: &str
+        from_node_id: &str,
+        from_handle_id: &str,
+        to_node_id: &str
     ) {
         if let (Some(&source), Some(&target)) = (
-            node_indices.get(from_id),
-            node_indices.get(to_id)
+            node_indices.get(from_node_id),
+            node_indices.get(to_node_id)
         ){
 
             // 先获取源节点的发送者
-            let sender = graph.node_weight(source).unwrap().get_sender().await;
-            println!("sender: {:?}", sender);
+            let sender = graph.node_weight(source).unwrap().get_node_sender(from_handle_id.to_string()).await;
+            tracing::debug!("sender: {:?}", sender);
 
             if let Some(target_node) = graph.node_weight_mut(target) {
                 let receiver = sender.subscribe();
                 // 获取接收者数量
-                // let receiver_count = sender.receiver_count();
-                // println!("{} 添加了一个接收者, 接收者数量 = {}", target_node.name, receiver_count);
-                target_node.push_receiver(receiver);
+                let receiver_count = sender.receiver_count();
+                tracing::debug!("{:?} 添加了一个接收者, 接收者数量 = {}", target_node.get_node_name().await, receiver_count);
+                target_node.add_message_receiver(receiver);
+                target_node.add_from_node_id(from_node_id.to_string());
             }
-            println!("添加边: {:?} -> {:?}", source, target);
+            tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
             graph.add_edge(source, target, ());
         }
         

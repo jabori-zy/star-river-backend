@@ -1,4 +1,4 @@
-use types::indicator::SMASeries;
+use types::indicator::SMAIndicator;
 use strum::Display;
 use serde::{Deserialize, Serialize};
 use crate::Event;
@@ -6,7 +6,7 @@ use crate::Event;
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum IndicatorEvent {
     #[strum(serialize = "sma-update")]
-    SMAUpdate(SMASeries),
+    SMAUpdate(SMAIndicator),
 }
 
 impl From<IndicatorEvent> for Event {

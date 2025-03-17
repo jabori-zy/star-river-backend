@@ -5,7 +5,7 @@ pub mod engine;
 
 
 use tokio::sync::broadcast;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::any::Any;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -33,8 +33,10 @@ pub enum NodeType {
     DataSourceNode,
     #[strum(serialize = "indicator_node")]
     IndicatorNode,
-    #[strum(serialize = "condition_node")]
-    ConditionNode,
+    #[strum(serialize = "if_else_node")]
+    IfElseNode,
+    #[strum(serialize = "buy_node")]
+    BuyNode,
 }
 
 impl FromStr for NodeType {
@@ -51,18 +53,25 @@ impl FromStr for NodeType {
             "start_node" => Ok(NodeType::StartNode),
             "live_data_node" => Ok(NodeType::LiveDataNode),
             "data_source_node" => Ok(NodeType::DataSourceNode),
-            "condition_node" => Ok(NodeType::ConditionNode),
+            "indicator_node" => Ok(NodeType::IndicatorNode),
+            "if_else_node" => Ok(NodeType::IfElseNode),
+            "buy_node" => Ok(NodeType::BuyNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }
 }
 
 #[async_trait]
-pub trait NodeTrait: Debug + Send + Sync {
+pub trait NodeTrait: Debug + Send + Sync  {
     fn as_any(&self) -> &dyn Any;
     fn clone_box(&self) -> Box<dyn NodeTrait>;
-    async fn get_sender(&self) -> NodeSender;
-    fn push_receiver(&mut self, receiver: NodeReceiver);
+    async fn get_node_sender(&self, handle_id: String) -> NodeSender;
+    async fn get_default_node_sender(&self) -> NodeSender;
+    async fn get_node_name(&self) -> String;
+    fn add_message_receiver(&mut self, receiver: NodeReceiver); // 添加接收者
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender); // 添加出口
+    fn add_from_node_id(&mut self, from_node_id: String); // 添加from_node_id
+
     async fn run(&mut self) -> Result<(), Box<dyn Error>>;
 }
 
@@ -75,13 +84,14 @@ impl Clone for Box<dyn NodeTrait> {
 
 #[derive(Debug, Clone)]
 pub struct NodeSender {
-    pub node_id: String,
-    pub sender: broadcast::Sender<NodeMessage>,
+    pub node_id: String, // 节点id
+    pub handle_id: String, // 出口id
+    pub sender: broadcast::Sender<NodeMessage>, // 发送者
 }
 
 impl NodeSender {
-    pub fn new(node_id: String, sender: broadcast::Sender<NodeMessage>) -> Self {
-        Self { node_id, sender }
+    pub fn new(node_id: String, handle_id: String, sender: broadcast::Sender<NodeMessage>) -> Self {
+        Self { node_id, handle_id, sender }
     }
     pub fn subscribe(&self) -> NodeReceiver {
         NodeReceiver::new(self.node_id.clone(), self.sender.subscribe())

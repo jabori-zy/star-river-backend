@@ -3128,6 +3128,7 @@ dependencies = [
  "database",
  "event-center",
  "futures",
+ "indicator-engine",
  "market-engine",
  "petgraph",
  "rand 0.8.5",

@@ -12,6 +12,7 @@ event-center = {path = "../event-center"}
 database = {path = "../database"}
 market-engine = {path = "../market-engine"}
 data-cache = {path = "../data-cache"}
+indicator-engine = {path = "../indicator-engine"}
 # 数据库
 sea-orm.workspace = true
 petgraph = "0.7.1"

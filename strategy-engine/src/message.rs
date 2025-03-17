@@ -23,6 +23,17 @@ use types::market::{Exchange, KlineInterval};
 pub enum NodeMessage {
     KlineSeries(KlineSeriesMessage),
     Indicator(IndicatorMessage),
+    Signal(SignalMessage),
+}
+
+impl NodeMessage {
+    pub fn as_indicator(&self) -> Option<&IndicatorMessage> {
+        if let NodeMessage::Indicator(msg) = self {
+            Some(msg)
+        } else {
+            None
+        }
+    }
 }
 
 
@@ -49,7 +60,7 @@ pub struct IndicatorMessage {
     pub symbol: String,
     pub interval: KlineInterval,
     pub indicator: Indicators,
-    pub data: Box<dyn IndicatorData>,
+    pub indicator_data: Box<dyn IndicatorData>,
     pub batch_id: String,
     pub message_timestamp: i64,
 }
@@ -63,9 +74,25 @@ impl Clone for IndicatorMessage {
             symbol: self.symbol.clone(),
             interval: self.interval.clone(),
             indicator: self.indicator.clone(),
-            data: self.data.clone_box(),
+            indicator_data: self.indicator_data.clone_box(),
             batch_id: self.batch_id.clone(),
             message_timestamp: self.message_timestamp,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum Signal {
+    True,
+    False,
+}
+
+// 信号消息
+#[derive(Debug, Clone)]
+pub struct SignalMessage {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub from_node_handle: String,
+    pub signal: Signal,
+    pub message_timestamp: i64,
 }

@@ -149,7 +149,7 @@ impl MarketDataEngine{
         let exchange = state.exchanges.get_mut(&exchange).unwrap();
 
         // 先获取历史k线
-        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(2), None, None).await?;
+        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(50), None, None).await?;
         // 再订阅k线流
         exchange.subscribe_kline_stream(&params.symbol, params.interval.clone()).await.unwrap();
         // 获取socket流

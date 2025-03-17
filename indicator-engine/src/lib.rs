@@ -12,7 +12,7 @@ use event_center::EventCenter;
 use event_center::Event;
 use tokio::sync::broadcast;
 use types::{cache, indicator};
-use types::indicator::SMASeries;
+use types::indicator::SMAIndicator;
 use types::market::{Exchange, KlineInterval};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -20,7 +20,7 @@ use std::str::FromStr;
 use utils::timestamp_to_utc8;
 use event_center::Channel;
 use types::indicator_config::SMAConfig;
-use types::indicator::SMA;
+use types::indicator::IndicatorValue;
 use event_center::indicator_event::IndicatorEvent;
 use event_center::response_event::ResponseEvent;
 use strum::{Display, EnumString};
@@ -170,7 +170,7 @@ impl IndicatorEngine {
     // }
 
     async fn calculate_indicator(talib: &TALib, event_publisher: Arc<EventPublisher>, calculate_indicator_params: CalculateIndicatorParams, state: Arc<RwLock<IndicatorEngineState>>) {
-        tracing::info!("接收到计算指标命令: {:?}", calculate_indicator_params);
+        // tracing::info!("接收到计算指标命令: {:?}", calculate_indicator_params);
         let indicator = calculate_indicator_params.indicator.clone();
 
         match indicator {
@@ -193,15 +193,15 @@ impl IndicatorEngine {
         let sma = talib.sma(&close, *period)?;
         // log::info!("{}: sma: {:?}", event.symbol,sma);
         // 将timestamp_list和sma组合成SMA结构体
-        let sma_list: Vec<SMA> = timestamp_list.iter().zip(sma.iter()).map(|(timestamp, sma)| SMA { timestamp: *timestamp, value: *sma }).collect();
+        let sma_list: Vec<IndicatorValue> = timestamp_list.iter().zip(sma.iter()).map(|(timestamp, sma)| IndicatorValue { timestamp: *timestamp, value: *sma }).collect();
         // log::info!("{}: sma_list: {:?}", kline_event.symbol,sma_list);
         
-        let sma_series = SMASeries {
+        let sma_series = SMAIndicator {
             exchange: calculate_params.exchange.clone(),
             symbol: calculate_params.symbol.clone(),
             kline_interval: calculate_params.interval.clone(),
-            sma_config: SMAConfig { period: *period },
-            data: sma_list,
+            indicator_config: SMAConfig { period: *period },
+            indicator_value: HashMap::from([("sma".to_string(), sma_list)]),
         };
 
         let response = CalculateIndicatorResponse {

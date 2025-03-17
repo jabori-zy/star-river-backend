@@ -6,6 +6,7 @@ use tracing::Level;
 use tracing_subscriber;
 use market_engine::MarketDataEngine;
 use data_cache::CacheEngine;
+use indicator_engine::IndicatorEngine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -46,6 +47,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database = database_manager.get_conn();
     let mut strategy_engine = StrategyEngine::new(market_event_receiver, command_event_receiver, response_event_receiver, strategy_engine_event_publisher, database);
 
+    // 初始化指标引擎
+    let indicator_engine_event_publisher = event_center.get_publisher1();
+    let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+    let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
+    let indicator_engine = IndicatorEngine::new(command_event_receiver, response_event_receiver, indicator_engine_event_publisher);
+
 
     tokio::spawn(async move {
         database_manager.start().await;
@@ -60,6 +67,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 启动缓存引擎
     tokio::spawn(async move {
         cache_engine.start().await;
+    });
+
+    // 启动指标引擎
+    tokio::spawn(async move {
+        indicator_engine.start().await;
     });
 
     tokio::spawn(async move {

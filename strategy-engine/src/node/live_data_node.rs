@@ -16,6 +16,7 @@ use uuid::Uuid;
 use event_center::EventPublisher;
 use tokio::sync::mpsc;
 use event_center::response_event::{MarketDataEngineResponse, ResponseEvent};
+use std::collections::HashMap;
 
 // 将需要共享的状态提取出来
 #[derive(Debug, Clone)]
@@ -26,32 +27,33 @@ pub struct LiveDataNodeState {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub node_sender: NodeSender,
     pub request_id: Option<Uuid>,
     pub data_subscribed: bool,
     pub is_running: bool,
-    
+    pub node_output_handle: HashMap<String, NodeSender>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
 }
 
 
 #[derive(Debug)]
 pub struct LiveDataNode {
     pub state: Arc<RwLock<LiveDataNodeState>>,
-    pub node_receivers: Vec<NodeReceiver>,
+    pub node_receivers: Vec<NodeReceiver>, // 接收来自其他节点的数据
+    pub from_node_id: Vec<String>, // 来自哪个节点的id
     pub node_type: NodeType,
-    pub market_event_receiver: broadcast::Receiver<Event>,
-    pub response_event_receiver: broadcast::Receiver<Event>,
-    pub event_publisher: EventPublisher,
+    pub market_event_receiver: broadcast::Receiver<Event>, // 接收来自市场的数据
+    pub response_event_receiver: broadcast::Receiver<Event>, // 接收来自其他节点的数据
+    pub event_publisher: EventPublisher, // 发送数据到其他节点
 }
 
 impl Clone for LiveDataNode {
     fn clone(&self) -> Self {
         LiveDataNode { 
-            node_type: self.node_type.clone(), 
+            node_type: self.node_type.clone(),
+            from_node_id: self.from_node_id.clone(),
             node_receivers: self.node_receivers.clone(), 
             response_event_receiver: self.response_event_receiver.resubscribe(),
             market_event_receiver: self.market_event_receiver.resubscribe(), 
-            state: self.state.clone(), 
+            state: self.state.clone(),
             event_publisher: self.event_publisher.clone(),
         }
     }
@@ -73,6 +75,7 @@ impl LiveDataNode {
         Self { 
             node_type: NodeType::DataSourceNode, 
             node_receivers: Vec::new(),
+            from_node_id: Vec::new(),
             market_event_receiver,
             response_event_receiver,
             event_publisher,
@@ -83,10 +86,10 @@ impl LiveDataNode {
                 exchange, 
                 symbol, 
                 interval, 
-                node_sender: NodeSender::new(node_id, tx), 
                 request_id: None,
                 data_subscribed: false,
                 is_running: false,
+                node_output_handle: HashMap::new(),
             })), 
         }
     }
@@ -186,16 +189,18 @@ impl LiveDataNode {
                     message_timestamp: get_utc8_timestamp_millis(),
                 };
                 let message = NodeMessage::KlineSeries(kline_series_message);
-                match state_guard.node_sender.send(message.clone()) {
+                let default_node_sender = state_guard.node_output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在");
+                match default_node_sender.send(message.clone()) {
                     Ok(receiver_count) => {
-                        tracing::info!("+++++++++++++++++++++++++++++++");
-                        tracing::info!("批次id: {}", kline_series_update.batch_id);
-                        tracing::info!(
-                            "数据源节点{}发送数据: {:?} 发送成功, 接收者数量 = {}", 
-                            state_guard.node_id,
-                            message, 
-                            receiver_count
-                        );
+                        // tracing::info!("+++++++++++++++++++++++++++++++");
+                        // tracing::info!("批次id: {}", kline_series_update.batch_id);
+                        // tracing::info!("+++++++++++++++++++++++++++++++");
+                        // tracing::info!(
+                        //     "数据源节点{}发送数据: {:?} 发送成功, 接收者数量 = {}", 
+                        //     state_guard.node_id,
+                        //     message, 
+                        //     receiver_count
+                        // );
                     },
                     Err(e) => {
                         tracing::error!(
@@ -203,7 +208,7 @@ impl LiveDataNode {
                             state_guard.node_id,
                             message,
                             e,
-                            state_guard.node_sender.receiver_count()
+                            default_node_sender.receiver_count()
                         );
                     }
                 }
@@ -231,6 +236,19 @@ impl LiveDataNode {
             _ => {}
         }
     }
+    
+    pub async fn init_node(self) -> Self {
+        self.init_node_sender().await
+    }
+
+    async fn init_node_sender(self) -> Self {
+        let (tx, _) = broadcast::channel::<NodeMessage>(100);
+        let live_data_node_sender = NodeSender::new(self.state.read().await.node_id.clone(), "live_data_node_output".to_string(), tx);
+        self.state.write().await.node_output_handle.insert("live_data_node_output".to_string(), live_data_node_sender);
+        self
+    }
+
+
 }
 
 #[async_trait]
@@ -242,12 +260,29 @@ impl NodeTrait for LiveDataNode {
         Box::new(self.clone())
     }
 
-    async fn get_sender(&self) -> NodeSender {
-        self.state.read().await.node_sender.clone()
+
+    async fn get_node_name(&self) -> String {
+        self.state.read().await.node_name.clone()
     }
 
-    fn push_receiver(&mut self, receiver: NodeReceiver) {
+    async fn get_node_sender(&self, handle_id: String) -> NodeSender {
+        self.state.read().await.node_output_handle.get(&handle_id).unwrap().clone()
+    }
+
+    async fn get_default_node_sender(&self) -> NodeSender {
+        self.state.read().await.node_output_handle.get("live_data_node_output").unwrap().clone()
+    }
+
+    fn add_message_receiver(&mut self, receiver: NodeReceiver) {
         self.node_receivers.push(receiver);
+    }
+
+    fn add_from_node_id(&mut self, from_node_id: String) {
+        self.from_node_id.push(from_node_id);
+    }
+
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
+        self.state.write().await.node_output_handle.insert(handle_id, sender);
     }
 
 
