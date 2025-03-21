@@ -29,5 +29,6 @@ utils = { path = "../utils" }
 event-center = {path = "../event-center"}
 database = { path = "../database" }
 migration = { path = "../migration" }
-
+market-engine = { path = "../market-engine" }
+strategy-engine = { path = "../strategy-engine" }
 

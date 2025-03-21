@@ -3091,10 +3091,12 @@ dependencies = [
  "headers",
  "heartbeat",
  "indicator-engine",
+ "market-engine",
  "migration",
  "sea-orm",
  "serde",
  "serde_json",
+ "strategy-engine",
  "tokio",
  "tokio-stream",
  "tower-http",
@@ -3131,7 +3133,7 @@ dependencies = [
  "indicator-engine",
  "market-engine",
  "petgraph",
- "rand 0.8.5",
+ "rand 0.9.0",
  "sea-orm",
  "serde",
  "serde_json",
@@ -3139,6 +3141,7 @@ dependencies = [
  "strum_macros",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "types",
@@ -3281,6 +3284,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_cancel_handle"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3388,9 +3399,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.43.0"
+version = "1.44.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d61fa4ffa3de412bfea335c6ecff681de2b609ba3c77ef3e00e521813a9ed9e"
+checksum = "f382da615b842244d4b8738c82ed1275e6c5dd90c459a30941cd07080b06c91a"
 dependencies = [
  "backtrace",
  "bytes",
@@ -3463,9 +3474,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.13"
+version = "0.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7fcaa8d55a2bdd6b83ace262b016eca0d79ee02818c5c1bcdf0305114081078"
+checksum = "6b9590b93e6fcc1739458317cccd391ad3955e2bde8913edf6f95f9e65a8f034"
 dependencies = [
  "bytes",
  "futures-core",

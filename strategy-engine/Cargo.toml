@@ -16,8 +16,9 @@ indicator-engine = {path = "../indicator-engine"}
 # 数据库
 sea-orm.workspace = true
 petgraph = "0.7.1"
-tokio = { version = "1.41.1", features = ["full"] }
-rand = "0.8.5"
+tokio.workspace = true
+tokio-util.workspace = true
+rand = "0.9.0"
 futures.workspace = true
 tokio-stream.workspace = true
 uuid.workspace = true

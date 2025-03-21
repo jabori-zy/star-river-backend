@@ -3,7 +3,9 @@ use crate::*;
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use std::collections::HashMap;
-
+use event_center::EventPublisher;
+use crate::NodeOutputHandle;
+use crate::node::NodeTrait;
 
 // 将需要共享的状态提取出来
 #[derive(Debug, Clone)]
@@ -12,6 +14,9 @@ pub struct StartNodeState {
     pub node_name: String,
     // pub node_sender: NodeSender,
     pub node_output_handle: HashMap<String, NodeSender>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
+    pub node_output_handle1: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
+    pub event_publisher: EventPublisher, // 事件发布器
+    pub enable_event_publish: bool, // 是否启用事件发布
     
 }
 
@@ -34,7 +39,7 @@ impl Clone for StartNode {
 }
 
 impl StartNode {
-    pub fn new(node_id: String, node_name: String) -> Self {
+    pub fn new(node_id: String, node_name: String, event_publisher: EventPublisher) -> Self {
         StartNode { 
             node_type: NodeType::StartNode,
             node_receivers: vec![],
@@ -43,6 +48,9 @@ impl StartNode {
                 node_name: node_name.clone(),
                 // node_sender: NodeSender::new(node_id.clone(), "start".to_string(), broadcast::channel::<NodeMessage>(100).0),
                 node_output_handle: HashMap::new(),
+                node_output_handle1: HashMap::new(),
+                event_publisher,
+                enable_event_publish: false,
             })),
         }
     }
@@ -55,7 +63,12 @@ impl StartNode {
     async fn init_node_sender(self) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         let start_node_sender = NodeSender::new(self.state.read().await.node_id.clone(), "start_node_output".to_string(), tx);
-        self.state.write().await.node_output_handle.insert("start_node_output".to_string(), start_node_sender);
+        self.state.write().await.node_output_handle.insert("start_node_output".to_string(), start_node_sender.clone());
+        self.state.write().await.node_output_handle1.insert("start_node_output".to_string(), NodeOutputHandle {
+            handle_id: "start_node_output".to_string(),
+            sender: start_node_sender.clone(),
+            connect_count: 0,
+        });
         self
     }
 
@@ -68,6 +81,9 @@ impl NodeTrait for StartNode {
     }
     fn clone_box(&self) -> Box<dyn NodeTrait> {
         Box::new(self.clone())
+    }
+    async fn get_node_id(&self) -> String {
+        self.state.read().await.node_id.clone()
     }
 
     async fn get_node_sender(&self, handle_id: String) -> NodeSender {
@@ -88,15 +104,36 @@ impl NodeTrait for StartNode {
     }
 
     async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.node_output_handle.insert(handle_id, sender);
+        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
+        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
+            handle_id: handle_id.clone(),
+            sender: sender.clone(),
+            connect_count: 0,
+        });
     }
 
+    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
+        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
+    }
+
+    async fn enable_node_event_publish(&mut self) {
+        self.state.write().await.enable_event_publish = true;
+    }
+
+    async fn disable_node_event_publish(&mut self) {
+        self.state.write().await.enable_event_publish = false;
+    }
     async fn get_node_name(&self) -> String {
         self.state.read().await.node_name.clone()
     }
 
-    async fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("StartNode run");
-        Ok(())
+    async fn init(&mut self) -> Result<NodeRunState, Box<dyn Error>> {
+        let state = self.state.clone();
+        tracing::info!("{}: 节点初始化成功, 节点状态: {:?}", state.read().await.node_id, NodeRunState::Ready);
+        Ok(NodeRunState::Ready)
+    }
+
+    async fn get_node_run_state(&self) -> NodeRunState {
+        NodeRunState::Ready
     }
 }

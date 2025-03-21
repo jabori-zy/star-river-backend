@@ -4,7 +4,8 @@ use heartbeat::Heartbeat;
 use indicator_engine::IndicatorEngine;
 use database::DatabaseManager;
 
-use crate::market_engine::MarketDataEngine;
+use market_engine::MarketDataEngine;
+use strategy_engine::engine::StrategyEngine;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use axum::extract::State;
@@ -20,35 +21,59 @@ pub struct StarRiver {
     pub cache_engine: Arc<Mutex<CacheEngine>>,
     pub indicator_engine: Arc<Mutex<IndicatorEngine>>,
     pub database: Arc<Mutex<DatabaseManager>>,
+    pub strategy_engine: Arc<Mutex<StrategyEngine>>,
 }
 
 impl StarRiver {
     pub async fn new() -> Self {
         
         let event_center = EventCenter::new();
+        // 初始化市场引擎
+        let market_engine_event_publisher = event_center.get_publisher();
+        let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+        let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
+        let market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, response_event_receiver);
         // 初始化缓存引擎
-        let cache_engine_event_publisher = event_center.get_publisher1();
+        let cache_engine_event_publisher = event_center.get_publisher();
         let exchange_event_receiver = event_center.subscribe(Channel::Exchange).unwrap();
         let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
         let indicator_event_receiver = event_center.subscribe(Channel::Indicator).unwrap();
-        let cache_engine = Arc::new(Mutex::new(CacheEngine::new( exchange_event_receiver, indicator_event_receiver, command_event_receiver,cache_engine_event_publisher)));
+        let cache_engine = CacheEngine::new( exchange_event_receiver, indicator_event_receiver, command_event_receiver,cache_engine_event_publisher);
         // 初始化指标引擎
-        let indicator_engine_event_publisher = event_center.get_publisher1();
+        let indicator_engine_event_publisher = event_center.get_publisher();
         let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
-        let indicator_engine = Arc::new(Mutex::new(IndicatorEngine::new(command_event_receiver, response_event_receiver, indicator_engine_event_publisher)));
+        let indicator_engine = IndicatorEngine::new(command_event_receiver, response_event_receiver, indicator_engine_event_publisher);
         
         // 初始化数据库
         let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
-        let database_event_publisher = event_center.get_publisher1();
-        let database = Arc::new(Mutex::new(DatabaseManager::new(command_event_receiver, database_event_publisher).await));
+        let database_event_publisher = event_center.get_publisher();
+        let database = DatabaseManager::new(command_event_receiver, database_event_publisher).await;
+
+        // 初始化策略引擎
+        let market_event_receiver = event_center.subscribe(Channel::Market).unwrap();
+        let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+        let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
+        let strategy_event_receiver = event_center.subscribe(Channel::Strategy).unwrap();
+        let strategy_engine_event_publisher = event_center.get_publisher();
+        let database_conn = database.get_conn();
+        let strategy_engine = StrategyEngine::new(
+            market_event_receiver, 
+            command_event_receiver, 
+            response_event_receiver,
+            strategy_event_receiver,
+            strategy_engine_event_publisher, 
+            database_conn
+        );
+
         Self { 
             heartbeat: Arc::new(Mutex::new(Heartbeat::new(1000))),
-            market_engine: Arc::new(Mutex::new(MarketDataEngine::new())),
+            market_engine: Arc::new(Mutex::new(market_engine)),
             event_center: Arc::new(Mutex::new(event_center)),
-            cache_engine: cache_engine,
-            indicator_engine: indicator_engine,
-            database: database,
+            cache_engine: Arc::new(Mutex::new(cache_engine)),
+            indicator_engine: Arc::new(Mutex::new(indicator_engine)),
+            database: Arc::new(Mutex::new(database)),
+            strategy_engine: Arc::new(Mutex::new(strategy_engine)),
         }
     }
 }
@@ -58,6 +83,7 @@ pub async fn init_app(State(app_state): State<StarRiver>) {
 
     start_heartbeat(State(app_state.clone())).await;
     start_database(State(app_state.clone())).await;
+    start_market_engine(State(app_state.clone())).await;
     start_cache_engine(State(app_state.clone())).await;
     start_indicator_engine(State(app_state.clone())).await;
 }
@@ -93,6 +119,14 @@ async fn start_database(star_river: State<StarRiver>) {
     tokio::spawn(async move {
         let database = database.lock().await;
         database.start().await;
+    });
+}
+
+async fn start_market_engine(star_river: State<StarRiver>) {
+    let market_engine = star_river.market_engine.clone();
+    tokio::spawn(async move {
+        let mut market_engine = market_engine.lock().await;
+        market_engine.start().await.unwrap();
     });
 }
 

@@ -24,6 +24,14 @@ impl StrategyInfoQuery {
         paginator.fetch_page(page - 1).await.map(|p| (p, num_pages))
     }
 
+    // 获取所有未删除的策略
+    pub async fn get_all_strategy(
+        db: &DbConn,
+    ) -> Result<Vec<strategy_info::Model>, DbErr> {
+        let strategies = StrategyInfo::find().filter(strategy_info::Column::IsDeleted.eq(0)).all(db).await?;
+        Ok(strategies)
+    }
+
     pub async fn get_strategy_by_id(
         db: &DbConn,
         id: i32

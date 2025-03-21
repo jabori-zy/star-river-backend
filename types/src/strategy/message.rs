@@ -1,28 +1,21 @@
-use chrono::{DateTime, Utc};
-use tokio::sync::broadcast::error::SendError;
-use std::error::Error;
-use async_trait::async_trait;
-use types::market::KlineSeries;
-use types::indicator::{Indicators, IndicatorData};
+
+use crate::market::KlineSeries;
+use crate::indicator::{Indicators, IndicatorData};
+use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use types::market::{Exchange, KlineInterval};
+use strum::Display;
 
-
-// #[derive(Debug, Clone)]
-// pub struct NodeMessage {
-//     pub from_node_id: Uuid,
-//     pub from_node_name: String,
-//     pub message_type: MessageType,
-//     pub message: Message,
-//     pub batch_id: String,
-//     pub timestamp: i64,
-// }
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "message_type")]
 pub enum NodeMessage {
+    #[strum(serialize = "kline_series")]
+    #[serde(rename = "kline_series")]
     KlineSeries(KlineSeriesMessage),
+    #[strum(serialize = "indicator")]
+    #[serde(rename = "indicator")]
     Indicator(IndicatorMessage),
+    #[strum(serialize = "signal")]
+    #[serde(rename = "signal")]
     Signal(SignalMessage),
 }
 
@@ -39,7 +32,7 @@ impl NodeMessage {
 
 
 // k线系列消息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlineSeriesMessage {
     pub from_node_id: String,
     pub from_node_name: String,
@@ -52,7 +45,7 @@ pub struct KlineSeriesMessage {
 }
 
 // 指标消息
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct IndicatorMessage {
     pub from_node_id: String,
     pub from_node_name: String,
@@ -81,14 +74,14 @@ impl Clone for IndicatorMessage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Signal {
     True,
     False,
 }
 
 // 信号消息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignalMessage {
     pub from_node_id: String,
     pub from_node_name: String,

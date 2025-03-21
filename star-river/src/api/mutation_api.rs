@@ -5,6 +5,7 @@ use database::entities::strategy_info;
 use crate::StarRiver;
 use axum::http::StatusCode;
 use serde::{Serialize, Deserialize};
+use crate::api::response::ApiResponse;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateStrategyRequest {
@@ -13,12 +14,6 @@ pub struct CreateStrategyRequest {
     pub status: i32,
 }
 
-#[derive(Serialize)]
-pub struct ApiResponse<T> {
-    pub code: i32,
-    pub message: String,
-    pub data: Option<T>,
-}
 
 #[axum::debug_handler]
 pub async fn create_strategy(

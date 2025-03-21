@@ -58,6 +58,7 @@ pub struct CalculateIndicatorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MarketDataEngineResponse {
     SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse),
+    UnsubscribeKlineStreamSuccess(UnsubscribeKlineStreamSuccessResponse),
 }
 
 
@@ -70,3 +71,12 @@ pub struct SubscribeKlineStreamSuccessResponse {
     pub response_id: Uuid,
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnsubscribeKlineStreamSuccessResponse {
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub response_timestamp: i64,
+    pub response_id: Uuid,
+}

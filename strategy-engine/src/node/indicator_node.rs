@@ -9,16 +9,23 @@ use std::error::Error;
 use async_trait::async_trait;
 use futures::StreamExt;
 use types::market::{Exchange, KlineInterval};
-use crate::*;
 use event_center::{Event, EventPublisher};
 use event_center::command_event::{CalculateIndicatorParams, CommandEvent, IndicatorEngineCommand};
 use event_center::response_event::{ResponseEvent, IndicatorEngineResponse};
+use event_center::strategy_event::StrategyEvent;
 use utils::get_utc8_timestamp_millis;
-use crate::message::IndicatorMessage;
+use types::strategy::message::{IndicatorMessage, NodeMessage};
 use tokio::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
+use crate::node::NodeTrait;
+use crate::NodeSender;
+use crate::NodeReceiver;
+use crate::NodeOutputHandle;
+use crate::NodeType;
+use crate::NodeRunState;
+
 
 // 将需要共享的状态提取出来
 #[derive(Debug, Clone)]
@@ -34,6 +41,9 @@ pub struct IndicatorNodeState {
     pub request_id: Option<Uuid>,
     // pub node_sender: NodeSender,
     pub node_output_handle: HashMap<String, NodeSender>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
+    pub node_output_handle1: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
+    pub event_publisher: EventPublisher,
+    pub enable_event_publish: bool, // 是否启用事件发布
 }
 
 // 指标节点
@@ -42,8 +52,6 @@ pub struct IndicatorNode {
     pub node_type: NodeType,
     pub node_receivers: Vec<NodeReceiver>,
     pub from_node_id: Vec<String>,
-
-    pub event_publisher: EventPublisher,
     pub response_event_receiver: broadcast::Receiver<Event>,
     pub state: Arc<RwLock<IndicatorNodeState>>,
 }
@@ -54,7 +62,6 @@ impl Clone for IndicatorNode {
             node_type: self.node_type.clone(), 
             node_receivers: self.node_receivers.clone(),
             from_node_id: self.from_node_id.clone(),
-            event_publisher: self.event_publisher.clone(),
             response_event_receiver: self.response_event_receiver.resubscribe(),
             state: self.state.clone(),
         }
@@ -71,7 +78,6 @@ impl IndicatorNode {
             node_type: NodeType::IndicatorNode,
             node_receivers: Vec::new(),
             from_node_id: Vec::new(),
-            event_publisher,
             response_event_receiver,
             state: Arc::new(RwLock::new(IndicatorNodeState {
                 strategy_id,
@@ -84,6 +90,9 @@ impl IndicatorNode {
                 current_batch_id: None,
                 request_id: None,
                 node_output_handle: HashMap::new(),
+                node_output_handle1: HashMap::new(),
+                event_publisher,
+                enable_event_publish: false,
             })),
         }
     }
@@ -166,13 +175,28 @@ impl IndicatorNode {
                         batch_id: current_batch_id,
                         message_timestamp: get_utc8_timestamp_millis(),
                     };
-                    let default_node_sender = state_guard.node_output_handle.get("indicator_node_output").expect("指标节点默认的消息发送器不存在");
-                    match default_node_sender.send(NodeMessage::Indicator(indicator_message.clone())) {
-                        Ok(receiver_count) => {
+                    // 获取handle的连接数
+                    let default_handle_connect_count = state_guard.node_output_handle1.get("indicator_node_output").expect("指标节点默认的消息发送器不存在").connect_count;
+                    // 如果连接数为0，则不发送数据
+                    if default_handle_connect_count > 0 {
+                        let default_node_sender = state_guard.node_output_handle.get("indicator_node_output").expect("指标节点默认的消息发送器不存在");
+                        match default_node_sender.send(NodeMessage::Indicator(indicator_message.clone())) {
+                            Ok(receiver_count) => {
                             // tracing::info!("节点{}发送指标数据: {:?} 发送成功, 接收者数量 = {}", state_guard.node_id, indicator_message, receiver_count);
                         }
                         Err(e) => {
-                            tracing::error!("节点{}发送指标数据失败: 错误 = {:?}, 接收者数量 = {}", state_guard.node_id, e, default_node_sender.receiver_count());
+                            tracing::error!("节点{}发送指标数据失败, 接收者数量 = {}", state_guard.node_id, default_node_sender.receiver_count());
+                            }
+                        }
+                    } 
+                    // 发送事件
+                    if state_guard.enable_event_publish {
+                        let event = Event::Strategy(StrategyEvent::NodeMessage(NodeMessage::Indicator(indicator_message.clone())));
+                        if let Err(e) = state_guard.event_publisher.publish(event.into()) {
+                            tracing::error!(
+                                node_id = %state_guard.node_id,
+                                "指标节点发送数据失败"
+                            );
                         }
                     }
                 }
@@ -182,7 +206,7 @@ impl IndicatorNode {
 
     // 监听节点传递过来的message
     async fn listen_message(&mut self) {
-        let event_publisher = self.event_publisher.clone();
+        let event_publisher = self.state.read().await.event_publisher.clone();
 
         // 创建一个流，用于接收节点传递过来的message
         let streams: Vec<_> = self.node_receivers.iter()
@@ -249,7 +273,12 @@ impl IndicatorNode {
     async fn init_node_sender(self) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         let indicator_node_sender = NodeSender::new(self.state.read().await.node_id.clone(), "indicator_node_output".to_string(), tx);
-        self.state.write().await.node_output_handle.insert("indicator_node_output".to_string(), indicator_node_sender);
+        self.state.write().await.node_output_handle.insert("indicator_node_output".to_string(), indicator_node_sender.clone());
+        self.state.write().await.node_output_handle1.insert("indicator_node_output".to_string(), NodeOutputHandle {
+            handle_id: "indicator_node_output".to_string(),
+            sender: indicator_node_sender.clone(),
+            connect_count: 0,
+        });
         self
     }
 }
@@ -266,6 +295,10 @@ impl NodeTrait for IndicatorNode {
 
     async fn get_node_name(&self) -> String {
         self.state.read().await.node_name.clone()
+    }
+
+    async fn get_node_id(&self) -> String {
+        self.state.read().await.node_id.clone()
     }
 
     async fn get_node_sender(&self, handle_id: String) -> NodeSender {
@@ -285,11 +318,29 @@ impl NodeTrait for IndicatorNode {
     }
 
     async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.node_output_handle.insert(handle_id, sender);
+        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
+        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
+            handle_id: handle_id.clone(),
+            sender: sender.clone(),
+            connect_count: 0,
+        });
     }
 
-    async fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("IndicatorNode run");
+    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
+        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
+    }
+
+
+
+    async fn enable_node_event_publish(&mut self) {
+        self.state.write().await.enable_event_publish = true;
+    }
+
+    async fn disable_node_event_publish(&mut self) {
+        self.state.write().await.enable_event_publish = false;
+    }
+    async fn init(&mut self) -> Result<NodeRunState, Box<dyn Error>> {
+        tracing::info!("指标节点开始运行");
         // 创建内部通信通道
         let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
 
@@ -297,11 +348,15 @@ impl NodeTrait for IndicatorNode {
         self.listen_events(internal_tx).await?;
 
         let state = self.state.clone();
-        IndicatorNode::handle_events(state, internal_rx).await;
+        Self::handle_events(state, internal_rx).await;
 
 
         // 接收节点传递过来的message
         self.listen_message().await;
-        Ok(())
+        Ok(NodeRunState::Running)
+    }
+
+    async fn get_node_run_state(&self) -> NodeRunState {
+        NodeRunState::Running
     }
 }

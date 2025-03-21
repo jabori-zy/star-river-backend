@@ -5,7 +5,11 @@ use std::error::Error;
 use async_trait::async_trait;
 use tokio::sync::broadcast;
 use utils::get_utc8_timestamp;
-use crate::*;
+use crate::NodeSender;
+use crate::NodeReceiver;
+use crate::NodeOutputHandle;
+use crate::NodeRunState;
+use crate::node::NodeTrait;
 use serde::{Serialize, Deserialize};
 use strum::EnumString;
 use futures::stream::select_all;
@@ -13,7 +17,11 @@ use tokio_stream::wrappers::BroadcastStream;
 use futures::stream::StreamExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::message::{NodeMessage, IndicatorMessage, SignalMessage, Signal};
+use types::strategy::message::{NodeMessage, IndicatorMessage, SignalMessage, Signal};
+use event_center::EventPublisher;
+use event_center::strategy_event::StrategyEvent;
+use event_center::Event;
+use strum_macros::Display;
 
 #[derive(Debug)]
 pub struct IfElseNodeState {
@@ -25,6 +33,9 @@ pub struct IfElseNodeState {
     pub received_value: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
     pub cases: Vec<Case>,
     pub node_output_handle: HashMap<String, NodeSender>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
+    pub node_output_handle1: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
+    pub event_publisher: EventPublisher, // 事件发布器
+    pub enable_event_publish: bool, // 是否启用事件发布
 }
 
 // 条件分支节点
@@ -53,6 +64,10 @@ impl NodeTrait for IfElseNode {
         self.state.read().await.node_name.clone()
     }
 
+    async fn get_node_id(&self) -> String {
+        self.state.read().await.node_id.clone()
+    }
+
     async fn get_node_sender(&self, handle_id: String) -> NodeSender {
         self.state.read().await.node_output_handle.get(&handle_id).unwrap().clone()
     }
@@ -70,12 +85,28 @@ impl NodeTrait for IfElseNode {
     }
 
     async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.node_output_handle.insert(handle_id, sender);
+        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
+        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
+            handle_id: handle_id.clone(),
+            sender: sender.clone(),
+            connect_count: 0,
+        });
+    }
+
+    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
+        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
+    }
+
+    async fn enable_node_event_publish(&mut self) {
+        // self.state.write().await.enable_event_publish = true;
+    }
+
+    async fn disable_node_event_publish(&mut self) {
+        self.state.write().await.enable_event_publish = false;
     }
 
 
-
-    async fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    async fn init(&mut self) -> Result<NodeRunState, Box<dyn Error>> {
         tracing::info!("条件节点开始运行");
         self.listen_message().await;
 
@@ -87,8 +118,12 @@ impl NodeTrait for IfElseNode {
         // 开始评估各个分支
         self.evaluate().await;
 
-        Ok(())
+        Ok(NodeRunState::Running)
         
+    }
+
+    async fn get_node_run_state(&self) -> NodeRunState {
+        NodeRunState::Running
     }
 }
 
@@ -96,7 +131,7 @@ impl NodeTrait for IfElseNode {
 
 impl IfElseNode {
 
-    pub fn new(node_id: String, node_name: String, cases: Vec<Case>) -> Self {
+    pub fn new(node_id: String, node_name: String, cases: Vec<Case>, event_publisher: EventPublisher) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
         Self { 
             sender: NodeSender::new(node_id.clone(), "if_else".to_string(), tx), 
@@ -112,6 +147,9 @@ impl IfElseNode {
                 received_value: HashMap::new(),
                 cases,
                 node_output_handle: HashMap::new(),
+                node_output_handle1: HashMap::new(),
+                event_publisher,
+                enable_event_publish: false,
             })),
         }
     }
@@ -234,17 +272,28 @@ impl IfElseNode {
                         let case_result = Self::evaluate_case(case.clone(), state.clone()).await;
                         // 如果为true，则发送消息到分支, 并且后续的case不进行评估
                         if case_result {
-                            let state = state.read().await;
-                            let case_sender = state.node_output_handle.get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
+                            let state_guard = state.read().await;
+                            let case_sender = state_guard.node_output_handle.get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
                             let signal_message = SignalMessage {
-                                from_node_id: state.node_id.clone(),
-                                from_node_name: state.node_name.clone(),
+                                from_node_id: state_guard.node_id.clone(),
+                                from_node_name: state_guard.node_name.clone(),
                                 from_node_handle: format!("if_else_node_case_{}_output", case.case_id),
                                 signal: Signal::True,
                                 message_timestamp: get_utc8_timestamp()
                             };
                             // tracing::warn!("条件节点发送信号: {:?}", signal_message);
-                            case_sender.send(NodeMessage::Signal(signal_message)).unwrap();
+                            case_sender.send(NodeMessage::Signal(signal_message.clone())).unwrap();
+
+                            // 发送事件
+                            if state_guard.enable_event_publish {
+                                let event = Event::Strategy(StrategyEvent::NodeMessage(NodeMessage::Signal(signal_message)));
+                                if let Err(e) = state_guard.event_publisher.publish(event.into()) {
+                                    tracing::error!(
+                                        node_id = %state_guard.node_id,
+                                        "条件节点发送信号事件失败"
+                                    );
+                                }
+                            }
                             case_matched = true;
                             break;
                         }
@@ -252,17 +301,28 @@ impl IfElseNode {
 
                     // 只有当所有case都为false时才执行else
                     if !case_matched {
-                        let state = state.read().await;
-                        let else_sender = state.node_output_handle.get("if_else_node_else_output").unwrap();
+                        let state_guard = state.read().await;
+                        let else_sender = state_guard.node_output_handle.get("if_else_node_else_output").unwrap();
                         let signal_message = SignalMessage {
-                            from_node_id: state.node_id.clone(),
-                            from_node_name: state.node_name.clone(),
+                            from_node_id: state_guard.node_id.clone(),
+                            from_node_name: state_guard.node_name.clone(),
                             from_node_handle: "if_else_node_else_output".to_string(),
                             signal: Signal::False,
                             message_timestamp: get_utc8_timestamp()
                         };
                         // tracing::warn!("条件节点发送信号: {:?}", signal_message);
-                        else_sender.send(NodeMessage::Signal(signal_message)).unwrap();
+                        else_sender.send(NodeMessage::Signal(signal_message.clone())).unwrap();
+
+                        // 发送事件
+                        if state_guard.enable_event_publish {
+                            let event = Event::Strategy(StrategyEvent::NodeMessage(NodeMessage::Signal(signal_message)));
+                            if let Err(e) = state_guard.event_publisher.publish(event.into()) {
+                                tracing::error!(
+                                    node_id = %state_guard.node_id,
+                                    "条件节点发送信号事件失败"
+                                );
+                            }
+                        }
                     }
 
                 }
@@ -274,7 +334,6 @@ impl IfElseNode {
     }
 
     async fn evaluate_case(case: Case, state: Arc<RwLock<IfElseNodeState>>) -> bool {
-        tracing::warn!("开始评估分支: {:?}", case);
         let logic_operator = case.logic_operator;
         match logic_operator {
             LogicOperator::And => {
@@ -339,7 +398,7 @@ impl IfElseNode {
                     ComparisonOperator::LessThanOrEqual => left_value <= right_value,
                     ComparisonOperator::NotEqual => left_value != right_value,
                 };
-                tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
+                // tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
                 
                 // 如果当前条件为真，则将结果设置为真
                 result = result && condition_result;

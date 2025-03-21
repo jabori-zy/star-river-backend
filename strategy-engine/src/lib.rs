@@ -1,26 +1,20 @@
 pub mod strategy;
 pub mod node;
-pub mod message;
 pub mod engine;
 
 
 use tokio::sync::broadcast;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::any::Any;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use tokio::sync::broadcast::error::SendError;
 use std::error::Error;
 use async_trait::async_trait;
-use types::market::KlineSeries;
-use types::indicator::{Indicators, IndicatorData};
 use serde::{Deserialize, Serialize};
-use crate::message::NodeMessage;
+use types::strategy::message::NodeMessage;
 use sea_orm::prelude::*;
-use strum::EnumString;
 use strum_macros::Display;
 use std::str::FromStr;
-
+use crate::node::NodeRunState;
 
 // 节点类型
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -61,25 +55,7 @@ impl FromStr for NodeType {
     }
 }
 
-#[async_trait]
-pub trait NodeTrait: Debug + Send + Sync  {
-    fn as_any(&self) -> &dyn Any;
-    fn clone_box(&self) -> Box<dyn NodeTrait>;
-    async fn get_node_sender(&self, handle_id: String) -> NodeSender;
-    async fn get_default_node_sender(&self) -> NodeSender;
-    async fn get_node_name(&self) -> String;
-    fn add_message_receiver(&mut self, receiver: NodeReceiver); // 添加接收者
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender); // 添加出口
-    fn add_from_node_id(&mut self, from_node_id: String); // 添加from_node_id
 
-    async fn run(&mut self) -> Result<(), Box<dyn Error>>;
-}
-
-impl Clone for Box<dyn NodeTrait> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
 
 
 #[derive(Debug, Clone)]
@@ -141,6 +117,13 @@ pub struct Edge {
     pub id: String,
     pub source: NodeType,
     pub target: NodeType,
+}
+
+#[derive(Debug, Clone)]
+pub struct NodeOutputHandle {
+    pub handle_id: String,
+    pub sender: NodeSender,
+    pub connect_count: usize,
 }
 
 
