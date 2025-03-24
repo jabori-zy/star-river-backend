@@ -86,6 +86,7 @@ pub async fn init_app(State(app_state): State<StarRiver>) {
     start_market_engine(State(app_state.clone())).await;
     start_cache_engine(State(app_state.clone())).await;
     start_indicator_engine(State(app_state.clone())).await;
+    start_strategy_engine(State(app_state.clone())).await;
 }
 
 
@@ -127,6 +128,14 @@ async fn start_market_engine(star_river: State<StarRiver>) {
     tokio::spawn(async move {
         let mut market_engine = market_engine.lock().await;
         market_engine.start().await.unwrap();
+    });
+}
+
+async fn start_strategy_engine(star_river: State<StarRiver>) {
+    let strategy_engine = star_river.strategy_engine.clone();
+    tokio::spawn(async move {
+        let strategy_engine = strategy_engine.lock().await;
+        strategy_engine.start().await.unwrap();
     });
 }
 

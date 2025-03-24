@@ -6,11 +6,11 @@ use database::entities::strategy_info::Model as StrategyInfo;
 use database::query::strategy_info_query::StrategyInfoQuery;
 use crate::strategy::Strategy;
 use std::collections::HashMap;
-use std::thread::JoinHandle;
-use crate::strategy::StrategyState;
-use tokio_util::sync::CancellationToken;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::strategy::strategy_state_manager::StrategyRunState;
+
+
 // 策略引擎
 // 管理所有策略的执行
 #[derive(Debug)]
@@ -22,6 +22,7 @@ pub struct StrategyEngine {
     event_publisher: EventPublisher,
     database: DatabaseConnection,
     strategy_list: Arc<Mutex<HashMap<i32, Strategy>>>,
+    all_strategy_state: Arc<Mutex<HashMap<i32, StrategyRunState>>>,
     
 }
 
@@ -35,6 +36,7 @@ impl Clone for StrategyEngine {
             event_publisher: self.event_publisher.clone(),
             database: self.database.clone(),
             strategy_list: self.strategy_list.clone(),
+            all_strategy_state: self.all_strategy_state.clone(),
         }
     }
 }
@@ -56,6 +58,7 @@ impl StrategyEngine {
             event_publisher,
             database,
             strategy_list: Arc::new(Mutex::new(HashMap::new())),
+            all_strategy_state: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -94,6 +97,29 @@ impl StrategyEngine {
         // let (internal_tx, internal_rx) = mpsc::channel(100);
         // self.listen(internal_tx).await;
         // self.handle_events(&self.event_publisher, internal_rx).await;
+        // self.check_all_strategy_state().await?;
+        Ok(())
+    }
+
+    pub async fn check_all_strategy_state(&self) -> Result<(), String> {
+        let strategy_list = self.strategy_list.clone();
+        let all_strategy_state = self.all_strategy_state.clone();
+        tokio::spawn(async move {
+            loop {
+                let strategy_list = strategy_list.lock().await;
+                let mut all_strategy_state = all_strategy_state.lock().await;
+                if strategy_list.is_empty() {
+                tracing::info!("没有策略运行");
+            }
+
+            for (strategy_id, strategy) in strategy_list.iter() {
+                    let strategy_state = strategy.state_manager.current_state();
+                    all_strategy_state.insert(strategy_id.clone(), strategy_state);
+                }
+                tracing::info!("所有策略状态: {:?}", all_strategy_state);
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            }
+        });
         Ok(())
     }
 
@@ -130,6 +156,7 @@ impl StrategyEngine {
         ).await;
         let mut strategy_list = self.strategy_list.lock().await;
         strategy_list.insert(strategy_id, strategy);
+        
 
         Ok(strategy_id)
     }
@@ -142,8 +169,8 @@ impl StrategyEngine {
         let mut strategy_list = self.strategy_list.lock().await;
         let strategy = strategy_list.get_mut(&strategy_id).unwrap();
         // 获取策略的状态
-        let strategy_state = strategy.state_tx.borrow().clone();
-        if strategy_state != StrategyState::Created {
+        let strategy_state = strategy.state_manager.current_state();
+        if strategy_state != StrategyRunState::Created {
             tracing::warn!("策略状态不是Created, 不设置策略");
             return Ok(());
         }
@@ -160,21 +187,20 @@ impl StrategyEngine {
     }
 
     // 停止策略
-    pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<StrategyState, String> {
+    pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
 
-        let (strategy_state, strategy_name) = {
+        let strategy_name = {
             let mut strategy_list = self.strategy_list.lock().await;
             let strategy = strategy_list.get_mut(&strategy_id).unwrap();
-            let state = strategy.stop_strategy().await?;
-            tracing::debug!("策略状态: {:?}", state);
-            (state, strategy.strategy_name.clone())
+            strategy.stop_strategy().await?;
+            strategy.strategy_name.clone()
         };
         
-        if strategy_state == StrategyState::Stopped {
-            self.remove_strategy(strategy_id, strategy_name).await;
-        }
 
-        Ok(strategy_state)
+        self.remove_strategy(strategy_id, strategy_name).await;
+
+
+        Ok(())
     }
 
     async fn remove_strategy(&mut self, strategy_id: i32, strategy_name: String) {

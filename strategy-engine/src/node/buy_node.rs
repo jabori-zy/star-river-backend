@@ -119,11 +119,11 @@ impl NodeTrait for BuyNode {
         self.state.read().await.node_output_handle.get("buy_node_output").unwrap().clone()
     }
 
-    fn add_message_receiver(&mut self, receiver: NodeReceiver) {
+    async fn add_message_receiver(&mut self, receiver: NodeReceiver) {
         self.node_receivers.push(receiver);
     }
 
-    fn add_from_node_id(&mut self, from_node_id: String) {
+    async fn add_from_node_id(&mut self, from_node_id: String) {
         self.from_node_id.push(from_node_id);
     }
 
@@ -149,13 +149,13 @@ impl NodeTrait for BuyNode {
     }
 
 
-    async fn init(&mut self) -> Result<NodeRunState, Box<dyn Error>> {
+    async fn init(&mut self) -> Result<(), String> {
         tracing::info!("买入节点开始运行");
         // 创建内部通信通道
         // 启动监听
         self.listen_message().await;
 
-        Ok(NodeRunState::Running)
+        Ok(())
     }
 
     async fn get_node_run_state(&self) -> NodeRunState {

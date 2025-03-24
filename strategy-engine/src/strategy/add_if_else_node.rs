@@ -8,6 +8,7 @@ use crate::node::if_else_node::Case;
 use crate::node::NodeTrait;
 
 
+
 impl Strategy {
     pub async fn add_if_else_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
@@ -15,7 +16,7 @@ impl Strategy {
         node_id: String, 
         node_name: String,
         cases: Vec<Case>,
-        event_publisher: EventPublisher
+        event_publisher: EventPublisher,
     ) {
         let node = Box::new(IfElseNode::new(node_id.clone(), node_name.clone(), cases, event_publisher).init_node().await);
         let node_index = graph.add_node(node);

@@ -3,16 +3,14 @@ use crate::node::NodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::broadcast;
 use types::market::{Exchange, KlineInterval};
 use types::indicator::Indicators;
 use event_center::{Event, EventPublisher};
 use serde_json::Value;
 use std::str::FromStr;
 use crate::node::if_else_node::Case;
-use crate::strategy::strategy::StrategyState;
 use crate::NodeType;
-use tokio_util::sync::CancellationToken;
 
 impl Strategy {
     pub async fn add_node(
@@ -22,8 +20,6 @@ impl Strategy {
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
-        strategy_state_rx: watch::Receiver<StrategyState>,
-        cancel_token: CancellationToken
     ) {
         // 获取节点类型
         let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
@@ -40,7 +36,8 @@ impl Strategy {
                     node_indices,
                     node_id.to_string(), 
                     node_name.to_string(),
-                    event_publisher
+                    event_publisher,
+                    
                 ).await;
             }
             // 指标节点
@@ -71,7 +68,7 @@ impl Strategy {
                     interval, 
                     indicator,
                     event_publisher.clone(),
-                    response_event_receiver
+                    response_event_receiver,
                 ).await;
                 
             }
@@ -100,7 +97,6 @@ impl Strategy {
                     event_publisher,
                     market_event_receiver,
                     response_event_receiver,
-                    strategy_state_rx,
                 ).await;
                 
             }
@@ -117,7 +113,7 @@ impl Strategy {
                     node_id.to_string(),
                     node_name.to_string(),
                     cases,
-                    event_publisher
+                    event_publisher,
                 ).await;
             }
             // 买入节点
@@ -131,7 +127,7 @@ impl Strategy {
                     node_indices,
                     node_id.to_string(),
                     node_name.to_string(),
-                    event_publisher
+                    event_publisher,
                 ).await;
                 
             }

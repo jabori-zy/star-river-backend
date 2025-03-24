@@ -25,7 +25,7 @@ impl Strategy {
         interval: KlineInterval, 
         indicator: Indicators, 
         event_publisher: EventPublisher, 
-        response_event_receiver: broadcast::Receiver<Event>
+        response_event_receiver: broadcast::Receiver<Event>,
     ) {
         let node = IndicatorNode::new(
             strategy_id, 
@@ -36,7 +36,8 @@ impl Strategy {
             interval, 
             indicator, 
             event_publisher, 
-            response_event_receiver).init_node().await;
+            response_event_receiver,
+        ).init_node().await;
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);

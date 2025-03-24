@@ -3,6 +3,7 @@ pub mod add_start_node;
 pub mod add_live_data_node;
 pub mod add_if_else_node;
 pub mod add_indicator_node;
+pub mod strategy_state_manager;
 
 use crate::*;
 use petgraph::{Graph, Directed};
@@ -20,16 +21,7 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use std::thread::JoinHandle;
 use crate::node::NodeTrait;
-
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum StrategyState {
-    Created,
-    Ready,
-    Running,
-    Stopping,
-    Stopped,
-}
+use crate::strategy::strategy_state_manager::{StrategyStateManager, StrategyRunState, StrategyStateTransitionEvent, StrategyStateAction};
 
 #[derive(Debug)]
 // 策略图
@@ -42,9 +34,9 @@ pub struct Strategy {
     pub response_event_receiver: broadcast::Receiver<Event>,
     pub strategy_event_receiver: broadcast::Receiver<Event>,
     pub enable_event_publish: bool,
-    pub state_tx: watch::Sender<StrategyState>,
     pub node_handle_list: HashMap<String, tokio::task::JoinHandle<()>>, // 节点id -> 节点handle
     pub cancel_token: CancellationToken,
+    pub state_manager: StrategyStateManager,
 }
 
 
@@ -64,7 +56,6 @@ impl Strategy {
         let strategy_name = strategy_info.name;
 
         // 当策略创建时，状态为 Created
-        let (state_tx, state_rx) = watch::channel(StrategyState::Created);
         let cancel_token = CancellationToken::new();
         
         if let Some(nodes_str) = strategy_info.nodes {
@@ -78,9 +69,6 @@ impl Strategy {
                         event_publisher.clone(), 
                         market_event_receiver.resubscribe(), 
                         response_event_receiver.resubscribe(),
-                        state_rx.clone(),
-                        cancel_token.clone()
-
                     ).await;
 
                 }
@@ -102,16 +90,16 @@ impl Strategy {
         
         Self {
             strategy_id,
-            strategy_name,
+            strategy_name: strategy_name.clone(),
             graph,
             node_indices,
             event_publisher,
             response_event_receiver,
             strategy_event_receiver,
             enable_event_publish: false,
-            state_tx,
             node_handle_list: HashMap::new(),
             cancel_token,
+            state_manager: StrategyStateManager::new(strategy_id, strategy_name, StrategyRunState::Created),
         }
     }
 
@@ -157,8 +145,8 @@ impl Strategy {
                 // 获取接收者数量
                 let receiver_count = sender.receiver_count();
                 // tracing::debug!("{:?} 添加了一个接收者, 接收者数量 = {}", target_node.get_node_name().await, receiver_count);
-                target_node.add_message_receiver(receiver);
-                target_node.add_from_node_id(from_node_id.to_string());
+                target_node.add_message_receiver(receiver).await;
+                target_node.add_from_node_id(from_node_id.to_string()).await;
             }
             // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
             graph.add_edge(source, target, ());
@@ -175,34 +163,6 @@ impl Strategy {
         .collect()
     }
 
-    async fn listen_external_events(&self, internal_tx: mpsc::Sender<Event>) {
-        let mut strategy_event_receiver = self.strategy_event_receiver.resubscribe();
-        tokio::spawn(async move {
-            loop {
-                let event = strategy_event_receiver.recv().await.unwrap();
-                let _ = internal_tx.send(event).await;
-            }
-        });
-    }
-
-    // 处理接收到的事件
-    async fn handle_external_events(mut internal_rx: mpsc::Receiver<Event>) {
-        tokio::spawn(async move {
-        loop {
-            let event = internal_rx.recv().await.unwrap();
-            match event {
-                Event::Strategy(strategy_event) => {
-                    Self::handle_strategy_event(strategy_event).await;
-                }
-                _ => {}
-            }
-            }
-        });
-    }
-
-    async fn handle_strategy_event(_strategy_event: StrategyEvent) {
-        // tracing::debug!("接收到策略事件: {:?}", strategy_event);
-    }
 
     
 
@@ -219,49 +179,195 @@ impl Strategy {
         self.enable_event_publish = false;
     }
 
+    
+    pub async fn update_strategy_state(&mut self, event: StrategyStateTransitionEvent) {
+        // 提前获取所有需要的数据，避免在循环中持有引用
+        let strategy_id = self.strategy_id;
+        let strategy_name = self.strategy_name.clone();
+
+        let (transition_result, state_manager) = {
+            let mut state_manager = self.state_manager.clone();
+            let transition_result = state_manager.transition(event).unwrap();
+            (transition_result, state_manager)
+        };
+
+        tracing::info!("需要执行的动作: {:?}", transition_result.actions);
+        for action in transition_result.actions.clone() {
+            match action {
+                StrategyStateAction::InitNode => {
+                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
+                    tracing::info!("{}: 开始初始化节点", self.strategy_name);
+                    let nodes = self.topological_sort();
+                    
+                    let mut all_nodes_initialized = true;
+
+                    for node in nodes {
+                        let mut node = node.clone();
+                        
+                        if let Err(e) = self.init_node(&mut node).await {
+                            tracing::error!("{}", e);
+                            all_nodes_initialized = false;
+                            break;
+                        }
+                    }
+
+                    if all_nodes_initialized {
+                        tracing::info!("{}: 所有节点已成功初始化", self.strategy_name);
+                    } else {
+                        tracing::error!("{}: 部分节点初始化失败，策略无法正常运行", self.strategy_name);
+                    }
+                }
+
+                StrategyStateAction::StartNode => {
+                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
+                    tracing::info!("{}: 开始启动节点", self.strategy_name);
+                    let nodes = self.topological_sort();
+                    
+                    let mut all_nodes_started = true;
+
+                    for node in nodes {
+                        let mut node = node.clone();
+                        
+                        if let Err(e) = self.start_node(&mut node).await {
+                            tracing::error!("{}", e);
+                            all_nodes_started = false;
+                            break;
+                        }
+                    }
+
+                    if all_nodes_started {
+                        tracing::info!("{}: 所有节点已成功启动", self.strategy_name);
+                    } else {
+                        tracing::error!("{}: 部分节点启动失败，策略无法正常运行", self.strategy_name);
+                    }
+                }
+
+
+                StrategyStateAction::StopNode => {
+                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
+                    tracing::info!("{}: 开始停止节点", self.strategy_name);
+                    let nodes = self.topological_sort();
+                    
+                    let mut all_nodes_stopped = true;
+
+                    for node in nodes {
+                        let mut node = node.clone();
+                        
+                        if let Err(e) = self.stop_node(&mut node).await {
+                            tracing::error!("{}", e);
+                            all_nodes_stopped = false;
+                            break;
+                        }
+                    }
+
+                    if all_nodes_stopped {
+                        tracing::info!("{}: 所有节点已成功停止", self.strategy_name);
+                    } else {
+                        tracing::error!("{}: 部分节点停止失败，策略无法正常运行", self.strategy_name);
+                    }
+                }
+                
+                StrategyStateAction::LogTransition => {
+                    tracing::info!("{}: 状态转换: {:?} -> {:?}", self.strategy_name, self.state_manager.current_state(), transition_result.new_state);
+                }
+                _ => {}
+            }
+
+
+            // 更新策略状态
+            self.state_manager = state_manager.clone();
+
+            
+        }
+        
+    }
+    
     pub async fn start_strategy(&mut self) -> Result<(), String> {
         tracing::info!("启动策略: {}", self.strategy_name);
         // 获取当前状态
-        let current_state = self.state_tx.borrow().clone();
+        let current_state = self.state_manager.current_state();
         // 如果当前状态为 Running，则不进行操作
-        if current_state == StrategyState::Running {
-            tracing::info!("策略{}正在运行", self.strategy_name);
+        if current_state != StrategyRunState::Ready {
+            tracing::info!("策略未处于Ready状态, 不能启动: {}", self.strategy_name);
             return Ok(());
         }
         // 策略发送启动信号
-        if current_state == StrategyState::Ready {
-            tracing::info!("{}: 发送启动策略信号", self.strategy_name);
-            self.state_tx.send(StrategyState::Running).map_err(|_| {"更新启动状态失败".to_string()})?;
+
+        tracing::info!("{}: 发送启动策略信号", self.strategy_name);
+        tracing::info!("等待所有节点启动...");
+        self.update_strategy_state(StrategyStateTransitionEvent::Start).await;
+
+        // todo: 这里需要循环检测每个节点是否启动成功，也就是检测每个节点是否都是running状态
+        // 如果所有节点都启动成功，则更新策略状态为Running
+        // 如果有一个节点启动失败，则返回失败
+        let all_running = self.wait_for_all_nodes_running(10).await.unwrap();
+        if all_running {
+            self.update_strategy_state(StrategyStateTransitionEvent::StartComplete).await;
+            Ok(())
+        } else {
+            Err("等待节点启动超时".to_string())
         }
-        Ok(())
     }
 
-    pub async fn stop_strategy(&mut self) -> Result<StrategyState, String> {
+    pub async fn stop_strategy(&mut self) -> Result<(), String> {
         // 获取当前状态
-        let current_state = self.state_tx.borrow().clone();
         // 如果策略当前状态为 Stopped，则不进行操作
-        if current_state == StrategyState::Stopped {
+        if self.state_manager.current_state() == StrategyRunState::Stopping {
             tracing::info!("策略{}已停止", self.strategy_name);
-            return Ok(StrategyState::Stopped);
+            return Ok(());
         }
-        // 策略发送停止信号
-        self.state_tx.send(StrategyState::Stopping).map_err(|_| {"更新停止状态失败".to_string()})?;
+        tracing::info!("等待所有节点停止...");
+        self.update_strategy_state(StrategyStateTransitionEvent::Stop).await;
 
         // 发送完信号后，循环遍历所有的节点，获取节点的状态，如果所有的节点状态都为stopped，则更新策略状态为Stopped
         let all_stopped = self.wait_for_all_nodes_stopped(10).await.unwrap();
         if all_stopped {
-            Ok(StrategyState::Stopped)
+            self.update_strategy_state(StrategyStateTransitionEvent::StopComplete).await;
+            Ok(())
         } else {
             Err("等待节点停止超时".to_string())
         }
     }
+
+    async fn wait_for_all_nodes_running(&self, timeout_secs: u64) -> Result<bool, String> {
+        let start_time = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(timeout_secs);
+        
+        loop {
+
+            let mut all_running = true;
+            // 检查所有节点状态
+            for node in self.graph.node_weights() {
+                if node.get_node_run_state().await != NodeRunState::Running {
+                    all_running = false;
+                    break;
+                }
+            }
+            
+            // 如果所有节点都已启动，返回成功
+            if all_running {
+                tracing::info!("所有节点已启动，共耗时{}ms", start_time.elapsed().as_millis());
+                return Ok(true);
+            }
+            
+            // 检查是否超时
+            if start_time.elapsed() > timeout {
+                tracing::warn!("等待节点启动超时，已等待{}秒", timeout_secs);
+                return Ok(false);
+            }
+            
+            // 短暂休眠后再次检查
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        }
+    }
+                
+    
 
     async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
         let start_time = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(timeout_secs);
         
         loop {
-            tracing::info!("等待节点停止...");
             let mut all_stopped = true;
             // 检查所有节点状态
             for node in self.graph.node_weights() {
@@ -273,7 +379,7 @@ impl Strategy {
             
             // 如果所有节点都已停止，返回成功
             if all_stopped {
-                tracing::info!("所有节点已停止，共耗时{}秒", start_time.elapsed().as_secs());
+                tracing::info!("所有节点已停止，共耗时{}ms", start_time.elapsed().as_millis());
                 return Ok(true);
             }
             
@@ -291,47 +397,172 @@ impl Strategy {
 
     // 设置策略
     pub async fn init_strategy (&mut self) -> Result<(), String> {
-        let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<>(100);
-        // 监听策略事件
-        self.listen_external_events(internal_tx).await;
-        // 处理接收到的事件
-        Self::handle_external_events(internal_rx).await;
+        tracing::info!("{}: 开始初始化策略", self.strategy_name);
 
-        let nodes = self.topological_sort();
-        // let mut handles = HashMap::new();
-        // 循环启动每一个节点
-        for node in nodes {
-           
-            let mut node = node.clone();
-            let node_id = node.get_node_id().await;
-            let node_name = node.get_node_name().await;
-            let node_name_clone = node_name.clone();
-            let node_handle = tokio::spawn(async move {
-                tokio::select! {
-                    node_setup_result = node.init() => {
-                        // 如果初始化失败，则打印失败信息
-                        if let Err(e) = node_setup_result {
-                            tracing::error!("{} 节点初始化失败: {}", node_name, e);
-                        }
-                    },
-                }
-                
-            });
-            
-            match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
-                Ok(result) => {
-                    result.map_err(|e| format!("节点 {} 设置任务失败: {}", node_name_clone, e))?;
-                }
-                Err(_) => {
-                    tracing::error!("节点 {} 设置超时", node_id);
-                }
-            }
-        }
-        // 更新策略状态为 Ready
-        self.state_tx.send(StrategyState::Ready).map_err(|_| {"更新状态失败".to_string()}).unwrap();
-        tracing::info!("{} 初始化完成。当前状态：{:?}", self.strategy_name, self.state_tx.borrow().clone());
+        // created => initializing
+        self.update_strategy_state(StrategyStateTransitionEvent::Initialize).await;
+
+        // 
+        // initializing => ready
+        tracing::info!("{}: 初始化完成", self.strategy_name);
+        self.update_strategy_state(StrategyStateTransitionEvent::InitializeComplete).await;
+
+        // // 更新策略状态为 Ready
+        // self.state_tx.send(StrategySignal::Start).map_err(|_| {"更新状态失败".to_string()}).unwrap();
+        // tracing::info!("{} 初始化完成。当前状态：{:?}", self.strategy_name, self.state_tx.borrow().clone());
         Ok(())
     }
+
+    async fn init_node(&self, node: &mut Box<dyn NodeTrait>) -> Result<(), String> {
+        let mut node_clone = node.clone();
+
+        let node_handle = tokio::spawn(async move {
+            let node_name = node_clone.get_node_name().await;
+            if let Err(e) = node_clone.init().await {
+                tracing::error!("{} 节点初始化失败: {}", node_name, e);
+                return Err(format!("节点初始化失败: {}", e));
+            }
+            Ok(())
+        });
+
+        let node_id = node.get_node_id().await;
+        let node_name = node.get_node_name().await;
+        
+        // 等待节点初始化完成
+        match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
+            Ok(result) => {
+                if let Err(e) = result {
+                    return Err(format!("节点 {} 初始化任务失败: {}", node_name, e));
+                }
+                
+                if let Ok(Err(e)) = result {
+                    return Err(format!("节点 {} 初始化过程中出错: {}", node_name, e));
+                }
+            }
+            Err(_) => {
+                return Err(format!("节点 {} 初始化超时", node_id));
+            }
+        }
+        // 等待节点进入Running状态
+        let mut retry_count = 0;
+        let max_retries = 20;
+        
+        while retry_count < max_retries {
+            if node.get_node_run_state().await == NodeRunState::Ready {
+                tracing::debug!("节点 {} 已进入Ready状态", node_id);
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                return Ok(());
+            }
+            retry_count += 1;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        
+        Err(format!("节点 {} 未能进入Ready状态", node_id))
+    }
+
+    // 添加一个新的辅助方法
+    async fn start_node(&self, node: &mut Box<dyn NodeTrait>) -> Result<(), String> {
+        
+        
+        // 启动节点
+        let mut node_clone = node.clone();
+        
+        let node_handle = tokio::spawn(async move {
+            let node_name = node_clone.get_node_name().await;
+            if let Err(e) = node_clone.start().await {
+                tracing::error!("{} 节点启动失败: {}", node_name, e);
+                return Err(format!("节点启动失败: {}", e));
+            }
+            Ok(())
+        });
+
+        let node_id = node.get_node_id().await;
+        let node_name = node.get_node_name().await;
+        
+        // 等待节点启动完成
+        match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
+            Ok(result) => {
+                if let Err(e) = result {
+                    return Err(format!("节点 {} 启动任务失败: {}", node_name, e));
+                }
+                
+                if let Ok(Err(e)) = result {
+                    return Err(format!("节点 {} 启动过程中出错: {}", node_name, e));
+                }
+            }
+            Err(_) => {
+                return Err(format!("节点 {} 启动超时", node_id));
+            }
+        }
+        
+        // 等待节点进入Running状态
+        let mut retry_count = 0;
+        let max_retries = 20;
+        
+        while retry_count < max_retries {
+            if node.get_node_run_state().await == NodeRunState::Running {
+                tracing::debug!("节点 {} 已进入Running状态", node_id);
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                return Ok(());
+            }
+            retry_count += 1;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        
+        Err(format!("节点 {} 未能进入Running状态", node_id))
+    }
+
+    async fn stop_node(&self, node: &mut Box<dyn NodeTrait>) -> Result<(), String> {
+        // 启动节点
+        let mut node_clone = node.clone();
+        
+        let node_handle = tokio::spawn(async move {
+            let node_name = node_clone.get_node_name().await;
+            if let Err(e) = node_clone.stop().await {
+                tracing::error!("{} 节点停止失败: {}", node_name, e);
+                return Err(format!("节点停止失败: {}", e));
+            }
+            Ok(())
+        });
+
+        let node_id = node.get_node_id().await;
+        let node_name = node.get_node_name().await;
+        
+        // 等待节点启动完成
+        match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
+            Ok(result) => {
+                if let Err(e) = result {
+                    return Err(format!("节点 {} 停止任务失败: {}", node_name, e));
+                }
+                
+                if let Ok(Err(e)) = result {
+                    return Err(format!("节点 {} 停止过程中出错: {}", node_name, e));
+                }
+            }
+            Err(_) => {
+                return Err(format!("节点 {} 停止超时", node_id));
+            }
+        }
+        
+        // 等待节点进入Running状态
+        let mut retry_count = 0;
+        let max_retries = 20;
+        
+        while retry_count < max_retries {
+            if node.get_node_run_state().await == NodeRunState::Stopped {
+                tracing::debug!("节点 {} 已进入Stopped状态", node_id);
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                return Ok(());
+            }
+            retry_count += 1;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        
+        Err(format!("节点 {} 未能进入Stopped状态", node_id))
+
+
+    }
+
 }
 
     
