@@ -1,0 +1,91 @@
+
+use crate::market::KlineSeries;
+use crate::indicator::{Indicators, IndicatorData};
+use crate::market::{Exchange, KlineInterval};
+use serde::{Deserialize, Serialize};
+use strum::Display;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "message_type")]
+pub enum NodeMessage {
+    #[strum(serialize = "kline_series")]
+    #[serde(rename = "kline_series")]
+    KlineSeries(KlineSeriesMessage),
+    #[strum(serialize = "indicator")]
+    #[serde(rename = "indicator")]
+    Indicator(IndicatorMessage),
+    #[strum(serialize = "signal")]
+    #[serde(rename = "signal")]
+    Signal(SignalMessage),
+}
+
+impl NodeMessage {
+    pub fn as_indicator(&self) -> Option<&IndicatorMessage> {
+        if let NodeMessage::Indicator(msg) = self {
+            Some(msg)
+        } else {
+            None
+        }
+    }
+}
+
+
+
+// k线系列消息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KlineSeriesMessage {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub kline_series: KlineSeries,
+    pub batch_id: String,
+    pub message_timestamp: i64,
+}
+
+// 指标消息
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IndicatorMessage {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub indicator: Indicators,
+    pub indicator_data: Box<dyn IndicatorData>,
+    pub batch_id: String,
+    pub message_timestamp: i64,
+}
+
+impl Clone for IndicatorMessage {
+    fn clone(&self) -> Self {
+        IndicatorMessage {
+            from_node_id: self.from_node_id.clone(),
+            from_node_name: self.from_node_name.clone(),
+            exchange: self.exchange.clone(),
+            symbol: self.symbol.clone(),
+            interval: self.interval.clone(),
+            indicator: self.indicator.clone(),
+            indicator_data: self.indicator_data.clone_box(),
+            batch_id: self.batch_id.clone(),
+            message_timestamp: self.message_timestamp,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Signal {
+    True,
+    False,
+}
+
+// 信号消息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignalMessage {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub from_node_handle: String,
+    pub signal: Signal,
+    pub message_timestamp: i64,
+}
