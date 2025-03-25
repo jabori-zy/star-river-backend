@@ -110,6 +110,8 @@ pub struct CreateStrategyParams {
 pub enum MarketDataEngineCommand {
     #[strum(serialize = "subscribe-kline-stream")]
     SubscribeKlineStream(SubscribeKlineStreamParams),
+    #[strum(serialize = "unsubscribe-kline-stream")]
+    UnsubscribeKlineStream(UnsubscribeKlineStreamParams),
 }
 
 
@@ -125,3 +127,15 @@ pub struct SubscribeKlineStreamParams {
     pub request_id: Uuid,
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnsubscribeKlineStreamParams {
+    pub strategy_id: i32,
+    pub node_id: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub sender: String,
+    pub timestamp:i64,
+    pub request_id: Uuid,
+}

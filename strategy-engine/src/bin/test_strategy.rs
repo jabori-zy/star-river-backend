@@ -22,17 +22,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 初始化数据库
     let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
-    let event_publisher = event_center.get_publisher1();
+    let event_publisher = event_center.get_publisher();
     let database_manager = DatabaseManager::new(command_event_receiver, event_publisher).await;
 
     // 初始化市场引擎
-    let market_engine_event_publisher = event_center.get_publisher1();
+    let market_engine_event_publisher = event_center.get_publisher();
     let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
     let market_event_receiver = event_center.subscribe(Channel::Market).unwrap();
     let mut market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, market_event_receiver);
 
     // 初始化缓存引擎
-    let cache_engine_event_publisher = event_center.get_publisher1();
+    let cache_engine_event_publisher = event_center.get_publisher();
     let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
     let exchange_event_receiver = event_center.subscribe(Channel::Exchange).unwrap();
     let indicator_event_receiver = event_center.subscribe(Channel::Indicator).unwrap();
@@ -40,15 +40,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 初始化策略引擎
     
-    let strategy_engine_event_publisher = event_center.get_publisher1();
+    let strategy_engine_event_publisher = event_center.get_publisher();
     let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
     let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
     let market_event_receiver = event_center.subscribe(Channel::Market).unwrap();
+    let strategy_event_receiver = event_center.subscribe(Channel::Strategy).unwrap();
     let database = database_manager.get_conn();
-    let mut strategy_engine = StrategyEngine::new(market_event_receiver, command_event_receiver, response_event_receiver, strategy_engine_event_publisher, database);
+    let mut strategy_engine = StrategyEngine::new(market_event_receiver, command_event_receiver, response_event_receiver, strategy_event_receiver, strategy_engine_event_publisher, database);
 
     // 初始化指标引擎
-    let indicator_engine_event_publisher = event_center.get_publisher1();
+    let indicator_engine_event_publisher = event_center.get_publisher();
     let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
     let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
     let indicator_engine = IndicatorEngine::new(command_event_receiver, response_event_receiver, indicator_engine_event_publisher);
@@ -61,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 启动市场引擎
     tokio::spawn(async move {
-        market_engine.run().await.unwrap();
+        market_engine.start().await.unwrap();
     });
 
     // 启动缓存引擎
@@ -78,8 +79,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         strategy_engine.start().await.unwrap();
         // strategy_engine.create_strategy("test".to_string(), "test_description".to_string()).await.unwrap();
         let strategy_info = strategy_engine.get_strategy_by_id(9).await.unwrap();
-        let strategy_id = strategy_engine.create_strategy_by_info(strategy_info).await.unwrap();
-        strategy_engine.run_strategy(strategy_id).await.unwrap();
+        let strategy_id = strategy_engine.load_strategy_by_info(strategy_info).await.unwrap();
+        strategy_engine.init_strategy(strategy_id).await.unwrap();
         
     });
 

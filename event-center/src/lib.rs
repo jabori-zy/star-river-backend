@@ -3,11 +3,14 @@ pub mod command_event;
 pub mod indicator_event;
 pub mod exchange_event;
 pub mod response_event;
+pub mod strategy_event;
+
 
 use market_event::MarketEvent;
 use command_event::CommandEvent;
 use exchange_event::ExchangeEvent;
 use response_event::ResponseEvent;
+use strategy_event::StrategyEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -23,11 +26,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, Display, Eq, Hash, PartialEq)]
 pub enum Channel {
     Market,
-    Exchange,
+    Exchange, // 交易所的原始数据通道
     Trade,
     Order,
     Position,
     Indicator,
+    Strategy, // 节点的信息通过这个通道发送
     Command,
     Response,
 }
@@ -56,6 +60,9 @@ pub enum Event {
     #[strum(serialize = "response")]
     #[serde(rename = "response")]
     Response(ResponseEvent),
+    #[strum(serialize = "strategy")]
+    #[serde(rename = "strategy")]
+    Strategy(StrategyEvent),
 }
 
 impl Event {
@@ -66,6 +73,7 @@ impl Event {
             Event::Command(_) => Channel::Command,
             Event::Exchange(_) => Channel::Exchange,
             Event::Response(_) => Channel::Response,
+            Event::Strategy(_) => Channel::Strategy,
         }
     }
 }
@@ -145,15 +153,15 @@ impl EventCenter {
     }
 
     // 获取指定通道的发布者
-    pub fn get_publisher(&self, channel: Channel) -> Result<broadcast::Sender<Event>, EventCenterError> {
-        let sender = self
-            .channels
-            .get(&channel)
-            .ok_or(EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
-        Ok(sender.clone())
-    }
+    // pub fn get_publisher(&self, channel: Channel) -> Result<broadcast::Sender<Event>, EventCenterError> {
+    //     let sender = self
+    //         .channels
+    //         .get(&channel)
+    //         .ok_or(EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
+    //     Ok(sender.clone())
+    // }
 
-    pub fn get_publisher1(&self) -> EventPublisher {
+    pub fn get_publisher(&self) -> EventPublisher {
         // 只克隆 Arc，非常轻量
         EventPublisher::new(self.channels.clone())
     }

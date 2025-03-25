@@ -18,12 +18,12 @@ use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc;
 use event_center::command_event::{CommandEvent,MarketDataEngineCommand};
 use event_center::market_event::MarketEvent;
-use event_center::command_event::SubscribeKlineStreamParams;
+use event_center::command_event::{SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
 use tokio::sync::RwLock;
 use event_center::command_event::{AddKlineCacheKeyParams, KlineCacheManagerCommand};
 use types::cache::KlineCacheKey;
 use utils::get_utc8_timestamp_millis;
-use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse};
+use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
 use uuid::Uuid;
 
 pub struct MarketDataEngineState {
@@ -65,7 +65,7 @@ impl MarketDataEngine{
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), String> {
+    pub async fn start(&mut self) -> Result<(), String> {
         let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
         // 监听事件
         self.listen(internal_tx).await?;
@@ -104,6 +104,9 @@ impl MarketDataEngine{
                         match command_event {
                             CommandEvent::MarketDataEngine(MarketDataEngineCommand::SubscribeKlineStream(params)) => {
                                 Self::subscribe_kline_stream(state.clone(), params, event_publisher.clone()).await.unwrap();
+                            }
+                            CommandEvent::MarketDataEngine(MarketDataEngineCommand::UnsubscribeKlineStream(params)) => {
+                                Self::unsubscribe_kline_stream(state.clone(), params, event_publisher.clone()).await.unwrap();
                             }
                             _ => {}
                         }
@@ -149,7 +152,7 @@ impl MarketDataEngine{
         let exchange = state.exchanges.get_mut(&exchange).unwrap();
 
         // 先获取历史k线
-        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(50), None, None).await?;
+        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(2), None, None).await?;
         // 再订阅k线流
         exchange.subscribe_kline_stream(&params.symbol, params.interval.clone()).await.unwrap();
         // 获取socket流
@@ -160,6 +163,24 @@ impl MarketDataEngine{
 
         // 都成功后，发送响应事件
         let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse {
+            exchange: params.exchange,
+            symbol: params.symbol,
+            interval: params.interval,
+            response_timestamp: get_utc8_timestamp_millis(),
+            response_id: request_id,
+        }));
+        event_publisher.publish(response_event.clone().into()).unwrap();
+        Ok(())
+    }
+
+    async fn unsubscribe_kline_stream(state: Arc<RwLock<MarketDataEngineState>>, params: UnsubscribeKlineStreamParams, event_publisher: EventPublisher) -> Result<(), String> {
+        let exchange = params.exchange.clone();
+        let mut state = state.write().await;
+        let exchange = state.exchanges.get_mut(&exchange).unwrap();
+        exchange.unsubscribe_kline_stream(&params.symbol, params.interval.clone()).await.unwrap();
+
+        let request_id = params.request_id;
+        let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::UnsubscribeKlineStreamSuccess(UnsubscribeKlineStreamSuccessResponse {
             exchange: params.exchange,
             symbol: params.symbol,
             interval: params.interval,
@@ -231,29 +252,6 @@ impl MarketDataEngine{
         }
 
     }
-
-    // pub async fn subscribe_kline_stream(& mut self, exchange: Exchange, symbol: String, interval: KlineInterval) -> Result<(), String> {
-    //     let state = self.state.read().await;
-    //     let exchange = state.exchanges.get_mut(&exchange).unwrap();
-    //     let exchange = exchange.clone();
-    //     // 异步执行
-    //     tokio::spawn(async move {
-    //             let mut exchange = exchange.lock().await;
-    //             exchange.subscribe_kline_stream(&symbol, interval).await.unwrap();
-    //         });
-    //     Ok(())
-    // }
-
-    // 获取scoket数据
-    // pub async fn get_stream(&self, exchange: Exchange) -> Result<(), String> {
-    //     let state = self.state.read().await;
-    //     let exchange = state.exchanges.get(&exchange).unwrap();
-    //     let exchange = exchange.clone();
-    //     tokio::spawn(async move {
-    //         exchange.get_socket_stream().await.unwrap();
-    //     });
-    //     Ok(())
-    // }
     
 }
 

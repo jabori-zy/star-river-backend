@@ -22,10 +22,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
-use event_center::command_event::{CommandEvent, KlineCacheManagerCommand, AddKlineCacheKeyParams, IndicatorCacheManagerCommand, SubscribeIndicatorParams};
-use types::cache::{KlineCacheKey, IndicatorCacheKey};
-use utils::get_utc8_timestamp_millis;
-use types::indicator::Indicators;
 use event_center::EventPublisher;
 
 
@@ -215,6 +211,18 @@ impl ExchangeClient for BinanceExchange {
         Ok(())
     }
 
+    async fn unsubscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval) -> Result<(), String> {
+        let binance_interval = BinanceKlineInterval::from(interval.clone());
+        let mut websocket_state = self.websocket_state.lock().await;
+        if let Some(state) = websocket_state.as_mut() {
+            tracing::debug!("取消订阅k线流, symbol: {:?}, interval: {:?}", symbol, interval);
+            state.unsubscribe([&klines(symbol, binance_interval).into()]).await;
+        }
+        Ok(())
+    }
+
+
+
     // 获取socket流，并处理数据
     async fn get_socket_stream(&mut self) -> Result<(), String> {
         // 判断当前是否正在处理流
@@ -280,27 +288,6 @@ impl BinanceExchange {
 
         Ok(())
         
-    }
-
-    pub async fn subscribe_indicator(&self, symbol: &str, interval: KlineInterval, indicator: Indicators) -> Result<(), String> {
-        let ind_cache_key = IndicatorCacheKey {
-            exchange: Exchange::Binance,
-            symbol: symbol.to_string(),
-            interval,
-            indicator,
-            
-        };
-        let params = SubscribeIndicatorParams {
-            cache_key: ind_cache_key,
-            sender: "binance_exchange".to_string(),
-            timestamp: get_utc8_timestamp_millis(),
-
-        };
-        let command = IndicatorCacheManagerCommand::SubscribeIndicator(params);
-        let command_event = CommandEvent::IndicatorCacheManager(command);
-        let _ = self.event_publisher.publish(command_event.into());
-
-        Ok(())
     }
 
         

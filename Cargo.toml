@@ -12,7 +12,8 @@ members = [
     "migration",
     "strategy-engine",
     "types",
-    "utils", "market-engine",
+    "utils", 
+    "market-engine", "test_cancel_handle",
 ]
 
 [workspace.package]
@@ -27,7 +28,8 @@ axum = { version = "0.8.1", features = ["macros", "ws", "query","json"] }
 axum-extra = {version = "0.10.0", features = ["typed-header"]}
 headers = "0.4.0"
 tokio-stream = {version = "0.1.17", features = ["sync"]}
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
+tokio-util = {version = "0.7.14"}
 tracing = "0.1.41"
 tracing-subscriber = {version = "0.3.19", features = ["env-filter"]}
 serde = { version = "1.0.215", features = ["derive"] }
