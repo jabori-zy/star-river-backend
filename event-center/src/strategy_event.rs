@@ -1,6 +1,7 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
 use types::strategy::message::NodeMessage;
+use serde::{Serialize, Deserialize};
+use strum::Display;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]

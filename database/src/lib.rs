@@ -71,9 +71,9 @@ impl DatabaseManager {
 
         // 创建数据库文件
         let db_path = path.join("db.sqlite");
-        // let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
-        let path = PathBuf::from("D:/project/star-river-backend/database/db/db.sqlite");
-        let database_url = format!("sqlite:{}?mode=rwc", path.display());
+        let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
+        // let path = PathBuf::from("D:/project/star-river-backend/database/db/db.sqlite");
+        // let database_url = format!("sqlite:{}?mode=rwc", path.display());
         tracing::info!("数据库路径: {}", database_url);
         let mut opt = ConnectOptions::new(database_url);
         opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);

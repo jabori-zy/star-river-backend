@@ -3,6 +3,13 @@
 2. 波动率节点
 3. 因子节点（节点打包）
 
+# 数据库刷新表
+sea-orm-cli migrate refresh -d ./migration
+
+# 数据库生成实体
+sea-orm-cli entity -d ./database
+
+
 
 todo
 1. 每个策略添加一个消息黑洞，用于接收前端接收不到的消息，避免节点报错。

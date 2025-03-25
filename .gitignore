@@ -2,3 +2,4 @@ target
 database/db
 backup/
 .env
+/db
