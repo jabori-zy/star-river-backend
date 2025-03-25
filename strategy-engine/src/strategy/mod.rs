@@ -167,16 +167,20 @@ impl Strategy {
     
 
     // 启用策略的事件发布功能
-    pub async fn enable_strategy_event_publish(&mut self) {
+    pub async fn enable_strategy_event_push(&mut self) {
         self.enable_event_publish = true;
         // 遍历所有节点，设置 enable_event_publish 为 true
         for node in self.graph.node_weights_mut() {
-            node.enable_node_event_publish().await;
+            node.enable_node_event_push().await;
         }
     }
 
-    pub fn disable_event_publish(&mut self) {
+    pub async fn disable_event_push(&mut self) {
         self.enable_event_publish = false;
+        // 遍历所有节点，设置 enable_event_publish 为 false
+        for node in self.graph.node_weights_mut() {
+            node.disable_node_event_push().await;
+        }
     }
 
     

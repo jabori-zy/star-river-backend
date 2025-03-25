@@ -208,6 +208,20 @@ impl StrategyEngine {
         strategy_list.remove(&strategy_id);
         tracing::info!("策略实例已停止, 从引擎中移除, 策略名称: {}", strategy_name);
     }
-    
+
+    // 开启策略的事件推送
+    pub async fn enable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut strategy_list = self.strategy_list.lock().await;
+        let strategy = strategy_list.get_mut(&strategy_id).unwrap();
+        strategy.enable_strategy_event_push().await;
+        Ok(())
+    }
+
+    pub async fn disable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut strategy_list = self.strategy_list.lock().await;
+        let strategy = strategy_list.get_mut(&strategy_id).unwrap();
+        strategy.disable_event_push();
+        Ok(())
+    }
     
 }

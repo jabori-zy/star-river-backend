@@ -59,107 +59,7 @@ pub struct IfElseNode {
     pub state: Arc<RwLock<IfElseNodeState>>,
 }
 
-#[async_trait]
-impl NodeTrait for IfElseNode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn clone_box(&self) -> Box<dyn NodeTrait> {
-        Box::new(self.clone())
-    }
 
-
-    async fn get_node_name(&self) -> String {
-        self.state.read().await.node_name.clone()
-    }
-
-    async fn get_node_id(&self) -> String {
-        self.state.read().await.node_id.clone()
-    }
-
-    async fn get_node_sender(&self, handle_id: String) -> NodeSender {
-        self.state.read().await.node_output_handle.get(&handle_id).unwrap().clone()
-    }
-
-    async fn get_default_node_sender(&self) -> NodeSender {
-        self.state.read().await.node_output_handle.get("if_else_node_else_output").unwrap().clone()
-    }
-
-    async fn add_message_receiver(&mut self, receiver: NodeReceiver) {  
-        self.state.write().await.receivers.push(receiver);
-    }
-
-    async fn add_from_node_id(&mut self, from_node_id: String) {
-        self.state.write().await.from_node_id.push(from_node_id);
-    }
-
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
-        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
-            handle_id: handle_id.clone(),
-            sender: sender.clone(),
-            connect_count: 0,
-        });
-    }
-
-    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
-        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
-    }
-
-    async fn enable_node_event_publish(&mut self) {
-        // self.state.write().await.enable_event_publish = true;
-    }
-
-    async fn disable_node_event_publish(&mut self) {
-        self.state.write().await.enable_event_publish = false;
-    }
-
-
-    async fn init(&mut self) -> Result<(), String> {
-        tracing::info!("================={}====================", self.state.read().await.node_name);
-        tracing::info!("{}: 开始初始化", self.state.read().await.node_name);
-        // 开始初始化 created -> Initialize
-        Self::update_run_state(self.state.clone(), NodeStateTransitionEvent::Initialize).await.unwrap();
-
-        tracing::info!("{:?}: 初始化完成", self.state.read().await.run_state_manager.current_state());
-        // 初始化完成 Initialize -> InitializeComplete
-        Self::update_run_state(self.state.clone(), NodeStateTransitionEvent::InitializeComplete).await?;
-
-
-        Ok(())
-        
-    }
-
-    async fn start(&mut self) -> Result<(), String> {
-        let state = self.state.clone();
-        tracing::info!("{}: 开始启动", state.read().await.node_id);
-        // 切换为starting状态
-        Self::update_run_state(state.clone(), NodeStateTransitionEvent::Start).await.unwrap();
-        // 休眠500毫秒
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        // 切换为running状态
-        Self::update_run_state(state.clone(), NodeStateTransitionEvent::StartComplete).await.unwrap();
-        Ok(())
-    }
-
-    async fn stop(&mut self) -> Result<(), String> {
-        let state = self.state.clone();
-        tracing::info!("{}: 开始停止", state.read().await.node_id);
-        Self::update_run_state(state.clone(), NodeStateTransitionEvent::Stop).await.unwrap();
-        // 等待所有任务结束
-        Self::cancel_task(state.clone()).await;
-        // 休眠500毫秒
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        // 切换为stopped状态
-        Self::update_run_state(state.clone(), NodeStateTransitionEvent::StopComplete).await.unwrap();
-        Ok(())
-    }
-
-    async fn get_node_run_state(&self) -> NodeRunState {
-        self.state.read().await.run_state_manager.current_state()
-    }
-}
 
 
 
@@ -555,6 +455,111 @@ impl IfElseNode {
 
 
 
+}
+
+
+#[async_trait]
+impl NodeTrait for IfElseNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn NodeTrait> {
+        Box::new(self.clone())
+    }
+
+
+    async fn get_node_name(&self) -> String {
+        self.state.read().await.node_name.clone()
+    }
+
+    async fn get_node_id(&self) -> String {
+        self.state.read().await.node_id.clone()
+    }
+
+    async fn get_node_sender(&self, handle_id: String) -> NodeSender {
+        self.state.read().await.node_output_handle.get(&handle_id).unwrap().clone()
+    }
+
+    async fn get_default_node_sender(&self) -> NodeSender {
+        self.state.read().await.node_output_handle.get("if_else_node_else_output").unwrap().clone()
+    }
+
+    async fn add_message_receiver(&mut self, receiver: NodeReceiver) {  
+        self.state.write().await.receivers.push(receiver);
+    }
+
+    async fn add_from_node_id(&mut self, from_node_id: String) {
+        self.state.write().await.from_node_id.push(from_node_id);
+    }
+
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
+        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
+        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
+            handle_id: handle_id.clone(),
+            sender: sender.clone(),
+            connect_count: 0,
+        });
+    }
+
+    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
+        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
+    }
+
+    async fn enable_node_event_push(&mut self) {
+        self.state.write().await.enable_event_publish = true;
+        tracing::info!("{}: 节点事件推送已启用", self.state.read().await.node_name);
+    }
+
+    async fn disable_node_event_push(&mut self) {
+        self.state.write().await.enable_event_publish = false;
+        tracing::info!("{}: 节点事件推送已禁用", self.state.read().await.node_name);
+    }
+
+
+    async fn init(&mut self) -> Result<(), String> {
+        tracing::info!("================={}====================", self.state.read().await.node_name);
+        tracing::info!("{}: 开始初始化", self.state.read().await.node_name);
+        // 开始初始化 created -> Initialize
+        Self::update_run_state(self.state.clone(), NodeStateTransitionEvent::Initialize).await.unwrap();
+
+        tracing::info!("{:?}: 初始化完成", self.state.read().await.run_state_manager.current_state());
+        // 初始化完成 Initialize -> InitializeComplete
+        Self::update_run_state(self.state.clone(), NodeStateTransitionEvent::InitializeComplete).await?;
+
+
+        Ok(())
+        
+    }
+
+    async fn start(&mut self) -> Result<(), String> {
+        let state = self.state.clone();
+        tracing::info!("{}: 开始启动", state.read().await.node_id);
+        // 切换为starting状态
+        Self::update_run_state(state.clone(), NodeStateTransitionEvent::Start).await.unwrap();
+        // 休眠500毫秒
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        // 切换为running状态
+        Self::update_run_state(state.clone(), NodeStateTransitionEvent::StartComplete).await.unwrap();
+        Ok(())
+    }
+
+    async fn stop(&mut self) -> Result<(), String> {
+        let state = self.state.clone();
+        tracing::info!("{}: 开始停止", state.read().await.node_id);
+        Self::update_run_state(state.clone(), NodeStateTransitionEvent::Stop).await.unwrap();
+        // 等待所有任务结束
+        Self::cancel_task(state.clone()).await;
+        // 休眠500毫秒
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        // 切换为stopped状态
+        Self::update_run_state(state.clone(), NodeStateTransitionEvent::StopComplete).await.unwrap();
+        Ok(())
+    }
+
+    async fn get_node_run_state(&self) -> NodeRunState {
+        self.state.read().await.run_state_manager.current_state()
+    }
 }
 
 

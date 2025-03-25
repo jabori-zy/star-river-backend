@@ -140,11 +140,11 @@ impl NodeTrait for BuyNode {
         self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
     }
 
-    async fn enable_node_event_publish(&mut self) {
+    async fn enable_node_event_push(&mut self) {
         self.state.write().await.enable_event_publish = true;
     }
 
-    async fn disable_node_event_publish(&mut self) {
+    async fn disable_node_event_push(&mut self) {
         self.state.write().await.enable_event_publish = false;
     }
 

@@ -74,4 +74,37 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Json(params): Js
     }))
 }
 
+// 开启策略的事件推送
+#[derive(Deserialize, Debug)]
+pub struct EnableStrategyEventPushParams {
+    pub strategy_id: i32,
+}
+
+pub async fn enable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<EnableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let mut strategy_engine = star_river.strategy_engine.lock().await;
+    strategy_engine.enable_strategy_event_push(strategy_id).await.expect("开启策略事件推送失败");
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: None,
+    }))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DisableStrategyEventPushParams {
+    pub strategy_id: i32,
+}
+
+pub async fn disable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<DisableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let mut strategy_engine = star_river.strategy_engine.lock().await;
+    strategy_engine.disable_strategy_event_push(strategy_id).await.expect("关闭策略事件推送失败");
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: None,
+    }))
+}
+
 

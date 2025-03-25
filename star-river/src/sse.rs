@@ -74,13 +74,13 @@ pub async fn indicator_sse_handler(
 
 
 #[derive(Debug, Deserialize)]
-pub struct StrategySseQuery {
+pub struct StrategySSEQuery {
     pub strategy_id: i32,
 }
 
 pub async fn strategy_sse_handler(
     State(star_river): State<StarRiver>,
-    Query(query): Query<StrategySseQuery>
+    Query(query): Query<StrategySSEQuery>
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let strategy_id = query.strategy_id;
 

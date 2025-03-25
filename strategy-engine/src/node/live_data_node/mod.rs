@@ -501,12 +501,14 @@ impl NodeTrait for LiveDataNode {
         self.state.write().await.output_handle.get_mut(&handle_id).unwrap().connect_count += 1;
     }
 
-    async fn enable_node_event_publish(&mut self) {
+    async fn enable_node_event_push(&mut self) {
         self.state.write().await.enable_event_publish = true;
+        tracing::info!("{}: 节点事件推送已启用", self.state.read().await.node_name);
     }
 
-    async fn disable_node_event_publish(&mut self) {
+    async fn disable_node_event_push(&mut self) {
         self.state.write().await.enable_event_publish = false;
+        tracing::info!("{}: 节点事件推送已禁用", self.state.read().await.node_name);
     }
 
     async fn get_node_run_state(&self) -> NodeRunState {

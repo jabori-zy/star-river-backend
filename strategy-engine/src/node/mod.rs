@@ -23,8 +23,7 @@ pub trait NodeTrait: Debug + Send + Sync  {
     async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender); // 添加出口
     async fn add_node_output_handle_connect_count(&mut self, handle_id: String);// 增加handle的连接计数
     async fn add_from_node_id(&mut self, from_node_id: String); // 添加from_node_id
-    async fn enable_node_event_publish(&mut self); // 启用节点事件发布
-    async fn disable_node_event_publish(&mut self); // 禁用节点事件发布
+
     async fn get_node_run_state(&self) -> NodeRunState; // 获取节点运行状态
     async fn init(&mut self) -> Result<(), String>; // 初始化节点
     async fn start(&mut self) -> Result<(), String> {
@@ -33,6 +32,8 @@ pub trait NodeTrait: Debug + Send + Sync  {
     async fn stop(&mut self) -> Result<(), String> {
         Ok(())
     } // 停止节点
+    async fn enable_node_event_push(&mut self); // 启用节点事件推送
+    async fn disable_node_event_push(&mut self); // 禁用节点事件推送
 }
 
 impl Clone for Box<dyn NodeTrait> {

@@ -447,12 +447,14 @@ impl NodeTrait for IndicatorNode {
 
 
 
-    async fn enable_node_event_publish(&mut self) {
+    async fn enable_node_event_push(&mut self) {
         self.state.write().await.enable_event_publish = true;
+        tracing::info!("{}: 节点事件推送已启用", self.state.read().await.node_name);
     }
 
-    async fn disable_node_event_publish(&mut self) {
+    async fn disable_node_event_push(&mut self) {
         self.state.write().await.enable_event_publish = false;
+        tracing::info!("{}: 节点事件推送已禁用", self.state.read().await.node_name);
     }
     async fn init(&mut self) -> Result<(), String> {
         tracing::info!("================={}====================", self.state.read().await.node_name);

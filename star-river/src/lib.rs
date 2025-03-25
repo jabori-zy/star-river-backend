@@ -15,7 +15,7 @@ use axum::http::HeaderValue;
 use crate::star_river::StarRiver;
 use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy};
 use crate::api::query_api::{get_strategy_list, get_strategy_by_id};
-use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy};
+use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, enable_strategy_event_push, disable_strategy_event_push};
 use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler};
 use tracing::Level;
 use crate::websocket::ws_handler;
@@ -50,6 +50,8 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/init_strategy", post(init_strategy))
         .route("/run_strategy", post(run_strategy))
         .route("/stop_strategy", post(stop_strategy))
+        .route("/enable_strategy_event_push", post(enable_strategy_event_push))
+        .route("/disable_strategy_event_push", post(disable_strategy_event_push))
         .route("/get_strategy_list", get(get_strategy_list))
         .route("/update_strategy", post(update_strategy))
         .route("/delete_strategy", delete(delete_strategy))
