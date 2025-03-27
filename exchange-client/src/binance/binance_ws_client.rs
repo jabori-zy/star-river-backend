@@ -1,20 +1,13 @@
-#![allow(dead_code, unused_imports)]
+// #![allow(dead_code, unused_imports)]
 use futures::SinkExt;
 use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::protocol::frame::coding::Data;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{Error, Message, handshake::client::Response},
     MaybeTlsStream, WebSocketStream,
 };
 use crate::binance::url::BinanceWsUrl;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::WebSocket;
 use crate::binance::websocket::Stream;
-use crate::binance::market_stream::kline;
-use crate::binance::BinanceKlineInterval;
-use super::market_stream::klines;
 
 
 
@@ -73,7 +66,8 @@ impl WebSocketState {
         self.id += 1;
 
         let s = format!(
-            "{{\"method\":\"{method}\",{params}\"id\":{id}}}",
+            "{{\"method\":\"{method}\",
+            {params}\"id\":{id}}}",
             method = method,
             params = params_str,
             id = id

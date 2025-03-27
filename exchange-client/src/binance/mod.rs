@@ -284,8 +284,6 @@ impl BinanceExchange {
         let (websocket_state, _) = BinanceWsClient::connect_default().await.unwrap();
         self.websocket_state = Arc::new(Mutex::new(Some(websocket_state)));
         tracing::debug!("Binance 初始化成功！");
-        
-
         Ok(())
         
     }
