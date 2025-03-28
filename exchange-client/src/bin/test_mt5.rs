@@ -1,10 +1,10 @@
 use exchange_client::metatrader5::MetaTrader5;
+use exchange_client::ExchangeClient;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 use types::market::KlineInterval;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use event_center::EventPublisher;
 use event_center::EventCenter;
 
 #[tokio::main]
@@ -39,8 +39,10 @@ async fn main() {
 
 
     mt5_clone.lock().await.connect_websocket().await.unwrap();
-    mt5_clone.lock().await.subscribe_kline_stream("XAUUSD", KlineInterval::Minutes1, 500).await.unwrap();
-    mt5_clone.lock().await.get_socket_stream().await.unwrap();
+
+    mt5_clone.lock().await.get_kline_series("XAUUSD", KlineInterval::Minutes1, Some(2)).await.unwrap();
+    // mt5_clone.lock().await.subscribe_kline_stream("XAUUSD", KlineInterval::Minutes1, 500).await.unwrap();
+    // mt5_clone.lock().await.get_socket_stream().await.unwrap();
     
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1000)).await;

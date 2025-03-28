@@ -13,14 +13,16 @@ members = [
     "strategy-engine",
     "types",
     "utils", 
-    "market-engine", "test_cancel_handle",
-]
+    "market-engine"
+    ]
 
 [workspace.package]
 version = "0.1.0"
 description = "Star River Backend Workspace"
 authors = ["Jabori"]
 edition = "2021"
+
+
 
 
 [workspace.dependencies]
@@ -58,10 +60,10 @@ name = "star-river-backend"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 star-river = {path = "star-river"}
 tokio.workspace = true
+
 
 
 

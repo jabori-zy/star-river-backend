@@ -182,10 +182,10 @@ impl ExchangeClient for BinanceExchange {
     }
 
     // 获取k线系列
-    async fn get_kline_series(&mut self, symbol: &str, interval: KlineInterval, limit: Option<u32>, start_time: Option<u64>, end_time: Option<u64>) -> Result<(), String> {
+    async fn get_kline_series(&mut self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
         let binance_interval = BinanceKlineInterval::from(interval);
 
-        let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, start_time, end_time).await?;
+        let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, None, None).await?;
         // 发送到数据处理器，处理数据
         let data_processor = self.data_processor.lock().await;
         data_processor.process_kline_series(symbol, binance_interval, klines, self.event_publisher.clone()).await;
@@ -200,7 +200,8 @@ impl ExchangeClient for BinanceExchange {
     }
 
     // 订阅k线流
-    async fn subscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval) -> Result<(), String> {    
+    async fn subscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {    
+        let _frequency = frequency;
         let binance_interval = BinanceKlineInterval::from(interval.clone());
 
         let mut websocket_state = self.websocket_state.lock().await;
@@ -211,7 +212,8 @@ impl ExchangeClient for BinanceExchange {
         Ok(())
     }
 
-    async fn unsubscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval) -> Result<(), String> {
+    async fn unsubscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+        let _frequency = frequency;
         let binance_interval = BinanceKlineInterval::from(interval.clone());
         let mut websocket_state = self.websocket_state.lock().await;
         if let Some(state) = websocket_state.as_mut() {

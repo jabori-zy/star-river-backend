@@ -10,6 +10,10 @@ sea-orm-cli migrate refresh -d ./migration
 sea-orm-cli entity -d ./database
 
 
+# python打包
+"pyinstaller -c -F --clean --name MetaTrader5-x86_64-pc-windows-msvc --distpath resources/bin/windows scripts/metatrader5/main.py"
+
+
 
 todo
 1. 每个策略添加一个消息黑洞，用于接收前端接收不到的消息，避免节点报错。

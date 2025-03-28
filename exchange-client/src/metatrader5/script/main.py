@@ -269,7 +269,8 @@ async def get_symbol_info(symbol: str = Query(
         "data": {"symbol_info": symbol_info}
     }
 
-@app.get("/get_history_kline",
+# 通过时间范围获取历史K线数据
+@app.get("/get_kline_series_by_time_range",
          summary="获取MT5历史K线数据",
          description="获取MT5历史K线数据",
          response_description="返回历史K线数据",
@@ -279,7 +280,7 @@ async def get_symbol_info(symbol: str = Query(
              }
          }
          )
-async def get_history_kline(symbol: str
+async def get_kline_series_by_time_range(symbol: str
                             =Query(
                                 "XAUUSD",  # 默认值
                                 description="MT5交易品种",
@@ -302,12 +303,12 @@ async def get_history_kline(symbol: str
                             )) -> Dict:
     global mt5_client
     time_frame = get_time_frame(time_frame)
-    history_kline = await mt5_client.get_history_kline(symbol, time_frame, start_time, end_time)
-    if len(history_kline) > 0:
+    kline_series = await mt5_client.get_kline_series_by_time_range(symbol, time_frame, start_time, end_time)
+    if len(kline_series) > 0:
         return {
             "status": 0,
             "message": "获取成功",
-            "data": {"history_kline": history_kline}
+            "data": {"kline_series": kline_series}
         }
     else:
         return {
@@ -326,6 +327,54 @@ async def get_history_kline(symbol: str
              }
          }
          )
+
+# 获取k线系列
+@app.get("/get_kline_series",
+         summary="获取MT5K线系列",
+         description="获取MT5K线系列",
+         response_description="返回K线系列",
+         responses={
+             200: {
+                "description": "获取成功"
+             }
+         }
+         )
+async def get_kline_series(symbol: str = Query(
+        "XAUUSD",  # 默认值
+        description="MT5交易品种",
+        examples="XAUUSD"
+    ),
+    interval: str = Query(
+        "M5",  # 默认值
+        description="MT5时间框架",
+        examples="M5"
+    ),
+    limit: int = Query(
+        100,  # 默认值
+        description="MT5K线系列数量",
+        examples="100"
+    )) -> Dict:
+    global mt5_client
+    kline_series = await mt5_client.get_kline_series(symbol, interval, limit)
+
+    return {
+        "status": 0,
+        "message": "获取成功",
+        "data": kline_series
+    }
+        
+
+
+
+
+
+
+
+
+
+
+
+
 
 async def get_latest_kline(symbol: str = Query(
         "XAUUSD",  # 默认值

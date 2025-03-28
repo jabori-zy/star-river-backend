@@ -84,9 +84,11 @@ impl WebSocketState {
         Ok(())
     }
 
-    pub async fn unsubscribe(&mut self, data_type: Option<&str>) -> Result<(), Box<dyn std::error::Error>> 
+    pub async fn unsubscribe<I>(&mut self, data_type: Option<&str>, params: Option<I>, frequency: Option<u32>) -> Result<(), Box<dyn std::error::Error>> 
+    where
+        I: Serialize + 'static
     {
-        self.send("unsubscribe", data_type, None::<serde_json::Value>, None).await;
+        self.send("unsubscribe", data_type, params, frequency).await;
         Ok(())
     }
 

@@ -1,4 +1,5 @@
 use crate::metatrader5::url::Mt5HttpUrl;
+use crate::metatrader5::Mt5KlineInterval;
 use serde::Serialize;
 
 
@@ -67,12 +68,36 @@ impl Mt5HttpClient {
         Ok(())
     }
 
-    pub async fn get_latest_kline(&mut self, symbol: &str, time_frame: &str) -> Result<(), String> {
-        let url = format!("{}{}?symbol={}&time_frame={}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::GetLatestKline, symbol, time_frame);
-        let response = self.client.get(&url).send().await.expect("获取最新K线失败");
-        let body = response.text().await.expect("获取最新K线失败");
-        tracing::info!("最新K线: {}", body);
-        Ok(())
+    pub async fn get_kline_series(&mut self, symbol: &str, interval: Mt5KlineInterval, limit: Option<u32>) -> Result<Vec<serde_json::Value>, String> {
+        let limit = limit.unwrap_or(1000);
+        let url = format!("{}{}?symbol={}&interval={}&limit={}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::GetKlineSeries, symbol, interval, limit);
+        
+        let response = match self.client.get(&url).send().await {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("获取K线系列请求失败: {}", e)),
+        };
+
+        if !response.status().is_success() {
+            return Err(format!("获取K线系列失败, 状态码: {}", response.status()));
+        }
+
+        let response_json = match response.json::<serde_json::Value>().await {
+            Ok(json) => json,
+            Err(e) => return Err(format!("解析K线响应JSON失败: {}", e)),
+        };
+
+        // 检查状态码
+        let status = response_json["status"].as_i64().unwrap_or(-1);
+        if status != 0 {
+            let message = response_json["message"].as_str().unwrap_or("未知错误");
+            return Err(format!("获取K线失败: {}", message));
+        }
+
+        // 提取data字段
+        match response_json["data"].as_array() {
+            Some(data) => Ok(data.clone()),
+            None => Err("K线数据格式错误".to_string()),
+        }
     }
 }
 

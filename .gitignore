@@ -1,5 +1,10 @@
 target
 database/db
 backup/
+db/
 .env
-/db
+/resource
+/build
+/exchange-client/src/metatrader5/bin/
+/exchange-client/build/
+/exchange-client/src/metatrader5/script/_pycache_

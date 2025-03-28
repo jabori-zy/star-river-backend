@@ -26,6 +26,9 @@ use tokio_tungstenite::tungstenite::Message;
 use futures::SinkExt;
 use mt5_data_processor::Mt5DataProcessor;
 use event_center::EventPublisher;
+use crate::ExchangeClient;
+use std::any::Any;
+use async_trait::async_trait;
 
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
@@ -122,7 +125,6 @@ pub struct SubscribedSymbol {
 pub struct MetaTrader5 {
     mt5_http_client: Arc<Mutex<Mt5HttpClient>>,
     mt5_process: Arc<StdMutex<Option<Child>>>,
-    subscribed_symbols: Arc<Mutex<Vec<SubscribedSymbol>>>, // 已订阅的symbol
     websocket_state: Arc<Mutex<Option<WebSocketState>>>,
     data_processor: Arc<Mutex<Mt5DataProcessor>>,
     is_process_stream: Arc<AtomicBool>,
@@ -136,7 +138,6 @@ impl MetaTrader5 {
         Self {
             mt5_http_client: Arc::new(Mutex::new(Mt5HttpClient::new())),
             mt5_process: Arc::new(StdMutex::new(None)),
-            subscribed_symbols: Arc::new(Mutex::new(vec![])), // 已订阅的symbol
             websocket_state: Arc::new(Mutex::new(None)),
             is_process_stream: Arc::new(AtomicBool::new(false)),
             event_publisher: event_publisher.clone(),
@@ -276,7 +277,94 @@ impl MetaTrader5 {
         Ok(())
     }
 
-    pub async fn get_socket_stream(&mut self) -> Result<(), String> {
+    pub async fn ping(&mut self) -> Result<(), String> {
+        self.mt5_http_client.lock().await.ping().await
+    }
+
+    pub async fn initialize_client(&mut self) -> Result<(), String> {
+        self.mt5_http_client.lock().await.initialize_client().await
+    }
+
+    pub async fn get_client_status(&mut self) -> Result<(), String> {
+        self.mt5_http_client.lock().await.get_client_status().await
+    }
+
+    pub async fn login(&mut self, account_id: i32, password: &str, server: &str, terminal_path: &str) -> Result<(), String> {
+        self.mt5_http_client.lock().await.login(account_id, password, server, terminal_path).await
+    }
+
+}
+
+
+impl Drop for MetaTrader5 {
+    fn drop(&mut self) {
+        // 在对象被销毁时确保进程被关闭
+        if let Some(mut child) = self.mt5_process.lock().unwrap().take() {
+            // 同步方式结束进程
+            let _ = child.start_kill();
+            tracing::info!("metatrader5服务已停止");
+        }
+    }
+}
+
+
+#[async_trait]
+impl ExchangeClient for MetaTrader5 {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
+        Ok(serde_json::Value::Null)
+    }
+
+    async fn get_kline_series(&mut self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
+        let mt5_interval = Mt5KlineInterval::from(interval);
+        let mut mt5_http_client = self.mt5_http_client.lock().await;
+        let kline_series = mt5_http_client.get_kline_series(symbol,mt5_interval.clone(), limit).await.expect("获取k线系列失败");
+        tracing::info!("获取k线系列成功: {:?}", kline_series);
+        let data_processor = self.data_processor.lock().await;
+        data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
+        Ok(())
+    }
+
+    async fn connect_websocket(&mut self) -> Result<(), String> {
+        let (websocket_state, _) = Mt5WsClient::connect_default().await.unwrap();
+        self.websocket_state = Arc::new(Mutex::new(Some(websocket_state)));
+        Ok(())
+    }
+
+    async fn subscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+        tracing::info!("订阅k线流: {:?}", symbol);
+        let mt5_interval = Mt5KlineInterval::from(interval).to_string();
+        let mut mt5_ws_client = self.websocket_state.lock().await;
+        if let Some(state) = mt5_ws_client.as_mut() {
+            let params = json!({
+                "symbol": symbol,
+                "interval": mt5_interval,
+            });
+
+            state.subscribe(Some("kline"), Some(params), Some(frequency)).await.expect("订阅k线流失败");
+        }
+        Ok(())
+    }
+
+    async fn unsubscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+        tracing::info!("取消订阅k线流: {:?}", symbol);
+        let mt5_interval = Mt5KlineInterval::from(interval).to_string();
+        let mut mt5_ws_client = self.websocket_state.lock().await;
+        if let Some(state) = mt5_ws_client.as_mut() {
+            let params = json!({
+                "symbol": symbol,
+                "interval": mt5_interval,
+            });
+
+            state.unsubscribe(Some("kline"), Some(params), Some(frequency)).await.expect("取消订阅k线流失败");
+        }
+        Ok(())
+    }
+
+    async fn get_socket_stream(&mut self) -> Result<(), String> {
         // 判断当前是否正在处理流
         if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
@@ -304,13 +392,13 @@ impl MetaTrader5 {
                 if let Some(Ok(msg)) = receive_message {
                     match msg {
                         Message::Ping(data) => {
-                            tracing::debug!("收到ping帧");
+                            // tracing::debug!("收到ping帧");
                             let mut websocket_state = websocket_state.lock().await;
                             if let Some(state) = websocket_state.as_mut() {
                                 // 回复pong帧
                                 let socket = state.as_mut();
                                 socket.send(Message::Pong(data)).await.expect("发送pong帧失败");
-                                tracing::debug!("发送pong帧");
+                                // tracing::debug!("发送pong帧");
                             }
                         },
                         Message::Pong(_) => {
@@ -332,39 +420,8 @@ impl MetaTrader5 {
         tokio::spawn(future);
         Ok(())
     }
-
-    pub async fn ping(&mut self) -> Result<(), String> {
-        self.mt5_http_client.lock().await.ping().await
-    }
-
-    pub async fn initialize_client(&mut self) -> Result<(), String> {
-        self.mt5_http_client.lock().await.initialize_client().await
-    }
-
-    pub async fn get_client_status(&mut self) -> Result<(), String> {
-        self.mt5_http_client.lock().await.get_client_status().await
-    }
-
-    pub async fn login(&mut self, account_id: i32, password: &str, server: &str, terminal_path: &str) -> Result<(), String> {
-        self.mt5_http_client.lock().await.login(account_id, password, server, terminal_path).await
-    }
-
-
-
-
     
     
-}
 
-
-impl Drop for MetaTrader5 {
-    fn drop(&mut self) {
-        // 在对象被销毁时确保进程被关闭
-        if let Some(mut child) = self.mt5_process.lock().unwrap().take() {
-            // 同步方式结束进程
-            let _ = child.start_kill();
-            tracing::info!("metatrader5服务已停止");
-        }
-    }
 }
 

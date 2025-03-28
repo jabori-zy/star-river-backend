@@ -64,6 +64,51 @@ impl Mt5DataProcessor {
             }
         }
     }
+
+    pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: Vec<serde_json::Value>) {
+        let klines = raw_data
+            .iter()
+            .map(|k| {
+                if let Some(arr) = k.as_array() {
+                    Kline {
+                        timestamp: arr[0].as_i64().unwrap_or(0),
+                        open: arr[1].as_f64().unwrap_or(0.0),
+                        high: arr[2].as_f64().unwrap_or(0.0),
+                        low: arr[3].as_f64().unwrap_or(0.0),
+                        close: arr[4].as_f64().unwrap_or(0.0),
+                        volume: arr[5].as_f64().unwrap_or(0.0),
+                    }
+                } else {
+                    tracing::error!("K线数据格式错误: {:?}", k);
+                    Kline {
+                        timestamp: 0,
+                        open: 0.0,
+                        high: 0.0,
+                        low: 0.0,
+                        close: 0.0,
+                        volume: 0.0,
+                    }
+                }
+            })
+            .collect::<Vec<Kline>>();
+        let kline_series = KlineSeries {
+            exchange: Exchange::Metatrader5,
+            symbol: symbol.to_string(),
+            interval: interval.clone().into(),
+            series: klines,
+        };
+
+        let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEventInfo {
+            exchange: Exchange::Metatrader5,
+            event_timestamp: get_utc8_timestamp_millis(),
+            symbol: symbol.to_string(),
+            interval: interval.clone().into(),
+            kline_series,
+            batch_id: generate_batch_id(),
+        };
+        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
+        let _ = self.event_publisher.lock().await.publish(exchange_klineseries_update_event);
+    }
 }
 
 

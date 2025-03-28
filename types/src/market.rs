@@ -14,6 +14,8 @@ pub enum Exchange {
     Huobi,
     #[strum(serialize = "okx")]
     Okx,
+    #[strum(serialize = "metatrader5")]
+    Metatrader5,
 }
 
 

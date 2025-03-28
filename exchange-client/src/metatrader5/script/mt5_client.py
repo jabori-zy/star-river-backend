@@ -97,7 +97,8 @@ class Mt5Client:
             
         return await asyncio.to_thread(_get_symbol_info)
     
-    async def get_history_kline(self, symbol: str, time_frame: int, start_time: str, end_time: str) -> list:
+    # 获取历史k线
+    async def get_kline_series_by_time_range(self, symbol: str, time_frame: int, start_time: str, end_time: str) -> list:
         if not self.is_initialized:
             return []
         
@@ -111,6 +112,26 @@ class Mt5Client:
             return [row[:-2] for row in history_kline.tolist()]
             
         return await asyncio.to_thread(_get_history_kline)
+    
+    # 获取k线系列
+    async def get_kline_series(self, symbol: str, interval: str, limit: int) -> list:
+        time_frame = get_time_frame(interval)
+        print(time_frame)
+        if not self.is_initialized:
+            return []
+        
+        def _get_kline_series():
+            kline_series = mt5.copy_rates_from_pos(symbol, time_frame, 0, limit)
+            if kline_series is None or len(kline_series) == 0:
+                return []
+            
+            result = []
+            for kline in kline_series:
+                kline_data = kline.tolist()[:-2]  # 去掉最后两个字段
+                result.append(kline_data)
+        
+            return result
+        return await asyncio.to_thread(_get_kline_series)
     
     async def get_latest_kline(self, symbol: str, interval: str) -> dict:
         time_frame = get_time_frame(interval)

@@ -84,6 +84,7 @@ impl Strategy {
                 let event_publisher = event_publisher.clone();
                 let market_event_receiver = market_event_receiver.resubscribe();
                 let response_event_receiver = response_event_receiver.resubscribe();
+                let frequency = 100;
 
                 Self::add_live_data_node(
                     graph,
@@ -94,6 +95,7 @@ impl Strategy {
                     Exchange::from_str(exchange).unwrap(), 
                     symbol.to_string(), 
                     KlineInterval::from_str(interval).unwrap(), 
+                    frequency,
                     event_publisher,
                     market_event_receiver,
                     response_event_receiver,

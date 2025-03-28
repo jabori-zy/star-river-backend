@@ -25,6 +25,7 @@ use types::cache::KlineCacheKey;
 use utils::get_utc8_timestamp_millis;
 use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
 use uuid::Uuid;
+use exchange_client::metatrader5::MetaTrader5;
 
 pub struct MarketDataEngineState {
     pub exchanges : HashMap<Exchange, Box<dyn ExchangeClient>>,
@@ -152,9 +153,9 @@ impl MarketDataEngine{
         let exchange = state.exchanges.get_mut(&exchange).unwrap();
 
         // 先获取历史k线
-        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(2), None, None).await?;
+        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(2)).await?;
         // 再订阅k线流
-        exchange.subscribe_kline_stream(&params.symbol, params.interval.clone()).await.unwrap();
+        exchange.subscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
         // 获取socket流
         exchange.get_socket_stream().await.unwrap();
 
@@ -177,7 +178,7 @@ impl MarketDataEngine{
         let exchange = params.exchange.clone();
         let mut state = state.write().await;
         let exchange = state.exchanges.get_mut(&exchange).unwrap();
-        exchange.unsubscribe_kline_stream(&params.symbol, params.interval.clone()).await.unwrap();
+        exchange.unsubscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
 
         let request_id = params.request_id;
         let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::UnsubscribeKlineStreamSuccess(UnsubscribeKlineStreamSuccessResponse {
@@ -213,6 +214,25 @@ impl MarketDataEngine{
                 Ok(())
 
             }
+            Exchange::Metatrader5 => {
+                let mut mt5 = MetaTrader5::new(event_publisher);
+                // 启动mt5服务器
+                
+                mt5.start_mt5_server(false).await.unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                mt5.initialize_client().await.unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                
+                let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+                mt5_exchange.connect_websocket().await?;
+                tracing::info!("{}交易所注册成功!", exchange);
+                let mut state = state.write().await;
+                state.exchanges.insert(exchange.clone(), mt5_exchange);
+                Ok(())
+            }
+            
 
             _ => {
                 return Err("不支持的交易所".to_string());
@@ -236,13 +256,13 @@ impl MarketDataEngine{
         }
     }
 
-    pub async fn get_kline_series(&self, exchange: Exchange, symbol: String, interval: KlineInterval, start_time: Option<u64>, end_time: Option<u64>, limit: Option<u32>) -> Result<(), String> {
+    pub async fn get_kline_series(&self, exchange: Exchange, symbol: String, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
         match exchange {
             Exchange::Binance => {
                 let interval = BinanceKlineInterval::from(interval);
                 let mut state = self.state.write().await;
                 let binance = state.exchanges.get_mut(&exchange).unwrap();
-                binance.get_kline_series(&symbol, interval.into(), limit, start_time, end_time).await.unwrap();
+                binance.get_kline_series(&symbol, interval.into(), limit).await.unwrap();
                 Ok(())
 
             }
