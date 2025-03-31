@@ -14,7 +14,7 @@ members = [
     "types",
     "utils", 
     "market-engine"
-    ]
+    , "order-engine"]
 
 [workspace.package]
 version = "0.1.0"

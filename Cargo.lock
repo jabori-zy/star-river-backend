@@ -1925,6 +1925,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "order-engine"
+version = "0.1.0"
+dependencies = [
+ "event-center",
+ "exchange-client",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "types",
+]
+
+[[package]]
 name = "ordered-float"
 version = "3.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

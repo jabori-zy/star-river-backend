@@ -26,10 +26,11 @@ use tokio_tungstenite::tungstenite::Message;
 use futures::SinkExt;
 use mt5_data_processor::Mt5DataProcessor;
 use event_center::EventPublisher;
-use crate::ExchangeClient;
+use crate::{Market,Trading};
 use std::any::Any;
 use async_trait::async_trait;
-
+use types::order::{OrderType, OrderSide, OrderRequest, Order};
+use types::market::Exchange;
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
@@ -309,7 +310,7 @@ impl Drop for MetaTrader5 {
 
 
 #[async_trait]
-impl ExchangeClient for MetaTrader5 {
+impl Market for MetaTrader5 {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -422,6 +423,35 @@ impl ExchangeClient for MetaTrader5 {
     }
     
     
+
+}
+
+
+#[async_trait]
+impl Trading for MetaTrader5 {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    async fn open_long(&mut self, order_type: OrderType, symbol: &str, quantity: f64, price: f64, tp: Option<f64>, sl: Option<f64>) -> Result<Order, String> {
+        let mut mt5_http_client = self.mt5_http_client.lock().await;
+        let order_request = OrderRequest {
+            exchange: Exchange::Metatrader5,
+            symbol: symbol.to_string(),
+            order_type,
+            order_side: OrderSide::Long,
+            quantity,
+            price,
+            tp,
+            sl,
+            comment: None,
+        };
+        let order_info = mt5_http_client.create_order(order_request).await.expect("创建订单失败");
+        let data_processor = self.data_processor.lock().await;
+        let order = data_processor.process_order(order_info).await.expect("处理订单失败");
+        Ok(order)
+    }
+
 
 }
 

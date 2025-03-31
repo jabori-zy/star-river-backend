@@ -16,4 +16,23 @@ def get_time_frame(time_frame: str) -> int:
         "W1": mt5.TIMEFRAME_W1,
         "MN1": mt5.TIMEFRAME_MN1
     }
-    return time_frame_dict.get(time_frame, mt5.TIMEFRAME_M5)
+    return time_frame_dict.get(time_frame)
+
+
+def get_position_type(position_type: int) -> int:
+    position_type_dict = {
+        mt5.POSITION_TYPE_BUY: "buy",
+        mt5.POSITION_TYPE_SELL: "sell"
+    }
+    return position_type_dict.get(position_type)
+
+
+def get_position_reason(position_reason: int) -> int:
+    position_reason_dict = {
+        mt5.POSITION_REASON_CLIENT: "client",
+        mt5.POSITION_REASON_MOBILE: "mobile",
+        mt5.POSITION_REASON_WEB: "web",
+        mt5.POSITION_REASON_EXPERT: "expert"
+    }
+    return position_reason_dict.get(position_reason)
+

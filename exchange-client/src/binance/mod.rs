@@ -17,7 +17,7 @@ use strum::EnumString;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use binance_ws_client::WebSocketState;
-use crate::ExchangeClient;
+use crate::Market;
 use async_trait::async_trait;
 use futures::StreamExt;
 use crate::binance::market_stream::klines;
@@ -171,7 +171,7 @@ pub struct BinanceExchange {
 }
 
 #[async_trait]
-impl ExchangeClient for BinanceExchange {
+impl Market for BinanceExchange {
     fn as_any(&self) -> &dyn Any {
         self
     }

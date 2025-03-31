@@ -7,7 +7,7 @@ use tokio::sync::{broadcast, Mutex};
 use types::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use exchange_client::binance::market_stream::klines;
-use exchange_client::ExchangeClient;
+use exchange_client::Market;
 use std::collections::HashMap;
 use event_center::EventCenter;
 use event_center::Event;
@@ -28,7 +28,7 @@ use uuid::Uuid;
 use exchange_client::metatrader5::MetaTrader5;
 
 pub struct MarketDataEngineState {
-    pub exchanges : HashMap<Exchange, Box<dyn ExchangeClient>>,
+    pub exchanges : HashMap<Exchange, Box<dyn Market>>,
 }
 
 pub struct MarketDataEngine {
@@ -204,7 +204,7 @@ impl MarketDataEngine{
         match exchange {
             Exchange::Binance => {
                 // 当类型为Box<dyn Trait Bound>时，需要显式地指定类型
-                let mut binance_exchange = Box::new(BinanceExchange::new(event_publisher)) as Box<dyn ExchangeClient>;
+                let mut binance_exchange = Box::new(BinanceExchange::new(event_publisher)) as Box<dyn Market>;
                 binance_exchange.connect_websocket().await?;
                 
                 tracing::info!("{}交易所注册成功!", exchange);
@@ -225,7 +225,7 @@ impl MarketDataEngine{
                 mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 
-                let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+                let mut mt5_exchange = Box::new(mt5) as Box<dyn Market>;
                 mt5_exchange.connect_websocket().await?;
                 tracing::info!("{}交易所注册成功!", exchange);
                 let mut state = state.write().await;

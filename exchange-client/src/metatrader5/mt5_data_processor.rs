@@ -5,6 +5,7 @@ use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEvent
 use types::market::{Kline, Exchange, KlineSeries};
 use utils::{get_utc8_timestamp_millis, generate_batch_id};
 use crate::metatrader5::Mt5KlineInterval;
+use types::order::{Order, OrderType, OrderSide};
 
 pub struct Mt5DataProcessor {
     event_publisher: Arc<Mutex<EventPublisher>>,
@@ -108,6 +109,35 @@ impl Mt5DataProcessor {
         };
         let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
         let _ = self.event_publisher.lock().await.publish(exchange_klineseries_update_event);
+    }
+
+    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Order, String> {
+        // tracing::info!("处理订单信息: {:?}", order_info);
+        let order_data = order_info["data"].clone();
+        tracing::info!("订单数据: {:?}", order_data);
+        let order = Order {
+            order_id: order_data["order_id"].as_i64()
+                .expect("解析order_id失败"),
+            exchange: Exchange::Metatrader5,
+            symbol: order_data["symbol"].as_str()
+                .expect("解析symbol失败")
+                .to_string(),
+            order_type: order_data["order_type"].as_str()
+                .expect("解析order_type失败")
+                .parse::<OrderType>()
+                .expect("解析order_type失败"),
+            side: order_data["order_side"].as_str()
+                .expect("解析order_side失败")
+                .parse::<OrderSide>()
+                .expect("解析order_side失败"),
+            quantity: order_data["volume"].as_f64()
+                .expect("解析volume失败"),
+            price: order_data.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0),
+            tp: order_data.get("tp").and_then(|tp| tp.as_f64()),
+            sl: order_data.get("sl").and_then(|sl| sl.as_f64()),
+        };
+        tracing::info!("订单信息: {:?}", order);
+        Ok(order)
     }
 }
 

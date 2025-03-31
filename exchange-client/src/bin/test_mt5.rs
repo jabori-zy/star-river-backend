@@ -1,11 +1,13 @@
 use exchange_client::metatrader5::MetaTrader5;
-use exchange_client::ExchangeClient;
+use exchange_client::Market;
+use exchange_client::Trading;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 use types::market::KlineInterval;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use event_center::EventCenter;
+use types::order::{OrderType, OrderSide};
 
 #[tokio::main]
 async fn main() {
@@ -35,14 +37,17 @@ async fn main() {
     let result = mt5_clone.lock().await.get_client_status().await;
     tracing::info!("获取客户端状态结果: {:?}", result);
 
-    mt5_clone.lock().await.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+    // mt5_clone.lock().await.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+    mt5_clone.lock().await.login(76898751, "HhazJ520....", "Exness-MT5Trial5", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
 
 
-    mt5_clone.lock().await.connect_websocket().await.unwrap();
+    // mt5_clone.lock().await.connect_websocket().await.unwrap();
 
-    mt5_clone.lock().await.get_kline_series("XAUUSD", KlineInterval::Minutes1, Some(2)).await.unwrap();
+    mt5_clone.lock().await.get_kline_series("BTCUSDm", KlineInterval::Minutes1, Some(2)).await.unwrap();
     // mt5_clone.lock().await.subscribe_kline_stream("XAUUSD", KlineInterval::Minutes1, 500).await.unwrap();
     // mt5_clone.lock().await.get_socket_stream().await.unwrap();
+
+    mt5_clone.lock().await.open_long(OrderType::Limit, "BTCUSDm", 0.01, 81000.00, Some(5000.00), Some(5000.00)).await.unwrap();
     
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1000)).await;

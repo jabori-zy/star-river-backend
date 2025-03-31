@@ -1,4 +1,3 @@
-from mt5_client import Mt5Client
 from fastapi import FastAPI, Query
 import uvicorn
 import MetaTrader5 as mt5
@@ -12,6 +11,9 @@ from contextlib import asynccontextmanager
 import asyncio
 from websocket import data_push_task
 import numpy as np
+from client import mt5_client
+from trade import trade_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,7 +37,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-mt5_client = Mt5Client()
+app.include_router(trade_router)
+
 
 register_websocket_routes(app)
 
@@ -362,18 +365,6 @@ async def get_kline_series(symbol: str = Query(
         "message": "获取成功",
         "data": kline_series
     }
-        
-
-
-
-
-
-
-
-
-
-
-
 
 
 async def get_latest_kline(symbol: str = Query(
@@ -400,7 +391,6 @@ async def get_latest_kline(symbol: str = Query(
             "status": 1,
             "message": "获取失败"
         }
-
 
 
 
