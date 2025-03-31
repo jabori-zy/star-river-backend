@@ -26,7 +26,7 @@ use tokio_tungstenite::tungstenite::Message;
 use futures::SinkExt;
 use mt5_data_processor::Mt5DataProcessor;
 use event_center::EventPublisher;
-use crate::{Market,Trading};
+use crate::ExchangeClient;
 use std::any::Any;
 use async_trait::async_trait;
 use types::order::{OrderType, OrderSide, OrderRequest, Order};
@@ -122,7 +122,7 @@ pub struct SubscribedSymbol {
     pub kline_interval: Mt5KlineInterval,
 }
 
-
+#[derive(Clone)]
 pub struct MetaTrader5 {
     mt5_http_client: Arc<Mutex<Mt5HttpClient>>,
     mt5_process: Arc<StdMutex<Option<Child>>>,
@@ -310,16 +310,20 @@ impl Drop for MetaTrader5 {
 
 
 #[async_trait]
-impl Market for MetaTrader5 {
+impl ExchangeClient for MetaTrader5 {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn clone_box(&self) -> Box<dyn ExchangeClient> {
+        Box::new(self.clone())
     }
 
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)
     }
 
-    async fn get_kline_series(&mut self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mut mt5_http_client = self.mt5_http_client.lock().await;
         let kline_series = mt5_http_client.get_kline_series(symbol,mt5_interval.clone(), limit).await.expect("获取k线系列失败");
@@ -335,7 +339,7 @@ impl Market for MetaTrader5 {
         Ok(())
     }
 
-    async fn subscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
         tracing::info!("订阅k线流: {:?}", symbol);
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
@@ -350,7 +354,7 @@ impl Market for MetaTrader5 {
         Ok(())
     }
 
-    async fn unsubscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
         tracing::info!("取消订阅k线流: {:?}", symbol);
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
@@ -365,7 +369,7 @@ impl Market for MetaTrader5 {
         Ok(())
     }
 
-    async fn get_socket_stream(&mut self) -> Result<(), String> {
+    async fn get_socket_stream(&self) -> Result<(), String> {
         // 判断当前是否正在处理流
         if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
@@ -421,17 +425,6 @@ impl Market for MetaTrader5 {
         tokio::spawn(future);
         Ok(())
     }
-    
-    
-
-}
-
-
-#[async_trait]
-impl Trading for MetaTrader5 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 
     async fn open_long(&mut self, order_type: OrderType, symbol: &str, quantity: f64, price: f64, tp: Option<f64>, sl: Option<f64>) -> Result<Order, String> {
         let mut mt5_http_client = self.mt5_http_client.lock().await;
@@ -451,7 +444,6 @@ impl Trading for MetaTrader5 {
         let order = data_processor.process_order(order_info).await.expect("处理订单失败");
         Ok(order)
     }
-
 
 }
 

@@ -15,6 +15,7 @@ pub enum CommandEvent {
     IndicatorEngine(IndicatorEngineCommand),
     Database(DatabaseCommand),
     MarketDataEngine(MarketDataEngineCommand),
+    ExchangeManager(ExchangeManagerCommand),
 }
 
 impl From<CommandEvent> for Event {
@@ -141,3 +142,22 @@ pub struct UnsubscribeKlineStreamParams {
     pub timestamp:i64,
     pub request_id: Uuid,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum ExchangeManagerCommand {
+    #[strum(serialize = "register-exchange")]
+    RegisterExchange(RegisterExchangeParams),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterExchangeParams {
+    pub exchange: Exchange,
+    pub sender: String,
+    pub timestamp: i64,
+    pub request_id: Uuid,
+}
+
+
+

@@ -11,6 +11,7 @@ pub enum ResponseEvent {
     CacheEngine(CacheEngineResponse),
     IndicatorEngine(IndicatorEngineResponse),
     MarketDataEngine(MarketDataEngineResponse),
+    ExchangeManager(ExchangeManagerResponse),
 }
 
 impl From<ResponseEvent> for Event {
@@ -80,3 +81,19 @@ pub struct UnsubscribeKlineStreamSuccessResponse {
     pub response_timestamp: i64,
     pub response_id: Uuid,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExchangeManagerResponse {
+    RegisterExchangeSuccess(RegisterExchangeSuccessResponse),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterExchangeSuccessResponse {
+    pub exchange: Exchange,
+    pub response_timestamp: i64,
+    pub response_id: Uuid,
+}
+
+

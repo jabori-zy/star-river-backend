@@ -1,6 +1,5 @@
 use exchange_client::metatrader5::MetaTrader5;
-use exchange_client::Market;
-use exchange_client::Trading;
+use exchange_client::ExchangeClient;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 use types::market::KlineInterval;

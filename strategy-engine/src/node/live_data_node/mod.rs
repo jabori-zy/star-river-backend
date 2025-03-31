@@ -16,7 +16,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 use event_center::EventPublisher;
 use tokio::sync::mpsc;
-use event_center::response_event::{MarketDataEngineResponse, ResponseEvent};
+use event_center::command_event::{RegisterExchangeParams, ExchangeManagerCommand};
+use event_center::response_event::{MarketDataEngineResponse, ResponseEvent, ExchangeManagerResponse};
 use event_center::strategy_event::StrategyEvent;
 use std::collections::HashMap;
 use crate::NodeOutputHandle;
@@ -141,6 +142,10 @@ impl LiveDataNode {
                     Self::listen_external_events(state.clone(), internal_tx).await?;
                     Self::handle_external_events(state.clone(), internal_rx).await;
                 }
+                LiveDataNodeStateAction::RegisterExchange => {
+                    tracing::info!("{}: 注册交易所", node_id);
+                    Self::register_exchange(state.clone()).await?;
+                }
                 LiveDataNodeStateAction::SubscribeKline => {
                     let current_state = state.read().await.run_state_manager.current_state();
                     if current_state != NodeRunState::Starting {
@@ -189,6 +194,32 @@ impl LiveDataNode {
         
 
         Ok(())
+    }
+
+    async fn register_exchange(state: Arc<RwLock<LiveDataNodeState>>) -> Result<(), String> {
+        let mut state_guard = state.write().await;
+        let request_id = Uuid::new_v4();
+        let register_param = RegisterExchangeParams {
+            exchange: state_guard.exchange.clone(),
+            sender: state_guard.node_id.clone(),
+            timestamp: get_utc8_timestamp_millis(),
+            request_id: request_id,
+        };
+
+        state_guard.request_id = Some(request_id);
+
+        let command_event = CommandEvent::ExchangeManager(ExchangeManagerCommand::RegisterExchange(register_param));
+        tracing::info!("{}注册交易所: {:?}", state_guard.node_id, command_event);
+        if let Err(e) = state_guard.event_publisher.publish(command_event.into()) {
+            tracing::error!(
+                node_id = %state_guard.node_id,
+                error = ?e,
+                "数据源节点发送注册交易所失败"
+            );
+        }
+        Ok(())
+        
+        
     }
 
     async fn subscribe_kline_stream(state: Arc<RwLock<LiveDataNodeState>>) -> Result<(), String> {
@@ -386,6 +417,13 @@ impl LiveDataNode {
             }
         };
         match response_event {
+            ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
+                if request_id == register_exchange_success_response.response_id {
+                    let mut state_guard = state.write().await;
+                    tracing::info!("{}: 交易所注册成功: {:?}", state_guard.node_id, register_exchange_success_response);
+                    state_guard.request_id = None;
+                }
+            }
             ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(subscribe_kline_stream_success_response)) => {
                 
                 if request_id == subscribe_kline_stream_success_response.response_id {
@@ -425,7 +463,7 @@ impl LiveDataNode {
                     tokio::task::spawn_blocking(move || {
                         let rt = tokio::runtime::Handle::current();
                         rt.block_on(async {
-                            // 启动节点
+                            
                             Self::update_run_state(state.clone(), NodeStateTransitionEvent::StopComplete).await.unwrap();
                         })
                     });

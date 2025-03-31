@@ -7,7 +7,7 @@ use tokio::sync::{broadcast, Mutex};
 use types::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use exchange_client::binance::market_stream::klines;
-use exchange_client::Market;
+use exchange_client::ExchangeClient;
 use std::collections::HashMap;
 use event_center::EventCenter;
 use event_center::Event;
@@ -26,9 +26,10 @@ use utils::get_utc8_timestamp_millis;
 use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
 use uuid::Uuid;
 use exchange_client::metatrader5::MetaTrader5;
+use exchange_client::ExchangeManager;
 
 pub struct MarketDataEngineState {
-    pub exchanges : HashMap<Exchange, Box<dyn Market>>,
+    pub exchanges : HashMap<Exchange, Box<dyn ExchangeClient>>,
 }
 
 pub struct MarketDataEngine {
@@ -37,6 +38,7 @@ pub struct MarketDataEngine {
     event_publisher: EventPublisher,
     command_event_receiver: broadcast::Receiver<Event>,
     response_event_receiver: broadcast::Receiver<Event>,
+    exchange_manager: Arc<Mutex<ExchangeManager>>,
 
 }
 
@@ -47,6 +49,7 @@ impl Clone for MarketDataEngine {
             event_publisher: self.event_publisher.clone(),
             command_event_receiver: self.command_event_receiver.resubscribe(),
             response_event_receiver: self.response_event_receiver.resubscribe(),
+            exchange_manager: self.exchange_manager.clone(),
         }
     }
 }
@@ -55,6 +58,7 @@ impl MarketDataEngine{
         event_publisher: EventPublisher,
         command_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
+        exchange_manager: Arc<Mutex<ExchangeManager>>,
     ) -> Self {
         Self {
             state: Arc::new(RwLock::new(MarketDataEngineState {
@@ -63,6 +67,7 @@ impl MarketDataEngine{
             event_publisher: event_publisher,
             command_event_receiver: command_event_receiver,
             response_event_receiver: response_event_receiver,
+            exchange_manager: exchange_manager,
         }
     }
 
@@ -71,7 +76,7 @@ impl MarketDataEngine{
         // 监听事件
         self.listen(internal_tx).await?;
         // 处理事件
-        self.handle_events(internal_rx, self.state.clone()).await?;
+        self.handle_events(internal_rx, self.state.clone(), self.exchange_manager.clone()).await?;
         Ok(())
     }
 
@@ -95,7 +100,7 @@ impl MarketDataEngine{
         Ok(())
     }
 
-    async fn handle_events(&mut self, mut internal_rx: mpsc::Receiver<Event>, state: Arc<RwLock<MarketDataEngineState>>) -> Result<(), String> {
+    async fn handle_events(&mut self, mut internal_rx: mpsc::Receiver<Event>, state: Arc<RwLock<MarketDataEngineState>>, exchange_manager: Arc<Mutex<ExchangeManager>>) -> Result<(), String> {
         let event_publisher = self.event_publisher.clone();
         tokio::spawn(async move {
             loop {
@@ -104,10 +109,10 @@ impl MarketDataEngine{
                     Event::Command(command_event) => {
                         match command_event {
                             CommandEvent::MarketDataEngine(MarketDataEngineCommand::SubscribeKlineStream(params)) => {
-                                Self::subscribe_kline_stream(state.clone(), params, event_publisher.clone()).await.unwrap();
+                                Self::subscribe_kline_stream(state.clone(), params, event_publisher.clone(), exchange_manager.clone()).await.unwrap();
                             }
                             CommandEvent::MarketDataEngine(MarketDataEngineCommand::UnsubscribeKlineStream(params)) => {
-                                Self::unsubscribe_kline_stream(state.clone(), params, event_publisher.clone()).await.unwrap();
+                                Self::unsubscribe_kline_stream(state.clone(), params, event_publisher.clone(), exchange_manager.clone()).await.unwrap();
                             }
                             _ => {}
                         }
@@ -141,16 +146,26 @@ impl MarketDataEngine{
 
 
     // 给策略调用的方法
-    async fn subscribe_kline_stream(state: Arc<RwLock<MarketDataEngineState>>, params: SubscribeKlineStreamParams, event_publisher: EventPublisher) -> Result<(), String> {
+    async fn subscribe_kline_stream(state: Arc<RwLock<MarketDataEngineState>>, params: SubscribeKlineStreamParams, event_publisher: EventPublisher, exchange_manager: Arc<Mutex<ExchangeManager>>) -> Result<(), String> {
         // tracing::debug!("市场数据引擎订阅K线流: {:?}", params);
         // 添加缓存key
         Self::add_cache_key(params.strategy_id, params.exchange.clone(), params.symbol.clone(), params.interval.clone(), event_publisher.clone());
 
-        let exchange = params.exchange.clone();
-        Self::register_exchange(&exchange, state.clone(), event_publisher.clone()).await?;
+        // let exchange = params.exchange.clone();
+        // Self::register_exchange(&exchange, state.clone(), event_publisher.clone()).await?;
         
-        let mut state = state.write().await;
-        let exchange = state.exchanges.get_mut(&exchange).unwrap();
+        // let mut state = state.write().await;
+        // let exchange = state.exchanges.get_mut(&exchange).unwrap();
+        let exchange_manager_guard = exchange_manager.lock().await;
+        // 检查是否已经注册
+        // 创建无限循环，只有当已注册时才退出
+        loop {
+            if exchange_manager_guard.is_registered(&params.exchange).await {
+                break;
+            }
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+        let exchange = exchange_manager_guard.get_exchange_ref(&params.exchange).await?;
 
         // 先获取历史k线
         exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(2)).await?;
@@ -174,10 +189,20 @@ impl MarketDataEngine{
         Ok(())
     }
 
-    async fn unsubscribe_kline_stream(state: Arc<RwLock<MarketDataEngineState>>, params: UnsubscribeKlineStreamParams, event_publisher: EventPublisher) -> Result<(), String> {
-        let exchange = params.exchange.clone();
-        let mut state = state.write().await;
-        let exchange = state.exchanges.get_mut(&exchange).unwrap();
+    async fn unsubscribe_kline_stream(state: Arc<RwLock<MarketDataEngineState>>, params: UnsubscribeKlineStreamParams, event_publisher: EventPublisher, exchange_manager: Arc<Mutex<ExchangeManager>>) -> Result<(), String> {
+        // let exchange = params.exchange.clone();
+        // let mut state = state.write().await;
+        // let exchange = state.exchanges.get_mut(&exchange).unwrap();
+        // 检查是否已经注册
+        let exchange_manager_guard = exchange_manager.lock().await;
+        // 创建无限循环，只有当已注册时才退出
+        loop {
+            if exchange_manager_guard.is_registered(&params.exchange).await {
+                break;
+            }
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+        let exchange = exchange_manager_guard.get_exchange_ref(&params.exchange).await?;
         exchange.unsubscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
 
         let request_id = params.request_id;
@@ -204,7 +229,7 @@ impl MarketDataEngine{
         match exchange {
             Exchange::Binance => {
                 // 当类型为Box<dyn Trait Bound>时，需要显式地指定类型
-                let mut binance_exchange = Box::new(BinanceExchange::new(event_publisher)) as Box<dyn Market>;
+                let mut binance_exchange = Box::new(BinanceExchange::new(event_publisher)) as Box<dyn ExchangeClient>;
                 binance_exchange.connect_websocket().await?;
                 
                 tracing::info!("{}交易所注册成功!", exchange);
@@ -225,7 +250,7 @@ impl MarketDataEngine{
                 mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 
-                let mut mt5_exchange = Box::new(mt5) as Box<dyn Market>;
+                let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
                 mt5_exchange.connect_websocket().await?;
                 tracing::info!("{}交易所注册成功!", exchange);
                 let mut state = state.write().await;

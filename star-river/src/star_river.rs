@@ -3,11 +3,12 @@ use event_center::{EventCenter, Channel};
 use heartbeat::Heartbeat;
 use indicator_engine::IndicatorEngine;
 use database::DatabaseManager;
-
+use exchange_client::ExchangeManager;
 use market_engine::MarketDataEngine;
 use strategy_engine::engine::StrategyEngine;
-use std::sync::Arc;
+
 use tokio::sync::Mutex;
+use std::sync::Arc;
 use axum::extract::State;
 
 
@@ -16,6 +17,7 @@ use axum::extract::State;
 #[derive(Clone)]
 pub struct StarRiver {
     pub heartbeat: Arc<Mutex<Heartbeat>>,
+    pub exchange_manager: Arc<Mutex<ExchangeManager>>,
     pub market_engine: Arc<Mutex<MarketDataEngine>>,
     pub event_center: Arc<Mutex<EventCenter>>,
     pub cache_engine: Arc<Mutex<CacheEngine>>,
@@ -28,11 +30,16 @@ impl StarRiver {
     pub async fn new() -> Self {
         
         let event_center = EventCenter::new();
+        // 初始化exchange manager
+        let exchange_manager_event_publisher = event_center.get_publisher();
+        let exchange_manager_command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+        let exchange_manager_response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
+        let exchange_manager = Arc::new(Mutex::new(ExchangeManager::new(exchange_manager_event_publisher, exchange_manager_command_event_receiver, exchange_manager_response_event_receiver)));
         // 初始化市场引擎
         let market_engine_event_publisher = event_center.get_publisher();
         let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
-        let market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, response_event_receiver);
+        let market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, response_event_receiver, exchange_manager.clone());
         // 初始化缓存引擎
         let cache_engine_event_publisher = event_center.get_publisher();
         let exchange_event_receiver = event_center.subscribe(Channel::Exchange).unwrap();
@@ -68,6 +75,7 @@ impl StarRiver {
 
         Self { 
             heartbeat: Arc::new(Mutex::new(Heartbeat::new(1000))),
+            exchange_manager: exchange_manager,
             market_engine: Arc::new(Mutex::new(market_engine)),
             event_center: Arc::new(Mutex::new(event_center)),
             cache_engine: Arc::new(Mutex::new(cache_engine)),
@@ -83,6 +91,7 @@ pub async fn init_app(State(app_state): State<StarRiver>) {
 
     start_heartbeat(State(app_state.clone())).await;
     start_database(State(app_state.clone())).await;
+    start_exchange_manager(State(app_state.clone())).await;
     start_market_engine(State(app_state.clone())).await;
     start_cache_engine(State(app_state.clone())).await;
     start_indicator_engine(State(app_state.clone())).await;
@@ -96,6 +105,14 @@ async fn start_heartbeat(star_river: State<StarRiver>) {
         let heartbeat = heartbeat.lock().await;
         heartbeat.start().await.unwrap();
         tracing::info!("心跳已启动");
+    });
+}
+
+async fn start_exchange_manager(star_river: State<StarRiver>) {
+    let exchange_manager = star_river.exchange_manager.clone();
+    tokio::spawn(async move {
+        let exchange_manager = exchange_manager.lock().await;
+        exchange_manager.start().await.unwrap();
     });
 }
 

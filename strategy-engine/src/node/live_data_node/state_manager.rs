@@ -6,6 +6,7 @@ use crate::node::NodeStateTransitionEvent;
 pub enum LiveDataNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
     LogNodeState,    // 记录节点状态
+    RegisterExchange, // 注册交易所
     SubscribeKline,         // 订阅K线数据
     UnsubscribeKline,       // 取消订阅K线数据
     LogTransition,          // 记录状态转换
@@ -68,7 +69,7 @@ impl LiveDataNodeStateManager {
                 self.current_state = NodeRunState::Starting;
                 Ok(LiveDataNodeStateChangeActions {
                     new_state: NodeRunState::Starting,
-                    actions: vec![LiveDataNodeStateAction::LogTransition, LiveDataNodeStateAction::SubscribeKline],
+                    actions: vec![LiveDataNodeStateAction::LogTransition, LiveDataNodeStateAction::RegisterExchange, LiveDataNodeStateAction::SubscribeKline],
                 })
             }
             // 启动完成，进入Running状态

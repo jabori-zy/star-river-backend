@@ -501,7 +501,7 @@ impl Strategy {
         
         // 等待节点进入Running状态
         let mut retry_count = 0;
-        let max_retries = 20;
+        let max_retries = 50;
         
         while retry_count < max_retries {
             if node.get_node_run_state().await == NodeRunState::Running {

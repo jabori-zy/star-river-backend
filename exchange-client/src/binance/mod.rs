@@ -17,13 +17,13 @@ use strum::EnumString;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use binance_ws_client::WebSocketState;
-use crate::Market;
+use crate::ExchangeClient;
 use async_trait::async_trait;
 use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use event_center::EventPublisher;
-
+use types::order::{Order, OrderType, OrderSide, OrderRequest};
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
@@ -170,10 +170,16 @@ pub struct BinanceExchange {
     event_publisher: EventPublisher,
 }
 
+
+
 #[async_trait]
-impl Market for BinanceExchange {
+impl ExchangeClient for BinanceExchange {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn clone_box(&self) -> Box<dyn ExchangeClient> {
+        Box::new(self.clone())
     }
 
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
@@ -182,7 +188,7 @@ impl Market for BinanceExchange {
     }
 
     // 获取k线系列
-    async fn get_kline_series(&mut self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
         let binance_interval = BinanceKlineInterval::from(interval);
 
         let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, None, None).await?;
@@ -200,7 +206,7 @@ impl Market for BinanceExchange {
     }
 
     // 订阅k线流
-    async fn subscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {    
+    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {    
         let _frequency = frequency;
         let binance_interval = BinanceKlineInterval::from(interval.clone());
 
@@ -212,7 +218,7 @@ impl Market for BinanceExchange {
         Ok(())
     }
 
-    async fn unsubscribe_kline_stream(&mut self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
         let _frequency = frequency;
         let binance_interval = BinanceKlineInterval::from(interval.clone());
         let mut websocket_state = self.websocket_state.lock().await;
@@ -226,7 +232,7 @@ impl Market for BinanceExchange {
 
 
     // 获取socket流，并处理数据
-    async fn get_socket_stream(&mut self) -> Result<(), String> {
+    async fn get_socket_stream(&self) -> Result<(), String> {
         // 判断当前是否正在处理流
         if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!("binance已开始处理流数据, 无需重复获取!");
@@ -264,6 +270,23 @@ impl Market for BinanceExchange {
         tokio::spawn(future);
         Ok(())
     }
+
+    async fn open_long(&mut self, order_type: OrderType, symbol: &str, quantity: f64, price: f64, tp: Option<f64>, sl: Option<f64>) -> Result<Order, String> {
+        let order = Order {
+            symbol: symbol.to_string(),
+            quantity,
+            price,
+            tp,
+            sl,
+            exchange: Exchange::Binance,
+            order_id: 0,
+            side: OrderSide::Long,
+            order_type,
+        };
+        Ok(order)
+    }
+    
+    
 }
 
 

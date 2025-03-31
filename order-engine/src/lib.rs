@@ -1,4 +1,4 @@
-use exchange_client::Trading;
+use exchange_client::ExchangeClient;
 use types::order::Order;
 use types::market::Exchange;
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use event_center::EventPublisher;
 
 
 pub struct OrderEngineState {
-    pub exchanges: HashMap<Exchange, Box<dyn Trading>>,
+    pub exchanges: HashMap<Exchange, Box<dyn ExchangeClient>>,
     pub orders: HashMap<Exchange, Order>,
 
 }
