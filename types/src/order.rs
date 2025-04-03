@@ -33,6 +33,18 @@ pub enum OrderStatus {
     Rejected,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Mt5OrderRequest {
+    pub order_type: String,
+    pub order_side: String,
+    pub symbol: String,
+    pub volume: f64,
+    pub price: f64,
+    pub tp: Option<f64>,
+    pub sl: Option<f64>,
+
+}
+
 
 //订单请求
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,8 +57,24 @@ pub struct OrderRequest {
     pub price: f64,
     pub tp: Option<f64>,
     pub sl: Option<f64>,
-    pub comment: Option<String>,
 }
+
+impl From<OrderRequest> for Mt5OrderRequest {
+    fn from(value: OrderRequest) -> Self {
+        Mt5OrderRequest {
+            order_type: value.order_type.to_string(),
+            order_side: value.order_side.to_string(),
+            symbol: value.symbol,
+            volume: value.quantity,
+            price: value.price,
+            tp: value.tp,
+            sl: value.sl,
+        }
+    }
+
+}
+
+
 
 //订单
 #[derive(Debug, Clone, Serialize, Deserialize)]

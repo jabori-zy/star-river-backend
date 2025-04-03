@@ -11,6 +11,7 @@ use serde_json::Value;
 use std::str::FromStr;
 use crate::node::if_else_node::Case;
 use crate::NodeType;
+use types::order::{OrderRequest, OrderType, OrderSide};
 
 impl Strategy {
     pub async fn add_node(
@@ -84,7 +85,8 @@ impl Strategy {
                 let event_publisher = event_publisher.clone();
                 let market_event_receiver = market_event_receiver.resubscribe();
                 let response_event_receiver = response_event_receiver.resubscribe();
-                let frequency = 100;
+                // k线频率设置
+                let frequency = 2000;
 
                 Self::add_live_data_node(
                     graph,
@@ -118,18 +120,41 @@ impl Strategy {
                     event_publisher,
                 ).await;
             }
-            // 买入节点
-            NodeType::BuyNode => {
+            // 订单节点
+            NodeType::OrderNode => {
                 let node_data = node_config["data"].clone();
+
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+                let exchange = node_data["exchange"].as_str().unwrap();
+                let symbol = node_data["symbol"].as_str().unwrap();
+                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
                 let event_publisher = event_publisher.clone();
-                Self::add_buy_node(
+                let response_event_receiver = response_event_receiver.resubscribe();
+                let order_info = node_data["orderRequest"].clone();
+                let order_request = OrderRequest {
+                    exchange: Exchange::from_str(exchange).unwrap(),
+                    symbol: symbol.to_string(),
+                    order_type: OrderType::from_str(order_info["orderType"].as_str().unwrap()).unwrap(),
+                    order_side: OrderSide::from_str(order_info["orderSide"].as_str().unwrap()).unwrap(),
+                    quantity: order_info["quantity"].as_f64().unwrap(),
+                    price: order_info["price"].as_f64().unwrap(),
+                    tp: order_info["tp"].as_f64(),
+                    sl: order_info["sl"].as_f64(),
+                };
+                tracing::debug!("订单详情: {:?}", order_request);
+                tracing::debug!("添加订单节点: {:?}", node_data);
+                Self::add_order_node(
                     graph,
                     node_indices,
+                    strategy_id,
                     node_id.to_string(),
                     node_name.to_string(),
+                    Exchange::from_str(exchange).unwrap(),
+                    symbol.to_string(),
+                    order_request,
                     event_publisher,
+                    response_event_receiver,
                 ).await;
                 
             }

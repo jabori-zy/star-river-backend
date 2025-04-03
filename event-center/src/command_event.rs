@@ -7,6 +7,8 @@ use types::market::{Exchange, KlineInterval};
 use uuid::Uuid;
 use types::indicator::Indicators;
 use types::market::KlineSeries;
+use types::order::OrderRequest;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum CommandEvent {
@@ -15,6 +17,7 @@ pub enum CommandEvent {
     IndicatorEngine(IndicatorEngineCommand),
     Database(DatabaseCommand),
     MarketDataEngine(MarketDataEngineCommand),
+    OrderEngine(OrderEngineCommand),
     ExchangeManager(ExchangeManagerCommand),
 }
 
@@ -160,4 +163,20 @@ pub struct RegisterExchangeParams {
 }
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum OrderEngineCommand {
+    #[strum(serialize = "create-order")]
+    CreateOrder(CreateOrderParams),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateOrderParams {
+    pub strategy_id: i32,
+    pub node_id: String,
+    pub order_request: OrderRequest,
+    pub sender: String,
+    pub timestamp: i64,
+    pub request_id: Uuid,
+}
 

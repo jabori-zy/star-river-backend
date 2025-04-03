@@ -18,21 +18,20 @@ use std::time::Duration;
 pub struct StartNodeState { 
     pub node_id: String,
     pub node_name: String,
-    // pub node_sender: NodeSender,
-    pub node_output_handle: HashMap<String, NodeSender>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
-    pub node_output_handle1: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
+    pub node_output_handle: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
     pub event_publisher: EventPublisher, // 事件发布器
     pub enable_event_publish: bool, // 是否启用事件发布
     pub run_state_manager: StartNodeStateManager,
     pub cancel_token: CancellationToken,
     pub from_node_id: Vec<String>,
+    pub node_receivers: Vec<NodeMessageReceiver>,
     
 }
 
 #[derive(Debug)]
 pub struct StartNode {
     pub state: Arc<RwLock<StartNodeState>>,
-    pub node_receivers: Vec<NodeReceiver>,
+    pub node_receivers: Vec<NodeMessageReceiver>,
     pub node_type: NodeType,
     
 }
@@ -61,12 +60,12 @@ impl StartNode {
                 node_name: node_name.clone(),
                 // node_sender: NodeSender::new(node_id.clone(), "start".to_string(), broadcast::channel::<NodeMessage>(100).0),
                 node_output_handle: HashMap::new(),
-                node_output_handle1: HashMap::new(),
                 event_publisher,
                 enable_event_publish: false,
                 run_state_manager: StartNodeStateManager::new(NodeRunState::Created, node_id, node_name),
                 cancel_token: CancellationToken::new(),
                 from_node_id: vec![],
+                node_receivers: vec![],
             })),
         }
     }
@@ -78,13 +77,13 @@ impl StartNode {
     // 初始化节点发送者
     async fn init_node_sender(self) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
-        let start_node_sender = NodeSender::new(self.state.read().await.node_id.clone(), "start_node_output".to_string(), tx);
-        self.state.write().await.node_output_handle.insert("start_node_output".to_string(), start_node_sender.clone());
-        self.state.write().await.node_output_handle1.insert("start_node_output".to_string(), NodeOutputHandle {
+        let node_output_handle = NodeOutputHandle {
+            node_id: self.state.read().await.node_id.clone(),
             handle_id: "start_node_output".to_string(),
-            sender: start_node_sender.clone(),
+            sender: tx,
             connect_count: 0,
-        });
+        };
+        self.state.write().await.node_output_handle.insert("start_node_output".to_string(), node_output_handle.clone());
         self
     }
 
@@ -140,16 +139,20 @@ impl NodeTrait for StartNode {
         self.state.read().await.node_id.clone()
     }
 
-    async fn get_node_sender(&self, handle_id: String) -> NodeSender {
-        self.state.read().await.node_output_handle.get(&handle_id).unwrap().clone()
+    async fn get_node_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
+        self.state.read().await.node_output_handle.get(&handle_id).unwrap().sender.clone()
     }
 
-    async fn get_default_node_sender(&self) -> NodeSender {
-        self.state.read().await.node_output_handle.get("start_node_output").unwrap().clone()
+    async fn get_default_node_sender(&self) -> broadcast::Sender<NodeMessage> {
+        self.state.read().await.node_output_handle.get("start_node_output").unwrap().sender.clone()
+    }
+
+    async fn get_node_receivers(&self) -> Vec<NodeMessageReceiver> {
+        self.state.read().await.node_receivers.clone()
     }
 
 
-    async fn add_message_receiver(&mut self, receiver: NodeReceiver) {
+    async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {
         self.node_receivers.push(receiver);
     }
 
@@ -158,17 +161,18 @@ impl NodeTrait for StartNode {
         
     }
 
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
-        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+        let node_output_handle = NodeOutputHandle {
+            node_id: self.state.read().await.node_id.clone(),
             handle_id: handle_id.clone(),
             sender: sender.clone(),
             connect_count: 0,
-        });
+        };
+        self.state.write().await.node_output_handle.insert(handle_id.clone(), node_output_handle.clone());
     }
 
     async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
-        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
+        self.state.write().await.node_output_handle.get_mut(&handle_id).unwrap().connect_count += 1;
     }
 
     async fn enable_node_event_push(&mut self) {

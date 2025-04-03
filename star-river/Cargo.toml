@@ -24,6 +24,7 @@ heartbeat = { path = "../heartbeat" }
 exchange-client = { path = "../exchange-client" }
 data-cache = { path = "../data-cache" }
 indicator-engine = { path = "../indicator-engine" }
+order-engine = { path = "../order-engine" }
 types = { path = "../types" }
 utils = { path = "../utils" }
 event-center = {path = "../event-center"}

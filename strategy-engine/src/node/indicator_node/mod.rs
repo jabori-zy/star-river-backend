@@ -21,8 +21,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
 use crate::node::NodeTrait;
-use crate::NodeSender;
-use crate::NodeReceiver;
+use crate::NodeMessageReceiver;
 use crate::NodeOutputHandle;
 use crate::NodeType;
 use crate::NodeRunState;
@@ -45,13 +44,12 @@ pub struct IndicatorNodeState {
     pub current_batch_id: Option<String>,
     pub request_id: Option<Uuid>,
     // pub node_sender: NodeSender,
-    pub node_output_handle: HashMap<String, NodeSender>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
-    pub node_output_handle1: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
+    pub node_output_handle: HashMap<String, NodeOutputHandle>, // 节点的出口 {handle_id: sender}, 每个handle对应一个sender
     pub event_publisher: EventPublisher,
     pub enable_event_publish: bool, // 是否启用事件发布
     pub cancel_token: CancellationToken,
     pub run_state_manager: IndicatorNodeStateManager,
-    pub node_receivers: Vec<NodeReceiver>,
+    pub node_receivers: Vec<NodeMessageReceiver>,
     pub response_event_receiver: broadcast::Receiver<Event>,
 }
 
@@ -104,7 +102,6 @@ impl IndicatorNode {
                 request_id: None,
                 node_receivers: Vec::new(),
                 node_output_handle: HashMap::new(),
-                node_output_handle1: HashMap::new(),
                 event_publisher,
                 enable_event_publish: false,
                 cancel_token: CancellationToken::new(),
@@ -212,16 +209,16 @@ impl IndicatorNode {
                         message_timestamp: get_utc8_timestamp_millis(),
                     };
                     // 获取handle的连接数
-                    let default_handle_connect_count = state_guard.node_output_handle1.get("indicator_node_output").expect("指标节点默认的消息发送器不存在").connect_count;
+                    let default_handle_connect_count = state_guard.node_output_handle.get("indicator_node_output").expect("指标节点默认的消息发送器不存在").connect_count;
                     // 如果连接数为0，则不发送数据
                     if default_handle_connect_count > 0 {
-                        let default_node_sender = state_guard.node_output_handle.get("indicator_node_output").expect("指标节点默认的消息发送器不存在");
-                        match default_node_sender.send(NodeMessage::Indicator(indicator_message.clone())) {
+                        let default_output_handle = state_guard.node_output_handle.get("indicator_node_output").expect("指标节点默认的消息发送器不存在");
+                        match default_output_handle.sender.send(NodeMessage::Indicator(indicator_message.clone())) {
                             Ok(_) => {
                             // tracing::info!("节点{}发送指标数据: {:?} 发送成功, 接收者数量 = {}", state_guard.node_id, indicator_message, receiver_count);
                         }
                         Err(_) => {
-                            tracing::error!("节点{}发送指标数据失败, 接收者数量 = {}", state_guard.node_id, default_node_sender.receiver_count());
+                            tracing::error!("节点{}发送指标数据失败, 接收者数量 = {}", state_guard.node_id, default_output_handle.connect_count);
                             }
                         }
                     } 
@@ -266,7 +263,7 @@ impl IndicatorNode {
                     receive_result = combined_stream.next() => {
                         match receive_result {
                             Some(Ok(receive_message)) => {
-                                tracing::info!("节点{}接收到数据: {:?}", state.read().await.node_id, receive_message);
+                                // tracing::info!("节点{}接收到数据: {:?}", state.read().await.node_id, receive_message);
                                 match receive_message {
                                     NodeMessage::KlineSeries(kline_series_message) => {
                                         // 向指标引擎发送计算请求
@@ -319,7 +316,7 @@ impl IndicatorNode {
     }
 
     // 获取默认的handle
-    pub async fn get_default_handle(state: &Arc<RwLock<IndicatorNodeState>>) -> NodeSender {
+    pub async fn get_default_handle(state: &Arc<RwLock<IndicatorNodeState>>) -> NodeOutputHandle {
         let state = state.read().await;
         state.node_output_handle.get("indicator_node_output").unwrap().clone()
     }
@@ -330,13 +327,14 @@ impl IndicatorNode {
 
     async fn init_node_sender(self) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
-        let indicator_node_sender = NodeSender::new(self.state.read().await.node_id.clone(), "indicator_node_output".to_string(), tx);
-        self.state.write().await.node_output_handle.insert("indicator_node_output".to_string(), indicator_node_sender.clone());
-        self.state.write().await.node_output_handle1.insert("indicator_node_output".to_string(), NodeOutputHandle {
+        let node_output_handle = NodeOutputHandle {
+            node_id: self.state.read().await.node_id.clone(),
             handle_id: "indicator_node_output".to_string(),
-            sender: indicator_node_sender.clone(),
+            sender: tx,
             connect_count: 0,
-        });
+        };
+
+        self.state.write().await.node_output_handle.insert("indicator_node_output".to_string(), node_output_handle);
         self
     }
 
@@ -416,15 +414,19 @@ impl NodeTrait for IndicatorNode {
         self.state.read().await.node_id.clone()
     }
 
-    async fn get_node_sender(&self, handle_id: String) -> NodeSender {
-        self.state.read().await.node_output_handle.get(&handle_id).unwrap().clone()
+    async fn get_node_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
+        self.state.read().await.node_output_handle.get(&handle_id).unwrap().sender.clone()
     }
 
-    async fn get_default_node_sender(&self) -> NodeSender {
-        self.state.read().await.node_output_handle.get("indicator_node_output").unwrap().clone()
+    async fn get_default_node_sender(&self) -> broadcast::Sender<NodeMessage> {
+        self.state.read().await.node_output_handle.get("indicator_node_output").unwrap().sender.clone()
     }
 
-    async fn add_message_receiver(&mut self, receiver: NodeReceiver) {
+    async fn get_node_receivers(&self) -> Vec<NodeMessageReceiver> {
+        self.state.read().await.node_receivers.clone()
+    }
+
+    async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {
         self.state.write().await.node_receivers.push(receiver);
     }
 
@@ -432,9 +434,9 @@ impl NodeTrait for IndicatorNode {
         self.from_node_id.push(from_node_id);
     }
 
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.node_output_handle.insert(handle_id.clone(), sender.clone());
-        self.state.write().await.node_output_handle1.insert(handle_id.clone(), NodeOutputHandle {
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+        self.state.write().await.node_output_handle.insert(handle_id.clone(), NodeOutputHandle {
+            node_id: self.state.read().await.node_id.clone(),
             handle_id: handle_id.clone(),
             sender: sender.clone(),
             connect_count: 0,
@@ -442,7 +444,7 @@ impl NodeTrait for IndicatorNode {
     }
 
     async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
-        self.state.write().await.node_output_handle1.get_mut(&handle_id).unwrap().connect_count += 1;
+        self.state.write().await.node_output_handle.get_mut(&handle_id).unwrap().connect_count += 1;
     }
 
 

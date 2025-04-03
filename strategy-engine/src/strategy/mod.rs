@@ -3,6 +3,7 @@ pub mod add_start_node;
 pub mod add_live_data_node;
 pub mod add_if_else_node;
 pub mod add_indicator_node;
+pub mod add_order_node;
 pub mod strategy_state_manager;
 
 use crate::*;
@@ -10,7 +11,6 @@ use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::{broadcast, watch};
-use crate::node::buy_node::BuyNode;
 use event_center::{Event, EventPublisher};
 use database::entities::strategy_info::Model as StrategyInfo;
 use serde_json::Value;
@@ -61,7 +61,7 @@ impl Strategy {
         if let Some(nodes_str) = strategy_info.nodes {
             if let Ok(nodes) = serde_json::from_str::<Vec<Value>>(&nodes_str.to_string()) {
                 for node_config in nodes {
-                    // tracing::debug!("添加节点: {:?}", node_config);
+                    tracing::debug!("添加节点: {:?}", node_config);
                     Self::add_node(
                         &mut graph, 
                         &mut node_indices, 
@@ -104,23 +104,6 @@ impl Strategy {
     }
 
 
-
-
-
-
-    pub async fn add_buy_node(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
-        node_indices: &mut HashMap<String, NodeIndex>,
-        node_id: String,
-        node_name: String,
-        event_publisher: EventPublisher
-    ) {
-
-        let node = Box::new(BuyNode::new(node_id.clone(), node_name.clone(), event_publisher).init_node().await);
-        let node_index = graph.add_node(node);
-        node_indices.insert(node_id, node_index);
-    }
-
     // 添加边
     pub async fn add_edge(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
@@ -133,9 +116,11 @@ impl Strategy {
             node_indices.get(from_node_id),
             node_indices.get(to_node_id)
         ){
-
+            
+            tracing::debug!("添加边: {:?} -> {:?}, 源节点handle = {}", from_node_id, to_node_id, from_handle_id);
             // 先获取源节点的发送者
             let sender = graph.node_weight(source).unwrap().get_node_sender(from_handle_id.to_string()).await;
+            tracing::debug!("{}: sender: {:?}", from_handle_id, sender);
             // 增加源节点的出口连接数
             graph.node_weight_mut(source).unwrap().add_node_output_handle_connect_count(from_handle_id.to_string()).await;
             // tracing::debug!("sender: {:?}", sender);
@@ -143,9 +128,9 @@ impl Strategy {
             if let Some(target_node) = graph.node_weight_mut(target) {
                 let receiver = sender.subscribe();
                 // 获取接收者数量
-                let receiver_count = sender.receiver_count();
-                // tracing::debug!("{:?} 添加了一个接收者, 接收者数量 = {}", target_node.get_node_name().await, receiver_count);
-                target_node.add_message_receiver(receiver).await;
+                tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
+                target_node.add_message_receiver(NodeMessageReceiver::new(from_node_id.to_string(), receiver)).await;
+                tracing::debug!("{}: 添加了一个接收者: {:?}", target_node.get_node_name().await, target_node.get_node_receivers().await);
                 target_node.add_from_node_id(from_node_id.to_string()).await;
             }
             // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);

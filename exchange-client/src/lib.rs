@@ -29,13 +29,17 @@ use utils::get_utc8_timestamp;
 pub trait ExchangeClient: Send + Sync + Any {
     fn as_any(&self) -> &dyn Any;
     fn clone_box(&self) -> Box<dyn ExchangeClient>;
+    async fn connect_websocket(&mut self) -> Result<(), String>;
+
+    // 市场相关
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String>;
     async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String>;
-    async fn connect_websocket(&mut self) -> Result<(), String>;
     async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn get_socket_stream(&self) -> Result<(), String>;
-    async fn open_long(&mut self, order_type: OrderType, symbol: &str, quantity: f64, price: f64, tp: Option<f64>, sl: Option<f64>) -> Result<Order, String>; // 开多仓
+
+    //发送订单
+    async fn send_order(&self, order_request: OrderRequest) -> Result<Order, String>; // 开多仓
 
 }
 

@@ -29,8 +29,8 @@ pub enum NodeType {
     IndicatorNode,
     #[strum(serialize = "if_else_node")]
     IfElseNode,
-    #[strum(serialize = "buy_node")]
-    BuyNode,
+    #[strum(serialize = "order_node")]
+    OrderNode,
 }
 
 impl FromStr for NodeType {
@@ -49,7 +49,7 @@ impl FromStr for NodeType {
             "data_source_node" => Ok(NodeType::DataSourceNode),
             "indicator_node" => Ok(NodeType::IndicatorNode),
             "if_else_node" => Ok(NodeType::IfElseNode),
-            "buy_node" => Ok(NodeType::BuyNode),
+            "order_node" => Ok(NodeType::OrderNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }
@@ -69,8 +69,8 @@ impl NodeSender {
     pub fn new(node_id: String, handle_id: String, sender: broadcast::Sender<NodeMessage>) -> Self {
         Self { node_id, handle_id, sender }
     }
-    pub fn subscribe(&self) -> NodeReceiver {
-        NodeReceiver::new(self.node_id.clone(), self.sender.subscribe())
+    pub fn subscribe(&self) -> NodeMessageReceiver {
+        NodeMessageReceiver::new(self.node_id.clone(), self.sender.subscribe())
     }
     pub fn receiver_count(&self) -> usize {
         self.sender.receiver_count()
@@ -82,13 +82,13 @@ impl NodeSender {
 
 
 #[derive(Debug)]
-pub struct NodeReceiver {
+pub struct NodeMessageReceiver {
     // 来自哪个节点
     pub from_node_id: String,
     pub receiver: broadcast::Receiver<NodeMessage>,
 }
 
-impl NodeReceiver {
+impl NodeMessageReceiver {
     pub fn new(from_node_id: String, receiver: broadcast::Receiver<NodeMessage>) -> Self {
         Self { from_node_id, receiver }
     }
@@ -99,7 +99,7 @@ impl NodeReceiver {
 }
 
 
-impl Clone for NodeReceiver {
+impl Clone for NodeMessageReceiver {
     fn clone(&self) -> Self {
         Self { 
             from_node_id: self.from_node_id.clone(), 
@@ -121,8 +121,9 @@ pub struct Edge {
 
 #[derive(Debug, Clone)]
 pub struct NodeOutputHandle {
+    pub node_id: String,
     pub handle_id: String,
-    pub sender: NodeSender,
+    pub sender: broadcast::Sender<NodeMessage>,
     pub connect_count: usize,
 }
 

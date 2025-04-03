@@ -46,12 +46,13 @@ pub struct LiveDataNodeState {
     pub run_state_manager: LiveDataNodeStateManager,
     pub market_event_receiver: broadcast::Receiver<Event>, // 接收来自市场通道的数据
     pub response_event_receiver: broadcast::Receiver<Event>, // 接收来自响应通道的数据
+    pub node_receivers: Vec<NodeMessageReceiver>, // 接收来自其他节点的数据
 }
 
 #[derive(Debug)]
 pub struct LiveDataNode {
     pub state: Arc<RwLock<LiveDataNodeState>>,
-    pub message_receivers: Vec<NodeReceiver>, // 接收来自其他节点的数据
+    pub message_receivers: Vec<NodeMessageReceiver>, // 接收来自其他节点的数据
     pub from_node_id: Vec<String>, // 来自哪个节点的id
     pub node_type: NodeType,
 }
@@ -105,6 +106,7 @@ impl LiveDataNode {
                     node_id,
                     node_name
                 ),
+                node_receivers: vec![],
             }
         )), 
         }
@@ -122,7 +124,7 @@ impl LiveDataNode {
             (transition_result, state_manager)
         };
 
-        tracing::info!("{}需要执行的动作: {:?}", node_id, transition_result.actions);
+        tracing::debug!("{}需要执行的动作: {:?}", node_id, transition_result.actions);
         
         
         // 执行转换后需要执行的动作
@@ -379,7 +381,7 @@ impl LiveDataNode {
                 // 如果连接数为0，则不发送数据
                 if default_handle_connect_count > 0 {
                     let default_node_sender = state_guard.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在");
-                    tracing::info!("{}: 发送数据: {:?}", state_guard.node_id, message);
+                    // tracing::info!("{}: 发送数据: {:?}", state_guard.node_id, message);
                     match default_node_sender.sender.send(message.clone()) {
                         Ok(_) => (),
                         Err(e) => tracing::error!(
@@ -480,12 +482,13 @@ impl LiveDataNode {
 
     async fn init_node_sender(self) -> Self {
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
-        let live_data_node_sender = NodeSender::new(self.state.read().await.node_id.clone(), "live_data_node_output".to_string(), tx);
-        self.state.write().await.output_handle.insert("live_data_node_output".to_string(), NodeOutputHandle {
+        let node_output_handle = NodeOutputHandle {
+            node_id: self.state.read().await.node_id.clone(),
             handle_id: "live_data_node_output".to_string(),
-            sender: live_data_node_sender,
+            sender: tx,
             connect_count: 0,
-        });
+        };
+        self.state.write().await.output_handle.insert("live_data_node_output".to_string(), node_output_handle);
         self
     }
 
@@ -516,15 +519,19 @@ impl NodeTrait for LiveDataNode {
         self.state.read().await.node_name.clone()
     }
 
-    async fn get_node_sender(&self, handle_id: String) -> NodeSender {
+    async fn get_node_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
         self.state.read().await.output_handle.get(&handle_id).unwrap().sender.clone()
     }
 
-    async fn get_default_node_sender(&self) -> NodeSender {
+    async fn get_default_node_sender(&self) -> broadcast::Sender<NodeMessage> {
         self.state.read().await.output_handle.get("live_data_node_output").unwrap().sender.clone()
     }
 
-    async fn add_message_receiver(&mut self, receiver: NodeReceiver) {
+    async fn get_node_receivers(&self) -> Vec<NodeMessageReceiver> {
+        self.state.read().await.node_receivers.clone()
+    }
+
+    async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {
         self.message_receivers.push(receiver);
     }
 
@@ -532,12 +539,14 @@ impl NodeTrait for LiveDataNode {
         self.from_node_id.push(from_node_id);
     }
 
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender) {
-        self.state.write().await.output_handle.insert(handle_id.clone(), NodeOutputHandle {
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+        let node_output_handle = NodeOutputHandle {
+            node_id: self.state.read().await.node_id.clone(),
             handle_id: handle_id.clone(),
             sender: sender.clone(),
             connect_count: 0,
-        });
+        };
+        self.state.write().await.output_handle.insert(handle_id.clone(), node_output_handle.clone());
     }
 
     async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {

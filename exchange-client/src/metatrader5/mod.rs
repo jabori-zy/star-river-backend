@@ -7,6 +7,7 @@ use rust_embed::Embed;
 use tempfile::TempDir;
 use std::fs;
 use tokio::process::Command;
+use std::process::Command as StdCommand;
 use mt5_http_client::Mt5HttpClient;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -29,8 +30,9 @@ use event_center::EventPublisher;
 use crate::ExchangeClient;
 use std::any::Any;
 use async_trait::async_trait;
-use types::order::{OrderType, OrderSide, OrderRequest, Order};
-use types::market::Exchange;
+use types::order::{OrderRequest, Order};
+use types::order::Mt5OrderRequest;
+
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
@@ -148,6 +150,27 @@ impl MetaTrader5 {
     }
 
     pub async fn start_mt5_server(&self, debug_output: bool) -> Result<(), Box<dyn std::error::Error>> {
+        // 先检查并清理可能存在的旧进程
+        #[cfg(windows)]
+        {
+            // 查找所有MetaTrader5.exe进程
+            let output = StdCommand::new("tasklist")
+                .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+                .output()?;
+            
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            if output_str.contains("MetaTrader5.exe") {
+                tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
+                
+                // 强制结束所有MetaTrader5.exe进程
+                let _ = StdCommand::new("taskkill")
+                    .args(&["/F", "/IM", "MetaTrader5.exe"])
+                    .output()?;
+                    
+                // 等待进程完全退出
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+        }
         let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
             .ok_or("获取python可执行文件失败")?;
         
@@ -327,7 +350,7 @@ impl ExchangeClient for MetaTrader5 {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mut mt5_http_client = self.mt5_http_client.lock().await;
         let kline_series = mt5_http_client.get_kline_series(symbol,mt5_interval.clone(), limit).await.expect("获取k线系列失败");
-        tracing::info!("获取k线系列成功: {:?}", kline_series);
+        tracing::info!("获取k线系列成功, k线数量: {:?}", limit.unwrap_or(0));
         let data_processor = self.data_processor.lock().await;
         data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
         Ok(())
@@ -426,20 +449,11 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn open_long(&mut self, order_type: OrderType, symbol: &str, quantity: f64, price: f64, tp: Option<f64>, sl: Option<f64>) -> Result<Order, String> {
+    async fn send_order(&self, order_request: OrderRequest) -> Result<Order, String> {
         let mut mt5_http_client = self.mt5_http_client.lock().await;
-        let order_request = OrderRequest {
-            exchange: Exchange::Metatrader5,
-            symbol: symbol.to_string(),
-            order_type,
-            order_side: OrderSide::Long,
-            quantity,
-            price,
-            tp,
-            sl,
-            comment: None,
-        };
-        let order_info = mt5_http_client.create_order(order_request).await.expect("创建订单失败");
+
+        let mt5_order_request = Mt5OrderRequest::from(order_request);
+        let order_info = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
         let data_processor = self.data_processor.lock().await;
         let order = data_processor.process_order(order_info).await.expect("处理订单失败");
         Ok(order)

@@ -271,17 +271,17 @@ impl ExchangeClient for BinanceExchange {
         Ok(())
     }
 
-    async fn open_long(&mut self, order_type: OrderType, symbol: &str, quantity: f64, price: f64, tp: Option<f64>, sl: Option<f64>) -> Result<Order, String> {
+    async fn send_order(&self, order_request: OrderRequest) -> Result<Order, String> {
         let order = Order {
-            symbol: symbol.to_string(),
-            quantity,
-            price,
-            tp,
-            sl,
+            symbol: order_request.symbol.to_string(),
+            quantity: order_request.quantity,
+            price: order_request.price,
+            tp: order_request.tp,
+            sl: order_request.sl,
             exchange: Exchange::Binance,
             order_id: 0,
             side: OrderSide::Long,
-            order_type,
+            order_type: order_request.order_type,
         };
         Ok(order)
     }

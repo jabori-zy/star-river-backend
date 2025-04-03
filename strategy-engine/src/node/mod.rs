@@ -2,25 +2,31 @@ pub mod live_data_node;
 pub mod indicator_node;
 pub mod if_else_node;
 pub mod start_node;
-pub mod buy_node;
-
+pub mod order_node;
+pub mod base_node_state;
+pub mod base_node;
+pub mod node_functions;
 
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
 use crate::NodeSender;
-use crate::NodeReceiver;
+use crate::NodeMessageReceiver;
+use tokio::sync::broadcast;
+use crate::NodeMessage;
+
 
 #[async_trait]
 pub trait NodeTrait: Debug + Send + Sync  {
     fn as_any(&self) -> &dyn Any;
     fn clone_box(&self) -> Box<dyn NodeTrait>;
-    async fn get_node_sender(&self, handle_id: String) -> NodeSender;
-    async fn get_default_node_sender(&self) -> NodeSender;
+    async fn get_node_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage>;
+    async fn get_default_node_sender(&self) -> broadcast::Sender<NodeMessage>;
     async fn get_node_name(&self) -> String;
     async fn get_node_id(&self) -> String;
-    async fn add_message_receiver(&mut self, receiver: NodeReceiver); // 添加接收者
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: NodeSender); // 添加出口
+    async fn get_node_receivers(&self) -> Vec<NodeMessageReceiver>; // 获取节点接收者
+    async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver); // 添加接收者
+    async fn add_node_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>); // 添加出口
     async fn add_node_output_handle_connect_count(&mut self, handle_id: String);// 增加handle的连接计数
     async fn add_from_node_id(&mut self, from_node_id: String); // 添加from_node_id
 

@@ -135,48 +135,43 @@ class Mt5Client:
         if not self.is_initialized:
             return []
         
-        def _get_kline_series():
-            kline_series = self.client.copy_rates_from_pos(symbol, time_frame, 0, limit)
-            if kline_series is None or len(kline_series) == 0:
-                return []
-            
-            result = []
-            for kline in kline_series:
-                kline_data = kline.tolist()[:-2]  # 去掉最后两个字段
-                result.append(kline_data)
+        kline_series = self.client.copy_rates_from_pos(symbol, time_frame, 0, limit)
+        if kline_series is None or len(kline_series) == 0:
+            return []
         
-            return result
-        return await asyncio.to_thread(_get_kline_series)
+        result = []
+        for kline in kline_series:
+            kline_data = kline.tolist()[:-2]  # 去掉最后两个字段
+            result.append(kline_data)
+    
+        return result
     
     async def get_latest_kline(self, symbol: str, interval: str) -> dict:
         time_frame = get_time_frame(interval)
         if not self.is_initialized:
             return {}
             
-        def _get_latest_kline():
-            latest_kline = self.client.copy_rates_from_pos(symbol, time_frame, 0, 1)
-            if latest_kline is None or len(latest_kline) == 0:
-                return {}
-                
-            # 转换为字典格式，更易于JSON序列化
-            latest_kline = self.client.copy_rates_from_pos(symbol, time_frame, 0, 1)
-            kline = latest_kline[0].tolist()[:-2]
-            kline_dict = {
-                "symbol": symbol,
-                "interval": interval,
-                "timestamp": kline[0],
-                "open": kline[1],
-                "high": kline[2],
-                "low": kline[3],
-                "close": kline[4],
-                "volume": kline[5]
-            }
-
-            return kline_dict
+        latest_kline = self.client.copy_rates_from_pos(symbol, time_frame, 0, 1)
+        if latest_kline is None or len(latest_kline) == 0:
+            return {}
             
-        return await asyncio.to_thread(_get_latest_kline)
+        # 转换为字典格式，更易于JSON序列化
+        latest_kline = self.client.copy_rates_from_pos(symbol, time_frame, 0, 1)
+        kline = latest_kline[0].tolist()[:-2]
+        kline_dict = {
+            "symbol": symbol,
+            "interval": interval,
+            "timestamp": kline[0],
+            "open": kline[1],
+            "high": kline[2],
+            "low": kline[3],
+            "close": kline[4],
+            "volume": kline[5]
+        }
+
+        return kline_dict
     
-    # 开仓
+    # 创建订单
     async def create_order(self, order_type, order_side, symbol, volume, price, tp, sl):
         if not self.is_initialized:
             return False
@@ -220,14 +215,18 @@ class Mt5Client:
             # 多头
             if order_side == "long":
                 type = self.client.ORDER_TYPE_BUY
-                tp_price = current_price + tp * point
-                sl_price = current_price - sl * point
+                if tp is not None:
+                    tp_price = current_price + tp * point
+                if sl is not None:
+                    sl_price = current_price - sl * point
                 
             # 空头
             elif order_side == "short":
                 type = self.client.ORDER_TYPE_SELL
-                tp_price = current_price - tp * point
-                sl_price = current_price + sl * point
+                if tp is not None:
+                    tp_price = current_price - tp * point
+                if sl is not None:
+                    sl_price = current_price + sl * point
 
             request = {
                 "action": action,
@@ -235,8 +234,6 @@ class Mt5Client:
                 "volume": volume,
                 "type": type,
                 "price": current_price,
-                "tp": tp_price,
-                "sl": sl_price,
                 "deviation": 20, #偏差
                 "magic": 123456,
                 "comment": "star river open position",
@@ -244,6 +241,12 @@ class Mt5Client:
                 "type_filling": self.client.ORDER_FILLING_FOK,
 
             }
+
+            if tp is not None:
+                request["tp"] = tp_price
+            if sl is not None:
+                request["sl"] = sl_price
+
             order_result = self.client.order_send(request)
         
         order_info = {
@@ -305,46 +308,86 @@ class Mt5Client:
 
     
 
-    async def get_order(self, order_id: int) -> dict:
+    async def get_order_by_id(self, order_id: int) -> dict:
         if not self.is_initialized:
             return {}
         
-        def _get_order():
-            order = self.client.orders_get(ticket=order_id)
-            return order
-        
-        return await asyncio.to_thread(_get_order)
+        order = self.client.orders_get(ticket=order_id)
+        return order
     
-    async def get_position(self, ticket: int) -> dict:
+    async def get_order_by_symbol(self, symbol: str) -> dict:
         if not self.is_initialized:
             return {}
         
-        def _get_position():
-            position = self.client.positions_get(ticket=ticket)[0]
-            position_info = {
-                "ticket": position.ticket,
-                "time": position.time,
-                "time_msc": position.time_msc,
-                "time_update": position.time_update,
-                "time_update_msc": position.time_update_msc,
-                "type": get_position_type(position.type),
-                "magic": position.magic,
-                "identifier": position.identifier,
-                "reason": get_position_reason(position.reason),
-                "volume": position.volume,
-                "price_open": position.price_open,
-                "sl": position.sl,
-                "tp": position.tp,
-                "price_current": position.price_current,
-                "swap": position.swap,
-                "profit": position.profit,
-                "symbol": position.symbol,
-                "comment": position.comment,
-                "external_id": position.external_id
-            }
-            return position_info
+        order = self.client.orders_get(symbol=symbol)
+        return order
+    
+
+    
+    async def get_position_by_id(self, ticket: int) -> dict:
+        if not self.is_initialized:
+            return {}
         
-        return await asyncio.to_thread(_get_position)
+        position = self.client.positions_get(ticket=ticket)[0]
+        position_info = {
+            "ticket": position.ticket,
+            "time": position.time,
+            "time_msc": position.time_msc,
+            "time_update": position.time_update,
+            "time_update_msc": position.time_update_msc,
+            "type": get_position_type(position.type),
+            "magic": position.magic,
+            "identifier": position.identifier,
+            "reason": get_position_reason(position.reason),
+            "volume": position.volume,
+            "price_open": position.price_open,
+            "sl": position.sl,
+            "tp": position.tp,
+            "price_current": position.price_current,
+            "swap": position.swap,
+            "profit": position.profit,
+            "symbol": position.symbol,
+            "comment": position.comment,
+            "external_id": position.external_id
+        }
+        return position_info
+    
+    async def get_order_number(self) -> int:
+        if not self.is_initialized:
+            return 0
+        
+        return self.client.orders_total()
+    
+    # 根据symbol获取持仓
+    async def get_position_by_symbol(self, symbol: str) -> dict:
+        if not self.is_initialized:
+            return {}
+        
+        position = self.client.positions_get(symbol=symbol)
+        position_list = []
+        for pos in position:
+            position_info = {
+                "ticket": pos.ticket,
+                "time": pos.time,
+                "time_msc": pos.time_msc,
+                "time_update": pos.time_update,
+                "time_update_msc": pos.time_update_msc,
+                "type": get_position_type(pos.type),
+                "magic": pos.magic,
+                "identifier": pos.identifier,
+                "reason": get_position_reason(pos.reason),
+                "volume": pos.volume,
+                "price_open": pos.price_open,
+                "sl": pos.sl,
+                "tp": pos.tp,
+                "price_current": pos.price_current,
+                "profit": pos.profit,
+                "symbol": pos.symbol,
+                "comment": pos.comment,
+                "external_id": pos.external_id
+            }
+            position_list.append(position_info)
+        return position_list
     
 
 

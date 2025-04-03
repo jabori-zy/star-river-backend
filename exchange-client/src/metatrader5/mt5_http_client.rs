@@ -2,6 +2,10 @@ use crate::metatrader5::url::Mt5HttpUrl;
 use crate::metatrader5::Mt5KlineInterval;
 use serde::Serialize;
 use types::order::{OrderType, OrderSide, OrderRequest};
+use types::order::Mt5OrderRequest;
+
+
+
 
 pub struct Mt5HttpClient {
     client: reqwest::Client,
@@ -100,30 +104,21 @@ impl Mt5HttpClient {
         }
     }
 
-    pub async fn create_order(&mut self, order_request: OrderRequest) -> Result<serde_json::Value, String> {
-        #[derive(Debug, Serialize)]
-        struct CreateOrderRequest {
-            order_type: String,
-            order_side: String,
-            symbol: String,
-            volume: f64,
-            price: f64,
-            tp: Option<f64>,
-            sl: Option<f64>,
-        }
+    pub async fn create_order(&mut self, order_request: Mt5OrderRequest) -> Result<serde_json::Value, String> {
+            
         let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::CreateOrder);
-        let request = CreateOrderRequest {
-            order_side: order_request.order_side.to_string(),
-            order_type: order_request.order_type.to_string(),
-            symbol: order_request.symbol.to_string(),
-            volume: order_request.quantity,
-            price: order_request.price,
-            tp: order_request.tp,
-            sl: order_request.sl,
-        };
+        // let request = Mt5OrderRequest {
+        //     order_side: order_request.order_side.to_string(),
+        //     order_type: order_request.order_type.to_string(),
+        //     symbol: order_request.symbol.to_string(),
+        //     volume: order_request.quantity,
+        //     price: order_request.price,
+        //     tp: order_request.tp,
+        //     sl: order_request.sl,
+        // };
 
         let response = self.client.post(&url)
-        .json(&request)
+        .json(&order_request)
         .send()
         .await.expect("创建订单失败")
         .json::<serde_json::Value>()

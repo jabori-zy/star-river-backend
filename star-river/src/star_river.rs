@@ -6,6 +6,7 @@ use database::DatabaseManager;
 use exchange_client::ExchangeManager;
 use market_engine::MarketDataEngine;
 use strategy_engine::engine::StrategyEngine;
+use order_engine::OrderEngine;
 
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -24,6 +25,7 @@ pub struct StarRiver {
     pub indicator_engine: Arc<Mutex<IndicatorEngine>>,
     pub database: Arc<Mutex<DatabaseManager>>,
     pub strategy_engine: Arc<Mutex<StrategyEngine>>,
+    pub order_engine: Arc<Mutex<OrderEngine>>,
 }
 
 impl StarRiver {
@@ -40,6 +42,11 @@ impl StarRiver {
         let command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
         let market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, response_event_receiver, exchange_manager.clone());
+        // 初始化订单引擎
+        let order_engine_event_publisher = event_center.get_publisher();
+        let order_engine_command_event_receiver = event_center.subscribe(Channel::Command).unwrap();
+        let order_engine_response_event_receiver = event_center.subscribe(Channel::Response).unwrap();
+        let order_engine = OrderEngine::new(order_engine_command_event_receiver, order_engine_response_event_receiver, order_engine_event_publisher, exchange_manager.clone());
         // 初始化缓存引擎
         let cache_engine_event_publisher = event_center.get_publisher();
         let exchange_event_receiver = event_center.subscribe(Channel::Exchange).unwrap();
@@ -82,6 +89,7 @@ impl StarRiver {
             indicator_engine: Arc::new(Mutex::new(indicator_engine)),
             database: Arc::new(Mutex::new(database)),
             strategy_engine: Arc::new(Mutex::new(strategy_engine)),
+            order_engine: Arc::new(Mutex::new(order_engine)),
         }
     }
 }
@@ -93,6 +101,7 @@ pub async fn init_app(State(app_state): State<StarRiver>) {
     start_database(State(app_state.clone())).await;
     start_exchange_manager(State(app_state.clone())).await;
     start_market_engine(State(app_state.clone())).await;
+    start_order_engine(State(app_state.clone())).await;
     start_cache_engine(State(app_state.clone())).await;
     start_indicator_engine(State(app_state.clone())).await;
     start_strategy_engine(State(app_state.clone())).await;
@@ -156,4 +165,11 @@ async fn start_strategy_engine(star_river: State<StarRiver>) {
     });
 }
 
+async fn start_order_engine(star_river: State<StarRiver>) {
+    let order_engine = star_river.order_engine.clone();
+    tokio::spawn(async move {
+        let order_engine = order_engine.lock().await;
+        order_engine.start().await.unwrap();
+    });
+}
 

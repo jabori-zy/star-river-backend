@@ -21,14 +21,13 @@ async def test_mt5(mt5_client: Mt5Client):
     klines = await mt5_client.get_latest_kline('BTCUSDm', "M1")
     print(klines)
 
-    order_info = await mt5_client.create_order("market", "long", 'BTCUSDm', 0.01, 82000.00, 5000, 5000)
-    print("open order_info", order_info)
+    # order_info = await mt5_client.create_order("market", "long", 'BTCUSDm', 0.01, 82000.00, 5000, 5000)
+    # print("open order_info", order_info)
 
-    ticket = order_info['order']
-    time.sleep(2)
+    # time.sleep(2)
 
-    order_result = await mt5_client.close_position(ticket)
-    print("close order_result", order_result)
+    position_info = await mt5_client.get_position_by_symbol('BTCUSDm')
+    print("position_info", position_info)
 
     
     

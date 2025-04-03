@@ -1,4 +1,3 @@
-
 pub mod star_river;
 pub mod api;
 pub mod websocket;
@@ -72,20 +71,101 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Invalid server address");
 
     // run it
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    // let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = bind_with_retry(addr, 3).await?;
     tracing::info!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
-        .unwrap();
-    Ok(())
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    
+    let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>());
+    let graceful = server.with_graceful_shutdown(async {
+        rx.await.ok();
+        
+        // 使用 timeout 包装关闭流程
+        if let Err(_) = tokio::time::timeout(
+            tokio::time::Duration::from_secs(5),
+            async {
+                #[cfg(windows)]
+                {
+                    tracing::info!("正在清理 MetaTrader5 进程...");
+                    let _ = std::process::Command::new("taskkill")
+                        .args(&["/F", "/IM", "MetaTrader5.exe"])
+                        .output();
+                    
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    tracing::info!("清理完成，继续关闭服务器...");
+                }
+            }
+        ).await {
+            tracing::warn!("关闭流程超时，强制退出");
+            std::process::exit(0);
+        }
+    });
 
+    tokio::spawn(async move {
+        if let Ok(()) = tokio::signal::ctrl_c().await {
+            tracing::info!("接收到关闭信号，正在优雅关闭...");
+            let _ = tx.send(());
+        }
+    });
+
+    if let Err(e) = graceful.await {
+        tracing::error!("服务器错误: {}", e);
+    }
+
+    Ok(())
 }
+
+
+
+
 
 async fn hello_world() -> String {
     tracing::info!("hello_world");
     "Hello, World!".to_string()
 }
 
+async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
+    let mut retries = 0;
+    loop {
+        match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => return Ok(listener),
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                if retries >= max_retries {
+                    return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
+                }
+                tracing::warn!("端口 {} 被占用，尝试清理 MetaTrader5 进程...", addr.port());
+                
+                #[cfg(windows)]
+                {
+                    // 查找并清理 MetaTrader5 进程
+                    let output = std::process::Command::new("tasklist")
+                        .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+                        .output()?;
+                    
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    if output_str.contains("MetaTrader5.exe") {
+                        tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
+                        
+                        // 强制结束所有MetaTrader5.exe进程
+                        let kill_result = std::process::Command::new("taskkill")
+                            .args(&["/F", "/IM", "MetaTrader5.exe"])
+                            .output();
+                            
+                        match kill_result {
+                            Ok(_) => tracing::info!("成功清理 MetaTrader5 进程"),
+                            Err(e) => tracing::warn!("清理 MetaTrader5 进程失败: {}", e),
+                        }
+                    }
+                }
+                
+                // 等待进程完全退出
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                retries += 1;
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+}
 
 
 

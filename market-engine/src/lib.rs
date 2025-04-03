@@ -34,6 +34,7 @@ pub struct MarketDataEngineState {
 
 pub struct MarketDataEngine {
     pub state: Arc<RwLock<MarketDataEngineState>>,
+
     // 事件相关
     event_publisher: EventPublisher,
     command_event_receiver: broadcast::Receiver<Event>,
@@ -168,7 +169,8 @@ impl MarketDataEngine{
         let exchange = exchange_manager_guard.get_exchange_ref(&params.exchange).await?;
 
         // 先获取历史k线
-        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(2)).await?;
+        // k线长度设置
+        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(20)).await?;
         // 再订阅k线流
         exchange.subscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
         // 获取socket流

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from client import mt5_client
+from typing import Optional
 
 trade_router = APIRouter(prefix="/trade", tags=["trade"])
 
@@ -10,8 +11,8 @@ class CreateOrderRequest(BaseModel):
     symbol: str
     volume: float
     price: float
-    tp: float
-    sl: float
+    tp: Optional[float] = None
+    sl: Optional[float] = None
 
 @trade_router.post("/create_order")
 async def create_order(request: CreateOrderRequest):
@@ -28,4 +29,21 @@ async def create_order(request: CreateOrderRequest):
             "message": "订单创建失败",
             "data": order_info
         }
+    
+@trade_router.get("/get_orders_by_id")
+async def get_orders_by_id(order_id: int):
+    order_info = await mt5_client.get_orders_by_id(order_id)
+    return order_info
+
+@trade_router.get("/get_orders_by_symbol")
+async def get_orders_by_symbol(symbol: str):
+    order_info = await mt5_client.get_orders_by_symbol(symbol)
+    return order_info
+
+@trade_router.get("/get_position_by_symbol")
+async def get_position_by_symbol(symbol: str):
+    position_info = await mt5_client.get_position_by_symbol(symbol)
+    return position_info
+
+
 
