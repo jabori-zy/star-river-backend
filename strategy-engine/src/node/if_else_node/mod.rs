@@ -3,6 +3,7 @@ mod state_manager;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::any::Any;
+use std::vec;
 use async_trait::async_trait;
 use tokio::sync::broadcast;
 use utils::get_utc8_timestamp;
@@ -23,36 +24,29 @@ use event_center::EventPublisher;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
 use strum_macros::Display;
-use tokio_util::sync::CancellationToken;
 use crate::node::if_else_node::state_manager::IfElseNodeStateManager;
 use crate::node::NodeStateTransitionEvent;
 use std::time::Duration;
 use crate::node::if_else_node::state_manager::IfElseNodeStateAction;
-
+use crate::node::base_node_state::BaseNodeState;
+use crate::NodeType;
 
 #[derive(Debug)]
 pub struct IfElseNodeState {
-    pub node_id: String,
-    pub node_name: String,
+    pub base_state: BaseNodeState<IfElseNodeStateManager>,
     pub current_batch_id: Option<String>,
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
     pub received_value: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
     pub cases: Vec<Case>, 
-    pub node_output_handle: HashMap<String, NodeOutputHandle>, // 节点的出口连接数 {handle_id: count}, 每个handle对应一个连接数
-    pub event_publisher: EventPublisher, // 事件发布器
-    pub enable_event_publish: bool, // 是否启用事件发布
-    pub run_state_manager: IfElseNodeStateManager,
-    pub cancel_token: CancellationToken,
-    pub node_receivers: Vec<NodeMessageReceiver>,
-    pub from_node_id: Vec<String>,
+    
 }
 
 // 条件分支节点
 #[derive(Debug, Clone)]
 pub struct IfElseNode {
-    pub sender: NodeSender,
-    pub node_case_sender: HashMap<String, NodeSender>,
+    pub from_node_id: Vec<String>,
+    pub node_type: NodeType,
     pub state: Arc<RwLock<IfElseNodeState>>,
 }
 
@@ -63,31 +57,32 @@ pub struct IfElseNode {
 impl IfElseNode {
 
     pub fn new(
+        strategy_id: i32,
         node_id: String, 
         node_name: String, 
         cases: Vec<Case>, 
         event_publisher: EventPublisher,
     ) -> Self {
-        let (tx, _) = broadcast::channel::<NodeMessage>(100);
-        Self { 
-            sender: NodeSender::new(node_id.clone(), "if_else".to_string(), tx), 
-            node_case_sender: HashMap::new(),
+        let base_state = BaseNodeState::new(
+            strategy_id,
+            node_id.clone(),
+            node_name.clone(),
+            event_publisher,
+            vec![],
+            IfElseNodeStateManager::new(NodeRunState::Created, node_id, node_name),
+        );
+        Self {
+            node_type: NodeType::IfElseNode,
+            from_node_id: Vec::new(),
             state: Arc::new(RwLock::new(IfElseNodeState {
-                node_id: node_id.clone(),
-                node_name: node_name.clone(),
+                base_state,
                 current_batch_id: None,
                 is_processing: false,
                 received_flag: HashMap::new(),
                 received_value: HashMap::new(),
                 cases,
-                node_output_handle: HashMap::new(),
-                event_publisher,
-                enable_event_publish: false,
-                run_state_manager: IfElseNodeStateManager::new(NodeRunState::Created, node_id, node_name),
-                cancel_token: CancellationToken::new(),
-                node_receivers: Vec::new(),
-                from_node_id: Vec::new(),
             })),
+            
         }
     }
 
@@ -475,6 +470,8 @@ impl IfElseNode {
 
 #[async_trait]
 impl NodeTrait for IfElseNode {
+    type State = IfElseNodeState;
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -482,37 +479,44 @@ impl NodeTrait for IfElseNode {
         Box::new(self.clone())
     }
 
+    fn get_state(&self) -> Arc<RwLock<Self::State>> {
+        self.state.clone()
+    }
+
+    async fn get_output_handle(&self) -> HashMap<String, NodeOutputHandle> {
+        self.state.read().await.base_state.output_handle.clone()
+    }
 
     async fn get_node_name(&self) -> String {
-        self.state.read().await.node_name.clone()
+        self.state.read().await.base_state.node_name.clone()
     }
 
     async fn get_node_id(&self) -> String {
-        self.state.read().await.node_id.clone()
+        self.state.read().await.base_state.node_id.clone()
     }
 
-    async fn get_node_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
-        self.state.read().await.node_output_handle.get(&handle_id).unwrap().sender.clone()
+    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
+        self.state.read().await.base_state.output_handle.get(&handle_id).unwrap().sender.clone()
     }
 
-    async fn get_default_node_sender(&self) -> broadcast::Sender<NodeMessage> {
-        self.state.read().await.node_output_handle.get("if_else_node_else_output").unwrap().sender.clone()
+    async fn get_default_message_sender(&self) -> broadcast::Sender<NodeMessage> {
+        self.state.read().await.base_state.output_handle.get("if_else_node_else_output").unwrap().sender.clone()
     }
 
-    async fn get_node_receivers(&self) -> Vec<NodeMessageReceiver> {
-        self.state.read().await.node_receivers.clone()
+    async fn get_message_receivers(&self) -> Vec<NodeMessageReceiver> {
+        self.state.read().await.base_state.message_receivers.clone()
     }
 
     async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {  
-        self.state.write().await.node_receivers.push(receiver);
+        self.state.write().await.base_state.message_receivers.push(receiver);
     }
 
     async fn add_from_node_id(&mut self, from_node_id: String) {
         self.state.write().await.from_node_id.push(from_node_id);
     }
 
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
-        self.state.write().await.node_output_handle.insert(handle_id.clone(), NodeOutputHandle {
+    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+        self.state.write().await.base_state.output_handle.insert(handle_id.clone(), NodeOutputHandle {
             node_id: self.state.read().await.node_id.clone(),
             handle_id: handle_id.clone(),
             sender: sender.clone(),
@@ -521,17 +525,17 @@ impl NodeTrait for IfElseNode {
     }
 
     // 增加节点输出连接计数
-    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
-        self.state.write().await.node_output_handle.get_mut(&handle_id).unwrap().connect_count += 1;
+    async fn add_output_handle_connect_count(&mut self, handle_id: String) {
+        self.state.write().await.base_state.output_handle.get_mut(&handle_id).unwrap().connect_count += 1;
     }
 
     async fn enable_node_event_push(&mut self) {
-        self.state.write().await.enable_event_publish = true;
+        self.state.write().await.base_state.enable_event_publish = true;
         tracing::info!("{}: 节点事件推送已启用", self.state.read().await.node_name);
     }
 
     async fn disable_node_event_push(&mut self) {
-        self.state.write().await.enable_event_publish = false;
+        self.state.write().await.base_state.enable_event_publish = false;
         tracing::info!("{}: 节点事件推送已禁用", self.state.read().await.node_name);
     }
 
@@ -579,6 +583,10 @@ impl NodeTrait for IfElseNode {
 
     async fn get_node_run_state(&self) -> NodeRunState {
         self.state.read().await.run_state_manager.current_state()
+    }
+
+    async fn listen_external_events(&self, internal_tx: tokio::sync::mpsc::Sender<Event>) -> Result<(), String> {
+        Ok(())
     }
 }
 

@@ -1,30 +1,22 @@
 
-#![allow(unused_imports)]
-use exchange_client::binance;
+// #![allow(unused_imports)]
 // #![allow(dead_code)]
 use exchange_client::binance::{BinanceExchange, BinanceKlineInterval};
 use tokio::sync::{broadcast, Mutex};
 use types::market::{Exchange, KlineInterval};
 use std::sync::Arc;
-use exchange_client::binance::market_stream::klines;
 use exchange_client::ExchangeClient;
 use std::collections::HashMap;
-use event_center::EventCenter;
 use event_center::Event;
-use types::indicator::Indicators;
 use event_center::EventPublisher;
-use event_center::EventReceiver;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc;
 use event_center::command_event::{CommandEvent,MarketDataEngineCommand};
-use event_center::market_event::MarketEvent;
 use event_center::command_event::{SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
 use tokio::sync::RwLock;
 use event_center::command_event::{AddKlineCacheKeyParams, KlineCacheManagerCommand};
 use types::cache::KlineCacheKey;
 use utils::get_utc8_timestamp_millis;
 use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
-use uuid::Uuid;
 use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::ExchangeManager;
 
@@ -177,7 +169,7 @@ impl MarketDataEngine{
         exchange.get_socket_stream().await.unwrap();
 
         let request_id = params.request_id;
-        tracing::warn!("市场数据引擎订阅K线流成功, 请求节点:{}, 请求id: {}", params.node_id, request_id);
+        tracing::debug!("市场数据引擎订阅K线流成功, 请求节点:{}, 请求id: {}", params.node_id, request_id);
 
         // 都成功后，发送响应事件
         let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse {

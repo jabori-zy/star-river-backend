@@ -24,7 +24,7 @@ async fn main() {
 
     let event_center = Arc::new(Mutex::new(EventCenter::new()));
 
-    let event_publisher = event_center.lock().await.get_publisher();
+    let event_publisher = event_center.lock().await.get_event_publisher();
     let mt5 = Arc::new(Mutex::new(MetaTrader5::new(event_publisher)));
     let mt5_clone = mt5.clone();
     mt5_clone.lock().await.start_mt5_server(false).await.unwrap();

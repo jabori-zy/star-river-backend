@@ -328,15 +328,15 @@ impl NodeTrait for OrderNode {
         self.state.read().await.node_name.clone()
     }
 
-    async fn get_node_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
+    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
         self.state.read().await.node_output_handle.get(&handle_id).unwrap().sender.clone()
     }
 
-    async fn get_default_node_sender(&self) -> broadcast::Sender<NodeMessage> {
+    async fn get_default_message_sender(&self) -> broadcast::Sender<NodeMessage> {
         self.state.read().await.node_output_handle.get("order_node_output").unwrap().sender.clone()
     }
 
-    async fn get_node_receivers(&self) -> Vec<NodeMessageReceiver> {
+    async fn get_message_receivers(&self) -> Vec<NodeMessageReceiver> {
         self.state.read().await.node_receivers.clone()
     }
 
@@ -348,7 +348,7 @@ impl NodeTrait for OrderNode {
         self.from_node_id.push(from_node_id);
     }
 
-    async fn add_node_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
         self.state.write().await.node_output_handle.insert(handle_id.clone(), NodeOutputHandle {
             node_id: self.state.read().await.node_id.clone(),
             handle_id: handle_id,
@@ -357,7 +357,7 @@ impl NodeTrait for OrderNode {
         });
     }
 
-    async fn add_node_output_handle_connect_count(&mut self, handle_id: String) {
+    async fn add_output_handle_connect_count(&mut self, handle_id: String) {
         self.state.write().await.node_output_handle.get_mut(&handle_id).unwrap().connect_count += 1;
     }
 

@@ -1,9 +1,9 @@
 pub mod add_node;
 pub mod add_start_node;
-pub mod add_live_data_node;
-pub mod add_if_else_node;
-pub mod add_indicator_node;
-pub mod add_order_node;
+// pub mod add_live_data_node;
+// pub mod add_if_else_node;
+// pub mod add_indicator_node;
+// pub mod add_order_node;
 pub mod strategy_state_manager;
 
 use crate::*;
@@ -119,18 +119,23 @@ impl Strategy {
             
             tracing::debug!("添加边: {:?} -> {:?}, 源节点handle = {}", from_node_id, to_node_id, from_handle_id);
             // 先获取源节点的发送者
-            let sender = graph.node_weight(source).unwrap().get_node_sender(from_handle_id.to_string()).await;
+            let context = graph.node_weight(source).unwrap().get_context().await;
+            let context_guard = context.read().await;
+            let sender = context_guard.get_message_sender(from_handle_id.to_string());
             tracing::debug!("{}: sender: {:?}", from_handle_id, sender);
             // 增加源节点的出口连接数
-            graph.node_weight_mut(source).unwrap().add_node_output_handle_connect_count(from_handle_id.to_string()).await;
+            graph.node_weight_mut(source).unwrap().add_output_handle_connect_count(from_handle_id.to_string()).await;
             // tracing::debug!("sender: {:?}", sender);
 
             if let Some(target_node) = graph.node_weight_mut(target) {
                 let receiver = sender.subscribe();
                 // 获取接收者数量
-                tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
+                let context = target_node.get_context().await;
+                let context_guard = context.read().await;
+                let message_receivers = context_guard.get_message_receivers();
+                tracing::debug!("{:?} 添加了一个接收者", context_guard.get_node_name());
                 target_node.add_message_receiver(NodeMessageReceiver::new(from_node_id.to_string(), receiver)).await;
-                tracing::debug!("{}: 添加了一个接收者: {:?}", target_node.get_node_name().await, target_node.get_node_receivers().await);
+                tracing::debug!("{}: 添加了一个接收者: {:?}", context_guard.get_node_name(), message_receivers);
                 target_node.add_from_node_id(from_node_id.to_string()).await;
             }
             // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
@@ -327,7 +332,9 @@ impl Strategy {
             let mut all_running = true;
             // 检查所有节点状态
             for node in self.graph.node_weights() {
-                if node.get_node_run_state().await != NodeRunState::Running {
+                let context = node.get_context().await;
+                let context_guard = context.read().await;
+                if context_guard.get_run_state() != NodeRunState::Running {
                     all_running = false;
                     break;
                 }
@@ -360,7 +367,9 @@ impl Strategy {
             let mut all_stopped = true;
             // 检查所有节点状态
             for node in self.graph.node_weights() {
-                if node.get_node_run_state().await != NodeRunState::Stopped {
+                let context = node.get_context().await;
+                let context_guard = context.read().await;
+                if context_guard.get_run_state() != NodeRunState::Stopped {
                     all_stopped = false;
                     break;
                 }
@@ -406,7 +415,9 @@ impl Strategy {
         let mut node_clone = node.clone();
 
         let node_handle = tokio::spawn(async move {
-            let node_name = node_clone.get_node_name().await;
+            let context = node_clone.get_context().await;
+            let context_guard = context.read().await;
+            let node_name = context_guard.get_node_name();
             if let Err(e) = node_clone.init().await {
                 tracing::error!("{} 节点初始化失败: {}", node_name, e);
                 return Err(format!("节点初始化失败: {}", e));
@@ -414,8 +425,11 @@ impl Strategy {
             Ok(())
         });
 
-        let node_id = node.get_node_id().await;
-        let node_name = node.get_node_name().await;
+        let (node_id, node_name) = {
+            let context = node.get_context().await;
+            let context_guard = context.read().await;
+            (context_guard.get_node_id().clone(), context_guard.get_node_name().clone())
+        };
         
         // 等待节点初始化完成
         match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
@@ -437,7 +451,9 @@ impl Strategy {
         let max_retries = 20;
         
         while retry_count < max_retries {
-            if node.get_node_run_state().await == NodeRunState::Ready {
+            let context = node.get_context().await;
+            let context_guard = context.read().await;
+            if context_guard.get_run_state() == NodeRunState::Ready {
                 tracing::debug!("节点 {} 已进入Ready状态", node_id);
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 return Ok(());
@@ -457,7 +473,9 @@ impl Strategy {
         let mut node_clone = node.clone();
         
         let node_handle = tokio::spawn(async move {
-            let node_name = node_clone.get_node_name().await;
+            let context = node_clone.get_context().await;
+            let context_guard = context.read().await;
+            let node_name = context_guard.get_node_name();
             if let Err(e) = node_clone.start().await {
                 tracing::error!("{} 节点启动失败: {}", node_name, e);
                 return Err(format!("节点启动失败: {}", e));
@@ -465,11 +483,14 @@ impl Strategy {
             Ok(())
         });
 
-        let node_id = node.get_node_id().await;
-        let node_name = node.get_node_name().await;
+        let (node_id, node_name) = {
+            let context = node.get_context().await;
+            let context_guard = context.read().await;
+            (context_guard.get_node_id().clone(), context_guard.get_node_name().clone())
+        };
         
         // 等待节点启动完成
-        match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
+        match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
             Ok(result) => {
                 if let Err(e) = result {
                     return Err(format!("节点 {} 启动任务失败: {}", node_name, e));
@@ -489,7 +510,9 @@ impl Strategy {
         let max_retries = 50;
         
         while retry_count < max_retries {
-            if node.get_node_run_state().await == NodeRunState::Running {
+            let context = node.get_context().await;
+            let context_guard = context.read().await;
+            if context_guard.get_run_state() == NodeRunState::Running {
                 tracing::debug!("节点 {} 已进入Running状态", node_id);
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 return Ok(());
@@ -506,7 +529,9 @@ impl Strategy {
         let mut node_clone = node.clone();
         
         let node_handle = tokio::spawn(async move {
-            let node_name = node_clone.get_node_name().await;
+            let context = node_clone.get_context().await;
+            let context_guard = context.read().await;
+            let node_name = context_guard.get_node_name();
             if let Err(e) = node_clone.stop().await {
                 tracing::error!("{} 节点停止失败: {}", node_name, e);
                 return Err(format!("节点停止失败: {}", e));
@@ -514,8 +539,11 @@ impl Strategy {
             Ok(())
         });
 
-        let node_id = node.get_node_id().await;
-        let node_name = node.get_node_name().await;
+        let (node_id, node_name) = {
+            let context = node.get_context().await;
+            let context_guard = context.read().await;
+            (context_guard.get_node_id().clone(), context_guard.get_node_name().clone())
+        };
         
         // 等待节点启动完成
         match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
@@ -538,7 +566,9 @@ impl Strategy {
         let max_retries = 20;
         
         while retry_count < max_retries {
-            if node.get_node_run_state().await == NodeRunState::Stopped {
+            let context = node.get_context().await;
+            let context_guard = context.read().await;
+            if context_guard.get_run_state() == NodeRunState::Stopped {
                 tracing::debug!("节点 {} 已进入Stopped状态", node_id);
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 return Ok(());

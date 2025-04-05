@@ -1,5 +1,9 @@
 use crate::NodeRunState;
 use crate::node::NodeStateTransitionEvent;
+use crate::node::state_machine::NodeStateMachine;
+use crate::node::state_machine::StateChangeActions;
+use crate::node::state_machine::TransitionAction;
+use std::any::Any;
 
 // 状态转换后需要执行的动作
 #[derive(Debug, Clone)]
@@ -11,12 +15,32 @@ pub enum IndicatorNodeStateAction {
     LogError(String),       // 记录错误
 }
 
+impl TransitionAction for IndicatorNodeStateAction {
+    fn get_action(&self) -> Box<dyn TransitionAction> {
+        Box::new(self.clone())
+    }
+    fn clone_box(&self) -> Box<dyn TransitionAction> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 #[derive(Debug)]
 pub struct IndicatorNodeStateChangeActions {
     pub new_state: NodeRunState,
-    pub actions: Vec<IndicatorNodeStateAction>,
+    pub actions: Vec<Box<dyn TransitionAction>>,
 }
 
+impl StateChangeActions for IndicatorNodeStateChangeActions {
+    fn get_new_state(&self) -> NodeRunState {
+        self.new_state.clone()
+    }
+    fn get_actions(&self) -> Vec<Box<dyn TransitionAction>> {
+        self.actions.iter().map(|action| action.clone_box()).collect()
+    }
+}
 
 // 状态管理器
 #[derive(Debug, Clone)]
@@ -35,76 +59,87 @@ impl IndicatorNodeStateManager {
         }
     }
 
+}
+
+impl NodeStateMachine for IndicatorNodeStateManager {
+    fn get_node_id(&self) -> &str {
+        &self.node_id
+    }
+
+    fn get_node_name(&self) -> &str {
+        &self.node_name
+    }
+
     // 获取当前状态
-    pub fn current_state(&self) -> NodeRunState {
+    fn current_state(&self) -> NodeRunState {
         self.current_state.clone()
     }
 
-    pub fn transition(&mut self, event: NodeStateTransitionEvent) -> Result<IndicatorNodeStateChangeActions, String> {
+    fn transition(&mut self, event: NodeStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
             (NodeRunState::Created, NodeStateTransitionEvent::Initialize) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Initializing;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Initializing,
-                    actions: vec![IndicatorNodeStateAction::LogTransition, IndicatorNodeStateAction::ListenAndHandleExternalEvents, IndicatorNodeStateAction::ListenAndHandleMessage],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents), Box::new(IndicatorNodeStateAction::ListenAndHandleMessage)],
+                }))
             }
             // 初始化完成，进入Ready状态
             (NodeRunState::Initializing, NodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Ready;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Ready,
-                    actions: vec![IndicatorNodeStateAction::LogTransition, IndicatorNodeStateAction::LogNodeState],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogNodeState)],
+                }))
             }
             // 从Ready状态开始启动
             (NodeRunState::Ready, NodeStateTransitionEvent::Start) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Starting;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Starting,
-                    actions: vec![IndicatorNodeStateAction::LogTransition],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition)],
+                }))
             }
             // 启动完成，进入Running状态
             (NodeRunState::Starting, NodeStateTransitionEvent::StartComplete) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Running;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Running,
-                    actions: vec![IndicatorNodeStateAction::LogTransition, IndicatorNodeStateAction::LogNodeState],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogNodeState)],
+                }))
             }
             // 从Running状态开始停止
             (NodeRunState::Running, NodeStateTransitionEvent::Stop) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Stopping;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Stopping,
-                    actions: vec![IndicatorNodeStateAction::LogTransition],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition)],
+                }))
             }
             // 停止完成，进入Stopped状态
             (NodeRunState::Stopping, NodeStateTransitionEvent::StopComplete) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Stopped;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Stopped,
-                    actions: vec![IndicatorNodeStateAction::LogTransition, IndicatorNodeStateAction::LogNodeState],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogNodeState)],
+                }))
             }
             // 从任何状态都可以失败
             (_, NodeStateTransitionEvent::Fail(error)) => {
                 // 修改manager的状态
                 self.current_state = NodeRunState::Failed;
-                Ok(IndicatorNodeStateChangeActions {
+                Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Failed,
-                    actions: vec![IndicatorNodeStateAction::LogTransition, IndicatorNodeStateAction::LogError(error)],
-                })
+                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogError(error))],
+                }))
             }
             // 处理无效的状态转换
             (state, event) => {
@@ -115,11 +150,4 @@ impl IndicatorNodeStateManager {
 
         }
     }
-
-    // 应用状态转换结果
-    // pub fn apply_transition(&mut self, result: StateTransitionResult) {
-    //     self.current_state = result.new_state;
-    // }
-
-
 }
