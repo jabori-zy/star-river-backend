@@ -23,7 +23,7 @@ impl Strategy {
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
         ) {
-            let node = LiveDataNode::new(
+            let mut node = LiveDataNode::new(
                 strategy_id,
                 node_id.clone(), 
                 node_name, 
@@ -34,7 +34,9 @@ impl Strategy {
                 event_publisher, 
                 market_event_receiver, 
                 response_event_receiver,
-            ).init_node().await;
+            );
+            // 设置默认输出句柄
+            node.set_output_handle().await;
 
             let node = Box::new(node);
             let node_index = graph.add_node(node);

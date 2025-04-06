@@ -26,7 +26,7 @@ impl Strategy {
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
-        let node = OrderNode::new(
+        let mut node = OrderNode::new(
             strategy_id,
             node_id.clone(),
             node_name,
@@ -35,7 +35,9 @@ impl Strategy {
             order_request,
             event_publisher,
             response_event_receiver,
-        ).init_node().await;
+        );
+        node.set_output_handle().await;
+
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);

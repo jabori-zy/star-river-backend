@@ -27,7 +27,7 @@ impl Strategy {
         event_publisher: EventPublisher, 
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
-        let node = IndicatorNode::new(
+        let mut node = IndicatorNode::new(
             strategy_id, 
             node_id.clone(), 
             node_name, 
@@ -37,7 +37,9 @@ impl Strategy {
             indicator, 
             event_publisher, 
             response_event_receiver,
-        ).init_node().await;
+        );
+        // 设置默认输出句柄
+        node.set_output_handle().await;
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);

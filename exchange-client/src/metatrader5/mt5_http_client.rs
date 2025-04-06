@@ -116,6 +116,7 @@ impl Mt5HttpClient {
         //     tp: order_request.tp,
         //     sl: order_request.sl,
         // };
+        tracing::info!("创建订单请求: {:?}", order_request);
 
         let response = self.client.post(&url)
         .json(&order_request)

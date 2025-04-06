@@ -1,8 +1,6 @@
 use crate::NodeRunState;
 use crate::node::NodeStateTransitionEvent;  
-use crate::node::state_machine::NodeStateMachine;
-use crate::node::state_machine::StateChangeActions;
-use crate::node::state_machine::TransitionAction;
+use crate::node::state_machine::{NodeStateMachine, StateChangeActions, TransitionAction};
 use std::any::Any;
 
 
@@ -57,9 +55,9 @@ pub struct LiveDataNodeStateMachine {
 }
 
 impl LiveDataNodeStateMachine {
-    pub fn new(current_state: NodeRunState, node_id: String, node_name: String) -> Self {
+    pub fn new(node_id: String, node_name: String) -> Self {
         Self {
-            current_state,
+            current_state: NodeRunState::Created,
             node_id,
             node_name,
         }
@@ -73,13 +71,7 @@ impl NodeStateMachine for LiveDataNodeStateMachine {
     fn clone_box(&self) -> Box<dyn NodeStateMachine> {
         Box::new(self.clone())
     }
-    fn get_node_id(&self) -> &str {
-        &self.node_id
-    }
-
-    fn get_node_name(&self) -> &str {
-        &self.node_name
-    }
+    
     // 获取当前状态
     fn current_state(&self) -> NodeRunState {
         self.current_state.clone()

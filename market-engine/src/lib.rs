@@ -241,7 +241,9 @@ impl MarketDataEngine{
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
                 mt5.initialize_client().await.unwrap();
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+                // mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+                mt5.login(76898751, "HhazJ520....", "Exness-MT5Trial5", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 
                 let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;

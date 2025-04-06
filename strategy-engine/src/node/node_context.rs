@@ -10,6 +10,7 @@ use crate::NodeMessage;
 use async_trait::async_trait;
 use std::any::Any;
 use crate::NodeRunState;
+use crate::NodeType;
 
 #[async_trait]
 pub trait Context: Debug + Send + Sync + 'static {
@@ -19,12 +20,23 @@ pub trait Context: Debug + Send + Sync + 'static {
 
     fn clone_box(&self) -> Box<dyn Context>;
 
-    fn get_base_context(&self) -> &BaseNodeContext {
-        self.as_any().downcast_ref::<BaseNodeContext>().expect("Failed to downcast to BaseNodeContext")
-    }
+    async fn handle_event(&mut self, event: Event) -> Result<(), String>;
+    
+    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String>;
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
-        self.as_any_mut().downcast_mut::<BaseNodeContext>().expect("Failed to downcast to BaseNodeContext")
+    fn get_base_context(&self) -> &BaseNodeContext;
+
+    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext;
+
+    fn get_from_node_id(&self) -> &Vec<String> {
+        &self.get_base_context().from_node_id
+    }
+    fn get_from_node_id_mut(&mut self) -> &mut Vec<String> {
+        &mut self.get_base_context_mut().from_node_id
+    }
+    
+    fn get_node_type(&self) -> &NodeType {
+        &self.get_base_context().node_type
     }
 
     fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
@@ -64,20 +76,25 @@ pub trait Context: Debug + Send + Sync + 'static {
         &mut self.get_base_context_mut().message_receivers
     }
     fn get_enable_event_publish_mut(&mut self) -> &mut bool {
-        &mut self.get_base_context_mut().enable_event_publish
+        &mut self.get_base_context_mut().is_enable_event_publish
     }
     fn set_state_machine(&mut self, state_machine: Box<dyn NodeStateMachine>) {
         self.get_base_context_mut().state_machine = state_machine;
     }
-    fn enable_event_publish(&self) -> &bool {
-        &self.get_base_context().enable_event_publish
+
+    fn set_enable_event_publish(&mut self, is_enable_event_publish: bool) {
+        self.get_base_context_mut().is_enable_event_publish = is_enable_event_publish;
     }
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
-        Ok(())
+    
+    fn is_enable_event_publish(&self) -> &bool {
+        &self.get_base_context().is_enable_event_publish
     }
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
-        Ok(())
+
+    fn get_event_publisher(&self) -> &EventPublisher {
+        &self.get_base_context().event_publisher
     }
+
+
 }
 
 impl Clone for Box<dyn Context> {
@@ -89,6 +106,7 @@ impl Clone for Box<dyn Context> {
 
 #[derive(Debug)]
 pub struct BaseNodeContext {
+    pub node_type: NodeType,
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
@@ -97,13 +115,15 @@ pub struct BaseNodeContext {
     pub message_receivers: Vec<NodeMessageReceiver>,
     pub event_receivers:Vec<broadcast::Receiver<Event>>,
     pub output_handle: HashMap<String, NodeOutputHandle>,
-    pub enable_event_publish: bool,
+    pub is_enable_event_publish: bool,
     pub state_machine: Box<dyn NodeStateMachine>,
+    pub from_node_id: Vec<String>,
 }
 
 impl Clone for BaseNodeContext {
     fn clone(&self) -> Self {
         Self {
+            node_type: self.node_type.clone(),
             strategy_id: self.strategy_id.clone(),
             node_id: self.node_id.clone(),
             node_name: self.node_name.clone(),
@@ -112,8 +132,9 @@ impl Clone for BaseNodeContext {
             message_receivers: self.message_receivers.clone(),
             event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
             output_handle: self.output_handle.clone(),
-            enable_event_publish: self.enable_event_publish.clone(),
+            is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),
+            from_node_id: self.from_node_id.clone(),
         }
     }
 }
@@ -123,21 +144,24 @@ impl BaseNodeContext {
         strategy_id: i32, 
         node_id: String, 
         node_name: String,
+        node_type: NodeType,
         event_publisher: EventPublisher,
         event_receivers: Vec<broadcast::Receiver<Event>>,
-        state_manager: Box<dyn NodeStateMachine>,
+        state_machine: Box<dyn NodeStateMachine>,
     ) -> Self {
-        Self { 
+        Self {
             strategy_id, 
             node_id, 
-            node_name, 
+            node_name,
+            node_type,
             output_handle: HashMap::new(), 
             event_publisher,
-            enable_event_publish: false, 
+            is_enable_event_publish: false, 
             cancel_token: CancellationToken::new(), 
             message_receivers: Vec::new(),
             event_receivers,
-            state_machine: state_manager,
+            state_machine,
+            from_node_id: Vec::new(),
         }
     }
 }

@@ -23,8 +23,6 @@ pub enum NodeType {
     StartNode,
     #[strum(serialize = "live_data_node")]
     LiveDataNode,
-    #[strum(serialize = "data_source_node")]
-    DataSourceNode,
     #[strum(serialize = "indicator_node")]
     IndicatorNode,
     #[strum(serialize = "if_else_node")]
@@ -46,13 +44,29 @@ impl FromStr for NodeType {
         match s {
             "start_node" => Ok(NodeType::StartNode),
             "live_data_node" => Ok(NodeType::LiveDataNode),
-            "data_source_node" => Ok(NodeType::DataSourceNode),
             "indicator_node" => Ok(NodeType::IndicatorNode),
             "if_else_node" => Ok(NodeType::IfElseNode),
             "order_node" => Ok(NodeType::OrderNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum DefaultOutputHandleId {
+    #[strum(serialize = "start_node_output")]
+    StartNodeOutput,
+    #[strum(serialize = "live_data_node_output")]
+    LiveDataNodeOutput,
+    #[strum(serialize = "indicator_node_output")]
+    IndicatorNodeOutput,
+    #[strum(serialize = "if_else_node_else_output")]
+    IfElseNodeElseOutput,
+    #[strum(serialize = "order_node_output")]
+    OrderNodeOutput,
+
 }
 
 

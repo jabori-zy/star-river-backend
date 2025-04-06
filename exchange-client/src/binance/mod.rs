@@ -235,7 +235,7 @@ impl ExchangeClient for BinanceExchange {
     async fn get_socket_stream(&self) -> Result<(), String> {
         // 判断当前是否正在处理流
         if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
-            tracing::warn!("binance已开始处理流数据, 无需重复获取!");
+            tracing::warn!("binance已开始处理流数据!");
             return Ok(());
         }
         tracing::debug!("开始binance处理流数据");

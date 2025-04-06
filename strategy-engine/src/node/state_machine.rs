@@ -15,12 +15,7 @@ pub trait NodeStateMachine: Send + Sync + Debug + 'static {
     
     /// 处理状态转换事件
     fn transition(&mut self, event: NodeStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String>;
-    
-    /// 获取节点ID
-    fn get_node_id(&self) -> &str;
-    
-    /// 获取节点名称
-    fn get_node_name(&self) -> &str;
+
 }
 
 

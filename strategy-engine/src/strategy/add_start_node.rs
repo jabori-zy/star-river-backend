@@ -17,7 +17,9 @@ impl Strategy {
         node_name: String,
         event_publisher: EventPublisher,
     ) {
-        let node = StartNode::new(strategy_id, node_id.clone(), node_name, event_publisher).init_node().await;
+        let mut node = StartNode::new(strategy_id, node_id.clone(), node_name, event_publisher);
+        // 设置默认输出句柄
+        node.set_output_handle().await;
         let node = Box::new(node);
         let node_index = graph.add_node(node);
         node_indices.insert(node_id, node_index);

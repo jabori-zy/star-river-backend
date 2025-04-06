@@ -9,7 +9,7 @@ use types::indicator::Indicators;
 use event_center::{Event, EventPublisher};
 use serde_json::Value;
 use std::str::FromStr;
-// use crate::node::if_else_node::Case;
+use crate::node::if_else_node::condition::Case;
 use crate::NodeType;
 use types::order::{OrderRequest, OrderType, OrderSide};
 
@@ -59,19 +59,19 @@ impl Strategy {
                 let interval = KlineInterval::Minutes1;
                 
                 let response_event_receiver = response_event_receiver.resubscribe();
-                // Self::add_indicator_node(
-                //     graph, 
-                //     node_indices,
-                //     strategy_id,
-                //     node_id.to_string(), 
-                //     node_name.to_string(), 
-                //     exchange, 
-                //     symbol, 
-                //     interval, 
-                //     indicator,
-                //     event_publisher.clone(),
-                //     response_event_receiver,
-                // ).await;
+                Self::add_indicator_node(
+                    graph, 
+                    node_indices,
+                    strategy_id,
+                    node_id.to_string(), 
+                    node_name.to_string(), 
+                    exchange, 
+                    symbol, 
+                    interval, 
+                    indicator,
+                    event_publisher.clone(),
+                    response_event_receiver,
+                ).await;
                 
             }
             // 实时数据节点
@@ -89,20 +89,20 @@ impl Strategy {
                 // k线频率设置
                 let frequency = 2000;
 
-                // Self::add_live_data_node(
-                //     graph,
-                //     node_indices,
-                //     strategy_id,
-                //     node_id.to_string(), 
-                //     node_name.to_string(), 
-                //     Exchange::from_str(exchange).unwrap(), 
-                //     symbol.to_string(), 
-                //     KlineInterval::from_str(interval).unwrap(), 
-                //     frequency,
-                //     event_publisher,
-                //     market_event_receiver,
-                //     response_event_receiver,
-                // ).await;
+                Self::add_live_data_node(
+                    graph,
+                    node_indices,
+                    strategy_id,
+                    node_id.to_string(), 
+                    node_name.to_string(), 
+                    Exchange::from_str(exchange).unwrap(), 
+                    symbol.to_string(), 
+                    KlineInterval::from_str(interval).unwrap(), 
+                    frequency,
+                    event_publisher,
+                    market_event_receiver,
+                    response_event_receiver,
+                ).await;
                 
             }
             // 条件分支节点
@@ -110,16 +110,18 @@ impl Strategy {
                 let node_data = node_config["data"].clone();
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
-                // let cases: Vec<Case> = serde_json::from_value(node_data["cases"].clone())
-                //     .unwrap_or_else(|e| panic!("Failed to parse cases: {}", e));
-                // Self::add_if_else_node(
-                //     graph,
-                //     node_indices,
-                //     node_id.to_string(),
-                //     node_name.to_string(),
-                //     cases,
-                //     event_publisher,
-                // ).await;
+                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
+                let cases: Vec<Case> = serde_json::from_value(node_data["cases"].clone())
+                    .unwrap_or_else(|e| panic!("Failed to parse cases: {}", e));
+                Self::add_if_else_node(
+                    graph,
+                    node_indices,
+                    strategy_id,
+                    node_id.to_string(),
+                    node_name.to_string(),
+                    cases,
+                    event_publisher,
+                ).await;
             }
             // 订单节点
             NodeType::OrderNode => {
@@ -143,20 +145,18 @@ impl Strategy {
                     tp: order_info["tp"].as_f64(),
                     sl: order_info["sl"].as_f64(),
                 };
-                tracing::debug!("订单详情: {:?}", order_request);
-                tracing::debug!("添加订单节点: {:?}", node_data);
-                // Self::add_order_node(
-                //     graph,
-                //     node_indices,
-                //     strategy_id,
-                //     node_id.to_string(),
-                //     node_name.to_string(),
-                //     Exchange::from_str(exchange).unwrap(),
-                //     symbol.to_string(),
-                //     order_request,
-                //     event_publisher,
-                //     response_event_receiver,
-                // ).await;
+                Self::add_order_node(
+                    graph,
+                    node_indices,
+                    strategy_id,
+                    node_id.to_string(),
+                    node_name.to_string(),
+                    Exchange::from_str(exchange).unwrap(),
+                    symbol.to_string(),
+                    order_request,
+                    event_publisher,
+                    response_event_receiver,
+                ).await;
                 
             }
             _ => {

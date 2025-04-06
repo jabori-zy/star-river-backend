@@ -451,7 +451,6 @@ impl ExchangeClient for MetaTrader5 {
 
     async fn send_order(&self, order_request: OrderRequest) -> Result<Order, String> {
         let mut mt5_http_client = self.mt5_http_client.lock().await;
-
         let mt5_order_request = Mt5OrderRequest::from(order_request);
         let order_info = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
         let data_processor = self.data_processor.lock().await;

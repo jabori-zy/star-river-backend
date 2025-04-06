@@ -39,8 +39,8 @@ async fn main() {
     let result = mt5_clone.lock().await.get_client_status().await;
     tracing::info!("获取客户端状态结果: {:?}", result);
 
-    mt5_clone.lock().await.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
-    // mt5_clone.lock().await.login(76898751, "HhazJ520....", "Exness-MT5Trial5", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+    // mt5_clone.lock().await.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+    mt5_clone.lock().await.login(76898751, "HhazJ520....", "Exness-MT5Trial5", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
 
 
     // mt5_clone.lock().await.connect_websocket().await.unwrap();
@@ -51,10 +51,10 @@ async fn main() {
 
     mt5_clone.lock().await.send_order(OrderRequest {
         exchange: Exchange::Metatrader5,
-        symbol: "XAUUSD".to_string(),
+        symbol: "BTCUSDm".to_string(),
         order_type: OrderType::Market,
         order_side: OrderSide::Long,
-        quantity: 0.01,
+        quantity: 0.1,
         price: 0.00,
         tp: None,
         sl: None,
