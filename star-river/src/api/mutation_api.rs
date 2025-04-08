@@ -1,6 +1,6 @@
 use axum::extract::{Json, Query, State};
 
-use database::mutation::strategy_info_mutation::StrategyMutation;
+use database::mutation::strategy_info_mutation::StrategyInfoMutation;
 use database::entities::strategy_info;
 use crate::StarRiver;
 use axum::http::StatusCode;
@@ -22,7 +22,7 @@ pub async fn create_strategy(
 ) -> (StatusCode, Json<ApiResponse<strategy_info::Model>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyMutation::create_strategy(conn, request.name, request.description, request.status).await {
+    match StrategyInfoMutation::create_strategy(conn, request.name, request.description, request.status).await {
         Ok(strategy) => (
             StatusCode::CREATED,
             Json(ApiResponse {
@@ -58,7 +58,7 @@ pub async fn update_strategy(
 ) -> (StatusCode, Json<ApiResponse<strategy_info::Model>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyMutation::update_strategy_by_id(conn, request.id, request.name, request.description, request.status, request.nodes, request.edges).await {
+    match StrategyInfoMutation::update_strategy_by_id(conn, request.id, request.name, request.description, request.status, request.nodes, request.edges).await {
         Ok(strategy) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -89,7 +89,7 @@ pub async fn delete_strategy(
 ) -> (StatusCode, Json<ApiResponse<()>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyMutation::delete_strategy(conn, request.id).await {
+    match StrategyInfoMutation::delete_strategy(conn, request.id).await {
         Ok(_) => (
             StatusCode::OK,
             Json(ApiResponse {

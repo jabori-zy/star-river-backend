@@ -37,32 +37,39 @@ impl StarRiver {
         let exchange_manager_command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let exchange_manager_response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
         let exchange_manager = Arc::new(Mutex::new(ExchangeManager::new(exchange_manager_event_publisher, exchange_manager_command_event_receiver, exchange_manager_response_event_receiver)));
+
+        // 初始化数据库
+        let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
+        let database_event_publisher = event_center.get_event_publisher();
+        let database = DatabaseManager::new(command_event_receiver, database_event_publisher).await;
+
         // 初始化市场引擎
         let market_engine_event_publisher = event_center.get_event_publisher();
         let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
         let market_engine = MarketDataEngine::new(market_engine_event_publisher, command_event_receiver, response_event_receiver, exchange_manager.clone());
+
         // 初始化订单引擎
         let order_engine_event_publisher = event_center.get_event_publisher();
         let order_engine_command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let order_engine_response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
-        let order_engine = OrderEngine::new(order_engine_command_event_receiver, order_engine_response_event_receiver, order_engine_event_publisher, exchange_manager.clone());
+        let database_conn = database.get_conn();
+        let order_engine = OrderEngine::new(order_engine_command_event_receiver, order_engine_response_event_receiver, order_engine_event_publisher, exchange_manager.clone(), database_conn);
+        
         // 初始化缓存引擎
         let cache_engine_event_publisher = event_center.get_event_publisher();
         let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).unwrap();
         let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let indicator_event_receiver = event_center.subscribe(&Channel::Indicator).unwrap();
         let cache_engine = CacheEngine::new( exchange_event_receiver, indicator_event_receiver, command_event_receiver,cache_engine_event_publisher);
+        
         // 初始化指标引擎
         let indicator_engine_event_publisher = event_center.get_event_publisher();
         let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
         let indicator_engine = IndicatorEngine::new(command_event_receiver, response_event_receiver, indicator_engine_event_publisher);
         
-        // 初始化数据库
-        let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
-        let database_event_publisher = event_center.get_event_publisher();
-        let database = DatabaseManager::new(command_event_receiver, database_event_publisher).await;
+        
 
         // 初始化策略引擎
         let market_event_receiver = event_center.subscribe(&Channel::Market).unwrap();
