@@ -29,7 +29,7 @@ impl Mt5WsClient {
 }
 
 
-
+#[derive(Debug)]
 pub struct WebSocketState {
     socket: WebSocketStream<MaybeTlsStream<TcpStream>>
 }

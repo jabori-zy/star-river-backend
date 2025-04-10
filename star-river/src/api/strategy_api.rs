@@ -4,7 +4,8 @@ use axum::extract::State;
 use serde::Deserialize;
 use axum::extract::Json;
 use crate::api::response::ApiResponse;
-
+use engine::EngineName;
+use engine::strategy_engine::StrategyEngine;
 
 
 #[derive(Deserialize, Debug)]
@@ -17,7 +18,10 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Json(params): Js
     let strategy_id = params.strategy_id;
     let heartbeat = star_river.heartbeat.lock().await;
     heartbeat.run_async_task_once(format!("设置策略{}", strategy_id), async move {
-        let mut strategy_engine = star_river.strategy_engine.lock().await;
+        let engine_manager = star_river.engine_manager.lock().await;
+        let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+        let mut engine_guard = engine.lock().await;
+        let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
         strategy_engine.init_strategy(strategy_id).await.unwrap();
     }).await;
     (StatusCode::OK, Json(ApiResponse {
@@ -46,7 +50,10 @@ pub async fn run_strategy(State(star_river): State<StarRiver>, Json(params): Jso
     let strategy_id = params.strategy_id;
     let heartbeat = star_river.heartbeat.lock().await;
     heartbeat.run_async_task_once(format!("启动策略{}", strategy_id), async move {
-        let mut strategy_engine = star_river.strategy_engine.lock().await;
+        let engine_manager = star_river.engine_manager.lock().await;
+        let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+        let mut engine_guard = engine.lock().await;
+        let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
         strategy_engine.start_strategy(strategy_id).await.unwrap();
     }).await;
     (StatusCode::OK, Json(ApiResponse {
@@ -64,7 +71,10 @@ pub struct StopStrategyParams {
 pub async fn stop_strategy(State(star_river): State<StarRiver>, Json(params): Json<StopStrategyParams>) -> (StatusCode, Json<ApiResponse<()>>) {
     let  heartbeat = star_river.heartbeat.lock().await;
     heartbeat.run_async_task_once("停止策略".to_string(), async move {
-        let mut strategy_engine = star_river.strategy_engine.lock().await;
+        let engine_manager = star_river.engine_manager.lock().await;
+        let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+        let mut engine_guard = engine.lock().await;
+        let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
         strategy_engine.stop_strategy(params.strategy_id).await.unwrap();
     }).await;
     (StatusCode::OK, Json(ApiResponse {
@@ -82,7 +92,10 @@ pub struct EnableStrategyEventPushParams {
 
 pub async fn enable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<EnableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
     let strategy_id = params.strategy_id;
-    let mut strategy_engine = star_river.strategy_engine.lock().await;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     strategy_engine.enable_strategy_event_push(strategy_id).await.expect("开启策略事件推送失败");
     (StatusCode::OK, Json(ApiResponse {
         code: 0,
@@ -98,7 +111,10 @@ pub struct DisableStrategyEventPushParams {
 
 pub async fn disable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<DisableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
     let strategy_id = params.strategy_id;
-    let mut strategy_engine = star_river.strategy_engine.lock().await;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     strategy_engine.disable_strategy_event_push(strategy_id).await.expect("关闭策略事件推送失败");
     (StatusCode::OK, Json(ApiResponse {
         code: 0,

@@ -7,7 +7,7 @@
 sea-orm-cli migrate refresh -d ./migration
 
 # 数据库生成实体
-sea-orm-cli entity -d ./database
+sea-orm-cli generate entity -o ./database/src/entities --with-serde both
 
 
 # python打包

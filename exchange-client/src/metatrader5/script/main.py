@@ -13,7 +13,8 @@ from websocket import data_push_task
 import numpy as np
 from client import mt5_client
 from trade import trade_router
-
+from position import position_router
+from order import order_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,7 +39,8 @@ app.add_middleware(
 )
 
 app.include_router(trade_router)
-
+app.include_router(position_router)
+app.include_router(order_router)
 
 register_websocket_routes(app)
 

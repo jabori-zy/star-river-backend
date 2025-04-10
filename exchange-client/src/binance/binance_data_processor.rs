@@ -25,7 +25,7 @@ pub struct KlineCacheKey {
     interval: BinanceKlineInterval,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BinanceDataProcessor{
     // event_center: Arc<Mutex<EventCenter>>,
 }

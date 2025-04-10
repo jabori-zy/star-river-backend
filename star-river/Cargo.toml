@@ -22,14 +22,11 @@ sea-orm.workspace = true
 chrono.workspace = true
 heartbeat = { path = "../heartbeat" }
 exchange-client = { path = "../exchange-client" }
-data-cache = { path = "../data-cache" }
-indicator-engine = { path = "../indicator-engine" }
-order-engine = { path = "../order-engine" }
 types = { path = "../types" }
 utils = { path = "../utils" }
 event-center = {path = "../event-center"}
 database = { path = "../database" }
 migration = { path = "../migration" }
-market-engine = { path = "../market-engine" }
-strategy-engine = { path = "../strategy-engine" }
+engine = { path = "../engine" }
+
 

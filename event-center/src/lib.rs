@@ -1,23 +1,29 @@
 pub mod market_event;
-pub mod command_event;
-pub mod indicator_event;
-pub mod exchange_event;
+pub mod order_event;
+pub mod position_event;
+pub mod database_event;
+pub mod request_event;
 pub mod response_event;
 pub mod strategy_event;
+pub mod indicator_event;
+pub mod exchange_event;
 
 
-use market_event::MarketEvent;
-use command_event::CommandEvent;
-use exchange_event::ExchangeEvent;
-use response_event::ResponseEvent;
-use strategy_event::StrategyEvent;
+use crate::market_event::MarketEvent;
+use crate::request_event::CommandEvent;
+use crate::exchange_event::ExchangeEvent;
+use crate::response_event::ResponseEvent;
+use crate::strategy_event::StrategyEvent;
+use crate::indicator_event::IndicatorEvent;
+use crate::order_event::OrderEvent;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use tokio::sync::broadcast;
-use indicator_event::IndicatorEvent;
+
 use std::sync::Arc;
 
 
@@ -27,13 +33,13 @@ use std::sync::Arc;
 pub enum Channel {
     Market,
     Exchange, // 交易所的原始数据通道
-    Trade,
-    Order,
-    Position,
-    Indicator,
+    Trade, // 交易通道
+    Order, // 订单通道
+    Position, // 仓位通道
+    Indicator, // 指标通道
     Strategy, // 节点的信息通过这个通道发送
-    Command,
-    Response,
+    Command, // 命令通道
+    Response, // 响应通道
 }
 
 impl Channel {
@@ -63,6 +69,9 @@ pub enum Event {
     #[strum(serialize = "strategy")]
     #[serde(rename = "strategy")]
     Strategy(StrategyEvent),
+    #[strum(serialize = "order")]
+    #[serde(rename = "order")]
+    Order(OrderEvent),
 }
 
 impl Event {
@@ -74,6 +83,7 @@ impl Event {
             Event::Exchange(_) => Channel::Exchange,
             Event::Response(_) => Channel::Response,
             Event::Strategy(_) => Channel::Strategy,
+            Event::Order(_) => Channel::Order,
         }
     }
 }
@@ -188,7 +198,7 @@ impl EventPublisher {
         let sender = self.channels.get(&channel)
             .ok_or_else(|| EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
 
-        // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
+        tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
         
         sender.send(event).map_err(|e| 
             EventCenterError::EventSendError(format!("Failed to send event: {}", e))
@@ -198,5 +208,4 @@ impl EventPublisher {
         Ok(())
     }
 }
-
 

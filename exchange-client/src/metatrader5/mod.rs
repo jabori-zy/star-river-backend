@@ -2,9 +2,12 @@ mod mt5_http_client;
 mod mt5_ws_client;
 mod url;
 mod mt5_data_processor;
+mod mt5_types;
 
+use mt5_types::Mt5PositionNumberRequest;
 use rust_embed::Embed;
 use tempfile::TempDir;
+use types::position::PositionNumber;
 use std::fs;
 use tokio::process::Command;
 use std::process::Command as StdCommand;
@@ -32,6 +35,7 @@ use std::any::Any;
 use async_trait::async_trait;
 use types::order::{OrderRequest, Order};
 use types::order::Mt5OrderRequest;
+use types::position::PositionNumberRequest;
 
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
@@ -124,7 +128,7 @@ pub struct SubscribedSymbol {
     pub kline_interval: Mt5KlineInterval,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MetaTrader5 {
     mt5_http_client: Arc<Mutex<Mt5HttpClient>>,
     mt5_process: Arc<StdMutex<Option<Child>>>,
@@ -398,7 +402,7 @@ impl ExchangeClient for MetaTrader5 {
             tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
             return Ok(());
         }
-        tracing::debug!("开始metatrader5处理流数据");
+        tracing::debug!("metatrader5开始处理流数据");
         // 如果当前没有处理流，则开始处理流,设置状态为true
         self.is_process_stream.store(true, std::sync::atomic::Ordering::Relaxed);
 
@@ -449,13 +453,32 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn send_order(&self, order_request: OrderRequest) -> Result<Order, String> {
-        let mut mt5_http_client = self.mt5_http_client.lock().await;
+    async fn create_order(&self, order_request: OrderRequest) -> Result<Order, String> {
+        let strategy_id = order_request.strategy_id.clone();
+        let node_id = order_request.node_id.clone();
+        let mt5_http_client = self.mt5_http_client.lock().await;
         let mt5_order_request = Mt5OrderRequest::from(order_request);
-        let order_info = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
+        // 处理order_info
+        let mut order_info = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
+        // 把strategy_id和node_id添加到order_info中.直接添加，而不是通过json!添加
+        order_info["strategy_id"] = serde_json::Value::Number(strategy_id.into());
+        order_info["node_id"] = serde_json::Value::String(node_id);
+
         let data_processor = self.data_processor.lock().await;
         let order = data_processor.process_order(order_info).await.expect("处理订单失败");
+
+        // 入库
+        
         Ok(order)
+    }
+
+    async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        let mt5_position_number_request = Mt5PositionNumberRequest::from(position_number_request);
+        let position_number_info = mt5_http_client.get_position_number(mt5_position_number_request).await.expect("获取仓位数量失败");
+        let mt5_data_processor = self.data_processor.lock().await;
+        let position_number = mt5_data_processor.process_position_number(position_number_info).await.expect("解析position_number数据失败");
+        Ok(position_number)
     }
 
 }

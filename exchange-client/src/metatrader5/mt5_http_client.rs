@@ -1,12 +1,16 @@
 use crate::metatrader5::url::Mt5HttpUrl;
 use crate::metatrader5::Mt5KlineInterval;
 use serde::Serialize;
+use tokio_tungstenite::tungstenite::http::response;
 use types::order::{OrderType, OrderSide, OrderRequest};
 use types::order::Mt5OrderRequest;
+use types::position::{self, PositionNumber};
+
+use super::mt5_types::Mt5PositionNumberRequest;
 
 
 
-
+#[derive(Debug)]
 pub struct Mt5HttpClient {
     client: reqwest::Client,
     is_connected: bool,
@@ -104,19 +108,10 @@ impl Mt5HttpClient {
         }
     }
 
-    pub async fn create_order(&mut self, order_request: Mt5OrderRequest) -> Result<serde_json::Value, String> {
+    pub async fn create_order(&self, order_request: Mt5OrderRequest) -> Result<serde_json::Value, String> {
             
         let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::CreateOrder);
-        // let request = Mt5OrderRequest {
-        //     order_side: order_request.order_side.to_string(),
-        //     order_type: order_request.order_type.to_string(),
-        //     symbol: order_request.symbol.to_string(),
-        //     volume: order_request.quantity,
-        //     price: order_request.price,
-        //     tp: order_request.tp,
-        //     sl: order_request.sl,
-        // };
-        tracing::info!("创建订单请求: {:?}", order_request);
+        tracing::debug!("metatrader5 创建订单请求: {:?}", order_request);
 
         let response = self.client.post(&url)
         .json(&order_request)
@@ -125,6 +120,22 @@ impl Mt5HttpClient {
         .json::<serde_json::Value>()
         .await.expect("创建订单失败");
         Ok(response)
+    }
+
+    pub async fn get_position_number(&self, position_number_request: Mt5PositionNumberRequest) -> Result<serde_json::Value, String> {
+        
+        tracing::debug!("metatrader5 获取仓位数量: {:?}", position_number_request);
+        let url = format!("{}{}?symbol={}{}",
+            Mt5HttpUrl::BaseUrl,
+            Mt5HttpUrl::GetPositionNumber,
+            position_number_request.symbol,
+            position_number_request.position_side
+                .map_or(String::new(), |side| format!("&position_side={}", side))
+        );
+        
+        let response = self.client.get(url).send().await.unwrap().json::<serde_json::Value>().await.expect("获取仓位数量失败");
+        Ok(response)
+
     }
 
 }

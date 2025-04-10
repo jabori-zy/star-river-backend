@@ -3,18 +3,15 @@ resolver = "2"
 members = [ 
     "examples/*",
     "star-river",
-    "data-cache",
     "database",
     "event-center",
     "exchange-client",
     "heartbeat",
-    "indicator-engine",
     "migration",
-    "strategy-engine",
     "types",
     "utils", 
-    "market-engine"
-    , "order-engine"]
+    "engine"
+    ]
 
 [workspace.package]
 version = "0.1.0"
@@ -44,7 +41,7 @@ strum_macros = "0.27.1"
 futures = "0.3.31"
 tokio-tungstenite = { version = "0.26.1",features = ["native-tls"] }
 zip = "2.2.2"
-sysinfo = {version="0.33.1", features = [] }
+sysinfo = {version="0.34.2", features = [] }
 async-trait = {version = "0.1.86"}
 # 数据库
 sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio"] }

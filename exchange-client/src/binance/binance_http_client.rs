@@ -10,7 +10,7 @@ use crate::utils::deserialize_string_to_f64;
 use crate::binance::{BinanceKlineInterval, BinanceKline, BinanceTickerPrice};
 use types::market::{Kline, TickerPrice};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 
 pub struct BinanceHttpClient {
     client: reqwest::Client,

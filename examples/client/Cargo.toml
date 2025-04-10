@@ -9,6 +9,7 @@ futures-util.workspace = true
 tokio.workspace = true
 tokio-tungstenite.workspace = true
 
+
 [[bin]]
 name = "client"
 path = "src/client.rs"

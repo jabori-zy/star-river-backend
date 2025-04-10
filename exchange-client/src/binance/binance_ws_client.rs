@@ -33,7 +33,7 @@ impl BinanceWsClient {
 
 }
 
-
+#[derive(Debug)]
 pub struct WebSocketState {
     socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
     id: u64,

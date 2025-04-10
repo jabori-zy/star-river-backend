@@ -3,10 +3,10 @@ use crate::entities::{strategy_info, strategy_info::Entity as StrategyInfo};
 use chrono::Utc;
 
 
-pub struct StrategyMutation;
+pub struct StrategyInfoMutation;
 
 
-impl StrategyMutation {
+impl StrategyInfoMutation {
     pub async fn create_strategy(
         db: &DbConn,
         strategy_name: String,

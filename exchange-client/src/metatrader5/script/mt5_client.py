@@ -2,7 +2,8 @@ import asyncio
 import pytz
 import MetaTrader5 as mt5
 from datetime import datetime
-from utils import get_time_frame, get_position_type, get_position_reason
+from utils import get_time_frame, get_position_type, get_position_reason, get_order_type, get_order_type_time, get_order_type_filling, get_order_state, get_order_reason
+from typing import Optional
 
 class Mt5Client:
     def __init__(self) -> None:
@@ -308,20 +309,196 @@ class Mt5Client:
 
     
 
-    async def get_order_by_id(self, order_id: int) -> dict:
+    # 根据id获取订单信息
+    async def get_order_by_id(self, order_id: int) -> list:
         if not self.is_initialized:
             return {}
         
-        order = self.client.orders_get(ticket=order_id)
-        return order
+        orders = self.client.orders_get(ticket=order_id)
+        if orders is None:
+            return []
+        
+        order_result = []
+        for order in orders:
+            order_info = {
+                "order_id": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": get_order_type(order.type),
+                "type_time": get_order_type_time(order.type_time),
+                "type_filling": get_order_type_filling(order.type_filling),
+                "state": get_order_state(order.state),
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "reason": get_order_reason(order.reason),
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "symbol": order.symbol,
+                "comment": order.comment
+                
+            }
+            order_result.append(order_info)
+        return order_result
     
-    async def get_order_by_symbol(self, symbol: str) -> dict:
+    async def get_order_by_symbol(self, symbol: str):
         if not self.is_initialized:
             return {}
         
-        order = self.client.orders_get(symbol=symbol)
-        return order
+        orders = self.client.orders_get(symbol=symbol)
+        if orders is None:
+            return {}
+        
+        order_result = []
+        for order in orders:
+            order_info = {
+                "order_id": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": get_order_type(order.type),
+                "type_time": get_order_type_time(order.type_time),
+                "type_filling": get_order_type_filling(order.type_filling),
+                "state": get_order_state(order.state),
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "reason": get_order_reason(order.reason),
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "symbol": order.symbol,
+                "comment": order.comment
+                
+            }
+            order_result.append(order_info)
+        return order_result
     
+    async def get_history_order_by_id(self, order_id: int):
+        if not self.is_initialized:
+            return {}
+        
+        orders = self.client.history_orders_get(ticket=order_id)
+        if orders is None:
+            return []
+        
+
+        order_result = []
+        for order in orders:
+            order_info = {
+                "order_id": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": get_order_type(order.type),
+                "type_time": get_order_type_time(order.type_time),
+                "type_filling": get_order_type_filling(order.type_filling),
+                "state": get_order_state(order.state),
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "reason": get_order_reason(order.reason),
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "symbol": order.symbol,
+                "comment": order.comment
+                
+            }
+            order_result.append(order_info)
+        return order_result
+    
+    async def get_history_order_by_position_id(self, position_id: int):
+        if not self.is_initialized:
+            return {}
+        
+        orders = self.client.history_orders_get(position=position_id)
+        if orders is None:
+            return []
+
+        order_result = []
+        for order in orders:
+            order_info = {
+                "order_id": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": get_order_type(order.type),
+                "type_time": get_order_type_time(order.type_time),
+                "type_filling": get_order_type_filling(order.type_filling),
+                "state": get_order_state(order.state),
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "reason": get_order_reason(order.reason),
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "symbol": order.symbol,
+                "comment": order.comment
+                
+            }
+            order_result.append(order_info)
+        return order_result
+    
+
+    async def get_history_order_by_symbol(self, symbol: int):
+        if not self.is_initialized:
+            return {}
+        
+        from_date=datetime(2020,1,1) 
+        to_date=datetime.now()
+        symbol_name = f"*{symbol}*"
+        print(symbol_name)
+        orders = self.client.history_orders_get(from_date, to_date, group=symbol_name)
+        print(orders)
+        if orders is None:
+            return []
+
+        order_result = []
+        for order in orders:
+            order_info = {
+                "order_id": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": get_order_type(order.type),
+                "type_time": get_order_type_time(order.type_time),
+                "type_filling": get_order_type_filling(order.type_filling),
+                "state": get_order_state(order.state),
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "reason": get_order_reason(order.reason),
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "symbol": order.symbol,
+                "comment": order.comment
+                
+            }
+            order_result.append(order_info)
+        return order_result
+    
+
+
 
     
     async def get_position_by_id(self, ticket: int) -> dict:
@@ -352,6 +529,7 @@ class Mt5Client:
         }
         return position_info
     
+
     async def get_order_number(self) -> int:
         if not self.is_initialized:
             return 0
@@ -388,6 +566,25 @@ class Mt5Client:
             }
             position_list.append(position_info)
         return position_list
+    
+    async def get_position_number(self, symbol: str, position_side: Optional[str] = None):
+        positions = await self.get_position_by_symbol(symbol=symbol)
+        # 判断是否需要按side统计
+        if position_side:
+            position_number = 0
+            for pos in positions:
+                print(pos)
+                if pos["type"] == position_side:
+                    position_number += 1
+
+            return position_number
+        
+        else:
+            return len(positions)
+
+        
+
+
     
 
 

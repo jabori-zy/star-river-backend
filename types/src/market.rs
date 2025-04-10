@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use serde_json;
 
-#[derive(Debug,Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum Exchange {
     #[strum(serialize = "binance")]
     Binance,

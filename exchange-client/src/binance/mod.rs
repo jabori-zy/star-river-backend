@@ -12,7 +12,7 @@ use binance_ws_client::BinanceWsClient;
 use strum::Display;
 use serde::{Deserialize, Serialize};
 use crate::utils::deserialize_string_to_f64;
-use types::market::{Kline, TickerPrice, Exchange, KlineInterval};
+use types::{market::{Exchange, Kline, KlineInterval, TickerPrice}, position::{PositionNumber, PositionNumberRequest}};
 use strum::EnumString;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -23,7 +23,7 @@ use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use event_center::EventPublisher;
-use types::order::{Order, OrderType, OrderSide, OrderRequest};
+use types::order::{Order, OrderType, OrderSide, OrderRequest, OrderStatus};
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
@@ -151,7 +151,7 @@ impl From<BinanceKline> for Kline {
 
 
 // 交易所信息
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BinanceExchangeInfo {
     pub timezone: String,
     pub server_time: i64,
@@ -159,7 +159,7 @@ pub struct BinanceExchangeInfo {
 }
 
 // 交易所
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BinanceExchange {
     pub server_time: Option<i64>,
     pub info: Option<BinanceExchangeInfo>,
@@ -271,8 +271,10 @@ impl ExchangeClient for BinanceExchange {
         Ok(())
     }
 
-    async fn send_order(&self, order_request: OrderRequest) -> Result<Order, String> {
+    async fn create_order(&self, order_request: OrderRequest) -> Result<Order, String> {
         let order = Order {
+            strategy_id: order_request.strategy_id as i64,
+            node_id: order_request.node_id.clone(),
             symbol: order_request.symbol.to_string(),
             quantity: order_request.quantity,
             price: order_request.price,
@@ -280,10 +282,21 @@ impl ExchangeClient for BinanceExchange {
             sl: order_request.sl,
             exchange: Exchange::Binance,
             order_id: 0,
-            side: OrderSide::Long,
+            order_side: OrderSide::Long,
             order_type: order_request.order_type,
+            order_status: OrderStatus::Created,
         };
         Ok(order)
+    }
+
+    async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String> {
+        let position_number = PositionNumber {
+            exchange: Exchange::Binance,
+            symbol: "BTCUSDT".to_string(),
+            position_side: None,
+            position_number: 3
+        };
+        Ok(position_number)
     }
     
     

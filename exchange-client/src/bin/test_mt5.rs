@@ -3,6 +3,7 @@ use exchange_client::ExchangeClient;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 use types::market::KlineInterval;
+use types::position::{PositionNumberRequest, PositionSide};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use event_center::EventCenter;
@@ -49,16 +50,23 @@ async fn main() {
     // mt5_clone.lock().await.subscribe_kline_stream("XAUUSD", KlineInterval::Minutes1, 500).await.unwrap();
     // mt5_clone.lock().await.get_socket_stream().await.unwrap();
 
-    mt5_clone.lock().await.send_order(OrderRequest {
+    // mt5_clone.lock().await.send_order(OrderRequest {
+    //     exchange: Exchange::Metatrader5,
+    //     symbol: "BTCUSDm".to_string(),
+    //     order_type: OrderType::Market,
+    //     order_side: OrderSide::Long,
+    //     quantity: 0.1,
+    //     price: 0.00,
+    //     tp: None,
+    //     sl: None,
+    // }).await.unwrap();
+
+    let position_number_request = PositionNumberRequest {
         exchange: Exchange::Metatrader5,
         symbol: "BTCUSDm".to_string(),
-        order_type: OrderType::Market,
-        order_side: OrderSide::Long,
-        quantity: 0.1,
-        price: 0.00,
-        tp: None,
-        sl: None,
-    }).await.unwrap();
+        position_side: Some(PositionSide::Long)
+    };
+    mt5_clone.lock().await.get_position_number(position_number_request).await.unwrap();
     
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1000)).await;

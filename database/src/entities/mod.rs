@@ -2,4 +2,5 @@
 
 pub mod prelude;
 
+pub mod order;
 pub mod strategy_info;

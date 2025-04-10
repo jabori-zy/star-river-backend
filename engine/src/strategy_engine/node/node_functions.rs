@@ -1,0 +1,135 @@
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use event_center::Event;
+use tokio::sync::broadcast;
+use futures::stream::select_all;
+use tokio_stream::wrappers::BroadcastStream;
+use futures::StreamExt;
+use super::node_context::NodeContext;
+use types::strategy::message::NodeMessage;
+pub struct NodeFunction;
+
+
+impl NodeFunction {
+    pub async fn listen_external_event(context: Arc<RwLock<Box<dyn NodeContext>>>){
+        let (event_receivers, cancel_token, node_id) = {
+            // let state_guard = state.read().await;
+            // 这里需要深度克隆接收器，而不是克隆引用
+            let event_receivers : Vec<broadcast::Receiver<Event>> = context.read().await.get_event_receivers()
+            .iter()
+            .map(|r| r.resubscribe())
+            .collect();
+
+            let cancel_token = context.read().await.get_cancel_token().clone();
+            let node_id = context.read().await.get_node_id().to_string();
+            (event_receivers, cancel_token, node_id)
+        };
+
+        if event_receivers.is_empty() {
+            tracing::warn!("{}: 没有事件接收器", node_id);
+            return;
+        }
+        let streams: Vec<_> = event_receivers.into_iter()
+            .map(|receiver| BroadcastStream::new(receiver))
+            .collect();
+        let mut combined_stream = select_all(streams);
+        let node_id = node_id.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{} 节点监听外部事件进程已中止", node_id);
+                        break;
+                    }
+                    // 接收消息
+                    receive_result = combined_stream.next() => {
+                        match receive_result {
+                            Some(Ok(event)) => {
+                                let mut context_guard = context.write().await;
+                                context_guard.handle_event(event).await.unwrap();
+
+                            }
+                            Some(Err(e)) => {
+                                tracing::error!("节点{}接收事件错误: {}", node_id, e);
+                            }
+                            None => {
+                                tracing::warn!("节点{}所有事件流已关闭", node_id);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    pub async fn listen_message(state: Arc<RwLock<Box<dyn NodeContext>>>) {
+        let (receivers, cancel_token, node_id) = {
+            let state_guard = state.read().await;
+            let receivers = state_guard.get_message_receivers().clone();
+            let cancel_token = state_guard.get_cancel_token().clone();
+            let node_id = state_guard.get_node_id().to_string();
+            (receivers, cancel_token, node_id)
+        };
+
+        if receivers.is_empty() {
+            tracing::warn!("{}: 没有消息接收器", node_id);
+            return;
+        }
+
+        // 创建一个流，用于接收节点传递过来的message
+        let streams: Vec<_> = receivers.iter()
+            .map(|receiver| BroadcastStream::new(receiver.get_receiver()))
+            .collect();
+
+        let mut combined_stream = select_all(streams);
+        let state = state.clone();
+
+        
+
+        // 节点接收数据
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // 如果取消信号被触发，则中止任务
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{} 节点消息监听任务已中止", node_id);
+                        break;
+                    }
+                    // 接收消息
+                    receive_result = combined_stream.next() => {
+                        match receive_result {
+                            Some(Ok(message)) => {
+                                let mut state_guard = state.write().await;
+                                state_guard.handle_message(message).await.unwrap();
+                            }
+                            Some(Err(e)) => {
+                                tracing::error!("节点{}接收消息错误: {}", node_id, e);
+                            }
+                            None => {
+                                tracing::warn!("节点{}所有消息流已关闭", node_id);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /// 通用的任务取消实现
+    pub async fn cancel_task(state: Arc<RwLock<Box<dyn NodeContext>>>) 
+    {
+        let (cancel_token, node_id, run_state) = {
+            let state_guard = state.read().await;
+            let cancel_token = state_guard.get_cancel_token().clone();
+            let node_id = state_guard.get_node_id().to_string();
+            let run_state = state_guard.get_run_state();
+            (cancel_token, node_id, run_state)
+        };
+        
+        cancel_token.cancel();
+        tracing::info!("{}: 节点已安全停止, 当前节点状态: {:?}", node_id, run_state);
+    }
+    
+}

@@ -19,4 +19,5 @@ migration = { path = "../migration" }
 sea-orm-migration = {version="1.1.7", features = ["sqlx-sqlite","runtime-tokio"]}
 event-center = { path = "../event-center" }
 utils = { path = "../utils" }
+types = {path = "../types" }
 log = "0.4.26"

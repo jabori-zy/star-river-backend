@@ -1,6 +1,5 @@
 use crate::market::Exchange;
-use strum::EnumString;
-use strum::Display;
+use strum::{EnumString, Display};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
@@ -19,12 +18,16 @@ pub enum OrderType {
     Limit,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum OrderStatus {
-    #[strum(serialize = "open")]
-    Open,
-    #[strum(serialize = "closed")]
-    Closed,
+    #[strum(serialize = "created")]
+    Created,
+    #[strum(serialize = "placed")]
+    Placed,
+    #[strum(serialize = "filled")]
+    Filled,
+    #[strum(serialize = "partial")]
+    Partial,
     #[strum(serialize = "canceled")]
     Canceled,
     #[strum(serialize = "expired")]
@@ -49,6 +52,8 @@ pub struct Mt5OrderRequest {
 //订单请求
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderRequest {
+    pub strategy_id: i32,
+    pub node_id: String,
     pub exchange: Exchange,
     pub symbol: String,
     pub order_type: OrderType,
@@ -79,11 +84,14 @@ impl From<OrderRequest> for Mt5OrderRequest {
 //订单
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
+    pub strategy_id: i64,
+    pub node_id: String,
     pub order_id: i64,
     pub exchange: Exchange,
     pub symbol: String,
-    pub side: OrderSide,
+    pub order_side: OrderSide,
     pub order_type: OrderType,
+    pub order_status: OrderStatus,
     pub quantity: f64,
     pub price: f64,
     pub tp: Option<f64>,
