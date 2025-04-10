@@ -1,4 +1,4 @@
-use event_center::request_event::{SubscribeKlineStreamParams, MarketDataEngineCommand, CommandEvent, UnsubscribeKlineStreamParams};
+use event_center::command_event::CommandEvent;
 use types::market::{Exchange, KlineInterval};
 use std::fmt::Debug;
 use std::any::Any;
@@ -6,15 +6,17 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
 use event_center::market_event::MarketEvent;
-use crate::*;
 use types::strategy::message::{KlineSeriesMessage, NodeMessage};
 use uuid::Uuid;
-use event_center::request_event::{RegisterExchangeParams, ExchangeManagerCommand};
-use event_center::response_event::{MarketDataEngineResponse, ResponseEvent, ExchangeManagerResponse};
+use event_center::response_event::ResponseEvent;
 use event_center::strategy_event::StrategyEvent;
 use super::super::node_types::NodeRunState;
 use super::super::node_context::{NodeContext,BaseNodeContext};
-
+use event_center::command_event::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
+use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
+use event_center::response_event::market_engine_response::MarketEngineResponse;
+use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
+use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
 
 
 
@@ -156,13 +158,13 @@ impl LiveDataNodeContext {
 
 
         match response_event {
-            ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
+            ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
                 if request_id == register_exchange_success_response.response_id {
                     tracing::info!("{}: 交易所注册成功: {:?}", self.base_context.node_id, register_exchange_success_response);
                     self.request_id = None;
                 }
             }
-            ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(subscribe_kline_stream_success_response)) => {
+            ResponseEvent::MarketEngine(MarketEngineResponse::SubscribeKlineStreamSuccess(subscribe_kline_stream_success_response)) => {
                 
                 if request_id == subscribe_kline_stream_success_response.response_id {
                     tracing::info!("{}: K线流订阅成功: {:?}, 开始推送数据", self.base_context.node_id, subscribe_kline_stream_success_response);
@@ -172,7 +174,7 @@ impl LiveDataNodeContext {
                     tracing::warn!("{}: 订阅状态修改为true", self.base_context.node_id);
                 }
             }
-            ResponseEvent::MarketDataEngine(MarketDataEngineResponse::UnsubscribeKlineStreamSuccess(unsubscribe_kline_stream_success_response)) => {
+            ResponseEvent::MarketEngine(MarketEngineResponse::UnsubscribeKlineStreamSuccess(unsubscribe_kline_stream_success_response)) => {
                 if request_id == unsubscribe_kline_stream_success_response.response_id {
                     tracing::info!("{}: K线流取消订阅成功: {:?}, 停止推送数据", self.base_context.node_id, unsubscribe_kline_stream_success_response);
                     self.request_id = None;
@@ -196,7 +198,7 @@ impl LiveDataNodeContext {
         self.request_id = Some(request_id);
         tracing::warn!("{}: 注册交易所的请求id: {:?}", self.base_context.node_id, self.request_id);
 
-        let command_event = CommandEvent::ExchangeManager(ExchangeManagerCommand::RegisterExchange(register_param));
+        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
         tracing::info!("{}注册交易所: {:?}", self.base_context.node_id, command_event);
         if let Err(e) = self.base_context.event_publisher.publish(command_event.into()) {
             tracing::error!(
@@ -226,7 +228,7 @@ impl LiveDataNodeContext {
 
         self.request_id = Some(request_id);
 
-        let command_event = CommandEvent::MarketDataEngine(MarketDataEngineCommand::SubscribeKlineStream(params));
+        let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(params));
         tracing::info!("{}订阅k线流: {:?}", self.base_context.node_id, command_event);
         if let Err(e) = self.get_event_publisher().publish(command_event.into()) {
             tracing::error!(
@@ -255,7 +257,7 @@ impl LiveDataNodeContext {
         // 设置请求id
         self.request_id = Some(request_id);
 
-        let command_event = CommandEvent::MarketDataEngine(MarketDataEngineCommand::UnsubscribeKlineStream(params));
+        let command_event = CommandEvent::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(params));
         if let Err(_) = self.base_context.event_publisher.publish(command_event.into()) {
             tracing::error!(
                 node_id = %self.base_context.node_id,

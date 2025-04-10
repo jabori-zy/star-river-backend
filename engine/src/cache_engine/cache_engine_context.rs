@@ -1,5 +1,6 @@
 use event_center::Event;
-use event_center::request_event::{CommandEvent, KlineCacheManagerCommand, IndicatorCacheManagerCommand};
+use event_center::command_event::CommandEvent;
+use event_center::command_event::cache_engine_command::CacheEngineCommand;
 use event_center::exchange_event::ExchangeEvent;
 use event_center::indicator_event::IndicatorEvent;
 use types::cache::KlineCacheKey;
@@ -88,29 +89,24 @@ impl CacheEngineContext {
         
         match command_event {
             // 处理k线缓存的命令
-            CommandEvent::KlineCacheManager(command) => {
+            CommandEvent::CacheEngine(command) => {
                 match command {
-                    
-                    KlineCacheManagerCommand::AddKlineCacheKey(params) => {
+                    CacheEngineCommand::AddKlineCacheKey(params) => {
                         tracing::info!("接收到添加k线缓存键命令: {:?}", params);
                         let mut kline_cache_manager = self.kline_cache_manager.write().await;
                         kline_cache_manager.add_cache_key(params.strategy_id, params.cache_key);
                     }
-                }
-            }
-            // 处理指标缓存的命令
-            CommandEvent::IndicatorCacheManager(command) => {
-                match command {
-                    // IndicatorCacheManagerCommand::SubscribeIndicator(params) => {
-                    //     let indicator_cache_manager = &mut state.write().await.indicator_cache_manager;
-                    //     indicator_cache_manager.add_cache_key(params.cache_key);
-                    // }
-                    IndicatorCacheManagerCommand::GetSubscribedIndicator(params) => {
+                    CacheEngineCommand::SubscribeIndicator(params) => {
+                        // tracing::info!("接收到订阅指标命令: {:?}", params);
+                        // let mut indicator_cache_manager = self.indicator_cache_manager.write().await;
+                        // indicator_cache_manager.add_cache_key(params.cache_key, event_publisher);
+                    }
+                    CacheEngineCommand::GetSubscribedIndicator(params) => {
+                        tracing::info!("接收到获取订阅指标命令: {:?}", params);
                         let event_publisher = self.event_publisher.clone();
                         let indicator_cache_manager = self.indicator_cache_manager.write().await;
                         indicator_cache_manager.get_subscribed_indicator(params, event_publisher);
                     }
-                    _ => {}
                 }
             }
             _ => {}

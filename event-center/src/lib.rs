@@ -2,7 +2,7 @@ pub mod market_event;
 pub mod order_event;
 pub mod position_event;
 pub mod database_event;
-pub mod request_event;
+pub mod command_event;
 pub mod response_event;
 pub mod strategy_event;
 pub mod indicator_event;
@@ -10,7 +10,7 @@ pub mod exchange_event;
 
 
 use crate::market_event::MarketEvent;
-use crate::request_event::CommandEvent;
+use crate::command_event::CommandEvent;
 use crate::exchange_event::ExchangeEvent;
 use crate::response_event::ResponseEvent;
 use crate::strategy_event::StrategyEvent;

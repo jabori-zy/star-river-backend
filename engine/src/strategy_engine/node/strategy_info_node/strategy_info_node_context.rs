@@ -9,10 +9,11 @@ use uuid::Uuid;
 use types::position::PositionNumberRequest;
 use super::super::node_context::{BaseNodeContext, NodeContext};
 use types::strategy::message::NodeMessage;
-use event_center::response_event::{ResponseEvent,ExchangeManagerResponse};
+use event_center::response_event::ResponseEvent;
+use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
 use types::strategy::message::Signal;
-use event_center::request_event::CommandEvent;
-use event_center::request_event::position_engine_command::{PositionEngineCommand, GetPositionNumberParams};
+use event_center::command_event::CommandEvent;
+use event_center::command_event::position_engine_command::{PositionEngineCommand, GetPositionNumberParams};
 
 
 
@@ -40,7 +41,7 @@ impl StrategyInfoNodeContext {
             }
         };
         match response_event {
-            ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
+            ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
                 if request_id == register_exchange_success_response.response_id {
                     tracing::info!("{}: 交易所注册成功: {:?}", self.get_node_id(), register_exchange_success_response);
                     self.request_id = None;

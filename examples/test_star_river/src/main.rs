@@ -2,14 +2,14 @@
 use event_center::{Channel, EventCenter};
 use database::DatabaseManager;
 use sea_orm::prelude::Uuid;
-use types::{market::Exchange, order::OrderRequest};
+use types::market::Exchange;
 use std::time::Duration;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
-use event_center::request_event::RegisterExchangeParams;
-use event_center::request_event::CommandEvent;
+use event_center::command_event::CommandEvent;
 use engine::engine_manager::EngineManager;
-use event_center::request_event::ExchangeManagerCommand;
+use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
+use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
 
 #[tokio::main]
 async fn main() {
@@ -24,18 +24,18 @@ async fn main() {
 
     let event_center = EventCenter::new();
 
+    let database = DatabaseManager::new().await;
+
 
     let engine_event_publisher = event_center.get_event_publisher();
     let market_event_receiver = event_center.subscribe(&Channel::Market).unwrap();
     let request_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
     let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
+    let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).unwrap();
 
 
     // 初始化数据库
-    let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).unwrap();
-    let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
-    let event_publisher = event_center.get_event_publisher();
-    let database = DatabaseManager::new(command_event_receiver, event_publisher);
+    
 
     let engine_manager = EngineManager::new(
         engine_event_publisher, 
@@ -43,7 +43,7 @@ async fn main() {
         market_event_receiver, 
         request_event_receiver, 
         response_event_receiver,
-        database.await.get_conn()
+        database.get_conn()
     );
 
     // 启动市场引擎
@@ -64,7 +64,7 @@ async fn main() {
             timestamp: 1111,
             request_id: Uuid::new_v4(),
         };
-        let command_event = CommandEvent::ExchangeManager(ExchangeManagerCommand::RegisterExchange(register_param));
+        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
         event_publish.publish(command_event.into()).unwrap();
 
     });

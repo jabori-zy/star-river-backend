@@ -10,12 +10,11 @@ use types::order::OrderRequest;
 use super::super::node_context::{BaseNodeContext,NodeContext};
 use types::strategy::message::NodeMessage;
 use event_center::response_event::ResponseEvent;
-use event_center::response_event::ExchangeManagerResponse;
 use types::strategy::message::Signal;
-use event_center::request_event::CommandEvent;
-use event_center::request_event::OrderEngineCommand;
-use event_center::request_event::CreateOrderParams;
-
+use event_center::command_event::CommandEvent;
+use event_center::command_event::order_engine_command::OrderEngineCommand;
+use event_center::command_event::order_engine_command::CreateOrderParams;
+use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
 
 
 #[derive(Debug, Clone)]
@@ -40,7 +39,7 @@ impl OrderNodeContext {
             }
         };
         match response_event {
-            ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
+            ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
                 if request_id == register_exchange_success_response.response_id {
                     tracing::info!("{}: 交易所注册成功: {:?}", self.get_node_id(), register_exchange_success_response);
                     self.request_id = None;

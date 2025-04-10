@@ -21,9 +21,8 @@ impl StarRiver {
         
         let event_center = EventCenter::new();
         // 初始化数据库
-        let command_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
-        let database_event_publisher = event_center.get_event_publisher();
-        let database = DatabaseManager::new(command_event_receiver, database_event_publisher).await;
+
+        let database = DatabaseManager::new().await;
 
         // 初始化引擎管理器
         let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).unwrap();
@@ -51,7 +50,6 @@ impl StarRiver {
 pub async fn init_app(State(app_state): State<StarRiver>) {
     // 初始化app
     start_heartbeat(State(app_state.clone())).await;
-    start_database(State(app_state.clone())).await;
     start_engine_manager(State(app_state.clone())).await;
 }
 
@@ -62,16 +60,6 @@ async fn start_heartbeat(star_river: State<StarRiver>) {
         let heartbeat = heartbeat.lock().await;
         heartbeat.start().await.unwrap();
         tracing::info!("心跳已启动");
-    });
-}
-
-
-
-async fn start_database(star_river: State<StarRiver>) {
-    let database = star_river.database.clone();
-    tokio::spawn(async move {
-        let database = database.lock().await;
-        database.start().await;
     });
 }
 

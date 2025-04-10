@@ -70,7 +70,8 @@ impl NodeTrait for StartNode {
     }
 
 
-    async fn add_from_node_id(&mut self, from_node_id: String) {    
+    async fn add_from_node_id(&mut self, from_node_id: String) {
+        let _from_node_id = from_node_id;
     }
 
     async fn init(&mut self) -> Result<(), String> {

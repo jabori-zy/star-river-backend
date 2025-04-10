@@ -7,12 +7,14 @@ use async_trait::async_trait;
 use std::any::Any;
 use crate::EngineName;
 use std::sync::Arc;
-use event_center::request_event::{CommandEvent,MarketDataEngineCommand};
-use event_center::request_event::{SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
-use event_center::request_event::{AddKlineCacheKeyParams, KlineCacheManagerCommand};
+use event_center::command_event::CommandEvent;
+use event_center::command_event::cache_engine_command::CacheEngineCommand;
+use event_center::response_event::ResponseEvent;
+use event_center::response_event::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
+use event_center::command_event::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
+use event_center::command_event::cache_engine_command::AddKlineCacheKeyParams;
 use types::cache::KlineCacheKey;
 use utils::get_utc8_timestamp_millis;
-use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
 use types::market::KlineInterval;
 use event_center::EventPublisher;
 use tokio::sync::Mutex;
@@ -74,10 +76,10 @@ impl EngineContext for MarketEngineContext {
         match event {
             Event::Command(command_event) => {
                 match command_event {
-                    CommandEvent::MarketDataEngine(MarketDataEngineCommand::SubscribeKlineStream(params)) => {
+                    CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(params)) => {
                         self.subscribe_kline_stream(params).await.unwrap();
                     }
-                    CommandEvent::MarketDataEngine(MarketDataEngineCommand::UnsubscribeKlineStream(params)) => {
+                    CommandEvent::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(params)) => {
                         self.unsubscribe_kline_stream(params).await.unwrap();
                     }
                     _ => {}
@@ -106,8 +108,8 @@ impl MarketEngineContext {
             timestamp: get_utc8_timestamp_millis(),
 
         };
-        let command = KlineCacheManagerCommand::AddKlineCacheKey(params);
-        let command_event = CommandEvent::KlineCacheManager(command);
+        let command = CacheEngineCommand::AddKlineCacheKey(params);
+        let command_event = CommandEvent::CacheEngine(command);
 
         self.get_event_publisher().publish(command_event.clone().into()).unwrap();
     }
@@ -155,7 +157,7 @@ impl MarketEngineContext {
         tracing::debug!("市场数据引擎订阅K线流成功, 请求节点:{}, 请求id: {}", params.node_id, request_id);
 
         // 都成功后，发送响应事件
-        let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse {
+        let response_event = ResponseEvent::MarketEngine(MarketEngineResponse::SubscribeKlineStreamSuccess(SubscribeKlineStreamSuccessResponse {
             exchange: params.exchange,
             symbol: params.symbol,
             interval: params.interval,
@@ -191,7 +193,7 @@ impl MarketEngineContext {
         exchange.unsubscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
 
         let request_id = params.request_id;
-        let response_event = ResponseEvent::MarketDataEngine(MarketDataEngineResponse::UnsubscribeKlineStreamSuccess(UnsubscribeKlineStreamSuccessResponse {
+        let response_event = ResponseEvent::MarketEngine(MarketEngineResponse::UnsubscribeKlineStreamSuccess(UnsubscribeKlineStreamSuccessResponse {
             exchange: params.exchange,
             symbol: params.symbol,
             interval: params.interval,

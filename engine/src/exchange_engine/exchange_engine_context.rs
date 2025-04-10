@@ -4,26 +4,17 @@ use event_center::Event;
 use crate::EngineContext;
 use async_trait::async_trait;
 use std::any::Any;
-use std::process::Command;
 use crate::EngineName;
-use std::sync::Arc;
-use event_center::request_event::{CommandEvent,MarketDataEngineCommand, ExchangeManagerCommand};
-use event_center::request_event::{SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
-use event_center::request_event::{AddKlineCacheKeyParams, KlineCacheManagerCommand};
-use types::cache::KlineCacheKey;
-use utils::get_utc8_timestamp_millis;
-use event_center::response_event::{ResponseEvent, MarketDataEngineResponse,SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
-use types::market::KlineInterval;
+use event_center::command_event::CommandEvent;
+use event_center::command_event::exchange_engine_command::{RegisterExchangeParams, ExchangeEngineCommand};
+use event_center::response_event::ResponseEvent;
+use event_center::response_event::exchange_engine_response::{ExchangeEngineResponse, RegisterExchangeSuccessResponse};
 use event_center::EventPublisher;
 use exchange_client::ExchangeClient;
 use std::collections::HashMap;
-use event_center::request_event::RegisterExchangeParams;
-use event_center::response_event::ExchangeManagerResponse;
 use utils::get_utc8_timestamp;
-use event_center::response_event::RegisterExchangeSuccessResponse;
 use exchange_client::binance::BinanceExchange;
 use exchange_client::metatrader5::MetaTrader5;
-use tokio::sync::{RwLockReadGuard,RwLockWriteGuard};
 
 
 
@@ -78,9 +69,9 @@ impl EngineContext for ExchangeEngineContext {
         match event {
             Event::Command(command_event) => {
                 match command_event {
-                    CommandEvent::ExchangeManager(exchange_manager_command) => {
+                    CommandEvent::ExchangeEngine(exchange_manager_command) => {
                         match exchange_manager_command {
-                            ExchangeManagerCommand::RegisterExchange(register_exchange_command) => {
+                            ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
                                 tracing::debug!("接收到命令: {:?}", register_exchange_command);
                                 self.register_exchange(register_exchange_command).await.expect("注册交易所失败");
                             }
@@ -107,7 +98,7 @@ impl ExchangeEngineContext {
         if !should_register {
             // 直接发送响应事件
             tracing::warn!("{}交易所已注册, 无需重复注册", register_params.exchange);
-            let response_event = ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
+            let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
                 exchange: register_params.exchange.clone(),
                 response_timestamp: get_utc8_timestamp(),
                 response_id: register_params.request_id,
@@ -127,7 +118,7 @@ impl ExchangeEngineContext {
                 self.exchanges.insert(register_params.exchange.clone(), binance_exchange);
                 // 发送响应事件
 
-                let response_event = ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
+                let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
                     exchange: register_params.exchange.clone(),
                     response_timestamp: get_utc8_timestamp(),
                     response_id: register_params.request_id,
@@ -154,7 +145,7 @@ impl ExchangeEngineContext {
                 tracing::info!("{}交易所注册成功!", register_params.exchange);
 
                 self.exchanges.insert(register_params.exchange.clone(), mt5_exchange);
-                let response_event = ResponseEvent::ExchangeManager(ExchangeManagerResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
+                let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
                     exchange: register_params.exchange.clone(),
                     response_timestamp: get_utc8_timestamp(),
                     response_id: register_params.request_id,

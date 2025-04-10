@@ -6,11 +6,6 @@ use std::env;
 use std::path::PathBuf;
 use sea_orm_migration::MigratorTrait;
 use migration::Migrator;
-use event_center::{Event, EventPublisher};
-use event_center::request_event::CommandEvent;
-use event_center::request_event::DatabaseCommand;
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
 use log::LevelFilter;
 
 
@@ -18,20 +13,15 @@ use log::LevelFilter;
 pub struct DatabaseManager {
     pub path: PathBuf,
     pub conn: DatabaseConnection,
-    event_publisher: EventPublisher,
-    command_event_receiver: broadcast::Receiver<Event>,
 }
 
 impl DatabaseManager {
 
-    pub async fn new(
-        command_event_receiver: broadcast::Receiver<Event>,
-        event_publisher: EventPublisher,
-    ) -> Self {
+    pub async fn new() -> Self {
         let path = Self::get_database_path().unwrap();
         // 初始化数据库
         let conn = Self::create_database(&path).await.unwrap();
-        Self { path, conn, command_event_receiver, event_publisher }
+        Self { path, conn }
     }
 
     pub async fn migrate(&self) {
@@ -88,47 +78,5 @@ impl DatabaseManager {
 
     pub async fn close(self) {
         self.conn.close().await.unwrap();
-    }
-
-    pub async fn listen(
-        &self,
-        internal_tx: mpsc::Sender<Event>,
-    ) {
-        tracing::info!("数据库启动成功, 开始监听...");
-        let mut command_receiver = self.command_event_receiver.resubscribe();
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    Ok(event) = command_receiver.recv() => {
-                        let _ = internal_tx.send(event).await;
-                    }
-                }
-            }
-        });
-    }
-
-    async fn handle_events(mut internal_rx: mpsc::Receiver<Event>) {
-        tokio::spawn(async move {
-            loop {
-                let event = internal_rx.recv().await.unwrap();
-                match event {
-                    Event::Command(CommandEvent::Database(database_cmd)) => {
-                        match database_cmd {
-                            DatabaseCommand::CreateStrategy(create_strategy_params) => {
-                                tracing::info!("创建策略: {:?}", create_strategy_params);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        });       
-        
-    }
-    pub async fn start(&self) {
-        let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<Event>(100);
-        self.listen(internal_tx).await;
-
-        Self::handle_events(internal_rx).await;
     }
 }
