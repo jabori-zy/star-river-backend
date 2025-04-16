@@ -3,18 +3,21 @@ use strum::Display;
 use std::fmt::Debug;
 use uuid::Uuid;
 use types::position::PositionNumberRequest;
+use types::market::Exchange;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum PositionEngineCommand {
     #[strum(serialize = "create-order")]
-    GetPositionNumber(GetPositionNumberParams),
+    GetPositionNumber(GetPositionNumberParam),
+    #[strum(serialize = "get-position")]
+    GetPosition(GetPositionParam),
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetPositionNumberParams {
-    pub strategy_id: i32,
+pub struct GetPositionNumberParam {
+    pub strategy_id: i64,
     pub node_id: String,
     pub position_number_request: PositionNumberRequest,
     pub sender: String,
@@ -23,6 +26,13 @@ pub struct GetPositionNumberParams {
 }
 
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetPositionParam {
+    pub strategy_id: i64,
+    pub node_id: String,
+    pub exchange: Exchange,
+    pub position_id: i64,
+}
 
 
 

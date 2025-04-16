@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use std::fmt::Debug;
-use uuid::Uuid;
-use types::order::OrderRequest;
+use types::order::{OrderSide, OrderType};
+use types::market::Exchange;
+use crate::command_event::BaseCommandParams;
 
 
 
@@ -16,10 +17,28 @@ pub enum OrderEngineCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {
-    pub strategy_id: i32,
-    pub node_id: String,
-    pub order_request: OrderRequest,
-    pub sender: String,
-    pub timestamp: i64,
-    pub request_id: Uuid,
+    #[serde(flatten)]
+    pub base_params: BaseCommandParams,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub order_type: OrderType,
+    pub order_side: OrderSide,
+    pub quantity: f64,
+    pub price: f64,
+    pub tp: Option<f64>,
+    pub sl: Option<f64>,
+    pub comment: String,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetTransactionDetailParams {
+    pub strategy_id: i64,
+    pub node_id: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub transaction_id: Option<i64>,
+    pub position_id: Option<i64>,
+    pub order_id: Option<i64>,
+}
+

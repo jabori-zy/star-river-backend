@@ -13,7 +13,7 @@ use event_center::response_event::ResponseEvent;
 use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
 use types::strategy::message::Signal;
 use event_center::command_event::CommandEvent;
-use event_center::command_event::position_engine_command::{PositionEngineCommand, GetPositionNumberParams};
+use event_center::command_event::position_engine_command::{PositionEngineCommand, GetPositionNumberParam};
 
 
 
@@ -52,7 +52,7 @@ impl StrategyInfoNodeContext {
     }
 
     async fn get_position_number(&self) {
-        let get_position_number_params = GetPositionNumberParams {
+        let get_position_number_params = GetPositionNumberParam {
             strategy_id: self.get_strategy_id().clone(),
             node_id: self.get_node_id().clone(),
             position_number_request: self.position_number_request.clone(),

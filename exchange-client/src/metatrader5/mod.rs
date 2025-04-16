@@ -18,8 +18,6 @@ use std::sync::Mutex as StdMutex;
 use tokio::sync::Mutex;
 use tokio::process::Child;
 use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
-use strum::{EnumString, Display};
-use serde::{Serialize, Deserialize};
 use types::market::KlineInterval;
 use mt5_ws_client::Mt5WsClient;
 use mt5_ws_client::WebSocketState;
@@ -33,87 +31,29 @@ use event_center::EventPublisher;
 use crate::ExchangeClient;
 use std::any::Any;
 use async_trait::async_trait;
-use types::order::{OrderRequest, Order};
-use types::order::Mt5OrderRequest;
-use types::position::PositionNumberRequest;
+use types::order::{ExchangeOrder, Order};
+use event_center::command_event::order_engine_command::CreateOrderParams;
+use types::position::{PositionNumberRequest, ExchangePosition, Position};
+use super::metatrader5::mt5_types::Mt5CreateOrderParams;
+use event_center::command_event::position_engine_command::GetPositionParam;
+use super::metatrader5::mt5_types::Mt5KlineInterval;
+use event_center::command_event::order_engine_command::GetTransactionDetailParams;
+use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
+use types::account::{ExchangeAccountInfo, Mt5AccountInfo};
+
+
+
+
+
 
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
 
 
-#[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
-pub enum Mt5KlineInterval {
-    #[strum(serialize = "M1")]
-    Minutes1,
-    #[strum(serialize = "M5")]
-    Minutes5,
-    #[strum(serialize = "M15")]
-    Minutes15,
-    #[strum(serialize = "M30")]
-    Minutes30,
-    #[strum(serialize = "H1")]
-    Hours1,
-    #[strum(serialize = "H2")]
-    Hours2,
-    #[strum(serialize = "H4")]
-    Hours4,
-    #[strum(serialize = "H6")]
-    Hours6,
-    #[strum(serialize = "H8")]
-    Hours8,
-    #[strum(serialize = "H12")]
-    Hours12,
-    #[strum(serialize = "D1")]
-    Days1,
-    #[strum(serialize = "W1")]
-    Weeks1,
-    #[strum(serialize = "MN1")]
-    Months1,
-}
 
-// 将KlineInterval转换为BinanceKlineInterval
-impl From<KlineInterval> for Mt5KlineInterval {
-    fn from(interval: KlineInterval) -> Self {
-        match interval {
-            KlineInterval::Minutes1 => Mt5KlineInterval::Minutes1,
-            KlineInterval::Minutes5 => Mt5KlineInterval::Minutes5,
-            KlineInterval::Minutes15 => Mt5KlineInterval::Minutes15,
-            KlineInterval::Minutes30 => Mt5KlineInterval::Minutes30,
-            KlineInterval::Hours1 => Mt5KlineInterval::Hours1,
-            KlineInterval::Hours2 => Mt5KlineInterval::Hours2,
-            KlineInterval::Hours4 => Mt5KlineInterval::Hours4,
-            KlineInterval::Hours6 => Mt5KlineInterval::Hours6,
-            KlineInterval::Hours8 => Mt5KlineInterval::Hours8,
-            KlineInterval::Hours12 => Mt5KlineInterval::Hours12,
-            KlineInterval::Days1 => Mt5KlineInterval::Days1,
-            KlineInterval::Weeks1 => Mt5KlineInterval::Weeks1,
-            KlineInterval::Months1 => Mt5KlineInterval::Months1,
 
-        }
-    }
-}
 
-// 将BinanceKlineInterval转换为KlineInterval
-impl Into<KlineInterval> for Mt5KlineInterval {
-    fn into(self) -> KlineInterval {
-        match self {
-            Mt5KlineInterval::Minutes1 => KlineInterval::Minutes1,
-            Mt5KlineInterval::Minutes5 => KlineInterval::Minutes5,
-            Mt5KlineInterval::Minutes15 => KlineInterval::Minutes15,
-            Mt5KlineInterval::Minutes30 => KlineInterval::Minutes30,
-            Mt5KlineInterval::Hours1 => KlineInterval::Hours1,
-            Mt5KlineInterval::Hours2 => KlineInterval::Hours2,
-            Mt5KlineInterval::Hours4 => KlineInterval::Hours4,
-            Mt5KlineInterval::Hours6 => KlineInterval::Hours6,
-            Mt5KlineInterval::Hours8 => KlineInterval::Hours8,
-            Mt5KlineInterval::Hours12 => KlineInterval::Hours12,
-            Mt5KlineInterval::Days1 => KlineInterval::Days1,
-            Mt5KlineInterval::Weeks1 => KlineInterval::Weeks1,
-            Mt5KlineInterval::Months1 => KlineInterval::Months1,
-        }
-    }
-}
 
 
 pub struct MetaTrader5AccountConfig {
@@ -324,18 +264,6 @@ impl MetaTrader5 {
 }
 
 
-impl Drop for MetaTrader5 {
-    fn drop(&mut self) {
-        // 在对象被销毁时确保进程被关闭
-        if let Some(mut child) = self.mt5_process.lock().unwrap().take() {
-            // 同步方式结束进程
-            let _ = child.start_kill();
-            tracing::info!("metatrader5服务已停止");
-        }
-    }
-}
-
-
 #[async_trait]
 impl ExchangeClient for MetaTrader5 {
     fn as_any(&self) -> &dyn Any {
@@ -453,16 +381,18 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn create_order(&self, order_request: OrderRequest) -> Result<Order, String> {
-        let strategy_id = order_request.strategy_id.clone();
-        let node_id = order_request.node_id.clone();
+    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn ExchangeOrder>, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
-        let mt5_order_request = Mt5OrderRequest::from(order_request);
-        // 处理order_info
-        let mut order_info = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
-        // 把strategy_id和node_id添加到order_info中.直接添加，而不是通过json!添加
-        order_info["strategy_id"] = serde_json::Value::Number(strategy_id.into());
-        order_info["node_id"] = serde_json::Value::String(node_id);
+        let mt5_order_request = Mt5CreateOrderParams::from(params);
+        // 创建订单
+        let create_order_result = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
+        // 根据创建的订单，获取订单的信息
+        let retcode = create_order_result["data"]["retcode"].as_i64().expect("获取retcode失败");
+        if retcode != 10009 {
+            return Err(format!("创建订单失败, retcode: {}", retcode));
+        }
+        let order_id = create_order_result["data"]["order_id"].as_i64().expect("获取order_id失败");
+        let order_info = mt5_http_client.get_order(&order_id).await.expect("获取订单失败");
 
         let data_processor = self.data_processor.lock().await;
         let order = data_processor.process_order(order_info).await.expect("处理订单失败");
@@ -472,6 +402,55 @@ impl ExchangeClient for MetaTrader5 {
         Ok(order)
     }
 
+    async fn update_order(&self, order: Order) -> Result<Order, String> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        let order_info = mt5_http_client.get_order(&order.exchange_order_id).await.expect("更新订单失败");
+
+        let data_processor = self.data_processor.lock().await;
+        let order = data_processor.update_order(order_info, order).await.expect("处理订单失败");
+        Ok(order)
+    }
+
+
+    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn ExchangeTransactionDetail>, String> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        // 如果transaction_id不为None，则按照deal_id获取交易明细
+        if let Some(transaction_id) = params.transaction_id {
+            let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await.expect("获取交易明细失败");
+            let data_processor = self.data_processor.lock().await;
+            let transaction_detail = data_processor.process_deal(transaction_detail_info).await.expect("处理交易明细失败");
+            return Ok(transaction_detail);
+        } else if let Some(position_id) = params.position_id {
+            let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await.expect("获取交易明细失败");
+            let data_processor = self.data_processor.lock().await;
+            let transaction_detail = data_processor.process_deal(transaction_detail_info).await.expect("处理交易明细失败");
+            return Ok(transaction_detail);
+        } else if let Some(order_id) = params.order_id {
+            let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await.expect("获取交易明细失败");
+            let data_processor = self.data_processor.lock().await;
+            let transaction_detail = data_processor.process_deal(transaction_detail_info).await.expect("处理交易明细失败");
+            return Ok(transaction_detail);
+        } else {
+            return Err("交易明细id不能为None".to_string());
+        }
+    }
+
+    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn ExchangePosition>, String> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        let position_info = mt5_http_client.get_position(&params.position_id).await.expect("获取仓位失败");
+        let data_processor = self.data_processor.lock().await;
+        let position = data_processor.process_position(position_info).await.expect("处理仓位失败");
+        Ok(position)
+    }
+
+    async fn update_position(&self, position: &Position) -> Result<Position, String> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        let position_info = mt5_http_client.get_position(&position.exchange_position_id).await.expect("更新仓位失败");
+        let data_processor = self.data_processor.lock().await;
+        let position = data_processor.update_position(position_info, position).await.expect("处理仓位失败");
+        Ok(position)
+    }
+
     async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         let mt5_position_number_request = Mt5PositionNumberRequest::from(position_number_request);
@@ -479,6 +458,14 @@ impl ExchangeClient for MetaTrader5 {
         let mt5_data_processor = self.data_processor.lock().await;
         let position_number = mt5_data_processor.process_position_number(position_number_info).await.expect("解析position_number数据失败");
         Ok(position_number)
+    }
+
+    async fn get_account_info(&self) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        let account_info = mt5_http_client.get_account_info().await.expect("获取账户信息失败");
+        let data_processor = self.data_processor.lock().await;
+        let account_info = data_processor.process_account_info(account_info).await.expect("处理账户信息失败");
+        Ok(account_info)
     }
 
 }

@@ -16,6 +16,7 @@ use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy
 use crate::api::query_api::{get_strategy_list, get_strategy_by_id};
 use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, enable_strategy_event_push, disable_strategy_event_push};
 use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler};
+use crate::api::account_api::add_account_config;
 use tracing::Level;
 use crate::websocket::ws_handler;
 use crate::star_river::init_app;
@@ -40,7 +41,6 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let star_river = StarRiver::new().await;
 
     let app = Router::new()
-        .route("/", get(hello_world))
         .route("/ws", any(ws_handler))
         .route("/market_sse", get(market_sse_handler))
         .route("/indicator_sse", get(indicator_sse_handler))
@@ -55,6 +55,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/update_strategy", post(update_strategy))
         .route("/delete_strategy", delete(delete_strategy))
         .route("/get_strategy", get(get_strategy_by_id))
+        .route("/add_account_config", post(add_account_config))
         .layer(cors)
         .with_state(star_river.clone());
 
@@ -115,14 +116,6 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
-
-
-
-async fn hello_world() -> String {
-    tracing::info!("hello_world");
-    "Hello, World!".to_string()
-}
 
 async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
     let mut retries = 0;

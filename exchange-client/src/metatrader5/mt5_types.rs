@@ -2,6 +2,116 @@ use serde::{Serialize, Deserialize};
 use types::position::PositionNumberRequest;
 use types::market::Exchange;
 use types::position::PositionSide;
+use strum::{EnumString, Display};
+use types::order::OrderStatus;
+use types::order::ExchangeOrder;
+use std::any::Any;
+use event_center::command_event::order_engine_command::CreateOrderParams;
+use types::order::{OrderType, OrderSide};
+use chrono::{DateTime, Utc};
+use chrono::TimeZone;
+use types::market::KlineInterval;
+use types::position::ExchangePosition;
+use types::transaction_detail::ExchangeTransactionDetail;
+use types::transaction_detail::{TransactionType, TransactionSide};
+
+#[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
+pub enum Mt5KlineInterval {
+    #[strum(serialize = "M1")]
+    Minutes1,
+    #[strum(serialize = "M5")]
+    Minutes5,
+    #[strum(serialize = "M15")]
+    Minutes15,
+    #[strum(serialize = "M30")]
+    Minutes30,
+    #[strum(serialize = "H1")]
+    Hours1,
+    #[strum(serialize = "H2")]
+    Hours2,
+    #[strum(serialize = "H4")]
+    Hours4,
+    #[strum(serialize = "H6")]
+    Hours6,
+    #[strum(serialize = "H8")]
+    Hours8,
+    #[strum(serialize = "H12")]
+    Hours12,
+    #[strum(serialize = "D1")]
+    Days1,
+    #[strum(serialize = "W1")]
+    Weeks1,
+    #[strum(serialize = "MN1")]
+    Months1,
+}
+
+// 将KlineInterval转换为BinanceKlineInterval
+impl From<KlineInterval> for Mt5KlineInterval {
+    fn from(interval: KlineInterval) -> Self {
+        match interval {
+            KlineInterval::Minutes1 => Mt5KlineInterval::Minutes1,
+            KlineInterval::Minutes5 => Mt5KlineInterval::Minutes5,
+            KlineInterval::Minutes15 => Mt5KlineInterval::Minutes15,
+            KlineInterval::Minutes30 => Mt5KlineInterval::Minutes30,
+            KlineInterval::Hours1 => Mt5KlineInterval::Hours1,
+            KlineInterval::Hours2 => Mt5KlineInterval::Hours2,
+            KlineInterval::Hours4 => Mt5KlineInterval::Hours4,
+            KlineInterval::Hours6 => Mt5KlineInterval::Hours6,
+            KlineInterval::Hours8 => Mt5KlineInterval::Hours8,
+            KlineInterval::Hours12 => Mt5KlineInterval::Hours12,
+            KlineInterval::Days1 => Mt5KlineInterval::Days1,
+            KlineInterval::Weeks1 => Mt5KlineInterval::Weeks1,
+            KlineInterval::Months1 => Mt5KlineInterval::Months1,
+
+        }
+    }
+}
+
+// 将BinanceKlineInterval转换为KlineInterval
+impl From<Mt5KlineInterval> for KlineInterval {
+    fn from(value: Mt5KlineInterval) -> Self {
+        match value {
+            Mt5KlineInterval::Minutes1 => KlineInterval::Minutes1,
+            Mt5KlineInterval::Minutes5 => KlineInterval::Minutes5,
+            Mt5KlineInterval::Minutes15 => KlineInterval::Minutes15,
+            Mt5KlineInterval::Minutes30 => KlineInterval::Minutes30,
+            Mt5KlineInterval::Hours1 => KlineInterval::Hours1,
+            Mt5KlineInterval::Hours2 => KlineInterval::Hours2,
+            Mt5KlineInterval::Hours4 => KlineInterval::Hours4,
+            Mt5KlineInterval::Hours6 => KlineInterval::Hours6,
+            Mt5KlineInterval::Hours8 => KlineInterval::Hours8,
+            Mt5KlineInterval::Hours12 => KlineInterval::Hours12,
+            Mt5KlineInterval::Days1 => KlineInterval::Days1,
+            Mt5KlineInterval::Weeks1 => KlineInterval::Weeks1,
+            Mt5KlineInterval::Months1 => KlineInterval::Months1,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct Mt5CreateOrderParams{
+    pub symbol: String,
+    pub order_type: String,
+    pub order_side: String,
+    pub volume: f64,
+    pub price: f64,
+    pub tp: Option<f64>,
+    pub sl: Option<f64>,
+}
+
+impl From<CreateOrderParams> for Mt5CreateOrderParams {
+    fn from(value: CreateOrderParams) -> Self {
+        Mt5CreateOrderParams {
+            symbol: value.symbol,
+            order_type: value.order_type.to_string(),
+            order_side: value.order_side.to_string(),
+            volume: value.quantity,
+            price: value.price,
+            tp: value.tp,
+            sl: value.sl,
+        }
+    }
+}
 
 
 
@@ -23,3 +133,371 @@ impl From<PositionNumberRequest> for Mt5PositionNumberRequest {
     }
 
 }
+
+
+
+// mt5 订单状态
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
+#[serde(rename_all = "lowercase")]
+pub enum Mt5OrderState {
+    #[strum(serialize = "created")] // 已创建
+    Created,
+    #[strum(serialize = "placed")] // 已挂单
+    Placed,
+    #[strum(serialize = "filled")] // 已成交
+    Filled,
+    #[strum(serialize = "partial")] // 部分成交
+    Partial,
+    #[strum(serialize = "canceled")] // 已取消
+    Canceled,
+    #[strum(serialize = "expired")] // 已过期
+    Expired,
+    #[strum(serialize = "rejected")] // 已拒绝
+    Rejected,
+}
+
+impl From<Mt5OrderState> for OrderStatus {
+    fn from(value: Mt5OrderState) -> Self {
+        match value {
+            Mt5OrderState::Created => OrderStatus::Created,
+            Mt5OrderState::Placed => OrderStatus::Placed,
+            Mt5OrderState::Filled => OrderStatus::Filled,
+            Mt5OrderState::Partial => OrderStatus::Partial,
+            Mt5OrderState::Canceled => OrderStatus::Canceled,
+            Mt5OrderState::Expired => OrderStatus::Expired,
+            Mt5OrderState::Rejected => OrderStatus::Rejected,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[serde(rename_all = "snake_case")]
+pub enum Mt5OrderType {
+    #[strum(serialize = "order_type_buy")]
+    OrderTypeBuy,
+    #[strum(serialize = "order_type_sell")]
+    OrderTypeSell,
+    #[strum(serialize = "order_type_buy_limit")]
+    OrderTypeBuyLimit,
+    #[strum(serialize = "order_type_sell_limit")]
+    OrderTypeSellLimit,
+    #[strum(serialize = "order_type_buy_stop")]
+    OrderTypeBuyStop,
+    #[strum(serialize = "order_type_sell_stop")]
+    OrderTypeSellStop,
+    #[strum(serialize = "order_type_buy_stop_limit")]
+    OrderTypeBuyStopLimit,
+    #[strum(serialize = "order_type_sell_stop_limit")]
+    OrderTypeSellStopLimit,
+    #[strum(serialize = "order_type_close_by")]
+    OrderTypeCloseBy,
+}
+
+impl From<Mt5OrderType> for OrderType {
+    fn from(value: Mt5OrderType) -> Self {
+        match value {
+            Mt5OrderType::OrderTypeBuy => OrderType::Market,
+            Mt5OrderType::OrderTypeSell => OrderType::Market,
+            Mt5OrderType::OrderTypeBuyLimit => OrderType::Limit,
+            Mt5OrderType::OrderTypeSellLimit => OrderType::Limit,
+            Mt5OrderType::OrderTypeBuyStop => OrderType::Stop,
+            Mt5OrderType::OrderTypeSellStop => OrderType::Stop,
+            Mt5OrderType::OrderTypeBuyStopLimit => OrderType::StopLimit,
+            Mt5OrderType::OrderTypeSellStopLimit => OrderType::StopLimit,
+            Mt5OrderType::OrderTypeCloseBy => {
+                tracing::warn!("遇到不支持的订单类型 OrderTypeCloseBy, 将转换为默认市价单类型");
+                OrderType::Market  // 设置默认转换为市价单
+            }
+        }
+    }
+}
+
+impl From<Mt5OrderType> for OrderSide {
+    fn from(value: Mt5OrderType) -> Self {
+        match value {
+            Mt5OrderType::OrderTypeBuy => OrderSide::Long,
+            Mt5OrderType::OrderTypeSell => OrderSide::Short,
+            Mt5OrderType::OrderTypeBuyLimit => OrderSide::Long,
+            Mt5OrderType::OrderTypeSellLimit => OrderSide::Short,
+            Mt5OrderType::OrderTypeBuyStop => OrderSide::Long,
+            Mt5OrderType::OrderTypeSellStop => OrderSide::Short,
+            Mt5OrderType::OrderTypeBuyStopLimit => OrderSide::Long,
+            Mt5OrderType::OrderTypeSellStopLimit => OrderSide::Short,
+            Mt5OrderType::OrderTypeCloseBy => OrderSide::Long,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Mt5Order {
+    pub order_id: i64,
+    pub position_id: i64,
+    pub symbol: String,
+    pub time_setup: i64,
+    pub time_setup_msc: i64,
+    pub time_done: i64,
+    pub time_done_msc: i64,
+    pub time_expiration: i64,
+    pub order_type: Mt5OrderType,
+    pub type_time: String,
+    pub type_filling: String,
+    pub state: Mt5OrderState,
+    pub reason: String,
+    pub volume_initial: f64,
+    pub volume_current: f64,
+    pub open_price: f64,
+    pub sl: Option<f64>,
+    pub tp: Option<f64>,
+    pub comment: String,
+}
+
+impl ExchangeOrder for Mt5Order {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn ExchangeOrder> {
+        Box::new(self.clone())
+    }
+    fn get_exchange_order_id(&self) -> i64 {
+        self.order_id
+    }
+    fn get_exchange(&self) -> Exchange {
+        Exchange::Metatrader5
+    }
+    fn get_symbol(&self) -> String {
+        self.symbol.clone()
+    }
+    fn get_order_side(&self) -> OrderSide {
+        let order_side: OrderSide = self.order_type.clone().into();
+        order_side.clone()
+    }
+    fn get_order_type(&self) -> OrderType {
+        let order_type: OrderType = self.order_type.clone().into();
+        order_type
+    }
+    fn get_order_status(&self) -> OrderStatus {
+        let order_status: OrderStatus = self.state.clone().into();
+        order_status
+    }
+    fn get_quantity(&self) -> f64 {
+        self.volume_initial
+    }
+    fn get_open_price(&self) -> f64 {
+        self.open_price
+    }
+    fn get_tp(&self) -> Option<f64> {
+        self.tp
+    }
+    fn get_sl(&self) -> Option<f64> {
+        self.sl
+    }
+    fn get_created_time(&self) -> DateTime<Utc> {
+        // 把时间戳转换为日期时间
+        let created_time = Utc.timestamp_millis_opt(self.time_setup_msc).single().expect("时间戳转换为日期时间失败");
+        created_time
+    }
+
+    fn get_updated_time(&self) -> DateTime<Utc> {
+        let updated_time = Utc.timestamp_millis_opt(self.time_done_msc).single().expect("时间戳转换为日期时间失败");
+        updated_time
+    }
+    
+    
+    
+    
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[serde(rename_all = "snake_case")]
+pub enum Mt5PositionSide {
+    #[strum(serialize = "long")]
+    Long,
+    #[strum(serialize = "short")]
+    Short,
+}
+
+impl From<Mt5PositionSide> for PositionSide {
+    fn from(value: Mt5PositionSide) -> Self {
+        match value {
+            Mt5PositionSide::Long => PositionSide::Long,
+            Mt5PositionSide::Short => PositionSide::Short,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Mt5Position {
+    pub position_id: i64,
+    pub time: i64,
+    pub time_msc: i64,
+    pub time_update: i64,
+    pub time_update_msc: i64,
+    #[serde(rename = "position_type")]
+    pub position_side: Mt5PositionSide,
+    pub magic: i64,
+    pub identifier: i64,
+    pub reason: String,
+    pub volume: f64,
+    pub open_price: f64,
+    pub sl: f64,
+    pub tp: f64,
+    pub current_price: f64,
+    pub swap: f64,
+    pub profit: f64,
+    pub symbol: String,
+    pub comment: String,
+    pub external_id: String,
+}
+
+impl ExchangePosition for Mt5Position {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn ExchangePosition> {
+        Box::new(self.clone())
+    }
+    fn get_exchange_position_id(&self) -> i64 {
+        self.position_id
+    }
+    fn get_symbol(&self) -> String {
+        self.symbol.clone()
+    }
+    fn get_position_side(&self) -> PositionSide {
+        self.position_side.clone().into()
+    }
+    fn get_quantity(&self) -> f64 {
+        self.volume
+    }
+    fn get_open_price(&self) -> f64 {
+        self.open_price
+    }
+    fn get_tp(&self) -> Option<f64> {
+        Some(self.tp)
+    }
+    fn get_sl(&self) -> Option<f64> {
+        Some(self.sl)
+    }
+    fn get_exchange(&self) -> Exchange {
+        Exchange::Metatrader5
+    }
+    fn get_create_time(&self) -> DateTime<Utc> {
+        Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
+    }
+    fn get_update_time(&self) -> DateTime<Utc> {
+        Utc.timestamp_millis_opt(self.time_update_msc).single().expect("时间戳转换为日期时间失败")
+    }
+    
+    
+    
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[serde(rename_all = "lowercase")]
+pub enum Mt5DealType {
+    #[strum(serialize = "buy")]
+    Buy,
+    #[strum(serialize = "sell")]
+    Sell,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[serde(rename_all = "lowercase")]
+pub enum Mt5DealEntry {
+    #[strum(serialize = "in")]
+    In,
+    #[strum(serialize = "out")]
+    Out,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Mt5Deal {
+    pub deal_id: i64,
+    pub order_id: i64,
+    pub position_id: i64,
+    pub symbol: String,
+    pub time: i64,
+    pub time_msc: i64,
+    pub deal_type: Mt5DealType,
+    pub entry: Mt5DealEntry,
+    pub magic: i64,
+    pub deal_reason: String,
+    pub volume: f64,
+    pub price: f64,
+    pub commission: f64,
+    pub swap: f64,
+    pub profit: f64,
+    pub fee: f64,
+    pub comment: String,
+    pub external_id: String,
+}
+
+
+impl ExchangeTransactionDetail for Mt5Deal {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn ExchangeTransactionDetail> {
+        Box::new(self.clone())
+    }
+    fn get_transaction_id(&self) -> i64 {
+        self.deal_id
+    }
+    fn get_transaction_type(&self) -> TransactionType {
+        match self.entry {
+            Mt5DealEntry::In => TransactionType::Open,
+            Mt5DealEntry::Out => TransactionType::Close,
+        }
+    }
+    fn get_transaction_side(&self) -> TransactionSide {
+        match self.deal_type {
+            Mt5DealType::Buy => TransactionSide::Long,
+            Mt5DealType::Sell => TransactionSide::Short,
+        }
+    }
+    fn get_quantity(&self) -> f64 {
+        self.volume
+    }
+    fn get_price(&self) -> f64 {
+        self.price
+    }
+    fn get_create_time(&self) -> DateTime<Utc> {
+        Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
+    }
+    fn get_symbol(&self) -> String {
+        self.symbol.clone()
+    }
+    fn get_exchange(&self) -> Exchange {
+        Exchange::Metatrader5
+    }
+    fn get_exchange_order_id(&self) -> i64 {
+        self.order_id
+    }
+    fn get_exchange_position_id(&self) -> i64 {
+        self.position_id
+    }
+    fn get_exchange_transaction_id(&self) -> i64 {
+        self.deal_id
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+}
+

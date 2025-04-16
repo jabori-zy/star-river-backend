@@ -23,14 +23,17 @@ pub async fn create_strategy(
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match StrategyInfoMutation::create_strategy(conn, request.name, request.description, request.status).await {
-        Ok(strategy) => (
+        Ok(strategy) => {
+            tracing::info!("创建策略成功: {:?}", strategy);
+            (
             StatusCode::CREATED,
             Json(ApiResponse {
                 code: 0,
                 message: "创建成功".to_string(),
                 data: Some(strategy),
             })
-        ),
+        )
+    },
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(ApiResponse {

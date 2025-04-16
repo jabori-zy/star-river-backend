@@ -23,7 +23,13 @@ use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use event_center::EventPublisher;
-use types::order::{Order, OrderType, OrderSide, OrderRequest, OrderStatus};
+use types::order::{ExchangeOrder, Order};
+use types::position::{ExchangePosition, Position};
+use event_center::command_event::order_engine_command::CreateOrderParams;
+use event_center::command_event::position_engine_command::GetPositionParam;
+use event_center::command_event::order_engine_command::GetTransactionDetailParams;
+use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
+use types::account::ExchangeAccountInfo;
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
@@ -271,22 +277,20 @@ impl ExchangeClient for BinanceExchange {
         Ok(())
     }
 
-    async fn create_order(&self, order_request: OrderRequest) -> Result<Order, String> {
-        let order = Order {
-            strategy_id: order_request.strategy_id as i64,
-            node_id: order_request.node_id.clone(),
-            symbol: order_request.symbol.to_string(),
-            quantity: order_request.quantity,
-            price: order_request.price,
-            tp: order_request.tp,
-            sl: order_request.sl,
-            exchange: Exchange::Binance,
-            order_id: 0,
-            order_side: OrderSide::Long,
-            order_type: order_request.order_type,
-            order_status: OrderStatus::Created,
-        };
-        Ok(order)
+    async fn create_order(&self, order_request: CreateOrderParams) -> Result<Box<dyn ExchangeOrder>, String> {
+        unimplemented!()
+    }
+
+    async fn update_order(&self, order: Order) -> Result<Order, String> {
+        unimplemented!()
+    }
+
+    async fn get_position(&self, position_request: GetPositionParam) -> Result<Box<dyn ExchangePosition>, String> {
+        unimplemented!()
+    }
+
+    async fn update_position(&self, position: &Position) -> Result<Position, String> {
+        unimplemented!()
     }
 
     async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String> {
@@ -299,6 +303,13 @@ impl ExchangeClient for BinanceExchange {
         Ok(position_number)
     }
     
+    async fn get_transaction_detail(&self, transaction_detail_request: GetTransactionDetailParams) -> Result<Box<dyn ExchangeTransactionDetail>, String> {
+        unimplemented!()
+    }
+
+    async fn get_account_info(&self) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+        unimplemented!()
+    }
     
 }
 

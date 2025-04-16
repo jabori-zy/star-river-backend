@@ -5,8 +5,14 @@ use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEvent
 use types::market::{Kline, Exchange, KlineSeries};
 use types::position::PositionNumber;
 use utils::{get_utc8_timestamp_millis, generate_batch_id};
-use crate::metatrader5::Mt5KlineInterval;
-use types::order::{Order, OrderType, OrderSide, OrderStatus};
+use crate::metatrader5::mt5_types::Mt5KlineInterval;
+use types::order::ExchangeOrder;
+use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
+use types::order::Order;
+use types::position::{ExchangePosition, Position};
+use types::transaction_detail::{ExchangeTransactionDetail, TransactionDetail};
+use crate::metatrader5::mt5_types::Mt5Deal;
+use types::account::{ExchangeAccountInfo, Mt5AccountInfo};
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -113,39 +119,100 @@ impl Mt5DataProcessor {
         let _ = self.event_publisher.lock().await.publish(exchange_klineseries_update_event);
     }
 
-    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Order, String> {
-        // tracing::info!("处理订单信息: {:?}", order_info);
-        let order_data = order_info["data"].clone();
+    // 处理订单信息
+    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn ExchangeOrder>, String> {
+        let order_data = order_info["data"][0].clone();
         tracing::debug!("订单信息: {:?}", order_data);
-        let order = Order {
-            strategy_id: order_info["strategy_id"].as_i64()
-                .expect("解析strategy_id失败"),
-            node_id: order_info["node_id"].as_str()
-                .expect("解析node_id失败")
-                .to_string(),
-            order_id: order_data["order_id"].as_i64()
-                .expect("解析order_id失败"),
-            exchange: Exchange::Metatrader5,
-            symbol: order_data["symbol"].as_str()
-                .expect("解析symbol失败")
-                .to_string(),
-            order_type: order_data["order_type"].as_str()
-                .expect("解析order_type失败")
-                .parse::<OrderType>()
-                .expect("解析order_type失败"),
-            order_side: order_data["order_side"].as_str()
-                .expect("解析order_side失败")
-                .parse::<OrderSide>()
-                .expect("解析order_side失败"),
-            quantity: order_data["volume"].as_f64()
-                .expect("解析volume失败"),
-            price: order_data.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0),
-            tp: order_data.get("tp").and_then(|tp| tp.as_f64()),
-            sl: order_data.get("sl").and_then(|sl| sl.as_f64()),
-            order_status: OrderStatus::Created,
-        };
+        // 取出order_data  array 的第一个值
+        let order = serde_json::from_value::<Mt5Order>(order_data)
+            .map_err(|e| format!("解析订单数据失败: {}", e))?;
         tracing::info!("订单信息: {:?}", order);
+        Ok(Box::new(order))
+    }
+
+    pub async fn update_order(&self, new_order_info: serde_json::Value, old_order: Order) -> Result<Order, String> {
+        tracing::debug!("订单信息: {:?}", new_order_info);
+        // 订单数据
+        // 取列表元素第一个值
+        let order_data = new_order_info["data"][0].clone();
+        let new_order_status = order_data["state"].as_str()
+            .expect("解析order_status失败").parse::<Mt5OrderState>().expect("转换为mt5_order_status失败");
+
+        let order = Order {
+            order_id: old_order.order_id,
+            strategy_id: old_order.strategy_id,
+            node_id: old_order.node_id,
+            exchange_order_id: old_order.exchange_order_id,
+            exchange: old_order.exchange,
+            symbol: old_order.symbol,
+            order_side: old_order.order_side,
+            order_type: old_order.order_type,
+            order_status: new_order_status.into(),
+            quantity: old_order.quantity,
+            open_price: old_order.open_price,
+            tp: old_order.tp,
+            sl: old_order.sl,
+            created_time: old_order.created_time,
+            updated_time: old_order.updated_time,
+        };
         Ok(order)
+    }
+
+    pub async fn process_position(&self, position_info: serde_json::Value) -> Result<Box<dyn ExchangePosition>, String> {
+        let position_data = position_info["data"][0].clone();
+        tracing::debug!("仓位信息 :{:?}", position_data);
+        let position = serde_json::from_value::<Mt5Position>(position_data)
+            .map_err(|e| format!("解析仓位数据失败: {}", e))?;
+        tracing::info!("仓位信息: {:?}", position);
+
+        Ok(Box::new(position))
+    }
+
+    pub async fn update_position(&self, new_position_info: serde_json::Value, old_position: &Position) -> Result<Position, String> {
+        // tracing::debug!("最新仓位信息: {:?}", new_position_info);
+        // 仓位数据
+        let position_data = new_position_info["data"].clone();
+        // 如果仓位数据为空，说明仓位已平仓
+        if position_data.as_array().expect("转换为array失败").len() == 0 {
+            tracing::info!("仓位已平仓");
+            return Ok(old_position.clone());
+        }
+
+        // 如果列表的长度为1，则取列表的第一个值
+        if position_data.as_array().expect("转换为array失败").len() == 1 {
+            let new_mt_position = serde_json::from_value::<Mt5Position>(position_data[0].clone())
+                .map_err(|e| format!("解析仓位数据失败: {}", e))?;
+            let new_position = Position {
+                position_id: old_position.position_id,
+                strategy_id: old_position.strategy_id.clone(),
+                node_id: old_position.node_id.clone(),
+                exchange: old_position.exchange.clone(),
+                exchange_position_id: old_position.exchange_position_id.clone(),
+                symbol: old_position.symbol.clone(),
+                position_side: old_position.position_side.clone(),
+                quantity: old_position.quantity,
+                open_price: old_position.open_price,
+                current_price: Some(new_mt_position.current_price),
+                tp: old_position.tp,
+                sl: old_position.sl,
+                unrealized_profit: Some(new_mt_position.profit),
+                create_time: new_mt_position.time_msc,
+                update_time: new_mt_position.time_update_msc,
+            };
+            return Ok(new_position);
+        }
+        else {
+            return Err("数据长度不为1".to_string());
+        }
+        
+    }
+
+    pub async fn process_deal(&self, deal_info: serde_json::Value) -> Result<Box<dyn ExchangeTransactionDetail>, String> {
+        let deal_data = deal_info["data"][0].clone();
+        tracing::debug!("成交信息 :{:?}", deal_data);
+        let deal = serde_json::from_value::<Mt5Deal>(deal_data)
+            .map_err(|e| format!("解析成交数据失败: {}", e))?;
+        Ok(Box::new(deal))
     }
 
     pub async fn process_position_number(&self, position_number_info: serde_json::Value) -> Result<PositionNumber, String> {
@@ -159,6 +226,14 @@ impl Mt5DataProcessor {
         };
         Ok(position_number)
 
+    }
+
+    pub async fn process_account_info(&self, account_info: serde_json::Value) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+        let account_info_data = account_info["data"].clone();
+        tracing::debug!("账户信息 :{:?}", account_info_data);
+        let account_info = serde_json::from_value::<Mt5AccountInfo>(account_info_data)
+            .map_err(|e| format!("解析账户信息失败: {}", e)).expect("解析账户信息失败");
+        Ok(Box::new(account_info))
     }
 }
 

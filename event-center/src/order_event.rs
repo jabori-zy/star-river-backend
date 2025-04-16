@@ -16,6 +16,9 @@ pub enum OrderEvent {
     #[strum(serialize = "order-canceled")]
     #[serde(rename = "order-canceled")]
     OrderCanceled(Order),
+    #[strum(serialize = "order-filled")]
+    #[serde(rename = "order-filled")]
+    OrderFilled(Order),
 }
 
 

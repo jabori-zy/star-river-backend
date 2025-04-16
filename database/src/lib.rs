@@ -1,6 +1,10 @@
 pub mod entities;
 pub mod mutation;
 pub mod query;
+pub mod model_transform;
+
+
+
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use std::env;
 use std::path::PathBuf;

@@ -12,7 +12,7 @@ impl Strategy {
     pub async fn add_live_data_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
-        strategy_id: i32,
+        strategy_id: i64,
         node_id: String,
         node_name: String, 
         exchange: Exchange, 

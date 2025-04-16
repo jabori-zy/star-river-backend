@@ -50,7 +50,7 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
     fn get_node_name(&self) -> &String {
         &self.get_base_context().node_name
     }
-    fn get_strategy_id(&self) -> &i32 {
+    fn get_strategy_id(&self) -> &i64 {
         &self.get_base_context().strategy_id
     }
     fn get_state_machine(&self) -> Box<dyn NodeStateMachine> {
@@ -106,7 +106,7 @@ impl Clone for Box<dyn NodeContext> {
 #[derive(Debug)]
 pub struct BaseNodeContext {
     pub node_type: NodeType,
-    pub strategy_id: i32,
+    pub strategy_id: i64,
     pub node_id: String,
     pub node_name: String,
     pub cancel_token: CancellationToken,
@@ -140,7 +140,7 @@ impl Clone for BaseNodeContext {
 
 impl BaseNodeContext {
     pub fn new(
-        strategy_id: i32, 
+        strategy_id: i64, 
         node_id: String, 
         node_name: String,
         node_type: NodeType,
@@ -149,7 +149,7 @@ impl BaseNodeContext {
         state_machine: Box<dyn NodeStateMachine>,
     ) -> Self {
         Self {
-            strategy_id, 
+            strategy_id,
             node_id, 
             node_name,
             node_type,

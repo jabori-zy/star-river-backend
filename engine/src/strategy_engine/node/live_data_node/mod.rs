@@ -26,7 +26,7 @@ pub struct LiveDataNode {
 
 impl LiveDataNode {
     pub fn new(
-        strategy_id: i32, 
+        strategy_id: i64, 
         node_id: String, 
         node_name: String, 
         exchange: Exchange, 

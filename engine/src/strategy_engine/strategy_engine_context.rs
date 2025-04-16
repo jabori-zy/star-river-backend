@@ -22,7 +22,7 @@ pub struct StrategyEngineContext {
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub database: DatabaseConnection,
-    pub strategy_list: HashMap<i32, Strategy>,
+    pub strategy_list: HashMap<i32, Strategy>, //
     pub market_event_receiver: broadcast::Receiver<Event>,
     pub request_event_receiver: broadcast::Receiver<Event>,
     pub response_event_receiver: broadcast::Receiver<Event>,

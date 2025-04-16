@@ -12,6 +12,7 @@ utils = { path = "../utils" }
 event-center = {path = "../event-center"}
 exchange-client = {path = "../exchange-client"}
 database = { path = "../database" }
+heartbeat = {path = "../heartbeat" }
 serde.workspace = true
 strum.workspace = true
 strum_macros.workspace = true

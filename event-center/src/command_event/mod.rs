@@ -17,7 +17,7 @@ use indicator_engine_command::IndicatorEngineCommand;
 use exchange_engine_command::ExchangeEngineCommand;
 use market_engine_command::MarketEngineCommand;
 use order_engine_command::OrderEngineCommand;
-
+use uuid::Uuid;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -37,6 +37,15 @@ impl From<CommandEvent> for Event {
     }
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BaseCommandParams {
+    pub strategy_id: i64,
+    pub node_id: String,
+    pub sender: String,
+    pub timestamp: i64,
+    pub request_id: Uuid,
+}
 
 
 

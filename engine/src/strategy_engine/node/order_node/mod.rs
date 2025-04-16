@@ -1,6 +1,7 @@
 
 mod order_node_state_machine;
 mod order_node_context;
+pub mod order_node_types;
 
 
 use types::market::Exchange;
@@ -15,9 +16,12 @@ use event_center::EventPublisher;
 use super::order_node::order_node_state_machine::{OrderNodeStateMachine, OrderNodeStateAction};
 use super::{NodeTrait,NodeStateTransitionEvent,NodeType};
 use std::time::Duration;
-use types::order::OrderRequest;
 use super::node_context::{NodeContext,BaseNodeContext};
 use super::order_node::order_node_context::OrderNodeContext;
+use super::order_node::order_node_types::OrderConfig;
+
+
+
 
 
 #[derive(Debug, Clone)]
@@ -28,12 +32,12 @@ pub struct OrderNode {
 
 impl OrderNode {
     pub fn new(
-        strategy_id: i32,
+        strategy_id: i64,
         node_id: String,
         node_name: String,
         exchange: Exchange,
         symbol: String,
-        order_request: OrderRequest,
+        order_config: OrderConfig,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) -> Self {
@@ -51,7 +55,7 @@ impl OrderNode {
                 base_context,
                 exchange,
                 symbol,
-                order_request,
+                order_config,
                 request_id: None,
             }))),
         }

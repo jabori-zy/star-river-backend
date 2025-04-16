@@ -1,5 +1,4 @@
 // #![allow(unused_imports)]
-#![allow(dead_code)]
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -21,7 +20,7 @@ type AsyncFunction =
 pub struct Heartbeat {
     count: Arc<AtomicU64>,
     max_count: u64,
-    interval: u64,
+    interval: u64, //心跳间隔，单位为毫秒
     all_tasks: Arc<Mutex<HashMap<Uuid, Task>>>,
     running: Arc<AtomicBool>,
 
@@ -185,6 +184,7 @@ impl Heartbeat {
                 }
                 Task::AsyncTask(task_config) => {
                     if count % task_config.interval == 0 {
+                        // tracing::info!("执行异步任务: {}", task_config.task_name);
                         let future = (task_config.function)();
                         tokio::spawn(async move {
                             future.await;

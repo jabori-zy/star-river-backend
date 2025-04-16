@@ -28,7 +28,7 @@ impl Clone for StartNode {
 
 impl StartNode {
     pub fn new(
-        strategy_id: i32,
+        strategy_id: i64,
         node_id: String, 
         node_name: String, 
         event_publisher: EventPublisher,

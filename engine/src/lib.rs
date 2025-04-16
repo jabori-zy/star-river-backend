@@ -1,10 +1,13 @@
-pub mod engine_manager;
-pub mod market_engine;
-pub mod exchange_engine;
-pub mod indicator_engine;
-pub mod order_engine;
-pub mod strategy_engine;
-pub mod cache_engine;
+pub mod engine_manager; // 引擎管理器
+pub mod market_engine; // 市场引擎
+pub mod exchange_engine; // 交易所引擎
+pub mod indicator_engine; // 指标引擎
+pub mod order_engine; // 订单引擎
+pub mod strategy_engine; // 策略引擎
+pub mod cache_engine; // 缓存引擎
+pub mod position_engine; // 持仓引擎
+pub mod transaction_engine; // 交易明细引擎
+pub mod account_engine; // 账户引擎
 
 
 
@@ -27,17 +30,23 @@ use event_center::EventPublisher;
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString)]
 pub enum EngineName {
     #[strum(serialize="exchange-engine")]
-    ExchangeEngine,
+    ExchangeEngine, // 交易所引擎
     #[strum(serialize="marekt-engine")]
-    MarketEngine,
+    MarketEngine, // 市场引擎
     #[strum(serialize="indicator-engine")]
-    IndicatorEngine,
+    IndicatorEngine, // 指标引擎
     #[strum(serialize="order-engine")]
-    OrderEngine,
+    OrderEngine, // 订单引擎
     #[strum(serialize="strategy-engine")]
-    StrategyEngine,
+    StrategyEngine, // 策略引擎
     #[strum(serialize="cache-engine")]
-    CacheEngine,
+    CacheEngine, // 缓存引擎
+    #[strum(serialize="position-engine")]
+    PositionEngine, // 持仓引擎
+    #[strum(serialize="transaction-engine")]
+    TransactionEngine, // 交易明细引擎
+    #[strum(serialize="account-engine")]
+    AccountEngine, // 账户引擎
 
 }
 
@@ -132,7 +141,7 @@ impl EngineFunction {
                     match received_event {
                         Ok(event) => {
                             let mut context_guard = context.write().await;
-                                tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
+                                // tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
                                 context_guard.handle_event(event).await;
                         }
                         Err(e) => {

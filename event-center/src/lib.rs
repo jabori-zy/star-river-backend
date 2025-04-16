@@ -16,6 +16,7 @@ use crate::response_event::ResponseEvent;
 use crate::strategy_event::StrategyEvent;
 use crate::indicator_event::IndicatorEvent;
 use crate::order_event::OrderEvent;
+use crate::position_event::PositionEvent;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -54,24 +55,34 @@ pub enum Event {
     #[strum(serialize = "exchange")]
     #[serde(rename = "exchange")]
     Exchange(ExchangeEvent),
+
     #[strum(serialize = "market")]
     #[serde(rename = "market")]
     Market(MarketEvent),
+
     #[strum(serialize = "indicator")]
     #[serde(rename = "indicator")]
     Indicator(IndicatorEvent),
+
     #[strum(serialize = "command")]
     #[serde(rename = "command")]
     Command(CommandEvent),
+
     #[strum(serialize = "response")]
     #[serde(rename = "response")]
     Response(ResponseEvent),
+
     #[strum(serialize = "strategy")]
     #[serde(rename = "strategy")]
     Strategy(StrategyEvent),
+
     #[strum(serialize = "order")]
     #[serde(rename = "order")]
     Order(OrderEvent),
+
+    #[strum(serialize = "position")]
+    #[serde(rename = "position")]
+    Position(PositionEvent),
 }
 
 impl Event {
@@ -84,6 +95,7 @@ impl Event {
             Event::Response(_) => Channel::Response,
             Event::Strategy(_) => Channel::Strategy,
             Event::Order(_) => Channel::Order,
+            Event::Position(_) => Channel::Position,
         }
     }
 }

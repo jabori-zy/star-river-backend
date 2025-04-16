@@ -8,21 +8,22 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub order_id: i32,
-    pub strategy_id: i32,
+    pub strategy_id: i64,
+    pub node_id: String,
+    pub exchange_order_id: i64,
     pub exchange: String,
     pub symbol: String,
     pub order_side: String,
     pub order_status: String,
     pub order_type: String,
-    #[sea_orm(column_type = "Float")]
-    pub quantity: f32,
-    #[sea_orm(column_type = "Float")]
-    pub price: f32,
-    #[sea_orm(column_type = "Float", nullable)]
-    pub sl: Option<f32>,
-    #[sea_orm(column_type = "Float", nullable)]
-    pub tp: Option<f32>,
+    #[sea_orm(column_type = "Double")]
+    pub quantity: f64,
+    #[sea_orm(column_type = "Double")]
+    pub price: f64,
+    #[sea_orm(column_type = "Double", nullable)]
+    pub sl: Option<f64>,
+    #[sea_orm(column_type = "Double", nullable)]
+    pub tp: Option<f64>,
     pub created_time: DateTimeUtc,
     pub updated_time: DateTimeUtc,
 }

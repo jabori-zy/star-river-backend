@@ -11,7 +11,8 @@ use serde_json::Value;
 use std::str::FromStr;
 use crate::strategy_engine::node::if_else_node::condition::Case;
 use crate::strategy_engine::node::node_types::NodeType;
-use types::order::{OrderRequest, OrderType, OrderSide};
+use types::order::{OrderType, OrderSide};
+use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
 
 impl Strategy {
     pub async fn add_node(
@@ -29,7 +30,7 @@ impl Strategy {
         match node_type {
             NodeType::StartNode => {
                 let node_data = node_config["data"].clone();
-                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
+                let strategy_id = node_data["strategyId"].as_i64().unwrap();
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
                 let event_publisher = event_publisher.clone();
@@ -45,7 +46,7 @@ impl Strategy {
             // 指标节点
             NodeType::IndicatorNode => {
                 let node_data = node_config["data"].clone();
-                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
+                let strategy_id = node_data["strategyId"].as_i64().unwrap();
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
 
@@ -77,7 +78,7 @@ impl Strategy {
             // 实时数据节点
             NodeType::LiveDataNode => {
                 let node_data = node_config["data"].clone();
-                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
+                let strategy_id = node_data["strategyId"].as_i64().unwrap();
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
                 let exchange = node_data["exchange"].as_str().unwrap();
@@ -110,7 +111,7 @@ impl Strategy {
                 let node_data = node_config["data"].clone();
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
-                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
+                let strategy_id = node_data["strategyId"].as_i64().unwrap();
                 let cases: Vec<Case> = serde_json::from_value(node_data["cases"].clone())
                     .unwrap_or_else(|e| panic!("Failed to parse cases: {}", e));
                 Self::add_if_else_node(
@@ -131,21 +132,18 @@ impl Strategy {
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
                 let exchange = node_data["exchange"].as_str().unwrap();
                 let symbol = node_data["symbol"].as_str().unwrap();
-                let strategy_id = node_data["strategyId"].as_i64().unwrap() as i32;
+                let strategy_id = node_data["strategyId"].as_i64().unwrap();
                 let event_publisher = event_publisher.clone();
                 let response_event_receiver = response_event_receiver.resubscribe();
                 let order_info = node_data["orderRequest"].clone();
-                let order_request = OrderRequest {
-                    strategy_id,
-                    node_id: node_id.to_string(),
-                    exchange: Exchange::from_str(exchange).unwrap(),
-                    symbol: symbol.to_string(),
+                let order_config = OrderConfig {
                     order_type: OrderType::from_str(order_info["orderType"].as_str().unwrap()).unwrap(),
                     order_side: OrderSide::from_str(order_info["orderSide"].as_str().unwrap()).unwrap(),
                     quantity: order_info["quantity"].as_f64().unwrap(),
                     price: order_info["price"].as_f64().unwrap(),
                     tp: order_info["tp"].as_f64(),
                     sl: order_info["sl"].as_f64(),
+                    comment: "111".to_string(),
                 };
                 Self::add_order_node(
                     graph,
@@ -155,7 +153,7 @@ impl Strategy {
                     node_name.to_string(),
                     Exchange::from_str(exchange).unwrap(),
                     symbol.to_string(),
-                    order_request,
+                    order_config,
                     event_publisher,
                     response_event_receiver,
                 ).await;

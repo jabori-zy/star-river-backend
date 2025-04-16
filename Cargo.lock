@@ -780,6 +780,7 @@ dependencies = [
  "event-center",
  "exchange-client",
  "futures",
+ "heartbeat",
  "petgraph",
  "sea-orm",
  "serde",
@@ -3667,6 +3668,7 @@ name = "types"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "futures",
  "serde",
  "serde_json",

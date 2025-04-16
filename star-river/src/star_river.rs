@@ -18,6 +18,9 @@ pub struct StarRiver {
 
 impl StarRiver {
     pub async fn new() -> Self {
+
+        // 系统心跳间隔为100毫秒
+        let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100))); 
         
         let event_center = EventCenter::new();
         // 初始化数据库
@@ -29,16 +32,20 @@ impl StarRiver {
         let market_event_receiver = event_center.subscribe(&Channel::Market).unwrap();
         let request_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
+        let order_event_receiver = event_center.subscribe(&Channel::Order).unwrap();
         let engine_manager = EngineManager::new(
             event_center.get_event_publisher(), 
             exchange_event_receiver, 
             market_event_receiver, 
             request_event_receiver, 
             response_event_receiver, 
-            database.get_conn());
+            order_event_receiver,
+            database.get_conn(),
+            heartbeat.clone()
+        );
 
         Self {
-            heartbeat: Arc::new(Mutex::new(Heartbeat::new(1000))),
+            heartbeat: heartbeat.clone(),
             event_center: Arc::new(Mutex::new(event_center)),
             database: Arc::new(Mutex::new(database)),
             engine_manager: Arc::new(Mutex::new(engine_manager)),

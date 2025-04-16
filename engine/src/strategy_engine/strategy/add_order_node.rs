@@ -6,9 +6,9 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use types::market::Exchange;
-use types::order::OrderRequest;
-use crate::strategy_engine::node::order_node::OrderNode;
 use event_center::{Event, EventPublisher};
+use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
+use crate::strategy_engine::node::order_node::OrderNode;
 
 
 
@@ -17,12 +17,12 @@ impl Strategy {
     pub async fn add_order_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
-        strategy_id: i32,
+        strategy_id: i64,
         node_id: String,
         node_name: String,
         exchange: Exchange,
         symbol: String,
-        order_request: OrderRequest,
+        order_config: OrderConfig,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
@@ -32,7 +32,7 @@ impl Strategy {
             node_name,
             exchange,
             symbol,
-            order_request,
+            order_config,
             event_publisher,
             response_event_receiver,
         );

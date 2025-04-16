@@ -9,7 +9,6 @@ use tokio::sync::Mutex;
 use event_center::EventCenter;
 use types::order::{OrderType, OrderSide};
 use types::market::Exchange;
-use types::order::OrderRequest;
 
 
 #[tokio::main]
