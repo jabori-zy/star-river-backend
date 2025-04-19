@@ -14,9 +14,10 @@ use tokio::sync::Mutex;
 use std::any::Any;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use crate::account_engine::account_engine_types::AccountConfig;
+// use crate::account_engine::account_engine_types::ExchangeAccountConfig;
 use std::collections::HashMap;
-
+use types::market::Exchange;
+use types::account::ExchangeAccountConfig;
 
 
 
@@ -51,7 +52,7 @@ impl Engine for AccountEngine {
         self.listen_events().await;
         let mut context = self.context.write().await;
         let account_engine_context = context.as_any_mut().downcast_mut::<AccountEngineContext>().unwrap();
-        account_engine_context.load_account_config().await;
+        account_engine_context.monitor_account().await;
     }
 
 
@@ -63,7 +64,7 @@ impl Engine for AccountEngine {
 impl AccountEngine {
     pub fn new(
         event_publisher: EventPublisher,
-        order_event_receiver: broadcast::Receiver<Event>,
+        account_event_receiver: broadcast::Receiver<Event>,
         request_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
@@ -73,22 +74,20 @@ impl AccountEngine {
         let context = AccountEngineContext {
             engine_name: EngineName::AccountEngine,
             event_publisher,
-            event_receiver: vec![response_event_receiver, request_event_receiver, order_event_receiver],
+            event_receiver: vec![response_event_receiver, request_event_receiver, account_event_receiver],
             exchange_engine,
             database,
             heartbeat,
-            account_info: Arc::new(RwLock::new(HashMap::new())),
+            accounts: Arc::new(RwLock::new(vec![])),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))
         }
     }
 
-    pub async fn add_account_config(&mut self, account_name: String, account_config: AccountConfig) -> Result<(), String> {
+    pub async fn register_mt5_exchange(&self, account_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let account_engine_context = context.as_any_mut().downcast_mut::<AccountEngineContext>().unwrap();
-        account_engine_context.add_account_config(account_name, account_config).await.inspect_err(|e| {
-            tracing::error!("添加账户配置失败: {}", e);
-        })
+        account_engine_context.register_mt5_exchange(account_id).await
     }
 }

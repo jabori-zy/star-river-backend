@@ -23,6 +23,7 @@ use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
 #[derive(Debug, Clone)]
 pub struct LiveDataNodeContext {
     pub base_context: BaseNodeContext,
+    pub account_id: i32,
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -217,6 +218,7 @@ impl LiveDataNodeContext {
         let params = SubscribeKlineStreamParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),
+            account_id: self.account_id.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             interval: self.interval.clone(),
@@ -245,6 +247,7 @@ impl LiveDataNodeContext {
         let params = UnsubscribeKlineStreamParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),
+            account_id: self.account_id.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             interval: self.interval.clone(),

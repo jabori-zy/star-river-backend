@@ -29,79 +29,88 @@ impl Mt5HttpClient {
     }
 
     // 初始化MT5客户端
-    pub async fn initialize_client(&mut self) -> Result<(), String> {
-        let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::InitializeClient);
-        let response = self.client.get(&url).send().await.expect("初始化失败");
-        let body = response.text().await.expect("初始化失败");
-        tracing::info!("初始化响应: {}", body);
-        Ok(())
-    }
-
-    pub async fn get_client_status(&mut self) -> Result<(), String> {
-        let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::ClientStatus);
-        let response = self.client.get(&url).send().await.expect("获取客户端状态失败");
-        let body = response.text().await.expect("获取客户端状态失败");
-        tracing::info!("客户端状态: {}", body);
-        Ok(())
-    }
-
-    pub async fn login(&mut self, account_id: i32, password: &str, server: &str, terminal_path: &str) -> Result<(), String> {
+    pub async fn initialize_terminal(&mut self, terminal_id: i32, terminal_path: &str) -> Result<(), String> {
+        let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::InitializeTerminal);
         #[derive(Debug, Serialize)]
-        struct LoginRequest {
-            account_id: i32,
-            password: String,
-            server: String,
+        struct InitializeTerminalRequest {
+            terminal_id: i32,
             terminal_path: String,
         }
+        let request = InitializeTerminalRequest {
+            terminal_id: terminal_id,
+            terminal_path: terminal_path.to_string(),
+        };
+        let response = self.client.post(&url)
+        .json(&request)
+        .send().await.expect("初始化失败");
+
+        let body = response.text().await.expect("初始化失败");
+        Ok(())
+    }
+
+    // 删除MT5客户端
+    pub async fn delete_terminal(&mut self, terminal_id: i32) -> Result<(), String> {
+        let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::DeleteTerminal);
+        #[derive(Debug, Serialize)]
+        struct DeleteTerminalRequest {
+            terminal_id: i32,
+        }
+        let request = DeleteTerminalRequest {
+            terminal_id: terminal_id,
+        };
+        let response = self.client.post(&url)
+        .json(&request)
+        .send().await.expect("删除终端失败");
+
+        let body = response.text().await.expect("删除终端失败");
+        Ok(())
+    }
+
+    // ping终端
+    pub async fn ping_terminal(&mut self, terminal_id: i32) -> Result<serde_json::Value, String> {
+        let url = format!("{}{}?terminal_id={}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::PingTerminal, terminal_id);
+        let response = self.client.get(&url).send().await.expect("ping终端失败");
+        let result = response.json::<serde_json::Value>().await.expect("ping终端失败");
+        Ok(result)
+    }
+
+    pub async fn login(&mut self, terminal_id: i32, account_id: i64, password: &str, server: &str) -> Result<serde_json::Value, String> {
+        #[derive(Debug, Serialize)]
+        struct LoginRequest {
+            terminal_id: i32,
+            account_id: i64,
+            password: String,
+            server: String,
+        }
         let request = LoginRequest {
+            terminal_id: terminal_id,
             account_id: account_id,
             password: password.to_string(),
             server: server.to_string(),
-            terminal_path: terminal_path.to_string(),
         };
         let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::Login);
 
         let response = self.client.post(&url)
         .json(&request)
         .send()
-        .await.expect("登录失败")
-        .json::<serde_json::Value>()
         .await.expect("登录失败");
-        
-        tracing::info!("Login response: {}", response);
-        Ok(())
+
+        let response_text = response.text().await.expect("登录失败");
+        tracing::debug!("metatrader5 登录响应: {}", response_text);
+        let response_json = serde_json::from_str::<serde_json::Value>(&response_text).expect("登录失败");
+        Ok(response_json)
     }
 
-    pub async fn get_kline_series(&mut self, symbol: &str, interval: Mt5KlineInterval, limit: Option<u32>) -> Result<Vec<serde_json::Value>, String> {
+    pub async fn get_kline_series(&mut self, terminal_id: i32, symbol: &str, interval: Mt5KlineInterval, limit: Option<u32>) -> Result<serde_json::Value, String> {
         let limit = limit.unwrap_or(1000);
-        let url = format!("{}{}?symbol={}&interval={}&limit={}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::GetKlineSeries, symbol, interval, limit);
+        let url = format!("{}{}?terminal_id={}&symbol={}&interval={}&limit={}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::GetKlineSeries, terminal_id, symbol, interval, limit);
         
-        let response = match self.client.get(&url).send().await {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("获取K线系列请求失败: {}", e)),
-        };
-
-        if !response.status().is_success() {
-            return Err(format!("获取K线系列失败, 状态码: {}", response.status()));
-        }
-
-        let response_json = match response.json::<serde_json::Value>().await {
-            Ok(json) => json,
-            Err(e) => return Err(format!("解析K线响应JSON失败: {}", e)),
-        };
-
-        // 检查状态码
-        let status = response_json["status"].as_i64().unwrap_or(-1);
-        if status != 0 {
-            let message = response_json["message"].as_str().unwrap_or("未知错误");
-            return Err(format!("获取K线失败: {}", message));
-        }
-
-        // 提取data字段
-        match response_json["data"].as_array() {
-            Some(data) => Ok(data.clone()),
-            None => Err("K线数据格式错误".to_string()),
-        }
+        let response = self.client.get(&url)
+        .send()
+        .await.expect("获取K线系列失败")
+        .json::<serde_json::Value>()
+        .await.expect("获取K线系列失败");
+        Ok(response)
     }
 
     pub async fn create_order(&self, params: Mt5CreateOrderParams) -> Result<serde_json::Value, String> {
@@ -170,8 +179,8 @@ impl Mt5HttpClient {
 
     }
 
-    pub async fn get_account_info(&self) -> Result<serde_json::Value, String> {
-        let url = format!("{}{}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::GetAccountInfo);
+    pub async fn get_account_info(&self, terminal_id: i32) -> Result<serde_json::Value, String> {
+        let url = format!("{}{}?terminal_id={}", Mt5HttpUrl::BaseUrl, Mt5HttpUrl::GetAccountInfo, terminal_id);
         let response = self.client.get(url).send().await.unwrap().json::<serde_json::Value>().await.expect("获取账户信息失败");
         Ok(response)
     }

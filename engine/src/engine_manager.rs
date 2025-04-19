@@ -38,6 +38,7 @@ impl EngineManager {
         request_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
         order_event_receiver: broadcast::Receiver<Event>,
+        account_event_receiver: broadcast::Receiver<Event>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
     ) -> Self
@@ -107,7 +108,7 @@ impl EngineManager {
 
         let account_engine = AccountEngine::new(
             event_publisher.clone(),
-            order_event_receiver.resubscribe(),
+            account_event_receiver.resubscribe(),
             request_event_receiver.resubscribe(),
             response_event_receiver.resubscribe(),
             exchange_engine.clone(),

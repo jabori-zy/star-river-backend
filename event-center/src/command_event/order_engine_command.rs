@@ -19,6 +19,7 @@ pub enum OrderEngineCommand {
 pub struct CreateOrderParams {
     #[serde(flatten)]
     pub base_params: BaseCommandParams,
+    pub account_id: i32,
     pub exchange: Exchange,
     pub symbol: String,
     pub order_type: OrderType,

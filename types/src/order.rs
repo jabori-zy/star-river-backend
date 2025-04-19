@@ -52,6 +52,7 @@ pub struct Order {
     pub strategy_id: i64, // 策略ID
     pub node_id: String, // 节点ID
     pub exchange_order_id: i64, // 交易所订单ID
+    pub account_id: i32, // 账户ID
     pub exchange: Exchange, // 交易所
     pub symbol: String, // 交易对
     pub order_side: OrderSide, // 订单方向

@@ -12,11 +12,11 @@ use tokio;
 use tower_http::cors::{Any, CorsLayer};
 use axum::http::HeaderValue;
 use crate::star_river::StarRiver;
-use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy};
-use crate::api::query_api::{get_strategy_list, get_strategy_by_id};
+use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy, add_mt5_account_config, delete_mt5_account_config};
+use crate::api::query_api::{get_strategy_list, get_strategy_by_id, get_mt5_account_config};
 use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, enable_strategy_event_push, disable_strategy_event_push};
 use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler};
-use crate::api::account_api::add_account_config;
+use crate::api::account_api::login_mt5_account;
 use tracing::Level;
 use crate::websocket::ws_handler;
 use crate::star_river::init_app;
@@ -55,7 +55,10 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/update_strategy", post(update_strategy))
         .route("/delete_strategy", delete(delete_strategy))
         .route("/get_strategy", get(get_strategy_by_id))
-        .route("/add_account_config", post(add_account_config))
+        .route("/add_mt5_account_config", post(add_mt5_account_config))
+        .route("/get_mt5_account_config", get(get_mt5_account_config))
+        .route("/delete_mt5_account_config", delete(delete_mt5_account_config))
+        .route("/login_mt5_account", post(login_mt5_account))
         .layer(cors)
         .with_state(star_river.clone());
 

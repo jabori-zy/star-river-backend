@@ -29,6 +29,7 @@ impl LiveDataNode {
         strategy_id: i64, 
         node_id: String, 
         node_name: String, 
+        account_id: i32,
         exchange: Exchange, 
         symbol: String, 
         interval: KlineInterval, 
@@ -49,6 +50,7 @@ impl LiveDataNode {
         Self {
             context: Arc::new(RwLock::new(Box::new(LiveDataNodeContext {
                 base_context,
+                account_id,
                 exchange, 
                 symbol, 
                 interval, 

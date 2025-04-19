@@ -84,15 +84,15 @@ impl EngineContext for TransactionEngineContext {
 
 impl TransactionEngineContext {
 
-    async fn get_exchange(&self, exchange_name: &Exchange) -> Result<Box<dyn ExchangeClient>, String> {
+    async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
         // 1. 先检查交易所注册状态
         let is_registered = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.is_registered(exchange_name).await
+            exchange_engine_guard.is_registered(account_id).await
         };
 
         if !is_registered {
-            return Err(format!("交易所 {:?} 未注册", exchange_name));
+            return Err("交易所未注册".to_string());
         }
 
         // 2. 获取上下文（新的锁范围）
@@ -108,7 +108,7 @@ impl TransactionEngineContext {
             .downcast_ref::<ExchangeEngineContext>()
             .unwrap();
 
-        exchange_engine_context_guard.get_exchange(exchange_name).await
+        exchange_engine_context_guard.get_exchange(account_id).await
     }
 
     async fn get_transaction_detail(&mut self, order: Order) -> Result<(), String> {
@@ -117,7 +117,7 @@ impl TransactionEngineContext {
         // 获取交易明细
         tracing::info!("订单已成交, 获取持仓: {:?}", order);
 
-        let exchange = self.get_exchange(&order.exchange).await.unwrap();
+        let exchange = self.get_exchange(&order.account_id).await.unwrap();
         // 根据order_id获取交易明细
         let get_transaction_detail_params = GetTransactionDetailParams {
             strategy_id: order.strategy_id.clone(),

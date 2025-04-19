@@ -12,7 +12,7 @@ use std::any::Any;
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
-use types::account::{ExchangeAccountInfo, Mt5AccountInfo};
+use types::account::ExchangeAccountInfo;
 
 #[async_trait]
 pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
@@ -22,7 +22,7 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
 
     // 市场相关
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String>;
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String>;
+    async fn get_kline_series(&self, terminal_id: i32, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String>;
     async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn get_socket_stream(&self) -> Result<(), String>;

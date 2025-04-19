@@ -105,11 +105,11 @@ impl OrderEngineContext {
         // 1. 先检查注册状态
         let is_registered = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.is_registered(&params.exchange).await
+            exchange_engine_guard.is_registered(&params.account_id).await
         };
 
         if !is_registered {
-            return Err(format!("交易所 {:?} 未注册", &params.exchange));
+            return Err(format!("交易所 {:?} 未注册", &params.account_id));
         }
 
         // 2. 获取上下文（新的锁范围）
@@ -125,7 +125,7 @@ impl OrderEngineContext {
             .downcast_ref::<ExchangeEngineContext>()
             .unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&params.exchange).await.unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&params.account_id).await.unwrap();
 
         let exchange_order = exchange.create_order(params.clone()).await.unwrap();
 
@@ -186,7 +186,7 @@ impl OrderEngineContext {
             // 列表不为空, 则遍历列表
             for order in orders {
                 let exchange_engine_guard = exchange_engine.lock().await;
-                let exchange = exchange_engine_guard.get_exchange(&order.exchange).await;
+                let exchange = exchange_engine_guard.get_exchange(&order.account_id).await;
                 
                 // 获取订单信息
                 let latest_order = exchange.update_order(order.clone()).await.expect("更新订单失败");

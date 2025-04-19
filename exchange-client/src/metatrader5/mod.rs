@@ -5,19 +5,10 @@ mod mt5_data_processor;
 mod mt5_types;
 
 use mt5_types::Mt5PositionNumberRequest;
-use rust_embed::Embed;
-use tempfile::TempDir;
 use types::position::PositionNumber;
-use std::fs;
-use tokio::process::Command;
-use std::process::Command as StdCommand;
 use mt5_http_client::Mt5HttpClient;
-use std::process::Stdio;
 use std::sync::Arc;
-use std::sync::Mutex as StdMutex;
 use tokio::sync::Mutex;
-use tokio::process::Child;
-use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use types::market::KlineInterval;
 use mt5_ws_client::Mt5WsClient;
 use mt5_ws_client::WebSocketState;
@@ -39,19 +30,8 @@ use event_center::command_event::position_engine_command::GetPositionParam;
 use super::metatrader5::mt5_types::Mt5KlineInterval;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
-use types::account::{ExchangeAccountInfo, Mt5AccountInfo};
-
-
-
-
-
-
-#[derive(Embed)]
-#[folder = "src/metatrader5/bin/windows/"]
-struct Asset;
-
-
-
+use types::account::ExchangeAccountInfo;
+use types::account::mt5_account::Mt5AccountInfo;
 
 
 
@@ -62,16 +42,15 @@ pub struct MetaTrader5AccountConfig {
     pub server: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct SubscribedSymbol {
-    pub symbol: String,
-    pub kline_interval: Mt5KlineInterval,
-}
 
 #[derive(Clone, Debug)]
 pub struct MetaTrader5 {
+    pub terminal_id: i32,
+    pub account_id: i64,
+    pub password: String,
+    pub server: String,
+    pub terminal_path: String,
     mt5_http_client: Arc<Mutex<Mt5HttpClient>>,
-    mt5_process: Arc<StdMutex<Option<Child>>>,
     websocket_state: Arc<Mutex<Option<WebSocketState>>>,
     data_processor: Arc<Mutex<Mt5DataProcessor>>,
     is_process_stream: Arc<AtomicBool>,
@@ -80,11 +59,22 @@ pub struct MetaTrader5 {
 
 
 impl MetaTrader5 {
-    pub fn new(event_publisher: EventPublisher) -> Self {
+    pub fn new(
+        terminal_id: i32,
+        account_id: i64,
+        password: String,
+        server: String,
+        terminal_path: String,
+        event_publisher: EventPublisher
+    ) -> Self {
         let event_publisher = Arc::new(Mutex::new(event_publisher));
         Self {
+            terminal_id,
+            account_id,
+            password,
+            server,
+            terminal_path,
             mt5_http_client: Arc::new(Mutex::new(Mt5HttpClient::new())),
-            mt5_process: Arc::new(StdMutex::new(None)),
             websocket_state: Arc::new(Mutex::new(None)),
             is_process_stream: Arc::new(AtomicBool::new(false)),
             event_publisher: event_publisher.clone(),
@@ -93,136 +83,136 @@ impl MetaTrader5 {
         }
     }
 
-    pub async fn start_mt5_server(&self, debug_output: bool) -> Result<(), Box<dyn std::error::Error>> {
-        // 先检查并清理可能存在的旧进程
-        #[cfg(windows)]
-        {
-            // 查找所有MetaTrader5.exe进程
-            let output = StdCommand::new("tasklist")
-                .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
-                .output()?;
+    // pub async fn start_mt5_server(&self, debug_output: bool) -> Result<(), Box<dyn std::error::Error>> {
+    //     // 先检查并清理可能存在的旧进程
+    //     #[cfg(windows)]
+    //     {
+    //         // 查找所有MetaTrader5.exe进程
+    //         let output = StdCommand::new("tasklist")
+    //             .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+    //             .output()?;
             
-            let output_str = String::from_utf8_lossy(&output.stdout);
-            if output_str.contains("MetaTrader5.exe") {
-                tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
+    //         let output_str = String::from_utf8_lossy(&output.stdout);
+    //         if output_str.contains("MetaTrader5.exe") {
+    //             tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
                 
-                // 强制结束所有MetaTrader5.exe进程
-                let _ = StdCommand::new("taskkill")
-                    .args(&["/F", "/IM", "MetaTrader5.exe"])
-                    .output()?;
+    //             // 强制结束所有MetaTrader5.exe进程
+    //             let _ = StdCommand::new("taskkill")
+    //                 .args(&["/F", "/IM", "MetaTrader5.exe"])
+    //                 .output()?;
                     
-                // 等待进程完全退出
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            }
-        }
-        let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
-            .ok_or("获取python可执行文件失败")?;
+    //             // 等待进程完全退出
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //         }
+    //     }
+    //     let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
+    //         .ok_or("获取python可执行文件失败")?;
         
-        let temp_dir = TempDir::new()?;
-        let exe_path = temp_dir.path().join("MetaTrader5.exe");
-        fs::write(&exe_path, py_exe.data)?;
+    //     let temp_dir = TempDir::new()?;
+    //     let exe_path = temp_dir.path().join("MetaTrader5.exe");
+    //     fs::write(&exe_path, py_exe.data)?;
 
-        // 创建子进程，设置新的进程组
-        let mut command = Command::new(exe_path);
+    //     // 创建子进程，设置新的进程组
+    //     let mut command = Command::new(exe_path);
         
-        #[cfg(windows)]
-        {
-            command.creation_flags(CREATE_NEW_PROCESS_GROUP.0 as u32);
-        }
+    //     #[cfg(windows)]
+    //     {
+    //         command.creation_flags(CREATE_NEW_PROCESS_GROUP.0 as u32);
+    //     }
 
-        // 添加-u参数禁用Python输出缓冲
-        command.arg("-u");
+    //     // 添加-u参数禁用Python输出缓冲
+    //     command.arg("-u");
         
-        // 根据debug_output参数决定如何处理输出
-        let mut child = if debug_output {
-            // 直接输出到终端
-            command
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .spawn()?
-        } else {
-            // 捕获输出用于日志
-            command
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()?
-        };
+    //     // 根据debug_output参数决定如何处理输出
+    //     let mut child = if debug_output {
+    //         // 直接输出到终端
+    //         command
+    //             .stdout(Stdio::inherit())
+    //             .stderr(Stdio::inherit())
+    //             .spawn()?
+    //     } else {
+    //         // 捕获输出用于日志
+    //         command
+    //             .stdout(Stdio::piped())
+    //             .stderr(Stdio::piped())
+    //             .spawn()?
+    //     };
 
-        // 如果不是直接输出到终端，则捕获输出到日志
-        if !debug_output {
-            // 处理标准输出
-            if let Some(stdout) = child.stdout.take() {
-                tokio::spawn(async move {
-                    use tokio::io::{BufReader, AsyncBufReadExt};
-                    let reader = BufReader::new(stdout);
-                    let mut lines = reader.lines();
+    //     // 如果不是直接输出到终端，则捕获输出到日志
+    //     if !debug_output {
+    //         // 处理标准输出
+    //         if let Some(stdout) = child.stdout.take() {
+    //             tokio::spawn(async move {
+    //                 use tokio::io::{BufReader, AsyncBufReadExt};
+    //                 let reader = BufReader::new(stdout);
+    //                 let mut lines = reader.lines();
                     
-                    while let Ok(Some(line)) = lines.next_line().await {
-                        tracing::info!("MT5 output: {}", line);
-                    }
-                });
-            }
+    //                 while let Ok(Some(line)) = lines.next_line().await {
+    //                     tracing::info!("MT5 output: {}", line);
+    //                 }
+    //             });
+    //         }
 
-            // 处理标准错误
-            if let Some(stderr) = child.stderr.take() {
-                tokio::spawn(async move {
-                    use tokio::io::{BufReader, AsyncBufReadExt};
-                    let reader = BufReader::new(stderr);
-                    let mut lines = reader.lines();
+    //         // 处理标准错误
+    //         if let Some(stderr) = child.stderr.take() {
+    //             tokio::spawn(async move {
+    //                 use tokio::io::{BufReader, AsyncBufReadExt};
+    //                 let reader = BufReader::new(stderr);
+    //                 let mut lines = reader.lines();
                     
-                    while let Ok(Some(line)) = lines.next_line().await {
-                        tracing::warn!("MT5 error: {}", line);
-                    }
-                });
-            }
-        }
+    //                 while let Ok(Some(line)) = lines.next_line().await {
+    //                     tracing::warn!("MT5 error: {}", line);
+    //                 }
+    //             });
+    //         }
+    //     }
 
-        *self.mt5_process.lock().unwrap() = Some(child);
+    //     *self.mt5_process.lock().unwrap() = Some(child);
 
-        tracing::info!("metatrader5服务启动成功");
-        Ok(())
-    }
+    //     tracing::info!("metatrader5服务启动成功");
+    //     Ok(())
+    // }
 
-    pub async fn stop_mt5_server(&mut self) -> Result<(), String> {
-        if let Some(mut child) = self.mt5_process.lock().unwrap().take() {
-            #[cfg(windows)]
-            {
-                use windows::Win32::System::Console::GenerateConsoleCtrlEvent;
+    // pub async fn stop_mt5_server(&mut self) -> Result<(), String> {
+    //     if let Some(mut child) = self.mt5_process.lock().unwrap().take() {
+    //         #[cfg(windows)]
+    //         {
+    //             use windows::Win32::System::Console::GenerateConsoleCtrlEvent;
                 
-                // 使用进程组 ID 发送信号（进程组 ID 与主进程 ID 相同）
-                let pgid = child.id().unwrap_or(0) as u32;
-                if pgid != 0 {
-                    unsafe {
-                        // 第二个参数为进程组 ID
-                        GenerateConsoleCtrlEvent(0, pgid).expect("发送控制事件失败");
-                    }
-                }
-            }
+    //             // 使用进程组 ID 发送信号（进程组 ID 与主进程 ID 相同）
+    //             let pgid = child.id().unwrap_or(0) as u32;
+    //             if pgid != 0 {
+    //                 unsafe {
+    //                     // 第二个参数为进程组 ID
+    //                     GenerateConsoleCtrlEvent(0, pgid).expect("发送控制事件失败");
+    //                 }
+    //             }
+    //         }
 
-            // 增加等待时间，确保子进程有足够时间响应
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //         // 增加等待时间，确保子进程有足够时间响应
+    //         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-            // 如果还有进程在运行，强制结束
-            if let Ok(None) = child.try_wait() {
-                // 终止主进程及其所有子进程
-                #[cfg(windows)]
-                {
-                    use std::process::Command;
-                    let _ = Command::new("taskkill")
-                        .args(&["/F", "/T", "/PID", &child.id().unwrap_or(0).to_string()])
-                        .output();
-                }
+    //         // 如果还有进程在运行，强制结束
+    //         if let Ok(None) = child.try_wait() {
+    //             // 终止主进程及其所有子进程
+    //             #[cfg(windows)]
+    //             {
+    //                 use std::process::Command;
+    //                 let _ = Command::new("taskkill")
+    //                     .args(&["/F", "/T", "/PID", &child.id().unwrap_or(0).to_string()])
+    //                     .output();
+    //             }
                 
-                #[cfg(not(windows))]
-                {
-                    child.kill().await.expect("停止MT5服务失败");
-                }
-            }
+    //             #[cfg(not(windows))]
+    //             {
+    //                 child.kill().await.expect("停止MT5服务失败");
+    //             }
+    //         }
             
-            tracing::info!("metatrader5服务已停止");
-        }
-        Ok(())
-    }
+    //         tracing::info!("metatrader5服务已停止");
+    //     }
+    //     Ok(())
+    // }
 
     pub async fn connect_websocket(&mut self) -> Result<(), String> {
         let (websocket_state, _) = Mt5WsClient::connect_default().await.unwrap();
@@ -249,16 +239,20 @@ impl MetaTrader5 {
         self.mt5_http_client.lock().await.ping().await
     }
 
-    pub async fn initialize_client(&mut self) -> Result<(), String> {
-        self.mt5_http_client.lock().await.initialize_client().await
+    pub async fn initialize_terminal(&mut self) -> Result<(), String> {
+        self.mt5_http_client.lock().await.initialize_terminal(self.terminal_id, &self.terminal_path).await
     }
 
-    pub async fn get_client_status(&mut self) -> Result<(), String> {
-        self.mt5_http_client.lock().await.get_client_status().await
+    pub async fn delete_terminal(&self) -> Result<(), String> {
+        self.mt5_http_client.lock().await.delete_terminal(self.terminal_id).await
     }
 
-    pub async fn login(&mut self, account_id: i32, password: &str, server: &str, terminal_path: &str) -> Result<(), String> {
-        self.mt5_http_client.lock().await.login(account_id, password, server, terminal_path).await
+    pub async fn ping_terminal(&mut self, terminal_id: i32) -> Result<serde_json::Value, String> {
+        self.mt5_http_client.lock().await.ping_terminal(terminal_id).await
+    }
+
+    pub async fn login(&self) -> Result<serde_json::Value, String> {
+        self.mt5_http_client.lock().await.login(self.terminal_id, self.account_id, &self.password, &self.server).await
     }
 
 }
@@ -278,11 +272,11 @@ impl ExchangeClient for MetaTrader5 {
         Ok(serde_json::Value::Null)
     }
 
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
+    async fn get_kline_series(&self, terminal_id: i32, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mut mt5_http_client = self.mt5_http_client.lock().await;
-        let kline_series = mt5_http_client.get_kline_series(symbol,mt5_interval.clone(), limit).await.expect("获取k线系列失败");
-        tracing::info!("获取k线系列成功, k线数量: {:?}", limit.unwrap_or(0));
+        let kline_series = mt5_http_client.get_kline_series(terminal_id, symbol, mt5_interval.clone(), limit).await.expect("获取k线系列失败");
+        tracing::info!("获取k线系列成功, k线数量: {:?}", kline_series);
         let data_processor = self.data_processor.lock().await;
         data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
         Ok(())
@@ -462,7 +456,7 @@ impl ExchangeClient for MetaTrader5 {
 
     async fn get_account_info(&self) -> Result<Box<dyn ExchangeAccountInfo>, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
-        let account_info = mt5_http_client.get_account_info().await.expect("获取账户信息失败");
+        let account_info = mt5_http_client.get_account_info(self.terminal_id).await.expect("获取账户信息失败");
         let data_processor = self.data_processor.lock().await;
         let account_info = data_processor.process_account_info(account_info).await.expect("处理账户信息失败");
         Ok(account_info)

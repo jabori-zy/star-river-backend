@@ -10,6 +10,7 @@ impl From<OrderModel> for Order {
             strategy_id: order.strategy_id,
             node_id: order.node_id,
             exchange_order_id: order.exchange_order_id,
+            account_id: order.account_id,
             exchange: Exchange::from_str(&order.exchange).unwrap(),
             symbol: order.symbol,
             order_side: OrderSide::from_str(&order.order_side).unwrap(),

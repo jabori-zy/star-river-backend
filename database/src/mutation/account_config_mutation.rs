@@ -29,13 +29,5 @@ impl AccountConfigMutation {
 
         Ok(account_config_model.into())
     }
-
-
-    pub async fn get_all_account_config(
-        db: &DbConn,
-    ) -> Result<Vec<TypeAccountConfig>, DbErr> {
-        let account_config_model = account_config::Entity::find().all(db).await?;
-        Ok(account_config_model.into_iter().map(|model| model.into()).collect())
-    }
 }
 

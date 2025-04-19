@@ -35,6 +35,7 @@ impl OrderNode {
         strategy_id: i64,
         node_id: String,
         node_name: String,
+        account_id: i32,
         exchange: Exchange,
         symbol: String,
         order_config: OrderConfig,
@@ -53,6 +54,7 @@ impl OrderNode {
         Self {
             context: Arc::new(RwLock::new(Box::new(OrderNodeContext {
                 base_context,
+                account_id,
                 exchange,
                 symbol,
                 order_config,

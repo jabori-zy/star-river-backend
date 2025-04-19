@@ -123,7 +123,7 @@ impl MarketEngineContext {
         // 1. 先检查注册状态
         let is_registered = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.is_registered(&params.exchange).await
+            exchange_engine_guard.is_registered(&params.account_id).await
         };
 
         if !is_registered {
@@ -143,11 +143,11 @@ impl MarketEngineContext {
             .downcast_ref::<ExchangeEngineContext>()
             .unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&params.exchange).await.unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&params.account_id).await.unwrap();
 
         // 先获取历史k线
         // k线长度设置
-        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(20)).await?;
+        exchange.get_kline_series(params.account_id, &params.symbol, params.interval.clone(), Some(20)).await?;
         // 再订阅k线流
         exchange.subscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
         // 获取socket流
@@ -172,7 +172,7 @@ impl MarketEngineContext {
     async fn unsubscribe_kline_stream(&self, params: UnsubscribeKlineStreamParams) -> Result<(), String> {
         // 创建无限循环，只有当已注册时才退出
         let exchange_guard = self.exchange_engine.lock().await;
-        if !exchange_guard.is_registered(&params.exchange).await {
+        if !exchange_guard.is_registered(&params.account_id).await {
             return Err(format!("交易所 {:?} 未注册", params.exchange));
         }
 
@@ -189,7 +189,7 @@ impl MarketEngineContext {
             .downcast_ref::<ExchangeEngineContext>()
             .unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&params.exchange).await.unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&params.account_id).await.unwrap();
         exchange.unsubscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
 
         let request_id = params.request_id;

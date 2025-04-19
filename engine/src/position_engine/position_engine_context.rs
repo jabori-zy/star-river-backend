@@ -99,7 +99,7 @@ impl PositionEngineContext {
         // 1. 先检查交易所注册状态
         let is_registered = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.is_registered(&order.exchange).await
+            exchange_engine_guard.is_registered(&order.account_id).await
         };
 
         if !is_registered {
@@ -119,7 +119,7 @@ impl PositionEngineContext {
             .downcast_ref::<ExchangeEngineContext>()
             .unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&order.exchange).await.unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&order.account_id).await.unwrap();
 
         let get_position_params = GetPositionParam {
             strategy_id: order.strategy_id.clone(),
@@ -201,7 +201,7 @@ impl PositionEngineContext {
                 // 获取交易所的上下文
                 let exchange_engine_guard = exchange_engine.lock().await;
                 // 获取交易所对象
-                let exchange = exchange_engine_guard.get_exchange(&position.exchange).await;
+                let exchange = exchange_engine_guard.get_exchange(&position.account_id).await;
                 
                 // 获取持仓信息
                 let latest_position = exchange.update_position(position).await.expect("更新订单失败");

@@ -26,6 +26,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Position::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Position::NodeId).string().not_null())
                     .col(ColumnDef::new(Position::ExchangePositionId).big_integer().not_null())
+                    .col(ColumnDef::new(Position::AccountId).integer().not_null())
                     .col(ColumnDef::new(Position::Exchange).string().not_null())
                     .col(ColumnDef::new(Position::Symbol).string().not_null())
                     .col(ColumnDef::new(Position::PositionSide).string().not_null())
@@ -62,6 +63,7 @@ pub enum Position {
     StrategyId, // 策略ID
     ExchangePositionId, // 交易所订单ID
     NodeId, // 节点ID
+    AccountId, // 账户ID
     Exchange, // 交易所
     Symbol, // 交易对
     PositionSide, // 订单方向

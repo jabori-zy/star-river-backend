@@ -79,6 +79,7 @@ pub struct Position {
     pub position_id: i64,
     pub strategy_id: i64,
     pub node_id: String,
+    pub account_id: i32,
     pub exchange: Exchange,
     pub exchange_position_id: i64,
     pub symbol: String,

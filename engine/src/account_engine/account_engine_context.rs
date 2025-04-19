@@ -9,19 +9,39 @@ use crate::EngineName;
 use std::sync::Arc;
 use event_center::EventPublisher;
 use tokio::sync::Mutex;
-use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
-use event_center::order_event::OrderEvent;
-use types::order::Order;
-use event_center::command_event::position_engine_command::GetPositionParam;
-use types::position::Position;
-use database::mutation::position_mutation::PositionMutation;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
-use crate::account_engine::account_engine_types::AccountConfig;
-use database::mutation::account_config_mutation::AccountConfigMutation;
+// use crate::account_engine::account_engine_types::ExchangeAccountConfig;
+use database::mutation::mt5_account_config_mutation::Mt5AccountConfigMutation;
+use database::query::mt5_account_config_query::Mt5AccountConfigQuery;
+use types::account::mt5_account::Mt5AccountConfig;
+use types::account::ExchangeAccountConfig;
+use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
+use event_center::command_event::exchange_engine_command::UnregisterMt5ExchangeParams;
+use uuid::Uuid;
+use event_center::command_event::CommandEvent;
+use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
+use event_center::response_event::ResponseEvent;
+use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
+use types::account::ExchangeAccountInfo;
+use event_center::account_event::AccountEvent;
 
+
+#[derive(Debug, Clone)]
+pub enum ExchangeStatus {
+    NotRegist, // 未注册
+    Registing, // 注册中
+    Registed, // 已注册
+}
+
+#[derive(Debug, Clone)]
+pub struct Account {
+    pub account_config: Box<dyn ExchangeAccountConfig>,
+    pub account_info: Option<Box<dyn ExchangeAccountInfo>>,
+    pub exchange_status: ExchangeStatus,
+}
 
 #[derive(Debug)]
 pub struct AccountEngineContext {
@@ -31,7 +51,7 @@ pub struct AccountEngineContext {
     pub database: DatabaseConnection,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub account_info: Arc<RwLock<HashMap<Exchange, AccountConfig>>>
+    pub accounts: Arc<RwLock<Vec<Account>>>
 }
 
 impl Clone for AccountEngineContext {
@@ -43,7 +63,7 @@ impl Clone for AccountEngineContext {
             database: self.database.clone(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
-            account_info: self.account_info.clone(),
+            accounts: self.accounts.clone(),
         }
     }
 }
@@ -76,93 +96,297 @@ impl EngineContext for AccountEngineContext {
     }
 
     async fn handle_event(&mut self, event: Event) {
+        match event {
+            // Event::Response(response_event) => {
+            //     self.handle_response_event(response_event).await;
+            // }
+            Event::Response(response_event) => {
+                match response_event {
+                    ResponseEvent::ExchangeEngine(exchange_engine_event) => {
+                        match exchange_engine_event {
+                            ExchangeEngineResponse::RegisterMt5ExchangeSuccess(register_response) => {
+                                // self.handle_register_mt5_exchange_success(register_params).await;
+                                tracing::debug!("注册mt5交易所成功: {:?}", register_response);
+                                // 更新账户的交易所状态
+                                let mut accounts = self.accounts.write().await;
+                                let index = accounts.iter().position(|account| account.account_config.get_account_id() == register_response.terminal_id).unwrap();
+                                accounts[index].exchange_status = ExchangeStatus::Registed;
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Event::Account(account_event) => {
+                match account_event {
+
+                    AccountEvent::AccountConfigAdded((account_id, exchange)) => {
+                        // 将账户配置添加到accounts中
+                        self.update_accounts(account_id, exchange).await;
+                    }
+                    AccountEvent::AccountConfigDeleted(account_id) => {
+                        // 将账户配置从accounts中删除
+                        self.delete_accounts(account_id).await;
+                    }
+                }
+            }
+            _ => {}
+        }
+
     }
 }
 
 
 impl AccountEngineContext {
-    // 添加账户配置
-    pub async fn add_account_config(&mut self, account_name: String, account_config: AccountConfig) -> Result<(), String> {
-        match account_config {
-            AccountConfig::MetaTrader5(meta_trader5_account_config) => {
-                let exchange = Exchange::Metatrader5;
-                let account_config_json = serde_json::to_value(meta_trader5_account_config).expect("Failed to serialize meta trader 5 account config");
-                let account_config = AccountConfigMutation::insert_account_config(
-                    &self.database, 
-                    account_name,
-                    exchange,
-                    account_config_json
-                ).await.expect("Failed to insert account config");
-                tracing::info!("Account config added: {:?}", account_config);
+
+    async fn delete_accounts(&mut self, account_id: i32) {
+        tracing::debug!("删除账户: {:?}", account_id);
+        let accounts = {
+            let accounts = self.accounts.read().await;
+            accounts.clone()
+        };
+        let index = accounts.iter().position(|account| account.account_config.get_account_id() == account_id).unwrap();
+        let mut accounts = self.accounts.write().await;
+        accounts.remove(index);
+        // 同时向exchange_engine发送注销交易所的命令
+        let unregister_params = UnregisterMt5ExchangeParams {
+            terminal_id: account_id,
+            sender: "account_engine".to_string(),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            request_id: Uuid::new_v4(),
+        };
+        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::UnregisterMt5Exchange(unregister_params));
+        self.event_publisher.publish(command_event.into()).unwrap();
+
+    }
+
+    async fn update_accounts(&mut self, account_id: i32, exchange: Exchange) {
+        tracing::debug!("更新账户: {:?}", account_id);
+        match exchange {
+            Exchange::Metatrader5 => {
+                let new_account = Mt5AccountConfigQuery::get_mt5_account_config_by_id(&self.database, account_id).await.unwrap();
+                tracing::debug!("获取到的mt5账户配置: {:?}", new_account);
+                if new_account.is_some() {
+                    let new_account = new_account.unwrap();
+                    let account = Account {
+                        account_config: new_account.clone_box(),
+                        account_info: None,
+                        exchange_status: ExchangeStatus::NotRegist,
+                    };
+                    self.accounts.write().await.push(account);
+                }
             }
             _ => {}
         }
-        Ok(())
     }
 
-    pub async fn load_account_config(&mut self) {
-        let account_config = AccountConfigMutation::get_all_account_config(&self.database).await.expect("Failed to get account config");
-        tracing::info!("Account config: {:?}", account_config);
-    }
+    // 监控账户的状态
+    pub async fn monitor_account(&mut self) {
+        
+        // 获取所有的账户配置
+        {
+            let mt5_account_config = Mt5AccountConfigQuery::get_mt5_account_config(&self.database).await.unwrap();
+            let account = mt5_account_config.iter().map(|account_config| Account {
+                account_config: account_config.clone_box(),
+                account_info: None,
+                exchange_status: ExchangeStatus::NotRegist, // 默认未注册
+            }).collect::<Vec<Account>>();
+            tracing::debug!("监控账户的交易所状态: {:?}", account);
+            self.accounts.write().await.extend(account);
+        }
 
-    // 监控账户
-    async fn monitor_account(&mut self) {
-        let account_config = self.account_info.clone();
+        let accounts = self.accounts.clone();
         let exchange_engine = self.exchange_engine.clone();
         let event_publisher = self.event_publisher.clone();
-        let database = self.database.clone();
         let mut heartbeat = self.heartbeat.lock().await;
         heartbeat.register_async_task(
-            "监控账户".to_string(),
+            "监控账户的交易所状态".to_string(),
             move || {
-                let account_config = account_config.clone();
+                let accounts = accounts.clone();
                 let exchange_engine = exchange_engine.clone();
                 let event_publisher = event_publisher.clone();
-                let database = database.clone();
                 async move {
-                    Self::process_account(
-                        account_config,
+                    Self::process_account_exchange(
+                        accounts,
                         exchange_engine,
                         event_publisher,
-                        database
                     ).await
                 }
             },
             10
         ).await;
+
+        let accounts = self.accounts.clone();
+        let exchange_engine = self.exchange_engine.clone();
+        let event_publisher = self.event_publisher.clone();
+        heartbeat.register_async_task(
+            "监控账户信息".to_string(),
+            move || {
+                let accounts = accounts.clone();
+                let exchange_engine = exchange_engine.clone();
+                let event_publisher = event_publisher.clone();
+                async move {
+                    Self::process_account_info(
+                        accounts,
+                        exchange_engine,
+                        event_publisher,
+                    ).await
+                }
+            },
+            10
+        ).await;
+
+
     }
 
-    async fn process_account(
-        account_config: Arc<RwLock<HashMap<Exchange, AccountConfig>>>,
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
-        event_publisher: EventPublisher,
-        database: DatabaseConnection,
-    ) {
-        let account_config_clone = {
-            let account_config = account_config.read().await;
-            account_config.clone()
+    // 监控账户的exchange状态
+    async fn process_account_exchange(accounts: Arc<RwLock<Vec<Account>>>,exchange_engine: Arc<Mutex<ExchangeEngine>>,event_publisher: EventPublisher) {
+        
+        let accounts_clone = {
+            let accounts = accounts.read().await;
+            accounts.clone()
         };
+        tracing::debug!("监控账户的交易所状态: {:?}", accounts_clone);
 
-        // 如果hashmap为空，则直接返回
-        if account_config_clone.is_empty() {
+        // 如果vec为空，则直接返回
+        if accounts_clone.is_empty() {
+            tracing::debug!("监控账户: 没有账户配置");
             return;
         }
 
-        // 遍历账户配置
-        for (exchange, account_config) in account_config_clone.iter() {
-            match exchange {
-                Exchange::Metatrader5 => {
-                    // 获取交易所的上下文
-                    let exchange_engine_guard = exchange_engine.lock().await;
-                    // 获取交易所对象
-                    let exchange = exchange_engine_guard.get_exchange(&exchange).await;
+        // 遍历账户配置,尝试获取账户信息
+        for (index, account) in accounts_clone.iter().enumerate() {
+            // 先判断账户的交易所状态
+            let account_status = account.exchange_status.clone();
+            match account_status {
+                // 未注册
+                ExchangeStatus::NotRegist => {
+                    tracing::debug!("{}账户未注册，开始检查是否已注册", account.account_config.get_account_name());
+                    // 从exchange_engine判断是否真的未注册
+                    let exchagne_is_registered = {
+                        let exchange_engine_guard = exchange_engine.lock().await;
+                        let is_registered = exchange_engine_guard.is_registered(&account.account_config.get_account_id()).await;
+                        is_registered
+                    };
+
+                    // 如果是已注册状态，则设置为registed
+                    if exchagne_is_registered {
+                        let mut accounts = accounts.write().await;
+                        accounts[index].exchange_status = ExchangeStatus::Registed;
+                    }
+                    // 如果是未注册状态，则发送注册命令
+                    else {
+                        tracing::debug!("{}账户未注册交易所，开始注册", account.account_config.get_account_name());
+                        // 如果没有注册交易所，则发送注册命令
+                        match account.account_config.get_exchange() {
+                            Exchange::Metatrader5 => {
+                                let mt5_account_config = account.account_config.as_any().downcast_ref::<Mt5AccountConfig>().unwrap();
+                                let register_params = RegisterMt5ExchangeParams {
+                                    terminal_id: mt5_account_config.id,
+                                    login: mt5_account_config.login,
+                                    password: mt5_account_config.password.clone(),
+                                    server: mt5_account_config.server.clone(),
+                                    terminal_path: mt5_account_config.terminal_path.clone(),
+                                    sender: "account_engine".to_string(),
+                                    timestamp: chrono::Utc::now().timestamp_millis(),
+                                    request_id: Uuid::new_v4(),
+                                };
+                                let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterMt5Exchange(register_params));
+                                event_publisher.publish(command_event.into()).unwrap();
+                                // 将账户状态设置为注册中
+                                let mut accounts = accounts.write().await;
+                                accounts[index].exchange_status = ExchangeStatus::Registing;
+                            }
+                            _ => {}
+                        }
+                    }
+                    
+
+                },
+                // 注册中
+                ExchangeStatus::Registing => {
+                    // 如果注册中，跳过
+                    tracing::debug!("{}账户正在注册中，跳过", account.account_config.get_account_name());
+                    continue;
+                },
+                // 已注册
+                ExchangeStatus::Registed => {
+                    tracing::debug!("{}账户已注册，跳过", account.account_config.get_account_name());
+                    continue;
+                },
+            }
+
+            // // 如果已经注册，则获取账户信息
+            // match account.account_config.get_exchange() {
+            //     Exchange::Metatrader5 => {
+            //         // 获取交易所的上下文
+            //         let exchange_engine_guard = exchange_engine.lock().await;
+            //         // 获取交易所对象
+            //         let exchange = exchange_engine_guard.get_exchange(&account.account_config.get_account_id()).await;
+            //         // 获取账户信息
+            //         let account_info = exchange.get_account_info().await;
+            //         tracing::info!("Account info: {:?}", account_info);
+            //     }
+            //     _ => {}
+            // }
+        }
+    }
+
+
+    async fn process_account_info(accounts: Arc<RwLock<Vec<Account>>>,exchange_engine: Arc<Mutex<ExchangeEngine>>,event_publisher: EventPublisher) {
+        let accounts_clone = {
+            let accounts = accounts.read().await;
+            accounts.clone()
+        };
+        tracing::debug!("监控账户信息: {:?}", accounts_clone);
+
+        // 如果vec为空，则直接返回
+        if accounts_clone.is_empty() {
+            tracing::debug!("监控账户: 没有账户配置");
+            return;
+        }
+
+        // 遍历账户配置,尝试获取账户信息
+        for (index, account) in accounts_clone.iter().enumerate() {
+            // 先判断账户的交易所状态
+            let account_status = account.exchange_status.clone();
+            match account_status {
+                ExchangeStatus::Registed => {
                     // 获取账户信息
+                    let exchange = exchange_engine.lock().await;
+                    let exchange = exchange.get_exchange(&account.account_config.get_account_id()).await;
                     let account_info = exchange.get_account_info().await;
-                    tracing::info!("Account info: {:?}", account_info);
+                    tracing::debug!("获取到的账户信息: {:?}", account_info);
                 }
-                _ => {}
+                _ => continue
             }
         }
+
+    }
+
+
+    pub async fn register_mt5_exchange(&mut self, account_id: i32) -> Result<(), String> {
+        // 获取account_id的config
+
+        let mt5_account_config = Mt5AccountConfigQuery::get_mt5_account_config_by_id(&self.database, account_id).await.unwrap();
+        if mt5_account_config.is_none() {
+            return Err("账户配置不存在".to_string());
+        }
+        let mt5_account_config = mt5_account_config.unwrap();
+        let register_params = RegisterMt5ExchangeParams {
+            terminal_id: mt5_account_config.id,
+            login: mt5_account_config.login,
+            password: mt5_account_config.password,
+            server: mt5_account_config.server,
+            terminal_path: mt5_account_config.terminal_path,
+            sender: "account_engine".to_string(),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            request_id: Uuid::new_v4(),
+        };
+        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterMt5Exchange(register_params));
+        self.event_publisher.publish(command_event.into()).unwrap();
+        Ok(())
     }
 
     

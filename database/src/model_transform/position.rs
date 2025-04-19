@@ -12,6 +12,7 @@ impl From<PositionModel> for Position {
             strategy_id: position.strategy_id as i64,
             node_id: position.node_id.clone(),
             exchange: Exchange::from_str(&position.exchange).expect("Invalid exchange"),
+            account_id: position.account_id,
             exchange_position_id: position.exchange_position_id as i64,
             symbol: position.symbol,
             position_side: PositionSide::from_str(&position.position_side).expect("Invalid position side"),

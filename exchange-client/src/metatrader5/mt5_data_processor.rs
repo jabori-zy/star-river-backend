@@ -12,7 +12,8 @@ use types::order::Order;
 use types::position::{ExchangePosition, Position};
 use types::transaction_detail::{ExchangeTransactionDetail, TransactionDetail};
 use crate::metatrader5::mt5_types::Mt5Deal;
-use types::account::{ExchangeAccountInfo, Mt5AccountInfo};
+use types::account::ExchangeAccountInfo;
+use types::account::mt5_account::Mt5AccountInfo;
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -74,8 +75,9 @@ impl Mt5DataProcessor {
         }
     }
 
-    pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: Vec<serde_json::Value>) {
-        let klines = raw_data
+    pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: serde_json::Value) {
+        let data = raw_data["data"].as_array().expect("转换为array失败");
+        let klines = data
             .iter()
             .map(|k| {
                 if let Some(arr) = k.as_array() {
@@ -143,6 +145,7 @@ impl Mt5DataProcessor {
             strategy_id: old_order.strategy_id,
             node_id: old_order.node_id,
             exchange_order_id: old_order.exchange_order_id,
+            account_id: old_order.account_id,
             exchange: old_order.exchange,
             symbol: old_order.symbol,
             order_side: old_order.order_side,
@@ -186,6 +189,7 @@ impl Mt5DataProcessor {
                 position_id: old_position.position_id,
                 strategy_id: old_position.strategy_id.clone(),
                 node_id: old_position.node_id.clone(),
+                account_id: old_position.account_id,
                 exchange: old_position.exchange.clone(),
                 exchange_position_id: old_position.exchange_position_id.clone(),
                 symbol: old_position.symbol.clone(),

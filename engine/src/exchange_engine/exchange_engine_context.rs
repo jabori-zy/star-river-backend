@@ -15,24 +15,46 @@ use std::collections::HashMap;
 use utils::get_utc8_timestamp;
 use exchange_client::binance::BinanceExchange;
 use exchange_client::metatrader5::MetaTrader5;
+use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
+use std::process::Command as StdCommand;
+use std::process::Stdio;
+use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
+use tokio::process::Child;
+use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
+use rust_embed::Embed;
+use std::fs;
+use tempfile::TempDir;
+use tokio::process::Command;
+use std::sync::atomic::AtomicBool;
+use event_center::command_event::exchange_engine_command::UnregisterMt5ExchangeParams;
+use event_center::response_event::exchange_engine_response::RegisterMt5ExchangeSuccessResponse;
+
+#[derive(Embed)]
+#[folder = "src/exchange_engine/bin/windows/"]
+struct Asset;
 
 
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
     pub engine_name: EngineName,
-    pub exchanges: HashMap<Exchange, Box<dyn ExchangeClient>>,
+    pub exchanges: HashMap<i32, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
+    pub mt5_process: Arc<StdMutex<Option<Child>>>,
+    pub is_mt5_server_running: Arc<AtomicBool>, //mt5服务器是否正在运行
 }
 
 impl Clone for ExchangeEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            exchanges: self.exchanges.iter().map(|(exchange, client)| (exchange.clone(), client.clone_box())).collect(),
+            exchanges: self.exchanges.iter().map(|(id, client)| (id.clone(), client.clone_box())).collect(),
             event_publisher: self.event_publisher.clone(),
             event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            mt5_process: self.mt5_process.clone(),
+            is_mt5_server_running: self.is_mt5_server_running.clone(),
         }
     }
 }
@@ -71,10 +93,15 @@ impl EngineContext for ExchangeEngineContext {
                 match command_event {
                     CommandEvent::ExchangeEngine(exchange_manager_command) => {
                         match exchange_manager_command {
-                            ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
-                                tracing::debug!("接收到命令: {:?}", register_exchange_command);
-                                self.register_exchange(register_exchange_command).await.expect("注册交易所失败");
+                            ExchangeEngineCommand::RegisterMt5Exchange(register_mt5_exchange_command) => {
+                                tracing::debug!("接收到命令: {:?}", register_mt5_exchange_command);
+                                self.register_mt5_exchange(register_mt5_exchange_command).await.expect("注册mt5交易所失败");
                             }
+                            ExchangeEngineCommand::UnregisterMt5Exchange(unregister_mt5_exchange_command) => {
+                                tracing::debug!("接收到命令: {:?}", unregister_mt5_exchange_command);
+                                self.unregister_mt5_exchange(unregister_mt5_exchange_command).await.expect("注销mt5交易所失败");
+                            }
+                            _ => {}
                         }
                     }
                     _ => {}
@@ -89,106 +116,275 @@ impl EngineContext for ExchangeEngineContext {
 
 
 impl ExchangeEngineContext {
-    async fn register_exchange(&mut self, register_params: RegisterExchangeParams) -> Result<(), String>{
-        // 检查是否已经注册
-        let should_register = {
-            !self.exchanges.contains_key(&register_params.exchange)
-        };
 
-        if !should_register {
-            // 直接发送响应事件
-            tracing::warn!("{}交易所已注册, 无需重复注册", register_params.exchange);
-            let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
-                exchange: register_params.exchange.clone(),
-                response_timestamp: get_utc8_timestamp(),
-                response_id: register_params.request_id,
-            }));
-            self.get_event_publisher().publish(response_event.clone().into()).unwrap();
-            return Ok(());
-        }
+    // async fn register_exchange(&mut self, register_params: RegisterExchangeParams) -> Result<(), String>{
+    //     // 检查是否已经注册
+    //     let should_register = {
+    //         !self.exchanges.contains_key(&register_params.exchange)
+    //     };
+
+    //     if !should_register {
+    //         // 直接发送响应事件
+    //         tracing::warn!("{}交易所已注册, 无需重复注册", register_params.exchange);
+    //         let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
+    //             exchange: register_params.exchange.clone(),
+    //             response_timestamp: get_utc8_timestamp(),
+    //             response_id: register_params.request_id,
+    //         }));
+    //         self.get_event_publisher().publish(response_event.clone().into()).unwrap();
+    //         return Ok(());
+    //     }
         
-        match register_params.exchange {
-            Exchange::Binance => {
-                // 当类型为Box<dyn Trait Bound>时，需要显式地指定类型
+    //     match register_params.exchange {
+    //         Exchange::Binance => {
+    //             // 当类型为Box<dyn Trait Bound>时，需要显式地指定类型
                 
-                let mut binance_exchange = Box::new(BinanceExchange::new(self.get_event_publisher().clone())) as Box<dyn ExchangeClient>;
-                binance_exchange.connect_websocket().await?;
+    //             let mut binance_exchange = Box::new(BinanceExchange::new(self.get_event_publisher().clone())) as Box<dyn ExchangeClient>;
+    //             binance_exchange.connect_websocket().await?;
                 
-                tracing::info!("{}交易所注册成功!", register_params.exchange);
-                self.exchanges.insert(register_params.exchange.clone(), binance_exchange);
-                // 发送响应事件
+    //             tracing::info!("{}交易所注册成功!", register_params.exchange);
+    //             self.exchanges.insert(register_params.exchange.clone(), binance_exchange);
+    //             // 发送响应事件
 
-                let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
-                    exchange: register_params.exchange.clone(),
-                    response_timestamp: get_utc8_timestamp(),
-                    response_id: register_params.request_id,
-                }));
-                self.get_event_publisher().publish(response_event.clone().into()).unwrap();
+    //             let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
+    //                 exchange: register_params.exchange.clone(),
+    //                 response_timestamp: get_utc8_timestamp(),
+    //                 response_id: register_params.request_id,
+    //             }));
+    //             self.get_event_publisher().publish(response_event.clone().into()).unwrap();
                 
-                Ok(())
+    //             Ok(())
 
-            }
-            Exchange::Metatrader5 => {
-                let mut mt5 = MetaTrader5::new(self.get_event_publisher().clone());
-                // 启动mt5服务器
+    //         }
+    //         Exchange::Metatrader5 => {
+    //             let mut mt5 = MetaTrader5::new(self.get_event_publisher().clone());
+    //             // 启动mt5服务器
                 
-                mt5.start_mt5_server(false).await.unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                mt5.initialize_client().await.unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                // mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
-                mt5.login(76898751, "HhazJ520....", "Exness-MT5Trial5", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    //             mt5.start_mt5_server(false).await.unwrap();
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    //             mt5.initialize_terminal().await.unwrap();
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    //             // mt5.login(23643, "HhazJ520!!!!", "EBCFinancialGroupKY-Demo", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+    //             mt5.login(76898751, "HhazJ520....", "Exness-MT5Trial5", r"C:\Program Files\MetaTrader 5\terminal64.exe").await.expect("登录失败");
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 
-                let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
-                mt5_exchange.connect_websocket().await?;
-                tracing::info!("{}交易所注册成功!", register_params.exchange);
+    //             let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+    //             mt5_exchange.connect_websocket().await?;
+    //             tracing::info!("{}交易所注册成功!", register_params.exchange);
 
-                self.exchanges.insert(register_params.exchange.clone(), mt5_exchange);
-                let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
-                    exchange: register_params.exchange.clone(),
-                    response_timestamp: get_utc8_timestamp(),
-                    response_id: register_params.request_id,
-                }));
-                self.get_event_publisher().publish(response_event.clone().into()).unwrap();
-                Ok(())
-            }
+    //             self.exchanges.insert(register_params.exchange.clone(), mt5_exchange);
+    //             let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(RegisterExchangeSuccessResponse {
+    //                 exchange: register_params.exchange.clone(),
+    //                 response_timestamp: get_utc8_timestamp(),
+    //                 response_id: register_params.request_id,
+    //             }));
+    //             self.get_event_publisher().publish(response_event.clone().into()).unwrap();
+    //             Ok(())
+    //         }
             
 
-            _ => {
-                return Err("不支持的交易所".to_string());
-            }
-        }
-    }
+    //         _ => {
+    //             return Err("不支持的交易所".to_string());
+    //         }
+    //     }
+    // }
 
-    pub async fn is_registered(&self, exchange: &Exchange) -> bool {
-        self.exchanges.contains_key(exchange)
-    }
 
-    pub async fn get_exchange(&self, exchange: &Exchange) -> Result<Box<dyn ExchangeClient>, String> {
+    pub async fn register_mt5_exchange(&mut self, register_params: RegisterMt5ExchangeParams) -> Result<(), String> {
+        // 检查mt5服务器是否正在运行
+        let need_start_server = !self.is_mt5_server_running.load(std::sync::atomic::Ordering::Relaxed);
         
-        match self.exchanges.get(exchange) {
+        // 如果mt5服务器未运行, 则启动mt5服务器 
+        if need_start_server {
+            self.start_mt5_server(false).await.expect("启动mt5服务器失败");
+            
+            // 等待 MT5 服务器启动，设置 20 秒超时
+            match tokio::time::timeout(tokio::time::Duration::from_secs(20), async {
+                while !self.is_mt5_server_running.load(std::sync::atomic::Ordering::Relaxed) {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+            }).await {
+                // 超时情况
+                Err(_) => {
+                    return Err("mt5服务器启动超时".to_string());
+                },
+                // 成功启动，继续处理
+                Ok(_) => {
+                    tracing::info!("mt5服务器启动成功");
+                }
+            }
+        } else {
+            tracing::warn!("mt5服务器已在运行, 无需重新启动");
+        }
+        
+        // 初始化 mt5 客户端
+        let mut mt5 = MetaTrader5::new(
+            register_params.terminal_id,
+            register_params.login,
+            register_params.password,
+            register_params.server,
+            register_params.terminal_path,
+            self.get_event_publisher().clone()
+        );
+        
+        // 初始化终端
+        mt5.initialize_terminal().await.unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        
+        // 注册完成后直接登录
+        let login_result = mt5.login().await.unwrap();
+        tracing::info!("登录结果: {:?}", login_result);
+        
+        // 存储交易所客户端
+        let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+        tracing::info!("{}交易所注册成功!", Exchange::Metatrader5);
+        self.exchanges.insert(register_params.terminal_id, mt5_exchange);
+        
+        // 发送响应事件
+        let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterMt5ExchangeSuccess(RegisterMt5ExchangeSuccessResponse {
+            terminal_id: register_params.terminal_id,
+            exchange: Exchange::Metatrader5,
+            response_timestamp: get_utc8_timestamp(),
+            response_id: register_params.request_id,
+        }));
+        self.get_event_publisher().publish(response_event.clone().into()).unwrap();
+        
+        Ok(())
+    }
+
+    pub async fn unregister_mt5_exchange(&mut self, unregister_params: UnregisterMt5ExchangeParams) -> Result<(), String> {
+        tracing::debug!("接收到命令: {:?}", unregister_params);
+        // 转换为mt5
+        let mt5 = self.get_exchange(&unregister_params.terminal_id).await.unwrap();
+        // 类型转换
+        let mt5 = mt5.as_any().downcast_ref::<MetaTrader5>().unwrap();
+        mt5.delete_terminal().await.unwrap();
+        // python后端的实例也删除后，再删除exchange_engine的实例
+        self.exchanges.remove(&unregister_params.terminal_id);
+        Ok(())
+    }
+
+    pub async fn is_registered(&self, account_id: &i32) -> bool {
+        self.exchanges.contains_key(account_id)
+    }
+
+    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
+        
+        match self.exchanges.get(account_id) {
             Some(client) => {
                 // 使用clone_box方法直接获取一个新的Box<dyn ExchangeClient>
                 Ok(client.clone_box())
             },
-            None => Err(format!("交易所 {:?} 未注册", exchange))
+            None => Err(format!("交易所 {:?} 未注册", account_id))
         }
     }
 
-    pub async fn get_exchange_ref<'a>(&'a self, exchange: &Exchange) -> Result<&'a Box<dyn ExchangeClient>, String> {
-        match self.exchanges.get(exchange) {
+    pub async fn get_exchange_ref<'a>(&'a self, account_id: &i32) -> Result<&'a Box<dyn ExchangeClient>, String> {
+        match self.exchanges.get(account_id) {
             Some(client) => Ok(client),
-            None => Err(format!("交易所 {:?} 未注册", exchange))
+            None => Err(format!("交易所 {:?} 未注册", account_id))
         }
     }
 
     // 添加一个获取可变引用的方法
-    pub async fn get_exchange_mut<'a>(&'a mut self, exchange: &Exchange) -> Result<&'a mut Box<dyn ExchangeClient>, String> {
-        match self.exchanges.get_mut(exchange) {
+    pub async fn get_exchange_mut<'a>(&'a mut self, account_id: &i32) -> Result<&'a mut Box<dyn ExchangeClient>, String> {
+        match self.exchanges.get_mut(account_id) {
             Some(client) => Ok(client),
-            None => Err(format!("交易所 {:?} 未注册", exchange))
+            None => Err(format!("交易所 {:?} 未注册", account_id))
         }
+    }
+
+
+    // 由exchange_engine启动mt5服务器
+    pub async fn start_mt5_server(&self, debug_output: bool) -> Result<(), Box<dyn std::error::Error>> {
+        // 先检查并清理可能存在的旧进程
+        #[cfg(windows)]
+        {
+            // 查找所有MetaTrader5.exe进程
+            let output = StdCommand::new("tasklist")
+                .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+                .output()?;
+            
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            if output_str.contains("MetaTrader5.exe") {
+                tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
+                
+                // 强制结束所有MetaTrader5.exe进程
+                let _ = StdCommand::new("taskkill")
+                    .args(&["/F", "/IM", "MetaTrader5.exe"])
+                    .output()?;
+                    
+                // 等待进程完全退出
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+        }
+        let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
+            .ok_or("获取python可执行文件失败")?;
+        
+        let temp_dir = TempDir::new()?;
+        let exe_path = temp_dir.path().join("MetaTrader5.exe");
+        fs::write(&exe_path, py_exe.data)?;
+
+        // 创建子进程，设置新的进程组
+        let mut command = Command::new(exe_path);
+        
+        #[cfg(windows)]
+        {
+            command.creation_flags(CREATE_NEW_PROCESS_GROUP.0 as u32);
+        }
+
+        // 添加-u参数禁用Python输出缓冲
+        command.arg("-u");
+        
+        // 根据debug_output参数决定如何处理输出
+        let mut child = if debug_output {
+            // 直接输出到终端
+            command
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .spawn()?
+        } else {
+            // 捕获输出用于日志
+            command
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?
+        };
+
+        // 如果不是直接输出到终端，则捕获输出到日志
+        if !debug_output {
+            // 处理标准输出
+            if let Some(stdout) = child.stdout.take() {
+                tokio::spawn(async move {
+                    use tokio::io::{BufReader, AsyncBufReadExt};
+                    let reader = BufReader::new(stdout);
+                    let mut lines = reader.lines();
+                    
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        tracing::info!("MT5 output: {}", line);
+                    }
+                });
+            }
+
+            // 处理标准错误
+            if let Some(stderr) = child.stderr.take() {
+                tokio::spawn(async move {
+                    use tokio::io::{BufReader, AsyncBufReadExt};
+                    let reader = BufReader::new(stderr);
+                    let mut lines = reader.lines();
+                    
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        tracing::warn!("MT5 error: {}", line);
+                    }
+                });
+            }
+        }
+
+        *self.mt5_process.lock().unwrap() = Some(child);
+        self.is_mt5_server_running.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        tracing::info!("metatrader5服务启动成功");
+        Ok(())
     }
 
 

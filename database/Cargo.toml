@@ -11,6 +11,7 @@ edition.workspace = true
 [dependencies]
 sqlx = {version = "0.8.3", features = ["runtime-tokio", "sqlite"]}
 serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 sea-orm.workspace = true

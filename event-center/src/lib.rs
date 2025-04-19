@@ -7,6 +7,8 @@ pub mod response_event;
 pub mod strategy_event;
 pub mod indicator_event;
 pub mod exchange_event;
+pub mod account_event;
+
 
 
 use crate::market_event::MarketEvent;
@@ -17,6 +19,7 @@ use crate::strategy_event::StrategyEvent;
 use crate::indicator_event::IndicatorEvent;
 use crate::order_event::OrderEvent;
 use crate::position_event::PositionEvent;
+use crate::account_event::AccountEvent;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -32,7 +35,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, Display, Eq, Hash, PartialEq)]
 pub enum Channel {
-    Market,
+    Market, // 市场通道
     Exchange, // 交易所的原始数据通道
     Trade, // 交易通道
     Order, // 订单通道
@@ -41,6 +44,7 @@ pub enum Channel {
     Strategy, // 节点的信息通过这个通道发送
     Command, // 命令通道
     Response, // 响应通道
+    Account, // 账户通道
 }
 
 impl Channel {
@@ -83,6 +87,10 @@ pub enum Event {
     #[strum(serialize = "position")]
     #[serde(rename = "position")]
     Position(PositionEvent),
+
+    #[strum(serialize = "account")]
+    #[serde(rename = "account")]
+    Account(AccountEvent),
 }
 
 impl Event {
@@ -96,6 +104,7 @@ impl Event {
             Event::Strategy(_) => Channel::Strategy,
             Event::Order(_) => Channel::Order,
             Event::Position(_) => Channel::Position,
+            Event::Account(_) => Channel::Account,
         }
     }
 }

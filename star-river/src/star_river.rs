@@ -33,6 +33,7 @@ impl StarRiver {
         let request_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
         let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
         let order_event_receiver = event_center.subscribe(&Channel::Order).unwrap();
+        let account_event_receiver = event_center.subscribe(&Channel::Account).unwrap();
         let engine_manager = EngineManager::new(
             event_center.get_event_publisher(), 
             exchange_event_receiver, 
@@ -40,6 +41,7 @@ impl StarRiver {
             request_event_receiver, 
             response_event_receiver, 
             order_event_receiver,
+            account_event_receiver,
             database.get_conn(),
             heartbeat.clone()
         );

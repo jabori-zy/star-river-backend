@@ -81,6 +81,7 @@ impl Strategy {
                 let strategy_id = node_data["strategyId"].as_i64().unwrap();
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+                let account_id = node_data["accountId"].as_i64().unwrap();
                 let exchange = node_data["exchange"].as_str().unwrap();
                 let symbol = node_data["symbol"].as_str().unwrap();
                 let interval = node_data["interval"].as_str().unwrap();
@@ -96,6 +97,7 @@ impl Strategy {
                     strategy_id,
                     node_id.to_string(), 
                     node_name.to_string(), 
+                    account_id as i32,
                     Exchange::from_str(exchange).unwrap(), 
                     symbol.to_string(), 
                     KlineInterval::from_str(interval).unwrap(), 
@@ -130,6 +132,7 @@ impl Strategy {
 
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+                let account_id = node_data["accountId"].as_i64().unwrap();
                 let exchange = node_data["exchange"].as_str().unwrap();
                 let symbol = node_data["symbol"].as_str().unwrap();
                 let strategy_id = node_data["strategyId"].as_i64().unwrap();
@@ -151,6 +154,7 @@ impl Strategy {
                     strategy_id,
                     node_id.to_string(),
                     node_name.to_string(),
+                    account_id as i32,
                     Exchange::from_str(exchange).unwrap(),
                     symbol.to_string(),
                     order_config,

@@ -23,6 +23,7 @@ use super::order_node_types::OrderConfig;
 #[derive(Debug, Clone)]
 pub struct OrderNodeContext {
     pub base_context: BaseNodeContext,
+    pub account_id: i32,
     pub exchange: Exchange,
     pub symbol: String,
     pub request_id: Option<Uuid>,
@@ -61,6 +62,7 @@ impl OrderNodeContext {
                 timestamp: get_utc8_timestamp_millis(),
                 request_id: Uuid::new_v4(),
             },
+            account_id: self.account_id.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             order_type: self.order_config.order_type.clone(),

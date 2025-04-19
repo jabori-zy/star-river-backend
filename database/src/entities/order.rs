@@ -11,6 +11,7 @@ pub struct Model {
     pub strategy_id: i64,
     pub node_id: String,
     pub exchange_order_id: i64,
+    pub account_id: i32,
     pub exchange: String,
     pub symbol: String,
     pub order_side: String,

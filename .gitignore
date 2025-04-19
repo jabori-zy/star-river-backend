@@ -8,3 +8,5 @@ db/
 /exchange-client/src/metatrader5/bin/
 /exchange-client/build/
 /exchange-client/src/metatrader5/script/_pycache_
+/engine/src/exchange_engine/bin
+/engine/src/exchange_engine/build

@@ -13,7 +13,11 @@ use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use crate::EngineName;
 use std::any::Any;
-
+use std::sync::Mutex as StdMutex;
+use std::sync::atomic::AtomicBool;
+use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
+/// 交易所引擎
+/// 负责管理交易所客户端，并提供交易所客户端的注册、注销、获取等功能
 
 #[derive(Debug, Clone)]
 pub struct ExchangeEngine {
@@ -50,31 +54,32 @@ impl ExchangeEngine {
             exchanges: HashMap::new(),
             event_publisher,
             event_receiver: vec![response_event_receiver, request_event_receiver],
-
+            mt5_process: Arc::new(StdMutex::new(None)),
+            is_mt5_server_running: Arc::new(AtomicBool::new(false)),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))
         }
     }
 
-    pub async fn is_registered(&self, exchange: &Exchange) -> bool {
+    pub async fn is_registered(&self, account_id: &i32) -> bool {
         let context_guard = self.context.read().await;
         let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
-        exchange_context.is_registered(exchange).await
+        exchange_context.is_registered(account_id).await
 
     }
 
-    pub async fn get_exchange(&self, exchange: &Exchange) -> Box<dyn ExchangeClient> {
+    pub async fn get_exchange(&self, account_id: &i32) -> Box<dyn ExchangeClient> {
         let context_guard = self.context.read().await;
         let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
-        let exchanges = exchange_context.get_exchange(exchange).await.unwrap();
+        let exchanges = exchange_context.get_exchange(account_id).await.unwrap();
         exchanges
     }
 
-    pub async fn get_exchange_mut(&self, exchange: &Exchange) -> Box<dyn ExchangeClient> {
+    pub async fn get_exchange_mut(&self, account_id: &i32) -> Box<dyn ExchangeClient> {
         let mut context_guard = self.context.write().await;
         let exchange_context = context_guard.as_any_mut().downcast_mut::<ExchangeEngineContext>().unwrap();
-        let client = exchange_context.get_exchange_mut(exchange).await.unwrap();
+        let client = exchange_context.get_exchange_mut(account_id).await.unwrap();
         client.clone_box()
     }
 }

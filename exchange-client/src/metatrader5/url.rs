@@ -8,13 +8,15 @@ pub(crate) enum Mt5HttpUrl {
     BaseUrl,
     #[strum(serialize = "/ping")]
     Ping,
-    #[strum(serialize = "/initialize_client")]
-    InitializeClient,
-    #[strum(serialize = "/client_status")]
-    ClientStatus,
+    #[strum(serialize = "/initialize_terminal")]
+    InitializeTerminal,
+    #[strum(serialize = "/delete_terminal")]
+    DeleteTerminal,
+    #[strum(serialize = "/ping_terminal")]
+    PingTerminal,
     #[strum(serialize = "/login")]
     Login,
-    #[strum(serialize = "/get_kline_series")]
+    #[strum(serialize = "/market/get_kline_series")]
     GetKlineSeries,
     #[strum(serialize = "/trade/create_order")]
     CreateOrder,
