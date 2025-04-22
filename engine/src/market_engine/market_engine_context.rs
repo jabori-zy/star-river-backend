@@ -147,7 +147,7 @@ impl MarketEngineContext {
 
         // 先获取历史k线
         // k线长度设置
-        exchange.get_kline_series(params.account_id, &params.symbol, params.interval.clone(), Some(20)).await?;
+        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(20)).await?;
         // 再订阅k线流
         exchange.subscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
         // 获取socket流

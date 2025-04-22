@@ -12,21 +12,29 @@ use tokio;
 use tower_http::cors::{Any, CorsLayer};
 use axum::http::HeaderValue;
 use crate::star_river::StarRiver;
-use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy, add_mt5_account_config, delete_mt5_account_config};
+use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy, add_mt5_account_config, delete_mt5_account_config, update_mt5_account_config, update_mt5_account_config_is_available};
 use crate::api::query_api::{get_strategy_list, get_strategy_by_id, get_mt5_account_config};
 use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, enable_strategy_event_push, disable_strategy_event_push};
-use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler};
+use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler, account_sse_handler};
 use crate::api::account_api::login_mt5_account;
 use tracing::Level;
 use crate::websocket::ws_handler;
 use crate::star_river::init_app;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     // 设置生产环境的日志级别
+    // tracing_subscriber::fmt()
+    //     // filter spans/events with level TRACE or higher.
+    //     .with_max_level(Level::DEBUG)
+    //     // build but do not install the subscriber.
+    //     .init();
+    let filter = EnvFilter::new("debug,hyper=error,hyper_util=error,reqwest=error");
     tracing_subscriber::fmt()
         // filter spans/events with level TRACE or higher.
         .with_max_level(Level::DEBUG)
+        .with_env_filter(filter)
         // build but do not install the subscriber.
         .init();
 
@@ -45,6 +53,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/market_sse", get(market_sse_handler))
         .route("/indicator_sse", get(indicator_sse_handler))
         .route("/strategy_sse", get(strategy_sse_handler))
+        .route("/account_sse", get(account_sse_handler))
         .route("/create_strategy", post(create_strategy))
         .route("/init_strategy", post(init_strategy))
         .route("/run_strategy", post(run_strategy))
@@ -58,6 +67,8 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/add_mt5_account_config", post(add_mt5_account_config))
         .route("/get_mt5_account_config", get(get_mt5_account_config))
         .route("/delete_mt5_account_config", delete(delete_mt5_account_config))
+        .route("/update_mt5_account_config", post(update_mt5_account_config))
+        .route("/update_mt5_account_config_is_available", post(update_mt5_account_config_is_available))
         .route("/login_mt5_account", post(login_mt5_account))
         .layer(cors)
         .with_state(star_river.clone());
@@ -119,7 +130,6 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
     let mut retries = 0;
     loop {
@@ -129,27 +139,74 @@ async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::ne
                 if retries >= max_retries {
                     return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
                 }
-                tracing::warn!("端口 {} 被占用，尝试清理 MetaTrader5 进程...", addr.port());
+                tracing::warn!("端口 {} 被占用，尝试清理所有 MetaTrader5 相关进程...", addr.port());
                 
                 #[cfg(windows)]
                 {
-                    // 查找并清理 MetaTrader5 进程
+                    // 1. 首先检查并清理原始的 MetaTrader5.exe 进程
                     let output = std::process::Command::new("tasklist")
                         .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
                         .output()?;
                     
                     let output_str = String::from_utf8_lossy(&output.stdout);
                     if output_str.contains("MetaTrader5.exe") {
-                        tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
+                        tracing::warn!("发现旧的MetaTrader5.exe进程, 正在清理...");
                         
-                        // 强制结束所有MetaTrader5.exe进程
                         let kill_result = std::process::Command::new("taskkill")
                             .args(&["/F", "/IM", "MetaTrader5.exe"])
                             .output();
                             
                         match kill_result {
-                            Ok(_) => tracing::info!("成功清理 MetaTrader5 进程"),
-                            Err(e) => tracing::warn!("清理 MetaTrader5 进程失败: {}", e),
+                            Ok(_) => tracing::info!("成功清理 MetaTrader5.exe 进程"),
+                            Err(e) => tracing::warn!("清理 MetaTrader5.exe 进程失败: {}", e),
+                        }
+                    }
+                    
+                    // 2. 检查并清理带有数字后缀的 Metatrader5-*.exe 进程
+                    // 使用通配符查找所有Metatrader5-*.exe进程
+                    let output = std::process::Command::new("wmic")
+                        .args(&["process", "where", "name like 'Metatrader5-%.exe'", "get", "name"])
+                        .output()?;
+                        
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    if output_str.contains("Metatrader5-") {
+                        tracing::warn!("发现Metatrader5-*.exe进程, 正在清理...");
+                        
+                        // 使用任务管理器的筛选功能清理所有匹配的进程
+                        let kill_result = std::process::Command::new("taskkill")
+                            .args(&["/F", "/IM", "Metatrader5-*.exe"])
+                            .output();
+                            
+                        match kill_result {
+                            Ok(_) => tracing::info!("成功清理 Metatrader5-*.exe 进程"),
+                            Err(e) => tracing::warn!("清理 Metatrader5-*.exe 进程失败: {}", e),
+                        }
+                    }
+                    
+                    // 3. 如果上面的通配符方法不起作用，可以尝试列出所有进程并逐一匹配
+                    let output = std::process::Command::new("tasklist")
+                        .args(&["/FO", "CSV"])
+                        .output()?;
+                        
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    let lines: Vec<&str> = output_str.lines().collect();
+                    
+                    for line in lines {
+                        if line.contains("Metatrader5-") {
+                            // 从行中提取进程名称
+                            if let Some(process_name) = line.split(',').nth(0) {
+                                let process_name = process_name.trim_matches('"');
+                                tracing::warn!("发现MetaTrader5相关进程: {}, 正在清理...", process_name);
+                                
+                                let kill_result = std::process::Command::new("taskkill")
+                                    .args(&["/F", "/IM", process_name])
+                                    .output();
+                                    
+                                match kill_result {
+                                    Ok(_) => tracing::info!("成功清理进程: {}", process_name),
+                                    Err(e) => tracing::warn!("清理进程 {} 失败: {}", process_name, e),
+                                }
+                            }
                         }
                     }
                 }
@@ -162,6 +219,50 @@ async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::ne
         }
     }
 }
+
+
+// async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
+//     let mut retries = 0;
+//     loop {
+//         match tokio::net::TcpListener::bind(addr).await {
+//             Ok(listener) => return Ok(listener),
+//             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+//                 if retries >= max_retries {
+//                     return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
+//                 }
+//                 tracing::warn!("端口 {} 被占用，尝试清理 MetaTrader5 进程...", addr.port());
+                
+//                 #[cfg(windows)]
+//                 {
+//                     // 查找并清理 MetaTrader5 进程
+//                     let output = std::process::Command::new("tasklist")
+//                         .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+//                         .output()?;
+                    
+//                     let output_str = String::from_utf8_lossy(&output.stdout);
+//                     if output_str.contains("MetaTrader5.exe") {
+//                         tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
+                        
+//                         // 强制结束所有MetaTrader5.exe进程
+//                         let kill_result = std::process::Command::new("taskkill")
+//                             .args(&["/F", "/IM", "MetaTrader5.exe"])
+//                             .output();
+                            
+//                         match kill_result {
+//                             Ok(_) => tracing::info!("成功清理 MetaTrader5 进程"),
+//                             Err(e) => tracing::warn!("清理 MetaTrader5 进程失败: {}", e),
+//                         }
+//                     }
+//                 }
+                
+//                 // 等待进程完全退出
+//                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+//                 retries += 1;
+//             }
+//             Err(e) => return Err(e.into()),
+//         }
+//     }
+// }
 
 
 

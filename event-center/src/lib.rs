@@ -219,7 +219,7 @@ impl EventPublisher {
         let sender = self.channels.get(&channel)
             .ok_or_else(|| EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
 
-        tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
+        // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
         
         sender.send(event).map_err(|e| 
             EventCenterError::EventSendError(format!("Failed to send event: {}", e))

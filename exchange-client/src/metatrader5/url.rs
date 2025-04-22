@@ -4,7 +4,7 @@ use strum::Display;
 
 #[derive(Display, Debug, Clone)]
 pub(crate) enum Mt5HttpUrl {
-    #[strum(serialize = "http://localhost:8000")]
+    #[strum(serialize = "http://localhost")]
     BaseUrl,
     #[strum(serialize = "/ping")]
     Ping,

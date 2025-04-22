@@ -26,7 +26,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Mt5AccountConfig::AccountName).string().not_null())
                     .col(ColumnDef::new(Mt5AccountConfig::Exchange).string().not_null())
                     .col(ColumnDef::new(Mt5AccountConfig::IsAvailable).boolean().not_null())
-                    .col(ColumnDef::new(Mt5AccountConfig::AccountId).big_integer().not_null())
+                    .col(ColumnDef::new(Mt5AccountConfig::Login).big_integer().not_null())
                     .col(ColumnDef::new(Mt5AccountConfig::Password).string().not_null())
                     .col(ColumnDef::new(Mt5AccountConfig::Server).string().not_null())
                     .col(ColumnDef::new(Mt5AccountConfig::TerminalPath).string().not_null())
@@ -37,8 +37,8 @@ impl MigrationTrait for Migration {
                     .index(
                         Index::create()
                         .unique()
-                        .name("idx_account_id_terminal_path_unique")
-                        .col(Mt5AccountConfig::AccountId)
+                        .name("idx_login_terminal_path_unique")
+                        .col(Mt5AccountConfig::Login)
                         .col(Mt5AccountConfig::TerminalPath)
                     )
                     .to_owned(),
@@ -62,7 +62,7 @@ pub enum Mt5AccountConfig {
     AccountName, // 账户名称
     Exchange, // 交易所
     IsAvailable, // 是否可用
-    AccountId, // 账户ID
+    Login, // 账户ID
     Password, // 密码
     Server, // 服务器
     TerminalPath, // 终端路径

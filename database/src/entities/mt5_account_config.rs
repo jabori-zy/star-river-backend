@@ -11,7 +11,7 @@ pub struct Model {
     pub account_name: String,
     pub exchange: String,
     pub is_available: bool,
-    pub account_id: i64,
+    pub login: i64,
     pub password: String,
     pub server: String,
     pub terminal_path: String,

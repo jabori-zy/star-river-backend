@@ -31,7 +31,7 @@ pub struct RegisterExchangeParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisterMt5ExchangeParams {
-    pub terminal_id: i32, // 终端id 和系统的account_config的id一致
+    pub account_id: i32, // 终端id 和系统的account_config的id一致
     pub login: i64, // 账户id
     pub password: String, // 密码
     pub server: String, // 服务器

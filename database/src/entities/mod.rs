@@ -4,6 +4,7 @@ pub mod prelude;
 
 pub mod account_config;
 pub mod mt5_account_config;
+pub mod mt5_account_info;
 pub mod order;
 pub mod position;
 pub mod strategy_info;

@@ -14,14 +14,14 @@ impl Mt5AccountConfigMutation {
         db: &DbConn,
         account_name: String,
         exchange: Exchange,
-        account_id: i64,
+        login: i64,
         password: String,
         server: String,
         terminal_path: String,
     ) -> Result<TypeMt5AccountConfig, DbErr> {
         // 检查是否存在相同的account_id和terminal_path
         let account_config_model= mt5_account_config::Entity::find()
-            .filter(mt5_account_config::Column::AccountId.eq(account_id))
+            .filter(mt5_account_config::Column::Login.eq(login))
             .filter(mt5_account_config::Column::TerminalPath.eq(terminal_path.clone()))
             .one(db)
             .await?;
@@ -54,7 +54,7 @@ impl Mt5AccountConfigMutation {
                 account_name: Set(account_name),
                 exchange: Set(exchange.to_string()),
                 is_available: Set(true),
-                account_id: Set(account_id),
+                login: Set(login),
                 password: Set(password),
                 server: Set(server),
                 terminal_path: Set(terminal_path),
@@ -74,7 +74,7 @@ impl Mt5AccountConfigMutation {
         id: i32,
         account_name: String,
         exchange: Exchange,
-        account_id: i64,
+        login: i64,
         password: String,
         server: String,
         terminal_path: String,
@@ -82,25 +82,25 @@ impl Mt5AccountConfigMutation {
         sort_index: i32,
     ) -> Result<TypeMt5AccountConfig, DbErr> {
         // 获取mt5账户配置
-        let account_config_model: mt5_account_config::ActiveModel = mt5_account_config::Entity::find_by_id(id)
+        let account_config_active_model: mt5_account_config::ActiveModel = mt5_account_config::Entity::find_by_id(id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
             .map(Into::into)?;
 
         let account_config_model = mt5_account_config::ActiveModel {
-            id: account_config_model.id,
+            id: account_config_active_model.id,
             account_name: Set(account_name),
             exchange: Set(exchange.to_string()),
-            account_id: Set(account_id),
+            login: Set(login),
             password: Set(password),
             server: Set(server),
             terminal_path: Set(terminal_path),
             is_available: Set(is_available),
             is_deleted: Set(false),
             sort_index: Set(sort_index),
-            created_time: Set(Utc::now()),
             updated_time: Set(Utc::now()),
+            ..Default::default()
         }.update(db).await.unwrap();
 
         Ok(account_config_model.into())
@@ -126,6 +126,29 @@ impl Mt5AccountConfigMutation {
         .update(db)
         .await?;
         Ok(())
+    }
+
+    // 更新mt5账户配置的is_available
+    pub async fn update_mt5_account_config_is_available(
+        db: &DbConn,
+        id: i32,
+        is_available: bool,
+    ) -> Result<TypeMt5AccountConfig, DbErr> {
+        let account_config_active_model: mt5_account_config::ActiveModel = mt5_account_config::Entity::find_by_id(id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .map(Into::into)?;
+
+        let account_config_model = mt5_account_config::ActiveModel {
+            id: account_config_active_model.id,
+            is_available: Set(is_available),
+            updated_time: Set(Utc::now()),
+            ..Default::default()
+        }
+        .update(db)
+        .await?;
+        Ok(account_config_model.into())
     }
 
 }

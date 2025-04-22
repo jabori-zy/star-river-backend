@@ -1,0 +1,17 @@
+[
+    {
+        "port": 8001,
+        "terminal_path": "D:/Program Files/MetaTrader 5-1/terminal64.exe",
+        "description": "MT5终端1"
+    },
+    {
+        "port": 8002,
+        "terminal_path": "D:/Program Files/MetaTrader 5-2/terminal64.exe",
+        "description": "MT5终端2"
+    },
+    {
+        "port": 8003,
+        "terminal_path": "D:/Program Files/MetaTrader 5-3/terminal64.exe",
+        "description": "MT5终端3"
+    }
+] 

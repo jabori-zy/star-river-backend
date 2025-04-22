@@ -2,7 +2,7 @@ use axum::extract::{Json, Query, State};
 
 use database::mutation::strategy_info_mutation::StrategyInfoMutation;
 use database::entities::strategy_info;
-use types::account::ExchangeAccountConfig;
+use types::account::AccountConfig;
 use crate::StarRiver;
 use axum::http::StatusCode;
 use serde::{Serialize, Deserialize};
@@ -13,6 +13,7 @@ use std::str::FromStr;
 use types::account::mt5_account::Mt5AccountConfig;
 use event_center::Event;
 use event_center::account_event::AccountEvent;
+use types::account::ExchangeAccountConfig;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateStrategyRequest {
@@ -124,7 +125,7 @@ pub async fn delete_strategy(
 pub struct AddMt5AccountConfigRequest {
     pub account_name: String,
     pub exchange: String,
-    pub account_id: i64,
+    pub login: i64,
     pub password: String,
     pub server: String,
     pub terminal_path: String,
@@ -142,7 +143,7 @@ pub async fn add_mt5_account_config(
         conn, 
         request.account_name, 
         Exchange::from_str(request.exchange.as_str()).expect("Invalid exchange"), 
-        request.account_id, 
+        request.login, 
         request.password, 
         request.server, 
         request.terminal_path
@@ -213,3 +214,107 @@ pub async fn delete_mt5_account_config(
         ),
     }
 }
+
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateMt5AccountConfigRequest {
+    pub id: i32,
+    pub account_name: String,
+    pub exchange: String,
+    pub login: i64,
+    pub password: String,
+    pub server: String,
+    pub terminal_path: String,
+    pub is_available: bool,
+    pub sort_index: i32,
+}
+
+
+pub async fn update_mt5_account_config(
+    State(star_river): State<StarRiver>,
+    Json(request): Json<UpdateMt5AccountConfigRequest>,
+) -> (StatusCode, Json<ApiResponse<Mt5AccountConfig>>) {
+    let database = star_river.database.lock().await;
+    let conn = &database.conn;
+    match Mt5AccountConfigMutation::update_mt5_account_config(
+        conn, 
+        request.id, 
+        request.account_name, 
+        Exchange::from_str(request.exchange.as_str()).expect("Invalid exchange"), 
+        request.login, 
+        request.password, 
+        request.server, 
+        request.terminal_path, 
+        request.is_available, 
+        request.sort_index
+    ).await {
+        Ok(account_config) => {
+            // 更新成功之后，发布账户配置已更新事件
+            let event_center = star_river.event_center.lock().await;
+            let event_publisher = event_center.get_event_publisher();
+            let event = Event::Account(AccountEvent::AccountConfigUpdated(AccountConfig::MetaTrader5(account_config.clone())));
+            event_publisher.publish(event).unwrap();
+
+            (
+            StatusCode::OK,
+            Json(ApiResponse {
+                code: 0,
+                message: "更新成功".to_string(),
+                data: Some(account_config),
+            })
+        )
+    },
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                code: -1,
+                message: e.to_string(),
+                data: None,
+            })
+        ),
+    }
+}
+
+
+#[derive(Serialize, Deserialize,Debug)]
+pub struct UpdateMt5AccountConfigIsAvailableRequest {
+    pub id: i32,
+    pub is_available: bool,
+}
+
+
+pub async fn update_mt5_account_config_is_available(
+    State(star_river): State<StarRiver>,
+    Json(request): Json<UpdateMt5AccountConfigIsAvailableRequest>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
+    tracing::info!("更新mt5账户配置的is_available: {:?}", request);
+    let database = star_river.database.lock().await;
+    let conn = &database.conn;
+    match Mt5AccountConfigMutation::update_mt5_account_config_is_available(conn, request.id, request.is_available).await {
+        Ok(account_config) => {
+            // 更新成功之后，发布账户配置已更新事件
+            let event_center = star_river.event_center.lock().await;
+            let event_publisher = event_center.get_event_publisher();
+            let event = Event::Account(AccountEvent::AccountConfigUpdated(AccountConfig::MetaTrader5(account_config.clone())));
+            event_publisher.publish(event).unwrap();
+
+            (
+            StatusCode::OK,
+            Json(ApiResponse {
+                code: 0,
+                message: "更新成功".to_string(),
+                data: None,
+            })
+        )},
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                code: -1,
+                message: e.to_string(),
+                data: None,
+            })
+        ),
+    }
+}
+
+

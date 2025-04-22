@@ -13,7 +13,7 @@ use types::position::{ExchangePosition, Position};
 use types::transaction_detail::{ExchangeTransactionDetail, TransactionDetail};
 use crate::metatrader5::mt5_types::Mt5Deal;
 use types::account::ExchangeAccountInfo;
-use types::account::mt5_account::Mt5AccountInfo;
+use types::account::mt5_account::OriginalMt5AccountInfo;
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -232,10 +232,11 @@ impl Mt5DataProcessor {
 
     }
 
-    pub async fn process_account_info(&self, account_info: serde_json::Value) -> Result<Box<dyn ExchangeAccountInfo>, String> {
-        let account_info_data = account_info["data"].clone();
-        tracing::debug!("账户信息 :{:?}", account_info_data);
-        let account_info = serde_json::from_value::<Mt5AccountInfo>(account_info_data)
+    pub async fn process_account_info(&self, account_id: i32, account_info: serde_json::Value) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+        let mut account_info_data = account_info["data"].clone();
+        // 把account_id 添加到account_info_data中
+        account_info_data["account_id"] = account_id.into();
+        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info_data)
             .map_err(|e| format!("解析账户信息失败: {}", e)).expect("解析账户信息失败");
         Ok(Box::new(account_info))
     }

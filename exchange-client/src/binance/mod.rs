@@ -194,7 +194,7 @@ impl ExchangeClient for BinanceExchange {
     }
 
     // 获取k线系列
-    async fn get_kline_series(&self, terminal_id: i32, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
         let binance_interval = BinanceKlineInterval::from(interval);
 
         let klines = self.http_client.get_kline(symbol, binance_interval.clone(), limit, None, None).await?;
