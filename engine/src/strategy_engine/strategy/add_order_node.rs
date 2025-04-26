@@ -9,7 +9,7 @@ use types::market::Exchange;
 use event_center::{Event, EventPublisher};
 use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
 use crate::strategy_engine::node::order_node::OrderNode;
-
+use types::strategy::TradeMode;
 
 
 
@@ -24,6 +24,7 @@ impl Strategy {
         exchange: Exchange,
         symbol: String,
         order_config: OrderConfig,
+        trade_mode: TradeMode,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
@@ -31,6 +32,7 @@ impl Strategy {
             strategy_id,
             node_id.clone(),
             node_name,
+            trade_mode,
             account_id,
             exchange,
             symbol,

@@ -30,6 +30,9 @@ def create_router(terminal: Mt5Terminal):
 
     class InitializeTerminalParams(BaseModel):
         terminal_path: str
+        login: int
+        password: str
+        server: str
 
     @router.post("/initialize_terminal")
     # 初始化MT5客户端
@@ -38,7 +41,7 @@ def create_router(terminal: Mt5Terminal):
         # 设置终端路径
         terminal.set_terminal_path(terminal_path)
         # 初始化终端
-        init_result = await terminal.initialize_terminal(terminal_path=terminal_path)
+        init_result = await terminal.initialize_terminal(terminal_path=terminal_path, login=request.login, password=request.password, server=request.server)
         # 如果初始化成功，则返回客户端信息
         if init_result[0]:
             return standardize_response(
@@ -57,23 +60,6 @@ def create_router(terminal: Mt5Terminal):
                 data={
                     "error": init_result[1]
                 }
-            )
-
-
-    @router.get("/ping_terminal")
-    async def ping_terminal():
-        ping_result = terminal.ping()
-        if ping_result[0]:
-            return standardize_response(
-            success=True,
-                message="pong",
-                data=None
-            )
-        else: 
-            return standardize_response(
-                success=False,
-                message=ping_result[1],
-                error_code=1
             )
 
     # 定义请求体模型
@@ -100,7 +86,24 @@ def create_router(terminal: Mt5Terminal):
                 "message": f"登录失败：{login_result[1]}",
                 "data": None
             }
-            
+
+
+    @router.get("/get_terminal_info")
+    async def get_terminal_info():
+        terminal_info = await terminal.get_terminal_info()
+        if terminal_info[0]:
+            return standardize_response(
+                success=True,
+                message="获取终端信息成功",
+                data=terminal_info[1]
+            )
+        else:
+            return standardize_response(
+                success=False,
+                message=terminal_info[1],
+                error_code=1
+            )
+    
     return router
 
 

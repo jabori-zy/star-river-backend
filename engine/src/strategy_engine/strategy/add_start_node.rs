@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::strategy_engine::node::start_node::StartNode;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::NodeTrait;
-
+use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 
 
 impl Strategy {
@@ -15,9 +15,22 @@ impl Strategy {
         strategy_id: i64,
         node_id: String, 
         node_name: String,
+        trade_mode: TradeMode,
+        live_config: Option<LiveConfig>,
+        backtest_config: Option<BacktestConfig>,
+        simulated_config: Option<SimulatedConfig>,
         event_publisher: EventPublisher,
     ) {
-        let mut node = StartNode::new(strategy_id, node_id.clone(), node_name, event_publisher);
+        let mut node = StartNode::new(
+            strategy_id, 
+            node_id.clone(), 
+            node_name, 
+            trade_mode,
+            live_config, 
+            backtest_config, 
+            simulated_config, 
+            event_publisher
+        );
         // 设置默认输出句柄
         node.set_output_handle().await;
         let node = Box::new(node);

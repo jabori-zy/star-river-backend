@@ -33,6 +33,8 @@ use tokio::sync::broadcast;
 use types::market::Exchange;
 use utils::get_utc8_timestamp;
 use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
+use sea_orm::DatabaseConnection;
+use database::query::mt5_account_config_query::Mt5AccountConfigQuery;
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -42,6 +44,7 @@ pub struct ExchangeEngineContext {
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub mt5_process: Arc<StdMutex<Option<Child>>>,
     pub is_mt5_server_running: Arc<AtomicBool>, //mt5服务器是否正在运行
+    pub database: DatabaseConnection,
 }
 
 impl Clone for ExchangeEngineContext {
@@ -61,6 +64,7 @@ impl Clone for ExchangeEngineContext {
                 .collect(),
             mt5_process: self.mt5_process.clone(),
             is_mt5_server_running: self.is_mt5_server_running.clone(),
+            database: self.database.clone(),
         }
     }
 }
@@ -98,6 +102,7 @@ impl EngineContext for ExchangeEngineContext {
         match event {
             Event::Command(command_event) => match command_event {
                 CommandEvent::ExchangeEngine(exchange_manager_command) => {
+                    
                     match exchange_manager_command {
                         ExchangeEngineCommand::RegisterMt5Exchange(register_mt5_exchange_command) => {
                             tracing::debug!("接收到命令: {:?}", register_mt5_exchange_command);
@@ -111,7 +116,17 @@ impl EngineContext for ExchangeEngineContext {
                                 .await
                                 .expect("注销mt5交易所失败");
                         }
-                        _ => {}
+                        ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
+                            tracing::debug!("接收到命令: {:?}", register_exchange_command);
+                            match register_exchange_command.exchange {
+                                Exchange::Metatrader5 => {
+                                    self.register_mt5_exchange2(register_exchange_command)
+                                        .await
+                                        .expect("注册mt5交易所失败");
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -240,7 +255,10 @@ impl ExchangeEngineContext {
         tracing::info!("登录结果: {:?}", login_result);
 
         // 存储交易所客户端
-        let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+        let mut mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+        // 连接websocket
+        mt5_exchange.connect_websocket().await?;
+        
         tracing::info!("{}交易所注册成功!", Exchange::Metatrader5);
         self.exchanges
             .insert(register_params.account_id, mt5_exchange);
@@ -261,6 +279,113 @@ impl ExchangeEngineContext {
 
         Ok(())
     }
+
+    pub async fn register_mt5_exchange2(&mut self,register_params: RegisterExchangeParams) -> Result<(), String> {
+        // 从数据库中获取mt5账户配置
+        let mt5_account_config = Mt5AccountConfigQuery::get_mt5_account_config_by_id(&self.database, register_params.account_id).await;
+        match mt5_account_config {
+            Ok(Some(mt5_account_config)) => {
+                // 初始化 mt5 客户端
+                let mut mt5 = MetaTrader5::new(
+                    mt5_account_config.id,
+                    mt5_account_config.login,
+                    mt5_account_config.password,
+                    mt5_account_config.server,
+                    mt5_account_config.terminal_path,
+                    self.get_event_publisher().clone(),
+                );
+                // 初始化终端
+
+
+                // let server_port = mt5.start_mt5_server(false).await.unwrap();
+
+                // 启动mt5服务器
+                match tokio::time::timeout(
+                    tokio::time::Duration::from_secs(30), 
+                    mt5.start_mt5_server(false)
+                )
+                .await
+                {
+                    Ok(port) => {
+                        match port {
+                            Ok(port) => {
+                                tracing::info!("mt5服务器启动成功, 端口: {}", port);
+                            }
+                            Err(e) => {
+                                tracing::error!("mt5服务器启动失败: {}", e);
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // 超时
+                        let error_msg = format!("MT5服务启动超时 (20秒)，terminal_id: {}", register_params.account_id);
+                        tracing::error!("{}", error_msg);
+                        return Err(error_msg);
+                    }
+                }
+
+                // 初始化终端
+                match tokio::time::timeout(
+                    tokio::time::Duration::from_secs(30), 
+                    mt5.initialize_terminal()
+                )
+                .await
+                {
+                    Ok(_) => {
+                        tracing::info!("终端初始化成功");
+                    }
+                    Err(e) => {
+                        tracing::error!("终端初始化失败: {}", e);
+                        return Err(e.to_string());
+                    }
+                }
+
+
+                // mt5.initialize_terminal().await.unwrap();
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                // // 注册完成后直接登录
+                // let login_result = mt5.login().await.unwrap();
+                // tracing::info!("登录结果: {:?}", login_result);
+
+                // 连接websocket
+                mt5.connect_websocket().await?;
+
+                // 存储交易所客户端
+                let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+
+                tracing::info!("{}交易所注册成功!", Exchange::Metatrader5);
+                self.exchanges
+                    .insert(register_params.account_id, mt5_exchange);
+
+                // 发送响应事件
+                let response_event =
+                    ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterMt5ExchangeSuccess(
+                        RegisterMt5ExchangeSuccessResponse {
+                            terminal_id: register_params.account_id,
+                            exchange: Exchange::Metatrader5,
+                            response_timestamp: get_utc8_timestamp(),
+                            response_id: register_params.request_id,
+                        },
+                    ));
+                self.get_event_publisher()
+                    .publish(response_event.clone().into())
+                    .unwrap();
+
+                Ok(())
+            }
+            Ok(None) => {
+                return Err("账户配置不存在".to_string());
+            }
+            Err(_) => {
+                return Err("账户配置不存在".to_string());
+            }
+        }
+    }
+
+
+
 
     pub async fn unregister_mt5_exchange(
         &mut self,

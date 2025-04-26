@@ -40,25 +40,15 @@ async fn main() {
 
     let mut mt5_client = MetaTrader5::new(
         1,
-        123123,
-        "123456".to_string(),
-        "123456".to_string(),
-        "123456".to_string(),
+        76898751,
+        "HhazJ520....".to_string(),
+        "Exness-MT5Trial5".to_string(),
+        "D:/Program Files/MetaTrader 5-1/terminal64.exe".to_string(),
         event_publisher.clone()
     );
 
     mt5_client.start_mt5_server(true).await.unwrap();
-
-    let mut mt5_client2 = MetaTrader5::new(
-        2,
-        123123,
-        "123456".to_string(),
-        "123456".to_string(),
-        "123456".to_string(),
-        event_publisher
-    );
-
-    mt5_client2.start_mt5_server(true).await.unwrap();
+    
 }
 
 

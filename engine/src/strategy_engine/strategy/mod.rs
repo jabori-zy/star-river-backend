@@ -12,7 +12,6 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::{broadcast, watch};
 use event_center::{Event, EventPublisher};
-use database::entities::strategy_info::Model as StrategyInfo;
 use serde_json::Value;
 use tokio::join;
 use tokio::sync::mpsc;
@@ -24,12 +23,17 @@ use super::node::NodeTrait;
 use super::strategy::strategy_state_manager::{StrategyStateMachine, StrategyRunState, StrategyStateTransitionEvent, StrategyStateAction};
 use super::node::node_types::NodeMessageReceiver;
 use super::node::node_types::NodeRunState;
+use types::strategy::{TradeMode, StrategyConfig};
+use database::entities::strategy_config::Model as StrategyConfigModel;
+
 
 #[derive(Debug)]
 // 策略图
 pub struct Strategy {
     pub strategy_id: i32,
-    pub strategy_name: String,
+    pub strategy_name: String, // 策略名称
+    pub trading_mode: TradeMode, // 交易模式
+    pub config: StrategyConfig, // 策略配置
     pub graph: Graph<Box<dyn NodeTrait>, (),  Directed>,
     pub node_indices: HashMap<String, NodeIndex>,
     pub event_publisher: EventPublisher,
@@ -39,11 +43,14 @@ pub struct Strategy {
     pub state_manager: StrategyStateMachine,
 }
 
+
 impl Clone for Strategy {
     fn clone(&self) -> Self {
         Self {
             strategy_id: self.strategy_id,
             strategy_name: self.strategy_name.clone(),
+            trading_mode: self.trading_mode.clone(),
+            config: self.config.clone(),
             graph: self.graph.clone(),
             node_indices: self.node_indices.clone(),
             event_publisher: self.event_publisher.clone(),
@@ -59,27 +66,50 @@ impl Clone for Strategy {
 
 impl Strategy {
     pub async fn new(
-        strategy_info: StrategyInfo, 
+        strategy_config: StrategyConfigModel, 
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>, 
         response_event_receiver: broadcast::Receiver<Event>
     ) -> Self {
         let mut graph = Graph::new();
         let mut node_indices = HashMap::new();
+        let mut global_config = StrategyConfig::default();
 
-        let strategy_id = strategy_info.id;
-        let strategy_name = strategy_info.name;
+        let strategy_id = strategy_config.id;
+        let strategy_name = strategy_config.name;
+        let trade_mode = match strategy_config.trade_mode.as_str() {
+            "backtest" => TradeMode::Backtest,
+            "simulated" => TradeMode::Simulated,
+            "live" => TradeMode::Live,
+            _ => TradeMode::Backtest,
+        };
 
         // 当策略创建时，状态为 Created
         let cancel_token = CancellationToken::new();
+
+
+        match strategy_config.config {
+            Some(config) => {
+                if let Ok(config) = serde_json::from_str::<StrategyConfig>(&config.to_string()) {
+                    global_config = config;
+                } else {
+                    tracing::error!("策略配置解析失败");
+                }
+            }
+            None => {
+                tracing::warn!("策略配置为空");
+            }
+        }
+
         
-        if let Some(nodes_str) = strategy_info.nodes {
+        if let Some(nodes_str) = strategy_config.nodes {
             if let Ok(nodes) = serde_json::from_str::<Vec<Value>>(&nodes_str.to_string()) {
                 for node_config in nodes {
                     tracing::debug!("添加节点: {:?}", node_config);
                     Self::add_node(
                         &mut graph, 
                         &mut node_indices, 
+                        trade_mode.clone(),
                         &node_config, 
                         event_publisher.clone(), 
                         market_event_receiver.resubscribe(), 
@@ -90,7 +120,7 @@ impl Strategy {
             }
         }
         // 添加边
-        if let Some(edges_str) = strategy_info.edges {
+        if let Some(edges_str) = strategy_config.edges {
             if let Ok(edges) = serde_json::from_str::<Vec<Value>>(&edges_str.to_string()) {
                 // tracing::debug!("edges: {:?}", edges);
                 for edge_config in edges {
@@ -106,6 +136,8 @@ impl Strategy {
         Self {
             strategy_id,
             strategy_name: strategy_name.clone(),
+            trading_mode: trade_mode,
+            config: global_config,
             graph,
             node_indices,
             event_publisher,
@@ -155,6 +187,7 @@ impl Strategy {
 
     }
 
+    // 拓扑排序
     pub fn topological_sort(&self) -> Vec<&Box<dyn NodeTrait>> {
         petgraph::algo::toposort(&self.graph, None)
         .unwrap_or_default()

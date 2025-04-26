@@ -10,3 +10,5 @@ db/
 /exchange-client/src/metatrader5/script/_pycache_
 /engine/src/exchange_engine/bin
 /engine/src/exchange_engine/build
+/exchange-client/src/metatrader5/script/_pycache_
+/exchange-client/src/metatrader5/script/api/_pycache_

@@ -59,7 +59,7 @@ pub struct MetaTrader5 {
     pub process_name: String, // 进程名称
     pub server_port: u16, // 服务器端口
 
-    pub account_id: i32, // 终端id
+    pub terminal_id: i32, // 终端id
     pub login: i64,
     pub password: String,
     pub server: String,
@@ -76,7 +76,7 @@ pub struct MetaTrader5 {
 impl MetaTrader5 {
     pub fn new(
         terminal_id: i32,
-        account_id: i64,
+        login: i64,
         password: String,
         server: String,
         terminal_path: String,
@@ -86,8 +86,8 @@ impl MetaTrader5 {
         Self {
             process_name: format!("Metatrader5-{}.exe", terminal_id),
             server_port: 8000 + terminal_id as u16,
-            account_id: terminal_id,
-            login: account_id,
+            terminal_id,
+            login,
             password,
             server,
             terminal_path,
@@ -151,7 +151,7 @@ impl MetaTrader5 {
             return Err(format!("无法找到可用端口，尝试了从 {} 到 {}", self.server_port, self.server_port + max_port_tries - 1).into());
         }
     
-        tracing::info!("为 MT5-{} 分配端口: {}", self.account_id, self.server_port);
+        tracing::info!("为 MT5-{} 分配端口: {}", self.terminal_id, self.server_port);
 
         // 创建子进程，设置新的进程组
         let mut command = Command::new(exe_path);
@@ -182,14 +182,28 @@ impl MetaTrader5 {
         };
 
         // 初始化http客户端
-        self.create_mt5_http_client(self.server_port).await.expect("初始化http客户端失败");
+        match tokio::time::timeout(
+            tokio::time::Duration::from_secs(30), 
+            self.create_mt5_http_client(self.server_port)
+        )
+        .await
+        {
+            Ok(_) => {
+                tracing::info!("初始化http客户端成功");
+            }
+            Err(e) => {
+                tracing::error!("初始化http客户端失败: {}", e);
+                return Err(format!("初始化http客户端失败: {}", e).into());
+            }
+        }
+        // tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         // 检查服务是否启动成功
         let is_start_success = self.check_server_start_success().await.expect("检查服务启动失败");
         if !is_start_success {
             if let Err(e) = child.kill().await {
-                tracing::error!("终止失败的MT5-{}进程时出错: {}", self.account_id, e);
+                tracing::error!("终止失败的MT5-{}进程时出错: {}", self.terminal_id, e);
             }
-            return Err(format!("MT5-{} 服务启动失败，无法连接到端口 {}", self.account_id, self.server_port).into());
+            return Err(format!("MT5-{} 服务启动失败，无法连接到端口 {}", self.terminal_id, self.server_port).into());
         }
 
         // 如果不是直接输出到终端，则捕获输出到日志
@@ -244,7 +258,7 @@ impl MetaTrader5 {
                         if retry_count >= max_retries {
                             break;
                         }
-                        tracing::warn!("MT5-{} 服务尚未就绪，等待重试... ({}/{})", self.account_id, retry_count, max_retries);
+                        tracing::warn!("MT5-{} 服务尚未就绪，等待重试... ({}/{})", self.terminal_id, retry_count, max_retries);
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     }
                 }
@@ -283,7 +297,7 @@ impl MetaTrader5 {
                         .args(&["/F", "/T", "/PID", &child.id().unwrap_or(0).to_string()])
                         .output();
                     // 同时尝试通过进程名称结束特定进程
-                    let process_name = format!("Metatrader5-{}.exe", self.account_id);
+                    let process_name = format!("Metatrader5-{}.exe", self.terminal_id);
                     let _ = StdCommand::new("taskkill")
                         .args(&["/F", "/IM", &process_name])
                         .output();
@@ -300,32 +314,34 @@ impl MetaTrader5 {
         Ok(())
     }
 
-    pub async fn create_mt5_http_client(&mut self, port: u16) -> Result<(), String> {
+    async fn create_mt5_http_client(&mut self, port: u16) -> Result<(), String> {
         let mt5_http_client = Mt5HttpClient::new(port);
         self.mt5_http_client.lock().await.replace(mt5_http_client);
         Ok(())
     }
 
-    pub async fn connect_websocket(&mut self) -> Result<(), String> {
-        let (websocket_state, _) = Mt5WsClient::connect_default().await.unwrap();
-        self.websocket_state.lock().await.replace(websocket_state);
-        Ok(())
-    }
 
-    pub async fn subscribe_kline_stream(&mut self, symbol: &str, kline_interval: KlineInterval, frequency: u32) -> Result<(), String> {
-        tracing::info!("订阅k线流: {:?}", symbol);
-        let mt5_interval = Mt5KlineInterval::from(kline_interval).to_string();
-        let mut mt5_ws_client = self.websocket_state.lock().await;
-        if let Some(state) = mt5_ws_client.as_mut() {
-            let params = json!({
-                "symbol": symbol,
-                "interval": mt5_interval,
-            });
+    // pub async fn connect_websocket(&mut self) -> Result<(), String> {
+    //     let (websocket_state, _) = Mt5WsClient::connect_default().await.unwrap();
+    //     self.websocket_state.lock().await.replace(websocket_state);
+    //     Ok(())
+    // }
 
-            state.subscribe(Some("kline"), Some(params), Some(frequency)).await.expect("订阅k线流失败");
-        }
-        Ok(())
-    }
+    // pub async fn subscribe_kline_stream(&mut self, symbol: &str, kline_interval: KlineInterval, frequency: u32) -> Result<(), String> {
+    //     let mt5_interval = Mt5KlineInterval::from(kline_interval).to_string();
+    //     let mut mt5_ws_client = self.websocket_state.lock().await;
+    //     tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
+    //     if let Some(state) = mt5_ws_client.as_mut() {
+    //         let params = json!({
+    //             "symbol": symbol,
+    //             "interval": mt5_interval,
+    //         });
+    //         tracing::debug!("Metatrader5订阅k线流参数: {:?}", params);
+
+    //         state.subscribe(Some("kline"), Some(params), Some(frequency)).await.expect("订阅k线流失败");
+    //     }
+    //     Ok(())
+    // }
 
     pub async fn ping(&mut self) -> Result<serde_json::Value, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
@@ -339,7 +355,26 @@ impl MetaTrader5 {
     pub async fn initialize_terminal(&mut self) -> Result<(), String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            mt5_http_client.initialize_terminal(self.account_id, &self.terminal_path).await
+            mt5_http_client.initialize_terminal(self.login, &self.password, &self.server, &self.terminal_path).await?;
+            
+            tracing::info!("MT5-{} 终端初始化中，等待连接就绪...", self.terminal_id);
+            
+            let max_retries = 10;
+            let mut retry_count = 0;
+            while retry_count < max_retries {
+                let result = mt5_http_client.get_terminal_info().await;
+                tracing::info!("MT5-{} 终端初始化结果: {:?}", self.terminal_id, result);
+                if result.is_ok() {
+                    tracing::info!("MT5-{} 终端连接成功", self.terminal_id);
+                    return Ok(());
+                }
+                retry_count += 1;
+                tracing::debug!("MT5-{} 终端尚未就绪，等待重试... ({}/{})", self.terminal_id, retry_count, max_retries);
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+            
+            // 如果多次重试后仍然失败，则返回错误
+            Err(format!("MT5-{} 终端初始化超时，请检查终端是否正常启动", self.terminal_id))
         } else {
             Err("MT5 HTTP客户端未初始化".to_string())
         }
@@ -387,20 +422,22 @@ impl ExchangeClient for MetaTrader5 {
     }
 
     async fn connect_websocket(&mut self) -> Result<(), String> {
-        let (websocket_state, _) = Mt5WsClient::connect_default().await.unwrap();
-        self.websocket_state = Arc::new(Mutex::new(Some(websocket_state)));
+        tracing::debug!("Metatrader5连接websocket");
+        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.unwrap();
+        self.websocket_state.lock().await.replace(websocket_state);
         Ok(())
     }
 
     async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
-        tracing::info!("订阅k线流: {:?}", symbol);
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
+        tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
         if let Some(state) = mt5_ws_client.as_mut() {
             let params = json!({
                 "symbol": symbol,
                 "interval": mt5_interval,
             });
+            tracing::debug!("Metatrader5订阅k线流参数: {:?}", params);
 
             state.subscribe(Some("kline"), Some(params), Some(frequency)).await.expect("订阅k线流失败");
         }
@@ -464,6 +501,7 @@ impl ExchangeClient for MetaTrader5 {
                         },
                         Message::Text(text) => {
                             let stream_json = serde_json::from_str::<serde_json::Value>(&text.to_string()).expect("解析WebSocket消息JSON失败");
+                            tracing::debug!("收到消息: {:?}", stream_json);
                             let data_processor = data_processor.lock().await;
                             data_processor.process_stream(stream_json).await;
   
@@ -587,7 +625,7 @@ impl ExchangeClient for MetaTrader5 {
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let account_info = mt5_http_client.get_account_info().await.expect("获取账户信息失败");
             let data_processor = self.data_processor.lock().await;
-            let account_info = data_processor.process_account_info(self.account_id, account_info).await.expect("处理账户信息失败");
+            let account_info = data_processor.process_account_info(self.terminal_id, account_info).await.expect("处理账户信息失败");
             Ok(account_info)
         } else {
             Err("MT5 HTTP客户端未初始化".to_string())

@@ -47,7 +47,9 @@ impl EngineManager {
         let exchange_engine = Arc::new(Mutex::new(ExchangeEngine::new(
             event_publisher.clone(), 
             request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe())));
+            response_event_receiver.resubscribe(),
+            database.clone()
+        )));
 
         // 新建市场引擎
         let market_engine = MarketEngine::new(

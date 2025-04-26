@@ -23,6 +23,7 @@ pub enum ExchangeEngineCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisterExchangeParams {
+    pub account_id: i32, // 终端id 和系统的account_config的id一致
     pub exchange: Exchange,
     pub sender: String,
     pub timestamp: i64,

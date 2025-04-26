@@ -77,39 +77,36 @@ async fn main() {
 
     let event_publisher = event_center.get_event_publisher();
     // 注册交易所
-    // tokio::spawn(async move {
+    tokio::spawn(async move {
         
-    //     tokio::time::sleep(Duration::from_secs(2)).await;
-    //     // 注册第一个终端
-    //     let register_param = RegisterMt5ExchangeParams {
-    //         terminal_id: 1,
-    //         account_id: 23643,
-    //         password: "HhazJ520!!!!".to_string(),
-    //         server: "EBCFinancialGroupKY-Demo".to_string(),
-    //         terminal_path: r"D:/Program Files/MetaTrader 5-1/terminal64.exe".to_string(),
-    //         sender: "test".to_string(),
-    //         timestamp: 1111,
-    //         request_id: Uuid::new_v4(),
-    //     };
-    //     let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterMt5Exchange(register_param));
-    //     event_publisher.publish(command_event.into()).unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        // 注册第一个终端
+        let register_param = RegisterExchangeParams {
+            account_id: 1,
+            exchange: Exchange::Metatrader5,
+            sender: "test".to_string(),
+            timestamp: 1111,
+            request_id: Uuid::new_v4(),
+        };
+        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
+        event_publisher.publish(command_event.into()).unwrap();
 
-    //     tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
 
-    //     // 获取第一个终端的数据
-    //     let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(SubscribeKlineStreamParams {
-    //         strategy_id: 1,
-    //         node_id: "test".to_string(),
-    //         sender: "test".to_string(),
-    //         timestamp: 1111,
-    //         request_id: Uuid::new_v4(),
-    //         account_id: 1,
-    //         exchange: Exchange::Metatrader5,
-    //         frequency: 1000,
-    //         interval: KlineInterval::Minutes1,
-    //         symbol: "XAUUSD".to_string(),
-    //     }));
-    //     event_publisher.publish(command_event.into()).unwrap();
+        // 获取第一个终端的数据
+        let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(SubscribeKlineStreamParams {
+            strategy_id: 1,
+            node_id: "test".to_string(),
+            sender: "test".to_string(),
+            timestamp: 1111,
+            request_id: Uuid::new_v4(),
+            account_id: 1,
+            exchange: Exchange::Metatrader5,
+            frequency: 1000,
+            interval: KlineInterval::Minutes1,
+            symbol: "BTCUSDm".to_string(),
+        }));
+        event_publisher.publish(command_event.into()).unwrap();
 
     //     tokio::time::sleep(Duration::from_secs(10)).await;
 
@@ -151,7 +148,7 @@ async fn main() {
         // }));
         // event_publisher.publish(command_event.into()).unwrap();
 
-    // });
+    });
     tokio::time::sleep(tokio::time::Duration::from_secs(1000)).await;
 
 

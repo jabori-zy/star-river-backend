@@ -5,7 +5,6 @@ use serde::Serialize;
 use super::mt5_types::Mt5PositionNumberRequest;
 use super::mt5_types::Mt5CreateOrderParams;
 
-
 #[derive(Debug)]
 pub struct Mt5HttpClient {
     port: u16,
@@ -29,24 +28,34 @@ impl Mt5HttpClient {
 
     pub async fn ping(&self) -> Result<serde_json::Value, String> {
         let url = self.get_url(Mt5HttpUrl::Ping);
-        let response = self.client.get(&url).send().await.expect("ping失败");
+        let response = self.client.get(&url).send().await.map_err(|e| e.to_string())?;
 
-        let response_text = response.text().await.expect("ping失败");
+        let response_text = response.text().await.map_err(|e| e.to_string())?;
         tracing::debug!("metatrader5 ping响应: {}", response_text);
-        let response_json = serde_json::from_str::<serde_json::Value>(&response_text).expect("解析ping响应失败");
+        let response_json = serde_json::from_str::<serde_json::Value>(&response_text).map_err(|e| e.to_string())?;
         Ok(response_json)
     }
 
     // 初始化MT5客户端
-    pub async fn initialize_terminal(&self, terminal_id: i32, terminal_path: &str) -> Result<(), String> {
+    pub async fn initialize_terminal(
+        &self,
+        login: i64,
+        password: &str,
+        server: &str,
+        terminal_path: &str
+    ) -> Result<(), String> {
         let url = self.get_url(Mt5HttpUrl::InitializeTerminal);
         #[derive(Debug, Serialize)]
         struct InitializeTerminalRequest {
-            terminal_id: i32,
+            login: i64,
+            password: String,
+            server: String,
             terminal_path: String,
         }
         let request = InitializeTerminalRequest {
-            terminal_id: terminal_id,
+            login: login,
+            password: password.to_string(),
+            server: server.to_string(),
             terminal_path: terminal_path.to_string(),
         };
         let response = self.client.post(&url)
@@ -57,41 +66,17 @@ impl Mt5HttpClient {
         Ok(())
     }
 
-    // 删除MT5客户端
-    pub async fn delete_terminal(&mut self, terminal_id: i32) -> Result<(), String> {
-        let url = self.get_url(Mt5HttpUrl::DeleteTerminal);
-        #[derive(Debug, Serialize)]
-        struct DeleteTerminalRequest {
-            terminal_id: i32,
-        }
-        let request = DeleteTerminalRequest {
-            terminal_id: terminal_id,
-        };
-        let response = self.client.post(&url)
-        .json(&request)
-        .send().await.expect("删除终端失败");
 
-        let body = response.text().await.expect("删除终端失败");
-        Ok(())
-    }
-
-    // // ping终端
-    // pub async fn ping_terminal(&mut self, terminal_id: i32) -> Result<serde_json::Value, String> {
-    //     let url = format!("{}?terminal_id={}", self.get_url(Mt5HttpUrl::PingTerminal), terminal_id);
-    //     let response = self.client.get(&url).send().await.expect("ping终端失败");
-    //     let result = response.json::<serde_json::Value>().await.expect("ping终端失败");
-    //     Ok(result)
-    // }
 
     pub async fn login(&self, login: i64, password: &str, server: &str) -> Result<serde_json::Value, String> {
         #[derive(Debug, Serialize)]
         struct LoginRequest {
-            account_id: i64,
+            login: i64,
             password: String,
             server: String,
         }
         let request = LoginRequest {
-            account_id: login,
+            login: login,
             password: password.to_string(),
             server: server.to_string(),
         };
@@ -106,6 +91,13 @@ impl Mt5HttpClient {
         tracing::debug!("metatrader5 登录响应: {}", response_text);
         let response_json = serde_json::from_str::<serde_json::Value>(&response_text).expect("登录失败");
         Ok(response_json)
+    }
+
+
+    pub async fn get_terminal_info(&self) -> Result<serde_json::Value, String> {
+        let url = self.get_url(Mt5HttpUrl::GetTerminalInfo);
+        let response = self.client.get(&url).send().await.expect("获取终端信息失败").json::<serde_json::Value>().await.expect("获取终端信息失败");
+        Ok(response)
     }
 
     pub async fn get_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, limit: Option<u32>) -> Result<serde_json::Value, String> {

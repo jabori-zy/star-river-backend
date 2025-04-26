@@ -32,15 +32,5 @@ def create_router(terminal: Mt5Terminal):
                 message=account_info[1],
                 error_code=2
             )
-
-    @router.get("/get_terminal_info")
-    async def get_terminal_info():
-        terminal_info = await terminal.get_terminal_info()
-        return standardize_response(
-            success=True,
-            message="获取终端信息成功",
-            data=terminal_info
-        )
-    
     return router
 

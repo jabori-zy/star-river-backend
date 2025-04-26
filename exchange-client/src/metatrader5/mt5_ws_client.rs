@@ -14,6 +14,7 @@ pub struct Mt5WsClient;
 
 
 impl Mt5WsClient {
+
     pub async fn connect(url: &str) -> Result<(WebSocketState, Response), Error> {
         let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
@@ -23,8 +24,9 @@ impl Mt5WsClient {
         Ok((WebSocketState::new(socket), response))
     }
 
-    pub async fn connect_default() -> Result<(WebSocketState, Response), Error> {
-        Mt5WsClient::connect(Mt5WsUrl::BaseUrl.to_string().as_str()).await
+    pub async fn connect_default(port: u16) -> Result<(WebSocketState, Response), Error> {
+        let url = format!("ws://localhost:{}/ws", port);
+        Mt5WsClient::connect(&url).await
     }
 }
 
@@ -72,6 +74,7 @@ impl WebSocketState {
         }
 
         let message = Message::text(message.to_string());
+        tracing::debug!("发送消息: {:?}", message);
         // 发送消息
         self.socket.send(message).await.expect("发送消息失败");
     }

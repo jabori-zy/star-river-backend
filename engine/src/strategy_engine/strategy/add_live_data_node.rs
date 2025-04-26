@@ -7,7 +7,8 @@ use types::market::{Exchange, KlineInterval};
 use crate::strategy_engine::node::live_data_node::LiveDataNode;
 use event_center::{Event, EventPublisher};
 use crate::strategy_engine::node::NodeTrait;
-
+use crate::strategy_engine::node::live_data_node::live_data_node_context::{LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
+use types::strategy::TradeMode;
 impl Strategy {
     pub async fn add_live_data_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
@@ -20,6 +21,10 @@ impl Strategy {
         symbol: String, 
         interval: KlineInterval, 
         frequency: u32,
+        trade_mode: TradeMode,
+        live_config: Option<LiveDataNodeLiveConfig>,
+        backtest_config: Option<LiveDataNodeBacktestConfig>,
+        simulated_config: Option<LiveDataNodeSimulateConfig>,
         event_publisher: EventPublisher,
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
@@ -33,6 +38,10 @@ impl Strategy {
                 symbol, 
                 interval, 
                 frequency,
+                trade_mode,
+                live_config,
+                backtest_config,
+                simulated_config,
                 event_publisher, 
                 market_event_receiver, 
                 response_event_receiver,

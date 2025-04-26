@@ -8,7 +8,7 @@ use types::market::{Exchange, KlineInterval};
 use types::indicator::Indicators;
 use crate::strategy_engine::node::indicator_node::IndicatorNode;
 use event_center::{Event, EventPublisher};
-
+use types::strategy::TradeMode;
 
 
 
@@ -24,6 +24,7 @@ impl Strategy {
         symbol: String, 
         interval: KlineInterval, 
         indicator: Indicators, 
+        trade_mode: TradeMode,
         event_publisher: EventPublisher, 
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
@@ -35,6 +36,7 @@ impl Strategy {
             symbol, 
             interval, 
             indicator, 
+            trade_mode,
             event_publisher, 
             response_event_receiver,
         );

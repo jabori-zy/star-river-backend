@@ -16,6 +16,7 @@ use std::any::Any;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::AtomicBool;
 use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
+use sea_orm::DatabaseConnection;
 /// 交易所引擎
 /// 负责管理交易所客户端，并提供交易所客户端的注册、注销、获取等功能
 
@@ -48,6 +49,7 @@ impl ExchangeEngine {
         event_publisher: EventPublisher,
         request_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
+        database: DatabaseConnection,
     ) -> Self {
         let context = ExchangeEngineContext {
             engine_name: EngineName::ExchangeEngine,
@@ -56,6 +58,7 @@ impl ExchangeEngine {
             event_receiver: vec![response_event_receiver, request_event_receiver],
             mt5_process: Arc::new(StdMutex::new(None)),
             is_mt5_server_running: Arc::new(AtomicBool::new(false)),
+            database,
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

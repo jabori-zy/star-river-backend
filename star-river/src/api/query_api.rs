@@ -1,7 +1,7 @@
 use axum::extract::{State, Query, Json};
 
-use database::query::strategy_info_query::StrategyInfoQuery;
-use database::entities::strategy_info;
+use database::query::strategy_config_query::StrategyConfigQuery;
+use database::entities::strategy_config;
 use crate::StarRiver;
 use axum::http::StatusCode;
 use serde::{Serialize, Deserialize};
@@ -19,7 +19,7 @@ pub struct GetStrategyListParams {
 pub struct GetStrategyListResponse {
     pub code: i32,
     pub message: String,
-    pub data: Option<Vec<strategy_info::Model>>,
+    pub data: Option<Vec<strategy_config::Model>>,
     pub page_num: Option<u64>,
 }
 
@@ -32,7 +32,7 @@ pub async fn get_strategy_list(
     let strategy_per_page = params.strategy_per_page.unwrap_or(10);
 
     let db = &star_river.database.lock().await.conn;
-    let (strategy_list, num_pages) = StrategyInfoQuery::get_strategy_list_in_page(db, page, strategy_per_page).await.unwrap();
+    let (strategy_list, num_pages) = StrategyConfigQuery::get_strategy_list_in_page(db, page, strategy_per_page).await.unwrap();
     (
         StatusCode::OK,
         Json(GetStrategyListResponse {
@@ -54,7 +54,7 @@ pub struct GetStrategyByIdParams {
 pub struct GetStrategyByIdResponse {
     pub code: i32,
     pub message: String,
-    pub data: Option<strategy_info::Model>,
+    pub data: Option<strategy_config::Model>,
 }
 
 pub async fn get_strategy_by_id(
@@ -62,7 +62,7 @@ pub async fn get_strategy_by_id(
     Query(params): Query<GetStrategyByIdParams>,
 ) -> (StatusCode, Json<GetStrategyByIdResponse>) {
     let db = &star_river.database.lock().await.conn;
-    let strategy = StrategyInfoQuery::get_strategy_by_id(db, params.id).await.unwrap();
+    let strategy = StrategyConfigQuery::get_strategy_by_id(db, params.id).await.unwrap();
     (
         StatusCode::OK,
         Json(

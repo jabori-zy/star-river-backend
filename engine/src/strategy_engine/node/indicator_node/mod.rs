@@ -16,7 +16,7 @@ use indicator_node_context::IndicatorNodeState;
 use event_center::EventPublisher;
 use event_center::Event;
 use super::node_context::{BaseNodeContext,NodeContext};
-
+use types::strategy::TradeMode;
 
 
 
@@ -40,6 +40,7 @@ impl IndicatorNode {
         symbol: String, 
         interval: KlineInterval, 
         indicator: Indicators, 
+        trade_mode: TradeMode,
         event_publisher: EventPublisher, 
         response_event_receiver: broadcast::Receiver<Event>,
     ) -> Self {
@@ -47,6 +48,7 @@ impl IndicatorNode {
             strategy_id,
             node_id.clone(),
             node_name.clone(),
+            trade_mode,
             NodeType::IndicatorNode,
             event_publisher,
             vec![response_event_receiver],

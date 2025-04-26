@@ -1,6 +1,6 @@
 mod strategy_engine_context;
 mod strategy;
-mod node;
+pub mod node;
 
 use std::collections::HashMap;
 use std::{hash::Hash, sync::Arc};
@@ -14,8 +14,8 @@ use async_trait::async_trait;
 use crate::EngineName;
 use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
-use database::entities::strategy_info::Model as StrategyInfo;
-use database::query::strategy_info_query::StrategyInfoQuery;
+use database::entities::strategy_config::Model as StrategyConfig;
+use database::query::strategy_config_query::StrategyConfigQuery;
 use std::any::Any;
 
 

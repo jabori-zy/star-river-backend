@@ -21,6 +21,8 @@ use super::node_types::{NodeType,DefaultOutputHandleId};
 use condition::*;
 use if_else_node_context::IfElseNodeContext;
 use super::{NodeRunState,NodeOutputHandle,NodeTrait};
+use types::strategy::TradeMode;
+
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -35,12 +37,14 @@ impl IfElseNode {
         node_id: String, 
         node_name: String, 
         cases: Vec<Case>, 
+        trade_mode: TradeMode,
         event_publisher: EventPublisher,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
+            trade_mode,
             NodeType::IfElseNode,
             event_publisher,
             vec![],

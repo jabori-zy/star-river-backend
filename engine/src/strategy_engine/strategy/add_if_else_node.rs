@@ -6,7 +6,7 @@ use crate::strategy_engine::node::if_else_node::IfElseNode;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::if_else_node::condition::Case;
 use crate::strategy_engine::node::NodeTrait;
-
+use types::strategy::TradeMode;
 
 
 impl Strategy {
@@ -17,9 +17,10 @@ impl Strategy {
         node_id: String, 
         node_name: String,
         cases: Vec<Case>,
+        trade_mode: TradeMode,
         event_publisher: EventPublisher,
     ) {
-        let mut node = IfElseNode::new(strategy_id, node_id.clone(), node_name.clone(), cases, event_publisher);
+        let mut node = IfElseNode::new(strategy_id, node_id.clone(), node_name.clone(), cases, trade_mode, event_publisher);
         node.set_output_handle().await;
         let node = Box::new(node);
         let node_index = graph.add_node(node);

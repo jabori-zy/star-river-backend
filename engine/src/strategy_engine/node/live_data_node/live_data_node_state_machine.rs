@@ -86,7 +86,7 @@ impl NodeStateMachine for LiveDataNodeStateMachine {
                 self.current_state = NodeRunState::Initializing;
                 Ok(Box::new(LiveDataNodeStateChangeActions {
                     new_state: NodeRunState::Initializing,
-                    actions: vec![Box::new(LiveDataNodeStateAction::LogTransition), Box::new(LiveDataNodeStateAction::ListenAndHandleExternalEvents)],
+                    actions: vec![Box::new(LiveDataNodeStateAction::LogTransition), Box::new(LiveDataNodeStateAction::ListenAndHandleExternalEvents), Box::new(LiveDataNodeStateAction::RegisterExchange)],
                 }))
             }
             // 初始化完成，进入Ready状态
@@ -104,7 +104,7 @@ impl NodeStateMachine for LiveDataNodeStateMachine {
                 self.current_state = NodeRunState::Starting;
                 Ok(Box::new(LiveDataNodeStateChangeActions {
                     new_state: NodeRunState::Starting,
-                    actions: vec![Box::new(LiveDataNodeStateAction::LogTransition), Box::new(LiveDataNodeStateAction::RegisterExchange), Box::new(LiveDataNodeStateAction::SubscribeKline)],
+                    actions: vec![Box::new(LiveDataNodeStateAction::LogTransition), Box::new(LiveDataNodeStateAction::SubscribeKline)],
                 }))
             }
             // 启动完成，进入Running状态

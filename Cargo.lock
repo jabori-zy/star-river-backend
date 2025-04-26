@@ -3700,6 +3700,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "petgraph",
  "serde",
  "serde_json",
  "strum 0.27.1",

@@ -11,7 +11,7 @@ use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
 use super::node_context::{BaseNodeContext, NodeContext};
 use super::NodeTrait;
-
+use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -30,13 +30,18 @@ impl StartNode {
     pub fn new(
         strategy_id: i64,
         node_id: String, 
-        node_name: String, 
+        node_name: String,
+        trade_mode: TradeMode,
+        live_config: Option<LiveConfig>,
+        backtest_config: Option<BacktestConfig>,
+        simulated_config: Option<SimulatedConfig>,
         event_publisher: EventPublisher,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
+            trade_mode,
             NodeType::StartNode,
             event_publisher,
             vec![],
@@ -45,6 +50,9 @@ impl StartNode {
         StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
                 base_context,
+                live_config,
+                backtest_config,
+                simulated_config,
             }))),
         }
     }

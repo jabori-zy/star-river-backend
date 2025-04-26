@@ -10,10 +10,8 @@ pub(crate) enum Mt5HttpUrl {
     Ping,
     #[strum(serialize = "/initialize_terminal")]
     InitializeTerminal,
-    #[strum(serialize = "/delete_terminal")]
-    DeleteTerminal,
-    #[strum(serialize = "/ping_terminal")]
-    PingTerminal,
+    #[strum(serialize = "/get_terminal_info")]
+    GetTerminalInfo,
     #[strum(serialize = "/login")]
     Login,
     #[strum(serialize = "/market/get_kline_series")]
@@ -35,7 +33,7 @@ pub(crate) enum Mt5HttpUrl {
 
 #[derive(Display, Debug, Clone)]
 pub(crate) enum Mt5WsUrl {
-    #[strum(serialize = "ws://localhost:8000/ws")]
+    #[strum(serialize = "ws://localhost")]
     BaseUrl,
 }
 

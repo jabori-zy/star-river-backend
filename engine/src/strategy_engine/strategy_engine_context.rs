@@ -1,8 +1,8 @@
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
 use sea_orm::DatabaseConnection;
-use database::entities::strategy_info::Model as StrategyInfo;
-use database::query::strategy_info_query::StrategyInfoQuery;
+use database::entities::strategy_config::Model as StrategyConfig;
+use database::query::strategy_config_query::StrategyConfigQuery;
 use crate::strategy_engine::strategy::Strategy;
 use std::collections::HashMap;
 use crate::strategy_engine::strategy::strategy_state_manager::StrategyRunState;
@@ -82,8 +82,8 @@ impl EngineContext for StrategyEngineContext {
 }
 
 impl StrategyEngineContext {
-    pub async fn get_strategy_by_id(&self, id: i32) -> Result<StrategyInfo, String> {
-        let strategy_info = StrategyInfoQuery::get_strategy_by_id(&self.database, id).await.unwrap();
+    pub async fn get_strategy_by_id(&self, id: i32) -> Result<StrategyConfig, String> {
+        let strategy_info = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap();
         if let Some(strategy_info) = strategy_info {
             Ok(strategy_info)
         } else {
@@ -94,11 +94,11 @@ impl StrategyEngineContext {
 
     pub async fn load_strategy_by_info(
         &mut self, 
-        strategy_info: StrategyInfo
+        strategy_config: StrategyConfig
     ) -> Result<i32, String> {
-        let strategy_id = strategy_info.id;
+        let strategy_id = strategy_config.id;
         let strategy = Strategy::new(
-            strategy_info, 
+            strategy_config, 
             self.event_publisher.clone(), 
             self.market_event_receiver.resubscribe(), 
             self.response_event_receiver.resubscribe()

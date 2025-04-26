@@ -22,6 +22,7 @@ use super::node::node_context::NodeContext;
 use super::node::node_state_machine::NodeStateMachine;
 use node_types::*;
 
+
 #[async_trait]
 pub trait NodeTrait: Debug + Send + Sync + 'static {
     // as_any是将类型转换为Any类型
@@ -184,7 +185,6 @@ impl Clone for Box<dyn NodeTrait> {
         self.clone_box()
     }
 }
-
 
 
 

@@ -17,6 +17,50 @@ use event_center::command_event::exchange_engine_command::RegisterExchangeParams
 use event_center::response_event::market_engine_response::MarketEngineResponse;
 use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
 use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
+use types::strategy::SelectedAccount;
+use serde::{Serialize, Deserialize};
+use std::str::FromStr;
+use types::strategy::TradeMode;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiveDataNodeLiveConfig {
+    #[serde(rename = "selectedLiveAccount")]
+    pub selected_live_account: SelectedAccount,
+    pub symbol: String,
+    #[serde(deserialize_with = "deserialize_kline_interval")]
+    pub interval: KlineInterval,
+    // pub frequency: u32,
+}
+
+fn deserialize_kline_interval<'de, D>(deserializer: D) -> Result<KlineInterval, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // 将字符串反序列化为String
+    let s = String::deserialize(deserializer)?;
+    
+    // 使用as_str()方法获取&str，然后传递给from_str
+    match KlineInterval::from_str(s.as_str()) {
+        Ok(interval) => Ok(interval),
+        Err(e) => Err(serde::de::Error::custom(format!("无法解析KlineInterval: {}", e)))
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiveDataNodeSimulateConfig {
+    pub selected_simulate_accounts: SelectedAccount,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    // pub frequency: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiveDataNodeBacktestConfig {
+    pub start_date: String,
+    pub end_date: String,
+    pub accounts: Vec<i32>,
+}
 
 
 
@@ -30,6 +74,9 @@ pub struct LiveDataNodeContext {
     pub frequency: u32,
     pub is_subscribed: bool,
     pub request_id: Option<Uuid>,
+    pub live_config: Option<LiveDataNodeLiveConfig>,
+    pub backtest_config: Option<LiveDataNodeBacktestConfig>,
+    pub simulated_config: Option<LiveDataNodeSimulateConfig>,
 }
 
 #[async_trait]
@@ -189,15 +236,66 @@ impl LiveDataNodeContext {
 
     pub async fn register_exchange(&mut self) -> Result<(), String> {
         let request_id = Uuid::new_v4();
-        let register_param = RegisterExchangeParams {
-            exchange: self.exchange.clone(),
-            sender: self.base_context.node_id.clone(),
-            timestamp: get_utc8_timestamp_millis(),
-            request_id: request_id,
+        let register_param = match self.base_context.trade_mode {
+            // 实盘模式
+            TradeMode::Live => {
+                tracing::info!("{}: 实盘模式", self.base_context.node_name);
+                match self.live_config.clone() {
+                    Some(config) => {
+                        let register_param = RegisterExchangeParams {
+                            account_id: config.selected_live_account.account_id.clone(),
+                            exchange: config.selected_live_account.exchange.clone(),
+                            sender: self.base_context.node_id.clone(),
+                            timestamp: get_utc8_timestamp_millis(),
+                            request_id: request_id,
+                        };
+                        register_param
+                    },
+                    None => {
+                        return Err("实盘模式未配置".to_string());
+                    }
+                }
+            },
+            // 回测模式
+            TradeMode::Backtest => {
+                match self.backtest_config.clone() {
+                    Some(backtest_config) => {  
+                        let register_param = RegisterExchangeParams {
+                            account_id: 1,
+                            exchange: self.exchange.clone(),
+                            sender: self.base_context.node_id.clone(),
+                            timestamp: get_utc8_timestamp_millis(),
+                            request_id: request_id,
+                        };
+                        register_param
+                    },
+                    None => {
+                        return Err("回测模式未配置".to_string());
+                    }
+                }
+            },
+            // 模拟模式
+            TradeMode::Simulated => {
+                match self.simulated_config.clone() {
+                    Some(simulated_config) => {
+                        let register_param = RegisterExchangeParams {
+                            account_id: simulated_config.selected_simulate_accounts.account_id.clone(),
+                            exchange: self.exchange.clone(),
+                            sender: self.base_context.node_id.clone(),
+                            timestamp: get_utc8_timestamp_millis(),
+                            request_id: request_id,
+                        };
+                        register_param
+                    }
+                    None => {
+                        return Err("模拟模式未配置".to_string());
+                    }
+                }
+            }
         };
 
         self.request_id = Some(request_id);
-        tracing::warn!("{}: 注册交易所的请求id: {:?}", self.base_context.node_id, self.request_id);
+        tracing::warn!("{}: 注册交易所的请求id: {:?}", self.base_context.node_name, self.request_id);
 
         let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
         tracing::info!("{}注册交易所: {:?}", self.base_context.node_id, command_event);
@@ -215,28 +313,45 @@ impl LiveDataNodeContext {
 
     pub async fn subscribe_kline_stream(&mut self) -> Result<(), String> {
         let request_id = Uuid::new_v4();
-        let params = SubscribeKlineStreamParams {
-            strategy_id: self.base_context.strategy_id.clone(),
-            node_id: self.base_context.node_id.clone(),
-            account_id: self.account_id.clone(),
-            exchange: self.exchange.clone(),
-            symbol: self.symbol.clone(),
-            interval: self.interval.clone(),
-            frequency: self.frequency.clone(),
-            sender: self.base_context.node_id.clone(),
-            timestamp: get_utc8_timestamp_millis(),
-            request_id: request_id,
+        let params = match self.base_context.trade_mode {
+            TradeMode::Live => {
+                match self.live_config.clone() {
+                    Some(config) => {
+                        let params = SubscribeKlineStreamParams {
+                            strategy_id: self.base_context.strategy_id.clone(),
+                            node_id: self.base_context.node_id.clone(),
+                            account_id: config.selected_live_account.account_id,
+                            exchange: config.selected_live_account.exchange,
+                            symbol: config.symbol,
+                            interval: config.interval,
+                            frequency: self.frequency.clone(),
+                            sender: self.base_context.node_id.clone(),
+                            timestamp: get_utc8_timestamp_millis(),
+                            request_id: request_id,
+                        };
+                        params
+
+                    }
+                    None => {
+                        return Err("实盘模式未配置".to_string());
+                    }
+                    
+                }    
+            },
+            _ => {
+                return Err("不支持的订阅模式".to_string());
+            }
         };
 
         self.request_id = Some(request_id);
 
         let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(params));
-        tracing::info!("{}订阅k线流: {:?}", self.base_context.node_id, command_event);
+        tracing::info!("{}订阅k线流: {:?}", self.base_context.node_name, command_event);
         if let Err(e) = self.get_event_publisher().publish(command_event.into()) {
             tracing::error!(
-                node_id = %self.base_context.node_id,
+                node_name = %self.base_context.node_name,
                 error = ?e,
-                "数据源节点发送数据失败"
+                "数据源节点订阅k线流失败"
             );
         }
         Ok(())

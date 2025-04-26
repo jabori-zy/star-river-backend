@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use std::any::Any;
 use types::strategy::message::NodeMessage;
+use types::strategy::TradeMode;
 use super::node_types::*;
 
 
@@ -109,6 +110,7 @@ pub struct BaseNodeContext {
     pub strategy_id: i64,
     pub node_id: String,
     pub node_name: String,
+    pub trade_mode: TradeMode,
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub message_receivers: Vec<NodeMessageReceiver>,
@@ -126,6 +128,7 @@ impl Clone for BaseNodeContext {
             strategy_id: self.strategy_id.clone(),
             node_id: self.node_id.clone(),
             node_name: self.node_name.clone(),
+            trade_mode: self.trade_mode.clone(),
             cancel_token: self.cancel_token.clone(),
             event_publisher: self.event_publisher.clone(),
             message_receivers: self.message_receivers.clone(),
@@ -143,6 +146,7 @@ impl BaseNodeContext {
         strategy_id: i64, 
         node_id: String, 
         node_name: String,
+        trade_mode: TradeMode,
         node_type: NodeType,
         event_publisher: EventPublisher,
         event_receivers: Vec<broadcast::Receiver<Event>>,
@@ -152,6 +156,7 @@ impl BaseNodeContext {
             strategy_id,
             node_id, 
             node_name,
+            trade_mode,
             node_type,
             output_handle: HashMap::new(), 
             event_publisher,

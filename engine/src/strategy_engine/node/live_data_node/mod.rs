@@ -1,5 +1,5 @@
-mod live_data_node_state_machine;
-mod live_data_node_context;
+pub mod live_data_node_state_machine;
+pub mod live_data_node_context;
 
 use types::market::{Exchange, KlineInterval};
 use tokio::sync::broadcast;
@@ -7,7 +7,6 @@ use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use crate::*;
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use event_center::EventPublisher;
@@ -17,8 +16,8 @@ use super::NodeStateTransitionEvent;
 use live_data_node_state_machine::{LiveDataNodeStateMachine, LiveDataNodeStateAction};
 use super::node_context::{NodeContext,BaseNodeContext};
 // 将需要共享的状态提取出来
-use live_data_node_context::LiveDataNodeContext;
-
+use live_data_node_context::{LiveDataNodeContext, LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
+use types::strategy::TradeMode;
 #[derive(Debug, Clone)]
 pub struct LiveDataNode {
     pub context: Arc<RwLock<Box<dyn NodeContext>>>,
@@ -34,6 +33,10 @@ impl LiveDataNode {
         symbol: String, 
         interval: KlineInterval, 
         frequency: u32,
+        trade_mode: TradeMode,
+        live_config: Option<LiveDataNodeLiveConfig>,
+        backtest_config: Option<LiveDataNodeBacktestConfig>,
+        simulated_config: Option<LiveDataNodeSimulateConfig>,
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
@@ -42,6 +45,7 @@ impl LiveDataNode {
             strategy_id,
             node_id.clone(),
             node_name.clone(),
+            trade_mode,
             NodeType::LiveDataNode,
             event_publisher,
             vec![market_event_receiver, response_event_receiver],
@@ -56,7 +60,10 @@ impl LiveDataNode {
                 interval, 
                 frequency,
                 is_subscribed: false,
-                request_id: None
+                request_id: None,
+                live_config,
+                backtest_config,
+                simulated_config,
             }))), 
         }
     }

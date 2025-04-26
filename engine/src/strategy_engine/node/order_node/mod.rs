@@ -19,7 +19,7 @@ use std::time::Duration;
 use super::node_context::{NodeContext,BaseNodeContext};
 use super::order_node::order_node_context::OrderNodeContext;
 use super::order_node::order_node_types::OrderConfig;
-
+use types::strategy::TradeMode;
 
 
 
@@ -35,6 +35,7 @@ impl OrderNode {
         strategy_id: i64,
         node_id: String,
         node_name: String,
+        trade_mode: TradeMode,
         account_id: i32,
         exchange: Exchange,
         symbol: String,
@@ -46,6 +47,7 @@ impl OrderNode {
             strategy_id,
             node_id.clone(),
             node_name.clone(),
+            trade_mode,
             NodeType::OrderNode,
             event_publisher,
             vec![response_event_receiver],

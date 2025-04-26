@@ -26,8 +26,8 @@ class Mt5Terminal:
         self.deal = DealManager(self)
 
     # 初始化终端
-    async def initialize_terminal(self, terminal_path):
-        init_result = self.terminal.initialize(path=terminal_path)
+    async def initialize_terminal(self, terminal_path, login, password, server):
+        init_result = self.terminal.initialize(path=terminal_path, login=login, password=password, server=server)
         # 如果初始化成功，则获取客户端信息
         if init_result:
             terminal_info = await self.get_terminal_info()

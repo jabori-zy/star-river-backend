@@ -7,5 +7,5 @@ pub mod mt5_account_config;
 pub mod mt5_account_info;
 pub mod order;
 pub mod position;
-pub mod strategy_info;
+pub mod strategy_config;
 pub mod transaction_detail;
