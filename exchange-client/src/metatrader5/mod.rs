@@ -100,14 +100,14 @@ impl MetaTrader5 {
         }
     }
 
-    pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, Box<dyn std::error::Error>> {
+    pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, String> {
         // 先检查并清理可能存在的旧进程
         #[cfg(windows)]
         {
             // 查找特定名称的进程
             let output = StdCommand::new("tasklist")
                 .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
-                .output()?;
+                .output().map_err(|e| format!("检查并清理可能存在的旧进程失败: {}", e))?;
             
             let output_str = String::from_utf8_lossy(&output.stdout);
             if output_str.contains(&self.process_name) {
@@ -116,7 +116,7 @@ impl MetaTrader5 {
                 // 结束特定进程
                 let _ = StdCommand::new("taskkill")
                     .args(&["/F", "/IM", &self.process_name])
-                    .output()?;
+                    .output().map_err(|e| format!("结束特定进程失败: {}", e))?;
                     
                 // 等待进程完全退出
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -125,10 +125,10 @@ impl MetaTrader5 {
         let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
             .ok_or("获取python可执行文件失败")?;
         
-        let temp_dir = TempDir::new()?;
+        let temp_dir = TempDir::new().map_err(|e| format!("创建临时目录失败: {}", e))?;
         // 将exe文件写入临时目录
         let exe_path = temp_dir.path().join(&self.process_name);
-        fs::write(&exe_path, py_exe.data)?;
+        fs::write(&exe_path, py_exe.data).map_err(|e| format!("写入exe文件失败: {}", e))?;
 
         // 检查端口是否可用，如果不可用则尝试其他端口
         let max_port_tries = 10; // 最多尝试10个端口
@@ -172,13 +172,13 @@ impl MetaTrader5 {
             command
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
-                .spawn()?
+                .spawn().map_err(|e| format!("启动进程失败: {}", e))?
         } else {
             // 捕获输出用于日志
             command
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .spawn()?
+                .spawn().map_err(|e| format!("启动进程失败: {}", e))?
         };
 
         // 初始化http客户端

@@ -280,7 +280,7 @@ impl ExchangeEngineContext {
         Ok(())
     }
 
-    pub async fn register_mt5_exchange2(&mut self,register_params: RegisterExchangeParams) -> Result<(), String> {
+    pub async fn register_mt5_exchange2(&mut self, register_params: RegisterExchangeParams) -> Result<(), String> {
         // 从数据库中获取mt5账户配置
         let mt5_account_config = Mt5AccountConfigQuery::get_mt5_account_config_by_id(&self.database, register_params.account_id).await;
         match mt5_account_config {
@@ -294,68 +294,131 @@ impl ExchangeEngineContext {
                     mt5_account_config.terminal_path,
                     self.get_event_publisher().clone(),
                 );
-                // 初始化终端
-
-
-                // let server_port = mt5.start_mt5_server(false).await.unwrap();
-
-                // 启动mt5服务器
-                match tokio::time::timeout(
-                    tokio::time::Duration::from_secs(30), 
-                    mt5.start_mt5_server(false)
-                )
-                .await
-                {
-                    Ok(port) => {
-                        match port {
-                            Ok(port) => {
-                                tracing::info!("mt5服务器启动成功, 端口: {}", port);
-                            }
-                            Err(e) => {
-                                tracing::error!("mt5服务器启动失败: {}", e);
+                
+                // 启动mt5服务器 (带重试机制)
+                let max_server_retries = 3;
+                let mut server_retry_count = 0;
+                let mut server_port: Option<u16> = None;
+                
+                while server_retry_count < max_server_retries {
+                    match tokio::time::timeout(
+                        tokio::time::Duration::from_secs(30), 
+                        mt5.start_mt5_server(false)
+                    )
+                    .await
+                    {
+                        Ok(port_result) => {
+                            match port_result {
+                                Ok(port) => {
+                                    tracing::info!("MT5-{} 服务器启动成功, 端口: {}", register_params.account_id, port);
+                                    server_port = Some(port);
+                                    break;
+                                }
+                                Err(_) => {
+                                    server_retry_count += 1;
+                                    tracing::error!("MT5-{} 服务器启动失败 (尝试 {}/{})", 
+                                        register_params.account_id, server_retry_count, max_server_retries);
+                                    if server_retry_count >= max_server_retries {
+                                        return Err(format!("MT5-{} 服务器启动失败，已重试{}次",
+                                            register_params.account_id, max_server_retries));
+                                    }
+                                    // 等待一段时间后重试
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                                }
                             }
                         }
+                        Err(_) => {
+                            server_retry_count += 1;
+                            // 超时
+                            let error_msg = format!("MT5-{} 服务启动超时 (尝试 {}/{})", 
+                                register_params.account_id, server_retry_count, max_server_retries);
+                            tracing::error!("{}", error_msg);
+                            if server_retry_count >= max_server_retries {
+                                return Err(format!("MT5-{} 服务启动超时，已重试{}次", 
+                                    register_params.account_id, max_server_retries));
+                            }
+                            // 等待一段时间后重试
+                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        }
                     }
-                    Err(_) => {
-                        // 超时
-                        let error_msg = format!("MT5服务启动超时 (20秒)，terminal_id: {}", register_params.account_id);
-                        tracing::error!("{}", error_msg);
-                        return Err(error_msg);
+                }
+                
+                if server_port.is_none() {
+                    return Err(format!("MT5-{} 服务器启动失败，所有重试均失败", register_params.account_id));
+                }
+
+                // 初始化终端 (带重试机制)
+                let max_init_retries = 3;
+                let mut init_retry_count = 0;
+                
+                while init_retry_count < max_init_retries {
+                    match tokio::time::timeout(
+                        tokio::time::Duration::from_secs(30), 
+                        mt5.initialize_terminal()
+                    )
+                    .await
+                    {
+                        Ok(init_result) => {
+                            match init_result {
+                                Ok(_) => {
+                                    tracing::info!("MT5-{} 终端初始化成功", register_params.account_id);
+                                    break;
+                                }
+                                Err(_) => {
+                                    init_retry_count += 1;
+                                    tracing::error!("MT5-{} 终端初始化失败 (尝试 {}/{})", 
+                                        register_params.account_id, init_retry_count, max_init_retries);
+                                    if init_retry_count >= max_init_retries {
+                                        return Err(format!("MT5-{} 终端初始化失败，已重试{}次", 
+                                            register_params.account_id, max_init_retries));
+                                    }
+                                    // 等待一段时间后重试
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            init_retry_count += 1;
+                            tracing::error!("MT5-{} 终端初始化超时 (尝试 {}/{})", 
+                                register_params.account_id, init_retry_count, max_init_retries);
+                            if init_retry_count >= max_init_retries {
+                                return Err(format!("MT5-{} 终端初始化超时，已重试{}次", 
+                                    register_params.account_id, max_init_retries));
+                            }
+                            // 等待一段时间后重试
+                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        }
                     }
                 }
 
-                // 初始化终端
-                match tokio::time::timeout(
-                    tokio::time::Duration::from_secs(30), 
-                    mt5.initialize_terminal()
-                )
-                .await
-                {
-                    Ok(_) => {
-                        tracing::info!("终端初始化成功");
-                    }
-                    Err(e) => {
-                        tracing::error!("终端初始化失败: {}", e);
-                        return Err(e.to_string());
+                // 连接websocket (带重试机制)
+                let max_ws_retries = 3;
+                let mut ws_retry_count = 0;
+                
+                while ws_retry_count < max_ws_retries {
+                    match mt5.connect_websocket().await {
+                        Ok(_) => {
+                            tracing::info!("MT5-{} WebSocket连接成功", register_params.account_id);
+                            break;
+                        }
+                        Err(_) => {
+                            ws_retry_count += 1;
+                            tracing::error!("MT5-{} WebSocket连接失败 (尝试 {}/{})", 
+                                register_params.account_id, ws_retry_count, max_ws_retries);
+                            if ws_retry_count >= max_ws_retries {
+                                return Err(format!("MT5-{} WebSocket连接失败，已重试{}次", 
+                                    register_params.account_id, max_ws_retries));
+                            }
+                            // 等待一段时间后重试
+                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        }
                     }
                 }
-
-
-                // mt5.initialize_terminal().await.unwrap();
-
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-                // // 注册完成后直接登录
-                // let login_result = mt5.login().await.unwrap();
-                // tracing::info!("登录结果: {:?}", login_result);
-
-                // 连接websocket
-                mt5.connect_websocket().await?;
 
                 // 存储交易所客户端
                 let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
 
-                tracing::info!("{}交易所注册成功!", Exchange::Metatrader5);
+                tracing::info!("MT5-{} 交易所注册成功!", register_params.account_id);
                 self.exchanges
                     .insert(register_params.account_id, mt5_exchange);
 
@@ -376,10 +439,10 @@ impl ExchangeEngineContext {
                 Ok(())
             }
             Ok(None) => {
-                return Err("账户配置不存在".to_string());
+                return Err(format!("MT5-{} 账户配置不存在", register_params.account_id));
             }
             Err(_) => {
-                return Err("账户配置不存在".to_string());
+                return Err(format!("MT5-{} 获取账户配置失败", register_params.account_id));
             }
         }
     }
