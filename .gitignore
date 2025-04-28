@@ -7,8 +7,11 @@ db/
 /build
 /exchange-client/src/metatrader5/bin/
 /exchange-client/build/
-/exchange-client/src/metatrader5/script/_pycache_
+/exchange-client/src/metatrader5/script/__pycache__
+/exchange-client/src/metatrader5/script/api/__pycache__
 /engine/src/exchange_engine/bin
 /engine/src/exchange_engine/build
-/exchange-client/src/metatrader5/script/_pycache_
-/exchange-client/src/metatrader5/script/api/_pycache_
+**/__pycache__/
+**/_pycache_/
+*.pyc
+*.pyo
