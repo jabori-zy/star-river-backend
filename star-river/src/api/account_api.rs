@@ -1,7 +1,6 @@
 use serde::{Serialize, Deserialize};
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::extract::Query;
 use axum::response::Json;
 use crate::star_river::StarRiver;
 use crate::api::response::ApiResponse;
@@ -27,7 +26,7 @@ pub async fn login_mt5_account(
     let engine = engine_manager.get_engine(EngineName::AccountEngine).await;
     let mut engine_guard = engine.lock().await;
     let account_engine = engine_guard.as_any_mut().downcast_mut::<AccountEngine>().unwrap();
-    account_engine.register_mt5_exchange(account_id).await.unwrap();
+    account_engine.register_exchange(account_id).await.unwrap();
 
     (StatusCode::OK, Json(ApiResponse {
         code: 0,

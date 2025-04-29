@@ -36,6 +36,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Order::Price).double().not_null())
                     .col(ColumnDef::new(Order::Sl).double())
                     .col(ColumnDef::new(Order::Tp).double())
+                    .col(ColumnDef::new(Order::ExtraInfo).json())
                     .col(ColumnDef::new(Order::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     .col(ColumnDef::new(Order::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     // .foreign_key(
@@ -72,9 +73,10 @@ pub enum Order {
     OrderType, // 订单类型
     OrderStatus, // 订单状态
     Quantity, // 数量
-    Price,
-    Tp,
-    Sl,
+    Price, // 价格
+    Tp, // 止盈
+    Sl, // 止损
+    ExtraInfo, // 额外信息
     CreatedTime,//创建时间
     UpdatedTime,//更新时间
 }

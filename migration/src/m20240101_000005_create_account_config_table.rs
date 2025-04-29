@@ -26,9 +26,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AccountConfig::AccountName).string().not_null())
                     .col(ColumnDef::new(AccountConfig::Exchange).string().not_null())
                     .col(ColumnDef::new(AccountConfig::IsAvailable).boolean().not_null())
+                    .col(ColumnDef::new(AccountConfig::IsDelete).boolean().not_null())
+                    .col(ColumnDef::new(AccountConfig::SortIndex).integer().not_null())
                     .col(ColumnDef::new(AccountConfig::AccountConfig).json().not_null())
-                    .col(ColumnDef::new(AccountConfig::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(AccountConfig::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(AccountConfig::CreateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(AccountConfig::UpdateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     // .foreign_key(
                     //     ForeignKey::create()
                     //         .name("fk-strategy_info-bakery_id")
@@ -56,7 +58,9 @@ pub enum AccountConfig {
     AccountName, // 账户名称
     Exchange, // 交易所
     IsAvailable, // 是否可用
+    IsDelete, // 是否删除
+    SortIndex, // 排序索引
     AccountConfig, // 账户配置
-    CreatedTime,//创建时间
-    UpdatedTime,//更新时间
+    CreateTime,//创建时间
+    UpdateTime,//更新时间
 }

@@ -25,6 +25,7 @@ pub struct Model {
     pub sl: Option<f64>,
     #[sea_orm(column_type = "Double", nullable)]
     pub tp: Option<f64>,
+    pub extra_info: Option<Json>,
     pub created_time: DateTimeUtc,
     pub updated_time: DateTimeUtc,
 }

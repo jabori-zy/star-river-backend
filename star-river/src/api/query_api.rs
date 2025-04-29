@@ -5,8 +5,8 @@ use database::entities::strategy_config;
 use crate::StarRiver;
 use axum::http::StatusCode;
 use serde::{Serialize, Deserialize};
-use database::query::mt5_account_config_query::Mt5AccountConfigQuery;
-use types::account::mt5_account::Mt5AccountConfig;
+use database::query::account_config_query::AccountConfigQuery;
+use types::account::AccountConfig;
 use crate::api::response::ApiResponse;
 
 #[derive(Serialize, Deserialize)]
@@ -76,17 +76,17 @@ pub async fn get_strategy_by_id(
 }
 
 
-pub async fn get_mt5_account_config(
+pub async fn get_account_config(
     State(star_river): State<StarRiver>
-) -> (StatusCode, Json<ApiResponse<Vec<Mt5AccountConfig>>>) {
+) -> (StatusCode, Json<ApiResponse<Vec<AccountConfig>>>) {
     let db = &star_river.database.lock().await.conn;
-    let mt5_account_config = Mt5AccountConfigQuery::get_mt5_account_config(db).await.unwrap();
+    let account_config = AccountConfigQuery::get_all_account_config(db).await.unwrap();
     (
         StatusCode::OK,
         Json(ApiResponse {
             code: 0,
             message: "success".to_string(),
-            data: Some(mt5_account_config),
+            data: Some(account_config),
         })
     )
 }

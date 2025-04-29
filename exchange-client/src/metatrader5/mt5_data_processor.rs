@@ -2,30 +2,32 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use event_center::EventPublisher;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
-use types::market::{Kline, Exchange, KlineSeries};
+use types::market::{Kline, Exchange, KlineSeries, MT5Server};
 use types::position::PositionNumber;
 use utils::{get_utc8_timestamp_millis, generate_batch_id};
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
-use types::order::ExchangeOrder;
+use types::order::OriginalOrder;
 use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
 use types::order::Order;
 use types::position::{ExchangePosition, Position};
 use types::transaction_detail::{ExchangeTransactionDetail, TransactionDetail};
 use crate::metatrader5::mt5_types::Mt5Deal;
-use types::account::ExchangeAccountInfo;
+use types::account::OriginalAccountInfo;
 use types::account::mt5_account::OriginalMt5AccountInfo;
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
+    server: MT5Server,
     event_publisher: Arc<Mutex<EventPublisher>>,
 
 }
 
 
 impl Mt5DataProcessor {
-    pub fn new(event_publisher: Arc<Mutex<EventPublisher>>) -> Self {
+    pub fn new(event_publisher: Arc<Mutex<EventPublisher>>, server: MT5Server) -> Self {
         Self {
             event_publisher,
+            server,
         }
     }
 
@@ -49,7 +51,7 @@ impl Mt5DataProcessor {
                 volume: volume,
             };
             let exchange_kline_update_event_config = ExchangeKlineUpdateEventInfo {
-                exchange: Exchange::Metatrader5,
+                exchange: Exchange::Metatrader5(self.server.clone()),
                 symbol: symbol.to_string(),
                 interval: interval.clone().into(),
                 kline: kline,
@@ -103,14 +105,14 @@ impl Mt5DataProcessor {
             })
             .collect::<Vec<Kline>>();
         let kline_series = KlineSeries {
-            exchange: Exchange::Metatrader5,
+            exchange: Exchange::Metatrader5(self.server.clone()),
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
             series: klines,
         };
 
         let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEventInfo {
-            exchange: Exchange::Metatrader5,
+            exchange: Exchange::Metatrader5(self.server.clone()),
             event_timestamp: get_utc8_timestamp_millis(),
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
@@ -122,7 +124,7 @@ impl Mt5DataProcessor {
     }
 
     // 处理订单信息
-    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn ExchangeOrder>, String> {
+    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn OriginalOrder>, String> {
         let order_data = order_info["data"][0].clone();
         tracing::debug!("订单信息: {:?}", order_data);
         // 取出order_data  array 的第一个值
@@ -155,6 +157,7 @@ impl Mt5DataProcessor {
             open_price: old_order.open_price,
             tp: old_order.tp,
             sl: old_order.sl,
+            extra_info: old_order.extra_info,
             created_time: old_order.created_time,
             updated_time: old_order.updated_time,
         };
@@ -223,7 +226,7 @@ impl Mt5DataProcessor {
         let position_number_data = position_number_info["data"].clone();
         tracing::debug!("仓位数量信息 :{:?}", position_number_data);
         let position_number = PositionNumber {
-            exchange: Exchange::Metatrader5,
+            exchange: Exchange::Metatrader5(self.server.clone()),
             symbol: position_number_data["symbol"].as_str().expect("解析symbol失败").to_string(),
             position_side: None,
             position_number: position_number_data["position_number"].as_i64().expect("解析position_number失败") as i32
@@ -232,7 +235,7 @@ impl Mt5DataProcessor {
 
     }
 
-    pub async fn process_account_info(&self, account_id: i32, account_info: serde_json::Value) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+    pub async fn process_account_info(&self, account_id: i32, account_info: serde_json::Value) -> Result<Box<dyn OriginalAccountInfo>, String> {
         let mut account_info_data = account_info["data"].clone();
         // 把account_id 添加到account_info_data中
         account_info_data["account_id"] = account_id.into();

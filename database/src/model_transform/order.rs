@@ -20,6 +20,7 @@ impl From<OrderModel> for Order {
             open_price: order.price,
             sl: order.sl,
             tp: order.tp,
+            extra_info: order.extra_info,
             created_time: order.created_time,
             updated_time: order.updated_time,
         }

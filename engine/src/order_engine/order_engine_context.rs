@@ -13,7 +13,7 @@ use event_center::EventPublisher;
 use tokio::sync::Mutex;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use std::collections::HashMap;
-use types::order::{ExchangeOrder, Order};
+use types::order::{OriginalOrder, Order};
 use sea_orm::DatabaseConnection;
 use database::mutation::order_mutation::OrderMutation;
 use tokio::sync::RwLock;

@@ -10,14 +10,12 @@ use uuid::Uuid;
 pub enum ExchangeEngineCommand {
     #[strum(serialize = "register-exchange")]
     RegisterExchange(RegisterExchangeParams),
-    #[strum(serialize = "register-mt5-exchange")]
-    RegisterMt5Exchange(RegisterMt5ExchangeParams), // 注册mt5交易所
-    #[strum(serialize = "unregister-mt5-exchange")]
-    UnregisterMt5Exchange(UnregisterMt5ExchangeParams), // 注销mt5交易所
-    // #[strum(serialize = "register-binance-exchange")]
-    // RegisterBinanceExchange(RegisterBinanceExchangeParams), // 注册binance交易所
-    // #[strum(serialize = "unregister-binance-exchange")]
-    // UnregisterBinanceExchange(UnregisterBinanceExchangeParams), // 注销binance交易所
+    #[strum(serialize = "unregister-exchange")]
+    UnregisterExchange(UnregisterExchangeParams),
+    // #[strum(serialize = "register-mt5-exchange")]
+    // RegisterMt5Exchange(RegisterMt5ExchangeParams), // 注册mt5交易所
+    // #[strum(serialize = "unregister-mt5-exchange")]
+    // UnregisterMt5Exchange(UnregisterMt5ExchangeParams), // 注销mt5交易所
 }
 
 
@@ -25,6 +23,14 @@ pub enum ExchangeEngineCommand {
 pub struct RegisterExchangeParams {
     pub account_id: i32, // 终端id 和系统的account_config的id一致
     pub exchange: Exchange,
+    pub sender: String,
+    pub timestamp: i64,
+    pub request_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnregisterExchangeParams {
+    pub account_id: i32, // 终端id 和系统的account_config的id一致
     pub sender: String,
     pub timestamp: i64,
     pub request_id: Uuid,

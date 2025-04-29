@@ -5,16 +5,21 @@ use types::market::Exchange;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExchangeEngineResponse {
-    RegisterExchangeSuccess(RegisterExchangeSuccessResponse),
+    RegisterExchangeResponse(RegisterExchangeResponse),
     RegisterMt5ExchangeSuccess(RegisterMt5ExchangeSuccessResponse),
 }
 
-
+// 注册交易所的响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RegisterExchangeSuccessResponse {
+pub struct RegisterExchangeResponse {
+    pub code: i32,
+    pub message: String,
+    pub account_id: i32,
     pub exchange: Exchange,
     pub response_timestamp: i64,
     pub response_id: Uuid,
+
+    
 }
 
 

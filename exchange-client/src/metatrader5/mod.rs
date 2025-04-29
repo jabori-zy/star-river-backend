@@ -22,7 +22,7 @@ use event_center::EventPublisher;
 use crate::ExchangeClient;
 use std::any::Any;
 use async_trait::async_trait;
-use types::order::{ExchangeOrder, Order};
+use types::order::{OriginalOrder, Order};
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use types::position::{PositionNumberRequest, ExchangePosition, Position};
 use super::metatrader5::mt5_types::Mt5CreateOrderParams;
@@ -30,7 +30,7 @@ use event_center::command_event::position_engine_command::GetPositionParam;
 use super::metatrader5::mt5_types::Mt5KlineInterval;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
-use types::account::ExchangeAccountInfo;
+use types::account::OriginalAccountInfo;
 use types::account::mt5_account::Mt5AccountInfo;
 use rust_embed::Embed;
 use std::fs;
@@ -89,13 +89,13 @@ impl MetaTrader5 {
             terminal_id,
             login,
             password,
-            server,
+            server: server.clone(),
             terminal_path,
             mt5_http_client: Arc::new(Mutex::new(None)),
             websocket_state: Arc::new(Mutex::new(None)),
             is_process_stream: Arc::new(AtomicBool::new(false)),
             event_publisher: event_publisher.clone(),
-            data_processor: Arc::new(Mutex::new(Mt5DataProcessor::new(event_publisher))),
+            data_processor: Arc::new(Mutex::new(Mt5DataProcessor::new(event_publisher, server))),
             mt5_process: Arc::new(StdMutex::new(None)),
         }
     }
@@ -517,7 +517,7 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn ExchangeOrder>, String> {
+    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         let mt5_order_request = Mt5CreateOrderParams::from(params);
         // 创建订单
@@ -620,7 +620,7 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn get_account_info(&self) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let account_info = mt5_http_client.get_account_info().await.expect("获取账户信息失败");

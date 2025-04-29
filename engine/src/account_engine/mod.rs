@@ -52,7 +52,7 @@ impl Engine for AccountEngine {
         self.listen_events().await;
         let mut context = self.context.write().await;
         let account_engine_context = context.as_any_mut().downcast_mut::<AccountEngineContext>().unwrap();
-        account_engine_context.monitor_account().await;
+        account_engine_context.monitor_accounts().await;
     }
 
 
@@ -78,16 +78,16 @@ impl AccountEngine {
             exchange_engine,
             database,
             heartbeat,
-            accounts: Arc::new(RwLock::new(vec![])),
+            monitor_account_list: Arc::new(RwLock::new(vec![])),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))
         }
     }
 
-    pub async fn register_mt5_exchange(&self, account_id: i32) -> Result<(), String> {
+    pub async fn register_exchange(&self, account_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let account_engine_context = context.as_any_mut().downcast_mut::<AccountEngineContext>().unwrap();
-        account_engine_context.register_mt5_exchange(account_id).await
+        account_engine_context.register_exchange(account_id).await
     }
 }

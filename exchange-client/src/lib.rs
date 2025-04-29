@@ -6,13 +6,13 @@ use async_trait::async_trait;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use types::market::KlineInterval;
 use types::position::{PositionNumberRequest, PositionNumber, Position,ExchangePosition};
-use types::order::{Order, ExchangeOrder};
+use types::order::{Order, OriginalOrder};
 use std::fmt::Debug;
 use std::any::Any;
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
-use types::account::ExchangeAccountInfo;
+use types::account::OriginalAccountInfo;
 
 #[async_trait]
 pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
@@ -28,7 +28,7 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     async fn get_socket_stream(&self) -> Result<(), String>;
 
     //订单相关
-    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn ExchangeOrder>, String>; // 发送订单
+    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String>; // 发送订单
     async fn update_order(&self, order: Order) -> Result<Order, String>; // 更新订单
 
     // 交易明细相关
@@ -40,7 +40,7 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     async fn update_position(&self, position: &Position) -> Result<Position, String>;
 
     // 账户相关
-    async fn get_account_info(&self) -> Result<Box<dyn ExchangeAccountInfo>, String>;
+    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, String>;
 
 
 

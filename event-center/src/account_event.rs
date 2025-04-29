@@ -12,7 +12,7 @@ use types::account::AccountConfig;
 pub enum AccountEvent {
     #[strum(serialize = "account-config-added")]
     #[serde(rename = "account-config-added")]
-    AccountConfigAdded((i32, Exchange)), // 账户配置已添加
+    AccountConfigAdded(i32), // 账户配置已添加
 
     #[strum(serialize = "account-config-deleted")]
     #[serde(rename = "account-config-deleted")]

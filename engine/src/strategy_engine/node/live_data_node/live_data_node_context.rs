@@ -206,7 +206,7 @@ impl LiveDataNodeContext {
 
 
         match response_event {
-            ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeSuccess(register_exchange_success_response)) => {
+            ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeResponse(register_exchange_success_response)) => {
                 if request_id == register_exchange_success_response.response_id {
                     tracing::info!("{}: 交易所注册成功: {:?}", self.base_context.node_id, register_exchange_success_response);
                     self.request_id = None;

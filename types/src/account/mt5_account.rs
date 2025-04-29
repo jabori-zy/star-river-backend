@@ -2,120 +2,49 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::any::Any;
-use crate::account::{ExchangeAccountInfo,ExchangeAccountConfig};
+use crate::account::OriginalAccountInfo;
 use crate::market::Exchange;
 use std::str::FromStr;
 use crate::account::ExchangeStatus;
 use crate::account::AccountTrait;
+use crate::account::AccountConfig;
+use crate::account::AccountInfo;
 
-
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Mt5Account {
-    pub account_config: Mt5AccountConfig,
-    pub account_info: Option<Mt5AccountInfo>,
-    pub exchange_status: ExchangeStatus,
-}
-
-
-impl AccountTrait for Mt5Account {
-    fn clone_box(&self) -> Box<dyn AccountTrait> {
-        Box::new(self.clone())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn get_account_id(&self) -> i32 {
-        self.account_config.id
-    }
-
-    fn get_account_name(&self) -> String {
-        self.account_config.account_name.clone()
-    }
-
-    fn get_exchange(&self) -> Exchange {
-        Exchange::from_str(self.account_config.exchange.as_str()).unwrap()
-    }
-
-    fn get_is_available(&self) -> bool {
-        self.account_config.is_available
-    }
-
-    fn get_account_config(&self) -> Box<dyn ExchangeAccountConfig> {
-        Box::new(self.account_config.clone())
-    }
-
-    fn get_account_info(&self) -> Option<Box<dyn ExchangeAccountInfo>> {
-        match &self.account_info {
-            Some(account_info) => Some(Box::new(account_info.clone())),
-            None => None,
-        }
-    }
-
-    fn get_exchange_status(&self) -> ExchangeStatus {
-        self.exchange_status.clone()
-    }
-
-    fn set_exchange_status(&mut self, status: ExchangeStatus) {
-        self.exchange_status = status;
-    }
-
-    fn set_account_info(&mut self, account_info: Box<dyn ExchangeAccountInfo>) {
-        self.account_info = Some(account_info.as_any().downcast_ref::<Mt5AccountInfo>().unwrap().clone());
-    }
-
-}
 
 // metatrader5 账户配置
 #[derive(Clone, Debug, Serialize, Deserialize)]
-
 pub struct Mt5AccountConfig {
     pub id: i32, // 账户id
     pub account_name: String, // 账户名称
-    pub exchange: String, // 交易所
+    pub exchange: Exchange, // 交易所
     pub login: i64,
     pub password: String,
     pub server: String,
     pub terminal_path: String,
     pub is_available: bool, // 是否可用
     pub sort_index: i32,
-    pub created_time: DateTime<Utc>, // 创建时间
-    pub updated_time: DateTime<Utc>, // 更新时间
+    pub create_time: DateTime<Utc>, // 创建时间
+    pub update_time: DateTime<Utc>, // 更新时间
 }
 
-
-impl ExchangeAccountConfig for Mt5AccountConfig {
-    fn clone_box(&self) -> Box<dyn ExchangeAccountConfig> {
-        Box::new(self.clone())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn get_account_id(&self) -> i32 {
-        self.id
-    }
-
-    fn get_account_name(&self) -> String {
-        self.account_name.clone()
-    }
-
-    fn get_exchange(&self) -> Exchange {
-        Exchange::from_str(self.exchange.as_str()).unwrap()
-    }
-
-    fn get_is_available(&self) -> bool {
-        self.is_available
+// 将AccountConfig转换为Mt5AccountConfig
+impl From<AccountConfig> for Mt5AccountConfig {
+    fn from(account_config: AccountConfig) -> Self {
+        Mt5AccountConfig {
+            id: account_config.id,
+            account_name: account_config.account_name,
+            exchange: account_config.exchange,
+            login: account_config.config["login"].as_i64().unwrap(),
+            password: account_config.config["password"].as_str().unwrap().to_string(),
+            server: account_config.config["server"].as_str().unwrap().to_string(),
+            terminal_path: account_config.config["terminal_path"].as_str().unwrap().to_string(),
+            is_available: account_config.is_available,
+            sort_index: account_config.sort_index,
+            create_time: account_config.create_time,
+            update_time: account_config.update_time,
+        }
     }
 }
-
 
 // 原始mt5账户信息
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -153,8 +82,8 @@ pub struct OriginalMt5AccountInfo {
     pub company: String,
 }
 
-impl ExchangeAccountInfo for OriginalMt5AccountInfo {
-    fn clone_box(&self) -> Box<dyn ExchangeAccountInfo> {
+impl OriginalAccountInfo for OriginalMt5AccountInfo {
+    fn clone_box(&self) -> Box<dyn OriginalAccountInfo> {
         Box::new(self.clone())
     }
 
@@ -163,6 +92,9 @@ impl ExchangeAccountInfo for OriginalMt5AccountInfo {
     }
     fn get_account_id(&self) -> i32 {
         self.account_id
+    }
+    fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap()
     }
 }
 
@@ -203,19 +135,49 @@ pub struct Mt5AccountInfo {
     pub server: String,
     pub currency: String,
     pub company: String,
-    pub created_time: DateTime<Utc>, // 创建时间
-    pub updated_time: DateTime<Utc>, // 更新时间
+    pub create_time: DateTime<Utc>, // 创建时间
+    pub update_time: DateTime<Utc>, // 更新时间
 }
 
-impl ExchangeAccountInfo for Mt5AccountInfo {
-    fn clone_box(&self) -> Box<dyn ExchangeAccountInfo> {
-        Box::new(self.clone())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn get_account_id(&self) -> i32 {
-        self.account_id
+impl From<AccountInfo> for Mt5AccountInfo {
+    fn from(account_info: AccountInfo) -> Self {
+        Mt5AccountInfo {
+            id: account_info.id,
+            account_id: account_info.account_id,
+            login: account_info.info["login"].as_i64().unwrap(),
+            trade_mode: account_info.info["trade_mode"].as_str().unwrap().to_string(),
+            leverage: account_info.info["leverage"].as_i64().unwrap(),
+            limit_orders: account_info.info["limit_orders"].as_i64().unwrap(),
+            margin_stopout_mode: account_info.info["margin_stopout_mode"].as_str().unwrap().to_string(),
+            trade_allowed: account_info.info["trade_allowed"].as_bool().unwrap(),
+            dlls_allowed: account_info.info["dlls_allowed"].as_bool().unwrap(),
+            terminal_connected: account_info.info["terminal_connected"].as_bool().unwrap(),
+            trade_expert: account_info.info["trade_expert"].as_bool().unwrap(),
+            margin_mode: account_info.info["margin_mode"].as_str().unwrap().to_string(),
+            currency_digits: account_info.info["currency_digits"].as_i64().unwrap(),
+            fifo_close: account_info.info["fifo_close"].as_bool().unwrap(),
+            balance: account_info.info["balance"].as_f64().unwrap(),
+            credit: account_info.info["credit"].as_f64().unwrap(),
+            profit: account_info.info["profit"].as_f64().unwrap(),
+            equity: account_info.info["equity"].as_f64().unwrap(),
+            margin: account_info.info["margin"].as_f64().unwrap(),
+            margin_free: account_info.info["margin_free"].as_f64().unwrap(),
+            margin_level: account_info.info["margin_level"].as_f64().unwrap(),
+            margin_so_call: account_info.info["margin_so_call"].as_f64().unwrap(),
+            margin_so_so: account_info.info["margin_so_so"].as_f64().unwrap(),
+            margin_initial: account_info.info["margin_initial"].as_f64().unwrap(),
+            margin_maintenance: account_info.info["margin_maintenance"].as_f64().unwrap(),
+            assets: account_info.info["assets"].as_f64().unwrap(),
+            liabilities: account_info.info["liabilities"].as_f64().unwrap(),
+            commission_blocked: account_info.info["commission_blocked"].as_f64().unwrap(),
+            name: account_info.info["name"].as_str().unwrap().to_string(),
+            server: account_info.info["server"].as_str().unwrap().to_string(),
+            currency: account_info.info["currency"].as_str().unwrap().to_string(),
+            company: account_info.info["company"].as_str().unwrap().to_string(),
+            create_time: account_info.create_time,
+            update_time: account_info.update_time,
+            
+            
+        }
     }
 }

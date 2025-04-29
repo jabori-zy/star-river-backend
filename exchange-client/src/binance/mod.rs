@@ -23,13 +23,13 @@ use futures::StreamExt;
 use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use event_center::EventPublisher;
-use types::order::{ExchangeOrder, Order};
+use types::order::{OriginalOrder, Order};
 use types::position::{ExchangePosition, Position};
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
-use types::account::ExchangeAccountInfo;
+use types::account::OriginalAccountInfo;
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
@@ -277,7 +277,7 @@ impl ExchangeClient for BinanceExchange {
         Ok(())
     }
 
-    async fn create_order(&self, order_request: CreateOrderParams) -> Result<Box<dyn ExchangeOrder>, String> {
+    async fn create_order(&self, order_request: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String> {
         unimplemented!()
     }
 
@@ -307,7 +307,7 @@ impl ExchangeClient for BinanceExchange {
         unimplemented!()
     }
 
-    async fn get_account_info(&self) -> Result<Box<dyn ExchangeAccountInfo>, String> {
+    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, String> {
         unimplemented!()
     }
     

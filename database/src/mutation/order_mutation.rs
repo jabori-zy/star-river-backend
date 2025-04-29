@@ -1,5 +1,5 @@
 
-use types::order::ExchangeOrder as TypeExchangeOrder;
+use types::order::OriginalOrder;
 use sea_orm::*;
 use crate::entities::{order, order::Entity as Order};
 use types::order::Order as TypeOrder;
@@ -13,7 +13,7 @@ impl OrderMutation {
         db: &DbConn,
         strategy_id: i64,
         node_id: String,
-        exchange_order: Box<dyn TypeExchangeOrder>
+        exchange_order: Box<dyn OriginalOrder>
     ) -> Result<TypeOrder, DbErr> {
         let order_model = order::ActiveModel {
             id: NotSet,

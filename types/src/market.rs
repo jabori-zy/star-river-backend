@@ -5,8 +5,14 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use serde_json;
+use std::str::FromStr;
+use serde::ser::Serializer;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
+pub type MT5Server = String;
+
+
+#[derive(Debug, Clone, Deserialize, Display, Eq, PartialEq, Hash)]
+#[serde(rename_all = "lowercase")]
 pub enum Exchange {
     #[strum(serialize = "binance")]
     Binance,
@@ -15,7 +21,54 @@ pub enum Exchange {
     #[strum(serialize = "okx")]
     Okx,
     #[strum(serialize = "metatrader5")]
-    Metatrader5,
+    Metatrader5(MT5Server),
+}
+
+impl Serialize for Exchange {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Exchange::Binance => serializer.serialize_str("binance"),
+            Exchange::Huobi => serializer.serialize_str("huobi"),
+            Exchange::Okx => serializer.serialize_str("okx"),
+            Exchange::Metatrader5(server) => {
+                if server.is_empty() {
+                    serializer.serialize_str("metatrader5")
+                } else {
+                    serializer.serialize_str(&format!("metatrader5:{}", server))
+                }
+            }
+        }
+    }
+}
+
+impl FromStr for Exchange {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "binance" => Ok(Exchange::Binance),
+            "huobi" => Ok(Exchange::Huobi),
+            "okx" => Ok(Exchange::Okx),
+            _ => {
+                // 如果是metatrader5，则需要解析出server, 数据格式是metatrader5:server
+                if s.starts_with("metatrader5") {
+                    // server不一定存在，所以需要判断
+                    let parts = s.split(":").collect::<Vec<&str>>();
+                    if parts.len() > 1 {
+                        Ok(Exchange::Metatrader5(parts[1].to_string()))
+                    } else {
+                        Ok(Exchange::Metatrader5(String::new()))
+                    }
+                }
+                else {
+                    Err(format!("无效的交易所: {}", s))
+                }
+            }
+        }
+    }
 }
 
 

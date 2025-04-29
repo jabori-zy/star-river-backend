@@ -1,10 +1,10 @@
 use serde::{Serialize, Deserialize};
 use types::position::PositionNumberRequest;
-use types::market::Exchange;
+use types::market::{Exchange, MT5Server};
 use types::position::PositionSide;
 use strum::{EnumString, Display};
 use types::order::OrderStatus;
-use types::order::ExchangeOrder;
+use types::order::OriginalOrder;
 use std::any::Any;
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use types::order::{OrderType, OrderSide};
@@ -233,6 +233,7 @@ impl From<Mt5OrderType> for OrderSide {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Mt5Order {
+    pub server: MT5Server,
     pub order_id: i64,
     pub position_id: i64,
     pub symbol: String,
@@ -254,18 +255,18 @@ pub struct Mt5Order {
     pub comment: String,
 }
 
-impl ExchangeOrder for Mt5Order {
+impl OriginalOrder for Mt5Order {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn ExchangeOrder> {
+    fn clone_box(&self) -> Box<dyn OriginalOrder> {
         Box::new(self.clone())
     }
     fn get_exchange_order_id(&self) -> i64 {
         self.order_id
     }
     fn get_exchange(&self) -> Exchange {
-        Exchange::Metatrader5
+        Exchange::Metatrader5(self.server.clone())
     }
     fn get_symbol(&self) -> String {
         self.symbol.clone()
@@ -333,6 +334,7 @@ impl From<Mt5PositionSide> for PositionSide {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Mt5Position {
+    pub server: MT5Server,
     pub position_id: i64,
     pub time: i64,
     pub time_msc: i64,
@@ -384,7 +386,7 @@ impl ExchangePosition for Mt5Position {
         Some(self.sl)
     }
     fn get_exchange(&self) -> Exchange {
-        Exchange::Metatrader5
+        Exchange::Metatrader5(self.server.clone())
     }
     fn get_create_time(&self) -> DateTime<Utc> {
         Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
@@ -422,6 +424,7 @@ pub enum Mt5DealEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Mt5Deal {
+    pub server: MT5Server,
     pub deal_id: i64,
     pub order_id: i64,
     pub position_id: i64,
@@ -478,7 +481,7 @@ impl ExchangeTransactionDetail for Mt5Deal {
         self.symbol.clone()
     }
     fn get_exchange(&self) -> Exchange {
-        Exchange::Metatrader5
+        Exchange::Metatrader5(self.server.clone())
     }
     fn get_exchange_order_id(&self) -> i64 {
         self.order_id

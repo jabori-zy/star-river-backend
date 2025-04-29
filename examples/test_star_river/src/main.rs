@@ -83,7 +83,7 @@ async fn main() {
         // 注册第一个终端
         let register_param = RegisterExchangeParams {
             account_id: 1,
-            exchange: Exchange::Metatrader5,
+            exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
             sender: "test".to_string(),
             timestamp: 1111,
             request_id: Uuid::new_v4(),
@@ -101,7 +101,7 @@ async fn main() {
             timestamp: 1111,
             request_id: Uuid::new_v4(),
             account_id: 1,
-            exchange: Exchange::Metatrader5,
+            exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
             frequency: 1000,
             interval: KlineInterval::Minutes1,
             symbol: "BTCUSDm".to_string(),

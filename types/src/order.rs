@@ -62,14 +62,15 @@ pub struct Order {
     pub open_price: f64, // 开仓价格
     pub tp: Option<f64>, // 止盈价格
     pub sl: Option<f64>, // 止损价格
+    pub extra_info: Option<serde_json::Value>, // 额外信息
     pub created_time: DateTime<Utc>, // 创建时间
     pub updated_time: DateTime<Utc>, // 更新时间
 
 }
 
-pub trait ExchangeOrder: Debug + Send + Sync + Any + 'static {
+pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
     fn as_any(&self) -> &dyn Any;
-    fn clone_box(&self) -> Box<dyn ExchangeOrder>;
+    fn clone_box(&self) -> Box<dyn OriginalOrder>;
     fn get_exchange_order_id(&self) -> i64;
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
@@ -86,7 +87,7 @@ pub trait ExchangeOrder: Debug + Send + Sync + Any + 'static {
 
 }
 
-impl Clone for Box<dyn ExchangeOrder> {
+impl Clone for Box<dyn OriginalOrder> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
