@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use types::market::Exchange;
-use types::account::mt5_account::Mt5AccountInfo;
 use crate::Event;
 use types::account::Account;
 use types::account::AccountConfig;
@@ -22,9 +20,6 @@ pub enum AccountEvent {
     #[serde(rename = "account-config-updated")]
     AccountConfigUpdated(AccountConfig), // 账户配置已更新
 
-    #[strum(serialize = "mt5-account-info-updated")]
-    #[serde(rename = "mt5-account-info-updated")]
-    Mt5AccountInfoUpdated(Mt5AccountInfo), // 账户信息已更新
 
     #[strum(serialize = "account-updated")]
     #[serde(rename = "account-updated")]

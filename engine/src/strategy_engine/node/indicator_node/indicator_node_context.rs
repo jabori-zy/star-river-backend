@@ -14,16 +14,15 @@ use event_center::strategy_event::StrategyEvent;
 use utils::get_utc8_timestamp_millis;
 use types::strategy::message::{IndicatorMessage, NodeMessage};
 use super::super::node_context::{BaseNodeContext,NodeContext};
-
-
+use super::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use types::strategy::TradeMode;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeState {
     pub base_context: BaseNodeContext,
-    pub exchange: Exchange,
-    pub symbol: String,
-    pub interval: KlineInterval,
-    pub indicator: Indicators,
+    pub live_config: Option<IndicatorNodeLiveConfig>,
+    pub backtest_config: Option<IndicatorNodeBacktestConfig>,
+    pub simulated_config: Option<IndicatorNodeSimulateConfig>,
     pub current_batch_id: Option<String>,
     pub request_id: Option<Uuid>,
 }
@@ -67,16 +66,23 @@ impl NodeContext for IndicatorNodeState {
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
         match message {
             NodeMessage::KlineSeries(kline_series_message) => {
+                tracing::debug!("{}: 收到K线系列消息", self.base_context.node_name);
                 // 向指标引擎发送计算请求
                 let request_id = Uuid::new_v4();
                 let batch_id = kline_series_message.batch_id;
+
+                let indicator = match self.base_context.trade_mode {
+                    TradeMode::Live => self.live_config.as_ref().unwrap().indicator.clone(),
+                    TradeMode::Backtest => self.backtest_config.as_ref().unwrap().indicator.clone(),
+                    TradeMode::Simulated => self.simulated_config.as_ref().unwrap().indicator.clone(),
+                };
 
                 
                 let calculate_indicator_params = CalculateIndicatorParams {
                     exchange: kline_series_message.exchange,
                     symbol: kline_series_message.symbol,
                     interval: kline_series_message.interval,
-                    indicator: self.indicator.clone(),
+                    indicator: indicator,
                     kline_series: kline_series_message.kline_series,
                     sender: self.base_context.node_id.to_string(),
                     command_timestamp: get_utc8_timestamp_millis(),
@@ -123,14 +129,26 @@ impl IndicatorNodeState {
                             // 计算结果有效
                             let indicator = calculate_indicator_response.indicator;
                             let indicator_value = calculate_indicator_response.value;
-                            // tracing::info!("节点{}计算指标完成: {:?}", state.read().await.node_id, indicator_value);
+                            // tracing::info!("节点{}计算指标完成: {:?}", self.base_context.node_name, indicator_value);
+
+                            let (exchange, symbol, interval) = match self.base_context.trade_mode {
+                                TradeMode::Live => {
+                                    (self.live_config.as_ref().unwrap().exchange.clone(), self.live_config.as_ref().unwrap().symbol.clone(), self.live_config.as_ref().unwrap().interval.clone())
+                                }
+                                TradeMode::Backtest => {
+                                    (self.backtest_config.as_ref().unwrap().exchange.clone(), self.backtest_config.as_ref().unwrap().symbol.clone(), self.backtest_config.as_ref().unwrap().interval.clone())
+                                }
+                                TradeMode::Simulated => {
+                                    (self.simulated_config.as_ref().unwrap().exchange.clone(), self.simulated_config.as_ref().unwrap().symbol.clone(), self.simulated_config.as_ref().unwrap().interval.clone())
+                                }
+                            };
                             
                             let indicator_message = IndicatorMessage {
                                 from_node_id: self.base_context.node_id.clone(),
                                 from_node_name: self.base_context.node_name.clone(),
-                                exchange: self.exchange.clone(),
-                                symbol: self.symbol.clone(),
-                                interval: self.interval.clone(),
+                                exchange: exchange,
+                                symbol: symbol,
+                                interval: interval,
                                 indicator: indicator,
                                 indicator_data: indicator_value,
                                 batch_id: current_batch_id,

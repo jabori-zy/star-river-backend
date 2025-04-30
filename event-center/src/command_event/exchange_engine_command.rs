@@ -12,10 +12,6 @@ pub enum ExchangeEngineCommand {
     RegisterExchange(RegisterExchangeParams),
     #[strum(serialize = "unregister-exchange")]
     UnregisterExchange(UnregisterExchangeParams),
-    // #[strum(serialize = "register-mt5-exchange")]
-    // RegisterMt5Exchange(RegisterMt5ExchangeParams), // 注册mt5交易所
-    // #[strum(serialize = "unregister-mt5-exchange")]
-    // UnregisterMt5Exchange(UnregisterMt5ExchangeParams), // 注销mt5交易所
 }
 
 

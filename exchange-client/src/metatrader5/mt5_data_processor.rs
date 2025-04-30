@@ -66,8 +66,9 @@ impl Mt5DataProcessor {
     }
 
     pub async fn process_stream(&self, raw_stream: serde_json::Value) {
+        // tracing::debug!("处理流数据: {:?}", raw_stream);
         // 如果data_type为kline，则处理k线数据，如果没有data_type，则跳过
-        if let Some(data_type) = raw_stream.get("data_type") {
+        if let Some(data_type) = raw_stream.get("type") {
             match data_type.as_str() {
                 Some("kline") => {
                     self.process_stream_kline(raw_stream).await;

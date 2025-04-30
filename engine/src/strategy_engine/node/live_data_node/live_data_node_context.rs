@@ -67,11 +67,6 @@ pub struct LiveDataNodeBacktestConfig {
 #[derive(Debug, Clone)]
 pub struct LiveDataNodeContext {
     pub base_context: BaseNodeContext,
-    pub account_id: i32,
-    pub exchange: Exchange,
-    pub symbol: String,
-    pub interval: KlineInterval,
-    pub frequency: u32,
     pub is_subscribed: bool,
     pub request_id: Option<Uuid>,
     pub live_config: Option<LiveDataNodeLiveConfig>,
@@ -136,10 +131,26 @@ impl LiveDataNodeContext {
         // 处理市场事件
         match market_event {
             MarketEvent::KlineSeriesUpdate(kline_series_update) => {
+                tracing::debug!("{}: 收到K线系列更新事件", self.base_context.node_name);
                 // 只获取当前节点支持的数据
-                let exchange = self.exchange.clone();
-                let symbol = self.symbol.clone();
-                let interval = self.interval.clone();
+                let (exchange, symbol, interval) = match self.base_context.trade_mode {
+                    TradeMode::Live => {
+                        (self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(), 
+                        self.live_config.as_ref().unwrap().symbol.clone(), 
+                        self.live_config.as_ref().unwrap().interval.clone())
+                    }
+                    TradeMode::Backtest => {
+                        (Exchange::Binance, 
+                        "BTCUSDT".to_string(), 
+                        KlineInterval::Minutes1)
+                    }
+                    TradeMode::Simulated => {
+                        (self.simulated_config.as_ref().unwrap().selected_simulate_accounts.exchange.clone(), 
+                        self.simulated_config.as_ref().unwrap().symbol.clone(), 
+                        self.simulated_config.as_ref().unwrap().interval.clone())
+                    }
+                };
+                
                 if exchange != kline_series_update.exchange || symbol != kline_series_update.symbol || interval != kline_series_update.interval {
                     return;
                 }
@@ -256,41 +267,8 @@ impl LiveDataNodeContext {
                     }
                 }
             },
-            // 回测模式
-            TradeMode::Backtest => {
-                match self.backtest_config.clone() {
-                    Some(backtest_config) => {  
-                        let register_param = RegisterExchangeParams {
-                            account_id: 1,
-                            exchange: self.exchange.clone(),
-                            sender: self.base_context.node_id.clone(),
-                            timestamp: get_utc8_timestamp_millis(),
-                            request_id: request_id,
-                        };
-                        register_param
-                    },
-                    None => {
-                        return Err("回测模式未配置".to_string());
-                    }
-                }
-            },
-            // 模拟模式
-            TradeMode::Simulated => {
-                match self.simulated_config.clone() {
-                    Some(simulated_config) => {
-                        let register_param = RegisterExchangeParams {
-                            account_id: simulated_config.selected_simulate_accounts.account_id.clone(),
-                            exchange: self.exchange.clone(),
-                            sender: self.base_context.node_id.clone(),
-                            timestamp: get_utc8_timestamp_millis(),
-                            request_id: request_id,
-                        };
-                        register_param
-                    }
-                    None => {
-                        return Err("模拟模式未配置".to_string());
-                    }
-                }
+            _ => {
+                return Err("不支持的交易模式".to_string());
             }
         };
 
@@ -324,7 +302,7 @@ impl LiveDataNodeContext {
                             exchange: config.selected_live_account.exchange,
                             symbol: config.symbol,
                             interval: config.interval,
-                            frequency: self.frequency.clone(),
+                            frequency: 1000,
                             sender: self.base_context.node_id.clone(),
                             timestamp: get_utc8_timestamp_millis(),
                             request_id: request_id,
@@ -359,14 +337,25 @@ impl LiveDataNodeContext {
 
     pub async fn unsubscribe_kline_stream(&mut self) -> Result<(), String> {
         let request_id = Uuid::new_v4();
+        let (account_id, exchange, symbol, interval) = match self.base_context.trade_mode {
+            TradeMode::Live => {
+                (self.live_config.as_ref().unwrap().selected_live_account.account_id.clone(), 
+                self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(), 
+                self.live_config.as_ref().unwrap().symbol.clone(), 
+                self.live_config.as_ref().unwrap().interval.clone())
+            }
+            _ => {
+                return Err("不支持的订阅模式".to_string());
+            }
+        };
         let params = UnsubscribeKlineStreamParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),
-            account_id: self.account_id.clone(),
-            exchange: self.exchange.clone(),
-            symbol: self.symbol.clone(),
-            interval: self.interval.clone(),
-            frequency: self.frequency.clone(),
+            account_id: account_id,
+            exchange: exchange,
+            symbol: symbol,
+            interval: interval,
+            frequency: 1000,
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),
             request_id: request_id,

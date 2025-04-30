@@ -90,3 +90,25 @@ pub async fn get_account_config(
         })
     )
 }
+
+
+#[derive(Serialize, Deserialize)]
+pub struct GetAccountConfigByExchangeParams {
+    pub exchange: String,
+}
+
+pub async fn get_account_config_by_exchange(
+    State(star_river): State<StarRiver>,
+    Query(params): Query<GetAccountConfigByExchangeParams>,
+) -> (StatusCode, Json<ApiResponse<Vec<AccountConfig>>>) {
+    let db = &star_river.database.lock().await.conn;
+    let account_config = AccountConfigQuery::get_account_config_by_exchange(db, params.exchange).await.unwrap();
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(account_config),
+        })
+    )
+}

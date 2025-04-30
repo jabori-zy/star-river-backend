@@ -3,7 +3,6 @@ use crate::entities::{account_config, account_config::Entity as AccountConfigEnt
 use types::account::AccountConfig;
 
 
-
 pub struct AccountConfigQuery;
 
 
@@ -13,7 +12,10 @@ impl AccountConfigQuery {
         db: &DbConn,
         exchange: String
     ) -> Result<Vec<AccountConfig>, DbErr> {
-        let account_config = AccountConfigEntity::find().filter(account_config::Column::Exchange.eq(exchange)).all(db).await?;
+        let account_config = AccountConfigEntity::find()
+        .filter(account_config::Column::Exchange.eq(exchange))
+        .filter(account_config::Column::IsDelete.eq(false))
+        .all(db).await?;
         Ok(account_config.into_iter().map(|model| model.into()).collect())
     }
 
@@ -32,7 +34,9 @@ impl AccountConfigQuery {
     pub async fn get_all_account_config(
         db: &DbConn,
     ) -> Result<Vec<AccountConfig>, DbErr> {
-        let account_config = AccountConfigEntity::find().all(db).await?;
+        let account_config = AccountConfigEntity::find()
+        .filter(account_config::Column::IsDelete.eq(false))
+        .all(db).await?;
         Ok(account_config.into_iter().map(|model| model.into()).collect())
     }
 }

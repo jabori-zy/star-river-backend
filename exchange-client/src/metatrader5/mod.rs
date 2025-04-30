@@ -501,7 +501,7 @@ impl ExchangeClient for MetaTrader5 {
                         },
                         Message::Text(text) => {
                             let stream_json = serde_json::from_str::<serde_json::Value>(&text.to_string()).expect("解析WebSocket消息JSON失败");
-                            tracing::debug!("收到消息: {:?}", stream_json);
+                            // tracing::debug!("收到消息: {:?}", stream_json);
                             let data_processor = data_processor.lock().await;
                             data_processor.process_stream(stream_json).await;
   

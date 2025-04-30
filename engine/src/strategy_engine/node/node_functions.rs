@@ -100,6 +100,7 @@ impl NodeFunction {
                     receive_result = combined_stream.next() => {
                         match receive_result {
                             Some(Ok(message)) => {
+                                // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut state_guard = state.write().await;
                                 state_guard.handle_message(message).await.unwrap();
                             }

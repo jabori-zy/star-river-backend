@@ -1,5 +1,6 @@
 pub mod indicator_node_state_machine;
 pub mod indicator_node_context;
+pub mod indicator_node_type;
 
 use types::indicator::Indicators;
 use tokio::sync::broadcast;
@@ -9,6 +10,8 @@ use async_trait::async_trait;
 use types::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use crate::exchange_engine::ExchangeEngine;
+
 use super::{NodeTrait,NodeType,NodeRunState,NodeStateTransitionEvent};
 use indicator_node_state_machine::{IndicatorNodeStateManager,IndicatorNodeStateAction};
 use std::time::Duration;
@@ -17,8 +20,8 @@ use event_center::EventPublisher;
 use event_center::Event;
 use super::node_context::{BaseNodeContext,NodeContext};
 use types::strategy::TradeMode;
-
-
+use indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use types::indicator_config::SMAConfig;
 
 
 // 指标节点
@@ -36,11 +39,10 @@ impl IndicatorNode {
         strategy_id: i64, 
         node_id: String, 
         node_name: String, 
-        exchange: Exchange, 
-        symbol: String, 
-        interval: KlineInterval, 
-        indicator: Indicators, 
         trade_mode: TradeMode,
+        live_config: Option<IndicatorNodeLiveConfig>,
+        backtest_config: Option<IndicatorNodeBacktestConfig>,
+        simulated_config: Option<IndicatorNodeSimulateConfig>,
         event_publisher: EventPublisher, 
         response_event_receiver: broadcast::Receiver<Event>,
     ) -> Self {
@@ -58,10 +60,9 @@ impl IndicatorNode {
         Self {
             context: Arc::new(RwLock::new(Box::new(IndicatorNodeState {
                 base_context,
-                exchange,
-                symbol,
-                interval,
-                indicator,
+                live_config,
+                backtest_config,
+                simulated_config,
                 current_batch_id: None,
                 request_id: None,
             }))),

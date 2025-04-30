@@ -15,7 +15,7 @@ use types::order::{OrderType, OrderSide};
 use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
 use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 use crate::strategy_engine::node::live_data_node::live_data_node_context::{LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
-
+use crate::strategy_engine::node::indicator_node::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
 
 impl Strategy {
     pub async fn add_node(
@@ -72,14 +72,62 @@ impl Strategy {
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
 
-                let indicator_name = node_data["indicatorName"].as_str().unwrap_or_default(); // 指标名称
-                let mut indicator = Indicators::from_str(indicator_name).unwrap(); // 转换成指标
-                let indicator_config = node_data["indicatorConfig"].clone(); // 指标配置
-                indicator.update_config(&indicator_config); // 更新指标配置
-
-                let exchange = Exchange::Binance; // 交易所
-                let symbol = "BTCUSDT".to_string();
-                let interval = KlineInterval::Minutes1;
+                let indicator_type = node_data["indicatorType"].as_str().unwrap_or_default(); // 指标类型
+                let mut indicator = Indicators::from_str(indicator_type).unwrap(); // 转换成指标
+                let live_config = match node_data["liveConfig"].is_null() {
+                    true => None,
+                    false => {
+                        let live_config_json = node_data["liveConfig"].clone();
+                        let indicator_config = live_config_json["indicatorConfig"].clone();
+                        indicator.update_config(&indicator_config); // 更新指标配置
+                        let symbol = live_config_json["symbol"].as_str().unwrap_or_default().to_string();
+                        let interval = KlineInterval::from_str(live_config_json["interval"].as_str().unwrap_or_default()).unwrap();
+                        let exchange = Exchange::from_str(live_config_json["exchange"].as_str().unwrap_or_default()).unwrap();
+                        let indicator_node_live_config = IndicatorNodeLiveConfig {
+                            indicator: indicator.clone(),
+                            symbol,
+                            interval,
+                            exchange,
+                        };
+                        Some(indicator_node_live_config)
+                    },
+                };
+                let backtest_config = match node_data["backtestConfig"].is_null() {
+                    true => None,
+                    false => {
+                        let backtest_config_json = node_data["backtestConfig"].clone();
+                        let indicator_config = backtest_config_json["indicatorConfig"].clone();
+                        indicator.update_config(&indicator_config); // 更新指标配置
+                        let symbol = backtest_config_json["symbol"].as_str().unwrap_or_default().to_string();
+                        let interval = KlineInterval::from_str(backtest_config_json["interval"].as_str().unwrap_or_default()).unwrap();
+                        let exchange = Exchange::from_str(backtest_config_json["exchange"].as_str().unwrap_or_default()).unwrap();
+                        let indicator_node_backtest_config = IndicatorNodeBacktestConfig {
+                            indicator: indicator.clone(),
+                            symbol,
+                            interval,
+                            exchange,
+                        };
+                        Some(indicator_node_backtest_config)
+                    },
+                };
+                let simulated_config = match node_data["simulatedConfig"].is_null() {
+                    true => None,
+                    false => {
+                        let simulated_config_json = node_data["simulatedConfig"].clone();
+                        let indicator_config = simulated_config_json["indicatorConfig"].clone();
+                        indicator.update_config(&indicator_config); // 更新指标配置
+                        let symbol = simulated_config_json["symbol"].as_str().unwrap_or_default().to_string();
+                        let interval = KlineInterval::from_str(simulated_config_json["interval"].as_str().unwrap_or_default()).unwrap();
+                        let exchange = Exchange::from_str(simulated_config_json["exchange"].as_str().unwrap_or_default()).unwrap();
+                        let indicator_node_simulate_config = IndicatorNodeSimulateConfig {
+                            indicator: indicator.clone(),
+                            symbol,
+                            interval,
+                            exchange,
+                        };
+                        Some(indicator_node_simulate_config)
+                    },
+                };
                 
                 let response_event_receiver = response_event_receiver.resubscribe();
                 Self::add_indicator_node(
@@ -87,11 +135,10 @@ impl Strategy {
                     node_indices,
                     strategy_id,
                     node_id.to_string(), 
-                    node_name.to_string(), 
-                    exchange, 
-                    symbol, 
-                    interval, 
-                    indicator,
+                    node_name.to_string(),
+                    live_config,
+                    backtest_config,
+                    simulated_config,
                     trade_mode,
                     event_publisher.clone(),
                     response_event_receiver,
@@ -134,11 +181,6 @@ impl Strategy {
                     strategy_id,
                     node_id.to_string(), 
                     node_name.to_string(), 
-                    1,
-                    Exchange::Binance, 
-                    "BTCUSDT".to_string(), 
-                    KlineInterval::Minutes1, 
-                    frequency,
                     trade_mode,
                     live_config,
                     backtest_config,

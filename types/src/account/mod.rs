@@ -24,38 +24,38 @@ pub enum ExchangeStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
-    pub config: AccountConfig,
-    pub info: Option<AccountInfo>,
+    pub account_config: AccountConfig,
+    pub account_info: Option<AccountInfo>,
     pub exchange_status: ExchangeStatus,
 }
 
 impl Account {
     pub fn new(config: AccountConfig, info: Option<AccountInfo>, exchange_status: ExchangeStatus) -> Self {
-        Self { config, info, exchange_status }
+        Self { account_config: config, account_info: info, exchange_status }
     }
 
     pub fn get_account_id(&self) -> i32 {
-        self.config.id
+        self.account_config.id
     }
 
     pub fn get_account_name(&self) -> String {
-        self.config.account_name.clone()
+        self.account_config.account_name.clone()
     }
 
     pub fn get_exchange(&self) -> Exchange {
-        self.config.exchange.clone()
+        self.account_config.exchange.clone()
     }
 
     pub fn get_is_available(&self) -> bool {
-        self.config.is_available
+        self.account_config.is_available
     }
 
     pub fn get_account_config(&self) -> AccountConfig {
-        self.config.clone()
+        self.account_config.clone()
     }
 
     pub fn get_account_info(&self) -> Option<AccountInfo> {
-        self.info.clone()
+        self.account_info.clone()
     }
 
     pub fn get_exchange_status(&self) -> ExchangeStatus {
@@ -67,11 +67,11 @@ impl Account {
     }
 
     pub fn set_account_info(&mut self, account_info: AccountInfo) {
-        self.info = Some(account_info);
+        self.account_info = Some(account_info);
     }
 
     pub fn set_account_config(&mut self, account_config: AccountConfig) {
-        self.config = account_config;
+        self.account_config = account_config;
     }
     
 }

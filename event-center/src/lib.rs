@@ -220,8 +220,8 @@ impl EventPublisher {
             .ok_or_else(|| EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
 
         match event.clone() {
-            Event::Exchange(exchange_event) => {
-                tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, exchange_event);
+            Event::Market(market_event) => {
+                // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, market_event);
             }
             _ => {
                 // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);

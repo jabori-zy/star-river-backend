@@ -9,7 +9,7 @@ use types::indicator::Indicators;
 use crate::strategy_engine::node::indicator_node::IndicatorNode;
 use event_center::{Event, EventPublisher};
 use types::strategy::TradeMode;
-
+use crate::strategy_engine::node::indicator_node::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
 
 
 
@@ -20,10 +20,9 @@ impl Strategy {
         strategy_id: i64,
         node_id: String, 
         node_name: String, 
-        exchange: Exchange, 
-        symbol: String, 
-        interval: KlineInterval, 
-        indicator: Indicators, 
+        live_config: Option<IndicatorNodeLiveConfig>,
+        backtest_config: Option<IndicatorNodeBacktestConfig>,
+        simulated_config: Option<IndicatorNodeSimulateConfig>,
         trade_mode: TradeMode,
         event_publisher: EventPublisher, 
         response_event_receiver: broadcast::Receiver<Event>,
@@ -32,11 +31,10 @@ impl Strategy {
             strategy_id, 
             node_id.clone(), 
             node_name, 
-            exchange, 
-            symbol, 
-            interval, 
-            indicator, 
             trade_mode,
+            live_config,
+            backtest_config,
+            simulated_config,
             event_publisher, 
             response_event_receiver,
         );
