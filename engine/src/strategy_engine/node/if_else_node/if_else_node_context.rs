@@ -8,9 +8,8 @@ use event_center::Event;
 use super::super::node_context::{BaseNodeContext,NodeContext};
 use super::condition::*;
 use types::strategy::message::{IndicatorMessage, SignalMessage, Signal, NodeMessage};
-
-
-
+use super::if_else_node_type::*;
+use types::strategy::TradeMode;
 
 
 
@@ -22,8 +21,12 @@ pub struct IfElseNodeContext {
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
     pub received_value: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
-    pub cases: Vec<Case>, 
+    // pub cases: Vec<Case>,
+    pub live_config: Option<IfElseNodeLiveConfig>,
+    pub backtest_config: Option<IfElseNodeBacktestConfig>,
+    pub simulate_config: Option<IfElseNodeSimulateConfig>,
     
+
 }
 
 
@@ -104,10 +107,18 @@ impl IfElseNodeContext {
     // 开始评估各个分支
     pub async fn evaluate(&mut self) {
         // 在锁外执行评估
-        let mut case_matched = false;
-        for case in self.cases.clone() {
+        let mut case_matched = false; // 是否匹配到case
+        // 根据交易模式获取case
+        let cases = match self.base_context.trade_mode {
+            TradeMode::Live => self.live_config.as_ref().unwrap().cases.clone(),
+            TradeMode::Backtest => self.backtest_config.as_ref().unwrap().cases.clone(),
+            TradeMode::Simulated => self.simulate_config.as_ref().unwrap().cases.clone(),
+        };
+        
+        // 遍历case
+        for case in cases {
             let case_result = self.evaluate_case(case.clone()).await;
-            // 如果为true，则发送消息到分支, 并且后续的case不进行评估
+            // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
             if case_result {
                 let case_sender = self.get_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
                 // 节点信息
@@ -121,8 +132,9 @@ impl IfElseNodeContext {
 
                 // 获取case的handle
                 let case_handle = self.get_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
+                tracing::debug!("{}：节点信息: {:?}", self.get_node_id(), signal_message);
                 if case_handle.connect_count > 0 {
-                    // tracing::debug!("{}发送信号: {:?}", case_handle.handle_id, signal_message);
+                    tracing::debug!("{}发送信号: {:?}", case_handle.handle_id, signal_message);
                     if let Err(e) = case_sender.sender.send(NodeMessage::Signal(signal_message.clone())) {
                         tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                     }
@@ -155,9 +167,14 @@ impl IfElseNodeContext {
                 signal: Signal::False,
                 message_timestamp: get_utc8_timestamp()
             };
-            tracing::debug!("条件节点发送信号: {:?}", signal_message);
-            if let Err(e) = else_sender.sender.send(NodeMessage::Signal(signal_message.clone())) {
-                tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
+            
+
+            let else_handle = self.get_output_handle().get("if_else_node_else_output").expect("else handle not found");
+            if else_handle.connect_count > 0 {
+                tracing::debug!("条件节点发送信号: {:?}", signal_message);
+                if let Err(e) = else_sender.sender.send(NodeMessage::Signal(signal_message.clone())) {
+                    tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
+                }
             }
 
             // 发送事件
@@ -205,7 +222,59 @@ impl IfElseNodeContext {
     // 评估and条件组
     async fn evaluate_and_conditions(&self, conditions: Vec<Condition>) -> bool{
         let received_value = &self.received_value;
-        let mut result = true;
+        
+        for condition in conditions {
+            // 获取左值
+            let left_node_id = condition.left_variable.node_id.unwrap();
+            let left_variabale = condition.left_variable.variable;
+            let left_value = Self::get_variable_value(&left_node_id, &left_variabale, received_value);
+
+            // 获取右值
+            let right_var_type = condition.right_variable.var_type;
+            let right_value = match right_var_type {
+                VarType::Variable => {
+                    let right_node_id = condition.right_variable.node_id.unwrap();
+                    let right_variabale = condition.right_variable.variable;
+                    Self::get_variable_value(&right_node_id, &right_variabale, received_value)
+                },
+                VarType::Constant => {
+                    let right_variabale = condition.right_variable.variable;
+                    Some(right_variabale.parse::<f64>().unwrap())
+                },
+            };
+
+            let operator = condition.comparison_operator;
+            
+            if left_value.is_some() && right_value.is_some() {
+                let left_value = left_value.unwrap();
+                let right_value = right_value.unwrap();
+                let condition_result = match operator {
+                    ComparisonOperator::GreaterThan => left_value > right_value,
+                    ComparisonOperator::LessThan => left_value < right_value,
+                    ComparisonOperator::Equal => (left_value - right_value).abs() < f64::EPSILON, // 浮点数比较
+                    ComparisonOperator::GreaterThanOrEqual => left_value >= right_value,
+                    ComparisonOperator::LessThanOrEqual => left_value <= right_value,
+                    ComparisonOperator::NotEqual => left_value != right_value,
+                };
+                // tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
+                
+                // 如果有任何一个条件不满足，立即返回false并中止后续条件判断
+                if !condition_result {
+                    return false;
+                }
+            }
+        }
+        // 所有条件都满足
+        true
+    }
+
+    async fn evaluate_or_conditions(&self, conditions: Vec<Condition>) -> bool {
+        let received_value = &self.received_value;
+        
+        if conditions.is_empty() {
+            return false;
+        }
+        
         for condition in conditions {
             // 获取左值
             let left_node_id = condition.left_variable.node_id.unwrap();
@@ -241,15 +310,13 @@ impl IfElseNodeContext {
                 };
                 // tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
                 
-                // 如果当前条件为真，则将结果设置为真
-                result = result && condition_result;
-            } 
+                // 如果有任何一个条件满足，立即返回true并中止后续条件判断
+                if condition_result {
+                    return true;
+                }
+            }
         }
-        result
-    }
-
-    async fn evaluate_or_conditions(&self, conditions: Vec<Condition>) -> bool {
-
+        // 所有条件都不满足
         false
     }
 }

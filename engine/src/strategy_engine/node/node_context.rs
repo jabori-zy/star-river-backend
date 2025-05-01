@@ -114,11 +114,11 @@ pub struct BaseNodeContext {
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub message_receivers: Vec<NodeMessageReceiver>,
-    pub event_receivers:Vec<broadcast::Receiver<Event>>,
-    pub output_handle: HashMap<String, NodeOutputHandle>,
-    pub is_enable_event_publish: bool,
-    pub state_machine: Box<dyn NodeStateMachine>,
-    pub from_node_id: Vec<String>,
+    pub event_receivers:Vec<broadcast::Receiver<Event>>, // 事件接收器
+    pub output_handle: HashMap<String, NodeOutputHandle>, // 节点输出句柄
+    pub is_enable_event_publish: bool, // 是否启用事件发布
+    pub state_machine: Box<dyn NodeStateMachine>, // 状态机
+    pub from_node_id: Vec<String>, // 来源节点ID
 }
 
 impl Clone for BaseNodeContext {

@@ -16,6 +16,8 @@ use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
 use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 use crate::strategy_engine::node::live_data_node::live_data_node_context::{LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
 use crate::strategy_engine::node::indicator_node::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use crate::strategy_engine::node::if_else_node::if_else_node_type::*;
+
 
 impl Strategy {
     pub async fn add_node(
@@ -197,16 +199,50 @@ impl Strategy {
                 let node_id = node_config["id"].as_str().unwrap();
                 let node_name = node_data["nodeName"].as_str().unwrap_or_default();
                 let strategy_id = node_data["strategyId"].as_i64().unwrap();
-                let cases: Vec<Case> = serde_json::from_value(node_data["cases"].clone())
-                    .unwrap_or_else(|e| panic!("Failed to parse cases: {}", e));
+                // let cases: Vec<Case> = serde_json::from_value(node_data["cases"].clone())
+                //     .unwrap_or_else(|e| panic!("Failed to parse cases: {}", e));
+                let live_config = match node_data["liveConfig"].is_null() {
+                    true => None,
+                    false => {
+                        let cases: Vec<Case> = serde_json::from_value(node_data["liveConfig"]["cases"].clone()).unwrap();
+                        let if_else_node_live_config = IfElseNodeLiveConfig {
+                            cases: cases.clone(),
+                        };
+                        tracing::debug!("条件分支节点数据: {:?}", if_else_node_live_config);
+                        Some(if_else_node_live_config)
+                    },
+                };
+                let backtest_config = match node_data["backtestConfig"].is_null() {
+                    true => None,
+                    false => {
+                        let cases: Vec<Case> = serde_json::from_value(node_data["backtestConfig"]["cases"].clone()).unwrap();
+                        let if_else_node_backtest_config = IfElseNodeBacktestConfig {
+                            cases: cases.clone(),
+                        };
+                        Some(if_else_node_backtest_config)
+                    },
+                };
+                let simulate_config = match node_data["simulatedConfig"].is_null() {
+                    true => None,
+                    false => {
+                        let cases: Vec<Case> = serde_json::from_value(node_data["simulatedConfig"]["cases"].clone()).unwrap();
+                        let if_else_node_simulate_config = IfElseNodeSimulateConfig {
+                            cases: cases.clone(),
+                        };
+                        Some(if_else_node_simulate_config)
+                    },
+                };
+
                 Self::add_if_else_node(
                     graph,
                     node_indices,
                     strategy_id,
                     node_id.to_string(),
                     node_name.to_string(),
-                    cases,
                     trade_mode,
+                    live_config,
+                    backtest_config,
+                    simulate_config,
                     event_publisher,
                 ).await;
             }

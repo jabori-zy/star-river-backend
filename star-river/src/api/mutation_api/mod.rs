@@ -74,7 +74,6 @@ pub async fn update_strategy(
 ) -> (StatusCode, Json<ApiResponse<strategy_config::Model>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    tracing::info!("更新策略请求: {:?}", request);
     match StrategyConfigMutation::update_strategy_by_id(
         conn,
         request.id, 

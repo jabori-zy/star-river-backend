@@ -1,6 +1,7 @@
 mod if_else_node_state_machine;
 mod if_else_node_context;
 pub mod condition;
+pub mod if_else_node_type;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -22,7 +23,7 @@ use condition::*;
 use if_else_node_context::IfElseNodeContext;
 use super::{NodeRunState,NodeOutputHandle,NodeTrait};
 use types::strategy::TradeMode;
-
+use if_else_node_type::*;
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -35,9 +36,11 @@ impl IfElseNode {
     pub fn new(
         strategy_id: i64,
         node_id: String, 
-        node_name: String, 
-        cases: Vec<Case>, 
+        node_name: String,
         trade_mode: TradeMode,
+        live_config: Option<IfElseNodeLiveConfig>,
+        backtest_config: Option<IfElseNodeBacktestConfig>,
+        simulate_config: Option<IfElseNodeSimulateConfig>,
         event_publisher: EventPublisher,
     ) -> Self {
         let base_context = BaseNodeContext::new(
@@ -57,7 +60,9 @@ impl IfElseNode {
                 is_processing: false,
                 received_flag: HashMap::new(),
                 received_value: HashMap::new(),
-                cases,
+                live_config,
+                backtest_config,
+                simulate_config,
             }))),
             
         }
@@ -148,7 +153,11 @@ impl NodeTrait for IfElseNode {
         let context = self.get_context();
         let mut state_guard = context.write().await;
         if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-            let cases = if_else_node_context.cases.clone();
+            let cases = match if_else_node_context.base_context.trade_mode {
+                TradeMode::Live => if_else_node_context.live_config.as_ref().unwrap().cases.clone(),
+                TradeMode::Backtest => if_else_node_context.backtest_config.as_ref().unwrap().cases.clone(),
+                TradeMode::Simulated => if_else_node_context.simulate_config.as_ref().unwrap().cases.clone(),
+            };
             for case in cases {
                 let (tx, _) = broadcast::channel::<NodeMessage>(100);
                 let handle = NodeOutputHandle {
