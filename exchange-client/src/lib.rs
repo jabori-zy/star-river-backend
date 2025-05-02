@@ -13,11 +13,13 @@ use event_center::command_event::order_engine_command::CreateOrderParams;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
 use types::account::OriginalAccountInfo;
-
+use types::market::Exchange;
 #[async_trait]
 pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     fn clone_box(&self) -> Box<dyn ExchangeClient>;
+    fn exchange_type(&self) -> Exchange;
     async fn connect_websocket(&mut self) -> Result<(), String>;
 
     // 市场相关

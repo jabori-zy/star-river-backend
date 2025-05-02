@@ -44,8 +44,6 @@ pub struct ExchangeEngineContext {
     pub exchanges: HashMap<i32, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
-    pub mt5_process: Arc<StdMutex<Option<Child>>>,
-    pub is_mt5_server_running: Arc<AtomicBool>, //mt5服务器是否正在运行
     pub database: DatabaseConnection,
 }
 
@@ -64,8 +62,6 @@ impl Clone for ExchangeEngineContext {
                 .iter()
                 .map(|receiver| receiver.resubscribe())
                 .collect(),
-            mt5_process: self.mt5_process.clone(),
-            is_mt5_server_running: self.is_mt5_server_running.clone(),
             database: self.database.clone(),
         }
     }
@@ -169,6 +165,7 @@ impl ExchangeEngineContext {
         let mut server_retry_count = 0;
         let mut server_port: Option<u16> = None;
         
+        tracing::debug!("开始启动mt5_server");
         while server_retry_count < max_server_retries {
             match tokio::time::timeout(
                 tokio::time::Duration::from_secs(30), 
@@ -219,7 +216,7 @@ impl ExchangeEngineContext {
         // 初始化终端 (带重试机制)
         let max_init_retries = 3;
         let mut init_retry_count = 0;
-        
+        tracing::debug!("开始初始化终端");
         while init_retry_count < max_init_retries {
             match tokio::time::timeout(
                 tokio::time::Duration::from_secs(30), 
@@ -263,7 +260,7 @@ impl ExchangeEngineContext {
         // 连接websocket (带重试机制)
         let max_ws_retries = 3;
         let mut ws_retry_count = 0;
-        
+        tracing::debug!("开始连接websocket");
         while ws_retry_count < max_ws_retries {
             match mt5.connect_websocket().await {
                 Ok(_) => {
@@ -292,8 +289,7 @@ impl ExchangeEngineContext {
             .insert(account_config.id, mt5_exchange);
 
         // 发送响应事件
-        let response_event =
-            ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeResponse(
+        let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeResponse(
                 RegisterExchangeResponse {
                     code: 0,
                     message: "注册成功".to_string(),
@@ -316,7 +312,50 @@ impl ExchangeEngineContext {
         unregister_params: UnregisterExchangeParams,
     ) -> Result<(), String> {
         tracing::debug!("接收到命令: {:?}", unregister_params);
-        self.exchanges.remove(&unregister_params.account_id);
+        // 先获取实例
+        let mut exchange = self.get_exchange(&unregister_params.account_id).await?;
+        match exchange.exchange_type() {
+            Exchange::Metatrader5(_) => {
+                // 停止mt5服务器，添加超时处理
+                let mt5 = exchange.as_any_mut().downcast_mut::<MetaTrader5>().unwrap();
+                
+                // 设置超时时间为15秒
+                match tokio::time::timeout(
+                    tokio::time::Duration::from_secs(15), 
+                    mt5.stop_mt5_server()
+                ).await {
+                    // 在超时时间内完成了操作
+                    Ok(result) => match result {
+                        // 停止成功
+                        Ok(true) => {
+                            tracing::info!("成功停止MT5服务，账户ID: {}", unregister_params.account_id);
+                            self.exchanges.remove(&unregister_params.account_id);
+                        },
+                        // 停止尝试但失败
+                        Ok(false) => {
+                            tracing::error!("MT5服务停止失败，但仍将移除实例，账户ID: {}", unregister_params.account_id);
+                            self.exchanges.remove(&unregister_params.account_id);
+                        },
+                        // 函数执行出错
+                        Err(e) => {
+                            tracing::error!("MT5服务停止出错，错误: {}，账户ID: {}", e, unregister_params.account_id);
+                            self.exchanges.remove(&unregister_params.account_id);
+                        }
+                    },
+                    // 操作超时
+                    Err(_) => {
+                        tracing::error!("MT5服务停止操作超时，账户ID: {}", unregister_params.account_id);
+                        // 尽管超时，仍然移除实例，避免资源泄漏
+                        self.exchanges.remove(&unregister_params.account_id);
+                    }
+                }
+            }
+            _ => {
+                // 对于其他类型的交易所，直接移除
+                self.exchanges.remove(&unregister_params.account_id);
+            }
+        }
+
         Ok(())
     }
 

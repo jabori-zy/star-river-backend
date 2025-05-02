@@ -24,6 +24,7 @@ impl AccountConfigQuery {
         id: i32
     ) -> Result<AccountConfig, DbErr> {
         let account_config = AccountConfigEntity::find_by_id(id)
+            .filter(account_config::Column::IsDelete.eq(false))
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find account config.".to_owned()))

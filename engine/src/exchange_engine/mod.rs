@@ -56,8 +56,6 @@ impl ExchangeEngine {
             exchanges: HashMap::new(),
             event_publisher,
             event_receiver: vec![response_event_receiver, request_event_receiver],
-            mt5_process: Arc::new(StdMutex::new(None)),
-            is_mt5_server_running: Arc::new(AtomicBool::new(false)),
             database,
         };
         Self {
@@ -72,11 +70,17 @@ impl ExchangeEngine {
 
     }
 
-    pub async fn get_exchange(&self, account_id: &i32) -> Box<dyn ExchangeClient> {
+    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
         let context_guard = self.context.read().await;
         let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
-        let exchanges = exchange_context.get_exchange(account_id).await.unwrap();
-        exchanges
+        let exchanges = exchange_context.get_exchange(account_id).await;
+        match exchanges {
+            Ok(exchange) => Ok(exchange),
+            Err(e) => {
+                // tracing::error!("获取交易所客户端失败: {}", e);
+                Err(e)
+            }
+        }
     }
 
     pub async fn get_exchange_mut(&self, account_id: &i32) -> Box<dyn ExchangeClient> {

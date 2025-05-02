@@ -278,6 +278,7 @@ impl AccountEngineContext {
 
         // 遍历账户配置,尝试获取账户信息
         for (index, account) in accounts_clone.iter().enumerate() {
+            // tracing::debug!("监控账户信息: {:?}", account);
             // 先判断账户的交易所的注册状态
             let account_status = account.get_exchange_status();
             match account_status {
@@ -285,25 +286,39 @@ impl AccountEngineContext {
                     // 获取账户信息
                     let exchange = exchange_engine.lock().await;
                     let exchange = exchange.get_exchange(&account.get_account_id()).await;
-                    // 如果获取账户信息错误，则将状态设置为注册失败
-                    let account_info = exchange.get_account_info().await;
-                    match account_info {    
-                        Ok(account_info) => {
-                            // 1.更新数据库
-                            let account_info = AccountInfoMutation::update_account_info(&database, account.get_account_id(), account_info.to_json()).await.unwrap();
-                            // 2.更新账户信息
-                            let mut accounts = accounts.write().await;
-                            accounts[index].set_account_info(account_info);
-                            // 3.发布账户已更新事件
-                            let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                            event_publisher.publish(account_updated_event.into()).unwrap();
+                    match exchange {
+                        Ok(exchange) => {
+                            // 如果获取账户信息错误，则将状态设置为注册失败
+                            let account_info = exchange.get_account_info().await;
+                            match account_info {    
+                                Ok(account_info) => {
+                                    // 1.更新数据库
+                                    let account_info = AccountInfoMutation::update_account_info(&database, account.get_account_id(), account_info.to_json()).await.unwrap();
+                                    // 2.更新账户信息
+                                    let mut accounts = accounts.write().await;
+                                    accounts[index].set_account_info(account_info);
+                                    // 3.发布账户已更新事件
+                                    let account_updated_event = AccountEvent::AccountUpdated(account.clone());
+                                    event_publisher.publish(account_updated_event.into()).unwrap();
+                                }
+                                Err(e) => {
+                                    let mut accounts = accounts.write().await;
+                                    accounts[index].set_exchange_status(ExchangeStatus::NotRegist);
+                                    // tracing::error!("获取账户信息失败: {:?}", e);
+                                }
+                            }
                         }
                         Err(e) => {
-                            let mut accounts = accounts.write().await;
-                            accounts[index].set_exchange_status(ExchangeStatus::Error);
-                            tracing::error!("获取账户信息失败: {:?}", e);
+                            // let mut accounts = accounts.write().await;
+                            // accounts[index].set_exchange_status(ExchangeStatus::Error);
+                            // tracing::error!("获取账户信息失败: {:?}", e);
                         }
                     }
+                    
+                            
+                            // 如果获取账户信息错误，则将状态设置为注册失败
+                    // 如果获取账户信息错误，则将状态设置为注册失败
+                    
                 }
                 ExchangeStatus::NotRegist => {
                     let exchange = account.get_exchange();

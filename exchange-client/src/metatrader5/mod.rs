@@ -7,6 +7,7 @@ mod mt5_types;
 use mt5_types::Mt5PositionNumberRequest;
 use types::position::PositionNumber;
 use mt5_http_client::Mt5HttpClient;
+use std::os::windows::process::ExitStatusExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::market::KlineInterval;
@@ -34,18 +35,117 @@ use types::account::OriginalAccountInfo;
 use types::account::mt5_account::Mt5AccountInfo;
 use rust_embed::Embed;
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 use std::process::Stdio;
-use tempfile::TempDir;
 use tokio::process::Child;
 use tokio::process::Command;
 use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use std::sync::Mutex as StdMutex;
+use once_cell::sync::Lazy;
+use std::time::{SystemTime, UNIX_EPOCH};
+use types::market::Exchange;
+
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
 
+// 存储原始可执行文件的永久路径
+static ORIGINAL_EXE_PATH: Lazy<PathBuf> = Lazy::new(|| {
+    let app_data = if let Ok(app_data) = std::env::var("APPDATA") {
+        tracing::info!("APPDATA: {}", app_data);
+        PathBuf::from(app_data)
+    } else {
+        tracing::info!("TEMP_DIR: {:?}", std::env::temp_dir());
+        PathBuf::from(std::env::temp_dir())
+    };
+    let star_river_dir = app_data.join("StarRiver").join("MetaTrader5");
+    
+    // 确保目录存在
+    if !star_river_dir.exists() {
+        let _ = fs::create_dir_all(&star_river_dir);
+    }
+    
+    // 原始exe文件的永久存储路径
+    star_river_dir.join("MetaTrader5.exe")
+});
 
+// 从嵌入资源中提取原始exe文件，如果不存在或有更新
+fn ensure_original_exe_exists() -> Result<(), String> {
+    let original_exe_path = ORIGINAL_EXE_PATH.as_path();
+    let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
+        .ok_or("获取python可执行文件失败")?;
+    
+    let needs_update = if !original_exe_path.exists() {
+        true
+    } else {
+        // 可选：检查文件是否需要更新（如大小不同）
+        match fs::metadata(original_exe_path) {
+            Ok(metadata) => metadata.len() as usize != py_exe.data.len(),
+            Err(_) => true,
+        }
+    };
+    
+    if needs_update {
+        tracing::info!("正在创建MT5原始可执行文件: {}", original_exe_path.display());
+        fs::write(original_exe_path, py_exe.data).map_err(|e| format!("写入原始exe文件失败: {}", e))?;
+    }
+    
+    Ok(())
+}
+
+// 为特定终端创建唯一的exe副本，并清理旧文件
+fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, String> {
+    tracing::info!("mt5-{}开始创建终端exe: {}", terminal_id, process_name);
+    let original_exe_path = ORIGINAL_EXE_PATH.as_path();
+    
+    // 为每个终端创建特定工作目录
+    let app_data = if let Ok(app_data) = std::env::var("APPDATA") {
+        PathBuf::from(app_data)
+    } else {
+        PathBuf::from(std::env::temp_dir())
+    };
+    
+    let terminal_dir = app_data.join("StarRiver").join("MetaTrader5").join(format!("terminal_{}", terminal_id));
+    
+    if !terminal_dir.exists() {
+        let _ = fs::create_dir_all(&terminal_dir);
+    } else {
+        // 清理目录中所有已存在的exe文件
+        match fs::read_dir(&terminal_dir) {
+            Ok(entries) => {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let path = entry.path();
+                        // 检查是否是文件且扩展名是.exe
+                        if path.is_file() && path.extension().map_or(false, |ext| ext == "exe") || 
+                           path.to_string_lossy().contains(&process_name) {
+                            if let Err(e) = fs::remove_file(&path) {
+                                tracing::warn!("无法删除旧的exe文件 {}: {}", path.display(), e);
+                            } else {
+                                tracing::debug!("已删除旧的exe文件: {}", path.display());
+                            }
+                        }
+                    }
+                }
+            },
+            Err(e) => {
+                tracing::warn!("读取终端目录失败: {}", e);
+            }
+        }
+    }
+    
+    // 创建固定名称的exe文件，不使用时间戳
+    let terminal_exe_path = terminal_dir.join(process_name);
+    
+    // 复制原始exe到新位置
+    fs::copy(original_exe_path, &terminal_exe_path)
+        .map_err(|e| format!("复制exe文件失败: {}", e))?;
+    
+    tracing::info!("为MT5-{}创建了新的exe: {}", terminal_id, terminal_exe_path.display());
+    
+    Ok(terminal_exe_path)
+}
 
 pub struct MetaTrader5AccountConfig {
     pub account_id: String,
@@ -69,7 +169,8 @@ pub struct MetaTrader5 {
     data_processor: Arc<Mutex<Mt5DataProcessor>>,
     is_process_stream: Arc<AtomicBool>,
     event_publisher: Arc<Mutex<EventPublisher>>,
-    mt5_process: Arc<StdMutex<Option<Child>>>,
+    mt5_process: Arc<Mutex<Option<Child>>>,
+    exe_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
 
@@ -96,40 +197,116 @@ impl MetaTrader5 {
             is_process_stream: Arc::new(AtomicBool::new(false)),
             event_publisher: event_publisher.clone(),
             data_processor: Arc::new(Mutex::new(Mt5DataProcessor::new(event_publisher, server))),
-            mt5_process: Arc::new(StdMutex::new(None)),
+            mt5_process: Arc::new(Mutex::new(None)),
+            exe_path: Arc::new(Mutex::new(None)),
         }
     }
 
     pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, String> {
-        // 先检查并清理可能存在的旧进程
+        // 确保原始exe文件存在（只需执行一次）
+        ensure_original_exe_exists()?;
+        
+        // 变量用于存储进程ID以便后续检查
+        let mut old_pid: Option<u32> = None;
+        
+        // 先清理可能存在的旧进程
+        let mt5_process = self.mt5_process.lock().await;
+        if let Some(pid) = mt5_process.as_ref().and_then(|child| child.id()) {
+            old_pid = Some(pid);
+            #[cfg(windows)]
+            {
+                tracing::info!("正在终止旧的MT5-{}进程，PID: {}", self.terminal_id, pid);
+                // 仅终止特定PID的进程，不再通过进程名终止
+                let _ = StdCommand::new("taskkill")
+                    .args(&["/F", "/PID", &pid.to_string()])
+                    .output();
+            }
+        }
+        
+        // 先释放锁，避免长时间持有
+        drop(mt5_process);
+        
+        // 如果有旧进程，等待其完全终止
+        if let Some(pid) = old_pid {
+            // 等待进程终止
+            let max_wait = 5; // 最多等待5秒
+            let mut wait_count = 0;
+            
+            loop {
+                #[cfg(windows)]
+                {
+                    // 检查进程是否仍在运行
+                    let output = StdCommand::new("tasklist")
+                        .args(&["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
+                        .output()
+                        .unwrap_or_else(|e| {
+                            tracing::warn!("检查进程状态失败: {}", e);
+                            std::process::Output {
+                                status: std::process::ExitStatus::from_raw(0),
+                                stdout: Vec::new(),
+                                stderr: Vec::new(),
+                            }
+                        });
+                    
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    if !output_str.contains(&pid.to_string()) {
+                        // 进程已终止
+                        tracing::info!("旧的MT5-{}进程(PID:{})已成功终止", self.terminal_id, pid);
+                        break;
+                    }
+                }
+                
+                wait_count += 1;
+                if wait_count >= max_wait {
+                    tracing::warn!("等待旧进程终止超时，将继续操作");
+                    break;
+                }
+                
+                // 等待1秒
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            }
+        }
+        
+        // 清理可能存在的同名进程（通过进程名进行精确匹配）
         #[cfg(windows)]
         {
-            // 查找特定名称的进程
+            tracing::info!("检查是否存在同名的MT5进程: {}", self.process_name);
+            
+            // 使用tasklist命令查找特定名称的进程
             let output = StdCommand::new("tasklist")
                 .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
-                .output().map_err(|e| format!("检查并清理可能存在的旧进程失败: {}", e))?;
+                .output()
+                .unwrap_or_else(|e| {
+                    tracing::warn!("检查进程状态失败: {}", e);
+                    std::process::Output {
+                        status: std::process::ExitStatus::from_raw(0),
+                        stdout: Vec::new(),
+                        stderr: Vec::new(),
+                    }
+                });
             
             let output_str = String::from_utf8_lossy(&output.stdout);
             if output_str.contains(&self.process_name) {
-                tracing::warn!("发现指定的MetaTrader5进程 {}, 正在清理...", self.process_name);
+                tracing::warn!("发现同名的MT5-{}进程，正在清理...", self.terminal_id);
                 
-                // 结束特定进程
-                let _ = StdCommand::new("taskkill")
+                // 使用进程名精确匹配终止进程，不使用通配符
+                let kill_result = StdCommand::new("taskkill")
                     .args(&["/F", "/IM", &self.process_name])
-                    .output().map_err(|e| format!("结束特定进程失败: {}", e))?;
+                    .output();
                     
-                // 等待进程完全退出
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                match kill_result {
+                    Ok(_) => tracing::info!("成功清理同名的MT5-{}进程", self.terminal_id),
+                    Err(e) => tracing::warn!("清理同名的MT5-{}进程失败: {}", self.terminal_id, e),
+                }
+                
+                // 等待进程终止
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             }
         }
-        let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
-            .ok_or("获取python可执行文件失败")?;
         
-        let temp_dir = TempDir::new().map_err(|e| format!("创建临时目录失败: {}", e))?;
-        // 将exe文件写入临时目录
-        let exe_path = temp_dir.path().join(&self.process_name);
-        fs::write(&exe_path, py_exe.data).map_err(|e| format!("写入exe文件失败: {}", e))?;
-
+        // 现在创建终端特定的exe副本
+        let exe_path = create_terminal_exe(self.terminal_id, &self.process_name)?;
+        
         // 检查端口是否可用，如果不可用则尝试其他端口
         let max_port_tries = 10; // 最多尝试10个端口
         let mut port_available = false;
@@ -150,20 +327,18 @@ impl MetaTrader5 {
         if !port_available {
             return Err(format!("无法找到可用端口，尝试了从 {} 到 {}", self.server_port, self.server_port + max_port_tries - 1).into());
         }
-    
+
         tracing::info!("为 MT5-{} 分配端口: {}", self.terminal_id, self.server_port);
 
         // 创建子进程，设置新的进程组
-        let mut command = Command::new(exe_path);
+        let mut command = Command::new(&exe_path);
         
         #[cfg(windows)]
         {
             command.creation_flags(CREATE_NEW_PROCESS_GROUP.0 as u32);
         }
 
-        // 添加-u参数禁用Python输出缓冲
-        // command.arg("-u");
-        // 仅添加端口参数
+        // 添加端口参数
         command.arg("--port").arg(self.server_port.to_string());
         
         // 根据debug_output参数决定如何处理输出
@@ -180,6 +355,9 @@ impl MetaTrader5 {
                 .stderr(Stdio::piped())
                 .spawn().map_err(|e| format!("启动进程失败: {}", e))?
         };
+        
+        // 保存进程PID用于日志和后续清理
+        tracing::info!("MT5-{} 进程已启动，PID: {}", self.terminal_id, child.id().unwrap_or(0));
 
         // 初始化http客户端
         match tokio::time::timeout(
@@ -192,17 +370,27 @@ impl MetaTrader5 {
                 tracing::info!("初始化http客户端成功");
             }
             Err(e) => {
+                // 客户端初始化失败，清理进程
+                if let Err(e2) = child.kill().await {
+                    tracing::error!("终止失败的MT5-{}进程时出错: {}", self.terminal_id, e2);
+                }
+                // 删除临时exe文件
+                let _ = fs::remove_file(&exe_path);
+                
                 tracing::error!("初始化http客户端失败: {}", e);
                 return Err(format!("初始化http客户端失败: {}", e).into());
             }
         }
-        // tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        
         // 检查服务是否启动成功
         let is_start_success = self.check_server_start_success().await.expect("检查服务启动失败");
         if !is_start_success {
             if let Err(e) = child.kill().await {
                 tracing::error!("终止失败的MT5-{}进程时出错: {}", self.terminal_id, e);
             }
+            // 删除临时exe文件
+            let _ = fs::remove_file(&exe_path);
+            
             return Err(format!("MT5-{} 服务启动失败，无法连接到端口 {}", self.terminal_id, self.server_port).into());
         }
 
@@ -235,7 +423,14 @@ impl MetaTrader5 {
             }
         }
 
-        *self.mt5_process.lock().unwrap() = Some(child);
+        // 保存进程和exe路径以便后续清理
+        let mut mt5_process = self.mt5_process.lock().await;
+        *mt5_process = Some(child);
+        drop(mt5_process);
+        
+        let mut exe_path_lock = self.exe_path.lock().await;
+        *exe_path_lock = Some(exe_path);
+        drop(exe_path_lock);
 
         tracing::info!("metatrader5服务启动成功");
         Ok(self.server_port)
@@ -268,8 +463,13 @@ impl MetaTrader5 {
     }
 
 
-    pub async fn stop_mt5_server(&mut self) -> Result<(), String> {
-        if let Some(mut child) = self.mt5_process.lock().unwrap().take() {
+    pub async fn stop_mt5_server(&mut self) -> Result<bool, String> {
+        tracing::debug!("开始停止MT5-{}服务", self.terminal_id);
+        // 获取并清除进程 - 使用异步锁
+        let mut mt5_process = self.mt5_process.lock().await;
+        let mut success = false;
+        
+        if let Some(mut child) = mt5_process.take() {
             #[cfg(windows)]
             {
                 use windows::Win32::System::Console::GenerateConsoleCtrlEvent;
@@ -279,10 +479,15 @@ impl MetaTrader5 {
                 if pgid != 0 {
                     unsafe {
                         // 第二个参数为进程组 ID
-                        GenerateConsoleCtrlEvent(0, pgid).expect("发送控制事件失败");
+                        if let Err(e) = GenerateConsoleCtrlEvent(0, pgid) {
+                            tracing::warn!("发送控制事件到MT5-{}进程失败: {:?}", self.terminal_id, e);
+                        }
                     }
                 }
             }
+
+            // 释放锁，避免长时间持有
+            drop(mt5_process);
 
             // 增加等待时间，确保子进程有足够时间响应
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -292,26 +497,140 @@ impl MetaTrader5 {
                 // 终止主进程及其所有子进程
                 #[cfg(windows)]
                 {
-                    use std::process::Command;
-                    let _ = Command::new("taskkill")
-                        .args(&["/F", "/T", "/PID", &child.id().unwrap_or(0).to_string()])
-                        .output();
-                    // 同时尝试通过进程名称结束特定进程
-                    let process_name = format!("Metatrader5-{}.exe", self.terminal_id);
-                    let _ = StdCommand::new("taskkill")
-                        .args(&["/F", "/IM", &process_name])
-                        .output();
+                    // 仅通过PID结束进程
+                    if let Some(pid) = child.id() {
+                        match StdCommand::new("taskkill")
+                            .args(&["/F", "/T", "/PID", &pid.to_string()])
+                            .output() {
+                                Ok(_) => tracing::info!("强制终止MT5-{}进程成功，PID: {}", self.terminal_id, pid),
+                                Err(e) => tracing::warn!("强制终止MT5-{}进程失败，PID: {}, 错误: {}", self.terminal_id, pid, e),
+                            }
+                    }
                 }
                 
                 #[cfg(not(windows))]
                 {
-                    child.kill().await.expect("停止MT5服务失败");
+                    if let Err(e) = child.kill().await {
+                        tracing::error!("停止MT5-{}服务失败: {}", self.terminal_id, e);
+                        return Ok(false);
+                    }
                 }
             }
             
-            tracing::info!("metatrader5服务已停止");
+            // 二次检查进程是否已完全停止
+            #[cfg(windows)]
+            {
+                // 最多尝试3次检查
+                for attempt in 1..=3 {
+                    // 使用tasklist命令查找特定名称的进程
+                    let output = StdCommand::new("tasklist")
+                        .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
+                        .output()
+                        .unwrap_or_else(|e| {
+                            tracing::warn!("检查进程状态失败: {}", e);
+                            std::process::Output {
+                                status: std::process::ExitStatus::from_raw(0),
+                                stdout: Vec::new(),
+                                stderr: Vec::new(),
+                            }
+                        });
+                    
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    if !output_str.contains(&self.process_name) {
+                        // 进程已经完全停止
+                        tracing::info!("MT5-{} 服务已完全停止", self.terminal_id);
+                        success = true;
+                        break;
+                    } else {
+                        // 如果仍然存在进程，再次尝试终止
+                        if attempt < 3 {
+                            tracing::warn!("MT5-{}进程仍在运行，尝试再次终止 (尝试 {}/3)", self.terminal_id, attempt);
+                            let _ = StdCommand::new("taskkill")
+                                .args(&["/F", "/IM", &self.process_name])
+                                .output();
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                        } else {
+                            tracing::error!("无法停止MT5-{}进程，多次尝试后仍在运行", self.terminal_id);
+                            return Ok(false);
+                        }
+                    }
+                }
+            }
+            
+            #[cfg(not(windows))]
+            {
+                // 在非Windows系统上，我们假设杀死进程后它已经停止
+                success = true;
+            }
+            
+            tracing::info!("MT5-{} 服务已{}停止", self.terminal_id, if success { "成功" } else { "尝试" });
+        } else {
+            // 如果没有进程，释放锁
+            drop(mt5_process);
+            
+            // 仍然检查是否有同名进程在运行
+            #[cfg(windows)]
+            {
+                let output = StdCommand::new("tasklist")
+                    .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
+                    .output()
+                    .unwrap_or_else(|e| {
+                        tracing::warn!("检查进程状态失败: {}", e);
+                        std::process::Output {
+                            status: std::process::ExitStatus::from_raw(0),
+                            stdout: Vec::new(),
+                            stderr: Vec::new(),
+                        }
+                    });
+                
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                if output_str.contains(&self.process_name) {
+                    // 发现同名进程，尝试终止
+                    tracing::warn!("发现同名的MT5-{}进程，尝试终止", self.terminal_id);
+                    match StdCommand::new("taskkill")
+                        .args(&["/F", "/IM", &self.process_name])
+                        .output() {
+                            Ok(_) => {
+                                // 等待进程终止
+                                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                
+                                // 再次检查
+                                let check_output = StdCommand::new("tasklist")
+                                    .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
+                                    .output()
+                                    .unwrap_or_else(|e| {
+                                        tracing::warn!("检查进程状态失败: {}", e);
+                                        std::process::Output {
+                                            status: std::process::ExitStatus::from_raw(0),
+                                            stdout: Vec::new(),
+                                            stderr: Vec::new(),
+                                        }
+                                    });
+                                
+                                let check_output_str = String::from_utf8_lossy(&check_output.stdout);
+                                success = !check_output_str.contains(&self.process_name);
+                                tracing::info!("同名的MT5-{}进程已{}终止", self.terminal_id, if success { "成功" } else { "尝试但未能" });
+                            },
+                            Err(e) => {
+                                tracing::warn!("终止同名的MT5-{}进程失败: {}", self.terminal_id, e);
+                                success = false;
+                            },
+                        }
+                } else {
+                    // 没有找到同名进程，返回成功
+                    tracing::info!("未发现MT5-{}进程运行，无需停止", self.terminal_id);
+                    success = true;
+                }
+            }
+            
+            #[cfg(not(windows))]
+            {
+                // 在非Windows系统上，我们假设没有相关进程
+                success = true;
+            }
         }
-        Ok(())
+        
+        Ok(success)
     }
 
     async fn create_mt5_http_client(&mut self, port: u16) -> Result<(), String> {
@@ -331,8 +650,10 @@ impl MetaTrader5 {
     }
 
     pub async fn initialize_terminal(&mut self) -> Result<(), String> {
+        tracing::debug!("开始初始化MT5-{}终端", self.terminal_id);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+            tracing::debug!("准备初始化MT5-{}终端", self.terminal_id);
             mt5_http_client.initialize_terminal(self.login, &self.password, &self.server, &self.terminal_path).await?;
             
             tracing::info!("MT5-{} 终端初始化中，等待连接就绪...", self.terminal_id);
@@ -377,8 +698,16 @@ impl ExchangeClient for MetaTrader5 {
         self
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn clone_box(&self) -> Box<dyn ExchangeClient> {
         Box::new(self.clone())
+    }
+
+    fn exchange_type(&self) -> Exchange {
+        Exchange::Metatrader5(self.server.clone())
     }
 
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {

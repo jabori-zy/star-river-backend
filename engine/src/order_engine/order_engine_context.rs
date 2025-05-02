@@ -1,3 +1,4 @@
+use serde_json::Error;
 use tokio::sync::broadcast;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -187,31 +188,40 @@ impl OrderEngineContext {
             for order in orders {
                 let exchange_engine_guard = exchange_engine.lock().await;
                 let exchange = exchange_engine_guard.get_exchange(&order.account_id).await;
-                
-                // 获取订单信息
-                let latest_order = exchange.update_order(order.clone()).await.expect("更新订单失败");
-                tracing::info!("最新订单: {:?}", latest_order);
-                
-                // 如果订单状态为已成交，则通知持仓引擎，订单已成交
-                if latest_order.order_status == OrderStatus::Filled {
-                    //1. 先通知持仓引擎和交易明细引擎，订单已成交
-                    let order_event = OrderEvent::OrderFilled(latest_order.clone());
-                    event_publisher.publish(order_event.into()).unwrap();
-                    
+                match exchange {
+                    Ok(exchange) => {
+                        // 获取订单信息
+                        let latest_order = exchange.update_order(order.clone()).await.expect("更新订单失败");
+                        tracing::info!("最新订单: {:?}", latest_order);
+                                
+                        // 如果订单状态为已成交，则通知持仓引擎，订单已成交
+                        if latest_order.order_status == OrderStatus::Filled {
+                            //1. 先通知持仓引擎和交易明细引擎，订单已成交
+                            let order_event = OrderEvent::OrderFilled(latest_order.clone());
+                            event_publisher.publish(order_event.into()).unwrap();
+                            
 
-                    // 2. 未成交订单列表中删除
-                    let mut unfilled_orders = unfilled_orders.write().await;
-                    // 删除订单，使用latest_order的ID而不是原始order的ID
-                    tracing::info!("订单已成交, 从未成交订单列表中删除: {:?}", latest_order);
-                    unfilled_orders.entry(strategy_id.clone()).and_modify(|orders| {
-                        orders.retain(|o| o.order_id != latest_order.order_id); // 只删除order_id相同的订单
-                    });
+                            // 2. 未成交订单列表中删除
+                            let mut unfilled_orders = unfilled_orders.write().await;
+                            // 删除订单，使用latest_order的ID而不是原始order的ID
+                            tracing::info!("订单已成交, 从未成交订单列表中删除: {:?}", latest_order);
+                            unfilled_orders.entry(strategy_id.clone()).and_modify(|orders| {
+                                orders.retain(|o| o.order_id != latest_order.order_id); // 只删除order_id相同的订单
+                            });
 
-                    // 3.更新数据库订单信息
-                    OrderMutation::update_order(&database, latest_order.clone()).await.unwrap();
+                            // 3.更新数据库订单信息
+                            OrderMutation::update_order(&database, latest_order.clone()).await.unwrap();
 
-                    
+                            
+                        }
+
+                    }
+                    Err(e) => {
+                        tracing::error!("获取交易所客户端失败: {:?}", e);
+                        continue;
+                    }
                 }
+                
                 
 
             }

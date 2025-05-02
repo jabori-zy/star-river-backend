@@ -184,8 +184,16 @@ impl ExchangeClient for BinanceExchange {
         self
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn clone_box(&self) -> Box<dyn ExchangeClient> {
         Box::new(self.clone())
+    }
+
+    fn exchange_type(&self) -> Exchange {
+        Exchange::Binance
     }
 
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {

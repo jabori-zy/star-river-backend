@@ -202,10 +202,16 @@ impl PositionEngineContext {
                 let exchange_engine_guard = exchange_engine.lock().await;
                 // 获取交易所对象
                 let exchange = exchange_engine_guard.get_exchange(&position.account_id).await;
-                
-                // 获取持仓信息
-                let latest_position = exchange.update_position(position).await.expect("更新订单失败");
-                tracing::info!("未平仓利润: {:?}", latest_position.unrealized_profit);
+                match exchange {
+                    Ok(exchange) => {
+                        // 获取持仓信息
+                        let latest_position = exchange.update_position(position).await.expect("更新订单失败");
+                        tracing::info!("未平仓利润: {:?}", latest_position.unrealized_profit);
+                    }
+                    Err(e) => {
+                        tracing::error!("获取交易所客户端失败: {:?}", e);
+                    }
+                }
                 
                 
                 

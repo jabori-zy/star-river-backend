@@ -63,6 +63,7 @@ impl Mt5HttpClient {
         .send().await.expect("初始化失败");
 
         let body = response.text().await.expect("初始化失败");
+        tracing::debug!("metatrader5 初始化响应: {}", body);
         Ok(())
     }
 

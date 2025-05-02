@@ -21,7 +21,7 @@ use event_center::command_event::BaseCommandParams;
 use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
 use event_center::command_event::market_engine_command::MarketEngineCommand;
 use types::market::KlineInterval;
-
+use event_center::command_event::exchange_engine_command::UnregisterExchangeParams;
 
 #[tokio::main]
 async fn main() {
@@ -82,7 +82,7 @@ async fn main() {
         tokio::time::sleep(Duration::from_secs(2)).await;
         // 注册第一个终端
         let register_param = RegisterExchangeParams {
-            account_id: 1,
+            account_id: 2,
             exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
             sender: "test".to_string(),
             timestamp: 1111,
@@ -91,24 +91,34 @@ async fn main() {
         let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
         event_publisher.publish(command_event.into()).unwrap();
 
+        // tokio::time::sleep(Duration::from_secs(10)).await;
+
+        // // 获取第一个终端的数据
+        // let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(SubscribeKlineStreamParams {
+        //     strategy_id: 1,
+        //     node_id: "test".to_string(),
+        //     sender: "test".to_string(),
+        //     timestamp: 1111,
+        //     request_id: Uuid::new_v4(),
+        //     account_id: 1,
+        //     exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
+        //     frequency: 1000,
+        //     interval: KlineInterval::Minutes1,
+        //     symbol: "BTCUSDm".to_string(),
+        // }));
+        // event_publisher.publish(command_event.into()).unwrap();
+
         tokio::time::sleep(Duration::from_secs(10)).await;
 
-        // 获取第一个终端的数据
-        let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(SubscribeKlineStreamParams {
-            strategy_id: 1,
-            node_id: "test".to_string(),
+        // 停止服务
+        tracing::info!("停止服务");
+        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::UnregisterExchange(UnregisterExchangeParams {
+            account_id: 2,
             sender: "test".to_string(),
             timestamp: 1111,
             request_id: Uuid::new_v4(),
-            account_id: 1,
-            exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
-            frequency: 1000,
-            interval: KlineInterval::Minutes1,
-            symbol: "BTCUSDm".to_string(),
         }));
         event_publisher.publish(command_event.into()).unwrap();
-
-    //     tokio::time::sleep(Duration::from_secs(10)).await;
 
     //     // 注册第二个终端
     //     let register_param = RegisterMt5ExchangeParams {
