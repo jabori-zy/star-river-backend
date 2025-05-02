@@ -1,7 +1,6 @@
 pub mod live_data_node_state_machine;
 pub mod live_data_node_context;
 
-use types::market::{Exchange, KlineInterval};
 use tokio::sync::broadcast;
 use std::fmt::Debug;
 use std::any::Any;

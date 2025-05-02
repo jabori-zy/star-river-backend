@@ -2,15 +2,12 @@ pub mod indicator_node_state_machine;
 pub mod indicator_node_context;
 pub mod indicator_node_type;
 
-use types::indicator::Indicators;
 use tokio::sync::broadcast;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use types::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::exchange_engine::ExchangeEngine;
 
 use super::{NodeTrait,NodeType,NodeRunState,NodeStateTransitionEvent};
 use indicator_node_state_machine::{IndicatorNodeStateManager,IndicatorNodeStateAction};
@@ -21,7 +18,6 @@ use event_center::Event;
 use super::node_context::{BaseNodeContext,NodeContext};
 use types::strategy::TradeMode;
 use indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
-use types::indicator_config::SMAConfig;
 
 
 // 指标节点

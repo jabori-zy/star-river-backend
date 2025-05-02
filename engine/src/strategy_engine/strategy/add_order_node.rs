@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use tokio::sync::broadcast;
 use types::market::Exchange;
 use event_center::{Event, EventPublisher};
-use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
+use crate::strategy_engine::node::order_node::order_node_types::*;
 use crate::strategy_engine::node::order_node::OrderNode;
 use types::strategy::TradeMode;
 
@@ -20,11 +20,10 @@ impl Strategy {
         strategy_id: i64,
         node_id: String,
         node_name: String,
-        account_id: i32,
-        exchange: Exchange,
-        symbol: String,
-        order_config: OrderConfig,
         trade_mode: TradeMode,
+        live_config: Option<OrderNodeLiveConfig>,
+        simulate_config: Option<OrderNodeSimulateConfig>,
+        backtest_config: Option<OrderNodeBacktestConfig>,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) {
@@ -33,10 +32,9 @@ impl Strategy {
             node_id.clone(),
             node_name,
             trade_mode,
-            account_id,
-            exchange,
-            symbol,
-            order_config,
+            live_config,
+            simulate_config,
+            backtest_config,
             event_publisher,
             response_event_receiver,
         );

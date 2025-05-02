@@ -6,7 +6,6 @@ use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use super::node_context::NodeContext;
-use types::strategy::message::NodeMessage;
 pub struct NodeFunction;
 
 

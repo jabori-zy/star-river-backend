@@ -1,9 +1,8 @@
-use types::indicator::Indicators;
+
 use std::fmt::Debug;
 use std::any::Any;
 use uuid::Uuid;
 use async_trait::async_trait;
-use types::market::{Exchange, KlineInterval};
 use event_center::Event;
 use event_center::command_event::CommandEvent;
 use event_center::command_event::indicator_engine_command::CalculateIndicatorParams;

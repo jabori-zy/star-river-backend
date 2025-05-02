@@ -20,7 +20,7 @@ use super::node_context::{NodeContext,BaseNodeContext};
 use super::order_node::order_node_context::OrderNodeContext;
 use super::order_node::order_node_types::OrderConfig;
 use types::strategy::TradeMode;
-
+use order_node_types::*;
 
 
 
@@ -36,10 +36,9 @@ impl OrderNode {
         node_id: String,
         node_name: String,
         trade_mode: TradeMode,
-        account_id: i32,
-        exchange: Exchange,
-        symbol: String,
-        order_config: OrderConfig,
+        live_config: Option<OrderNodeLiveConfig>,
+        simulate_config: Option<OrderNodeSimulateConfig>,
+        backtest_config: Option<OrderNodeBacktestConfig>,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) -> Self {
@@ -56,10 +55,9 @@ impl OrderNode {
         Self {
             context: Arc::new(RwLock::new(Box::new(OrderNodeContext {
                 base_context,
-                account_id,
-                exchange,
-                symbol,
-                order_config,
+                live_config,
+                simulate_config,
+                backtest_config,
                 request_id: None,
             }))),
         }

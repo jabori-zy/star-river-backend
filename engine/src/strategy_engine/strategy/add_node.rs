@@ -14,10 +14,10 @@ use crate::strategy_engine::node::node_types::NodeType;
 use types::order::{OrderType, OrderSide};
 use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
 use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
-use crate::strategy_engine::node::live_data_node::live_data_node_context::{LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
-use crate::strategy_engine::node::indicator_node::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use crate::strategy_engine::node::live_data_node::live_data_node_context::*;
+use crate::strategy_engine::node::indicator_node::indicator_node_type::*;
 use crate::strategy_engine::node::if_else_node::if_else_node_type::*;
-
+use crate::strategy_engine::node::order_node::order_node_types::*;
 
 impl Strategy {
     pub async fn add_node(
@@ -248,37 +248,36 @@ impl Strategy {
             }
             // 订单节点
             NodeType::OrderNode => {
-                let node_data = node_config["data"].clone();
+                let node_data = node_config["data"].clone(); // 节点数据
 
-                let node_id = node_config["id"].as_str().unwrap();
-                let node_name = node_data["nodeName"].as_str().unwrap_or_default();
-                let account_id = node_data["accountId"].as_i64().unwrap();
-                let exchange = node_data["exchange"].as_str().unwrap();
-                let symbol = node_data["symbol"].as_str().unwrap();
-                let strategy_id = node_data["strategyId"].as_i64().unwrap();
+                let node_id = node_config["id"].as_str().unwrap().to_string(); // 节点id
+                let strategy_id = node_data["strategyId"].as_i64().unwrap(); // 策略id
+                let node_name = node_data["nodeName"].as_str().unwrap().to_string(); // 节点名称
+                let live_config = match node_data["liveConfig"].is_null() {
+                    true => None,
+                    false => Some(serde_json::from_value::<OrderNodeLiveConfig>(node_data["liveConfig"].clone()).unwrap()),
+                };
+                let backtest_config = match node_data["backtestConfig"].is_null() {
+                    true => None,
+                    false => Some(serde_json::from_value::<OrderNodeBacktestConfig>(node_data["backtestConfig"].clone()).unwrap()),
+                };
+                let simulate_config = match node_data["simulatedConfig"].is_null() {
+                    true => None,
+                    false => Some(serde_json::from_value::<OrderNodeSimulateConfig>(node_data["simulatedConfig"].clone()).unwrap()),
+                };
+
                 let event_publisher = event_publisher.clone();
                 let response_event_receiver = response_event_receiver.resubscribe();
-                let order_info = node_data["orderRequest"].clone();
-                let order_config = OrderConfig {
-                    order_type: OrderType::from_str(order_info["orderType"].as_str().unwrap()).unwrap(),
-                    order_side: OrderSide::from_str(order_info["orderSide"].as_str().unwrap()).unwrap(),
-                    quantity: order_info["quantity"].as_f64().unwrap(),
-                    price: order_info["price"].as_f64().unwrap(),
-                    tp: order_info["tp"].as_f64(),
-                    sl: order_info["sl"].as_f64(),
-                    comment: "111".to_string(),
-                };
                 Self::add_order_node(
                     graph,
                     node_indices,
                     strategy_id,
-                    node_id.to_string(),
-                    node_name.to_string(),
-                    account_id as i32,
-                    Exchange::from_str(exchange).unwrap(),
-                    symbol.to_string(),
-                    order_config,
+                    node_id,
+                    node_name,
                     trade_mode,
+                    live_config,
+                    simulate_config,
+                    backtest_config,
                     event_publisher,
                     response_event_receiver,
                 ).await;
