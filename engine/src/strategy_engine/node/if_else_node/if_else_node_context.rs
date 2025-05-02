@@ -171,7 +171,7 @@ impl IfElseNodeContext {
 
             let else_handle = self.get_output_handle().get("if_else_node_else_output").expect("else handle not found");
             if else_handle.connect_count > 0 {
-                tracing::debug!("条件节点发送信号: {:?}", signal_message);
+                // tracing::debug!("条件节点发送信号: {:?}", signal_message);
                 if let Err(e) = else_sender.sender.send(NodeMessage::Signal(signal_message.clone())) {
                     tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                 }

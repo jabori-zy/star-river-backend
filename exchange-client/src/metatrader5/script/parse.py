@@ -14,7 +14,7 @@ def parse_order(order):
         "order_type": get_order_type(order.type),
         "type_time": get_order_type_time(order.type_time),
         "type_filling": get_order_type_filling(order.type_filling),
-        "status": get_order_state(order.state),
+        "state": get_order_state(order.state),
         "magic": order.magic,
         "reason": get_order_reason(order.reason),
         "volume_initial": order.volume_initial,

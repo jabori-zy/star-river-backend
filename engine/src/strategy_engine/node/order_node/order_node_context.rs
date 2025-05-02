@@ -77,12 +77,11 @@ impl OrderNodeContext {
                     comment: "111".to_string(),
         
                 };
-                let default_handle_connect_count = self.base_context.output_handle.get("order_node_output").expect("订单节点默认的消息发送器不存在").sender.receiver_count();
-                if default_handle_connect_count > 0 {
-                    tracing::info!("{}: 发送创建订单命令: {:?}", self.get_node_id(), create_order_params);
-                    let command_event = CommandEvent::OrderEngine(OrderEngineCommand::CreateOrder(create_order_params));
-                    self.get_event_publisher().publish(command_event.into()).expect("发送创建订单命令失败");
-                }
+
+                tracing::info!("{}: 发送创建订单命令: {:?}", self.get_node_id(), create_order_params);
+                let command_event = CommandEvent::OrderEngine(OrderEngineCommand::CreateOrder(create_order_params));
+                self.get_event_publisher().publish(command_event.into()).expect("发送创建订单命令失败");
+                
 
 
             }

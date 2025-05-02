@@ -321,28 +321,6 @@ impl MetaTrader5 {
     }
 
 
-    // pub async fn connect_websocket(&mut self) -> Result<(), String> {
-    //     let (websocket_state, _) = Mt5WsClient::connect_default().await.unwrap();
-    //     self.websocket_state.lock().await.replace(websocket_state);
-    //     Ok(())
-    // }
-
-    // pub async fn subscribe_kline_stream(&mut self, symbol: &str, kline_interval: KlineInterval, frequency: u32) -> Result<(), String> {
-    //     let mt5_interval = Mt5KlineInterval::from(kline_interval).to_string();
-    //     let mut mt5_ws_client = self.websocket_state.lock().await;
-    //     tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
-    //     if let Some(state) = mt5_ws_client.as_mut() {
-    //         let params = json!({
-    //             "symbol": symbol,
-    //             "interval": mt5_interval,
-    //         });
-    //         tracing::debug!("Metatrader5订阅k线流参数: {:?}", params);
-
-    //         state.subscribe(Some("kline"), Some(params), Some(frequency)).await.expect("订阅k线流失败");
-    //     }
-    //     Ok(())
-    // }
-
     pub async fn ping(&mut self) -> Result<serde_json::Value, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {

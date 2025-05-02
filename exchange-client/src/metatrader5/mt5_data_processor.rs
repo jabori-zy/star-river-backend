@@ -126,9 +126,11 @@ impl Mt5DataProcessor {
 
     // 处理订单信息
     pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn OriginalOrder>, String> {
-        let order_data = order_info["data"][0].clone();
+        let mut order_data = order_info["data"][0].clone();
+        order_data["server"] = self.server.clone().into();
         tracing::debug!("订单信息: {:?}", order_data);
         // 取出order_data  array 的第一个值
+        
         let order = serde_json::from_value::<Mt5Order>(order_data)
             .map_err(|e| format!("解析订单数据失败: {}", e))?;
         tracing::info!("订单信息: {:?}", order);

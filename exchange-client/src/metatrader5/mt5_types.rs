@@ -295,6 +295,17 @@ impl OriginalOrder for Mt5Order {
     fn get_sl(&self) -> Option<f64> {
         self.sl
     }
+
+    fn get_extra_info(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "server": self.server,
+            "order_id": self.order_id,
+            "position_id": self.position_id,
+            "symbol": self.symbol,
+            "time_setup": self.time_setup,
+            "reason": self.reason,
+        }))
+    }
     fn get_created_time(&self) -> DateTime<Utc> {
         // 把时间戳转换为日期时间
         let created_time = Utc.timestamp_millis_opt(self.time_setup_msc).single().expect("时间戳转换为日期时间失败");

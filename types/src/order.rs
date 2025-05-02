@@ -81,6 +81,7 @@ pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
     fn get_open_price(&self) -> f64;
     fn get_tp(&self) -> Option<f64>;
     fn get_sl(&self) -> Option<f64>;
+    fn get_extra_info(&self) -> Option<serde_json::Value>;
     fn get_created_time(&self) -> DateTime<Utc>;
     fn get_updated_time(&self) -> DateTime<Utc>;
 

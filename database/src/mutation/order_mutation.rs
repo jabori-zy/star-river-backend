@@ -1,5 +1,5 @@
 
-use types::order::OriginalOrder;
+use types::{market::Exchange, order::OriginalOrder};
 use sea_orm::*;
 use crate::entities::{order, order::Entity as Order};
 use types::order::Order as TypeOrder;
@@ -13,28 +13,39 @@ impl OrderMutation {
         db: &DbConn,
         strategy_id: i64,
         node_id: String,
-        exchange_order: Box<dyn OriginalOrder>
+        account_id: i32,
+        original_order: Box<dyn OriginalOrder>
     ) -> Result<TypeOrder, DbErr> {
-        let order_model = order::ActiveModel {
-            id: NotSet,
-            exchange_order_id: Set(exchange_order.get_exchange_order_id()),
-            node_id: Set(node_id),
-            strategy_id: Set(strategy_id),
-            exchange: Set(exchange_order.get_exchange().to_string()),
-            symbol: Set(exchange_order.get_symbol()),
-            order_side: Set(exchange_order.get_order_side().to_string()),
-            order_status: Set(exchange_order.get_order_status().to_string()),
-            order_type: Set(exchange_order.get_order_type().to_string()),
-            quantity: Set(exchange_order.get_quantity()),
-            price: Set(exchange_order.get_open_price()),
-            sl: Set(exchange_order.get_sl()),
-            tp: Set(exchange_order.get_tp()),
-            created_time: Set(exchange_order.get_created_time()),
-            updated_time: Set(exchange_order.get_updated_time()),
-            ..Default::default()
-        }.insert(db).await.unwrap();
+        match original_order.get_exchange() {
+            Exchange::Metatrader5(_) => {
+                let order_model = order::ActiveModel {
+                    id: NotSet,
+                    exchange_order_id: Set(original_order.get_exchange_order_id()),
+                    node_id: Set(node_id),
+                    strategy_id: Set(strategy_id),
+                    account_id: Set(account_id),
+                    exchange: Set(original_order.get_exchange().to_string()),
+                    symbol: Set(original_order.get_symbol()),
+                    order_side: Set(original_order.get_order_side().to_string()),
+                    order_status: Set(original_order.get_order_status().to_string()),
+                    order_type: Set(original_order.get_order_type().to_string()),
+                    quantity: Set(original_order.get_quantity()),
+                    price: Set(original_order.get_open_price()),
+                    sl: Set(original_order.get_sl()),
+                    tp: Set(original_order.get_tp()),
+                    extra_info: Set(original_order.get_extra_info()),
+                    created_time: Set(original_order.get_created_time()),
+                    updated_time: Set(original_order.get_updated_time()),
+                }.insert(db).await.unwrap();
+                Ok(order_model.into())
+            }
+            _ => {
+                Err(DbErr::Custom("Unsupported exchange.".to_owned()))
+            }
 
-        Ok(order_model.into()) // 将数据库模型转换系统模型
+        }
+
+         // 将数据库模型转换系统模型
 
     }
 

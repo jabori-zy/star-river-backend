@@ -147,7 +147,7 @@ class OrderManager:
         for order in orders:
             logging.info("get order by id: " + str(order))
             order_info = parse_order(order)
-            if (order_info["order_type"] == "order_type_buy" or order_info["order_type"] == "order_type_sell") and order_info["status"] == "filled":
+            if (order_info["order_type"] == "order_type_buy" or order_info["order_type"] == "order_type_sell") and order_info["state"] == "filled":
                 position_id = order_info["position_id"]
                 deals = await self.client.deal.get_deals_by_position_id(position_id)
                 # 找到entry=in的deal
@@ -182,7 +182,7 @@ class OrderManager:
         order_result = []
         for order in orders:
             order_info = parse_order(order)
-            if (order_info["order_type"] == "order_type_buy" or order_info["order_type"] == "order_type_sell") and order_info["status"] == "filled":
+            if (order_info["order_type"] == "order_type_buy" or order_info["order_type"] == "order_type_sell") and order_info["state"] == "filled":
                 position_id = order_info["position_id"]
                 deals = await self.client.deal.get_deals_by_position_id(position_id)
                 if not deals[0]:

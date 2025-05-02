@@ -129,9 +129,9 @@ impl OrderEngineContext {
 
         let exchange_order = exchange.create_order(params.clone()).await.unwrap();
 
-
+        tracing::info!("创建订单成功: {:?}", exchange_order);
         // 先入库，分配系统的订单id
-        if let Ok(order) = OrderMutation::insert_order(&self.database, params.base_params.strategy_id.clone(), params.base_params.node_id.clone(), exchange_order.clone()).await {
+        if let Ok(order) = OrderMutation::insert_order(&self.database, params.base_params.strategy_id.clone(), params.base_params.node_id.clone(), params.account_id, exchange_order.clone()).await {
             tracing::info!("订单入库成功: {:?}", order);
             // 如果订单状态为已成交，则通知持仓引擎，订单已成交
             if exchange_order.get_order_status() == OrderStatus::Filled {
