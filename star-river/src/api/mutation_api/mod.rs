@@ -17,6 +17,7 @@ use types::account::mt5_account::Mt5AccountConfig;
 use event_center::Event;
 use event_center::account_event::AccountEvent;
 use types::account::ExchangeAccountConfig;
+use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateStrategyRequest {
@@ -36,6 +37,10 @@ pub async fn create_strategy(
     match StrategyConfigMutation::create_strategy(conn, request.name, request.description, request.status).await {
         Ok(strategy) => {
             tracing::info!("创建策略成功: {:?}", strategy);
+            // 创建策略系统变量
+            if let Err(e) = StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await {
+                tracing::error!("创建策略系统变量失败: {:?}", e);
+            }
             (
             StatusCode::CREATED,
             Json(ApiResponse {

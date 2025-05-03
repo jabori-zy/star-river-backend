@@ -1,45 +1,42 @@
+mod position_node_context;
+pub mod position_node_types;
+mod position_node_state_machine;
 
-mod order_node_state_machine;
-mod order_node_context;
-pub mod order_node_types;
-
-
-use tokio::sync::broadcast;
-use std::fmt::Debug;
-use std::any::Any;
-use async_trait::async_trait;
-use event_center::Event;
+use super::node_context::{NodeContext,BaseNodeContext};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use event_center::EventPublisher;
-use super::order_node::order_node_state_machine::{OrderNodeStateMachine, OrderNodeStateAction};
-use super::{NodeTrait,NodeStateTransitionEvent,NodeType};
-use std::time::Duration;
-use super::node_context::{NodeContext,BaseNodeContext};
-use super::order_node::order_node_context::OrderNodeContext;
 use types::strategy::TradeMode;
-use order_node_types::*;
+use position_node_types::*;
+use event_center::EventPublisher;
+use event_center::Event;
+use tokio::sync::broadcast;
+use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use tokio::sync::Mutex;
+use position_node_state_machine::{PositionNodeStateMachine,PositionNodeStateAction};
+use position_node_context::PositionNodeContext;
+use super::{NodeTrait,NodeStateTransitionEvent,NodeType};
+use std::any::Any;
+use async_trait::async_trait;
+use std::time::Duration;
 
 
 #[derive(Debug, Clone)]
-pub struct OrderNode {
+pub struct PositionNode {
     pub context: Arc<RwLock<Box<dyn NodeContext>>>,
-
 }
 
-impl OrderNode {
+
+impl PositionNode {
     pub fn new(
         strategy_id: i64,
         node_id: String,
         node_name: String,
         trade_mode: TradeMode,
-        live_config: Option<OrderNodeLiveConfig>,
-        simulate_config: Option<OrderNodeSimulateConfig>,
-        backtest_config: Option<OrderNodeBacktestConfig>,
+        live_config: Option<PositionNodeLiveConfig>,
+        simulate_config: Option<PositionNodeSimulateConfig>,
+        backtest_config: Option<PositionNodeBacktestConfig>,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
@@ -51,33 +48,28 @@ impl OrderNode {
             node_id.clone(),
             node_name.clone(),
             trade_mode,
-            NodeType::OrderNode,
+            NodeType::PositionNode,
             event_publisher,
             vec![response_event_receiver],
-            Box::new(OrderNodeStateMachine::new(node_id, node_name)),
+            Box::new(PositionNodeStateMachine::new(node_id, node_name)),
         );
         Self {
-            context: Arc::new(RwLock::new(Box::new(OrderNodeContext {
+            context: Arc::new(RwLock::new(Box::new(PositionNodeContext {
                 base_context,
                 live_config,
                 simulate_config,
                 backtest_config,
-                request_id: vec![],
-                is_processing_order: Arc::new(RwLock::new(false)),
                 exchange_engine,
                 database,
                 heartbeat,
-                unfilled_order: Arc::new(RwLock::new(None)),
             }))),
         }
+        
     }
-    
 }
 
-
-
 #[async_trait]
-impl NodeTrait for OrderNode {
+impl NodeTrait for PositionNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -146,31 +138,31 @@ impl NodeTrait for OrderNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题
-            if let Some(order_node_state_action) = action.as_any().downcast_ref::<OrderNodeStateAction>() {
-                match order_node_state_action {
-                    OrderNodeStateAction::LogTransition => {
+            if let Some(position_node_state_action) = action.as_any().downcast_ref::<PositionNodeStateAction>() {
+                match position_node_state_action {
+                    PositionNodeStateAction::LogTransition => {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
                     }
-                    OrderNodeStateAction::LogNodeState => {
+                    PositionNodeStateAction::LogNodeState => {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
                     }
-                    OrderNodeStateAction::ListenAndHandleExternalEvents => {
+                    PositionNodeStateAction::ListenAndHandleExternalEvents => {
                         tracing::info!("{}: 开始监听外部事件", node_id);
                         self.listen_external_events().await?;
                     }
-                    OrderNodeStateAction::RegisterHeartbeatTask => {
+                    PositionNodeStateAction::RegisterHeartbeatTask => {
                         tracing::info!("{}: 开始注册心跳任务", node_id);
                         let mut context_guard = self.context.write().await;
-                        let order_node_context = context_guard.as_any_mut().downcast_mut::<OrderNodeContext>().unwrap();
-                        order_node_context.monitor_unfilled_order().await;
+                        let position_node_context = context_guard.as_any_mut().downcast_mut::<PositionNodeContext>().unwrap();
+                        // position_node_context.monitor_unfilled_order().await;
                     }
-                    OrderNodeStateAction::ListenAndHandleMessage => {
+                    PositionNodeStateAction::ListenAndHandleMessage => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
                         self.listen_message().await?;
                     }
-                    OrderNodeStateAction::LogError(error) => {
+                    PositionNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);
                     }
                 }
@@ -183,5 +175,3 @@ impl NodeTrait for OrderNode {
         Ok(())
     }
 }
-
-

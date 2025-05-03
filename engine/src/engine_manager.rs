@@ -80,7 +80,10 @@ impl EngineManager {
             market_event_receiver.resubscribe(), 
             request_event_receiver.resubscribe(), 
             response_event_receiver.resubscribe(), 
-            database.clone());
+            database.clone(),
+            exchange_engine.clone(),
+            heartbeat.clone()
+        );
 
         let cache_engine = CacheEngine::new(
             event_publisher.clone(), 

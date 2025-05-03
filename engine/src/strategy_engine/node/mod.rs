@@ -3,6 +3,7 @@ pub mod indicator_node;
 pub mod if_else_node;
 pub mod start_node;
 pub mod order_node;
+pub mod position_node;
 pub mod strategy_info_node;
 pub mod node_types;
 
@@ -67,6 +68,12 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_state_machine().clone_box()
     }
 
+    async fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
+        let context = self.get_context();
+        let context_guard = context.read().await;
+        context_guard.get_all_message_senders().clone()
+    }
+
     async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
         let context = self.get_context();
         let context_guard = context.read().await;
@@ -87,7 +94,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
 
 
 
-    // 设置默认出口句柄
+    // 设置节点的默认出口
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
@@ -101,6 +108,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
             NodeType::IndicatorNode => DefaultOutputHandleId::IndicatorNodeOutput,
             NodeType::IfElseNode => DefaultOutputHandleId::IfElseNodeElseOutput,
             NodeType::OrderNode => DefaultOutputHandleId::OrderNodeOutput,
+            NodeType::PositionNode => DefaultOutputHandleId::PositionNodeOutput,
         };
 
         self.add_output_handle(default_output_handle_id.to_string(), tx).await;

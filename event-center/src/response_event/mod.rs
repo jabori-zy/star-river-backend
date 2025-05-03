@@ -2,7 +2,7 @@ pub mod cache_engine_response;
 pub mod exchange_engine_response;
 pub mod market_engine_response;
 pub mod indicator_engine_response;
-
+pub mod order_engine_response;
 
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -11,7 +11,7 @@ use cache_engine_response::CacheEngineResponse;
 use exchange_engine_response::ExchangeEngineResponse;
 use indicator_engine_response::IndicatorEngineResponse;
 use market_engine_response::MarketEngineResponse;
-
+use order_engine_response::OrderEngineResponse;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -20,6 +20,7 @@ pub enum ResponseEvent {
     IndicatorEngine(IndicatorEngineResponse),
     MarketEngine(MarketEngineResponse),
     ExchangeEngine(ExchangeEngineResponse),
+    OrderEngine(OrderEngineResponse),
 }
 
 impl From<ResponseEvent> for Event {

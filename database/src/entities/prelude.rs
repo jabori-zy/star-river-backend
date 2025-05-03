@@ -2,9 +2,8 @@
 
 pub use super::account_config::Entity as AccountConfig;
 pub use super::account_info::Entity as AccountInfo;
-pub use super::mt5_account_config::Entity as Mt5AccountConfig;
-pub use super::mt5_account_info::Entity as Mt5AccountInfo;
 pub use super::order::Entity as Order;
 pub use super::position::Entity as Position;
 pub use super::strategy_config::Entity as StrategyConfig;
+pub use super::strategy_sys_variable::Entity as StrategySysVariable;
 pub use super::transaction_detail::Entity as TransactionDetail;

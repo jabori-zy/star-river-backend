@@ -1,9 +1,11 @@
 pub mod add_node;
+pub mod add_edge;
 pub mod add_start_node;
 pub mod add_live_data_node;
 pub mod add_if_else_node;
 pub mod add_indicator_node;
 pub mod add_order_node;
+pub mod add_position_node;
 pub mod strategy_state_manager;
 
 use crate::*;
@@ -23,8 +25,14 @@ use super::node::NodeTrait;
 use super::strategy::strategy_state_manager::{StrategyStateMachine, StrategyRunState, StrategyStateTransitionEvent, StrategyStateAction};
 use super::node::node_types::NodeMessageReceiver;
 use super::node::node_types::NodeRunState;
-use types::strategy::{TradeMode, StrategyConfig};
+use types::strategy::{message, StrategyConfig, TradeMode};
 use database::entities::strategy_config::Model as StrategyConfigModel;
+use types::strategy::message::NodeMessage;
+use crate::exchange_engine::ExchangeEngine;
+use sea_orm::DatabaseConnection;
+use heartbeat::Heartbeat;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 
 #[derive(Debug)]
@@ -40,7 +48,8 @@ pub struct Strategy {
     pub response_event_receiver: broadcast::Receiver<Event>,
     pub enable_event_publish: bool,
     pub cancel_token: CancellationToken,
-    pub state_manager: StrategyStateMachine,
+    pub state_machine: StrategyStateMachine,
+    pub node_message_receivers: Vec<broadcast::Receiver<NodeMessage>>, // 接收策略内所有节点的消息
 }
 
 
@@ -57,7 +66,8 @@ impl Clone for Strategy {
             response_event_receiver: self.response_event_receiver.resubscribe(),
             enable_event_publish: self.enable_event_publish,
             cancel_token: self.cancel_token.clone(),
-            state_manager: self.state_manager.clone(),
+            state_machine: self.state_machine.clone(),
+            node_message_receivers: self.node_message_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
         }
     }
 }
@@ -69,7 +79,10 @@ impl Strategy {
         strategy_config: StrategyConfigModel, 
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>, 
-        response_event_receiver: broadcast::Receiver<Event>
+        response_event_receiver: broadcast::Receiver<Event>,
+        exchange_engine: Arc<Mutex<ExchangeEngine>>,
+        database: DatabaseConnection,
+        heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let mut graph = Graph::new();
         let mut node_indices = HashMap::new();
@@ -114,6 +127,9 @@ impl Strategy {
                         event_publisher.clone(), 
                         market_event_receiver.resubscribe(), 
                         response_event_receiver.resubscribe(),
+                        exchange_engine.clone(),
+                        database.clone(),
+                        heartbeat.clone(),
                     ).await;
 
                 }
@@ -132,7 +148,10 @@ impl Strategy {
                 }
             }
         }
-        
+
+        // 将所有节点的message_receivers 添加到 strategy_message_receivers 中
+        let strategy_message_receivers = Self::add_strategy_message_receivers(&mut graph).await;
+        tracing::debug!("策略的消息接收器: {:?}", strategy_message_receivers);
         Self {
             strategy_id,
             strategy_name: strategy_name.clone(),
@@ -144,48 +163,62 @@ impl Strategy {
             response_event_receiver,
             enable_event_publish: false,
             cancel_token,
-            state_manager: StrategyStateMachine::new(strategy_id, strategy_name, StrategyRunState::Created),
+            state_machine: StrategyStateMachine::new(strategy_id, strategy_name, StrategyRunState::Created),
+            node_message_receivers: strategy_message_receivers,
         }
+    }
+
+    // 将所有节点的message_receivers 添加到 strategy_message_receivers 中
+    async fn add_strategy_message_receivers(graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>) -> Vec<broadcast::Receiver<NodeMessage>> {
+        let mut strategy_message_receivers = Vec::new();
+        for node in graph.node_weights_mut() {
+            let message_receivers = node.get_all_message_senders().await;
+            for message_receiver in message_receivers {
+                strategy_message_receivers.push(message_receiver.subscribe());
+            }
+        }
+        strategy_message_receivers
     }
 
 
     // 添加边
-    pub async fn add_edge(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
-        node_indices: &mut HashMap<String, NodeIndex>,
-        from_node_id: &str,
-        from_handle_id: &str,
-        to_node_id: &str
-    ) {
-        if let (Some(&source), Some(&target)) = (
-            node_indices.get(from_node_id),
-            node_indices.get(to_node_id)
-        ){
+    // 添加边的时候，将message_receivers 和 message_senders 都添加到节点中
+    // pub async fn add_edge(
+    //     graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
+    //     node_indices: &mut HashMap<String, NodeIndex>,
+    //     from_node_id: &str,
+    //     from_handle_id: &str,
+    //     to_node_id: &str
+    // ) {
+    //     if let (Some(&source), Some(&target)) = (
+    //         node_indices.get(from_node_id),
+    //         node_indices.get(to_node_id)
+    //     ){
             
-            tracing::debug!("添加边: {:?} -> {:?}, 源节点handle = {}", from_node_id, to_node_id, from_handle_id);
-            // 先获取源节点的发送者
-            let sender = graph.node_weight(source).unwrap().get_message_sender(from_handle_id.to_string()).await;
+    //         tracing::debug!("添加边: {:?} -> {:?}, 源节点handle = {}", from_node_id, to_node_id, from_handle_id);
+    //         // 先获取源节点的发送者
+    //         let sender = graph.node_weight(source).unwrap().get_message_sender(from_handle_id.to_string()).await;
             
-            tracing::debug!("{}: sender: {:?}", from_handle_id, sender);
-            // 增加源节点的出口连接数
-            graph.node_weight_mut(source).unwrap().add_output_handle_connect_count(from_handle_id.to_string()).await;
-            // tracing::debug!("sender: {:?}", sender);
+    //         tracing::debug!("{}: sender: {:?}", from_handle_id, sender);
+    //         // 增加源节点的出口连接数
+    //         graph.node_weight_mut(source).unwrap().add_output_handle_connect_count(from_handle_id.to_string()).await;
+    //         // tracing::debug!("sender: {:?}", sender);
 
-            if let Some(target_node) = graph.node_weight_mut(target) {
-                let receiver = sender.subscribe();
-                // 获取接收者数量
-                let message_receivers = target_node.get_message_receivers().await;
-                tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
-                target_node.add_message_receiver(NodeMessageReceiver::new(from_node_id.to_string(), receiver)).await;
-                tracing::debug!("{}: 添加了一个接收者: {:?}", target_node.get_node_name().await, message_receivers);
-                target_node.add_from_node_id(from_node_id.to_string()).await;
-            }
-            // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
-            graph.add_edge(source, target, ());
-        }
+    //         if let Some(target_node) = graph.node_weight_mut(target) {
+    //             let receiver = sender.subscribe();
+    //             // 获取接收者数量
+    //             let message_receivers = target_node.get_message_receivers().await;
+    //             tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
+    //             target_node.add_message_receiver(NodeMessageReceiver::new(from_node_id.to_string(), receiver)).await;
+    //             tracing::debug!("{}: 添加了一个接收者: {:?}", target_node.get_node_name().await, message_receivers);
+    //             target_node.add_from_node_id(from_node_id.to_string()).await;
+    //         }
+    //         // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
+    //         graph.add_edge(source, target, ());
+    //     }
         
 
-    }
+    // }
 
     // 拓扑排序
     pub fn topological_sort(&self) -> Vec<&Box<dyn NodeTrait>> {
@@ -223,7 +256,7 @@ impl Strategy {
         let strategy_name = self.strategy_name.clone();
 
         let (transition_result, state_manager) = {
-            let mut state_manager = self.state_manager.clone();
+            let mut state_manager = self.state_machine.clone();
             let transition_result = state_manager.transition(event).unwrap();
             (transition_result, state_manager)
         };
@@ -305,14 +338,14 @@ impl Strategy {
                 }
                 
                 StrategyStateAction::LogTransition => {
-                    tracing::info!("{}: 状态转换: {:?} -> {:?}", self.strategy_name, self.state_manager.current_state(), transition_result.new_state);
+                    tracing::info!("{}: 状态转换: {:?} -> {:?}", self.strategy_name, self.state_machine.current_state(), transition_result.new_state);
                 }
                 _ => {}
             }
 
 
             // 更新策略状态
-            self.state_manager = state_manager.clone();
+            self.state_machine = state_manager.clone();
 
             
         }
@@ -322,7 +355,7 @@ impl Strategy {
     pub async fn start_strategy(&mut self) -> Result<(), String> {
         tracing::info!("启动策略: {}", self.strategy_name);
         // 获取当前状态
-        let current_state = self.state_manager.current_state();
+        let current_state = self.state_machine.current_state();
         // 如果当前状态为 Running，则不进行操作
         if current_state != StrategyRunState::Ready {
             tracing::info!("策略未处于Ready状态, 不能启动: {}", self.strategy_name);
@@ -349,7 +382,7 @@ impl Strategy {
     pub async fn stop_strategy(&mut self) -> Result<(), String> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
-        if self.state_manager.current_state() == StrategyRunState::Stopping {
+        if self.state_machine.current_state() == StrategyRunState::Stopping {
             tracing::info!("策略{}已停止", self.strategy_name);
             return Ok(());
         }

@@ -11,13 +11,17 @@ use serde_json::Value;
 use std::str::FromStr;
 use crate::strategy_engine::node::if_else_node::condition::Case;
 use crate::strategy_engine::node::node_types::NodeType;
-use types::order::{OrderType, OrderSide};
-use crate::strategy_engine::node::order_node::order_node_types::OrderConfig;
 use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 use crate::strategy_engine::node::live_data_node::live_data_node_context::*;
 use crate::strategy_engine::node::indicator_node::indicator_node_type::*;
 use crate::strategy_engine::node::if_else_node::if_else_node_type::*;
 use crate::strategy_engine::node::order_node::order_node_types::*;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use crate::exchange_engine::ExchangeEngine;
+use sea_orm::DatabaseConnection;
+use heartbeat::Heartbeat;
+use crate::strategy_engine::node::position_node::position_node_types::*;
 
 impl Strategy {
     pub async fn add_node(
@@ -28,6 +32,9 @@ impl Strategy {
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
+        exchange_engine: Arc<Mutex<ExchangeEngine>>,
+        database: DatabaseConnection,
+        heartbeat: Arc<Mutex<Heartbeat>>,
     ) {
         // 获取节点类型
         let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
@@ -280,6 +287,24 @@ impl Strategy {
                     backtest_config,
                     event_publisher,
                     response_event_receiver,
+                    exchange_engine,
+                    database,
+                    heartbeat,
+                ).await;
+                
+            }
+            // 持仓节点
+            NodeType::PositionNode => {
+                Self::add_position_node(
+                    graph,
+                    node_indices,
+                    trade_mode,
+                    node_config.clone(),
+                    event_publisher,
+                    response_event_receiver,
+                    exchange_engine,
+                    database,
+                    heartbeat,
                 ).await;
                 
             }

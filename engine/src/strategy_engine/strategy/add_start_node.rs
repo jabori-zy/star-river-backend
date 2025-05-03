@@ -10,7 +10,7 @@ use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 
 impl Strategy {
     pub async fn add_start_node(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
+        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
         strategy_id: i64,
         node_id: String, 

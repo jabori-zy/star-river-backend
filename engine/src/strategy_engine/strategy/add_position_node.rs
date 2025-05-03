@@ -6,35 +6,47 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
-use crate::strategy_engine::node::order_node::order_node_types::*;
-use crate::strategy_engine::node::order_node::OrderNode;
 use types::strategy::TradeMode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
+use crate::strategy_engine::node::position_node::PositionNode;
+use crate::strategy_engine::node::position_node::position_node_types::*;
+use crate::strategy_engine::node::node_context::NodeContext;
 
 
 
 impl Strategy {
-    pub async fn add_order_node(
+    pub async fn add_position_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
-        strategy_id: i64,
-        node_id: String,
-        node_name: String,
         trade_mode: TradeMode,
-        live_config: Option<OrderNodeLiveConfig>,
-        simulate_config: Option<OrderNodeSimulateConfig>,
-        backtest_config: Option<OrderNodeBacktestConfig>,
+        node_config: serde_json::Value,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
     ) {
-        let mut node = OrderNode::new(
+        let node_data = node_config["data"].clone();
+        let node_id = node_config["id"].as_str().unwrap().to_string();
+        let strategy_id = node_data["strategyId"].as_i64().unwrap();
+        let node_name = node_data["nodeName"].as_str().unwrap().to_string();
+        let live_config = match node_data["liveConfig"].is_null() {
+            true => None,
+            false => Some(serde_json::from_value::<PositionNodeLiveConfig>(node_data["liveConfig"].clone()).unwrap()),
+        };
+        let backtest_config = match node_data["backtestConfig"].is_null() {
+            true => None,
+            false => Some(serde_json::from_value::<PositionNodeBacktestConfig>(node_data["backtestConfig"].clone()).unwrap()),
+        };
+        let simulate_config = match node_data["simulatedConfig"].is_null() {
+            true => None,
+            false => Some(serde_json::from_value::<PositionNodeSimulateConfig>(node_data["simulatedConfig"].clone()).unwrap()),
+        };
+        let mut node = PositionNode::new(
             strategy_id,
             node_id.clone(),
             node_name,

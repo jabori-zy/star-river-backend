@@ -48,6 +48,8 @@ pub enum NodeType {
     IfElseNode,
     #[strum(serialize = "order_node")]
     OrderNode,
+    #[strum(serialize = "position_node")]
+    PositionNode,
 }
 
 impl FromStr for NodeType {
@@ -66,6 +68,7 @@ impl FromStr for NodeType {
             "indicator_node" => Ok(NodeType::IndicatorNode),
             "if_else_node" => Ok(NodeType::IfElseNode),
             "order_node" => Ok(NodeType::OrderNode),
+            "position_node" => Ok(NodeType::PositionNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }
@@ -85,6 +88,8 @@ pub enum DefaultOutputHandleId {
     IfElseNodeElseOutput,
     #[strum(serialize = "order_node_output")]
     OrderNodeOutput,
+    #[strum(serialize = "position_node_output")]
+    PositionNodeOutput,
 
 }
 

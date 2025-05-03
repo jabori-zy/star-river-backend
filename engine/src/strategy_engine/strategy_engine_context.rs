@@ -10,6 +10,10 @@ use crate::EngineName;
 use async_trait::async_trait;
 use crate::EngineContext;
 use std::any::Any;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use crate::exchange_engine::ExchangeEngine;
+use heartbeat::Heartbeat;
 
 
 
@@ -26,7 +30,8 @@ pub struct StrategyEngineContext {
     pub market_event_receiver: broadcast::Receiver<Event>,
     pub request_event_receiver: broadcast::Receiver<Event>,
     pub response_event_receiver: broadcast::Receiver<Event>,
-
+    pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
+    pub heartbeat: Arc<Mutex<Heartbeat>>,
 }
 
 
@@ -41,7 +46,8 @@ impl Clone for StrategyEngineContext {
             market_event_receiver: self.market_event_receiver.resubscribe(),
             request_event_receiver: self.request_event_receiver.resubscribe(),
             response_event_receiver: self.response_event_receiver.resubscribe(),
-
+            exchange_engine: self.exchange_engine.clone(),
+            heartbeat: self.heartbeat.clone(),
         }
     }
 }
@@ -101,7 +107,10 @@ impl StrategyEngineContext {
             strategy_config, 
             self.event_publisher.clone(), 
             self.market_event_receiver.resubscribe(), 
-            self.response_event_receiver.resubscribe()
+            self.response_event_receiver.resubscribe(),
+            self.exchange_engine.clone(),
+            self.database.clone(),
+            self.heartbeat.clone()
         ).await;
         self.strategy_list.insert(strategy_id, strategy);
         
@@ -130,7 +139,7 @@ impl StrategyEngineContext {
         ).await?;
         let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
         // 获取策略的状态
-        let strategy_state = strategy.state_manager.current_state();
+        let strategy_state = strategy.state_machine.current_state();
         if strategy_state != StrategyRunState::Created {
             tracing::warn!("策略状态不是Created, 不设置策略");
             return Ok(());

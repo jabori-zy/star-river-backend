@@ -17,7 +17,7 @@ use sea_orm::DatabaseConnection;
 use database::entities::strategy_config::Model as StrategyConfig;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use std::any::Any;
-
+use heartbeat::Heartbeat;
 
 
 #[derive(Debug, Clone)]
@@ -53,6 +53,8 @@ impl StrategyEngine{
         request_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
         database: DatabaseConnection,
+        exchange_engine: Arc<Mutex<ExchangeEngine>>,
+        heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let context = StrategyEngineContext {
             engine_name: EngineName::StrategyEngine,
@@ -63,6 +65,8 @@ impl StrategyEngine{
             market_event_receiver,
             request_event_receiver,
             response_event_receiver,
+            exchange_engine,
+            heartbeat,
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

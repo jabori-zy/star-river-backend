@@ -66,6 +66,9 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
     fn get_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
+    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
+        self.get_base_context().output_handle.values().map(|handle| handle.sender.clone()).collect()
+    }
     fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
         self.get_base_context().output_handle.get(&handle_id).unwrap().sender.clone()
     }
@@ -103,6 +106,7 @@ impl Clone for Box<dyn NodeContext> {
     }
 }
 
+pub type HandleId = String;
 
 #[derive(Debug)]
 pub struct BaseNodeContext {
@@ -115,7 +119,7 @@ pub struct BaseNodeContext {
     pub event_publisher: EventPublisher,
     pub message_receivers: Vec<NodeMessageReceiver>,
     pub event_receivers:Vec<broadcast::Receiver<Event>>, // 事件接收器
-    pub output_handle: HashMap<String, NodeOutputHandle>, // 节点输出句柄
+    pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub is_enable_event_publish: bool, // 是否启用事件发布
     pub state_machine: Box<dyn NodeStateMachine>, // 状态机
     pub from_node_id: Vec<String>, // 来源节点ID

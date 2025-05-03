@@ -1,4 +1,3 @@
-use serde_json::Error;
 use tokio::sync::broadcast;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -14,14 +13,17 @@ use event_center::EventPublisher;
 use tokio::sync::Mutex;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use std::collections::HashMap;
-use types::order::{OriginalOrder, Order};
+use types::order::Order;
 use sea_orm::DatabaseConnection;
 use database::mutation::order_mutation::OrderMutation;
 use tokio::sync::RwLock;
 use heartbeat::Heartbeat;
 use types::order::OrderStatus;
 use event_center::order_event::OrderEvent;
-use exchange_client::ExchangeClient;
+use event_center::response_event::order_engine_response::{OrderEngineResponse, CreateOrderResponse};
+use utils::get_utc8_timestamp_millis;
+use event_center::response_event::ResponseEvent;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct OrderEngineContext {
@@ -29,7 +31,7 @@ pub struct OrderEngineContext {
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
-    pub unfilled_orders: Arc<RwLock<HashMap<i64, Vec<Order>>>>, // 未成交订单, 需要持续监控, 策略id作为key
+    pub unfilled_orders: Arc<RwLock<HashMap<i64, Vec<(Uuid, Order)>>>>, // 未成交订单, 需要持续监控, 策略id作为key, (request_id, order)作为value
     pub database: DatabaseConnection,
     pub heartbeat: Arc<Mutex<Heartbeat>>
 }
@@ -109,6 +111,7 @@ impl OrderEngineContext {
             exchange_engine_guard.is_registered(&params.account_id).await
         };
 
+        // 交易所未注册
         if !is_registered {
             return Err(format!("交易所 {:?} 未注册", &params.account_id));
         }
@@ -138,14 +141,23 @@ impl OrderEngineContext {
             if exchange_order.get_order_status() == OrderStatus::Filled {
                 // 通知持仓引擎，订单已成交
                 let order_event = OrderEvent::OrderFilled(order.clone());
-                self.event_publisher.publish(order_event.into()).unwrap();
-
+                let response_event = ResponseEvent::OrderEngine(OrderEngineResponse::CreateOrderResponse(CreateOrderResponse {
+                    code: 0,
+                    message: "订单创建成功".to_string(),
+                    response_timestamp: get_utc8_timestamp_millis(),
+                    response_id: params.base_params.request_id,
+                    order: Some(order),
+                }));
+                tracing::info!("发送创建订单响应: {:?}", response_event);
+                self.event_publisher.publish(response_event.into()).unwrap(); // 发送创建订单响应
+                self.event_publisher.publish(order_event.into()).unwrap(); // 发送订单已成交事件
             } 
             // 如果订单状态为其他的状态，则将订单添加到未成交订单列表
             else {
                 // 将订单添加到未成交订单列表
                 let mut unfilled_orders = self.unfilled_orders.write().await;
-                unfilled_orders.entry(params.base_params.strategy_id).or_insert(vec![]).push(order);
+                // 如果订单未完全成交，则将订单添加到未成交订单列表，并且存储request_id，之后订单成交之后，根据request_id来响应
+                unfilled_orders.entry(params.base_params.strategy_id).or_insert(vec![]).push((params.base_params.request_id, order));
             }
         } else {
             tracing::error!("订单入库失败: {:?}", exchange_order);
@@ -159,7 +171,7 @@ impl OrderEngineContext {
 
 
     async fn process_unfilled_orders(
-        unfilled_orders: Arc<RwLock<HashMap<i64, Vec<Order>>>>,
+        unfilled_orders: Arc<RwLock<HashMap<i64, Vec<(Uuid, Order)>>>>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         event_publisher: EventPublisher,
         database: DatabaseConnection,
@@ -185,7 +197,7 @@ impl OrderEngineContext {
                 continue;
             }
             // 列表不为空, 则遍历列表
-            for order in orders {
+            for (request_id, order) in orders {
                 let exchange_engine_guard = exchange_engine.lock().await;
                 let exchange = exchange_engine_guard.get_exchange(&order.account_id).await;
                 match exchange {
@@ -198,21 +210,40 @@ impl OrderEngineContext {
                         if latest_order.order_status == OrderStatus::Filled {
                             //1. 先通知持仓引擎和交易明细引擎，订单已成交
                             let order_event = OrderEvent::OrderFilled(latest_order.clone());
+                            // 发送创建订单响应
+                            let response_event = ResponseEvent::OrderEngine(OrderEngineResponse::CreateOrderResponse(CreateOrderResponse {
+                                code: 0,
+                                message: "订单创建成功".to_string(),
+                                response_timestamp: get_utc8_timestamp_millis(),
+                                response_id: request_id.clone(),
+                                order: Some(latest_order.clone()),
+                            }));
                             event_publisher.publish(order_event.into()).unwrap();
-                            
+                            event_publisher.publish(response_event.into()).unwrap();
 
-                            // 2. 未成交订单列表中删除
+                            // 2. 从未成交订单列表中删除
                             let mut unfilled_orders = unfilled_orders.write().await;
                             // 删除订单，使用latest_order的ID而不是原始order的ID
                             tracing::info!("订单已成交, 从未成交订单列表中删除: {:?}", latest_order);
                             unfilled_orders.entry(strategy_id.clone()).and_modify(|orders| {
-                                orders.retain(|o| o.order_id != latest_order.order_id); // 只删除order_id相同的订单
+                                orders.retain(|(_,o)| o.order_id != latest_order.order_id); // 只删除order_id相同的订单
                             });
 
                             // 3.更新数据库订单信息
                             OrderMutation::update_order(&database, latest_order.clone()).await.unwrap();
 
                             
+                        } else {
+                            // 如果订单状态为其他的状态, 则发送响应告诉节点订单的最新状态
+                            let response_event = ResponseEvent::OrderEngine(OrderEngineResponse::CreateOrderResponse(CreateOrderResponse {
+                                code: 1,
+                                message: "订单未成交".to_string(),
+                                response_timestamp: get_utc8_timestamp_millis(),
+                                response_id: request_id.clone(),
+                                order: Some(latest_order.clone()),
+                            }));
+                            event_publisher.publish(response_event.into()).unwrap();
+                                    
                         }
 
                     }
