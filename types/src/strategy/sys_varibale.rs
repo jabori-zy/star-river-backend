@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 
+pub enum SysVariable {
+    #[serde(rename = "position_number")]
+    PositionNumber, //持仓数量
+    #[serde(rename = "filled_order_number")]
+    FilledOrderNumber, // 已成交订单数量
+}
+
 
 pub struct StrategySysVariable {
     pub id: i32,

@@ -50,6 +50,8 @@ pub enum NodeType {
     OrderNode,
     #[strum(serialize = "position_node")]
     PositionNode,
+    #[strum(serialize = "get_variable_node")]
+    GetVariableNode,
 }
 
 impl FromStr for NodeType {
@@ -69,6 +71,7 @@ impl FromStr for NodeType {
             "if_else_node" => Ok(NodeType::IfElseNode),
             "order_node" => Ok(NodeType::OrderNode),
             "position_node" => Ok(NodeType::PositionNode),
+            "get_variable_node" => Ok(NodeType::GetVariableNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }
@@ -90,6 +93,8 @@ pub enum DefaultOutputHandleId {
     OrderNodeOutput,
     #[strum(serialize = "position_node_output")]
     PositionNodeOutput,
+    #[strum(serialize = "get_variable_node_output")]
+    GetVariableNodeOutput,
 
 }
 

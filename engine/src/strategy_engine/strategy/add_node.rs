@@ -21,7 +21,6 @@ use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use crate::strategy_engine::node::position_node::position_node_types::*;
 
 impl Strategy {
     pub async fn add_node(
@@ -307,6 +306,19 @@ impl Strategy {
                     heartbeat,
                 ).await;
                 
+            }
+            // 获取变量节点
+            NodeType::GetVariableNode => {
+                Self::add_get_variable_node(
+                    graph,
+                    node_indices,
+                    trade_mode,
+                    node_config.clone(),
+                    event_publisher,
+                    response_event_receiver,
+                    exchange_engine,
+                    database,
+                ).await;
             }
             _ => {
                 tracing::error!("不支持的节点类型: {}", node_type);

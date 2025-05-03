@@ -5,6 +5,7 @@ pub mod start_node;
 pub mod order_node;
 pub mod position_node;
 pub mod strategy_info_node;
+pub mod get_variable_node;
 pub mod node_types;
 
 pub mod node_context;
@@ -109,6 +110,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
             NodeType::IfElseNode => DefaultOutputHandleId::IfElseNodeElseOutput,
             NodeType::OrderNode => DefaultOutputHandleId::OrderNodeOutput,
             NodeType::PositionNode => DefaultOutputHandleId::PositionNodeOutput,
+            NodeType::GetVariableNode => DefaultOutputHandleId::GetVariableNodeOutput,
         };
 
         self.add_output_handle(default_output_handle_id.to_string(), tx).await;
