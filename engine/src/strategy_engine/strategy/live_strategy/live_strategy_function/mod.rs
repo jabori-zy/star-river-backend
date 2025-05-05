@@ -7,7 +7,7 @@ mod add_indicator_node;
 mod add_order_node;
 mod add_position_node;
 mod add_get_variable_node;
-
+pub mod sys_variable_function;
 use crate::strategy_engine::node::NodeTrait;
 use crate::strategy_engine::node::node_types::NodeMessageReceiver;
 use petgraph::{Graph, Directed};

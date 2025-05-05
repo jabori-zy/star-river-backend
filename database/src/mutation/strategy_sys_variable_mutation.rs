@@ -8,10 +8,7 @@ pub struct StrategySysVariableMutation;
 
 
 impl StrategySysVariableMutation {
-    pub async fn insert_strategy_sys_variable(
-        db: &DbConn,
-        strategy_id: i32,
-    ) -> Result<StrategySysVariable, DbErr> {
+    pub async fn insert_strategy_sys_variable(db: &DbConn,strategy_id: i32,) -> Result<StrategySysVariable, DbErr> {
         strategy_sys_variable::ActiveModel {
             id: NotSet,
             strategy_id: Set(strategy_id),
@@ -26,11 +23,7 @@ impl StrategySysVariableMutation {
         .map(|model| model.into())
     }
 
-    pub async fn update_position_number(
-        db: &DbConn,
-        strategy_id: i32,
-        position_number: i32,
-    ) -> Result<StrategySysVariable, DbErr> {
+    pub async fn update_position_number(db: &DbConn,strategy_id: i32,position_number: i32,) -> Result<StrategySysVariable, DbErr> {
         let strategy: strategy_sys_variable::ActiveModel = StrategySysVariableEntity::find_by_id(strategy_id)
             .one(db)
             .await?

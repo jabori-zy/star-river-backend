@@ -28,8 +28,8 @@ use crate::strategy_engine::node::node_types::NodeMessageReceiver;
 use database::query::position_query::PositionQuery;
 use database::mutation::position_mutation::PositionMutation;
 use types::position::PositionState;
-
-
+use types::strategy::message::PositionMessage;
+use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 
 
 
@@ -120,6 +120,22 @@ impl StrategyContext for LiveStrategyContext {
 
     async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String> {
         // tracing::debug!("策略: {:?} 收到来自节点消息: {:?}", self.get_strategy_name(), message);
+        match message {
+            NodeMessage::Position(position_message) => {
+                match position_message {
+                    // 仓位更新事件
+                    PositionMessage::PositionUpdated(position) => {
+                        // 更新持仓
+                        self.positions.write().await.push(position);
+                        // 更新系统变量
+                        let sys_variable = SysVariableFunction::update_position_number(&self.database, self.strategy_id).await.unwrap();
+                        tracing::info!("更新系统变量: {:?}", sys_variable);
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
         Ok(())
     }
     

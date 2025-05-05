@@ -10,7 +10,7 @@ pub enum SysVariable {
     FilledOrderNumber, // 已成交订单数量
 }
 
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategySysVariable {
     pub id: i32,
     pub strategy_id: i32,
