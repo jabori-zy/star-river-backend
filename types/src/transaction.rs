@@ -28,8 +28,8 @@ pub enum TransactionSide {
 
 //交易明细
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TransactionDetail {
-    pub transaction_id: i64,
+pub struct Transaction {
+    pub transaction_id: i32,
     pub symbol: String,
     pub exchange: Exchange,
     pub exchange_order_id: i64,
@@ -40,12 +40,13 @@ pub struct TransactionDetail {
     pub quantity: f64,
     pub price: f64,
     pub create_time: DateTime<Utc>,
+    pub extra_info: Option<serde_json::Value>, // 额外信息
 }
 
 
-pub trait ExchangeTransactionDetail : Debug +Send + Sync + 'static {
+pub trait OriginalTransaction : Debug +Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
-    fn clone_box(&self) -> Box<dyn ExchangeTransactionDetail>;
+    fn clone_box(&self) -> Box<dyn OriginalTransaction>;
     fn get_transaction_id(&self) -> i64;
     fn get_transaction_type(&self) -> TransactionType;
     fn get_transaction_side(&self) -> TransactionSide;
@@ -60,7 +61,7 @@ pub trait ExchangeTransactionDetail : Debug +Send + Sync + 'static {
 }
 
 
-impl Clone for Box<dyn ExchangeTransactionDetail> {
+impl Clone for Box<dyn OriginalTransaction> {
     fn clone(&self) -> Self {
         self.clone_box()
     }

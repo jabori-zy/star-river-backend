@@ -1,7 +1,7 @@
 pub mod strategy_config_mutation;
 pub mod order_mutation;
 pub mod position_mutation;
-pub mod transaction_detail_mutation;
+pub mod transaction_mutation;
 pub mod account_config_mutation;
 pub mod account_info_mutation;
 pub mod strategy_sys_variable_mutation;

@@ -5,13 +5,13 @@ pub mod metatrader5;
 use async_trait::async_trait;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use types::market::KlineInterval;
-use types::position::{PositionNumberRequest, PositionNumber, Position,ExchangePosition};
+use types::position::{PositionNumberRequest, PositionNumber, Position,OriginalPosition};
 use types::order::{Order, OriginalOrder};
 use std::fmt::Debug;
 use std::any::Any;
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
-use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
+use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
 use types::market::Exchange;
 #[async_trait]
@@ -34,12 +34,12 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     async fn update_order(&self, order: Order) -> Result<Order, String>; // 更新订单
 
     // 交易明细相关
-    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn ExchangeTransactionDetail>, String>;
+    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn OriginalTransaction>, String>;
 
     // 仓位相关
     async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String>;
-    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn ExchangePosition>, String>;
-    async fn update_position(&self, position: &Position) -> Result<Position, String>;
+    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, String>;
+    async fn get_latest_position(&self, position: &Position) -> Result<Position, String>; // 获取最新持仓
 
     // 账户相关
     async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, String>;

@@ -1,4 +1,4 @@
-use types::position::{Position, PositionSide};
+use types::position::{Position, PositionSide, PositionState};
 use crate::entities::position::Model as PositionModel;
 use types::market::Exchange;
 use std::str::FromStr;
@@ -8,7 +8,7 @@ use std::str::FromStr;
 impl From<PositionModel> for Position {
     fn from(position: PositionModel) -> Self {
         Position {
-            position_id: position.id as i64,
+            position_id: position.id,
             strategy_id: position.strategy_id as i64,
             node_id: position.node_id.clone(),
             exchange: Exchange::from_str(&position.exchange).expect("Invalid exchange"),
@@ -16,14 +16,16 @@ impl From<PositionModel> for Position {
             exchange_position_id: position.exchange_position_id as i64,
             symbol: position.symbol,
             position_side: PositionSide::from_str(&position.position_side).expect("Invalid position side"),
+            position_state: PositionState::from_str(&position.position_state).expect("Invalid position state"),
             quantity: position.quantity,
             open_price: position.open_price,
             current_price: None,
             tp: position.tp,
             sl: position.sl,
             unrealized_profit: None,
-            create_time: position.created_time.timestamp(),
-            update_time: position.updated_time.timestamp(),
+            extra_info: position.extra_info,
+            create_time: position.created_time,
+            update_time: position.updated_time,
         }
     }
 }

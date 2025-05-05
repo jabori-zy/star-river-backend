@@ -3,9 +3,8 @@ use event_center::{Event, EventPublisher};
 use sea_orm::DatabaseConnection;
 use database::entities::strategy_config::Model as StrategyConfig;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use crate::strategy_engine::strategy::Strategy;
 use std::collections::HashMap;
-use crate::strategy_engine::strategy::strategy_state_manager::StrategyRunState;
+use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
 use crate::EngineName;
 use async_trait::async_trait;
 use crate::EngineContext;
@@ -14,9 +13,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use heartbeat::Heartbeat;
-
-
-
+use super::strategy::StrategyTrait;
+use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
+use types::strategy::{Strategy, TradeMode};
 
 
 
@@ -26,7 +25,7 @@ pub struct StrategyEngineContext {
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub database: DatabaseConnection,
-    pub strategy_list: HashMap<i32, Strategy>, //
+    pub strategy_list: HashMap<i32, Box<dyn StrategyTrait>>, //实现了StrategyTrait的策略
     pub market_event_receiver: broadcast::Receiver<Event>,
     pub request_event_receiver: broadcast::Receiver<Event>,
     pub response_event_receiver: broadcast::Receiver<Event>,
@@ -88,34 +87,37 @@ impl EngineContext for StrategyEngineContext {
 }
 
 impl StrategyEngineContext {
-    pub async fn get_strategy_by_id(&self, id: i32) -> Result<StrategyConfig, String> {
-        let strategy_info = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap();
-        if let Some(strategy_info) = strategy_info {
-            Ok(strategy_info)
+    pub async fn get_strategy_by_id(&self, id: i32) -> Result<Strategy, String> {
+        let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap();
+        if let Some(strategy) = strategy {
+            Ok(strategy)
         } else {
             tracing::error!("策略信息不存在");
             Err("策略信息不存在".to_string())
         }
     }
 
-    pub async fn load_strategy_by_info(
-        &mut self, 
-        strategy_config: StrategyConfig
-    ) -> Result<i32, String> {
-        let strategy_id = strategy_config.id;
-        let strategy = Strategy::new(
-            strategy_config, 
-            self.event_publisher.clone(), 
-            self.market_event_receiver.resubscribe(), 
-            self.response_event_receiver.resubscribe(),
-            self.exchange_engine.clone(),
-            self.database.clone(),
-            self.heartbeat.clone()
-        ).await;
-        self.strategy_list.insert(strategy_id, strategy);
-        
-
-        Ok(strategy_id)
+    pub async fn load_strategy_by_info(&mut self, strategy: Strategy) -> Result<i32, String> {
+        match strategy.trade_mode {
+            TradeMode::Live => {
+                let strategy_id = strategy.id;
+                let strategy = LiveStrategy::new(
+                    strategy, 
+                    self.event_publisher.clone(), 
+                    self.market_event_receiver.resubscribe(), 
+                    self.response_event_receiver.resubscribe(),
+                    self.exchange_engine.clone(),
+                    self.database.clone(),
+                    self.heartbeat.clone()
+                ).await;
+                self.strategy_list.insert(strategy_id, Box::new(strategy));
+                Ok(strategy_id)
+            }
+            _ => {
+                tracing::error!("不支持的策略类型: {}", strategy.trade_mode);
+                Err("不支持的策略类型".to_string())
+            }
+        }
     }
 
 
@@ -127,7 +129,7 @@ impl StrategyEngineContext {
 
 
 
-    // 设置策略
+    // 初始化策略
     pub async fn init_strategy(
         &mut self, 
         strategy_id: i32,
@@ -139,7 +141,7 @@ impl StrategyEngineContext {
         ).await?;
         let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
         // 获取策略的状态
-        let strategy_state = strategy.state_machine.current_state();
+        let strategy_state = strategy.get_state_machine().await.current_state();
         if strategy_state != StrategyRunState::Created {
             tracing::warn!("策略状态不是Created, 不设置策略");
             return Ok(());
@@ -165,16 +167,16 @@ impl StrategyEngineContext {
     }
 
     // 开启策略的事件推送
-    pub async fn enable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
-        strategy.enable_strategy_event_push().await;
-        Ok(())
-    }
+    // pub async fn enable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
+    //     let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
+    //     strategy.enable_strategy_event_push().await;
+    //     Ok(())
+    // }
 
-    pub async fn disable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
-        strategy.disable_event_push().await;
-        Ok(())
-    }
+    // pub async fn disable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
+    //     let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
+    //     strategy.disable_event_push().await;
+    //     Ok(())
+    // }
 
 }

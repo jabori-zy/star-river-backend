@@ -170,12 +170,18 @@ impl MarketEngineContext {
 
 
     async fn unsubscribe_kline_stream(&self, params: UnsubscribeKlineStreamParams) -> Result<(), String> {
-        // 创建无限循环，只有当已注册时才退出
-        let exchange_guard = self.exchange_engine.lock().await;
-        if !exchange_guard.is_registered(&params.account_id).await {
+        tracing::debug!("市场数据引擎取消订阅K线流: {:?}", params);
+
+        // 1. 先检查注册状态
+        let exchange_is_registered = {
+            let exchange_engine_guard = self.exchange_engine.lock().await;
+            exchange_engine_guard.is_registered(&params.account_id).await
+        };
+
+        if !exchange_is_registered {
             return Err(format!("交易所 {:?} 未注册", params.exchange));
         }
-
+        
         // 2. 获取上下文（新的锁范围）
         let exchange_engine_context = {
             let exchange_engine_guard = self.exchange_engine.lock().await;

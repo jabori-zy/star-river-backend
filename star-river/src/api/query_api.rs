@@ -8,6 +8,7 @@ use serde::{Serialize, Deserialize};
 use database::query::account_config_query::AccountConfigQuery;
 use types::account::AccountConfig;
 use crate::api::response::ApiResponse;
+use types::strategy::Strategy;
 
 #[derive(Serialize, Deserialize)]
 pub struct GetStrategyListParams {
@@ -19,7 +20,7 @@ pub struct GetStrategyListParams {
 pub struct GetStrategyListResponse {
     pub code: i32,
     pub message: String,
-    pub data: Option<Vec<strategy_config::Model>>,
+    pub data: Option<Vec<Strategy>>,
     pub page_num: Option<u64>,
 }
 
@@ -54,7 +55,7 @@ pub struct GetStrategyByIdParams {
 pub struct GetStrategyByIdResponse {
     pub code: i32,
     pub message: String,
-    pub data: Option<strategy_config::Model>,
+    pub data: Option<Strategy>,
 }
 
 pub async fn get_strategy_by_id(

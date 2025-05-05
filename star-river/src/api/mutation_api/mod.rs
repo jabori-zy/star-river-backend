@@ -5,19 +5,12 @@ use axum::extract::{Json, Query, State};
 
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::entities::strategy_config;
-use types::account::AccountConfig;
 use crate::StarRiver;
 use axum::http::StatusCode;
 use serde::{Serialize, Deserialize};
 use crate::api::response::ApiResponse;
-use database::mutation::account_config_mutation::AccountConfigMutation;
-use types::market::Exchange;
-use std::str::FromStr;
-use types::account::mt5_account::Mt5AccountConfig;
-use event_center::Event;
-use event_center::account_event::AccountEvent;
-use types::account::ExchangeAccountConfig;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
+use types::strategy::Strategy;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateStrategyRequest {
@@ -31,7 +24,7 @@ pub struct CreateStrategyRequest {
 pub async fn create_strategy(
     State(star_river): State<StarRiver>,
     Json(request): Json<CreateStrategyRequest>,
-) -> (StatusCode, Json<ApiResponse<strategy_config::Model>>) {
+) -> (StatusCode, Json<ApiResponse<Strategy>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match StrategyConfigMutation::create_strategy(conn, request.name, request.description, request.status).await {
@@ -76,7 +69,7 @@ pub struct UpdateStrategyRequest {
 pub async fn update_strategy(
     State(star_river): State<StarRiver>,
     Json(request): Json<UpdateStrategyRequest>,
-) -> (StatusCode, Json<ApiResponse<strategy_config::Model>>) {
+) -> (StatusCode, Json<ApiResponse<Strategy>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match StrategyConfigMutation::update_strategy_by_id(

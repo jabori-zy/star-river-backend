@@ -1,4 +1,4 @@
-use crate::strategy_engine::strategy::Strategy;
+use super::LiveStrategyFunction;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
@@ -9,7 +9,9 @@ use event_center::{Event, EventPublisher};
 use crate::strategy_engine::node::NodeTrait;
 use crate::strategy_engine::node::live_data_node::live_data_node_context::{LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
 use types::strategy::TradeMode;
-impl Strategy {
+
+
+impl LiveStrategyFunction {
     pub async fn add_live_data_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,

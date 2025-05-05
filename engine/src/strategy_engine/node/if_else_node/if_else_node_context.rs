@@ -7,7 +7,7 @@ use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
 use super::super::node_context::{BaseNodeContext,NodeContext};
 use super::condition::*;
-use types::strategy::message::{IndicatorMessage, SignalMessage, Signal, NodeMessage};
+use types::strategy::message::{IndicatorMessage, SignalMessage, Signal, NodeMessage, SignalType};
 use super::if_else_node_type::*;
 use types::strategy::TradeMode;
 
@@ -125,7 +125,8 @@ impl IfElseNodeContext {
                 let signal_message = SignalMessage {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
-                    from_node_handle: format!("if_else_node_case_{}_output", case.case_id),
+                    from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
+                    signal_type: SignalType::ConditionMatch,
                     signal: Signal::True,
                     message_timestamp: get_utc8_timestamp()
                 };
@@ -134,8 +135,8 @@ impl IfElseNodeContext {
                 let case_handle = self.get_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
                 tracing::debug!("{}：节点信息: {:?}", self.get_node_id(), signal_message);
                 if case_handle.connect_count > 0 {
-                    tracing::debug!("{}发送信号: {:?}", case_handle.handle_id, signal_message);
-                    if let Err(e) = case_sender.sender.send(NodeMessage::Signal(signal_message.clone())) {
+                    tracing::debug!("{}发送信号: {:?}", case_handle.output_handle_id, signal_message);
+                    if let Err(e) = case_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
                         tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                     }
 
@@ -163,8 +164,9 @@ impl IfElseNodeContext {
             let signal_message = SignalMessage {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
-                from_node_handle: "if_else_node_else_output".to_string(),
-                signal: Signal::False,
+                from_node_handle_id: self.get_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
+                signal: Signal::True,
+                signal_type: SignalType::ConditionMatch,
                 message_timestamp: get_utc8_timestamp()
             };
             
@@ -172,7 +174,7 @@ impl IfElseNodeContext {
             let else_handle = self.get_output_handle().get("if_else_node_else_output").expect("else handle not found");
             if else_handle.connect_count > 0 {
                 // tracing::debug!("条件节点发送信号: {:?}", signal_message);
-                if let Err(e) = else_sender.sender.send(NodeMessage::Signal(signal_message.clone())) {
+                if let Err(e) = else_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
                     tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                 }
             }

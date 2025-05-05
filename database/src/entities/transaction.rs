@@ -4,7 +4,7 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "transaction_detail")]
+#[sea_orm(table_name = "transaction")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -22,6 +22,7 @@ pub struct Model {
     #[sea_orm(column_type = "Double")]
     pub price: f64,
     pub created_time: DateTimeUtc,
+    pub extra_info: Option<Json>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

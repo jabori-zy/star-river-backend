@@ -1,6 +1,6 @@
 use sea_orm::*;
 use crate::entities::{strategy_config, strategy_config::Entity as StrategyConfig};
-
+use types::strategy::Strategy;
 
 pub struct StrategyConfigQuery;
 
@@ -12,7 +12,7 @@ impl StrategyConfigQuery {
         db: &DbConn,
         page: u64,
         strategy_per_page: u64
-    ) -> Result<(Vec<strategy_config::Model>, u64), DbErr> {
+    ) -> Result<(Vec<Strategy>, u64), DbErr> {
         let paginator = StrategyConfig::find()
         // 只查询未删除的策略
         .filter(strategy_config::Column::IsDeleted.eq(false))
@@ -21,23 +21,23 @@ impl StrategyConfigQuery {
         
         let num_pages = paginator.num_pages().await?;
 
-        paginator.fetch_page(page - 1).await.map(|p| (p, num_pages))
+        paginator.fetch_page(page - 1).await.map(|p| (p.into_iter().map(|config| config.into()).collect(), num_pages))
     }
 
     // 获取所有未删除的策略
     pub async fn get_all_strategy(
         db: &DbConn,
-    ) -> Result<Vec<strategy_config::Model>, DbErr> {
+    ) -> Result<Vec<Strategy>, DbErr> {
         let strategies = StrategyConfig::find().filter(strategy_config::Column::IsDeleted.eq(false)).all(db).await?;
-        Ok(strategies)
+        Ok(strategies.into_iter().map(|config| config.into()).collect())
     }
 
     pub async fn get_strategy_by_id(
         db: &DbConn,
         id: i32
-    ) -> Result<Option<strategy_config::Model>, DbErr> {
+    ) -> Result<Option<Strategy>, DbErr> {
         let strategy_config = StrategyConfig::find_by_id(id).one(db).await?;
-        Ok(strategy_config)
+        Ok(strategy_config.map(|config| config.into()))
     }
 }
 

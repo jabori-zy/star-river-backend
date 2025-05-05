@@ -1,6 +1,7 @@
 use sea_orm::*;
 use crate::entities::{strategy_config, strategy_config::Entity as StrategyConfig};
 use chrono::Utc;
+use types::strategy::Strategy;
 
 
 pub struct StrategyConfigMutation;
@@ -12,8 +13,8 @@ impl StrategyConfigMutation {
         strategy_name: String,
         strategy_description: String,
         strategy_status: i32,
-    ) -> Result<strategy_config::Model, DbErr> {
-        strategy_config::ActiveModel {
+    ) -> Result<Strategy, DbErr> {
+        let strategy_config_model = strategy_config::ActiveModel {
             id: NotSet,
             name: Set(strategy_name),
             description: Set(strategy_description),
@@ -24,7 +25,8 @@ impl StrategyConfigMutation {
             ..Default::default()
         }
         .insert(db)
-        .await
+        .await?;
+        Ok(strategy_config_model.into())
     }
 
     pub async fn update_strategy_by_id(
@@ -37,14 +39,14 @@ impl StrategyConfigMutation {
         strategy_config: Option<JsonValue>,
         nodes: Option<JsonValue>,
         edges: Option<JsonValue>,
-    ) -> Result<strategy_config::Model, DbErr> {
+    ) -> Result<Strategy, DbErr> {
         let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
             .map(Into::into)?;
 
-        strategy_config::ActiveModel {
+        let strategy_config_model = strategy_config::ActiveModel {
             id: strategy.id,
             name: Set(strategy_name),
             description: Set(strategy_description),
@@ -57,7 +59,8 @@ impl StrategyConfigMutation {
             ..Default::default()
         }
         .update(db)
-        .await
+        .await?;
+        Ok(strategy_config_model.into())
     }
 
 

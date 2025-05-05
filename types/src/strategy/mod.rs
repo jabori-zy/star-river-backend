@@ -7,8 +7,28 @@ use serde::{Deserialize, Serialize};
 use crate::market::Exchange;
 use std::str::FromStr;
 use strum::{EnumString, Display};
+use chrono::{DateTime, Utc};
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Strategy {
+    pub id: i32,
+    pub name: String,
+    pub description: String,
+    pub status: i32,
+    pub is_deleted: bool,
+    pub trade_mode: TradeMode,
+    pub config: Option<serde_json::Value>,
+    pub nodes: Option<serde_json::Value>,
+    pub edges: Option<serde_json::Value>,
+    pub created_time: DateTime<Utc>,
+    pub updated_time: DateTime<Utc>,
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
+#[serde(rename_all = "lowercase")]
 pub enum TradeMode {
     #[strum(serialize = "backtest")]
     Backtest, // 回测

@@ -62,9 +62,9 @@ impl NodeFunction {
         });
     }
 
-    pub async fn listen_message(state: Arc<RwLock<Box<dyn NodeContext>>>) {
+    pub async fn listen_message(context: Arc<RwLock<Box<dyn NodeContext>>>) {
         let (receivers, cancel_token, node_id) = {
-            let state_guard = state.read().await;
+            let state_guard = context.read().await;
             let receivers = state_guard.get_message_receivers().clone();
             let cancel_token = state_guard.get_cancel_token().clone();
             let node_id = state_guard.get_node_id().to_string();
@@ -82,7 +82,7 @@ impl NodeFunction {
             .collect();
 
         let mut combined_stream = select_all(streams);
-        let state = state.clone();
+        let state = context.clone();
 
         
 

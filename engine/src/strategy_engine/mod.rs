@@ -92,15 +92,17 @@ impl StrategyEngine{
     }
 
     pub async fn enable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.enable_strategy_event_push(strategy_id).await
+        // let mut context = self.context.write().await;
+        // let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        // strategy_context.enable_strategy_event_push(strategy_id).await
+        Ok(())
     }
 
     pub async fn disable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.disable_strategy_event_push(strategy_id).await
+        // let mut context = self.context.write().await;
+        // let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        // strategy_context.disable_strategy_event_push(strategy_id).await
+        Ok(())
     }
     
     

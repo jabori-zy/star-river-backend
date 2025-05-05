@@ -5,7 +5,6 @@ use std::any::Any;
 use std::fmt::Debug;
 use chrono::{DateTime, Utc};
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 // 订单方向
 pub enum PositionSide {
@@ -17,42 +16,21 @@ pub enum PositionSide {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
-pub enum PositionStatus {
+pub enum PositionState {
     #[strum(serialize = "open")]
-    Open,
-    #[strum(serialize = "close")]
-    Close,
+    Open, // 持仓中
+    #[strum(serialize = "closed")]
+    Closed, // 已平仓
+    #[strum(serialize = "partially_closed")]
+    PartiallyClosed, // 部分平仓
+    #[strum(serialize = "forced_closed")]
+    ForcedClosed, // 强制平仓
 }
 
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct GetPositionRequest {
-//     pub strategy_id: i64,
-//     pub node_id: i64,
-//     pub exchange: Exchange,
-//     pub symbol: String,
-//     pub position_id: i64,
-// }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct ExchangePosition {
-//     pub exchange_position_id: i64,
-//     pub symbol: String,
-//     pub position_side: PositionSide,
-//     pub volume: f64,
-//     pub open_price: f64,
-//     pub current_price: f64,
-//     pub tp: f64,
-//     pub sl: f64,
-//     pub unrealized_profit: f64, // 未实现盈亏
-//     pub status: PositionStatus,
-//     pub create_time: i64,
-//     pub update_time: i64,
-// }
-
-pub trait ExchangePosition: Debug + Send + Sync + Any + 'static {
+pub trait OriginalPosition: Debug + Send + Sync + Any + 'static {
     fn as_any(&self) -> &dyn Any;
-    fn clone_box(&self) -> Box<dyn ExchangePosition>;
+    fn clone_box(&self) -> Box<dyn OriginalPosition>;
     fn get_exchange_position_id(&self) -> i64;
     fn get_symbol(&self) -> String;
     fn get_position_side(&self) -> PositionSide;
@@ -61,12 +39,14 @@ pub trait ExchangePosition: Debug + Send + Sync + Any + 'static {
     fn get_tp(&self) -> Option<f64>;
     fn get_sl(&self) -> Option<f64>;
     fn get_exchange(&self) -> Exchange;
+    fn get_unrealized_profit(&self) -> Option<f64>;
+    fn get_extra_info(&self) -> Option<serde_json::Value>;
     fn get_create_time(&self) -> DateTime<Utc>;
     fn get_update_time(&self) -> DateTime<Utc>;
 }
 
 
-impl Clone for Box<dyn ExchangePosition> {
+impl Clone for Box<dyn OriginalPosition> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
@@ -76,7 +56,7 @@ impl Clone for Box<dyn ExchangePosition> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
-    pub position_id: i64,
+    pub position_id: i32,
     pub strategy_id: i64,
     pub node_id: String,
     pub account_id: i32,
@@ -84,14 +64,16 @@ pub struct Position {
     pub exchange_position_id: i64,
     pub symbol: String,
     pub position_side: PositionSide,
+    pub position_state: PositionState, // 持仓状态
     pub quantity: f64,
     pub open_price: f64,
     pub current_price: Option<f64>,
     pub tp: Option<f64>,
     pub sl: Option<f64>,
     pub unrealized_profit: Option<f64>, // 未实现盈亏
-    pub create_time: i64,
-    pub update_time: i64,
+    pub extra_info: Option<serde_json::Value>, // 额外信息
+    pub create_time: DateTime<Utc>,
+    pub update_time: DateTime<Utc>,
 }
 
 

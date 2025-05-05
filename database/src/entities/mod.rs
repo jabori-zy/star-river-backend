@@ -8,4 +8,4 @@ pub mod order;
 pub mod position;
 pub mod strategy_config;
 pub mod strategy_sys_variable;
-pub mod transaction_detail;
+pub mod transaction;

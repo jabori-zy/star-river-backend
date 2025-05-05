@@ -25,12 +25,12 @@ use std::any::Any;
 use async_trait::async_trait;
 use types::order::{OriginalOrder, Order};
 use event_center::command_event::order_engine_command::CreateOrderParams;
-use types::position::{PositionNumberRequest, ExchangePosition, Position};
+use types::position::{PositionNumberRequest, OriginalPosition, Position};
 use super::metatrader5::mt5_types::Mt5CreateOrderParams;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use super::metatrader5::mt5_types::Mt5KlineInterval;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
-use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
+use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
 use types::account::mt5_account::Mt5AccountInfo;
 use rust_embed::Embed;
@@ -863,7 +863,7 @@ impl ExchangeClient for MetaTrader5 {
     }
 
 
-    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn ExchangeTransactionDetail>, String> {
+    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn OriginalTransaction>, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
         // 如果transaction_id不为None，则按照deal_id获取交易明细
@@ -890,24 +890,34 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn ExchangePosition>, String> {
+    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let position_info = mt5_http_client.get_position(&params.position_id).await.expect("获取仓位失败");
+            let position_list = position_info["data"].clone();
+            // 如果仓位列表为空，则说明仓位已平仓
+            if position_list.as_array().expect("转换为array失败").len() == 0 {
+                return Err("仓位已平仓".to_string());
+            }
             let data_processor = self.data_processor.lock().await;
-            let position = data_processor.process_position(position_info).await.expect("处理仓位失败");
+            let position = data_processor.process_position(position_list[0].clone()).await.expect("处理仓位失败");
             Ok(position)
         } else {
             Err("MT5 HTTP客户端未初始化".to_string())
         }
     }
 
-    async fn update_position(&self, position: &Position) -> Result<Position, String> {
+    async fn get_latest_position(&self, position: &Position) -> Result<Position, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let position_info = mt5_http_client.get_position(&position.exchange_position_id).await.expect("更新仓位失败");
+            let original_position_json = mt5_http_client.get_position(&position.exchange_position_id).await.expect("更新仓位失败");
+            let position_list = original_position_json["data"].clone();
+            // 如果仓位列表为空，则说明仓位已平仓
+            if position_list.as_array().expect("转换为array失败").len() == 0 {
+                return Err("仓位已平仓".to_string());
+            }
             let data_processor = self.data_processor.lock().await;
-            let position = data_processor.update_position(position_info, position).await.expect("处理仓位失败");
+            let position = data_processor.process_latest_position(position_list[0].clone(), position).await.expect("处理仓位失败");
             Ok(position)
         } else {
             Err("MT5 HTTP客户端未初始化".to_string())

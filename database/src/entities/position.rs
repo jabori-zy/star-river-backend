@@ -15,14 +15,18 @@ pub struct Model {
     pub exchange: String,
     pub symbol: String,
     pub position_side: String,
+    pub position_state: String,
     #[sea_orm(column_type = "Double")]
     pub quantity: f64,
     #[sea_orm(column_type = "Double")]
     pub open_price: f64,
     #[sea_orm(column_type = "Double", nullable)]
+    pub unrealized_profit: Option<f64>,
+    #[sea_orm(column_type = "Double", nullable)]
     pub sl: Option<f64>,
     #[sea_orm(column_type = "Double", nullable)]
     pub tp: Option<f64>,
+    pub extra_info: Option<Json>,
     pub created_time: DateTimeUtc,
     pub updated_time: DateTimeUtc,
 }

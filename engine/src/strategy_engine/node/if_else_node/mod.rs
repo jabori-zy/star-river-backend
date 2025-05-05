@@ -162,8 +162,8 @@ impl NodeTrait for IfElseNode {
                 let (tx, _) = broadcast::channel::<NodeMessage>(100);
                 let handle = NodeOutputHandle {
                     node_id: node_id.clone(),
-                    handle_id: format!("if_else_node_case_{}_output", case.case_id),
-                    sender: tx,
+                    output_handle_id: format!("if_else_node_case_{}_output", case.case_id),
+                    message_sender: tx,
                     connect_count: 0,
                 };
 
@@ -178,11 +178,11 @@ impl NodeTrait for IfElseNode {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_run_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
 
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_run_state(NodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await?;
 
 
         Ok(())
@@ -193,29 +193,29 @@ impl NodeTrait for IfElseNode {
         let state = self.context.clone();
         tracing::info!("{}: 开始启动", state.read().await.get_node_id());
         // 切换为starting状态
-        self.update_run_state(NodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         // 切换为running状态
-        self.update_run_state(NodeStateTransitionEvent::StartComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::StartComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_run_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
         // 等待所有任务结束
         self.cancel_task().await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_run_state(NodeStateTransitionEvent::StopComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::StopComplete).await?;
         Ok(())
     }
 
-    async fn update_run_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let node_id = self.context.read().await.get_node_id().clone();
         

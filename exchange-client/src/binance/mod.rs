@@ -24,11 +24,11 @@ use crate::binance::market_stream::klines;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use event_center::EventPublisher;
 use types::order::{OriginalOrder, Order};
-use types::position::{ExchangePosition, Position};
+use types::position::{OriginalPosition, Position};
 use event_center::command_event::order_engine_command::CreateOrderParams;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
-use types::transaction_detail::{TransactionDetail, ExchangeTransactionDetail};
+use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
@@ -293,11 +293,11 @@ impl ExchangeClient for BinanceExchange {
         unimplemented!()
     }
 
-    async fn get_position(&self, position_request: GetPositionParam) -> Result<Box<dyn ExchangePosition>, String> {
+    async fn get_position(&self, position_request: GetPositionParam) -> Result<Box<dyn OriginalPosition>, String> {
         unimplemented!()
     }
 
-    async fn update_position(&self, position: &Position) -> Result<Position, String> {
+    async fn get_latest_position(&self, position: &Position) -> Result<Position, String> {
         unimplemented!()
     }
 
@@ -311,7 +311,7 @@ impl ExchangeClient for BinanceExchange {
         Ok(position_number)
     }
     
-    async fn get_transaction_detail(&self, transaction_detail_request: GetTransactionDetailParams) -> Result<Box<dyn ExchangeTransactionDetail>, String> {
+    async fn get_transaction_detail(&self, transaction_detail_request: GetTransactionDetailParams) -> Result<Box<dyn OriginalTransaction>, String> {
         unimplemented!()
     }
 

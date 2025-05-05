@@ -11,9 +11,7 @@ pub enum PositionOperationType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationConfig {
-    #[serde(rename = "selectedAccount")]
-    selected_account: SelectedAccount,
-    symbol: String,
+    
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,22 +22,29 @@ pub struct PositionOperationConfig {
     operation_type: PositionOperationType, // 操作类型
     #[serde(rename = "operationName")]
     operation_name: String, // 操作名称
-    #[serde(rename = "operationConfig")]
-    operation_config: OperationConfig,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionNodeLiveConfig {
-    operations: Vec<PositionOperationConfig>,
+    #[serde(rename = "selectedLiveAccount")]
+    pub selected_live_account: SelectedAccount,
+    pub symbol: String,
+    pub operations: Vec<PositionOperationConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionNodeSimulateConfig {
-    operations: Vec<PositionOperationConfig>,
+    #[serde(rename = "selectedSimulateAccount")]
+    pub selected_simulate_account: SelectedAccount,
+    pub symbol: String,
+    pub operations: Vec<PositionOperationConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionNodeBacktestConfig {
-    operations: Vec<PositionOperationConfig>,
+    #[serde(rename = "selectedAccount")]
+    pub selected_account: SelectedAccount,
+    pub symbol: String,
+    pub operations: Vec<PositionOperationConfig>,
 }

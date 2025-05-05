@@ -1,5 +1,5 @@
 
-use crate::strategy_engine::strategy::Strategy;
+use super::LiveStrategyFunction;
 use crate::strategy_engine::node::NodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
@@ -17,7 +17,7 @@ use crate::strategy_engine::node::position_node::position_node_types::*;
 
 
 
-impl Strategy {
+impl LiveStrategyFunction {
     pub async fn add_position_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
@@ -39,11 +39,13 @@ impl Strategy {
         };
         let backtest_config = match node_data["backtestConfig"].is_null() {
             true => None,
-            false => Some(serde_json::from_value::<PositionNodeBacktestConfig>(node_data["backtestConfig"].clone()).unwrap()),
+            // false => Some(serde_json::from_value::<PositionNodeBacktestConfig>(node_data["backtestConfig"].clone()).unwrap()),
+            false => None
         };
         let simulate_config = match node_data["simulatedConfig"].is_null() {
             true => None,
-            false => Some(serde_json::from_value::<PositionNodeSimulateConfig>(node_data["simulatedConfig"].clone()).unwrap()),
+            // false => Some(serde_json::from_value::<PositionNodeSimulateConfig>(node_data["simulatedConfig"].clone()).unwrap()),
+            false => None
         };
         let mut node = PositionNode::new(
             strategy_id,

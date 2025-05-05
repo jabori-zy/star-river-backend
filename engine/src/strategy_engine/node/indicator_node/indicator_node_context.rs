@@ -158,7 +158,7 @@ impl IndicatorNodeState {
                             // 如果连接数为0，则不发送数据
                             if default_handle_connect_count > 0 {
                                 let default_output_handle = self.base_context.output_handle.get("indicator_node_output").expect("指标节点默认的消息发送器不存在");
-                                match default_output_handle.sender.send(NodeMessage::Indicator(indicator_message.clone())) {
+                                match default_output_handle.message_sender.send(NodeMessage::Indicator(indicator_message.clone())) {
                                     Ok(_) => {
                                     // tracing::info!("节点{}发送指标数据: {:?} 发送成功, 接收者数量 = {}", state_guard.node_id, indicator_message, receiver_count);
                                 }

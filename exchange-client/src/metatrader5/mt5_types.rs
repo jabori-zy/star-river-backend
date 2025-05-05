@@ -11,9 +11,9 @@ use types::order::{OrderType, OrderSide};
 use chrono::{DateTime, Utc};
 use chrono::TimeZone;
 use types::market::KlineInterval;
-use types::position::ExchangePosition;
-use types::transaction_detail::ExchangeTransactionDetail;
-use types::transaction_detail::{TransactionType, TransactionSide};
+use types::position::OriginalPosition;
+use types::transaction::OriginalTransaction;
+use types::transaction::{TransactionType, TransactionSide};
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum Mt5KlineInterval {
@@ -368,11 +368,11 @@ pub struct Mt5Position {
     pub external_id: String,
 }
 
-impl ExchangePosition for Mt5Position {
+impl OriginalPosition for Mt5Position {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn ExchangePosition> {
+    fn clone_box(&self) -> Box<dyn OriginalPosition> {
         Box::new(self.clone())
     }
     fn get_exchange_position_id(&self) -> i64 {
@@ -398,6 +398,20 @@ impl ExchangePosition for Mt5Position {
     }
     fn get_exchange(&self) -> Exchange {
         Exchange::Metatrader5(self.server.clone())
+    }
+    fn get_unrealized_profit(&self) -> Option<f64> {
+        Some(self.profit)
+    }
+
+
+    fn get_extra_info(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "magic": self.magic,
+            "identifier": self.identifier,
+            "reason": self.reason,
+            "comment": self.comment,
+            "external_id": self.external_id,
+        }))
     }
     fn get_create_time(&self) -> DateTime<Utc> {
         Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
@@ -457,11 +471,11 @@ pub struct Mt5Deal {
 }
 
 
-impl ExchangeTransactionDetail for Mt5Deal {
+impl OriginalTransaction for Mt5Deal {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn ExchangeTransactionDetail> {
+    fn clone_box(&self) -> Box<dyn OriginalTransaction> {
         Box::new(self.clone())
     }
     fn get_transaction_id(&self) -> i64 {

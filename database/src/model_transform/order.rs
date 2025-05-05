@@ -6,7 +6,7 @@ use std::str::FromStr;
 impl From<OrderModel> for Order {
     fn from(order: OrderModel) -> Self {
         Order {
-            order_id: order.id as i64,
+            order_id: order.id,
             strategy_id: order.strategy_id,
             node_id: order.node_id,
             exchange_order_id: order.exchange_order_id,

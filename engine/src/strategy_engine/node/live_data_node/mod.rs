@@ -14,9 +14,10 @@ use super::{NodeTrait,NodeType};
 use super::NodeStateTransitionEvent;
 use live_data_node_state_machine::{LiveDataNodeStateMachine, LiveDataNodeStateAction};
 use super::node_context::{NodeContext,BaseNodeContext};
-// 将需要共享的状态提取出来
 use live_data_node_context::{LiveDataNodeContext, LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
 use types::strategy::TradeMode;
+
+
 #[derive(Debug, Clone)]
 pub struct LiveDataNode {
     pub context: Arc<RwLock<Box<dyn NodeContext>>>,
@@ -48,7 +49,8 @@ impl LiveDataNode {
         Self {
             context: Arc::new(RwLock::new(Box::new(LiveDataNodeContext {
                 base_context,
-                is_subscribed: false,
+                stream_is_subscribed: Arc::new(RwLock::new(false)),
+                exchange_is_registered: Arc::new(RwLock::new(false)),
                 request_id: None,
                 live_config,
                 backtest_config,
@@ -82,24 +84,39 @@ impl NodeTrait for LiveDataNode {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_run_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
+
+        // 检查交易所是否注册成功
+        loop {
+            let is_registered = {
+                let state_guard = self.context.read().await;
+                let live_data_context = state_guard.as_any().downcast_ref::<LiveDataNodeContext>().unwrap();
+                let is_registered = live_data_context.exchange_is_registered.read().await.clone();
+                is_registered
+            };
+            if is_registered {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_run_state(NodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn start(&mut self) -> Result<(), String> {
         let context = self.get_context();
         tracing::info!("{}: 开始启动", context.read().await.get_node_id());
-        self.update_run_state(NodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
 
-        // 检查是否应该订阅K线流，判断is_subscribed=true
+        // 检查K线流是否订阅成功，判断is_subscribed=true
         loop {
             let is_subscribed = {
                 let state_guard = context.read().await;  // 使用读锁替代写锁
                 if let Some(live_data_context) = state_guard.as_any().downcast_ref::<LiveDataNodeContext>() {
-                    live_data_context.is_subscribed
+                    let is_subscribed = live_data_context.stream_is_subscribed.read().await.clone();
+                    is_subscribed
                 } else {
                     false
                 }
@@ -111,14 +128,14 @@ impl NodeTrait for LiveDataNode {
             
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
-        self.update_run_state(NodeStateTransitionEvent::StartComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::StartComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         let state = self.get_context();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_run_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
 
 
         // 检查是否应该订阅K线流，判断is_subscribed=false
@@ -126,7 +143,8 @@ impl NodeTrait for LiveDataNode {
             let is_subscribed = {
                 let state_guard = state.read().await;  // 使用读锁替代写锁
                 if let Some(live_data_context) = state_guard.as_any().downcast_ref::<LiveDataNodeContext>() {
-                    live_data_context.is_subscribed
+                    let is_subscribed = live_data_context.stream_is_subscribed.read().await.clone();
+                    is_subscribed
                 } else {
                     false
                 }
@@ -139,20 +157,20 @@ impl NodeTrait for LiveDataNode {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
-        self.update_run_state(NodeStateTransitionEvent::StopComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::StopComplete).await?;
         self.cancel_task().await.unwrap();
         Ok(())
     }
 
-    async fn update_run_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let node_id = self.context.read().await.get_node_id().clone();
         
         // 获取状态管理器并执行转换
-        let (transition_result, run_state_manager) = {
-            let mut run_state_manager = self.context.read().await.get_state_machine().clone_box();  // 使用读锁获取当前状态
-            let transition_result = run_state_manager.transition(event)?;
-            (transition_result, run_state_manager)
+        let (transition_result, state_machine) = {
+            let mut state_machine = self.context.read().await.get_state_machine().clone_box();  // 使用读锁获取当前状态
+            let transition_result = state_machine.transition(event)?;
+            (transition_result, state_machine)
         };
 
         tracing::debug!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
@@ -228,7 +246,7 @@ impl NodeTrait for LiveDataNode {
             }
             // 动作执行完毕后更新节点最新的状态
             {
-                self.context.write().await.set_state_machine(run_state_manager.clone_box());
+                self.context.write().await.set_state_machine(state_machine.clone_box());
             }
         }
         Ok(())

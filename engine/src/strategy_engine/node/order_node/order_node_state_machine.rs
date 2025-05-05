@@ -8,7 +8,7 @@ use std::any::Any;
 pub enum OrderNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
     ListenAndHandleMessage,         // 处理消息
-    RegisterHeartbeatTask,          // 注册心跳任务
+    RegisterTask,          // 注册任务
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
@@ -84,7 +84,7 @@ impl NodeStateMachine for OrderNodeStateMachine {
                         Box::new(OrderNodeStateAction::LogTransition), 
                         Box::new(OrderNodeStateAction::ListenAndHandleExternalEvents), 
                         Box::new(OrderNodeStateAction::ListenAndHandleMessage),
-                        Box::new(OrderNodeStateAction::RegisterHeartbeatTask)],
+                        Box::new(OrderNodeStateAction::RegisterTask)],
                 }))
             }
             // 初始化完成，进入Ready状态

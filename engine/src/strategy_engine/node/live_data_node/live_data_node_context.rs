@@ -21,6 +21,9 @@ use types::strategy::SelectedAccount;
 use serde::{Serialize, Deserialize};
 use std::str::FromStr;
 use types::strategy::TradeMode;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveDataNodeLiveConfig {
@@ -67,7 +70,8 @@ pub struct LiveDataNodeBacktestConfig {
 #[derive(Debug, Clone)]
 pub struct LiveDataNodeContext {
     pub base_context: BaseNodeContext,
-    pub is_subscribed: bool,
+    pub stream_is_subscribed: Arc<RwLock<bool>>,
+    pub exchange_is_registered: Arc<RwLock<bool>>,
     pub request_id: Option<Uuid>,
     pub live_config: Option<LiveDataNodeLiveConfig>,
     pub backtest_config: Option<LiveDataNodeBacktestConfig>,
@@ -169,17 +173,17 @@ impl LiveDataNodeContext {
                 let message = NodeMessage::KlineSeries(kline_series_message);
                 // tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
                 // 获取handle的连接数
-                let default_handle_connect_count = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在").sender.receiver_count();
+                let default_handle_connect_count = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在").message_sender.receiver_count();
                 // 如果连接数为0，则不发送数据
                 if default_handle_connect_count > 0 {
                     let default_node_sender = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在");
                     // tracing::info!("{}: 发送数据: {:?}", state_guard.node_id, message);
-                    match default_node_sender.sender.send(message.clone()) {
+                    match default_node_sender.message_sender.send(message.clone()) {
                         Ok(_) => (),
                         Err(e) => tracing::error!(
                             node_id = %self.base_context.node_id,
                             error = ?e,
-                            receiver_count = default_node_sender.sender.receiver_count(),
+                            receiver_count = default_node_sender.message_sender.receiver_count(),
                                 "数据源节点发送数据失败"
                             ),
                         }
@@ -221,6 +225,8 @@ impl LiveDataNodeContext {
                 if request_id == register_exchange_success_response.response_id {
                     tracing::info!("{}: 交易所注册成功: {:?}", self.base_context.node_id, register_exchange_success_response);
                     self.request_id = None;
+                    // 接收到交易所注册成功的消息，修改订阅状态为true
+                    *self.exchange_is_registered.write().await = true;
                 }
             }
             ResponseEvent::MarketEngine(MarketEngineResponse::SubscribeKlineStreamSuccess(subscribe_kline_stream_success_response)) => {
@@ -228,8 +234,9 @@ impl LiveDataNodeContext {
                 if request_id == subscribe_kline_stream_success_response.response_id {
                     tracing::info!("{}: K线流订阅成功: {:?}, 开始推送数据", self.base_context.node_id, subscribe_kline_stream_success_response);
                     self.request_id = None;
-                    // 修改订阅状态为true
-                    self.is_subscribed = true;
+                    // 接收到stream订阅成功的消息，修改订阅状态为true
+                    *self.stream_is_subscribed.write().await = true;
+                    
                     tracing::warn!("{}: 订阅状态修改为true", self.base_context.node_id);
                 }
             }
@@ -238,7 +245,7 @@ impl LiveDataNodeContext {
                     tracing::info!("{}: K线流取消订阅成功: {:?}, 停止推送数据", self.base_context.node_id, unsubscribe_kline_stream_success_response);
                     self.request_id = None;
                     // 修改订阅状态为false
-                    self.is_subscribed = false;
+                    *self.stream_is_subscribed.write().await = false;
                 }
             }   
             _ => {}
@@ -365,6 +372,7 @@ impl LiveDataNodeContext {
         self.request_id = Some(request_id);
 
         let command_event = CommandEvent::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(params));
+        tracing::debug!("{}取消订阅k线流: {:?}", self.base_context.node_name, command_event);
         if let Err(_) = self.base_context.event_publisher.publish(command_event.into()) {
             tracing::error!(
                 node_id = %self.base_context.node_id,

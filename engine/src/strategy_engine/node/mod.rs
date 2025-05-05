@@ -66,7 +66,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
     async fn get_state_machine(&self) -> Box<dyn NodeStateMachine> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_state_machine().clone_box()
+        context_guard.get_state_machine()
     }
 
     async fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
@@ -126,8 +126,8 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
     async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
-            handle_id: handle_id.clone(),
-            sender: sender,
+            output_handle_id: handle_id.clone(),
+            message_sender: sender,
             connect_count: 0,
         };
 
@@ -176,8 +176,8 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
     }
     // 监听节点传递过来的message
     async fn listen_message(&self) -> Result<(), String> {
-        let state = self.get_context();
-        NodeFunction::listen_message(state).await;
+        let context = self.get_context();
+        NodeFunction::listen_message(context).await;
         Ok(())
     }
     // 取消所有异步任务
@@ -186,8 +186,9 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
         NodeFunction::cancel_task(state).await;
         Ok(())
     }
+
     // 更新节点状态
-    async fn update_run_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String>;
+    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String>;
 }
 
 impl Clone for Box<dyn NodeTrait> {

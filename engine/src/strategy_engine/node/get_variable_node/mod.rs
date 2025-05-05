@@ -90,42 +90,42 @@ impl NodeTrait for GetVariableNode {
         tracing::info!("================={}====================", self.get_node_name().await);
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
-        self.update_run_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_run_state(NodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn start(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始启动", self.get_node_id().await);
-        self.update_run_state(NodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为running状态
-        self.update_run_state(NodeStateTransitionEvent::StartComplete).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::StartComplete).await.unwrap();
         Ok(())
         
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_run_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
 
         // 等待所有任务结束
         self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_run_state(NodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(NodeStateTransitionEvent::StopComplete).await.unwrap();
         Ok(())
     }
 
-    async fn update_run_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
         let node_id = self.get_node_id().await;
 
         // 获取状态管理器并执行转换

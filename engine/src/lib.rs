@@ -2,11 +2,9 @@ pub mod engine_manager; // 引擎管理器
 pub mod market_engine; // 市场引擎
 pub mod exchange_engine; // 交易所引擎
 pub mod indicator_engine; // 指标引擎
-pub mod order_engine; // 订单引擎
+
 pub mod strategy_engine; // 策略引擎
 pub mod cache_engine; // 缓存引擎
-pub mod position_engine; // 持仓引擎
-pub mod transaction_engine; // 交易明细引擎
 pub mod account_engine; // 账户引擎
 
 
@@ -35,16 +33,10 @@ pub enum EngineName {
     MarketEngine, // 市场引擎
     #[strum(serialize="indicator-engine")]
     IndicatorEngine, // 指标引擎
-    #[strum(serialize="order-engine")]
-    OrderEngine, // 订单引擎
     #[strum(serialize="strategy-engine")]
     StrategyEngine, // 策略引擎
     #[strum(serialize="cache-engine")]
     CacheEngine, // 缓存引擎
-    #[strum(serialize="position-engine")]
-    PositionEngine, // 持仓引擎
-    #[strum(serialize="transaction-engine")]
-    TransactionEngine, // 交易明细引擎
     #[strum(serialize="account-engine")]
     AccountEngine, // 账户引擎
 

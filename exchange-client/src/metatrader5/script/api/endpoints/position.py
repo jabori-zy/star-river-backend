@@ -52,7 +52,7 @@ def create_router(terminal: Mt5Terminal):
     async def get_position(position_id: int = Query(..., description="持仓ID")):
         """获取特定持仓"""
         
-        position = await terminal.position.get_position(position_id)
+        position = await terminal.position.get_position_by_id(position_id)
         if position[0]:
             return standardize_response(
                 success=True,

@@ -60,17 +60,21 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
     fn get_run_state(&self) -> NodeRunState {
         self.get_base_context().state_machine.current_state()
     }
+
+    // fn get_default_output_handle(&self) -> &NodeOutputHandle;
+
     fn get_output_handle(&self) -> &HashMap<String, NodeOutputHandle> {
         &self.get_base_context().output_handle
     }
+
     fn get_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
     fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
-        self.get_base_context().output_handle.values().map(|handle| handle.sender.clone()).collect()
+        self.get_base_context().output_handle.values().map(|handle| handle.message_sender.clone()).collect()
     }
     fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
-        self.get_base_context().output_handle.get(&handle_id).unwrap().sender.clone()
+        self.get_base_context().output_handle.get(&handle_id).unwrap().message_sender.clone()
     }
     fn get_message_receivers(&self) -> &Vec<NodeMessageReceiver> {
         &self.get_base_context().message_receivers

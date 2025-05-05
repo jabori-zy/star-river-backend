@@ -1,4 +1,4 @@
-use crate::strategy_engine::strategy::Strategy;
+use super::LiveStrategyFunction;
 use crate::strategy_engine::node::NodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
@@ -13,7 +13,7 @@ use crate::strategy_engine::node::indicator_node::indicator_node_type::{Indicato
 
 
 
-impl Strategy {
+impl LiveStrategyFunction {
     pub async fn add_indicator_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,

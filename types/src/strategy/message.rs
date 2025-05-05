@@ -4,6 +4,8 @@ use crate::indicator::{Indicators, IndicatorData};
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
 use strum::Display;
+use crate::order::Order;
+use crate::position::Position;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "message_type")]
@@ -17,6 +19,12 @@ pub enum NodeMessage {
     #[strum(serialize = "signal")]
     #[serde(rename = "signal")]
     Signal(SignalMessage),
+    #[strum(serialize = "order")]
+    #[serde(rename = "order")]
+    Order(OrderMessage),
+    #[strum(serialize = "position")]
+    #[serde(rename = "position")]
+    Position(PositionMessage),
 }
 
 impl NodeMessage {
@@ -80,12 +88,50 @@ pub enum Signal {
     False,
 }
 
+
+// 信号类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum SignalType {
+    ConditionMatch,// 条件匹配
+    OrderFilled, // 订单成交
+
+}
+
+
 // 信号消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignalMessage {
     pub from_node_id: String,
     pub from_node_name: String,
-    pub from_node_handle: String,
+    pub from_node_handle_id: String,
     pub signal: Signal,
+    pub signal_type: SignalType,
     pub message_timestamp: i64,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "message_type")]
+pub enum OrderMessage {
+    #[strum(serialize = "order-created")]
+    #[serde(rename = "order-created")]
+    OrderCreated(Order),
+    #[strum(serialize = "order-updated")]
+    #[serde(rename = "order-updated")]
+    OrderUpdated(Order),
+    #[strum(serialize = "order-canceled")]
+    #[serde(rename = "order-canceled")]
+    OrderCanceled(Order),
+    #[strum(serialize = "order-filled")]
+    #[serde(rename = "order-filled")]
+    OrderFilled(Order),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "message_type")]
+pub enum PositionMessage {
+    #[strum(serialize = "position-updated")]
+    #[serde(rename = "position-updated")]
+    PositionUpdated(Position),
 }
