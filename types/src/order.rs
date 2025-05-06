@@ -49,7 +49,7 @@ pub enum OrderStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
     pub order_id: i32, // 订单ID
-    pub strategy_id: i64, // 策略ID
+    pub strategy_id: i32, // 策略ID
     pub node_id: String, // 节点ID
     pub exchange_order_id: i64, // 交易所订单ID
     pub account_id: i32, // 账户ID

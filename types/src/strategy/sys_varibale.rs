@@ -1,12 +1,15 @@
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-#[derive(Debug, Clone, Serialize, Deserialize)]
+use strum::{Display, EnumString};
 
+#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString)]
 pub enum SysVariable {
     #[serde(rename = "position_number")]
+    #[strum(serialize = "position_number")]
     PositionNumber, //持仓数量
     #[serde(rename = "filled_order_number")]
+    #[strum(serialize = "filled_order_number")]
     FilledOrderNumber, // 已成交订单数量
 }
 

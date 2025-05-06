@@ -10,6 +10,7 @@ use super::condition::*;
 use types::strategy::message::{IndicatorMessage, SignalMessage, Signal, NodeMessage, SignalType};
 use super::if_else_node_type::*;
 use types::strategy::TradeMode;
+use types::strategy::message::VariableMessage;
 
 
 
@@ -20,7 +21,7 @@ pub struct IfElseNodeContext {
     pub current_batch_id: Option<String>,
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
-    pub received_value: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
+    pub received_message: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
     // pub cases: Vec<Case>,
     pub live_config: Option<IfElseNodeLiveConfig>,
     pub backtest_config: Option<IfElseNodeBacktestConfig>,
@@ -61,32 +62,67 @@ impl NodeContext for IfElseNodeContext {
     }
 
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
-        match message {
-            NodeMessage::Indicator(indicator_message) => {
-                self.handle_indicator_message(indicator_message).await;
-            }
-            _ => {}
-        }
+        // tracing::debug!("{}: 收到消息: {:?}", self.get_node_name(), message);
+        self.update_received_message(message);
         Ok(())
     }
 }
 
 impl IfElseNodeContext {
 
-    // 处理指标消息
-    async fn handle_indicator_message(&mut self, indicator_message: IndicatorMessage) {
-        // tracing::debug!("{}: 收到指标消息: {:?}", self.base_context.node_id, indicator_message);
-        let from_node_id = indicator_message.from_node_id.clone();
-
-        // 接收到信息之后，更新值的槽位
-        // 更新接收值
-        let received_value = self.received_value.get_mut(&from_node_id).unwrap();
-        *received_value = Some(NodeMessage::Indicator(indicator_message));
-
-        // 更新接收标记
-        let received_flag = self.received_flag.get_mut(&from_node_id).unwrap();
-        *received_flag = true;
+    fn update_received_message(&mut self, received_message: NodeMessage) {
+        let from_node_id = match &received_message {
+            NodeMessage::Indicator(indicator_message) => {
+                indicator_message.from_node_id.clone()
+            }
+            NodeMessage::Variable(variable_message) => {
+                variable_message.from_node_id.clone()
+            }
+            _ => {
+                return;
+            }
+        };
+        self.received_message.entry(from_node_id.clone())
+        .and_modify(|e| *e = Some(received_message.clone()))
+        .or_insert(Some(received_message));
+        
+        self.update_received_flag(from_node_id, true);
     }
+
+    fn update_received_flag(&mut self, from_node_id: String, flag: bool) {
+        self.received_flag.entry(from_node_id.clone())
+        .and_modify(|e| *e = flag)
+        .or_insert(flag);
+    }
+
+    // 处理指标消息
+    // async fn handle_indicator_message(&mut self, indicator_message: IndicatorMessage) {
+    //     // tracing::debug!("{}: 收到指标消息: {:?}", self.base_context.node_id, indicator_message);
+    //     let from_node_id = indicator_message.from_node_id.clone();
+
+    //     // 接收到信息之后，更新值的槽位
+    //     // 更新接收值
+    //     let received_message = self.received_message.get_mut(&from_node_id).unwrap();
+    //     *received_message = Some(NodeMessage::Indicator(indicator_message));
+
+    //     // 更新接收标记
+    //     let received_flag = self.received_flag.get_mut(&from_node_id).unwrap();
+    //     *received_flag = true;
+    // }
+
+    // // 处理变量消息
+    // async fn handle_variable_message(&mut self, variable_message: VariableMessage) {
+    //     // tracing::debug!("{}: 收到变量消息: {:?}", self.base_context.node_id, variable_message);
+    //     let from_node_id = variable_message.from_node_id.clone();
+
+    //     // 更新接收值
+    //     let received_message = self.received_message.get_mut(&from_node_id).unwrap();
+    //     *received_message = Some(NodeMessage::Variable(variable_message));
+
+    //     // 更新接收标记
+    //     let received_flag = self.received_flag.get_mut(&from_node_id).unwrap();
+    //     *received_flag = true;
+    // }
 
     // 初始化接收标记
     pub async fn init_received_flag(&mut self) {
@@ -98,7 +134,7 @@ impl IfElseNodeContext {
 
     pub async fn init_received_value(&mut self) {
         for from_node_id in self.get_from_node_id().clone() {
-            self.received_value.insert(from_node_id.clone(), None);
+            self.received_message.insert(from_node_id.clone(), None);
         }
     }
 
@@ -109,30 +145,29 @@ impl IfElseNodeContext {
         // 在锁外执行评估
         let mut case_matched = false; // 是否匹配到case
         // 根据交易模式获取case
-        let cases = match self.base_context.trade_mode {
-            TradeMode::Live => self.live_config.as_ref().unwrap().cases.clone(),
-            TradeMode::Backtest => self.backtest_config.as_ref().unwrap().cases.clone(),
-            TradeMode::Simulated => self.simulate_config.as_ref().unwrap().cases.clone(),
-        };
+        let cases = self.live_config.as_ref().unwrap().cases.clone();
+
         
         // 遍历case
         for case in cases {
             let case_result = self.evaluate_case(case.clone()).await;
+
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
             if case_result {
-                let case_sender = self.get_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
+                let case_sender = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
+                tracing::debug!("{}: 信号发送者: {:?}", self.get_node_name(), case_sender);
                 // 节点信息
                 let signal_message = SignalMessage {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
                     signal_type: SignalType::ConditionMatch,
-                    signal: Signal::True,
                     message_timestamp: get_utc8_timestamp()
                 };
+                tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_message);
 
                 // 获取case的handle
-                let case_handle = self.get_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
+                let case_handle = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
                 tracing::debug!("{}：节点信息: {:?}", self.get_node_id(), signal_message);
                 if case_handle.connect_count > 0 {
                     tracing::debug!("{}发送信号: {:?}", case_handle.output_handle_id, signal_message);
@@ -160,20 +195,19 @@ impl IfElseNodeContext {
 
         // 只有当所有case都为false时才执行else
         if !case_matched {
-            let else_sender = self.get_output_handle().get("if_else_node_else_output").unwrap();
+            let else_sender = self.get_all_output_handle().get("if_else_node_else_output").unwrap();
             let signal_message = SignalMessage {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
-                from_node_handle_id: self.get_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
-                signal: Signal::True,
+                from_node_handle_id: self.get_all_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
                 signal_type: SignalType::ConditionMatch,
                 message_timestamp: get_utc8_timestamp()
             };
             
 
-            let else_handle = self.get_output_handle().get("if_else_node_else_output").expect("else handle not found");
+            let else_handle = self.get_all_output_handle().get("if_else_node_else_output").expect("else handle not found");
             if else_handle.connect_count > 0 {
-                // tracing::debug!("条件节点发送信号: {:?}", signal_message);
+                tracing::debug!("条件节点发送信号: {:?}", signal_message);
                 if let Err(e) = else_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
                     tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                 }
@@ -206,24 +240,31 @@ impl IfElseNodeContext {
         }
     }
 
+    // 获取变量值
     fn get_variable_value(
         node_id: &str, 
         variable_name: &str, 
         received_value: &HashMap<String, Option<NodeMessage>>
     ) -> Option<f64> {
-        received_value
-            .get(node_id)?
-            .as_ref()?
-            .as_indicator()?
-            .indicator_data
-            .get_latest_indicator_value()
-            .get(variable_name)
-            .map(|v| v.value)
+        let message = received_value.get(node_id)?.as_ref()?;
+        
+        match message {
+            NodeMessage::Indicator(indicator_message) => {
+                indicator_message.indicator_data
+                .get_latest_indicator_value()
+                .get(variable_name)
+                .map(|v| v.value)
+            }
+            NodeMessage::Variable(variable_message) => {
+                Some(variable_message.variable_value)
+            }
+            _ => None
+        }
     }
 
     // 评估and条件组
     async fn evaluate_and_conditions(&self, conditions: Vec<Condition>) -> bool{
-        let received_value = &self.received_value;
+        let received_value = &self.received_message;
         
         for condition in conditions {
             // 获取左值
@@ -271,7 +312,7 @@ impl IfElseNodeContext {
     }
 
     async fn evaluate_or_conditions(&self, conditions: Vec<Condition>) -> bool {
-        let received_value = &self.received_value;
+        let received_value = &self.received_message;
         
         if conditions.is_empty() {
             return false;

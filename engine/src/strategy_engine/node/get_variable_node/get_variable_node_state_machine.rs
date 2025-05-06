@@ -9,8 +9,8 @@ use std::any::Any;
 // 状态转换后需要执行的动作
 #[derive(Debug, Clone)]
 pub enum GetVariableNodeStateAction {
-    ListenAndHandleExternalEvents,   // 处理外部事件
     ListenAndHandleMessage,         // 处理消息
+    RegisterTask,                   // 注册任务
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
@@ -84,8 +84,7 @@ impl NodeStateMachine for GetVariableNodeStateMachine {
                 Ok(Box::new(GetVariableNodeStateChangeActions {
                     new_state: NodeRunState::Initializing,
                     actions: vec![
-                        Box::new(GetVariableNodeStateAction::LogTransition), 
-                        Box::new(GetVariableNodeStateAction::ListenAndHandleExternalEvents), 
+                        Box::new(GetVariableNodeStateAction::LogTransition),  
                         Box::new(GetVariableNodeStateAction::ListenAndHandleMessage)],
                 }))
             }
@@ -104,7 +103,9 @@ impl NodeStateMachine for GetVariableNodeStateMachine {
                 self.current_state = NodeRunState::Starting;
                 Ok(Box::new(GetVariableNodeStateChangeActions {
                     new_state: NodeRunState::Starting,
-                    actions: vec![Box::new(GetVariableNodeStateAction::LogTransition)],
+                    actions: vec![Box::new(GetVariableNodeStateAction::LogTransition),
+                        Box::new(GetVariableNodeStateAction::RegisterTask),
+                    ],
                 }))
             }
             // 启动完成，进入Running状态

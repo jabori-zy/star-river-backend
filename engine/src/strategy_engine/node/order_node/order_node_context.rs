@@ -95,7 +95,7 @@ impl OrderNodeContext {
         // 入库
         let transaction = TransactionMutation::insert_transaction(
             &self.database,
-            order.strategy_id,
+            order.strategy_id.clone() as i64,
             order.node_id,
             transaction_detail,
         ).await.unwrap();
@@ -227,12 +227,12 @@ impl OrderNodeContext {
         
                 };
                 let original_order = exchange.create_order(create_order_params.clone()).await.unwrap();
-                if let Ok(order) = OrderMutation::insert_order(&self.database, self.get_strategy_id().clone(), self.get_node_id().clone(), self.live_config.as_ref().unwrap().selected_live_account.account_id, original_order.clone()).await {
+                if let Ok(order) = OrderMutation::insert_order(&self.database, self.get_strategy_id().clone() as i64, self.get_node_id().clone(), self.live_config.as_ref().unwrap().selected_live_account.account_id, original_order.clone()).await {
                     tracing::info!("订单入库成功: {:?}", order);
                     // 如果订单状态为已成交，则通知持仓引擎，订单已成交
                     if original_order.get_order_status() == OrderStatus::Filled {
                         // 发送订单已成交信号
-                        let output_handle = self.get_output_handle().get("order_node_output").unwrap();
+                        let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
                         let order_message = OrderMessage::OrderFilled(order.clone());
                         // 发送消息
                         output_handle.send(NodeMessage::Order(order_message.clone())).unwrap();
@@ -257,7 +257,7 @@ impl OrderNodeContext {
     }
 
     async fn send_test_signal(&mut self) {
-        let output_handle = self.get_output_handle().get("order_node_output").unwrap();
+        let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
         let order_message = OrderMessage::OrderFilled(Order {
             order_id: 1,
             strategy_id: self.get_strategy_id().clone(),
@@ -396,14 +396,12 @@ impl NodeContext for OrderNodeContext {
             NodeMessage::Signal(signal_message) => {
                 tracing::debug!("{}: 收到信号: {:?}", self.get_node_name(), signal_message);
 
-                match signal_message.signal {
+                match signal_message.signal_type {
                     // 如果信号为True，则执行下单
-                    Signal::True => {
+                    SignalType::ConditionMatch => {
                         // self.create_order().await;
-                        if signal_message.signal_type == SignalType::ConditionMatch {
-                            self.create_order2().await;
-                            // self.send_test_signal().await;
-                        }
+                        self.create_order2().await;
+                        // self.send_test_signal().await;
                     }
                     _ => {}
                 }

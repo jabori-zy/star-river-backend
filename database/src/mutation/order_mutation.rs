@@ -63,7 +63,7 @@ impl OrderMutation {
             id: order.id,
             exchange_order_id: Set(latest_order.exchange_order_id),
             node_id: Set(latest_order.node_id),
-            strategy_id: Set(latest_order.strategy_id),
+            strategy_id: Set(latest_order.strategy_id as i64),
             exchange: Set(latest_order.exchange.to_string()),
             symbol: Set(latest_order.symbol),
             order_side: Set(latest_order.order_side.to_string()),

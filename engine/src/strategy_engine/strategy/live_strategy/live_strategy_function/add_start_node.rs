@@ -12,7 +12,7 @@ impl LiveStrategyFunction {
     pub async fn add_start_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
-        strategy_id: i64,
+        strategy_id: i32,
         node_id: String, 
         node_name: String,
         trade_mode: TradeMode,

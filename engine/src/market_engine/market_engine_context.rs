@@ -94,7 +94,7 @@ impl EngineContext for MarketEngineContext {
 
 impl MarketEngineContext {
 
-    fn add_cache_key(&self, strategy_id: i64, exchange: Exchange, symbol: String, interval: KlineInterval) {
+    fn add_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval) {
         // 调用缓存器的订阅事件
         let cache_key = KlineCacheKey {
             exchange: exchange,

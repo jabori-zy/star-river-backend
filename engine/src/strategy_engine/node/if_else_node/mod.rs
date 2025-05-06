@@ -34,7 +34,7 @@ pub struct IfElseNode {
 impl IfElseNode {
 
     pub fn new(
-        strategy_id: i64,
+        strategy_id: i32,
         node_id: String, 
         node_name: String,
         trade_mode: TradeMode,
@@ -59,7 +59,7 @@ impl IfElseNode {
                 current_batch_id: None,
                 is_processing: false,
                 received_flag: HashMap::new(),
-                received_value: HashMap::new(),
+                received_message: HashMap::new(),
                 live_config,
                 backtest_config,
                 simulate_config,
@@ -88,6 +88,7 @@ impl IfElseNode {
                     }
                     _ = async {
                         // 检查状态并获取需要的数据
+                        // 是否可以评估条件？
                         let should_evaluate = {
                             // 如果所有节点都已接收数据，则返回true
                             let mut context_guard = context.write().await;
@@ -113,7 +114,7 @@ impl IfElseNode {
                         }
 
                         // 添加短暂延迟避免过度循环
-                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                     } => {}
                 }
             }
@@ -167,7 +168,7 @@ impl NodeTrait for IfElseNode {
                     connect_count: 0,
                 };
 
-                if_else_node_context.get_output_handle_mut().insert(format!("if_else_node_case_{}_output", case.case_id), handle);
+                if_else_node_context.get_all_output_handle_mut().insert(format!("if_else_node_case_{}_output", case.case_id), handle);
             }
         }
         tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, DefaultOutputHandleId::IfElseNodeElseOutput.to_string());

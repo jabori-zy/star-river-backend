@@ -69,10 +69,10 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_state_machine()
     }
 
-    async fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
+    async fn get_all_output_handles(&self) -> Vec<NodeOutputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_all_message_senders().clone()
+        context_guard.get_all_output_handle().values().cloned().collect()
     }
 
     async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
@@ -80,7 +80,8 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
         let context_guard = context.read().await;
         context_guard.get_message_sender(handle_id).clone()
     }
-    // 获取节点输出句柄
+
+    // 获取节点消息接收器
     async fn get_message_receivers(&self) -> Vec<NodeMessageReceiver> {
         let context = self.get_context();
         let context_guard = context.read().await;
@@ -95,13 +96,18 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
 
 
 
-    // 设置节点的默认出口
+    // 设置节点的出口
     async fn set_output_handle(&mut self) {
-        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
-        let node_id = self.get_node_id().await;
+        tracing::debug!("{}: 设置节点默认出口", self.get_node_name().await);
+        let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<NodeMessage>(100);
 
         let node_type = self.get_node_type().await;
+
+        if node_type == NodeType::GetVariableNode {
+            tracing::debug!("{}: 变量节点没有默认出口", node_name);
+            return;
+        }
 
         let default_output_handle_id = match node_type {
             NodeType::StartNode => DefaultOutputHandleId::StartNodeOutput,
@@ -109,12 +115,12 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
             NodeType::IndicatorNode => DefaultOutputHandleId::IndicatorNodeOutput,
             NodeType::IfElseNode => DefaultOutputHandleId::IfElseNodeElseOutput,
             NodeType::OrderNode => DefaultOutputHandleId::OrderNodeOutput,
-            NodeType::PositionNode => DefaultOutputHandleId::PositionNodeOutput,
-            NodeType::GetVariableNode => DefaultOutputHandleId::GetVariableNodeOutput,
+            NodeType::PositionNode => DefaultOutputHandleId::PositionNodeUpdateOutput,
+            _ => return,
         };
 
         self.add_output_handle(default_output_handle_id.to_string(), tx).await;
-        tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, default_output_handle_id.to_string());
+        tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
     }
 
     async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {
@@ -133,13 +139,13 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
 
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_output_handle_mut().insert(handle_id, node_output_handle);
+        context_guard.get_all_output_handle_mut().insert(handle_id, node_output_handle);
     }
     // 增加handle的连接计数
     async fn add_output_handle_connect_count(&mut self, handle_id: String) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_output_handle_mut().get_mut(&handle_id).unwrap().connect_count += 1;
+        context_guard.get_all_output_handle_mut().get_mut(&handle_id).unwrap().connect_count += 1;
     }
     // 添加from_node_id
     async fn add_from_node_id(&mut self, from_node_id: String) {

@@ -25,6 +25,9 @@ pub enum NodeMessage {
     #[strum(serialize = "position")]
     #[serde(rename = "position")]
     Position(PositionMessage),
+    #[strum(serialize = "variable")]
+    #[serde(rename = "variable")]
+    Variable(VariableMessage),
 }
 
 impl NodeMessage {
@@ -35,8 +38,15 @@ impl NodeMessage {
             None
         }
     }
-}
 
+    pub fn as_variable(&self) -> Option<&VariableMessage> {
+        if let NodeMessage::Variable(msg) = self {
+            Some(msg)
+        } else {
+            None
+        }
+    }
+}
 
 
 // k线系列消息
@@ -104,7 +114,6 @@ pub struct SignalMessage {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub signal: Signal,
     pub signal_type: SignalType,
     pub message_timestamp: i64,
 }
@@ -134,4 +143,18 @@ pub enum PositionMessage {
     #[strum(serialize = "position-updated")]
     #[serde(rename = "position-updated")]
     PositionUpdated(Position),
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "message_type")]
+pub struct VariableMessage {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub from_node_handle_id: String,
+    pub variable: String,
+    pub variable_value: f64,
+    pub message_timestamp: i64,
+
+    
 }

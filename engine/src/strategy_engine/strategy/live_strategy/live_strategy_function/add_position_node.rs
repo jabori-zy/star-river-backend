@@ -48,7 +48,7 @@ impl LiveStrategyFunction {
             false => None
         };
         let mut node = PositionNode::new(
-            strategy_id,
+            strategy_id as i32,
             node_id.clone(),
             node_name,
             trade_mode,

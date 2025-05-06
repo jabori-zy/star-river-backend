@@ -63,7 +63,7 @@ impl LiveStrategyFunction {
                 Self::add_start_node(
                     graph, 
                     node_indices,
-                    strategy_id,
+                    strategy_id as i32,
                     node_id.to_string(), 
                     node_name.to_string(),
                     trade_mode,
@@ -141,7 +141,7 @@ impl LiveStrategyFunction {
                 Self::add_indicator_node(
                     graph, 
                     node_indices,
-                    strategy_id,
+                    strategy_id as i32,
                     node_id.to_string(), 
                     node_name.to_string(),
                     live_config,
@@ -186,7 +186,7 @@ impl LiveStrategyFunction {
                 Self::add_live_data_node(
                     graph,
                     node_indices,
-                    strategy_id,
+                    strategy_id as i32,
                     node_id.to_string(), 
                     node_name.to_string(), 
                     trade_mode,
@@ -242,7 +242,7 @@ impl LiveStrategyFunction {
                 Self::add_if_else_node(
                     graph,
                     node_indices,
-                    strategy_id,
+                    strategy_id as i32,
                     node_id.to_string(),
                     node_name.to_string(),
                     trade_mode,
@@ -277,7 +277,7 @@ impl LiveStrategyFunction {
                 Self::add_order_node(
                     graph,
                     node_indices,
-                    strategy_id,
+                    strategy_id as i32,
                     node_id,
                     node_name,
                     trade_mode,
@@ -317,6 +317,7 @@ impl LiveStrategyFunction {
                     event_publisher,
                     response_event_receiver,
                     exchange_engine,
+                    heartbeat,
                     database,
                 ).await;
             }

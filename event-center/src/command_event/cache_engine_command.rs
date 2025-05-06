@@ -19,7 +19,7 @@ pub enum CacheEngineCommand {
 // 添加K线缓存键参数
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddKlineCacheKeyParams {
-    pub strategy_id: i64,
+    pub strategy_id: i32,
     pub cache_key: KlineCacheKey,
     pub sender: String,
     pub timestamp:i64,

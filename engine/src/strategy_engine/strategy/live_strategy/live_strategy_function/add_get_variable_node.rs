@@ -26,6 +26,7 @@ impl LiveStrategyFunction {
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
+        heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
     ) {
         let node_data = node_config["data"].clone();
@@ -38,14 +39,14 @@ impl LiveStrategyFunction {
         };
         let backtest_config = match node_data["backtestConfig"].is_null() {
             true => None,
-            false => Some(serde_json::from_value::<GetVariableNodeBacktestConfig>(node_data["backtestConfig"].clone()).unwrap()),
+            false => None,
         };
         let simulate_config = match node_data["simulatedConfig"].is_null() {
             true => None,
-            false => Some(serde_json::from_value::<GetVariableNodeSimulateConfig>(node_data["simulatedConfig"].clone()).unwrap()),
+            false => None,
         };
         let mut node = GetVariableNode::new(
-            strategy_id,
+            strategy_id as i32,
             node_id.clone(),
             node_name,
             trade_mode,
@@ -55,6 +56,7 @@ impl LiveStrategyFunction {
             event_publisher,
             response_event_receiver,
             exchange_engine,
+            heartbeat,
             database,
         );
         node.set_output_handle().await;

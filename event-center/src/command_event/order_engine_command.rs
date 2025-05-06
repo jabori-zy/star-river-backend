@@ -34,7 +34,7 @@ pub struct CreateOrderParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetTransactionDetailParams {
-    pub strategy_id: i64,
+    pub strategy_id: i32,
     pub node_id: String,
     pub exchange: Exchange,
     pub symbol: String,

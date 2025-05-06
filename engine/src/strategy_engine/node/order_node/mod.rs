@@ -33,7 +33,7 @@ pub struct OrderNode {
 
 impl OrderNode {
     pub fn new(
-        strategy_id: i64,
+        strategy_id: i32,
         node_id: String,
         node_name: String,
         trade_mode: TradeMode,

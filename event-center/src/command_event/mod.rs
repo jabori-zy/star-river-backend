@@ -40,7 +40,7 @@ impl From<CommandEvent> for Event {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaseCommandParams {
-    pub strategy_id: i64,
+    pub strategy_id: i32,
     pub node_id: String,
     pub sender: String,
     pub timestamp: i64,

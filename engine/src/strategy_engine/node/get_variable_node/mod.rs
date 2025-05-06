@@ -6,7 +6,7 @@ use super::node_context::{NodeContext,BaseNodeContext};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use get_variable_node_context::GetVariableNodeContext;
-use get_variable_node_state_machine::{GetVariableNodeStateAction,GetVariableNodeStateChangeActions,GetVariableNodeStateMachine};
+use get_variable_node_state_machine::{GetVariableNodeStateAction,GetVariableNodeStateMachine};
 use super::{NodeTrait,NodeStateTransitionEvent,NodeType};
 use std::any::Any;
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ use tokio::sync::broadcast;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
 use tokio::sync::Mutex;
-
+use super::node_types::NodeOutputHandle;
 
 
 
@@ -33,7 +33,7 @@ pub struct GetVariableNode {
 
 impl GetVariableNode {
     pub fn new(
-        strategy_id: i64,
+        strategy_id: i32,
         node_id: String,
         node_name: String,
         trade_mode: TradeMode,
@@ -43,6 +43,7 @@ impl GetVariableNode {
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
+        heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
     ) -> Self {
         let base_context = BaseNodeContext::new(
@@ -50,7 +51,7 @@ impl GetVariableNode {
             node_id.clone(),
             node_name.clone(),
             trade_mode,
-            NodeType::PositionNode,
+            NodeType::GetVariableNode,
             event_publisher,
             vec![response_event_receiver],
             Box::new(GetVariableNodeStateMachine::new(node_id, node_name)),
@@ -62,6 +63,7 @@ impl GetVariableNode {
                 simulate_config,
                 backtest_config,
                 exchange_engine,
+                heartbeat,
                 database,
             }))),
         }
@@ -84,6 +86,28 @@ impl NodeTrait for GetVariableNode {
 
     fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
         self.context.clone()
+    }
+
+    async fn set_output_handle(&mut self) {
+        let node_id = self.get_node_id().await;
+        let context = self.get_context();
+        let mut state_guard = context.write().await;
+        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
+            let variable_config = get_variable_node_context.live_config.as_ref().unwrap().variables.clone();
+            
+            for variable in variable_config {
+                let (tx, _) = broadcast::channel::<NodeMessage>(100);
+                let handle = NodeOutputHandle {
+                    node_id: node_id.clone(),
+                    output_handle_id: format!("get_variable_node_output_{}", variable.variable.to_string()),
+                    message_sender: tx,
+                    connect_count: 0,
+                };
+
+                get_variable_node_context.get_all_output_handle_mut().insert(format!("get_variable_node_output_{}", variable.variable.to_string()), handle);
+                tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, format!("get_variable_node_output_{}", variable.variable.to_string()));
+            }
+        }
     }
 
     async fn init(&mut self) -> Result<(), String> {
@@ -149,9 +173,18 @@ impl NodeTrait for GetVariableNode {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
                     }
-                    GetVariableNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!("{}: 开始监听外部事件", node_id);
-                        self.listen_external_events().await?;
+                    GetVariableNodeStateAction::RegisterTask => {
+                        tracing::info!("{}: 开始注册任务", node_id);
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
+                            let live_config = get_variable_node_context.live_config.as_ref().unwrap();
+                            let get_variable_type = live_config.get_variable_type.clone();
+                            // 如果获取变量类型为定时触发，则注册任务
+                            if let GetVariableType::Timer = get_variable_type {
+                                get_variable_node_context.register_task().await;
+                            }
+                        }
                     }
                     GetVariableNodeStateAction::ListenAndHandleMessage => {
                         tracing::info!("{}: 开始监听节点消息", node_id);

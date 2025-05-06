@@ -67,7 +67,7 @@ impl StrategyFunction {
     pub async fn listen_node_message(context: Arc<RwLock<Box<dyn StrategyContext>>>) {
         let (receivers, cancel_token, strategy_name) = {
             let context_guard = context.read().await;
-            let receivers = context_guard.get_node_message_receivers().clone();
+            let receivers = context_guard.get_all_node_output_handles();
             let cancel_token = context_guard.get_cancel_token().clone();
             let strategy_name = context_guard.get_strategy_name().to_string();
             (receivers, cancel_token, strategy_name)
@@ -80,7 +80,7 @@ impl StrategyFunction {
 
         // 创建一个流，用于接收节点传递过来的message
         let streams: Vec<_> = receivers.iter()
-            .map(|receiver| BroadcastStream::new(receiver.get_receiver()))
+            .map(|output_handle| BroadcastStream::new(output_handle.message_sender.subscribe()))
             .collect();
 
         let mut combined_stream = select_all(streams);

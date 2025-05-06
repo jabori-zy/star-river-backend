@@ -101,13 +101,7 @@ impl NodeContext for StrategyInfoNodeContext {
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
         match message {
             NodeMessage::Signal(signal_message) => {
-                match signal_message.signal {
-                    // 如果信号为True，则执行命令
-                    Signal::True => {
-                        self.get_position_number().await;
-                    }
-                    _ => {}
-                }
+                self.get_position_number().await;
             }
             _ => {}
         }

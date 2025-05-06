@@ -30,7 +30,7 @@ use database::mutation::position_mutation::PositionMutation;
 use types::position::PositionState;
 use types::strategy::message::PositionMessage;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
-
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ pub struct LiveStrategyContext {
     pub enable_event_publish: bool,
     pub cancel_token: CancellationToken,
     pub state_machine: Box<dyn StrategyStateMachine>,
-    pub node_message_receivers: Vec<NodeMessageReceiver>, // 接收策略内所有节点的消息
+    pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
     pub positions: Arc<RwLock<Vec<Position>>>, // 策略的所有持仓
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub database: DatabaseConnection,
@@ -69,7 +69,7 @@ impl Clone for LiveStrategyContext {
             enable_event_publish: self.enable_event_publish,
             cancel_token: self.cancel_token.clone(),
             state_machine: self.state_machine.clone_box(),
-            node_message_receivers: self.node_message_receivers.clone(),
+            all_node_output_handles: self.all_node_output_handles.clone(),
             positions: self.positions.clone(),
             exchange_engine: self.exchange_engine.clone(),
             database: self.database.clone(),
@@ -110,9 +110,10 @@ impl StrategyContext for LiveStrategyContext {
         self.state_machine = state_machine;
     }
 
-    fn get_node_message_receivers(&self) -> Vec<NodeMessageReceiver> {
-        self.node_message_receivers.clone()
+    fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
+        self.all_node_output_handles.clone()
     }
+
 
     fn get_cancel_token(&self) -> CancellationToken {
         self.cancel_token.clone()

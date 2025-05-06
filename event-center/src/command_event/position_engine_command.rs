@@ -17,7 +17,7 @@ pub enum PositionEngineCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionNumberParam {
-    pub strategy_id: i64,
+    pub strategy_id: i32,
     pub node_id: String,
     pub position_number_request: PositionNumberRequest,
     pub sender: String,
@@ -28,7 +28,7 @@ pub struct GetPositionNumberParam {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionParam {
-    pub strategy_id: i64,
+    pub strategy_id: i32,
     pub node_id: String,
     pub exchange: Exchange,
     pub position_id: i64,

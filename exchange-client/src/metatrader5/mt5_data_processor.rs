@@ -211,7 +211,8 @@ impl Mt5DataProcessor {
     }
 
     pub async fn process_deal(&self, deal_info: serde_json::Value) -> Result<Box<dyn OriginalTransaction>, String> {
-        let deal_data = deal_info["data"][0].clone();
+        let mut deal_data = deal_info["data"][0].clone();
+        deal_data["server"] = self.server.clone().into();
         tracing::debug!("成交信息 :{:?}", deal_data);
         let deal = serde_json::from_value::<Mt5Deal>(deal_data)
             .map_err(|e| format!("解析成交数据失败: {}", e))?;

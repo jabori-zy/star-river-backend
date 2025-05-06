@@ -146,7 +146,7 @@ impl PositionNodeContext {
                 // // 入库
                 let position = PositionMutation::insert_position(
                     &self.database, 
-                    order.strategy_id.clone(), 
+                    order.strategy_id.clone() as i64, 
                     order.node_id.clone(), 
                     account_id, 
                     position.clone()
@@ -159,7 +159,7 @@ impl PositionNodeContext {
                 })?;
 
                 // 发送仓位更新消息
-                let output_handle = self.get_output_handle().get("position_node_update_output").unwrap();
+                let output_handle = self.get_all_output_handle().get("position_node_update_output").unwrap();
 
                 let position_message = PositionMessage::PositionUpdated(position);
                 tracing::debug!("{}: 发送仓位更新消息: {:?}", self.get_node_name(), position_message);

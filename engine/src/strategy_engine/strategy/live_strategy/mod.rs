@@ -112,10 +112,10 @@ impl LiveStrategy {
         }
 
         // 将所有节点的message_receivers 添加到 strategy_message_receivers 中
-        let strategy_message_receivers = LiveStrategyFunction::add_node_message_receivers(&mut graph).await;
+        let strategy_output_handles = LiveStrategyFunction::add_node_output_handle(&mut graph).await;
         
         
-        tracing::debug!("策略的消息接收器: {:?}", strategy_message_receivers);
+        tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
         let context = LiveStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
@@ -128,7 +128,7 @@ impl LiveStrategy {
             enable_event_publish: false,
             cancel_token,
             state_machine: Box::new(LiveStrategyStateMachine::new(strategy_id, strategy_name, StrategyRunState::Created)),
-            node_message_receivers: strategy_message_receivers,
+            all_node_output_handles: strategy_output_handles,
             positions: Arc::new(RwLock::new(vec![])),
             exchange_engine: exchange_engine,
             database: database,

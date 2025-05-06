@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::any::Any;
 use std::fmt::Debug;
 use types::strategy::message::NodeMessage;
-use crate::strategy_engine::node::node_types::NodeMessageReceiver;
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use tokio_util::sync::CancellationToken;
 use super::strategy_state_machine::StrategyRunState;
 use super::strategy_state_machine::StrategyStateMachine;
@@ -15,7 +15,7 @@ pub trait StrategyContext: Debug + Send + Sync + 'static {
     fn clone_box(&self) -> Box<dyn StrategyContext>;
     fn get_strategy_id(&self) -> i32;
     fn get_strategy_name(&self) -> String;
-    fn get_node_message_receivers(&self) -> Vec<NodeMessageReceiver>;
+    fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle>;
     fn get_cancel_token(&self) -> CancellationToken;
     fn get_state_machine(&self) -> Box<dyn StrategyStateMachine>;
     fn set_state_machine(&mut self, state_machine: Box<dyn StrategyStateMachine>);

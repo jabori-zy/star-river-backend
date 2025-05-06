@@ -54,7 +54,7 @@ impl<K: CacheKey, T: Debug> CacheEntry<K, T> {
 pub struct CacheManager<K: CacheKey, T> {
     pub cache: HashMap<K, CacheEntry<K, T>>,
     // 缓存key有哪些策略共同使用
-    pub subscribed_strategy: HashMap<K, Vec<i64>>,
+    pub subscribed_strategy: HashMap<K, Vec<i32>>,
     pub max_cache_size: usize
 }
 
@@ -70,7 +70,7 @@ impl<K: CacheKey, T: Debug> CacheManager<K, T> {
     }
 
     // 添加订阅
-    pub fn add_cache_key(&mut self, strategy_id: i64, cache_key: K) {
+    pub fn add_cache_key(&mut self, strategy_id: i32, cache_key: K) {
         // 如果key已经存在，则返回
         if self.cache.contains_key(&cache_key) {
             tracing::warn!("k线缓存键已存在: {:?}", cache_key);

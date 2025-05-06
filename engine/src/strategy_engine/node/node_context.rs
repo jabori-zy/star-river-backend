@@ -51,7 +51,7 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
     fn get_node_name(&self) -> &String {
         &self.get_base_context().node_name
     }
-    fn get_strategy_id(&self) -> &i64 {
+    fn get_strategy_id(&self) -> &i32 {
         &self.get_base_context().strategy_id
     }
     fn get_state_machine(&self) -> Box<dyn NodeStateMachine> {
@@ -63,11 +63,13 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
 
     // fn get_default_output_handle(&self) -> &NodeOutputHandle;
 
-    fn get_output_handle(&self) -> &HashMap<String, NodeOutputHandle> {
+    // 获取所有输出句柄
+    fn get_all_output_handle(&self) -> &HashMap<String, NodeOutputHandle> {
         &self.get_base_context().output_handle
     }
 
-    fn get_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
+    // 获取所有输出句柄
+    fn get_all_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
     fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
@@ -115,7 +117,7 @@ pub type HandleId = String;
 #[derive(Debug)]
 pub struct BaseNodeContext {
     pub node_type: NodeType,
-    pub strategy_id: i64,
+    pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
     pub trade_mode: TradeMode,
@@ -151,7 +153,7 @@ impl Clone for BaseNodeContext {
 
 impl BaseNodeContext {
     pub fn new(
-        strategy_id: i64, 
+        strategy_id: i32, 
         node_id: String, 
         node_name: String,
         trade_mode: TradeMode,

@@ -36,7 +36,7 @@ pub enum NodeStateTransitionEvent {
 }
 
 // 节点类型
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, PartialEq)]
 pub enum NodeType {
     #[strum(serialize = "start_node")]
     StartNode,
@@ -91,10 +91,8 @@ pub enum DefaultOutputHandleId {
     IfElseNodeElseOutput,
     #[strum(serialize = "order_node_output")]
     OrderNodeOutput,
-    #[strum(serialize = "position_node_output")]
-    PositionNodeOutput,
-    #[strum(serialize = "get_variable_node_output")]
-    GetVariableNodeOutput,
+    #[strum(serialize = "position_node_update_output")]
+    PositionNodeUpdateOutput,
 
 }
 

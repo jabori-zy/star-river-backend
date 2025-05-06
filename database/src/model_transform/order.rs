@@ -7,7 +7,7 @@ impl From<OrderModel> for Order {
     fn from(order: OrderModel) -> Self {
         Order {
             order_id: order.id,
-            strategy_id: order.strategy_id,
+            strategy_id: order.strategy_id as i32,
             node_id: order.node_id,
             exchange_order_id: order.exchange_order_id,
             account_id: order.account_id,
