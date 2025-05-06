@@ -16,7 +16,7 @@ use heartbeat::Heartbeat;
 use super::strategy::StrategyTrait;
 use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use types::strategy::{Strategy, TradeMode};
-
+use types::custom_type::StrategyId;
 
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct StrategyEngineContext {
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub database: DatabaseConnection,
-    pub strategy_list: HashMap<i32, Box<dyn StrategyTrait>>, //实现了StrategyTrait的策略
+    pub strategy_list: HashMap<StrategyId, Box<dyn StrategyTrait>>, //实现了StrategyTrait的策略
     pub market_event_receiver: broadcast::Receiver<Event>,
     pub request_event_receiver: broadcast::Receiver<Event>,
     pub response_event_receiver: broadcast::Receiver<Event>,
@@ -97,7 +97,7 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn load_strategy_by_info(&mut self, strategy: Strategy) -> Result<i32, String> {
+    pub async fn load_strategy(&mut self, strategy: Strategy) -> Result<i32, String> {
         match strategy.trade_mode {
             TradeMode::Live => {
                 let strategy_id = strategy.id;
@@ -122,9 +122,16 @@ impl StrategyEngineContext {
 
 
     pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
-        strategy.start_strategy().await.unwrap();
-        Ok(())
+        let strategy = self.strategy_list.get_mut(&strategy_id);
+        match strategy {
+            Some(strategy) => {
+                strategy.start_strategy().await.unwrap();
+                Ok(())
+            }
+            None => {
+                Err("策略不存在".to_string())
+            }
+        }
     }
 
 
@@ -136,7 +143,7 @@ impl StrategyEngineContext {
     ) -> Result<(), String> {
         let strategy_info = self.get_strategy_by_id(strategy_id).await?;
         // 加载策略（实例化策略）
-        self.load_strategy_by_info(
+        self.load_strategy(
             strategy_info
         ).await?;
         let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();

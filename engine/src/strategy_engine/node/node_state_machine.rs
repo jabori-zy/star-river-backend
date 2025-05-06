@@ -2,7 +2,33 @@
 use async_trait::async_trait;
 use std::fmt::Debug;
 use std::any::Any;
-use super::node_types::*;
+
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeRunState {
+    Created,        // 节点已创建但未初始化
+    Initializing,   // 节点正在初始化
+    Ready,          // 节点已初始化，准备好但未运行
+    Starting,       // 节点正在启动
+    Running,        // 节点正在运行
+    Stopping,       // 节点正在停止
+    Stopped,        // 节点已停止
+    Failed,         // 节点发生错误
+}
+
+
+// 状态转换事件
+#[derive(Debug)]
+pub enum NodeStateTransitionEvent {
+    Initialize,     // 初始化开始
+    InitializeComplete,  // 初始化完成 -> 进入Ready状态
+    Start,          // 启动节点
+    StartComplete,  // 启动完成 -> 进入Running状态
+    Stop,           // 停止节点
+    StopComplete,   // 停止完成 -> 进入Stopped状态
+    Fail(String),   // 节点失败，带有错误信息
+}
 
 /// 状态管理器特征，定义所有状态管理器必须实现的方法
 #[async_trait]

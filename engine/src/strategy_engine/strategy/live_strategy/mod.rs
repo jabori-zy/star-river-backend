@@ -83,7 +83,7 @@ impl LiveStrategy {
                         &mut graph, 
                         &mut node_indices, 
                         trade_mode.clone(),
-                        &node_config, 
+                        node_config, 
                         event_publisher.clone(), 
                         market_event_receiver.resubscribe(), 
                         response_event_receiver.resubscribe(),

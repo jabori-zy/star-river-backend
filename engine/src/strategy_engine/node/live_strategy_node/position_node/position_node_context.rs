@@ -1,4 +1,4 @@
-use super::super::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use super::position_node_types::*;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -16,17 +16,11 @@ use crate::Engine;
 use database::mutation::position_mutation::PositionMutation;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use types::strategy::message::PositionMessage;
-use types::position::Position;
-use types::market::Exchange;
-use types::position::PositionSide;
-use chrono::Utc;
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeContext {
     pub base_context: BaseNodeContext,
-    pub live_config: Option<PositionNodeLiveConfig>,
-    pub simulate_config: Option<PositionNodeSimulateConfig>,
-    pub backtest_config: Option<PositionNodeBacktestConfig>,
+    pub live_config: PositionNodeLiveConfig,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub database: DatabaseConnection,
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 持仓, 策略id作为key
@@ -123,10 +117,7 @@ impl PositionNodeContext {
         tracing::info!("订单已完成，获取持仓: {:?}", order);
         
         // 使用 as_ref().ok_or() 代替 unwrap
-        let account_id = self.live_config
-            .as_ref()
-            .ok_or("未配置live_config")?
-            .selected_live_account.account_id;
+        let account_id = self.live_config.selected_live_account.account_id;
 
         // 使用 ? 操作符代替 unwrap
         let exchange = self.get_exchange(&order.account_id).await?;

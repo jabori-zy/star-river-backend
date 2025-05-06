@@ -1,5 +1,5 @@
 
-use super::super::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -8,25 +8,20 @@ use sea_orm::DatabaseConnection;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use types::strategy::message::Signal;
 use super::get_variable_node_types::*;
 use types::strategy::sys_varibale::SysVariable;
 use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
 use types::strategy::message::VariableMessage;
 use utils::get_utc8_timestamp_millis;
 use types::strategy::message::NodeMessage;
-use event_center::strategy_event::StrategyEvent;
-use event_center::EventPublisher;
-use super::super::node_types::NodeOutputHandle;
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::collections::HashMap;
 use types::strategy::message::SignalType;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {
     pub base_context: BaseNodeContext,
-    pub live_config: Option<GetVariableNodeLiveConfig>,
-    pub simulate_config: Option<GetVariableNodeSimulateConfig>,
-    pub backtest_config: Option<GetVariableNodeBacktestConfig>,
+    pub live_config: GetVariableNodeLiveConfig,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub database: DatabaseConnection,
@@ -87,8 +82,8 @@ impl NodeContext for GetVariableNodeContext {
 impl GetVariableNodeContext {
     pub async fn register_task(&mut self) {
         let database = self.database.clone();
-        let live_config = self.live_config.as_ref().unwrap();
-        let timer_config = live_config.timer_config.as_ref().unwrap();
+        let live_config = self.live_config.clone();
+        let timer_config = live_config.timer_config.unwrap();
         let variables = live_config.variables.clone();
         let node_name = self.get_node_name().clone();
         let strategy_id = self.get_strategy_id().clone();
@@ -120,8 +115,7 @@ impl GetVariableNodeContext {
 
     
     pub async fn get_variable(&mut self) {
-        let live_config = self.live_config.as_ref().unwrap();
-        let variables = live_config.variables.clone();
+        let variables = self.live_config.variables.clone();
 
         for var in variables {
             let variable_type = var.variable.clone();

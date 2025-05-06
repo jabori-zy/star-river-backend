@@ -12,16 +12,14 @@ use event_center::command_event::indicator_engine_command::IndicatorEngineComman
 use event_center::strategy_event::StrategyEvent;
 use utils::get_utc8_timestamp_millis;
 use types::strategy::message::{IndicatorMessage, NodeMessage};
-use super::super::node_context::{BaseNodeContext,NodeContext};
-use super::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use super::indicator_node_type::IndicatorNodeLiveConfig;
 use types::strategy::TradeMode;
 
 #[derive(Debug, Clone)]
-pub struct IndicatorNodeState {
+pub struct IndicatorNodeContext {
     pub base_context: BaseNodeContext,
-    pub live_config: Option<IndicatorNodeLiveConfig>,
-    pub backtest_config: Option<IndicatorNodeBacktestConfig>,
-    pub simulated_config: Option<IndicatorNodeSimulateConfig>,
+    pub live_config: IndicatorNodeLiveConfig,
     pub current_batch_id: Option<String>,
     pub request_id: Option<Uuid>,
 }
@@ -30,7 +28,7 @@ pub struct IndicatorNodeState {
 
 
 #[async_trait]
-impl NodeContext for IndicatorNodeState {
+impl NodeContext for IndicatorNodeContext {
     fn clone_box(&self) -> Box<dyn NodeContext> {
         Box::new(self.clone())
     }
@@ -70,18 +68,12 @@ impl NodeContext for IndicatorNodeState {
                 let request_id = Uuid::new_v4();
                 let batch_id = kline_series_message.batch_id;
 
-                let indicator = match self.base_context.trade_mode {
-                    TradeMode::Live => self.live_config.as_ref().unwrap().indicator.clone(),
-                    TradeMode::Backtest => self.backtest_config.as_ref().unwrap().indicator.clone(),
-                    TradeMode::Simulated => self.simulated_config.as_ref().unwrap().indicator.clone(),
-                };
-
                 
                 let calculate_indicator_params = CalculateIndicatorParams {
                     exchange: kline_series_message.exchange,
                     symbol: kline_series_message.symbol,
                     interval: kline_series_message.interval,
-                    indicator: indicator,
+                    indicator: self.live_config.indicator.clone(),
                     kline_series: kline_series_message.kline_series,
                     sender: self.base_context.node_id.to_string(),
                     command_timestamp: get_utc8_timestamp_millis(),
@@ -104,7 +96,7 @@ impl NodeContext for IndicatorNodeState {
 
 }
 
-impl IndicatorNodeState {
+impl IndicatorNodeContext {
     async fn handle_response_event(&self, response_event: ResponseEvent) {
         match response_event {
             ResponseEvent::IndicatorEngine(indicator_engine_response) => {
@@ -130,17 +122,8 @@ impl IndicatorNodeState {
                             let indicator_value = calculate_indicator_response.value;
                             // tracing::info!("节点{}计算指标完成: {:?}", self.base_context.node_name, indicator_value);
 
-                            let (exchange, symbol, interval) = match self.base_context.trade_mode {
-                                TradeMode::Live => {
-                                    (self.live_config.as_ref().unwrap().exchange.clone(), self.live_config.as_ref().unwrap().symbol.clone(), self.live_config.as_ref().unwrap().interval.clone())
-                                }
-                                TradeMode::Backtest => {
-                                    (self.backtest_config.as_ref().unwrap().exchange.clone(), self.backtest_config.as_ref().unwrap().symbol.clone(), self.backtest_config.as_ref().unwrap().interval.clone())
-                                }
-                                TradeMode::Simulated => {
-                                    (self.simulated_config.as_ref().unwrap().exchange.clone(), self.simulated_config.as_ref().unwrap().symbol.clone(), self.simulated_config.as_ref().unwrap().interval.clone())
-                                }
-                            };
+                            let (exchange, symbol, interval) = (self.live_config.exchange.clone(), self.live_config.symbol.clone(), self.live_config.interval.clone());
+                            
                             
                             let indicator_message = IndicatorMessage {
                                 from_node_id: self.base_context.node_id.clone(),

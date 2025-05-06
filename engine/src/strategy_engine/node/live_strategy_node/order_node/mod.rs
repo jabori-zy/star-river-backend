@@ -1,78 +1,78 @@
-pub mod get_variable_node_types;
-mod get_variable_node_context;
-mod get_variable_node_state_machine;
 
-use super::node_context::{NodeContext,BaseNodeContext};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use get_variable_node_context::GetVariableNodeContext;
-use get_variable_node_state_machine::{GetVariableNodeStateAction,GetVariableNodeStateMachine};
-use super::{NodeTrait,NodeStateTransitionEvent,NodeType};
+mod order_node_state_machine;
+mod order_node_context;
+pub mod order_node_types;
+
+
+use tokio::sync::broadcast;
+use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use std::time::Duration;
-use types::strategy::message::NodeMessage;
+use event_center::Event;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use event_center::EventPublisher;
+use super::order_node::order_node_state_machine::{OrderNodeStateMachine, OrderNodeStateAction};
+use crate::strategy_engine::node::{NodeTrait,NodeType};
+use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
+use std::time::Duration;
+use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
+use super::order_node::order_node_context::OrderNodeContext;
+use types::strategy::TradeMode;
+use order_node_types::*;
+use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use types::strategy::TradeMode;
-use get_variable_node_types::*;
-use tokio::sync::broadcast;
-use event_center::Event;
-use crate::exchange_engine::ExchangeEngine;
 use tokio::sync::Mutex;
-use super::node_types::NodeOutputHandle;
-
 
 
 #[derive(Debug, Clone)]
-pub struct GetVariableNode {
+pub struct OrderNode {
     pub context: Arc<RwLock<Box<dyn NodeContext>>>,
+
 }
 
-
-impl GetVariableNode {
+impl OrderNode {
     pub fn new(
         strategy_id: i32,
         node_id: String,
         node_name: String,
-        trade_mode: TradeMode,
-        live_config: Option<GetVariableNodeLiveConfig>,
-        simulate_config: Option<GetVariableNodeSimulateConfig>,
-        backtest_config: Option<GetVariableNodeBacktestConfig>,
+        live_config: OrderNodeLiveConfig,
         event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
-        heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
+        heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
-            trade_mode,
-            NodeType::GetVariableNode,
+            NodeType::OrderNode,
             event_publisher,
             vec![response_event_receiver],
-            Box::new(GetVariableNodeStateMachine::new(node_id, node_name)),
+            Box::new(OrderNodeStateMachine::new(node_id, node_name)),
         );
         Self {
-            context: Arc::new(RwLock::new(Box::new(GetVariableNodeContext {
+            context: Arc::new(RwLock::new(Box::new(OrderNodeContext {
                 base_context,
                 live_config,
-                simulate_config,
-                backtest_config,
+                request_id: vec![],
+                is_processing_order: Arc::new(RwLock::new(false)),
                 exchange_engine,
-                heartbeat,
                 database,
+                heartbeat,
+                unfilled_order: Arc::new(RwLock::new(None)),
             }))),
         }
-        
     }
+    
 }
 
+
+
 #[async_trait]
-impl NodeTrait for GetVariableNode {
+impl NodeTrait for OrderNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -86,28 +86,6 @@ impl NodeTrait for GetVariableNode {
 
     fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
         self.context.clone()
-    }
-
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let context = self.get_context();
-        let mut state_guard = context.write().await;
-        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
-            let variable_config = get_variable_node_context.live_config.as_ref().unwrap().variables.clone();
-            
-            for variable in variable_config {
-                let (tx, _) = broadcast::channel::<NodeMessage>(100);
-                let handle = NodeOutputHandle {
-                    node_id: node_id.clone(),
-                    output_handle_id: format!("get_variable_node_output_{}", variable.variable.to_string()),
-                    message_sender: tx,
-                    connect_count: 0,
-                };
-
-                get_variable_node_context.get_all_output_handle_mut().insert(format!("get_variable_node_output_{}", variable.variable.to_string()), handle);
-                tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, format!("get_variable_node_output_{}", variable.variable.to_string()));
-            }
-        }
     }
 
     async fn init(&mut self) -> Result<(), String> {
@@ -163,34 +141,31 @@ impl NodeTrait for GetVariableNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题
-            if let Some(get_variable_node_state_action) = action.as_any().downcast_ref::<GetVariableNodeStateAction>() {
-                match get_variable_node_state_action {
-                    GetVariableNodeStateAction::LogTransition => {
+            if let Some(order_node_state_action) = action.as_any().downcast_ref::<OrderNodeStateAction>() {
+                match order_node_state_action {
+                    OrderNodeStateAction::LogTransition => {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
                     }
-                    GetVariableNodeStateAction::LogNodeState => {
+                    OrderNodeStateAction::LogNodeState => {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
                     }
-                    GetVariableNodeStateAction::RegisterTask => {
-                        tracing::info!("{}: 开始注册任务", node_id);
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
-                            let live_config = get_variable_node_context.live_config.as_ref().unwrap();
-                            let get_variable_type = live_config.get_variable_type.clone();
-                            // 如果获取变量类型为定时触发，则注册任务
-                            if let GetVariableType::Timer = get_variable_type {
-                                get_variable_node_context.register_task().await;
-                            }
-                        }
+                    OrderNodeStateAction::ListenAndHandleExternalEvents => {
+                        tracing::info!("{}: 开始监听外部事件", node_id);
+                        self.listen_external_events().await?;
                     }
-                    GetVariableNodeStateAction::ListenAndHandleMessage => {
+                    OrderNodeStateAction::RegisterTask => {
+                        tracing::info!("{}: 开始注册心跳任务", node_id);
+                        let mut context_guard = self.context.write().await;
+                        let order_node_context = context_guard.as_any_mut().downcast_mut::<OrderNodeContext>().unwrap();
+                        order_node_context.monitor_unfilled_order().await;
+                    }
+                    OrderNodeStateAction::ListenAndHandleMessage => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
                         self.listen_message().await?;
                     }
-                    GetVariableNodeStateAction::LogError(error) => {
+                    OrderNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);
                     }
                 }
@@ -203,4 +178,5 @@ impl NodeTrait for GetVariableNode {
         Ok(())
     }
 }
+
 

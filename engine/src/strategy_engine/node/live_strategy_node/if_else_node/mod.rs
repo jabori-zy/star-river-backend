@@ -9,19 +9,17 @@ use std::any::Any;
 use std::vec;
 use async_trait::async_trait;
 use tokio::sync::broadcast;
-use futures::stream::StreamExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use types::strategy::message::NodeMessage;
 use event_center::EventPublisher;
-use super::NodeStateTransitionEvent;
+use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
 use super::if_else_node::if_else_node_state_machine::{IfElseNodeStateManager,IfElseNodeStateAction};
-use super::node_context::{BaseNodeContext,NodeContext};
-use super::node_types::{NodeType,DefaultOutputHandleId};
-use condition::*;
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_types::{NodeType,DefaultOutputHandleId};
 use if_else_node_context::IfElseNodeContext;
-use super::{NodeRunState,NodeOutputHandle,NodeTrait};
+use crate::strategy_engine::node::{NodeOutputHandle,NodeTrait};
 use types::strategy::TradeMode;
 use if_else_node_type::*;
 
@@ -37,17 +35,13 @@ impl IfElseNode {
         strategy_id: i32,
         node_id: String, 
         node_name: String,
-        trade_mode: TradeMode,
-        live_config: Option<IfElseNodeLiveConfig>,
-        backtest_config: Option<IfElseNodeBacktestConfig>,
-        simulate_config: Option<IfElseNodeSimulateConfig>,
+        live_config: IfElseNodeLiveConfig,
         event_publisher: EventPublisher,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
-            trade_mode,
             NodeType::IfElseNode,
             event_publisher,
             vec![],
@@ -61,8 +55,6 @@ impl IfElseNode {
                 received_flag: HashMap::new(),
                 received_message: HashMap::new(),
                 live_config,
-                backtest_config,
-                simulate_config,
             }))),
             
         }
@@ -154,11 +146,8 @@ impl NodeTrait for IfElseNode {
         let context = self.get_context();
         let mut state_guard = context.write().await;
         if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-            let cases = match if_else_node_context.base_context.trade_mode {
-                TradeMode::Live => if_else_node_context.live_config.as_ref().unwrap().cases.clone(),
-                TradeMode::Backtest => if_else_node_context.backtest_config.as_ref().unwrap().cases.clone(),
-                TradeMode::Simulated => if_else_node_context.simulate_config.as_ref().unwrap().cases.clone(),
-            };
+            let cases = if_else_node_context.live_config.cases.clone();
+
             for case in cases {
                 let (tx, _) = broadcast::channel::<NodeMessage>(100);
                 let handle = NodeOutputHandle {

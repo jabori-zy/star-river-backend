@@ -10,8 +10,8 @@ use types::strategy::message::{KlineSeriesMessage, NodeMessage};
 use uuid::Uuid;
 use event_center::response_event::ResponseEvent;
 use event_center::strategy_event::StrategyEvent;
-use super::super::node_types::NodeRunState;
-use super::super::node_context::{NodeContext,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
+use crate::strategy_engine::node::node_state_machine::NodeRunState;
 use event_center::command_event::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
 use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
 use event_center::response_event::market_engine_response::MarketEngineResponse;
@@ -73,9 +73,7 @@ pub struct LiveDataNodeContext {
     pub stream_is_subscribed: Arc<RwLock<bool>>,
     pub exchange_is_registered: Arc<RwLock<bool>>,
     pub request_id: Option<Uuid>,
-    pub live_config: Option<LiveDataNodeLiveConfig>,
-    pub backtest_config: Option<LiveDataNodeBacktestConfig>,
-    pub simulated_config: Option<LiveDataNodeSimulateConfig>,
+    pub live_config: LiveDataNodeLiveConfig,
 }
 
 #[async_trait]
@@ -137,23 +135,9 @@ impl LiveDataNodeContext {
             MarketEvent::KlineSeriesUpdate(kline_series_update) => {
                 tracing::debug!("{}: 收到K线系列更新事件", self.base_context.node_name);
                 // 只获取当前节点支持的数据
-                let (exchange, symbol, interval) = match self.base_context.trade_mode {
-                    TradeMode::Live => {
-                        (self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(), 
-                        self.live_config.as_ref().unwrap().symbol.clone(), 
-                        self.live_config.as_ref().unwrap().interval.clone())
-                    }
-                    TradeMode::Backtest => {
-                        (Exchange::Binance, 
-                        "BTCUSDT".to_string(), 
-                        KlineInterval::Minutes1)
-                    }
-                    TradeMode::Simulated => {
-                        (self.simulated_config.as_ref().unwrap().selected_simulate_accounts.exchange.clone(), 
-                        self.simulated_config.as_ref().unwrap().symbol.clone(), 
-                        self.simulated_config.as_ref().unwrap().interval.clone())
-                    }
-                };
+                let (exchange, symbol, interval) = (self.live_config.selected_live_account.exchange.clone(), 
+                    self.live_config.symbol.clone(), 
+                    self.live_config.interval.clone());
                 
                 if exchange != kline_series_update.exchange || symbol != kline_series_update.symbol || interval != kline_series_update.interval {
                     return;
@@ -254,30 +238,14 @@ impl LiveDataNodeContext {
 
     pub async fn register_exchange(&mut self) -> Result<(), String> {
         let request_id = Uuid::new_v4();
-        let register_param = match self.base_context.trade_mode {
-            // 实盘模式
-            TradeMode::Live => {
-                tracing::info!("{}: 实盘模式", self.base_context.node_name);
-                match self.live_config.clone() {
-                    Some(config) => {
-                        let register_param = RegisterExchangeParams {
-                            account_id: config.selected_live_account.account_id.clone(),
-                            exchange: config.selected_live_account.exchange.clone(),
-                            sender: self.base_context.node_id.clone(),
-                            timestamp: get_utc8_timestamp_millis(),
-                            request_id: request_id,
-                        };
-                        register_param
-                    },
-                    None => {
-                        return Err("实盘模式未配置".to_string());
-                    }
-                }
-            },
-            _ => {
-                return Err("不支持的交易模式".to_string());
-            }
+        let register_param = RegisterExchangeParams {
+            account_id: self.live_config.selected_live_account.account_id.clone(),
+            exchange: self.live_config.selected_live_account.exchange.clone(),
+            sender: self.base_context.node_id.clone(),
+            timestamp: get_utc8_timestamp_millis(),
+            request_id: request_id,
         };
+
 
         self.request_id = Some(request_id);
         tracing::warn!("{}: 注册交易所的请求id: {:?}", self.base_context.node_name, self.request_id);
@@ -298,35 +266,20 @@ impl LiveDataNodeContext {
 
     pub async fn subscribe_kline_stream(&mut self) -> Result<(), String> {
         let request_id = Uuid::new_v4();
-        let params = match self.base_context.trade_mode {
-            TradeMode::Live => {
-                match self.live_config.clone() {
-                    Some(config) => {
-                        let params = SubscribeKlineStreamParams {
-                            strategy_id: self.base_context.strategy_id.clone(),
-                            node_id: self.base_context.node_id.clone(),
-                            account_id: config.selected_live_account.account_id,
-                            exchange: config.selected_live_account.exchange,
-                            symbol: config.symbol,
-                            interval: config.interval,
-                            frequency: 1000,
-                            sender: self.base_context.node_id.clone(),
-                            timestamp: get_utc8_timestamp_millis(),
-                            request_id: request_id,
-                        };
-                        params
 
-                    }
-                    None => {
-                        return Err("实盘模式未配置".to_string());
-                    }
-                    
-                }    
-            },
-            _ => {
-                return Err("不支持的订阅模式".to_string());
-            }
+        let params = SubscribeKlineStreamParams {
+            strategy_id: self.base_context.strategy_id.clone(),
+            node_id: self.base_context.node_id.clone(),
+            account_id: self.live_config.selected_live_account.account_id.clone(),
+            exchange: self.live_config.selected_live_account.exchange.clone(),
+            symbol: self.live_config.symbol.clone(),
+            interval: self.live_config.interval.clone(),
+            frequency: 1000,
+            sender: self.base_context.node_id.clone(),
+            timestamp: get_utc8_timestamp_millis(),
+            request_id: request_id,
         };
+
 
         self.request_id = Some(request_id);
 
@@ -344,17 +297,12 @@ impl LiveDataNodeContext {
 
     pub async fn unsubscribe_kline_stream(&mut self) -> Result<(), String> {
         let request_id = Uuid::new_v4();
-        let (account_id, exchange, symbol, interval) = match self.base_context.trade_mode {
-            TradeMode::Live => {
-                (self.live_config.as_ref().unwrap().selected_live_account.account_id.clone(), 
-                self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(), 
-                self.live_config.as_ref().unwrap().symbol.clone(), 
-                self.live_config.as_ref().unwrap().interval.clone())
-            }
-            _ => {
-                return Err("不支持的订阅模式".to_string());
-            }
-        };
+        let (account_id, exchange, symbol, interval) = (
+            self.live_config.selected_live_account.account_id.clone(), 
+            self.live_config.selected_live_account.exchange.clone(), 
+            self.live_config.symbol.clone(), 
+            self.live_config.interval.clone());
+
         let params = UnsubscribeKlineStreamParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),

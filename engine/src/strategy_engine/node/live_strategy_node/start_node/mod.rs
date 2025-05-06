@@ -1,16 +1,17 @@
 pub mod start_node_state_machine;
 pub mod start_node_context;
+
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use event_center::EventPublisher;
+use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
+use crate::strategy_engine::node::{NodeTrait,NodeType};
+use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContext};
 use super::start_node::start_node_state_machine::{StartNodeStateMachine,StartNodeStateAction};
-use super::node_types::*;
 use std::time::Duration;
 use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
-use super::node_context::{BaseNodeContext, NodeContext};
-use super::NodeTrait;
 use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
 
 #[derive(Debug)]
@@ -31,17 +32,13 @@ impl StartNode {
         strategy_id: i32,
         node_id: String, 
         node_name: String,
-        trade_mode: TradeMode,
-        live_config: Option<LiveConfig>,
-        backtest_config: Option<BacktestConfig>,
-        simulated_config: Option<SimulatedConfig>,
+        live_config: LiveConfig,
         event_publisher: EventPublisher,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
-            trade_mode,
             NodeType::StartNode,
             event_publisher,
             vec![],
@@ -51,8 +48,6 @@ impl StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
                 base_context,
                 live_config,
-                backtest_config,
-                simulated_config,
             }))),
         }
     }

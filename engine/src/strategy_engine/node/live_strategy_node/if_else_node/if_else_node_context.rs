@@ -5,12 +5,10 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use super::super::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use super::condition::*;
-use types::strategy::message::{IndicatorMessage, SignalMessage, Signal, NodeMessage, SignalType};
+use types::strategy::message::{SignalMessage, NodeMessage, SignalType};
 use super::if_else_node_type::*;
-use types::strategy::TradeMode;
-use types::strategy::message::VariableMessage;
 
 
 
@@ -22,10 +20,7 @@ pub struct IfElseNodeContext {
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
     pub received_message: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
-    // pub cases: Vec<Case>,
-    pub live_config: Option<IfElseNodeLiveConfig>,
-    pub backtest_config: Option<IfElseNodeBacktestConfig>,
-    pub simulate_config: Option<IfElseNodeSimulateConfig>,
+    pub live_config: IfElseNodeLiveConfig,
     
 
 }
@@ -145,11 +140,10 @@ impl IfElseNodeContext {
         // 在锁外执行评估
         let mut case_matched = false; // 是否匹配到case
         // 根据交易模式获取case
-        let cases = self.live_config.as_ref().unwrap().cases.clone();
 
         
         // 遍历case
-        for case in cases {
+        for case in self.live_config.cases.clone() {
             let case_result = self.evaluate_case(case.clone()).await;
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估

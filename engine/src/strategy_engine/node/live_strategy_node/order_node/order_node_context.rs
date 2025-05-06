@@ -5,9 +5,9 @@ use utils::get_utc8_timestamp_millis;
 use chrono::Utc;
 use event_center::Event;
 use uuid::Uuid;
-use super::super::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use types::strategy::message::NodeMessage;
-use types::strategy::message::{SignalMessage,SignalType,Signal};
+use types::strategy::message::SignalType;
 use event_center::response_event::ResponseEvent;
 use event_center::command_event::CommandEvent;
 use event_center::command_event::order_engine_command::OrderEngineCommand;
@@ -35,9 +35,7 @@ use exchange_client::ExchangeClient;
 #[derive(Debug, Clone)]
 pub struct OrderNodeContext {
     pub base_context: BaseNodeContext,
-    pub live_config: Option<OrderNodeLiveConfig>,
-    pub simulate_config: Option<OrderNodeSimulateConfig>,
-    pub backtest_config: Option<OrderNodeBacktestConfig>,
+    pub live_config: OrderNodeLiveConfig,
     pub request_id: Vec<Uuid>,
     pub is_processing_order: Arc<RwLock<bool>>, // 是否正在处理订单
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
@@ -142,42 +140,33 @@ impl OrderNodeContext {
             return;
         }
         *self.is_processing_order.write().await = true;
-        match self.base_context.trade_mode {
-            TradeMode::Live => {
-                let request_id = Uuid::new_v4();
-                self.request_id.push(request_id); // 将request_id添加到request_id列表中
-                let create_order_params = CreateOrderParams {
-                    base_params: BaseCommandParams {
-                        strategy_id: self.get_strategy_id().clone(),
-                        node_id: self.get_node_id().clone(),
-                        sender: self.get_node_id().clone(),
-                        timestamp: get_utc8_timestamp_millis(),
-                        request_id: request_id,
-                    },
-                    account_id: self.live_config.as_ref().unwrap().selected_live_account.account_id,
-                    exchange: self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(),
-                    symbol: self.live_config.as_ref().unwrap().order_config.symbol.clone(),
-                    order_type: self.live_config.as_ref().unwrap().order_config.order_type.clone(),
-                    order_side: self.live_config.as_ref().unwrap().order_config.order_side.clone(),
-                    quantity: self.live_config.as_ref().unwrap().order_config.quantity,
-                    price: self.live_config.as_ref().unwrap().order_config.price,
-                    tp: self.live_config.as_ref().unwrap().order_config.tp,
-                    sl: self.live_config.as_ref().unwrap().order_config.sl,
-                    comment: "111".to_string(),
         
-                };
+        let request_id = Uuid::new_v4();
+        self.request_id.push(request_id); // 将request_id添加到request_id列表中
+        let create_order_params = CreateOrderParams {
+            base_params: BaseCommandParams {
+                strategy_id: self.get_strategy_id().clone(),
+                node_id: self.get_node_id().clone(),
+                sender: self.get_node_id().clone(),
+                timestamp: get_utc8_timestamp_millis(),
+                request_id: request_id,
+            },
+            account_id: self.live_config.selected_live_account.account_id,
+            exchange: self.live_config.selected_live_account.exchange.clone(),
+            symbol: self.live_config.order_config.symbol.clone(),
+            order_type: self.live_config.order_config.order_type.clone(),
+            order_side: self.live_config.order_config.order_side.clone(),
+            quantity: self.live_config.order_config.quantity,
+            price: self.live_config.order_config.price,
+            tp: self.live_config.order_config.tp,
+            sl: self.live_config.order_config.sl,
+            comment: "111".to_string(),
 
-                tracing::info!("{}: 发送创建订单命令: {:?}", self.get_node_id(), create_order_params);
-                let command_event = CommandEvent::OrderEngine(OrderEngineCommand::CreateOrder(create_order_params));
-                self.get_event_publisher().publish(command_event.into()).expect("发送创建订单命令失败");
-                
+        };
 
-
-            }
-            _ => {
-                tracing::error!("{}: 暂不支持的TradeMode: {:?}", self.get_node_id(), self.base_context.trade_mode);
-            }
-        }
+        tracing::info!("{}: 发送创建订单命令: {:?}", self.get_node_id(), create_order_params);
+        let command_event = CommandEvent::OrderEngine(OrderEngineCommand::CreateOrder(create_order_params));
+        self.get_event_publisher().publish(command_event.into()).expect("发送创建订单命令失败");
         
     }
 
@@ -199,60 +188,50 @@ impl OrderNodeContext {
 
         // 将is_processing_order设置为true
         self.set_is_processing_order(true).await;
+        tracing::info!("{}: 开始创建订单", self.get_node_id());
         
+        let exchange = self.get_exchange(&self.live_config.selected_live_account.account_id).await.unwrap();
+        let create_order_params = CreateOrderParams {
+            base_params: BaseCommandParams {
+                strategy_id: self.get_strategy_id().clone(),
+                node_id: self.get_node_id().clone(),
+                sender: self.get_node_id().clone(),
+                timestamp: get_utc8_timestamp_millis(),
+                request_id: Uuid::new_v4(),
+            },
+            account_id: self.live_config.selected_live_account.account_id,
+            exchange: self.live_config.selected_live_account.exchange.clone(),
+            symbol: self.live_config.order_config.symbol.clone(),
+            order_type: self.live_config.order_config.order_type.clone(),
+            order_side: self.live_config.order_config.order_side.clone(),
+            quantity: self.live_config.order_config.quantity,
+            price: self.live_config.order_config.price,
+            tp: self.live_config.order_config.tp,
+            sl: self.live_config.order_config.sl,
+            comment: "111".to_string(),
 
-        match self.base_context.trade_mode {
-            TradeMode::Live => {
-                tracing::info!("{}: 开始创建订单", self.get_node_id());
-                
-                let exchange = self.get_exchange(&self.live_config.as_ref().unwrap().selected_live_account.account_id).await.unwrap();
-                let create_order_params = CreateOrderParams {
-                    base_params: BaseCommandParams {
-                        strategy_id: self.get_strategy_id().clone(),
-                        node_id: self.get_node_id().clone(),
-                        sender: self.get_node_id().clone(),
-                        timestamp: get_utc8_timestamp_millis(),
-                        request_id: Uuid::new_v4(),
-                    },
-                    account_id: self.live_config.as_ref().unwrap().selected_live_account.account_id,
-                    exchange: self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(),
-                    symbol: self.live_config.as_ref().unwrap().order_config.symbol.clone(),
-                    order_type: self.live_config.as_ref().unwrap().order_config.order_type.clone(),
-                    order_side: self.live_config.as_ref().unwrap().order_config.order_side.clone(),
-                    quantity: self.live_config.as_ref().unwrap().order_config.quantity,
-                    price: self.live_config.as_ref().unwrap().order_config.price,
-                    tp: self.live_config.as_ref().unwrap().order_config.tp,
-                    sl: self.live_config.as_ref().unwrap().order_config.sl,
-                    comment: "111".to_string(),
-        
-                };
-                let original_order = exchange.create_order(create_order_params.clone()).await.unwrap();
-                if let Ok(order) = OrderMutation::insert_order(&self.database, self.get_strategy_id().clone() as i64, self.get_node_id().clone(), self.live_config.as_ref().unwrap().selected_live_account.account_id, original_order.clone()).await {
-                    tracing::info!("订单入库成功: {:?}", order);
-                    // 如果订单状态为已成交，则通知持仓引擎，订单已成交
-                    if original_order.get_order_status() == OrderStatus::Filled {
-                        // 发送订单已成交信号
-                        let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
-                        let order_message = OrderMessage::OrderFilled(order.clone());
-                        // 发送消息
-                        output_handle.send(NodeMessage::Order(order_message.clone())).unwrap();
-                        // 获取交易明细
-                        self.get_transaction_detail(order).await.unwrap();
+        };
+        let original_order = exchange.create_order(create_order_params.clone()).await.unwrap();
+        if let Ok(order) = OrderMutation::insert_order(&self.database, self.get_strategy_id().clone() as i64, self.get_node_id().clone(), self.live_config.selected_live_account.account_id, original_order.clone()).await {
+            tracing::info!("订单入库成功: {:?}", order);
+            // 如果订单状态为已成交，则通知持仓引擎，订单已成交
+            if original_order.get_order_status() == OrderStatus::Filled {
+                // 发送订单已成交信号
+                let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
+                let order_message = OrderMessage::OrderFilled(order.clone());
+                // 发送消息
+                output_handle.send(NodeMessage::Order(order_message.clone())).unwrap();
+                // 获取交易明细
+                self.get_transaction_detail(order).await.unwrap();
 
-                    } 
-                    // 如果订单状态为其他的状态，则将订单添加为正在处理的订单
-                    else {
-                        // 将订单添加为正在处理的订单
-                        self.set_unfilled_order(Some(order)).await;
-                    }
-                } else {
-                    tracing::error!("订单入库失败: {:?}", original_order);
-                }
-
+            } 
+            // 如果订单状态为其他的状态，则将订单添加为正在处理的订单
+            else {
+                // 将订单添加为正在处理的订单
+                self.set_unfilled_order(Some(order)).await;
             }
-            _ => {
-                tracing::error!("{}: 暂不支持的TradeMode: {:?}", self.get_node_id(), self.base_context.trade_mode);
-            }
+        } else {
+            tracing::error!("订单入库失败: {:?}", original_order);
         }
     }
 
@@ -263,16 +242,16 @@ impl OrderNodeContext {
             strategy_id: self.get_strategy_id().clone(),
             node_id: self.get_node_id().clone(),
             exchange_order_id: 475265246,
-            account_id: self.live_config.as_ref().unwrap().selected_live_account.account_id,
-            exchange: self.live_config.as_ref().unwrap().selected_live_account.exchange.clone(),
-            symbol: self.live_config.as_ref().unwrap().order_config.symbol.clone(),
-            order_side: self.live_config.as_ref().unwrap().order_config.order_side.clone(),
-            order_type: self.live_config.as_ref().unwrap().order_config.order_type.clone(),
+            account_id: self.live_config.selected_live_account.account_id,
+            exchange: self.live_config.selected_live_account.exchange.clone(),
+            symbol: self.live_config.order_config.symbol.clone(),
+            order_side: self.live_config.order_config.order_side.clone(),
+            order_type: self.live_config.order_config.order_type.clone(),
             order_status: OrderStatus::Filled,
-            quantity: self.live_config.as_ref().unwrap().order_config.quantity,
-            open_price: self.live_config.as_ref().unwrap().order_config.price,
-            tp: self.live_config.as_ref().unwrap().order_config.tp,
-            sl: self.live_config.as_ref().unwrap().order_config.sl,
+            quantity: self.live_config.order_config.quantity,
+            open_price: self.live_config.order_config.price,
+            tp: self.live_config.order_config.tp,
+            sl: self.live_config.order_config.sl,
             extra_info: Some(serde_json::to_value("111".to_string()).unwrap()),
             created_time: Utc::now(),
             updated_time: Utc::now(),

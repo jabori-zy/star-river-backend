@@ -1,4 +1,4 @@
-use super::super::node_context::{BaseNodeContext, NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContext};
 use std::any::Any;
 use event_center::Event;
 use types::strategy::message::NodeMessage;
@@ -11,9 +11,7 @@ use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig};
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
     pub base_context: BaseNodeContext,
-    pub live_config: Option<LiveConfig>,
-    pub backtest_config: Option<BacktestConfig>,
-    pub simulated_config: Option<SimulatedConfig>,
+    pub live_config: LiveConfig,
     
 }
 

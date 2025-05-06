@@ -8,3 +8,4 @@ pub mod position;
 pub mod transaction;
 // pub mod account;
 pub mod account;
+pub mod custom_type;
