@@ -9,13 +9,13 @@ use crate::Event;
 pub enum MarketEvent {
     #[strum(serialize = "kline-update")]
     #[serde(rename = "kline-update")]
-    KlineUpdate(KlineEventInfo),
+    KlineUpdate(KlineInfo),
     #[strum(serialize = "kline-series-update")]
     #[serde(rename = "kline-series-update")]
-    KlineSeriesUpdate(KlineSeriesUpdateEventInfo),
+    KlineSeriesUpdate(KlineSeriesInfo),
     #[strum(serialize = "ticker-price-update")]
     #[serde(rename = "ticker-price-update")]
-    TickerPriceUpdate(TickerPriceEventInfo),
+    TickerPriceUpdate(TickerPriceInfo),
 }
 
 impl From<MarketEvent> for Event {
@@ -46,7 +46,7 @@ pub struct ExchangeKlineEventInfo {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineEventInfo{
+pub struct KlineInfo{
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -56,7 +56,7 @@ pub struct KlineEventInfo{
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineSeriesUpdateEventInfo{
+pub struct KlineSeriesInfo{
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -66,7 +66,7 @@ pub struct KlineSeriesUpdateEventInfo{
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TickerPriceEventInfo{
+pub struct TickerPriceInfo{
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,

@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::str::FromStr;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::condition::Case;
 use crate::strategy_engine::node::node_types::NodeType;
-use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
+use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig, TradeMode};
 use crate::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context::*;
 use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_node_type::*;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::if_else_node_type::*;
@@ -26,7 +26,6 @@ impl LiveStrategyFunction {
     pub async fn add_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
-        trade_mode: TradeMode,
         node_config: Value,
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>,

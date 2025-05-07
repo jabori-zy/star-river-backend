@@ -12,7 +12,7 @@ use std::time::Duration;
 use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
-use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
+use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig, TradeMode};
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -32,7 +32,7 @@ impl StartNode {
         strategy_id: i32,
         node_id: String, 
         node_name: String,
-        live_config: LiveConfig,
+        live_config: LiveStrategyConfig,
         event_publisher: EventPublisher,
     ) -> Self {
         let base_context = BaseNodeContext::new(

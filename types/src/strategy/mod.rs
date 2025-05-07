@@ -1,6 +1,6 @@
-pub mod message;
+pub mod node_message;
 pub mod info;
-pub mod sys_varibale;
+pub mod sys_varibale;// 图表消息
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,7 @@ use crate::market::Exchange;
 use std::str::FromStr;
 use strum::{EnumString, Display};
 use chrono::{DateTime, Utc};
+
 
 
 
@@ -77,7 +78,7 @@ pub struct Variable {
 
 // 实盘模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LiveConfig {
+pub struct LiveStrategyConfig {
     #[serde(rename = "liveAccounts")]
     pub live_accounts: Vec<SelectedAccount>, // 账户ID列表
     #[serde(rename = "variables")]
@@ -101,23 +102,23 @@ pub struct SimulatedConfig {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StrategyConfig {
-    pub live_config: Option<LiveConfig>, // 实盘交易配置
-    pub backtest_config: Option<BacktestConfig>, // 回测交易配置
-    pub simulated_config: Option<SimulatedConfig>, // 模拟交易配置
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct StrategyConfig {
+//     pub live_config: Option<LiveStrategyConfig>, // 实盘交易配置
+//     pub backtest_config: Option<BacktestConfig>, // 回测交易配置
+//     pub simulated_config: Option<SimulatedConfig>, // 模拟交易配置
+// }
 
 
-impl Default for StrategyConfig {
-    fn default() -> Self {
-        StrategyConfig {
-            live_config: None,
-            backtest_config: None,  
-            simulated_config: None,
-        }
-    }
-}
+// impl Default for StrategyConfig {
+//     fn default() -> Self {
+//         StrategyConfig {
+//             live_config: None,
+//             backtest_config: None,  
+//             simulated_config: None,
+//         }
+//     }
+// }
 
 
 

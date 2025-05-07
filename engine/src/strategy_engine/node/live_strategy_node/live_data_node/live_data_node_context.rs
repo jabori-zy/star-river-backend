@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
 use event_center::market_event::MarketEvent;
-use types::strategy::message::{KlineSeriesMessage, NodeMessage};
+use types::strategy::node_message::{KlineSeriesMessage, NodeMessage};
 use uuid::Uuid;
 use event_center::response_event::ResponseEvent;
 use event_center::strategy_event::StrategyEvent;

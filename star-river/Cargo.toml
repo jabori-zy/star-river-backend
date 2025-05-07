@@ -28,5 +28,6 @@ event-center = {path = "../event-center"}
 database = { path = "../database" }
 migration = { path = "../migration" }
 engine = { path = "../engine" }
+async-stream.workspace = true
 
 

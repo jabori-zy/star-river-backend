@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;

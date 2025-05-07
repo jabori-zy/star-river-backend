@@ -12,7 +12,7 @@ use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
 use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use event_center::EventPublisher;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;

@@ -7,7 +7,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 // use super::node::node_types::NodeContext;
 pub struct StrategyFunction;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::strategy::strategy_context::StrategyContext;
 

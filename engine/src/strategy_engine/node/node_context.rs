@@ -7,7 +7,7 @@ use event_center::Event;
 use std::fmt::Debug;
 use async_trait::async_trait;
 use std::any::Any;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use types::strategy::TradeMode;
 use super::node_types::*;
 

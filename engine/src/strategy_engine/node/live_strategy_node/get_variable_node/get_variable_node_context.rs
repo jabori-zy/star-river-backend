@@ -11,12 +11,12 @@ use event_center::Event;
 use super::get_variable_node_types::*;
 use types::strategy::sys_varibale::SysVariable;
 use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
-use types::strategy::message::VariableMessage;
+use types::strategy::node_message::VariableMessage;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::collections::HashMap;
-use types::strategy::message::SignalType;
+use types::strategy::node_message::SignalType;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use tokio::sync::broadcast::error::SendError;
 use std::error::Error;
 use serde::{Deserialize, Serialize};
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use sea_orm::prelude::*;
 use strum_macros::Display;
 use std::str::FromStr;

@@ -7,7 +7,7 @@ use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
 use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use super::condition::*;
-use types::strategy::message::{SignalMessage, NodeMessage, SignalType};
+use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
 use super::if_else_node_type::*;
 
 

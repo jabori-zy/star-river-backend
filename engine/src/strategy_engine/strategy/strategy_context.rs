@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::any::Any;
 use std::fmt::Debug;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use tokio_util::sync::CancellationToken;
 use super::strategy_state_machine::StrategyRunState;

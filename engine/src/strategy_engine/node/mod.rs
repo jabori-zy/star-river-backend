@@ -8,7 +8,7 @@ pub mod node_state_machine;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;

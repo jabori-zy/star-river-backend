@@ -1,4 +1,4 @@
-use super::{CacheManager, CacheEntry};
+use crate::cache_engine::cache_engine_type::{CacheManager, CacheEntry};
 use std::collections::VecDeque;
 use event_center::response_event::ResponseEvent;
 use utils::get_utc8_timestamp_millis;

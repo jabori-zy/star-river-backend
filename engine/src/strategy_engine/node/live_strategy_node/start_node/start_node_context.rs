@@ -1,9 +1,9 @@
 use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContext};
 use std::any::Any;
 use event_center::Event;
-use types::strategy::message::NodeMessage;
+use types::strategy::node_message::NodeMessage;
 use async_trait::async_trait;
-use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig};
+use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig};
 
 
 
@@ -11,7 +11,7 @@ use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig};
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
     pub base_context: BaseNodeContext,
-    pub live_config: LiveConfig,
+    pub live_config: LiveStrategyConfig,
     
 }
 

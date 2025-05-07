@@ -8,14 +8,14 @@ use heartbeat::Heartbeat;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use types::strategy::message::{NodeMessage, OrderMessage};
+use types::strategy::node_message::{NodeMessage, OrderMessage};
 use types::order::Order;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use exchange_client::ExchangeClient;
 use crate::Engine;
 use database::mutation::position_mutation::PositionMutation;
 use event_center::command_event::position_engine_command::GetPositionParam;
-use types::strategy::message::PositionMessage;
+use types::strategy::node_message::PositionMessage;
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeContext {

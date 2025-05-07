@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::strategy_engine::node::live_strategy_node::start_node::StartNode;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::NodeTrait;
-use types::strategy::{LiveConfig, BacktestConfig, SimulatedConfig, TradeMode};
+use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig, TradeMode};
 
 
 impl LiveStrategyFunction {
@@ -26,7 +26,7 @@ impl LiveStrategyFunction {
         if live_config_json.is_null() {
             return Err("liveConfig is null".to_string());
         }
-        let live_config = serde_json::from_value::<LiveConfig>(live_config_json).unwrap();
+        let live_config = serde_json::from_value::<LiveStrategyConfig>(live_config_json).unwrap();
         let mut node = StartNode::new(
             strategy_id as i32, 
             node_id.to_string(), 

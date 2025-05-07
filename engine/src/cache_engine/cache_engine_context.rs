@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use event_center::EventPublisher;
 use tokio::sync::RwLock;
-use crate::cache_engine::CacheManager;
+use crate::cache_engine::cache_engine_type::{CacheManager, CacheEntry};
 use crate::EngineContext;
 use crate::EngineName;
 use std::any::Any;
@@ -86,7 +86,6 @@ impl EngineContext for CacheEngineContext {
 
 impl CacheEngineContext {
     async fn handle_command_event(&mut self, command_event: CommandEvent) {
-        
         match command_event {
             // 处理k线缓存的命令
             CommandEvent::CacheEngine(command) => {
@@ -134,6 +133,16 @@ impl CacheEngineContext {
 
     async fn handle_indicator_event(&mut self, indicator_event: IndicatorEvent) {
         tracing::info!("处理指标事件: {:?}", indicator_event);
+    }
+
+    pub async fn get_all_kline_cache_data(&self, cache_key: KlineCacheKey) -> Vec<Kline> {
+        let kline_cache_manager = self.kline_cache_manager.read().await;
+        kline_cache_manager.get_all_cache_data(cache_key)
+    }
+
+    pub async fn get_last_kline_cache_data(&self, cache_key: KlineCacheKey) -> Option<Kline> {
+        let kline_cache_manager = self.kline_cache_manager.read().await;
+        kline_cache_manager.get_last_cache_data(cache_key)
     }
 }
 

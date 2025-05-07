@@ -11,7 +11,7 @@ use event_center::response_event::indicator_engine_response::IndicatorEngineResp
 use event_center::command_event::indicator_engine_command::IndicatorEngineCommand;
 use event_center::strategy_event::StrategyEvent;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::message::{IndicatorMessage, NodeMessage};
+use types::strategy::node_message::{IndicatorMessage, NodeMessage};
 use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use super::indicator_node_type::IndicatorNodeLiveConfig;
 use types::strategy::TradeMode;

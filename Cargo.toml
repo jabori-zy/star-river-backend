@@ -50,7 +50,7 @@ reqwest = { version = "0.12.12", features = ["json"] }
 futures-util = "0.3.31"
 zeromq = {version = "0.4.1", features = ["tokio"]}
 rand = "0.9.0"
-
+async-stream = "0.3.6"
 
 [package]
 name = "star-river-backend"

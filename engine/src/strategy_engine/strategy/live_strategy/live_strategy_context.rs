@@ -7,8 +7,8 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::NodeTrait;
 use crate::strategy_engine::strategy::strategy_state_machine::*;
-use types::strategy::{TradeMode, StrategyConfig};
-use types::strategy::message::NodeMessage;
+use types::strategy::{TradeMode, LiveStrategyConfig};
+use types::strategy::node_message::NodeMessage;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
@@ -22,7 +22,7 @@ use std::any::Any;
 use database::query::position_query::PositionQuery;
 use database::mutation::position_mutation::PositionMutation;
 use types::position::PositionState;
-use types::strategy::message::PositionMessage;
+use types::strategy::node_message::PositionMessage;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::NodeRunState;
@@ -32,8 +32,7 @@ use crate::strategy_engine::node::node_state_machine::NodeRunState;
 pub struct LiveStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
-    pub trading_mode: TradeMode, // 交易模式
-    pub config: StrategyConfig, // 策略配置
+    pub config: LiveStrategyConfig, // 策略配置
     pub graph: Graph<Box<dyn NodeTrait>, (),  Directed>,
     pub node_indices: HashMap<String, NodeIndex>,
     pub event_publisher: EventPublisher,
@@ -54,7 +53,6 @@ impl Clone for LiveStrategyContext {
         Self {
             strategy_id: self.strategy_id,
             strategy_name: self.strategy_name.clone(),
-            trading_mode: self.trading_mode.clone(),
             config: self.config.clone(),
             graph: self.graph.clone(),
             node_indices: self.node_indices.clone(),

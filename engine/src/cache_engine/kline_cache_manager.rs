@@ -1,7 +1,7 @@
-use super::{CacheManager, CacheEntry};
+use crate::cache_engine::cache_engine_type::{CacheManager, CacheEntry};
 
 use event_center::exchange_event::{ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
-use event_center::market_event::{MarketEvent, KlineSeriesUpdateEventInfo};
+use event_center::market_event::{MarketEvent, KlineSeriesInfo};
 use types::market::Kline;
 use std::collections::VecDeque;
 use utils::get_utc8_timestamp_millis;
@@ -117,7 +117,7 @@ impl CacheManager<KlineCacheKey, Kline> {
             interval: cache_key.interval.clone(),
             series: kline_series,
         };
-        let kline_series_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesUpdateEventInfo {
+        let kline_series_update_event = MarketEvent::KlineSeriesUpdate(KlineSeriesInfo {
             exchange: cache_key.exchange,
             symbol: cache_key.symbol,
             interval: cache_key.interval,

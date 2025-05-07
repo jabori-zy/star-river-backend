@@ -41,7 +41,7 @@ pub enum Channel {
     Order, // 订单通道
     Position, // 仓位通道
     Indicator, // 指标通道
-    Strategy, // 节点的信息通过这个通道发送
+    Strategy, // 策略的信息通过这个通道发送
     Command, // 命令通道
     Response, // 响应通道
     Account, // 账户通道

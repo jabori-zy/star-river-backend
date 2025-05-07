@@ -20,10 +20,9 @@ use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use event_center::Event;
-use petgraph::{Graph, Directed};
-use petgraph::graph::NodeIndex;
+use petgraph::Graph;
 use std::collections::HashMap;
-use types::strategy::{StrategyConfig, TradeMode};
+use types::strategy::LiveStrategyConfig;
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use live_strategy_function::LiveStrategyFunction;
@@ -50,11 +49,13 @@ impl LiveStrategy {
     ) -> Self {
         let mut graph = Graph::new();
         let mut node_indices = HashMap::new();
-        let mut global_config = StrategyConfig::default();
+        let mut strategy_live_config = LiveStrategyConfig {
+            live_accounts: vec![],
+            variables: None,
+        };
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
-        let trade_mode = strategy.trade_mode;
 
 
         // 当策略创建时，状态为 Created
@@ -63,8 +64,9 @@ impl LiveStrategy {
 
         match strategy.config {
             Some(config) => {
-                if let Ok(config) = serde_json::from_str::<StrategyConfig>(&config.to_string()) {
-                    global_config = config;
+                let live_config = config["liveConfig"].clone();
+                if let Ok(live_config) = serde_json::from_value::<LiveStrategyConfig>(live_config) {
+                    strategy_live_config = live_config;
                 } else {
                     tracing::error!("策略配置解析失败");
                 }
@@ -82,7 +84,6 @@ impl LiveStrategy {
                     LiveStrategyFunction::add_node(
                         &mut graph, 
                         &mut node_indices, 
-                        trade_mode.clone(),
                         node_config, 
                         event_publisher.clone(), 
                         market_event_receiver.resubscribe(), 
@@ -90,7 +91,7 @@ impl LiveStrategy {
                         exchange_engine.clone(),
                         database.clone(),
                         heartbeat.clone(),
-                    ).await;
+                    ).await.unwrap();
 
                 }
             }
@@ -119,8 +120,7 @@ impl LiveStrategy {
         let context = LiveStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
-            trading_mode: trade_mode,
-            config: global_config,
+            config: strategy_live_config,
             graph,
             node_indices,
             event_publisher,
