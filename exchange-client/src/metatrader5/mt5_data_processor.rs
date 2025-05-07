@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use event_center::EventPublisher;
-use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
+use event_center::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent, ExchangeKlineSeriesUpdateEvent};
 use types::market::{Kline, Exchange, KlineSeries, MT5Server};
 use types::position::PositionNumber;
 use utils::{get_utc8_timestamp_millis, generate_batch_id};
@@ -51,13 +51,12 @@ impl Mt5DataProcessor {
                 close: close,
                 volume: volume,
             };
-            let exchange_kline_update_event_config = ExchangeKlineUpdateEventInfo {
+            let exchange_kline_update_event_config = ExchangeKlineUpdateEvent {
                 exchange: Exchange::Metatrader5(self.server.clone()),
                 symbol: symbol.to_string(),
                 interval: interval.clone().into(),
                 kline: kline,
                 event_timestamp: get_utc8_timestamp_millis(),
-                batch_id: generate_batch_id(),
             };
             let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();
             let _ = self.event_publisher.lock().await.publish(event);
@@ -106,22 +105,22 @@ impl Mt5DataProcessor {
                 }
             })
             .collect::<Vec<Kline>>();
-        let kline_series = KlineSeries {
-            exchange: Exchange::Metatrader5(self.server.clone()),
-            symbol: symbol.to_string(),
-            interval: interval.clone().into(),
-            series: klines,
-        };
+        // let kline_series = KlineSeries {
+        //     exchange: Exchange::Metatrader5(self.server.clone()),
+        //     symbol: symbol.to_string(),
+        //     interval: interval.clone().into(),
+        //     series: klines,
+        // };
 
-        let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEventInfo {
+        let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent {
             exchange: Exchange::Metatrader5(self.server.clone()),
             event_timestamp: get_utc8_timestamp_millis(),
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
-            kline_series,
-            batch_id: generate_batch_id(),
+            kline_series: klines,
         };
-        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
+
+        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update).into();
         let _ = self.event_publisher.lock().await.publish(exchange_klineseries_update_event);
     }
 

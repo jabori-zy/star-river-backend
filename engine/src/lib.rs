@@ -4,8 +4,9 @@ pub mod exchange_engine; // 交易所引擎
 pub mod indicator_engine; // 指标引擎
 
 pub mod strategy_engine; // 策略引擎
-pub mod cache_engine; // 缓存引擎
+// pub mod cache_engine; // 缓存引擎
 pub mod account_engine; // 账户引擎
+pub mod new_cache_engine;
 
 
 

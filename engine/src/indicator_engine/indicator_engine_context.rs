@@ -9,7 +9,7 @@ use event_center::response_event::indicator_engine_response::{IndicatorEngineRes
 use utils::get_utc8_timestamp_millis;
 use event_center::response_event::ResponseEvent;
 use event_center::EventPublisher;
-use types::indicator::Indicators;
+use types::indicator::IndicatorConfig;
 use crate::indicator_engine::talib::TALib;
 use types::indicator::IndicatorValue;
 use types::indicator::SMAIndicator;
@@ -100,7 +100,7 @@ impl IndicatorEngineContext {
         let indicator = calculate_indicator_params.indicator.clone();
 
         match indicator {
-            Indicators::SimpleMovingAverage(sma_config) => {
+            IndicatorConfig::SimpleMovingAverage(sma_config) => {
                 let period = sma_config.period;
                 self.calculate_sma(&period, calculate_indicator_params).await.unwrap();
             }

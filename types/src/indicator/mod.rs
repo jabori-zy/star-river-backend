@@ -1,3 +1,6 @@
+pub mod sma; // 简单移动平均线
+pub mod bbands; // 布林带
+
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -9,17 +12,17 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, EnumString, Display, Serialize, Deserialize)]
 #[serde(tag = "type", content = "config")]
-pub enum Indicators {
+pub enum IndicatorConfig {
     // 简单移动平均线
     #[strum(serialize = "sma")]
     #[serde(rename = "sma")]
     SimpleMovingAverage(SMAConfig),
 }
 
-impl Indicators {
+impl IndicatorConfig {
     pub fn update_config(&mut self, config: &Value) {
         match self {
-            Indicators::SimpleMovingAverage(sma_config) => {
+            IndicatorConfig::SimpleMovingAverage(sma_config) => {
                 if let Some(period) = config.get("period").and_then(|v| v.as_i64()) {
                     sma_config.period = period as i32;
                 }

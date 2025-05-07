@@ -1,11 +1,35 @@
 use crate::market::Exchange;
 use serde::{Deserialize, Serialize};
-use crate::indicator::Indicators;
+use crate::indicator::IndicatorConfig;
 use crate::market::KlineInterval;
 use std::hash::Hash;
 use std::fmt::Debug;
+use crate::market::Kline;
 
-pub trait CacheKey: Debug + Clone + Hash + Eq + PartialEq + Serialize {}
+pub trait CacheKey{
+    fn get_key(&self) -> String;
+}
+
+pub enum NewCacheKey {
+    Kline(KlineCacheKey),
+    Indicator(IndicatorCacheKey),
+}
+
+pub enum CacheValue {
+    Kline(Kline),
+    Indicator(IndicatorConfig),
+}
+
+impl NewCacheKey {
+    pub fn get_key(&self) -> String {
+        match self {
+            NewCacheKey::Kline(key) => key.get_key(),
+            NewCacheKey::Indicator(key) => key.get_key(),
+        }
+    }
+}
+
+pub trait CacheData: Debug {}
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct KlineCacheKey {
@@ -14,7 +38,11 @@ pub struct KlineCacheKey {
     pub interval: KlineInterval,
 }
 
-impl CacheKey for KlineCacheKey {}
+impl CacheKey for KlineCacheKey {
+    fn get_key(&self) -> String {
+        format!("{}:{}:{}", self.exchange, self.symbol, self.interval)
+    }
+}
 
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -22,10 +50,14 @@ pub struct IndicatorCacheKey {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub indicator: Indicators,
+    pub indicator: IndicatorConfig,
 }
 
-impl CacheKey for IndicatorCacheKey {}
+impl CacheKey for IndicatorCacheKey {
+    fn get_key(&self) -> String {
+        format!("{}:{}:{}:{}", self.exchange, self.symbol, self.interval, self.indicator)
+    }
+}
 
 
 

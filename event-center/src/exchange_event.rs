@@ -10,13 +10,13 @@ use crate::Event;
 pub enum ExchangeEvent {
     #[strum(serialize = "exchange-kline-series-update")]
     #[serde(rename = "exchange-kline-series-update")]
-    ExchangeKlineSeriesUpdate(ExchangeKlineSeriesUpdateEventInfo),
+    ExchangeKlineSeriesUpdate(ExchangeKlineSeriesUpdateEvent),
     #[strum(serialize = "exchange-kline-update")]
     #[serde(rename = "exchange-kline-update")]
-    ExchangeKlineUpdate(ExchangeKlineUpdateEventInfo),
+    ExchangeKlineUpdate(ExchangeKlineUpdateEvent),
     #[strum(serialize = "exchange-ticker-price-update")]
     #[serde(rename = "exchange-ticker-price-update")]
-    ExchangeTickerPriceUpdate(ExchangeTickerPriceUpdateEventInfo),
+    ExchangeTickerPriceUpdate(ExchangeTickerPriceUpdateEvent),
 }
 
 impl From<ExchangeEvent> for Event {
@@ -27,29 +27,27 @@ impl From<ExchangeEvent> for Event {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExchangeKlineSeriesUpdateEventInfo {
+pub struct ExchangeKlineSeriesUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub kline_series: KlineSeries,
+    pub kline_series: Vec<Kline>,
     pub event_timestamp: i64,
-    pub batch_id: String,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExchangeKlineUpdateEventInfo {
+pub struct ExchangeKlineUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline: Kline,
     pub event_timestamp: i64,
-    pub batch_id: String,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExchangeTickerPriceUpdateEventInfo{
+pub struct ExchangeTickerPriceUpdateEvent{
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,

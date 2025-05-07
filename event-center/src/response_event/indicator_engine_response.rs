@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use types::market::{Exchange, KlineInterval};
-use types::indicator::{Indicators, IndicatorData};
+use types::indicator::{IndicatorConfig, IndicatorData};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndicatorEngineResponse {
@@ -16,7 +16,7 @@ pub struct CalculateIndicatorResponse {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub indicator: Indicators,
+    pub indicator: IndicatorConfig,
     pub value: Box<dyn IndicatorData>,
     pub response_timestamp: i64,
     pub response_id: Uuid,

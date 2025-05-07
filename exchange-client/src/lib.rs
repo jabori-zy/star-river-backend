@@ -1,5 +1,5 @@
 mod utils;
-pub mod binance;
+// pub mod binance;
 pub mod metatrader5;
 
 use async_trait::async_trait;

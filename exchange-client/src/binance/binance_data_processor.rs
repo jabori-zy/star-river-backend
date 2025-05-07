@@ -4,7 +4,7 @@ use types::market::{Kline, Exchange, KlineSeries};
 use crate::binance::BinanceKlineInterval;
 use strum::Display;
 use strum::EnumString;
-use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
+use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEvent, ExchangeKlineUpdateEvent};
 use utils::get_utc8_timestamp_millis;
 use event_center::EventPublisher;
 use utils::generate_batch_id;
@@ -58,7 +58,7 @@ impl BinanceDataProcessor {
             series: klines,
         };
         // 
-        let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEventInfo {
+        let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEvent {
             exchange: Exchange::Binance,
             event_timestamp: get_utc8_timestamp_millis(),
             symbol: symbol.to_string(),
@@ -99,7 +99,7 @@ impl BinanceDataProcessor {
             volume: volume,
         };
 
-        let exchange_kline_update_event_config = ExchangeKlineUpdateEventInfo {
+        let exchange_kline_update_event_config = ExchangeKlineUpdateEvent {
             exchange: Exchange::Binance,
             symbol: symbol.to_string(),
             interval: interval.clone().into(),

@@ -14,7 +14,7 @@ use event_center::response_event::exchange_engine_response::{
 use event_center::response_event::ResponseEvent;
 use event_center::Event;
 use event_center::EventPublisher;
-use exchange_client::binance::BinanceExchange;
+// use exchange_client::binance::BinanceExchange;
 use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::ExchangeClient;
 use rust_embed::Embed;

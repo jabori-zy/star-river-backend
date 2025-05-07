@@ -5,7 +5,7 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use types::market::{Exchange, KlineInterval};
-use types::indicator::Indicators;
+use types::indicator::IndicatorConfig;
 use crate::strategy_engine::node::live_strategy_node::indicator_node::IndicatorNode;
 use event_center::{Event, EventPublisher};
 use types::strategy::TradeMode;
@@ -27,7 +27,7 @@ impl LiveStrategyFunction {
         let node_name = node_data["nodeName"].as_str().unwrap_or_default();
 
         let indicator_type = node_data["indicatorType"].as_str().unwrap_or_default(); // 指标类型
-        let mut indicator = Indicators::from_str(indicator_type).unwrap(); // 转换成指标
+        let mut indicator = IndicatorConfig::from_str(indicator_type).unwrap(); // 转换成指标
         let live_config_json = node_data["liveConfig"].clone();
         if live_config_json.is_null() {
             return Err("liveConfig is null".to_string());

@@ -1,4 +1,4 @@
-use types::indicator::Indicators;
+use types::indicator::IndicatorConfig;
 use crate::star_river::StarRiver;
 use axum::http::StatusCode;
 use axum::extract::State;

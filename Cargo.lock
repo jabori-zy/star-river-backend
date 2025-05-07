@@ -3283,6 +3283,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_cache_engine"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "database",
+ "engine",
+ "event-center",
+ "exchange-client",
+ "futures",
+ "futures-util",
+ "heartbeat",
+ "migration",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "types",
+ "utils",
+]
+
+[[package]]
 name = "test_mt5"
 version = "0.1.0"
 dependencies = [

@@ -1,6 +1,6 @@
 use crate::cache_engine::cache_engine_type::{CacheManager, CacheEntry};
 
-use event_center::exchange_event::{ExchangeKlineSeriesUpdateEventInfo, ExchangeKlineUpdateEventInfo};
+use event_center::exchange_event::{ExchangeKlineSeriesUpdateEvent, ExchangeKlineUpdateEvent};
 use event_center::market_event::{MarketEvent, KlineSeriesInfo};
 use types::market::Kline;
 use std::collections::VecDeque;
@@ -49,7 +49,7 @@ impl From<CacheEntry<KlineCacheKey, Kline>> for KlineSeries {
 
 impl CacheManager<KlineCacheKey, Kline> {
     // 初始化k线缓存
-    pub async fn initialize_kline_series_cache(&mut self, exchange_klineseries_event: ExchangeKlineSeriesUpdateEventInfo) {
+    pub async fn initialize_kline_series_cache(&mut self, exchange_klineseries_event: ExchangeKlineSeriesUpdateEvent) {
         // 从事件中解析出CacheKey
         let exchange =exchange_klineseries_event.exchange;
         let symbol = exchange_klineseries_event.symbol;
@@ -76,7 +76,7 @@ impl CacheManager<KlineCacheKey, Kline> {
 
     }
 
-    pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineUpdateEventInfo, event_publisher: EventPublisher) {    
+    pub async fn update_kline_cache(&mut self, kline_update_event: ExchangeKlineUpdateEvent, event_publisher: EventPublisher) {    
         // tracing::debug!("更新k线缓存, kline_update_event: {:?}", kline_update_event);
 
         let exchange = kline_update_event.exchange;

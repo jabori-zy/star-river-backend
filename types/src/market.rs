@@ -7,6 +7,7 @@ use strum::{Display, EnumString};
 use serde_json;
 use std::str::FromStr;
 use serde::ser::Serializer;
+use crate::new_cache::CacheValueTrait;
 
 pub type MT5Server = String;
 
@@ -140,6 +141,18 @@ pub struct Kline {
     pub low: f64,
     pub close: f64,
     pub volume: f64,
+}
+
+impl CacheValueTrait for Kline {
+    fn get_timestamp(&self) -> i64 {
+        self.timestamp
+    }
+    fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap()
+    }
+    fn to_list(&self) -> Vec<f64> {
+        vec![self.timestamp as f64, self.open, self.high, self.low, self.close, self.volume]
+    }
 }
 
 impl MarketData for Kline {

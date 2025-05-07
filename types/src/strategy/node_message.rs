@@ -1,6 +1,6 @@
 
 use crate::market::KlineSeries;
-use crate::indicator::{Indicators, IndicatorData};
+use crate::indicator::{IndicatorConfig, IndicatorData};
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -70,7 +70,7 @@ pub struct IndicatorMessage {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub indicator: Indicators,
+    pub indicator: IndicatorConfig,
     pub indicator_data: Box<dyn IndicatorData>,
     pub batch_id: String,
     pub message_timestamp: i64,

@@ -5,7 +5,7 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use types::market::{Exchange, KlineInterval};
-use types::indicator::Indicators;
+use types::indicator::IndicatorConfig;
 use event_center::{Event, EventPublisher};
 use serde_json::Value;
 use std::str::FromStr;

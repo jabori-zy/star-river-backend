@@ -10,7 +10,7 @@ use crate::Engine;
 use crate::market_engine::MarketEngine;
 use crate::exchange_engine::ExchangeEngine;
 use crate::strategy_engine::StrategyEngine;
-use crate::cache_engine::CacheEngine;
+use crate::new_cache_engine::NewCacheEngine;
 use crate::account_engine::AccountEngine;
 use crate::EngineName;
 use heartbeat::Heartbeat;
@@ -20,7 +20,7 @@ pub struct EngineManager {
     market_engine: Arc<Mutex<MarketEngine>>,
     indicator_engine: Arc<Mutex<IndicatorEngine>>,
     strategy_engine: Arc<Mutex<StrategyEngine>>,
-    cache_engine: Arc<Mutex<CacheEngine>>,
+    cache_engine: Arc<Mutex<NewCacheEngine>>,
     account_engine: Arc<Mutex<AccountEngine>>,
 }
 
@@ -69,7 +69,7 @@ impl EngineManager {
             heartbeat.clone()
         );
 
-        let cache_engine = CacheEngine::new(
+        let cache_engine = NewCacheEngine::new(
             event_publisher.clone(), 
             exchange_event_receiver.resubscribe(),
             request_event_receiver.resubscribe(), 
