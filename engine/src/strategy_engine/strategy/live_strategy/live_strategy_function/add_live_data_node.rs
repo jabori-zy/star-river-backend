@@ -1,4 +1,5 @@
 use super::LiveStrategyFunction;
+use tokio::sync::Mutex;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
@@ -6,8 +7,9 @@ use tokio::sync::broadcast;
 use crate::strategy_engine::node::live_strategy_node::live_data_node::LiveDataNode;
 use event_center::{Event, EventPublisher};
 use crate::strategy_engine::node::NodeTrait;
-use crate::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context::{LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
-use types::strategy::TradeMode;
+use crate::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context::LiveDataNodeLiveConfig;
+use std::sync::Arc;
+use heartbeat::Heartbeat;
 
 
 impl LiveStrategyFunction {
@@ -18,6 +20,7 @@ impl LiveStrategyFunction {
         event_publisher: EventPublisher,
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
+        heartbeat: Arc<Mutex<Heartbeat>>,
         ) -> Result<(), String> {
             let node_data = node_config["data"].clone();
             let strategy_id = node_data["strategyId"].as_i64().unwrap(); // 策略id
@@ -42,6 +45,7 @@ impl LiveStrategyFunction {
                 event_publisher, 
                 market_event_receiver, 
                 response_event_receiver,
+                heartbeat,
             );
             // 设置默认输出句柄
             node.set_output_handle().await;

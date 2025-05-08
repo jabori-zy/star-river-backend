@@ -270,6 +270,7 @@ impl LiveStrategyContext {
             let run_state = node.get_run_state().await;
             if run_state == NodeRunState::Ready {
                 tracing::debug!("节点 {} 已进入Ready状态", node_id);
+                // 节点初始化间隔
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 return Ok(());
             }
@@ -324,7 +325,8 @@ impl LiveStrategyContext {
             let run_state = node.get_run_state().await;
             if run_state == NodeRunState::Running {
                 tracing::debug!("节点 {} 已进入Running状态", node_id);
-                tokio::time::sleep(Duration::from_millis(1000)).await;
+                // 节点启动间隔
+                // tokio::time::sleep(Duration::from_millis(1000)).await;
                 return Ok(());
             }
             retry_count += 1;
@@ -454,12 +456,12 @@ impl LiveStrategyContext {
                                 position.clone()
                             ).await.unwrap();
 
-                            tracing::info!("未平仓利润: {:?}", position.unrealized_profit);
+                            // tracing::info!("未平仓利润: {:?}", position.unrealized_profit);
 
 
                         }
                         Err(e) => {
-                            tracing::error!("获取最新持仓失败: {:?}", e);
+                            // tracing::error!("获取最新持仓失败: {:?}", e);
                         }
                     }
                     

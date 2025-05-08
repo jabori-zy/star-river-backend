@@ -1,7 +1,7 @@
 // 布林带 Bollinger Bands
 
 use serde::{Deserialize, Serialize};
-use crate::new_cache::CacheValueTrait;
+use crate::new_cache::{CacheValue, CacheValueTrait};
 use crate::market::{Exchange, KlineInterval};
 
 
@@ -23,7 +23,21 @@ pub struct BBands {
     pub lower: f64,
 }
 
+impl TryFrom<CacheValue> for BBands {
+    type Error = String;
+
+    fn try_from(value: CacheValue) -> Result<Self, Self::Error> {
+        match value {
+            CacheValue::BBands(bbands) => Ok(bbands),
+            _ => Err(format!("无法将CacheValue转换为BBands: {:?}", value)),
+        }
+    }
+}
+
 impl CacheValueTrait for BBands {
+    fn to_cache_value(&self) -> CacheValue {
+        CacheValue::BBands(self.clone())
+    }
     fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }

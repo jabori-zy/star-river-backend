@@ -66,7 +66,6 @@ impl NodeContext for IndicatorNodeContext {
                 tracing::debug!("{}: 收到K线系列消息", self.base_context.node_name);
                 // 向指标引擎发送计算请求
                 let request_id = Uuid::new_v4();
-                let batch_id = kline_series_message.batch_id;
 
                 
                 let calculate_indicator_params = CalculateIndicatorParams {
@@ -78,10 +77,8 @@ impl NodeContext for IndicatorNodeContext {
                     sender: self.base_context.node_id.to_string(),
                     command_timestamp: get_utc8_timestamp_millis(),
                     request_id: request_id,
-                    batch_id: batch_id.clone(),
                 };
-
-                self.current_batch_id = Some(batch_id);
+                
                 self.request_id = Some(request_id);
 
                 let event = Event::Command(CommandEvent::IndicatorEngine(IndicatorEngineCommand::CalculateIndicator(calculate_indicator_params)));

@@ -7,7 +7,7 @@ use crate::indicator_config::SMAConfig;
 use strum::{EnumString, Display};
 use std::collections::HashMap;
 use crate::indicator::IndicatorData;
-use crate::new_cache::CacheValueTrait;
+use crate::new_cache::{CacheValue, CacheValueTrait};
 
 
 pub struct SMASeries {
@@ -25,7 +25,21 @@ pub struct SMA {
     pub sma: f64,
 }
 
+impl TryFrom<CacheValue> for SMA {
+    type Error = String;
+
+    fn try_from(value: CacheValue) -> Result<Self, Self::Error> {
+        match value {
+            CacheValue::SMA(sma) => Ok(sma),
+            _ => Err(format!("无法将CacheValue转换为SMA: {:?}", value)),
+        }
+    }
+}
+
 impl CacheValueTrait for SMA {
+    fn to_cache_value(&self) -> CacheValue {
+        CacheValue::SMA(self.clone())
+    }
     fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }

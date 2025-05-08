@@ -101,8 +101,7 @@ impl Mt5HttpClient {
         Ok(response)
     }
 
-    pub async fn get_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, limit: Option<u32>) -> Result<serde_json::Value, String> {
-        let limit = limit.unwrap_or(1000);
+    pub async fn get_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, limit: u32) -> Result<serde_json::Value, String> {
         let url = format!("{}?symbol={}&interval={}&limit={}", self.get_url(Mt5HttpUrl::GetKlineSeries), symbol, interval, limit);
         
         let response = self.client.get(&url)

@@ -107,7 +107,8 @@ async fn main() {
             request_id: Uuid::new_v4(),
             account_id: 1,
             exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
-            frequency: 100,
+            frequency: 2000,
+            cache_size: 2,
             interval: KlineInterval::Minutes1,
             symbol: "BTCUSDm".to_string(),
         }));

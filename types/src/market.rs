@@ -7,7 +7,8 @@ use strum::{Display, EnumString};
 use serde_json;
 use std::str::FromStr;
 use serde::ser::Serializer;
-use crate::new_cache::CacheValueTrait;
+use crate::new_cache::{CacheValue, CacheValueTrait};
+
 
 pub type MT5Server = String;
 
@@ -133,7 +134,7 @@ pub trait MarketData: Serialize + Clone + Debug{
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, )]
 pub struct Kline {
     pub timestamp: i64,
     pub open: f64,
@@ -143,7 +144,21 @@ pub struct Kline {
     pub volume: f64,
 }
 
+impl TryFrom<CacheValue> for Kline {
+    type Error = String;
+
+    fn try_from(value: CacheValue) -> Result<Self, Self::Error> {
+        match value {
+            CacheValue::Kline(kline) => Ok(kline),
+            _ => Err(format!("无法将CacheValue转换为Kline: {:?}", value)),
+        }
+    }
+}
+
 impl CacheValueTrait for Kline {
+    fn to_cache_value(&self) -> CacheValue {
+        CacheValue::Kline(self.clone())
+    }
     fn get_timestamp(&self) -> i64 {
         self.timestamp
     }

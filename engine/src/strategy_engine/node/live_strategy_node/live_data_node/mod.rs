@@ -13,9 +13,9 @@ use crate::strategy_engine::node::{NodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use live_data_node_state_machine::{LiveDataNodeStateMachine, LiveDataNodeStateAction};
 use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
-use live_data_node_context::{LiveDataNodeContext, LiveDataNodeLiveConfig, LiveDataNodeBacktestConfig, LiveDataNodeSimulateConfig};
-use types::strategy::TradeMode;
-
+use live_data_node_context::{LiveDataNodeContext, LiveDataNodeLiveConfig};
+use heartbeat::Heartbeat;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct LiveDataNode {
@@ -31,6 +31,7 @@ impl LiveDataNode {
         event_publisher: EventPublisher, 
         market_event_receiver: broadcast::Receiver<Event>,
         response_event_receiver: broadcast::Receiver<Event>,
+        heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -46,8 +47,9 @@ impl LiveDataNode {
                 base_context,
                 stream_is_subscribed: Arc::new(RwLock::new(false)),
                 exchange_is_registered: Arc::new(RwLock::new(false)),
-                request_id: None,
+                request_ids: Arc::new(Mutex::new(vec![])),
                 live_config,
+                heartbeat,
             }))), 
         }
     }
@@ -80,15 +82,16 @@ impl NodeTrait for LiveDataNode {
         self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
 
-        // 检查交易所是否注册成功
+        // 检查交易所是否注册成功，并且K线流是否订阅成功
         loop {
-            let is_registered = {
+            let is_registered_and_subscribed = {
                 let state_guard = self.context.read().await;
                 let live_data_context = state_guard.as_any().downcast_ref::<LiveDataNodeContext>().unwrap();
                 let is_registered = live_data_context.exchange_is_registered.read().await.clone();
-                is_registered
+                let is_subscribed = live_data_context.stream_is_subscribed.read().await.clone();
+                is_registered && is_subscribed
             };
-            if is_registered {
+            if is_registered_and_subscribed {
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -101,26 +104,25 @@ impl NodeTrait for LiveDataNode {
     async fn start(&mut self) -> Result<(), String> {
         let context = self.get_context();
         tracing::info!("{}: 开始启动", context.read().await.get_node_id());
-        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
-
-        // 检查K线流是否订阅成功，判断is_subscribed=true
-        loop {
-            let is_subscribed = {
-                let state_guard = context.read().await;  // 使用读锁替代写锁
-                if let Some(live_data_context) = state_guard.as_any().downcast_ref::<LiveDataNodeContext>() {
-                    let is_subscribed = live_data_context.stream_is_subscribed.read().await.clone();
-                    is_subscribed
-                } else {
-                    false
-                }
-            };  // 锁在这里释放
-
-            if is_subscribed {
-                break;
+        // 开始启动 Starting -> Start
+        // 启动前检查
+        let is_registered_and_subscribed = {
+            let state_guard = context.read().await;  // 使用读锁替代写锁
+            if let Some(live_data_context) = state_guard.as_any().downcast_ref::<LiveDataNodeContext>() {
+                let is_subscribed = live_data_context.stream_is_subscribed.read().await.clone();    
+                let is_registered = live_data_context.exchange_is_registered.read().await.clone();
+                is_subscribed && is_registered
+            } else {
+                false
             }
-            
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        };  // 锁在这里释放
+
+        if !is_registered_and_subscribed {
+            tracing::warn!("{}: 交易所未注册或K线流未订阅, 不启动", context.read().await.get_node_id());
+            return Err("交易所未注册或K线流未订阅".to_string());
         }
+
+        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
         self.update_node_state(NodeStateTransitionEvent::StartComplete).await?;
         Ok(())
     }
@@ -194,21 +196,21 @@ impl NodeTrait for LiveDataNode {
                         }
                     }
                     LiveDataNodeStateAction::SubscribeKline => {
-                        let current_state = self.context.read().await.get_state_machine().current_state();
-                        if current_state != NodeRunState::Starting {
-                            tracing::warn!(
-                                node_id = %node_id,
-                                current_state = ?current_state,
-                                "节点不在Starting状态, 不订阅K线流"
-                            );
-                        } else {
-                            tracing::info!("{}: 订阅K线流", node_id);
-                            let context = self.get_context();
-                            let mut state_guard = context.write().await;
-                            if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
-                                live_data_context.subscribe_kline_stream().await?;
+                        // let current_state = self.context.read().await.get_state_machine().current_state();
+                        // if current_state != NodeRunState::Starting {
+                        //     tracing::warn!(
+                        //         node_id = %node_id,
+                        //         current_state = ?current_state,
+                        //         "节点不在Starting状态, 不订阅K线流"
+                        //     );
+                        // } else {
+                        //     tracing::info!("{}: 订阅K线流", node_id);
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
+                            live_data_context.subscribe_kline_stream().await?;
                             }
-                        }
+                        // }
                     }
                     LiveDataNodeStateAction::UnsubscribeKline => {
                         tracing::info!("{}: 取消订阅K线流", node_id);
@@ -232,6 +234,14 @@ impl NodeTrait for LiveDataNode {
                             if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
                                 live_data_context.unsubscribe_kline_stream().await?;
                             }
+                        }
+                    }
+                    LiveDataNodeStateAction::RegisterTask => {
+                        tracing::info!("{}: 注册任务", node_id);
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
+                            live_data_context.register_task().await;
                         }
                     }
                     _ => {}

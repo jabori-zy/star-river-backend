@@ -112,8 +112,8 @@ impl IndicatorEngineContext {
 
     async fn calculate_sma(&self, period: &i32, calculate_params: CalculateIndicatorParams) -> Result<(), String> {
         let kline_series = calculate_params.kline_series.clone();
-        let timestamp_list: Vec<i64> = kline_series.series.iter().map(|v| v.timestamp).collect();  
-        let close: Vec<f64> = kline_series.series.iter().map(|v| v.close).collect();
+        let timestamp_list: Vec<i64> = kline_series.iter().map(|v| v.get_timestamp()).collect();  
+        let close: Vec<f64> = kline_series.iter().map(|v| v.to_json()["close"].as_f64().unwrap()).collect();
 
         let sma = TALib::sma(&close, *period)?;
         // log::info!("{}: sma: {:?}", event.symbol,sma);
@@ -137,7 +137,7 @@ impl IndicatorEngineContext {
             value: Box::new(sma_series),
             response_timestamp: get_utc8_timestamp_millis(),
             response_id: calculate_params.request_id.clone(),
-            batch_id: calculate_params.batch_id.clone(),
+            batch_id: "111".to_string(),
         };
         
         let response_event = ResponseEvent::IndicatorEngine(IndicatorEngineResponse::CalculateIndicatorFinish(response));

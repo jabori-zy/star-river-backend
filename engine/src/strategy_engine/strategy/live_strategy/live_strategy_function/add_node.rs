@@ -51,7 +51,7 @@ impl LiveStrategyFunction {
             }
             // 实时数据节点
             NodeType::LiveDataNode => {
-                Self::add_live_data_node(graph, node_indices, node_config, event_publisher, market_event_receiver, response_event_receiver).await;
+                Self::add_live_data_node(graph, node_indices, node_config, event_publisher, market_event_receiver, response_event_receiver, heartbeat).await;
                 Ok(())
                 
             }

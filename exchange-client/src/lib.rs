@@ -24,7 +24,7 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
 
     // 市场相关
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String>;
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String>;
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<(), String>;
     async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn get_socket_stream(&self) -> Result<(), String>;

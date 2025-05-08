@@ -7,6 +7,7 @@ use std::any::Any;
 pub enum LiveDataNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
     LogNodeState,    // 记录节点状态
+    RegisterTask, // 注册任务
     RegisterExchange, // 注册交易所
     SubscribeKline,         // 订阅K线数据
     UnsubscribeKline,       // 取消订阅K线数据
@@ -84,7 +85,12 @@ impl NodeStateMachine for LiveDataNodeStateMachine {
                 self.current_state = NodeRunState::Initializing;
                 Ok(Box::new(LiveDataNodeStateChangeActions {
                     new_state: NodeRunState::Initializing,
-                    actions: vec![Box::new(LiveDataNodeStateAction::LogTransition), Box::new(LiveDataNodeStateAction::ListenAndHandleExternalEvents), Box::new(LiveDataNodeStateAction::RegisterExchange)],
+                    actions: vec![
+                        Box::new(LiveDataNodeStateAction::LogTransition), 
+                        Box::new(LiveDataNodeStateAction::ListenAndHandleExternalEvents), 
+                        Box::new(LiveDataNodeStateAction::RegisterExchange), // 注册交易所
+                        Box::new(LiveDataNodeStateAction::SubscribeKline), // 订阅K线数据
+                    ],
                 }))
             }
             // 初始化完成，进入Ready状态
@@ -102,7 +108,10 @@ impl NodeStateMachine for LiveDataNodeStateMachine {
                 self.current_state = NodeRunState::Starting;
                 Ok(Box::new(LiveDataNodeStateChangeActions {
                     new_state: NodeRunState::Starting,
-                    actions: vec![Box::new(LiveDataNodeStateAction::LogTransition), Box::new(LiveDataNodeStateAction::SubscribeKline)],
+                    actions: vec![
+                        Box::new(LiveDataNodeStateAction::LogTransition), 
+                        Box::new(LiveDataNodeStateAction::RegisterTask),
+                    ],
                 }))
             }
             // 启动完成，进入Running状态

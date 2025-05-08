@@ -38,6 +38,12 @@ pub struct KlineCacheKey {
     pub interval: KlineInterval,
 }
 
+impl KlineCacheKey {
+    pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
+        Self { exchange, symbol, interval }
+    }
+}
+
 impl CacheKey for KlineCacheKey {
     fn get_key(&self) -> String {
         format!("{}:{}:{}", self.exchange, self.symbol, self.interval)

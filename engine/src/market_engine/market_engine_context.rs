@@ -12,8 +12,8 @@ use event_center::command_event::cache_engine_command::CacheEngineCommand;
 use event_center::response_event::ResponseEvent;
 use event_center::response_event::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
 use event_center::command_event::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
-use event_center::command_event::cache_engine_command::AddKlineCacheKeyParams;
-use types::cache::KlineCacheKey;
+use event_center::command_event::cache_engine_command::AddCacheKeyParams;
+use types::new_cache::{CacheKey, KlineCacheKey};
 use utils::get_utc8_timestamp_millis;
 use types::market::KlineInterval;
 use event_center::EventPublisher;
@@ -94,21 +94,22 @@ impl EngineContext for MarketEngineContext {
 
 impl MarketEngineContext {
 
-    fn add_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval) {
+    fn add_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, max_size: u32) {
         // 调用缓存器的订阅事件
-        let cache_key = KlineCacheKey {
+        let cache_key = CacheKey::Kline(KlineCacheKey {
             exchange: exchange,
             symbol: symbol.to_string(),
             interval: interval.clone(),
-        };
-        let params = AddKlineCacheKeyParams {
+        });
+        let params = AddCacheKeyParams {
             strategy_id,
             cache_key,
+            max_size,
             sender: format!("strategy_{}", strategy_id),
             timestamp: get_utc8_timestamp_millis(),
 
         };
-        let command = CacheEngineCommand::AddKlineCacheKey(params);
+        let command = CacheEngineCommand::AddCacheKey(params);
         let command_event = CommandEvent::CacheEngine(command);
 
         self.get_event_publisher().publish(command_event.clone().into()).unwrap();
@@ -118,7 +119,7 @@ impl MarketEngineContext {
     async fn subscribe_kline_stream(&self, params: SubscribeKlineStreamParams) -> Result<(), String> {
         // tracing::debug!("市场数据引擎订阅K线流: {:?}", params);
         // 添加缓存key
-        self.add_cache_key(params.strategy_id, params.exchange.clone(), params.symbol.clone(), params.interval.clone());
+        self.add_cache_key(params.strategy_id, params.exchange.clone(), params.symbol.clone(), params.interval.clone(), params.cache_size);
 
         // 1. 先检查注册状态
         let is_registered = {
@@ -147,7 +148,7 @@ impl MarketEngineContext {
 
         // 先获取历史k线
         // k线长度设置
-        exchange.get_kline_series(&params.symbol, params.interval.clone(), Some(20)).await?;
+        exchange.get_kline_series(&params.symbol, params.interval.clone(), params.cache_size).await?;
         // 再订阅k线流
         exchange.subscribe_kline_stream(&params.symbol, params.interval.clone(), params.frequency).await.unwrap();
         // 获取socket流

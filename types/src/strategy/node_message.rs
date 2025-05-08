@@ -1,7 +1,8 @@
 
-use crate::market::KlineSeries;
+use crate::market::{Kline, KlineSeries};
 use crate::indicator::{IndicatorConfig, IndicatorData};
 use crate::market::{Exchange, KlineInterval};
+use crate::new_cache::CacheValue;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use crate::order::Order;
@@ -57,8 +58,7 @@ pub struct KlineSeriesMessage {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub kline_series: KlineSeries,
-    pub batch_id: String,
+    pub kline_series: Vec<CacheValue>,
     pub message_timestamp: i64,
 }
 

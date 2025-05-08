@@ -20,10 +20,16 @@ use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
 use types::strategy::SelectedAccount;
 use serde::{Serialize, Deserialize};
 use std::str::FromStr;
-use types::strategy::TradeMode;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-
+use tokio::sync::Mutex;
+use heartbeat::Heartbeat;
+use event_center::command_event::cache_engine_command::{CacheEngineCommand, GetCacheDataParams};
+use types::new_cache::{CacheKey, KlineCacheKey};
+use event_center::EventPublisher;
+use event_center::response_event::cache_engine_response::CacheEngineResponse;
+use std::convert::TryInto;
+use types::market::Kline;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveDataNodeLiveConfig {
@@ -72,8 +78,9 @@ pub struct LiveDataNodeContext {
     pub base_context: BaseNodeContext,
     pub stream_is_subscribed: Arc<RwLock<bool>>,
     pub exchange_is_registered: Arc<RwLock<bool>>,
-    pub request_id: Option<Uuid>,
+    pub request_ids: Arc<Mutex<Vec<Uuid>>>,
     pub live_config: LiveDataNodeLiveConfig,
+    pub heartbeat: Arc<Mutex<Heartbeat>>,
 }
 
 #[async_trait]
@@ -101,9 +108,9 @@ impl NodeContext for LiveDataNodeContext {
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
         match event {
-            Event::Market(market_event) => {
-                self.handle_market_event(market_event).await;
-            }
+            // Event::Market(market_event) => {
+            //     self.handle_market_event(market_event).await;
+            // }
             Event::Response(response_event) => {
                 self.handle_response_event(response_event).await;
             }
@@ -111,6 +118,7 @@ impl NodeContext for LiveDataNodeContext {
         }
         Ok(())
     }
+
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
         Ok(())
@@ -121,122 +129,158 @@ impl NodeContext for LiveDataNodeContext {
 
 impl LiveDataNodeContext {
 
-    async fn handle_market_event(&self, market_event: MarketEvent) {
-        // 先获取读锁，检查状态
-        // let state_guard = self.base_state.clone();
+    // async fn handle_market_event(&self, market_event: MarketEvent) {
+    //     // 先获取读锁，检查状态
+    //     // let state_guard = self.base_state.clone();
 
-        if self.base_context.state_machine.current_state() != NodeRunState::Running {
-            tracing::warn!("{}: 节点状态不是Running, 不处理行情数据", self.base_context.node_id);
-            return;
-        }
+    //     if self.base_context.state_machine.current_state() != NodeRunState::Running {
+    //         tracing::warn!("{}: 节点状态不是Running, 不处理行情数据", self.base_context.node_id);
+    //         return;
+    //     }
 
-        // 处理市场事件
-        match market_event {
-            MarketEvent::KlineSeriesUpdate(kline_series_update) => {
-                tracing::debug!("{}: 收到K线系列更新事件", self.base_context.node_name);
-                // 只获取当前节点支持的数据
-                let (exchange, symbol, interval) = (self.live_config.selected_live_account.exchange.clone(), 
-                    self.live_config.symbol.clone(), 
-                    self.live_config.interval.clone());
+    //     // 处理市场事件
+    //     match market_event {
+    //         MarketEvent::KlineSeriesUpdate(kline_series_update) => {
+    //             tracing::debug!("{}: 收到K线系列更新事件", self.base_context.node_name);
+    //             // 只获取当前节点支持的数据
+    //             let (exchange, symbol, interval) = (self.live_config.selected_live_account.exchange.clone(), 
+    //                 self.live_config.symbol.clone(), 
+    //                 self.live_config.interval.clone());
                 
-                if exchange != kline_series_update.exchange || symbol != kline_series_update.symbol || interval != kline_series_update.interval {
-                    return;
-                }
-                // 这里不需要再获取锁，因为我们只需要读取数据
-                let kline_series_message = KlineSeriesMessage {
-                    from_node_id: self.base_context.node_id.clone(),
-                    from_node_name: self.base_context.node_name.clone(),
-                    exchange: kline_series_update.exchange,
-                    symbol: kline_series_update.symbol,
-                    interval: kline_series_update.interval,
-                    kline_series: kline_series_update.kline_series.clone(),
-                    batch_id: kline_series_update.batch_id.clone(),
-                    message_timestamp: get_utc8_timestamp_millis(),
-                };
+    //             if exchange != kline_series_update.exchange || symbol != kline_series_update.symbol || interval != kline_series_update.interval {
+    //                 return;
+    //             }
+    //             // 这里不需要再获取锁，因为我们只需要读取数据
+    //             let kline_series_message = KlineSeriesMessage {
+    //                 from_node_id: self.base_context.node_id.clone(),
+    //                 from_node_name: self.base_context.node_name.clone(),
+    //                 exchange: kline_series_update.exchange,
+    //                 symbol: kline_series_update.symbol,
+    //                 interval: kline_series_update.interval,
+    //                 kline_series: kline_series_update.kline_series.clone(),
+    //                 batch_id: kline_series_update.batch_id.clone(),
+    //                 message_timestamp: get_utc8_timestamp_millis(),
+    //             };
                 
-                let message = NodeMessage::KlineSeries(kline_series_message);
-                // tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
-                // 获取handle的连接数
-                let default_handle_connect_count = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在").message_sender.receiver_count();
-                // 如果连接数为0，则不发送数据
-                if default_handle_connect_count > 0 {
-                    let default_node_sender = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在");
-                    // tracing::info!("{}: 发送数据: {:?}", state_guard.node_id, message);
-                    match default_node_sender.message_sender.send(message.clone()) {
-                        Ok(_) => (),
-                        Err(e) => tracing::error!(
-                            node_id = %self.base_context.node_id,
-                            error = ?e,
-                            receiver_count = default_node_sender.message_sender.receiver_count(),
-                                "数据源节点发送数据失败"
-                            ),
-                        }
+    //             let message = NodeMessage::KlineSeries(kline_series_message);
+    //             // tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
+    //             // 获取handle的连接数
+    //             let default_handle_connect_count = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在").message_sender.receiver_count();
+    //             // 如果连接数为0，则不发送数据
+    //             if default_handle_connect_count > 0 {
+    //                 let default_node_sender = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在");
+    //                 // tracing::info!("{}: 发送数据: {:?}", state_guard.node_id, message);
+    //                 match default_node_sender.message_sender.send(message.clone()) {
+    //                     Ok(_) => (),
+    //                     Err(e) => tracing::error!(
+    //                         node_id = %self.base_context.node_id,
+    //                         error = ?e,
+    //                         receiver_count = default_node_sender.message_sender.receiver_count(),
+    //                             "数据源节点发送数据失败"
+    //                         ),
+    //                     }
                     
-                }
+    //             }
 
-                // 发送事件
-                if self.is_enable_event_publish().clone() {
-                    let event = Event::Strategy(StrategyEvent::NodeMessage(message));
-                    if let Err(_) = self.get_event_publisher().publish(event.into()) {
-                        tracing::error!(
-                            node_id = %self.base_context.node_id,
-                            "数据源节点发送数据事件失败"
-                        );
-                    }
-                }
+    //             // 发送事件
+    //             if self.is_enable_event_publish().clone() {
+    //                 let event = Event::Strategy(StrategyEvent::NodeMessage(message));
+    //                 if let Err(_) = self.get_event_publisher().publish(event.into()) {
+    //                     tracing::error!(
+    //                         node_id = %self.base_context.node_id,
+    //                         "数据源节点发送数据事件失败"
+    //                     );
+    //                 }
+    //             }
 
-            }
-            _ => {}
-        }
+    //         }
+    //         _ => {}
+    //     }
+    // }
+
+    async fn remove_request_id(&mut self, request_id: Uuid) {
+        let mut request_id_guard = self.request_ids.lock().await;
+        let index = request_id_guard.iter().position(|id| *id == request_id).unwrap();
+        request_id_guard.remove(index);
     }
 
     async fn handle_response_event(&mut self, response_event: ResponseEvent) {
         // tracing::info!("{}: 收到响应事件: {:?}", self.base_context.node_id, response_event);
-        let request_id= {
-            match self.request_id {
-                Some(id) => {
-                    id
-                },
-                None => {
-                    return;
-                }
-            }
-        };
-
-
+        // 注册交易所的响应
         match response_event {
             ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeResponse(register_exchange_success_response)) => {
-                if request_id == register_exchange_success_response.response_id {
-                    tracing::info!("{}: 交易所注册成功: {:?}", self.base_context.node_id, register_exchange_success_response);
-                    self.request_id = None;
+                let contains = {
+                    let request_id_guard = self.request_ids.lock().await;
+                    request_id_guard.contains(&register_exchange_success_response.response_id)
+                };
+
+                if contains {
+                    self.remove_request_id(register_exchange_success_response.response_id).await;
                     // 接收到交易所注册成功的消息，修改订阅状态为true
                     *self.exchange_is_registered.write().await = true;
+                    tracing::info!("exchange_is_registered: {:?}", self.exchange_is_registered.read().await);
+                    tracing::info!("{}: 交易所注册成功: {:?}", self.base_context.node_id, register_exchange_success_response);
                 }
             }
+            // 订阅k线流的响应
             ResponseEvent::MarketEngine(MarketEngineResponse::SubscribeKlineStreamSuccess(subscribe_kline_stream_success_response)) => {
-                
-                if request_id == subscribe_kline_stream_success_response.response_id {
+                let contains = {
+                    let request_id_guard = self.request_ids.lock().await;
+                    request_id_guard.contains(&subscribe_kline_stream_success_response.response_id)
+                };
+
+                if contains {
+                    self.remove_request_id(subscribe_kline_stream_success_response.response_id).await;
                     tracing::info!("{}: K线流订阅成功: {:?}, 开始推送数据", self.base_context.node_id, subscribe_kline_stream_success_response);
-                    self.request_id = None;
                     // 接收到stream订阅成功的消息，修改订阅状态为true
                     *self.stream_is_subscribed.write().await = true;
                     
                     tracing::warn!("{}: 订阅状态修改为true", self.base_context.node_id);
                 }
             }
+            // 取消订阅k线流的响应
             ResponseEvent::MarketEngine(MarketEngineResponse::UnsubscribeKlineStreamSuccess(unsubscribe_kline_stream_success_response)) => {
-                if request_id == unsubscribe_kline_stream_success_response.response_id {
+                let contains = {
+                    let request_id_guard = self.request_ids.lock().await;
+                    request_id_guard.contains(&unsubscribe_kline_stream_success_response.response_id)
+                };
+
+                if contains {
+                    self.remove_request_id(unsubscribe_kline_stream_success_response.response_id).await;
                     tracing::info!("{}: K线流取消订阅成功: {:?}, 停止推送数据", self.base_context.node_id, unsubscribe_kline_stream_success_response);
-                    self.request_id = None;
                     // 修改订阅状态为false
                     *self.stream_is_subscribed.write().await = false;
                 }
-            }   
+            }
+            // 获取k线数据的响应
+            ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheData(get_cache_data_response)) => {
+                let contains = {
+                    let request_id_guard = self.request_ids.lock().await;
+                    request_id_guard.contains(&get_cache_data_response.response_id)
+                };
+
+                if contains {
+                    self.remove_request_id(get_cache_data_response.response_id).await;
+                    let kline_series_message = KlineSeriesMessage {
+                        from_node_id: self.base_context.node_id.clone(),
+                        from_node_name: self.base_context.node_name.clone(),
+                        exchange: get_cache_data_response.cache_key.get_exchange(),
+                        symbol: get_cache_data_response.cache_key.get_symbol(),
+                        interval: get_cache_data_response.cache_key.get_interval(),
+                        kline_series: get_cache_data_response.cache_data,
+                        message_timestamp: get_utc8_timestamp_millis(),
+                    };
+
+                    let message = NodeMessage::KlineSeries(kline_series_message);
+                    tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
+                }
+            }
             _ => {}
         }
     }
 
     pub async fn register_exchange(&mut self) -> Result<(), String> {
+        tracing::info!("{}: 开始注册交易所", self.base_context.node_name);
         let request_id = Uuid::new_v4();
         let register_param = RegisterExchangeParams {
             account_id: self.live_config.selected_live_account.account_id.clone(),
@@ -247,8 +291,10 @@ impl LiveDataNodeContext {
         };
 
 
-        self.request_id = Some(request_id);
-        tracing::warn!("{}: 注册交易所的请求id: {:?}", self.base_context.node_name, self.request_id);
+        let mut request_id_guard = self.request_ids.lock().await;
+        request_id_guard.push(request_id);
+        drop(request_id_guard);
+        tracing::warn!("{}: 注册交易所的请求id: {:?}", self.base_context.node_name, self.request_ids);
 
         let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
         tracing::info!("{}注册交易所: {:?}", self.base_context.node_id, command_event);
@@ -275,13 +321,16 @@ impl LiveDataNodeContext {
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
             frequency: 1000,
+            cache_size: 2,
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),
             request_id: request_id,
         };
 
 
-        self.request_id = Some(request_id);
+        let mut request_id_guard = self.request_ids.lock().await;
+        request_id_guard.push(request_id);
+        drop(request_id_guard);
 
         let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(params));
         tracing::info!("{}订阅k线流: {:?}", self.base_context.node_name, command_event);
@@ -317,7 +366,9 @@ impl LiveDataNodeContext {
         };
 
         // 设置请求id
-        self.request_id = Some(request_id);
+        let mut request_id_guard = self.request_ids.lock().await;
+        request_id_guard.push(request_id);
+        drop(request_id_guard);
 
         let command_event = CommandEvent::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(params));
         tracing::debug!("{}取消订阅k线流: {:?}", self.base_context.node_name, command_event);
@@ -328,6 +379,69 @@ impl LiveDataNodeContext {
             );
         }   
         Ok(())
+    }
+
+    pub async fn register_task(&mut self) {
+        let node_name = self.base_context.node_name.clone();
+        let kline_cache_key = KlineCacheKey {
+            exchange: self.live_config.selected_live_account.exchange.clone(),
+            symbol: self.live_config.symbol.clone(),
+            interval: self.live_config.interval.clone(),
+        };
+        let cache_key = CacheKey::Kline(kline_cache_key);
+        let event_publisher = self.get_event_publisher().clone();
+        let strategy_id = self.base_context.strategy_id.clone();
+        let node_id = self.base_context.node_id.clone();
+        let request_ids = self.request_ids.clone();
+
+        let mut heartbeat = self.heartbeat.lock().await;
+        heartbeat.register_async_task(
+            format!("{}获取k线数据", node_name),
+            move || {
+                let cache_key = cache_key.clone();
+                let event_publisher = event_publisher.clone();
+                let strategy_id = strategy_id.clone();
+                let node_id = node_id.clone();
+                let request_ids = request_ids.clone();
+                async move {
+                    Self::request_kline_series(
+                        strategy_id,
+                        node_id,
+                        cache_key,
+                        1,
+                        event_publisher,
+                        request_ids,
+                    ).await;
+                }
+            },
+            10
+        ).await;
+    }
+
+    // 从缓存引擎获取k线数据
+    pub async fn request_kline_series(
+        strategy_id: i32, 
+        node_id: String, 
+        cache_key: CacheKey, 
+        limit: u32,
+        event_publisher: EventPublisher,
+        request_ids: Arc<Mutex<Vec<Uuid>>>,
+    ){
+        let request_id = Uuid::new_v4();
+        let params = GetCacheDataParams {
+            strategy_id: strategy_id,
+            cache_key: cache_key,
+            limit: limit,
+            sender: node_id,
+            timestamp: get_utc8_timestamp_millis(),
+            request_id: request_id,
+        };
+
+        let mut request_id_guard = request_ids.lock().await;
+        request_id_guard.push(request_id);
+        drop(request_id_guard);
+        let command_event = CommandEvent::CacheEngine(CacheEngineCommand::GetCacheData(params));
+        let _ = event_publisher.publish(command_event.into());
     }
 
 }

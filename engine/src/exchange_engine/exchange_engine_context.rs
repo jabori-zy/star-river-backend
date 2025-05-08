@@ -37,11 +37,11 @@ use sea_orm::DatabaseConnection;
 use database::query::account_config_query::AccountConfigQuery;
 use types::account::AccountConfig;
 use event_center::command_event::exchange_engine_command::UnregisterExchangeParams;
-
+use types::custom_type::AccountId;
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
     pub engine_name: EngineName,
-    pub exchanges: HashMap<i32, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
+    pub exchanges: HashMap<AccountId, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub database: DatabaseConnection,
@@ -127,6 +127,12 @@ impl EngineContext for ExchangeEngineContext {
 impl ExchangeEngineContext {
 
     pub async fn register_exchange(&mut self, register_params: RegisterExchangeParams) -> Result<(), String> {
+        // todo: 判断是否已经注册
+        // 判断是否已经注册
+        // if self.is_registered(&register_params.account_id).await {
+        //     return Err(format!("账户-{} 已注册", register_params.account_id));
+        // }
+        
         // 从数据库中获取账户配置
         let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, register_params.account_id).await;
         match account_config {
