@@ -1,12 +1,14 @@
 
 use crate::market::{Kline, KlineSeries};
-use crate::indicator::{IndicatorConfig, IndicatorData};
+use crate::indicator::{IndicatorConfig, Indicator};
 use crate::market::{Exchange, KlineInterval};
-use crate::new_cache::CacheValue;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use crate::order::Order;
 use crate::position::Position;
+use crate::cache::CacheValue;
+use std::sync::Arc;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "message_type")]
@@ -58,7 +60,7 @@ pub struct KlineSeriesMessage {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub kline_series: Vec<CacheValue>,
+    pub kline_series: Vec<Arc<CacheValue>>,
     pub message_timestamp: i64,
 }
 
@@ -71,8 +73,7 @@ pub struct IndicatorMessage {
     pub symbol: String,
     pub interval: KlineInterval,
     pub indicator: IndicatorConfig,
-    pub indicator_data: Box<dyn IndicatorData>,
-    pub batch_id: String,
+    pub indicator_series: Vec<Arc<CacheValue>>,
     pub message_timestamp: i64,
 }
 
@@ -85,8 +86,7 @@ impl Clone for IndicatorMessage {
             symbol: self.symbol.clone(),
             interval: self.interval.clone(),
             indicator: self.indicator.clone(),
-            indicator_data: self.indicator_data.clone_box(),
-            batch_id: self.batch_id.clone(),
+            indicator_series: self.indicator_series.clone(),
             message_timestamp: self.message_timestamp,
         }
     }

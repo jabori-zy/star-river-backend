@@ -1,17 +1,14 @@
 use event_center::command_event::CommandEvent;
-use types::market::{Exchange, KlineInterval};
+use types::market::KlineInterval;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
-use event_center::market_event::MarketEvent;
 use types::strategy::node_message::{KlineSeriesMessage, NodeMessage};
 use uuid::Uuid;
 use event_center::response_event::ResponseEvent;
-use event_center::strategy_event::StrategyEvent;
 use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
-use crate::strategy_engine::node::node_state_machine::NodeRunState;
 use event_center::command_event::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
 use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
 use event_center::response_event::market_engine_response::MarketEngineResponse;
@@ -24,12 +21,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::sync::Mutex;
 use heartbeat::Heartbeat;
-use event_center::command_event::cache_engine_command::{CacheEngineCommand, GetCacheDataParams};
-use types::new_cache::{CacheKey, KlineCacheKey};
+use event_center::command_event::cache_engine_command::{CacheEngineCommand, GetCacheParams};
+use types::cache::{CacheKey, cache_key::KlineCacheKey};
 use event_center::EventPublisher;
 use event_center::response_event::cache_engine_response::CacheEngineResponse;
-use std::convert::TryInto;
-use types::market::Kline;
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveDataNodeLiveConfig {
@@ -106,6 +102,10 @@ impl NodeContext for LiveDataNodeContext {
         &mut self.base_context
     }
 
+    fn get_default_output_handle(&self) -> NodeOutputHandle {
+        self.base_context.output_handle.get(&format!("live_data_node_output")).unwrap().clone()
+    }
+
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
         match event {
             // Event::Market(market_event) => {
@@ -128,75 +128,6 @@ impl NodeContext for LiveDataNodeContext {
 
 
 impl LiveDataNodeContext {
-
-    // async fn handle_market_event(&self, market_event: MarketEvent) {
-    //     // 先获取读锁，检查状态
-    //     // let state_guard = self.base_state.clone();
-
-    //     if self.base_context.state_machine.current_state() != NodeRunState::Running {
-    //         tracing::warn!("{}: 节点状态不是Running, 不处理行情数据", self.base_context.node_id);
-    //         return;
-    //     }
-
-    //     // 处理市场事件
-    //     match market_event {
-    //         MarketEvent::KlineSeriesUpdate(kline_series_update) => {
-    //             tracing::debug!("{}: 收到K线系列更新事件", self.base_context.node_name);
-    //             // 只获取当前节点支持的数据
-    //             let (exchange, symbol, interval) = (self.live_config.selected_live_account.exchange.clone(), 
-    //                 self.live_config.symbol.clone(), 
-    //                 self.live_config.interval.clone());
-                
-    //             if exchange != kline_series_update.exchange || symbol != kline_series_update.symbol || interval != kline_series_update.interval {
-    //                 return;
-    //             }
-    //             // 这里不需要再获取锁，因为我们只需要读取数据
-    //             let kline_series_message = KlineSeriesMessage {
-    //                 from_node_id: self.base_context.node_id.clone(),
-    //                 from_node_name: self.base_context.node_name.clone(),
-    //                 exchange: kline_series_update.exchange,
-    //                 symbol: kline_series_update.symbol,
-    //                 interval: kline_series_update.interval,
-    //                 kline_series: kline_series_update.kline_series.clone(),
-    //                 batch_id: kline_series_update.batch_id.clone(),
-    //                 message_timestamp: get_utc8_timestamp_millis(),
-    //             };
-                
-    //             let message = NodeMessage::KlineSeries(kline_series_message);
-    //             // tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
-    //             // 获取handle的连接数
-    //             let default_handle_connect_count = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在").message_sender.receiver_count();
-    //             // 如果连接数为0，则不发送数据
-    //             if default_handle_connect_count > 0 {
-    //                 let default_node_sender = self.base_context.output_handle.get("live_data_node_output").expect("实时数据节点默认的消息发送器不存在");
-    //                 // tracing::info!("{}: 发送数据: {:?}", state_guard.node_id, message);
-    //                 match default_node_sender.message_sender.send(message.clone()) {
-    //                     Ok(_) => (),
-    //                     Err(e) => tracing::error!(
-    //                         node_id = %self.base_context.node_id,
-    //                         error = ?e,
-    //                         receiver_count = default_node_sender.message_sender.receiver_count(),
-    //                             "数据源节点发送数据失败"
-    //                         ),
-    //                     }
-                    
-    //             }
-
-    //             // 发送事件
-    //             if self.is_enable_event_publish().clone() {
-    //                 let event = Event::Strategy(StrategyEvent::NodeMessage(message));
-    //                 if let Err(_) = self.get_event_publisher().publish(event.into()) {
-    //                     tracing::error!(
-    //                         node_id = %self.base_context.node_id,
-    //                         "数据源节点发送数据事件失败"
-    //                     );
-    //                 }
-    //             }
-
-    //         }
-    //         _ => {}
-    //     }
-    // }
 
     async fn remove_request_id(&mut self, request_id: Uuid) {
         let mut request_id_guard = self.request_ids.lock().await;
@@ -272,7 +203,9 @@ impl LiveDataNodeContext {
                     };
 
                     let message = NodeMessage::KlineSeries(kline_series_message);
-                    tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
+                    // tracing::debug!("{}: 发送数据: {:?}", self.base_context.node_id, message);
+                    let output_handle = self.get_default_output_handle();
+                    output_handle.send(message).unwrap();
                 }
             }
             _ => {}
@@ -321,7 +254,7 @@ impl LiveDataNodeContext {
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
             frequency: 1000,
-            cache_size: 2,
+            cache_size: 50,
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),
             request_id: request_id,
@@ -383,12 +316,11 @@ impl LiveDataNodeContext {
 
     pub async fn register_task(&mut self) {
         let node_name = self.base_context.node_name.clone();
-        let kline_cache_key = KlineCacheKey {
+        let kline_cache_key = CacheKey::Kline(KlineCacheKey {
             exchange: self.live_config.selected_live_account.exchange.clone(),
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
-        };
-        let cache_key = CacheKey::Kline(kline_cache_key);
+        });
         let event_publisher = self.get_event_publisher().clone();
         let strategy_id = self.base_context.strategy_id.clone();
         let node_id = self.base_context.node_id.clone();
@@ -398,17 +330,17 @@ impl LiveDataNodeContext {
         heartbeat.register_async_task(
             format!("{}获取k线数据", node_name),
             move || {
-                let cache_key = cache_key.clone();
+                let kline_cache_key = kline_cache_key.clone();
                 let event_publisher = event_publisher.clone();
                 let strategy_id = strategy_id.clone();
                 let node_id = node_id.clone();
                 let request_ids = request_ids.clone();
                 async move {
-                    Self::request_kline_series(
+                    Self::get_kline_series_cache(
                         strategy_id,
                         node_id,
-                        cache_key,
-                        1,
+                        kline_cache_key,
+                        20,
                         event_publisher,
                         request_ids,
                     ).await;
@@ -419,19 +351,20 @@ impl LiveDataNodeContext {
     }
 
     // 从缓存引擎获取k线数据
-    pub async fn request_kline_series(
+    pub async fn get_kline_series_cache(
         strategy_id: i32, 
         node_id: String, 
-        cache_key: CacheKey, 
+        kline_cache_key: CacheKey, 
         limit: u32,
         event_publisher: EventPublisher,
         request_ids: Arc<Mutex<Vec<Uuid>>>,
     ){
         let request_id = Uuid::new_v4();
-        let params = GetCacheDataParams {
+        let params = GetCacheParams {
             strategy_id: strategy_id,
-            cache_key: cache_key,
-            limit: limit,
+            node_id: node_id.clone(),
+            cache_key: kline_cache_key,
+            limit: Some(limit),
             sender: node_id,
             timestamp: get_utc8_timestamp_millis(),
             request_id: request_id,
@@ -440,7 +373,7 @@ impl LiveDataNodeContext {
         let mut request_id_guard = request_ids.lock().await;
         request_id_guard.push(request_id);
         drop(request_id_guard);
-        let command_event = CommandEvent::CacheEngine(CacheEngineCommand::GetCacheData(params));
+        let command_event = CommandEvent::CacheEngine(CacheEngineCommand::GetCache(params));
         let _ = event_publisher.publish(command_event.into());
     }
 

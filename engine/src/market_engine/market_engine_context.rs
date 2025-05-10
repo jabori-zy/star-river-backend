@@ -5,6 +5,7 @@ use crate::exchange_engine::ExchangeEngine;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use std::any::Any;
+use tokio::time::Duration;
 use crate::EngineName;
 use std::sync::Arc;
 use event_center::command_event::CommandEvent;
@@ -13,13 +14,16 @@ use event_center::response_event::ResponseEvent;
 use event_center::response_event::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamSuccessResponse, UnsubscribeKlineStreamSuccessResponse};
 use event_center::command_event::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
 use event_center::command_event::cache_engine_command::AddCacheKeyParams;
-use types::new_cache::{CacheKey, KlineCacheKey};
+use types::cache::{CacheKey, cache_key::KlineCacheKey};
 use utils::get_utc8_timestamp_millis;
 use types::market::KlineInterval;
 use event_center::EventPublisher;
 use tokio::sync::Mutex;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
-
+use uuid::Uuid;
+use crate::market_engine::market_engine_type::KlineSubKey;
+use std::collections::HashMap;
+use types::custom_type::StrategyId;
 
 
 
@@ -30,6 +34,7 @@ pub struct MarketEngineContext {
     pub event_publisher: EventPublisher,
     pub event_receiver: Vec<broadcast::Receiver<Event>>,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
+    pub subscribe_klines: Arc<Mutex<HashMap<KlineSubKey, Vec<StrategyId>>>>, // 已订阅的k线
 }
 
 impl Clone for MarketEngineContext {
@@ -38,8 +43,8 @@ impl Clone for MarketEngineContext {
             engine_name: self.engine_name.clone(),
             event_publisher: self.event_publisher.clone(),
             event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
-            exchange_engine: self.exchange_engine.clone()
-
+            exchange_engine: self.exchange_engine.clone(),
+            subscribe_klines: self.subscribe_klines.clone(),
         }
     }
 }
@@ -104,10 +109,11 @@ impl MarketEngineContext {
         let params = AddCacheKeyParams {
             strategy_id,
             cache_key,
-            max_size,
+            max_size: Some(max_size),
+            duration: Duration::from_millis(10),
             sender: format!("strategy_{}", strategy_id),
             timestamp: get_utc8_timestamp_millis(),
-
+            request_id: Uuid::new_v4(),
         };
         let command = CacheEngineCommand::AddCacheKey(params);
         let command_event = CommandEvent::CacheEngine(command);

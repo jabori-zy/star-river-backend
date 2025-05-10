@@ -16,6 +16,7 @@ use crate::Engine;
 use database::mutation::position_mutation::PositionMutation;
 use event_center::command_event::position_engine_command::GetPositionParam;
 use types::strategy::node_message::PositionMessage;
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeContext {
@@ -59,6 +60,10 @@ impl NodeContext for PositionNodeContext {
         //     _ => {}
         // }
         Ok(())
+    }
+
+    fn get_default_output_handle(&self) -> NodeOutputHandle {
+        self.base_context.output_handle.get(&format!("position_node_update_output")).unwrap().clone()
     }
 
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {

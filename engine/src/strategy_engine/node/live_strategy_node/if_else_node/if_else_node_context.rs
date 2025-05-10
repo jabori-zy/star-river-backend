@@ -9,7 +9,7 @@ use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
 use super::condition::*;
 use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
 use super::if_else_node_type::*;
-
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 
 
@@ -48,6 +48,10 @@ impl NodeContext for IfElseNodeContext {
 
     fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
         &mut self.base_context
+    }
+
+    fn get_default_output_handle(&self) -> NodeOutputHandle {
+        self.base_context.output_handle.get(&format!("if_else_node_else_output")).unwrap().clone()
     }
 
 
@@ -243,12 +247,12 @@ impl IfElseNodeContext {
         let message = received_value.get(node_id)?.as_ref()?;
         
         match message {
-            NodeMessage::Indicator(indicator_message) => {
-                indicator_message.indicator_data
-                .get_latest_indicator_value()
-                .get(variable_name)
-                .map(|v| v.value)
-            }
+            // NodeMessage::Indicator(indicator_message) => {
+            //     // indicator_message.indicator_series
+            //     // .get_latest_indicator_value()
+            //     // .get(variable_name)
+            //     // .map(|v| v.value)
+            // }
             NodeMessage::Variable(variable_message) => {
                 Some(variable_message.variable_value)
             }

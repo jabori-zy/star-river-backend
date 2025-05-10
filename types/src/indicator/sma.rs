@@ -1,13 +1,27 @@
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fmt::Debug;
-use std::any::Any;
-use crate::indicator_config::SMAConfig;
-use strum::{EnumString, Display};
-use std::collections::HashMap;
-use crate::indicator::IndicatorData;
-use crate::new_cache::{CacheValue, CacheValueTrait};
+use crate::cache::CacheItem;
+use crate::indicator::Indicator;
+use serde_json::Value;
+use crate::indicator::IndicatorConfigTrait;
+use deepsize::DeepSizeOf;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct SMAConfig {
+    pub period: i32,
+}
+
+impl IndicatorConfigTrait for SMAConfig {
+    fn new(config: &Value) -> Self {
+        if let Some(period) = config.get("period").and_then(|v| v.as_i64()) {
+            Self { period: period as i32 }
+        } else {
+            Self { period: 9 }
+        }
+    }
+}
+
 
 
 pub struct SMASeries {
@@ -19,27 +33,20 @@ pub struct SMASeries {
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct SMA {
     pub timestamp: i64,
     pub sma: f64,
 }
 
-impl TryFrom<CacheValue> for SMA {
-    type Error = String;
-
-    fn try_from(value: CacheValue) -> Result<Self, Self::Error> {
-        match value {
-            CacheValue::SMA(sma) => Ok(sma),
-            _ => Err(format!("无法将CacheValue转换为SMA: {:?}", value)),
-        }
+impl From<SMA> for Indicator {
+    fn from(sma: SMA) -> Self {
+        Indicator::SMA(sma)
     }
 }
 
-impl CacheValueTrait for SMA {
-    fn to_cache_value(&self) -> CacheValue {
-        CacheValue::SMA(self.clone())
-    }
+
+impl CacheItem for SMA {
     fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }

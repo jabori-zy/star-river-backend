@@ -16,8 +16,8 @@ use indicator_node_context::IndicatorNodeContext;
 use event_center::EventPublisher;
 use event_center::Event;
 use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
-use types::strategy::TradeMode;
-use indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use indicator_node_type::IndicatorNodeLiveConfig;
+use tokio::sync::Mutex;
 
 
 // 指标节点
@@ -54,7 +54,8 @@ impl IndicatorNode {
                 base_context,
                 live_config,
                 current_batch_id: None,
-                request_id: None,
+                request_ids: Arc::new(Mutex::new(vec![])),
+                is_registered: Arc::new(RwLock::new(false)),
             }))),
             
         }
@@ -86,6 +87,22 @@ impl NodeTrait for IndicatorNode {
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
         self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+
+        // 循环检查是否已经注册指标
+        // 检查交易所是否注册成功，并且K线流是否订阅成功
+        loop {
+            let is_registered = {
+                let state_guard = self.context.read().await;
+                let indicator_node_context = state_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
+                let is_registered = indicator_node_context.is_registered.read().await.clone();
+                tracing::info!("{}: 检查是否已经注册指标: {}", self.get_node_id().await, is_registered);
+                is_registered
+            };
+            if is_registered {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
 
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
         // 初始化完成 Initialize -> InitializeComplete
@@ -146,6 +163,12 @@ impl NodeTrait for IndicatorNode {
                     IndicatorNodeStateAction::ListenAndHandleMessage => {
                         tracing::info!("{}: 开始监听节点传递的message", node_id);
                         self.listen_message().await?;
+                    }
+                    IndicatorNodeStateAction::RegisterIndicator => {
+                        tracing::info!("{}: 开始注册指标", node_id);
+                        let mut context = self.context.write().await;
+                        let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
+                        context.register_indicator().await;
                     }
                     _ => {}
                 }

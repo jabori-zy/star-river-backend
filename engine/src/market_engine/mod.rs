@@ -1,5 +1,5 @@
 mod market_engine_context;
-
+mod market_engine_type;
 use std::sync::Arc;
 use std::vec;
 use event_center::{Event,EventPublisher};
@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use crate::EngineName;
 use tokio::sync::Mutex;
 use std::any::Any;
-
+use std::collections::HashMap;
 
 
 #[derive(Clone, Debug)]
@@ -50,9 +50,8 @@ impl MarketEngine{
             engine_name: EngineName::MarketEngine,
             event_publisher,
             event_receiver: vec![response_event_receiver, request_event_receiver],
-            exchange_engine
-
-
+            exchange_engine,
+            subscribe_klines: Arc::new(Mutex::new(HashMap::new())),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

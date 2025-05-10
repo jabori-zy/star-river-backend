@@ -4,7 +4,7 @@ use event_center::Event;
 use types::strategy::node_message::NodeMessage;
 use async_trait::async_trait;
 use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig};
-
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 
 
@@ -35,6 +35,10 @@ impl NodeContext for StartNodeContext {
     
     fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
         &mut self.base_context
+    }
+
+    fn get_default_output_handle(&self) -> NodeOutputHandle {
+        self.base_context.output_handle.get(&format!("start_node_output")).unwrap().clone()
     }
 
 

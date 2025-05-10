@@ -1,0 +1,259 @@
+use crate::cache::CacheKey;
+use crate::market::Kline;
+use crate::indicator::Indicator;
+use std::collections::VecDeque;
+use std::time::Duration;
+use utils::get_utc8_timestamp_millis;
+use crate::cache::*;
+use deepsize::DeepSizeOf;
+use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+pub struct KlineCacheEntry {
+    pub key: KlineCacheKey, // 缓存键
+    pub data: VecDeque<Arc<CacheValue>>, // 缓存数据
+    pub create_time: i64, // 创建时间
+    pub update_time: i64, // 更新时间
+    pub max_size: u32, // 最大大小
+    pub is_fresh: bool, // 是否新鲜
+    pub ttl: Duration, // 过期时间 time to live
+
+}
+
+// pub access_stats: AccessStats, // 访问统计
+// pub config: CacheConfig,       // 缓存配置
+// }
+
+// // 访问统计
+// #[derive(Debug, Clone)]
+// pub struct AccessStats {
+// pub create_time: i64,          // 创建时间
+// pub update_time: i64,          // 更新时间
+// pub last_access_time: i64,     // 最后访问时间
+// pub access_count: u64,         // 访问计数
+// pub hit_count: u64,            // 命中计数
+// }
+
+// // 缓存配置
+// #[derive(Debug, Clone)]
+// pub struct CacheConfig {
+// pub max_size: u32,             // 最大大小
+// pub ttl: Duration,             // 过期时间
+// pub is_fresh: bool,            // 是否新鲜
+// pub compression_enabled: bool, // 是否启用压缩
+// pub memory_limit: Option<u32>, // 内存限制(字节)
+// }
+
+
+impl From<KlineCacheEntry> for CacheEntry {
+    fn from(entry: KlineCacheEntry) -> Self {
+        CacheEntry::Kline(entry)
+    }
+}
+
+impl KlineCacheEntry {
+    pub fn new(key: KlineCacheKey, max_size: u32, ttl: Duration) -> Self {
+        Self {
+            key,
+            data: VecDeque::new(),
+            create_time: get_utc8_timestamp_millis(),
+            update_time: get_utc8_timestamp_millis(),
+            max_size,
+            is_fresh: false,
+            ttl,
+        }
+    }
+}
+
+impl CacheEntryTrait for KlineCacheEntry {
+    fn initialize(&mut self, data: Vec<CacheValue>) {
+        self.data = data.into_iter().map(|value| value.into()).collect();
+        self.is_fresh = true;
+        self.update_time = get_utc8_timestamp_millis();
+    }
+
+    fn update(&mut self, cache_value: CacheValue) {
+        // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k
+        if self.data.back().unwrap().get_timestamp() == cache_value.get_timestamp() {
+            self.data.pop_back();
+            self.data.push_back(cache_value.into());
+        } else {
+            // 如果最新的一条数据时间戳不等于最后一根k线的时间戳，则插入新数据
+            // 如果缓存长度大于最大缓存长度，则删除最旧的一条数据
+            if self.data.len() >= self.max_size as usize {
+                self.data.pop_front();
+            }
+            self.data.push_back(cache_value.into());
+        }
+    }
+
+    fn get_key(&self) -> CacheKey {
+        CacheKey::Kline(self.key.clone())
+    }
+
+    fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>> {
+        self.data.iter().map(|value| value.clone()).collect()
+    }
+
+    fn get_cache_data(&self, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+        // 如果limit为None，则返回所有数据
+        if limit.is_none() {
+            return self.get_all_cache_data();
+        }
+
+        // 如果limit大于等于数据长度，直接克隆并返回所有数据
+        let limit = limit.unwrap();
+        if limit as usize >= self.data.len() {
+            return self.get_all_cache_data();
+        }
+        
+        // 从后往前取limit条数据
+        let start = self.data.len().saturating_sub(limit as usize);
+        self.data.range(start..).cloned().collect()
+    }
+
+    fn get_create_time(&self) -> i64 {
+        self.create_time
+    }
+
+    fn get_update_time(&self) -> i64 {
+        self.update_time
+    }
+
+    fn get_max_size(&self) -> u32 {
+        self.max_size
+    }
+
+    fn get_is_fresh(&self) -> bool {
+        self.is_fresh
+    }
+
+    fn get_ttl(&self) -> Duration {
+        self.ttl
+    }
+
+    fn get_length(&self) -> u32 {
+        self.data.len() as u32
+    }
+
+    fn get_memory_size(&self) -> u32 {
+        self.data.iter().map(|value| value.deep_size_of() as u32).sum()
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct IndicatorCacheEntry {
+    pub key: IndicatorCacheKey, // 缓存键
+    pub data: VecDeque<Arc<CacheValue>>, // 缓存数据
+    pub create_time: i64, // 创建时间
+    pub update_time: i64, // 更新时间
+    pub max_size: u32, // 最大大小
+    pub is_fresh: bool, // 是否新鲜
+    pub ttl: Duration, // 过期时间 time to live
+}
+
+impl From<IndicatorCacheEntry> for CacheEntry {
+    fn from(entry: IndicatorCacheEntry) -> Self {
+        CacheEntry::Indicator(entry)
+    }
+}
+
+
+impl IndicatorCacheEntry {
+    pub fn new(key: IndicatorCacheKey, max_size: u32, ttl: Duration) -> Self {
+        Self {
+            key,
+            data: VecDeque::new(),
+            create_time: get_utc8_timestamp_millis(),
+            update_time: get_utc8_timestamp_millis(),
+            max_size,
+            is_fresh: false,
+            ttl,
+        }
+    }
+    
+}
+
+impl CacheEntryTrait for IndicatorCacheEntry {
+
+    fn initialize(&mut self, data: Vec<CacheValue>) {
+        self.data = data.into_iter().map(|value| value.into()).collect();
+        self.is_fresh = true;
+        self.update_time = get_utc8_timestamp_millis();
+    }
+
+    fn update(&mut self, cache_value: CacheValue) {
+        // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k
+        if self.data.back().unwrap().get_timestamp() == cache_value.get_timestamp() {
+            self.data.pop_back();
+            self.data.push_back(cache_value.into());
+        } else {
+            // 如果最新的一条数据时间戳不等于最后一根k线的时间戳，则插入新数据
+            // 如果缓存长度大于最大缓存长度，则删除最旧的一条数据
+            if self.data.len() >= self.max_size as usize {
+                self.data.pop_front();
+            }
+            self.data.push_back(cache_value.into());
+        }
+    }
+
+    fn get_key(&self) -> CacheKey {
+        CacheKey::Indicator(self.key.clone())
+    }
+
+    fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>> {
+        self.data.iter().map(|value| value.clone()).collect()
+    }
+
+    fn get_cache_data(&self, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+        // 如果limit为None，则返回所有数据
+        if limit.is_none() {
+            return self.get_all_cache_data();
+        }
+
+        // 如果limit大于等于数据长度，直接克隆并返回所有数据
+        let limit = limit.unwrap();
+        if limit as usize >= self.data.len() {
+            return self.get_all_cache_data();
+        }
+        
+        // 从后往前取limit条数据
+        let start = self.data.len().saturating_sub(limit as usize);
+        self.data.range(start..).cloned().collect()
+    }
+
+    fn get_create_time(&self) -> i64 {
+        self.create_time
+    }
+
+    fn get_update_time(&self) -> i64 {
+        self.update_time
+    }
+
+    fn get_max_size(&self) -> u32 {
+        self.max_size
+    }
+
+    fn get_is_fresh(&self) -> bool {
+        self.is_fresh
+    }
+
+    fn get_ttl(&self) -> Duration {
+        self.ttl
+    }
+
+    fn get_length(&self) -> u32 {
+        self.data.len() as u32
+    }
+
+    fn get_memory_size(&self) -> u32 {
+        self.data.iter().map(|value| value.deep_size_of() as u32).sum()
+    }
+}
+
+
+
+
+
+

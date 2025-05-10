@@ -203,7 +203,7 @@ impl Heartbeat {
     {
 
         tokio::spawn(async move {
-            tracing::info!("执行异步任务: {}", task_name);
+            // tracing::info!("执行异步任务: {}", task_name);
             function.await;
         });
     }

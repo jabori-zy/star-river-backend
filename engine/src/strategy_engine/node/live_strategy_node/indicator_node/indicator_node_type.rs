@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndicatorNodeLiveConfig {
-    pub indicator: IndicatorConfig,
+    pub indicator_config: IndicatorConfig,
     pub symbol: String,
     pub interval: KlineInterval,
     pub exchange: Exchange,
@@ -13,7 +13,7 @@ pub struct IndicatorNodeLiveConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndicatorNodeBacktestConfig {
-    pub indicator: IndicatorConfig,
+    pub indicator_config: IndicatorConfig,
     pub symbol: String,
     pub interval: KlineInterval,
     pub exchange: Exchange,
@@ -21,7 +21,7 @@ pub struct IndicatorNodeBacktestConfig {
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeSimulateConfig {
-    pub indicator: IndicatorConfig,
+    pub indicator_config: IndicatorConfig,
     pub symbol: String,
     pub interval: KlineInterval,
     pub exchange: Exchange,

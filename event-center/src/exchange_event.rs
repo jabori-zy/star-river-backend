@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use types::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
 use strum::Display;
 use crate::Event;
-
+use std::sync::Arc;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]

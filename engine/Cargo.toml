@@ -32,6 +32,7 @@ windows = { version = "0.61.1", features = ["Win32_System_Console","Win32_System
 rust-embed = "8.6.0"
 tempfile = "3.19.1"
 chrono.workspace=true
+deepsize = "0.2.0"
 
 [build-dependencies]
 cc = "1.2"

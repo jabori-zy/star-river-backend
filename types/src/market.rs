@@ -7,23 +7,37 @@ use strum::{Display, EnumString};
 use serde_json;
 use std::str::FromStr;
 use serde::ser::Serializer;
-use crate::new_cache::{CacheValue, CacheValueTrait};
-
+use crate::cache::{CacheValue, CacheItem};
+use deepsize::DeepSizeOf;
+use std::sync::Arc;
 
 pub type MT5Server = String;
 
 
-#[derive(Debug, Clone, Deserialize, Display, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash, DeepSizeOf)]
 #[serde(rename_all = "lowercase")]
 pub enum Exchange {
-    #[strum(serialize = "binance")]
     Binance,
-    #[strum(serialize = "huobi")]
     Huobi,
-    #[strum(serialize = "okx")]
     Okx,
-    #[strum(serialize = "metatrader5")]
     Metatrader5(MT5Server),
+}
+
+impl ToString for Exchange {
+    fn to_string(&self) -> String {
+        match self {
+            Exchange::Binance => "binance".to_string(),
+            Exchange::Huobi => "huobi".to_string(),
+            Exchange::Okx => "okx".to_string(),
+            Exchange::Metatrader5(server) => {
+                if server.is_empty() {
+                    "metatrader5".to_string()
+                } else {
+                    format!("metatrader5({})", server)
+                }
+            }
+        }
+    }
 }
 
 impl Serialize for Exchange {
@@ -39,12 +53,13 @@ impl Serialize for Exchange {
                 if server.is_empty() {
                     serializer.serialize_str("metatrader5")
                 } else {
-                    serializer.serialize_str(&format!("metatrader5:{}", server))
+                    serializer.serialize_str(&format!("metatrader5({})", server))
                 }
             }
         }
     }
 }
+
 
 impl FromStr for Exchange {
     type Err = String;
@@ -134,7 +149,7 @@ pub trait MarketData: Serialize + Clone + Debug{
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone, )]
+#[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct Kline {
     pub timestamp: i64,
     pub open: f64,
@@ -144,21 +159,13 @@ pub struct Kline {
     pub volume: f64,
 }
 
-impl TryFrom<CacheValue> for Kline {
-    type Error = String;
-
-    fn try_from(value: CacheValue) -> Result<Self, Self::Error> {
-        match value {
-            CacheValue::Kline(kline) => Ok(kline),
-            _ => Err(format!("无法将CacheValue转换为Kline: {:?}", value)),
-        }
+impl From<Kline> for CacheValue {
+    fn from(kline: Kline) -> Self {
+        CacheValue::Kline(kline)
     }
 }
 
-impl CacheValueTrait for Kline {
-    fn to_cache_value(&self) -> CacheValue {
-        CacheValue::Kline(self.clone())
-    }
+impl CacheItem for Kline {
     fn get_timestamp(&self) -> i64 {
         self.timestamp
     }

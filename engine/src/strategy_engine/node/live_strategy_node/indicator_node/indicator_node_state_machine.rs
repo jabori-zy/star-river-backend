@@ -5,7 +5,8 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub enum IndicatorNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
-    ListenAndHandleMessage,
+    ListenAndHandleMessage, // 处理消息
+    RegisterIndicator, // 注册指标
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
@@ -81,7 +82,12 @@ impl NodeStateMachine for IndicatorNodeStateManager {
                 self.current_state = NodeRunState::Initializing;
                 Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: NodeRunState::Initializing,
-                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents), Box::new(IndicatorNodeStateAction::ListenAndHandleMessage)],
+                    actions: vec![
+                        Box::new(IndicatorNodeStateAction::LogTransition), 
+                        Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents), 
+                        Box::new(IndicatorNodeStateAction::ListenAndHandleMessage),
+                        Box::new(IndicatorNodeStateAction::RegisterIndicator),
+                        ],
                 }))
             }
             // 初始化完成，进入Ready状态

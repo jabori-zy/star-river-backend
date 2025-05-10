@@ -27,19 +27,18 @@ impl LiveStrategyFunction {
         let node_name = node_data["nodeName"].as_str().unwrap_or_default();
 
         let indicator_type = node_data["indicatorType"].as_str().unwrap_or_default(); // 指标类型
-        let mut indicator = IndicatorConfig::from_str(indicator_type).unwrap(); // 转换成指标
         let live_config_json = node_data["liveConfig"].clone();
         if live_config_json.is_null() {
             return Err("liveConfig is null".to_string());
         };
                 
         let indicator_config = live_config_json["indicatorConfig"].clone();
-        indicator.update_config(&indicator_config); // 更新指标配置
+        let indicator = IndicatorConfig::new(indicator_type, &indicator_config);
         let symbol = live_config_json["symbol"].as_str().unwrap_or_default().to_string();
         let interval = KlineInterval::from_str(live_config_json["interval"].as_str().unwrap_or_default()).unwrap();
         let exchange = Exchange::from_str(live_config_json["exchange"].as_str().unwrap_or_default()).unwrap();
         let indicator_node_live_config = IndicatorNodeLiveConfig {
-            indicator: indicator.clone(),
+            indicator_config: indicator.clone(),
             symbol,
             interval,
             exchange,

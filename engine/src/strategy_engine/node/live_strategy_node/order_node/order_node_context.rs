@@ -31,6 +31,7 @@ use types::strategy::node_message::OrderMessage;
 use database::mutation::transaction_mutation::TransactionMutation;
 use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use exchange_client::ExchangeClient;
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
 pub struct OrderNodeContext {
@@ -358,6 +359,10 @@ impl NodeContext for OrderNodeContext {
 
     fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
         &mut self.base_context
+    }
+
+    fn get_default_output_handle(&self) -> NodeOutputHandle {
+        self.base_context.output_handle.get(&format!("order_node_output")).unwrap().clone()
     }
     
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {

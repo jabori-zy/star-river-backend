@@ -6,7 +6,7 @@ pub mod indicator_engine; // 指标引擎
 pub mod strategy_engine; // 策略引擎
 // pub mod cache_engine; // 缓存引擎
 pub mod account_engine; // 账户引擎
-pub mod new_cache_engine;
+pub mod cache_engine;
 
 
 
@@ -94,8 +94,6 @@ pub trait Engine : Debug + Send + Sync + 'static {
         let engine_name = self.get_engine_name().await;
         tracing::info!("{}已启动", engine_name);
         self.listen_events().await;
-
-
     }
 }
 

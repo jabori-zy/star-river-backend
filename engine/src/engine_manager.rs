@@ -10,7 +10,7 @@ use crate::Engine;
 use crate::market_engine::MarketEngine;
 use crate::exchange_engine::ExchangeEngine;
 use crate::strategy_engine::StrategyEngine;
-use crate::new_cache_engine::NewCacheEngine;
+use crate::cache_engine::CacheEngine;
 use crate::account_engine::AccountEngine;
 use crate::EngineName;
 use heartbeat::Heartbeat;
@@ -20,7 +20,7 @@ pub struct EngineManager {
     market_engine: Arc<Mutex<MarketEngine>>,
     indicator_engine: Arc<Mutex<IndicatorEngine>>,
     strategy_engine: Arc<Mutex<StrategyEngine>>,
-    cache_engine: Arc<Mutex<NewCacheEngine>>,
+    cache_engine: Arc<Mutex<CacheEngine>>,
     account_engine: Arc<Mutex<AccountEngine>>,
 }
 
@@ -37,6 +37,15 @@ impl EngineManager {
     ) -> Self
     
     {
+
+        let cache_engine = Arc::new(Mutex::new(CacheEngine::new(
+            event_publisher.clone(), 
+            exchange_event_receiver.resubscribe(),
+            request_event_receiver.resubscribe(), 
+            response_event_receiver.resubscribe(),
+        )));
+
+
         let exchange_engine = Arc::new(Mutex::new(ExchangeEngine::new(
             event_publisher.clone(), 
             request_event_receiver.resubscribe(), 
@@ -54,7 +63,10 @@ impl EngineManager {
         
         // 指标引擎
         let indicator_engine = IndicatorEngine::new(
+            heartbeat.clone(),
+            cache_engine.clone(),
             event_publisher.clone(), 
+            exchange_event_receiver.resubscribe(),
             request_event_receiver.resubscribe(), 
             response_event_receiver.resubscribe(),
         );
@@ -69,12 +81,7 @@ impl EngineManager {
             heartbeat.clone()
         );
 
-        let cache_engine = NewCacheEngine::new(
-            event_publisher.clone(), 
-            exchange_event_receiver.resubscribe(),
-            request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe(),
-        );
+        
 
         let account_engine = AccountEngine::new(
             event_publisher.clone(),
@@ -92,7 +99,7 @@ impl EngineManager {
             market_engine: Arc::new(Mutex::new(market_engine)),
             indicator_engine: Arc::new(Mutex::new(indicator_engine)),
             strategy_engine: Arc::new(Mutex::new(strategy_engine)),
-            cache_engine: Arc::new(Mutex::new(cache_engine)),
+            cache_engine: cache_engine,
             account_engine: Arc::new(Mutex::new(account_engine)),
         }
     }
@@ -160,6 +167,7 @@ impl EngineManager {
             engine.start().await
         });
     }
+
     pub async fn get_engine(&self, engine_name: EngineName) -> Arc<Mutex<dyn Engine>> {
         match engine_name {
             EngineName::ExchangeEngine => self.exchange_engine.clone(),
@@ -170,5 +178,11 @@ impl EngineManager {
             EngineName::AccountEngine => self.account_engine.clone(),
         }
     }
+
+    pub async fn get_cache_engine(&self) -> Arc<Mutex<CacheEngine>> {
+        self.cache_engine.clone()
+    }
+
+
 
 }

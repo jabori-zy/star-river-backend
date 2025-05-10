@@ -61,7 +61,7 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
         self.get_base_context().state_machine.current_state()
     }
 
-    // fn get_default_output_handle(&self) -> &NodeOutputHandle;
+    fn get_default_output_handle(&self) -> NodeOutputHandle;
 
     // 获取所有输出句柄
     fn get_all_output_handle(&self) -> &HashMap<String, NodeOutputHandle> {

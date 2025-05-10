@@ -1,8 +1,6 @@
 pub mod market;
 pub mod indicator;
-pub mod indicator_config;
 pub mod cache;
-pub mod new_cache;
 pub mod strategy;
 pub mod order;
 pub mod position;

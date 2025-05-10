@@ -1,9 +1,9 @@
 // 布林带 Bollinger Bands
 
 use serde::{Deserialize, Serialize};
-use crate::new_cache::{CacheValue, CacheValueTrait};
+use crate::cache::{CacheValue, CacheItem};
 use crate::market::{Exchange, KlineInterval};
-
+use deepsize::DeepSizeOf;
 
 pub struct BBandsSeries {
     pub exchange: Exchange,
@@ -15,7 +15,7 @@ pub struct BBandsSeries {
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct BBands {
     pub timestamp: i64,
     pub upper: f64,
@@ -23,21 +23,7 @@ pub struct BBands {
     pub lower: f64,
 }
 
-impl TryFrom<CacheValue> for BBands {
-    type Error = String;
-
-    fn try_from(value: CacheValue) -> Result<Self, Self::Error> {
-        match value {
-            CacheValue::BBands(bbands) => Ok(bbands),
-            _ => Err(format!("无法将CacheValue转换为BBands: {:?}", value)),
-        }
-    }
-}
-
-impl CacheValueTrait for BBands {
-    fn to_cache_value(&self) -> CacheValue {
-        CacheValue::BBands(self.clone())
-    }
+impl CacheItem for BBands {
     fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }
