@@ -15,8 +15,8 @@ use crate::star_river::StarRiver;
 use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy};
 use crate::api::mutation_api::account_mutation::{add_account_config, delete_account_config, update_account_config, update_account_config_is_available};
 use crate::api::query_api::{get_strategy_list, get_strategy_by_id, get_account_config};
-use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, enable_strategy_event_push, disable_strategy_event_push};
-use crate::api::cache_api::{get_cache_key, get_memory_size};
+use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, get_strategy_cache_keys, enable_strategy_data_push, disable_strategy_data_push};
+use crate::api::cache_api::{get_cache_key, get_memory_size, get_cache_value};
 use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler, account_sse_handler};
 use crate::api::account_api::login_mt5_account;
 use tracing::Level;
@@ -60,8 +60,6 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/init_strategy", post(init_strategy))
         .route("/run_strategy", post(run_strategy))
         .route("/stop_strategy", post(stop_strategy))
-        .route("/enable_strategy_event_push", post(enable_strategy_event_push))
-        .route("/disable_strategy_event_push", post(disable_strategy_event_push))
         .route("/get_strategy_list", get(get_strategy_list))
         .route("/update_strategy", post(update_strategy))
         .route("/delete_strategy", delete(delete_strategy))
@@ -74,6 +72,10 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
         .route("/login_mt5_account", post(login_mt5_account))
         .route("/get_cache_key", get(get_cache_key))
         .route("/get_memory_size", get(get_memory_size))
+        .route("/get_strategy_cache_keys", get(get_strategy_cache_keys))
+        .route("/get_cache_value", get(get_cache_value))
+        .route("/enable_strategy_data_push", post(enable_strategy_data_push))
+        .route("/disable_strategy_data_push", post(disable_strategy_data_push))
         .layer(cors)
         .with_state(star_river.clone());
 

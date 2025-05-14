@@ -12,57 +12,57 @@ use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::strategy::strategy_context::StrategyContext;
 
 impl StrategyFunction {
-    // pub async fn listen_external_event(context: Arc<RwLock<Box<dyn NodeContext>>>){
-    //     let (event_receivers, cancel_token, node_id) = {
-    //         // let state_guard = state.read().await;
-    //         // 这里需要深度克隆接收器，而不是克隆引用
-    //         let event_receivers : Vec<broadcast::Receiver<Event>> = context.read().await.get_event_receivers()
-    //         .iter()
-    //         .map(|r| r.resubscribe())
-    //         .collect();
+    pub async fn listen_event(context: Arc<RwLock<Box<dyn StrategyContext>>>){
+        let (event_receivers, cancel_token, strategy_name) = {
+            // let state_guard = state.read().await;
+            // 这里需要深度克隆接收器，而不是克隆引用
+            let event_receivers : Vec<broadcast::Receiver<Event>> = context.read().await.get_event_receivers()
+            .iter()
+            .map(|r| r.resubscribe())
+            .collect();
 
-    //         let cancel_token = context.read().await.get_cancel_token().clone();
-    //         let node_id = context.read().await.get_node_id().to_string();
-    //         (event_receivers, cancel_token, node_id)
-    //     };
+            let cancel_token = context.read().await.get_cancel_token().clone();
+            let strategy_name = context.read().await.get_strategy_name().to_string();
+            (event_receivers, cancel_token, strategy_name)
+        };
 
-    //     if event_receivers.is_empty() {
-    //         tracing::warn!("{}: 没有事件接收器", node_id);
-    //         return;
-    //     }
-    //     let streams: Vec<_> = event_receivers.into_iter()
-    //         .map(|receiver| BroadcastStream::new(receiver))
-    //         .collect();
-    //     let mut combined_stream = select_all(streams);
-    //     let node_id = node_id.clone();
-    //     tokio::spawn(async move {
-    //         loop {
-    //             tokio::select! {
-    //                 _ = cancel_token.cancelled() => {
-    //                     tracing::info!("{} 节点监听外部事件进程已中止", node_id);
-    //                     break;
-    //                 }
-    //                 // 接收消息
-    //                 receive_result = combined_stream.next() => {
-    //                     match receive_result {
-    //                         Some(Ok(event)) => {
-    //                             let mut context_guard = context.write().await;
-    //                             context_guard.handle_event(event).await.unwrap();
+        if event_receivers.is_empty() {
+            tracing::warn!("{}: 没有事件接收器", strategy_name);
+            return;
+        }
+        let streams: Vec<_> = event_receivers.into_iter()
+            .map(|receiver| BroadcastStream::new(receiver))
+            .collect();
+        let mut combined_stream = select_all(streams);
+        let strategy_name = strategy_name.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{} 策略监听外部事件进程已中止", strategy_name);
+                        break;
+                    }
+                    // 接收消息
+                    receive_result = combined_stream.next() => {
+                        match receive_result {
+                            Some(Ok(event)) => {
+                                let mut context_guard = context.write().await;
+                                context_guard.handle_event(event).await.unwrap();
 
-    //                         }
-    //                         Some(Err(e)) => {
-    //                             tracing::error!("节点{}接收事件错误: {}", node_id, e);
-    //                         }
-    //                         None => {
-    //                             tracing::warn!("节点{}所有事件流已关闭", node_id);
-    //                             break;
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     });
-    // }
+                            }
+                            Some(Err(e)) => {
+                                tracing::error!("策略{}接收事件错误: {}", strategy_name, e);
+                            }
+                            None => {
+                                tracing::warn!("策略{}所有事件流已关闭", strategy_name);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     pub async fn listen_node_message(context: Arc<RwLock<Box<dyn StrategyContext>>>) {
         let (receivers, cancel_token, strategy_name) = {

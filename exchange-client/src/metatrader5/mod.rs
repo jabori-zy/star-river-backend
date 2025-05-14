@@ -719,7 +719,7 @@ impl ExchangeClient for MetaTrader5 {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await.expect("获取k线系列失败");
-            tracing::info!("获取k线系列成功, k线数量: {:?}", kline_series);
+            // tracing::info!("获取k线系列成功, k线数量: {:?}", kline_series);
             let data_processor = self.data_processor.lock().await;
             data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
             Ok(())

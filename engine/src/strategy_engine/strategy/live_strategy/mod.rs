@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 use live_strategy_function::LiveStrategyFunction;
 use live_strategy_state_machine::LiveStrategyStateMachine;
 use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
-
+use types::cache::CacheKey;
 
 
 #[derive(Debug, Clone)]
@@ -53,6 +53,7 @@ impl LiveStrategy {
             live_accounts: vec![],
             variables: None,
         };
+        let mut cache_keys: Vec<CacheKey> = vec![];
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
@@ -84,6 +85,7 @@ impl LiveStrategy {
                     LiveStrategyFunction::add_node(
                         &mut graph, 
                         &mut node_indices, 
+                        &mut cache_keys,
                         node_config, 
                         event_publisher.clone(), 
                         market_event_receiver.resubscribe(), 
@@ -120,12 +122,12 @@ impl LiveStrategy {
         let context = LiveStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
-            config: strategy_live_config,
+            strategy_config: strategy_live_config,
+            cache_keys: Arc::new(RwLock::new(cache_keys)),
             graph,
             node_indices,
             event_publisher,
-            response_event_receiver,
-            enable_event_publish: false,
+            event_receivers: vec![response_event_receiver],
             cancel_token,
             state_machine: Box::new(LiveStrategyStateMachine::new(strategy_id, strategy_name, StrategyRunState::Created)),
             all_node_output_handles: strategy_output_handles,
@@ -133,6 +135,8 @@ impl LiveStrategy {
             exchange_engine: exchange_engine,
             database: database,
             heartbeat: heartbeat,
+            registered_tasks: Arc::new(RwLock::new(HashMap::new())),
+            request_ids: Arc::new(RwLock::new(vec![])),
         };
         Self { context: Arc::new(RwLock::new(Box::new(context))) }
     }
@@ -293,6 +297,10 @@ impl StrategyTrait for LiveStrategy {
                         tracing::info!("{}: 监听节点消息", strategy_name);
                         self.listen_node_message().await.unwrap();
                     }
+                    LiveStrategyStateAction::ListenAndHandleEvent => {
+                        tracing::info!("{}: 监听事件", strategy_name);
+                        self.listen_event().await.unwrap();
+                    }
                     _ => {}
                 }
             }
@@ -309,6 +317,7 @@ impl StrategyTrait for LiveStrategy {
 
     }
 
+    
     async fn init_strategy(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始初始化策略", self.get_strategy_name().await);
 
@@ -377,6 +386,21 @@ impl StrategyTrait for LiveStrategy {
             Err("等待节点停止超时".to_string())
         }
     }
+
+    async fn enable_strategy_data_push(&mut self) -> Result<(), String> {
+        let mut context_guard = self.context.write().await;
+        let live_strategy_context = context_guard.as_any_mut().downcast_mut::<LiveStrategyContext>().unwrap();
+        live_strategy_context.enable_strategy_data_push().await;
+        Ok(())
+    }
+
+    async fn disable_strategy_data_push(&mut self) -> Result<(), String> {
+        let mut context_guard = self.context.write().await;
+        let live_strategy_context = context_guard.as_any_mut().downcast_mut::<LiveStrategyContext>().unwrap();
+        live_strategy_context.disable_strategy_data_push().await;
+        Ok(())
+    }
+    
 
 
 }

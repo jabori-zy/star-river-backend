@@ -28,6 +28,18 @@ pub fn timestamp_to_utc8(timestamp: i64) -> String {
     DateTime::<Utc>::from_timestamp_millis(timestamp).unwrap().with_timezone(&china_timezone).format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+pub fn seconds_to_millis(timestamp: i64) -> i64 {
+    // 检查时间戳的位数来判断是否为秒级
+    // 13位左右是毫秒级时间戳（2020年代的毫秒时间戳约为13位）
+    // 10位左右是秒级时间戳（2020年代的秒时间戳约为10位）
+    if timestamp > 0 && timestamp < 10_000_000_000 {
+        // 小于10位数的时间戳（直到2286年）视为秒级，转为毫秒级
+        timestamp * 1000
+    } else {
+        timestamp
+    }
+}
+
 // 生成一个唯一的batch_id
 pub fn generate_batch_id() -> String {
     let timestamp = get_utc8_timestamp_millis();

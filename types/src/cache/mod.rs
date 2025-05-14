@@ -14,6 +14,7 @@ use cache_entry::{KlineCacheEntry, IndicatorCacheEntry};
 use crate::indicator::Indicator;
 use deepsize::DeepSizeOf;
 use std::sync::Arc;
+use std::str::FromStr;
 
 pub trait CacheKeyTrait{
     fn get_key(&self) -> String;
@@ -25,9 +26,25 @@ pub trait CacheKeyTrait{
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[serde(tag = "key_type", content = "key_config")]
+#[serde(rename_all = "lowercase")]
 pub enum CacheKey {
     Kline(KlineCacheKey),
     Indicator(IndicatorCacheKey),
+}
+
+impl FromStr for CacheKey {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split('|').collect();
+        let key_type = parts[0];
+        match key_type {
+            "kline" => Ok(CacheKey::Kline(KlineCacheKey::from_str(s)?)),
+            "indicator" => Ok(CacheKey::Indicator(IndicatorCacheKey::from_str(s)?)),
+            _ => Err("Invalid cache key type".to_string()),
+        }
+    }
 }
 
 impl CacheKey {
@@ -41,21 +58,21 @@ impl CacheKey {
     pub fn get_exchange(&self) -> Exchange {
         match self {
             CacheKey::Kline(key) => key.exchange.clone(),
-            CacheKey::Indicator(key) => key.kline_cache_key.exchange.clone(),
+            CacheKey::Indicator(key) => key.exchange.clone(),
         }
     }
 
     pub fn get_symbol(&self) -> String {
         match self {
             CacheKey::Kline(key) => key.symbol.clone(),
-            CacheKey::Indicator(key) => key.kline_cache_key.symbol.clone(),
+            CacheKey::Indicator(key) => key.symbol.clone(),
         }
     }
 
     pub fn get_interval(&self) -> KlineInterval {
         match self {
             CacheKey::Kline(key) => key.interval.clone(),
-            CacheKey::Indicator(key) => key.kline_cache_key.interval.clone(),
+            CacheKey::Indicator(key) => key.interval.clone(),
         }
     }
     
@@ -75,6 +92,7 @@ pub trait CacheItem: Clone + Debug + DeepSizeOf {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
+
 pub enum CacheValue {
     Kline(Kline),
     Indicator(Indicator),

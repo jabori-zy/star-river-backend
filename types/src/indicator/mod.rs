@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
 use std::any::Any;
-use strum::Display;
 use std::collections::HashMap;
 use crate::indicator::sma::SMA;
 use crate::indicator::bbands::BBands;
@@ -15,13 +14,14 @@ use crate::cache::CacheItem;
 use crate::indicator::sma::SMAConfig;
 use deepsize::DeepSizeOf;
 use crate::cache::CacheValue;
+use std::str::FromStr;
 
 pub trait IndicatorConfigTrait {
     fn new(config: &Value) -> Self;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "type", content = "config")]
+#[serde(tag = "indicator_type", content = "indicator_config")]
 pub enum IndicatorConfig {
     // 简单移动平均线
     #[serde(rename = "sma")]
@@ -31,11 +31,29 @@ pub enum IndicatorConfig {
 impl ToString for IndicatorConfig {
     fn to_string(&self) -> String {
         match self {
-            IndicatorConfig::SMA(sma_config) => format!("sma(period={})", sma_config.period),
+            IndicatorConfig::SMA(sma_config) => sma_config.to_string(),
         }
     }
 }
 
+impl FromStr for IndicatorConfig {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // 提取指标类型（如"sma"）
+        let indicator_type = if s.contains("(") {
+            s.split("(").next().unwrap_or("").trim()
+        } else {
+            s
+        };
+
+        // 根据指标类型创建相应的配置
+        match indicator_type {
+            "sma" => Ok(IndicatorConfig::SMA(SMAConfig::from_str(s)?)),
+            _ => Err(format!("不支持的指标类型: {}", indicator_type)),
+        }
+    }
+}
 
 impl IndicatorConfig {
     pub fn new(indicator_type: &str, config: &Value) -> Self {
@@ -69,7 +87,10 @@ impl CacheItem for Indicator {
     }
 
     fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap()
+        match self {
+            Indicator::SMA(sma) => sma.to_json(),
+            Indicator::BBands(bbands) => bbands.to_json(),
+        }
     }
 
     fn to_list(&self) -> Vec<f64> {

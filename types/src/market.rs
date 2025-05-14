@@ -70,13 +70,26 @@ impl FromStr for Exchange {
             "huobi" => Ok(Exchange::Huobi),
             "okx" => Ok(Exchange::Okx),
             _ => {
-                // 如果是metatrader5，则需要解析出server, 数据格式是metatrader5:server
+                // 如果是metatrader5，则需要解析出server
                 if s.starts_with("metatrader5") {
-                    // server不一定存在，所以需要判断
-                    let parts = s.split(":").collect::<Vec<&str>>();
-                    if parts.len() > 1 {
-                        Ok(Exchange::Metatrader5(parts[1].to_string()))
-                    } else {
+                    // 检查是否使用括号格式: metatrader5(server)
+                    if s.contains("(") && s.ends_with(")") {
+                        let start = s.find("(").unwrap() + 1;
+                        let end = s.len() - 1;
+                        let server = &s[start..end];
+                        Ok(Exchange::Metatrader5(server.to_string()))
+                    } 
+                    // 兼容原有的冒号格式: metatrader5:server
+                    else if s.contains(":") {
+                        let parts = s.split(":").collect::<Vec<&str>>();
+                        if parts.len() > 1 {
+                            Ok(Exchange::Metatrader5(parts[1].to_string()))
+                        } else {
+                            Ok(Exchange::Metatrader5(String::new()))
+                        }
+                    } 
+                    // 无服务器信息的情况
+                    else {
                         Ok(Exchange::Metatrader5(String::new()))
                     }
                 }
@@ -93,30 +106,43 @@ impl FromStr for Exchange {
 #[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash)]
 pub enum KlineInterval {
     #[strum(serialize = "1m")]
+    #[serde(rename = "1m")]
     Minutes1,
     #[strum(serialize = "5m")]
+    #[serde(rename = "5m")]
     Minutes5,
     #[strum(serialize = "15m")]
+    #[serde(rename = "15m")]
     Minutes15,
     #[strum(serialize = "30m")]
+    #[serde(rename = "30m")]
     Minutes30,
     #[strum(serialize = "1h")]
+    #[serde(rename = "1h")]
     Hours1,
     #[strum(serialize = "2h")]
+    #[serde(rename = "2h")]
     Hours2,
     #[strum(serialize = "4h")]
+    #[serde(rename = "4h")]
     Hours4,
     #[strum(serialize = "6h")]
+    #[serde(rename = "6h")]
     Hours6,
     #[strum(serialize = "8h")]
+    #[serde(rename = "8h")]
     Hours8,
     #[strum(serialize = "12h")]
+    #[serde(rename = "12h")]
     Hours12,
     #[strum(serialize = "1d")]
+    #[serde(rename = "1d")]
     Days1,
     #[strum(serialize = "1w")]
+    #[serde(rename = "1w")]
     Weeks1,
     #[strum(serialize = "1M")]
+    #[serde(rename = "1M")]
     Months1,
 }
 
@@ -161,7 +187,9 @@ pub struct Kline {
 
 impl From<Kline> for CacheValue {
     fn from(kline: Kline) -> Self {
-        CacheValue::Kline(kline)
+        // 将timestamp转换为毫秒
+        let timestamp = utils::seconds_to_millis(kline.timestamp);
+        CacheValue::Kline(Kline { timestamp, ..kline })
     }
 }
 

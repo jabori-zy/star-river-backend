@@ -10,12 +10,14 @@ use crate::strategy_engine::node::NodeTrait;
 use crate::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context::LiveDataNodeLiveConfig;
 use std::sync::Arc;
 use heartbeat::Heartbeat;
-
+use types::cache::CacheKey;
+use types::cache::cache_key::KlineCacheKey;
 
 impl LiveStrategyFunction {
     pub async fn add_live_data_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
+        cache_keys: &mut Vec<CacheKey>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
         market_event_receiver: broadcast::Receiver<Event>,
@@ -36,6 +38,8 @@ impl LiveStrategyFunction {
                 return Err("liveConfig is null".to_string());
             }
             let live_config = serde_json::from_value::<LiveDataNodeLiveConfig>(live_config_json).unwrap();
+            let cache_key = KlineCacheKey::new(live_config.selected_live_account.exchange.clone(), live_config.symbol.clone(), live_config.interval.clone());
+            cache_keys.push(cache_key.into());
             
             let mut node = LiveDataNode::new(
                 strategy_id as i32,

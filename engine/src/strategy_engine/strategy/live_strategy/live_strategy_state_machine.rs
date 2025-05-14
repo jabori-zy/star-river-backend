@@ -9,6 +9,7 @@ pub enum LiveStrategyStateAction {
     RegisterTask,      // 注册任务
     LoadPositions,        // 加载持仓
     ListenAndHandleNodeMessage,  // 监听节点消息
+    ListenAndHandleEvent,  // 监听事件消息
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
 }
@@ -78,7 +79,9 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                 Ok(Box::new(StrategyStateChangeActions {
                     new_state: StrategyRunState::Initializing,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition), 
+                        Box::new(LiveStrategyStateAction::LogTransition),
+                        Box::new(LiveStrategyStateAction::ListenAndHandleEvent),
+                        Box::new(LiveStrategyStateAction::ListenAndHandleNodeMessage),
                         Box::new(LiveStrategyStateAction::InitNode),
                         Box::new(LiveStrategyStateAction::LoadPositions),
                     ],
@@ -90,8 +93,7 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                 Ok(Box::new(StrategyStateChangeActions {
                     new_state: StrategyRunState::Ready,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition), 
-                        Box::new(LiveStrategyStateAction::ListenAndHandleNodeMessage),
+                        Box::new(LiveStrategyStateAction::LogTransition)
                     ],
                 }))
             }

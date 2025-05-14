@@ -1,5 +1,6 @@
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
+use types::custom_type::StrategyId;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
@@ -26,25 +27,37 @@ use types::strategy::node_message::PositionMessage;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::NodeRunState;
+use types::cache::CacheKey;
+use uuid::Uuid;
+use event_center::command_event::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
+use event_center::response_event::cache_engine_response::CacheEngineResponse;
+use event_center::response_event::ResponseEvent;
+use utils::get_utc8_timestamp_millis;
+use event_center::command_event::CommandEvent;
+use event_center::strategy_event::{StrategyEvent, StrategyData};
+
+
 
 #[derive(Debug)]
 // 实盘策略上下文
 pub struct LiveStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
-    pub config: LiveStrategyConfig, // 策略配置
-    pub graph: Graph<Box<dyn NodeTrait>, (),  Directed>,
-    pub node_indices: HashMap<String, NodeIndex>,
-    pub event_publisher: EventPublisher,
-    pub response_event_receiver: broadcast::Receiver<Event>,
-    pub enable_event_publish: bool,
-    pub cancel_token: CancellationToken,
-    pub state_machine: Box<dyn StrategyStateMachine>,
+    pub strategy_config: LiveStrategyConfig, // 策略配置
+    pub cache_keys: Arc<RwLock<Vec<CacheKey>>>, // 缓存键
+    pub graph: Graph<Box<dyn NodeTrait>, (),  Directed>, // 策略的拓扑图
+    pub node_indices: HashMap<String, NodeIndex>, // 节点索引
+    pub event_publisher: EventPublisher, // 事件发布器
+    pub event_receivers: Vec<broadcast::Receiver<Event>>, // 事件接收器
+    pub cancel_token: CancellationToken, // 取消令牌
+    pub state_machine: Box<dyn StrategyStateMachine>, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
     pub positions: Arc<RwLock<Vec<Position>>>, // 策略的所有持仓
-    pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
-    pub database: DatabaseConnection,
-    pub heartbeat: Arc<Mutex<Heartbeat>>,
+    pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
+    pub database: DatabaseConnection, // 数据库连接
+    pub heartbeat: Arc<Mutex<Heartbeat>>, // 心跳
+    pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
+    pub request_ids: Arc<RwLock<Vec<Uuid>>>, // 请求id
 }
 
 
@@ -53,12 +66,12 @@ impl Clone for LiveStrategyContext {
         Self {
             strategy_id: self.strategy_id,
             strategy_name: self.strategy_name.clone(),
-            config: self.config.clone(),
+            strategy_config: self.strategy_config.clone(),
+            cache_keys: self.cache_keys.clone(),
             graph: self.graph.clone(),
             node_indices: self.node_indices.clone(),
             event_publisher: self.event_publisher.clone(),
-            response_event_receiver: self.response_event_receiver.resubscribe(),
-            enable_event_publish: self.enable_event_publish,
+            event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
             cancel_token: self.cancel_token.clone(),
             state_machine: self.state_machine.clone_box(),
             all_node_output_handles: self.all_node_output_handles.clone(),
@@ -66,6 +79,8 @@ impl Clone for LiveStrategyContext {
             exchange_engine: self.exchange_engine.clone(),
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
+            registered_tasks: self.registered_tasks.clone(),
+            request_ids: self.request_ids.clone(),
         }
     }
 }
@@ -94,6 +109,10 @@ impl StrategyContext for LiveStrategyContext {
         self.strategy_name.clone()
     }
 
+    async fn get_cache_keys(&self) -> Vec<CacheKey> {
+        self.cache_keys.read().await.clone()
+    }
+
     fn get_state_machine(&self) -> Box<dyn StrategyStateMachine> {
         self.state_machine.clone_box()
     }
@@ -109,6 +128,23 @@ impl StrategyContext for LiveStrategyContext {
 
     fn get_cancel_token(&self) -> CancellationToken {
         self.cancel_token.clone()
+    }
+
+    fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
+        &self.event_receivers
+    }
+
+    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+        if let Event::Response(ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response))) = event {
+            let strategy_data = StrategyData {
+                strategy_id: self.strategy_id,
+                data: response.cache_data,
+                timestamp: get_utc8_timestamp_millis(),
+            };
+            let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
+            let _ = self.event_publisher.publish(strategy_event.into());
+        }
+        Ok(())
     }
 
     async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String> {
@@ -145,22 +181,68 @@ impl LiveStrategyContext {
         .collect()
     }
 
-    // 启用策略的事件发布功能
-    pub async fn enable_strategy_event_push(&mut self) {
-        self.enable_event_publish = true;
-        // 遍历所有节点，设置 enable_event_publish 为 true
-        for node in self.graph.node_weights_mut() {
-            node.enable_node_event_push().await.unwrap();
+    // 启用策略的数据推送功能
+    pub async fn enable_strategy_data_push(&mut self) {
+        let event_publisher = self.event_publisher.clone();
+        let strategy_id = self.strategy_id;
+        let strategy_name = self.strategy_name.clone();
+        let cache_keys = self.cache_keys.clone();
+        let request_ids = self.request_ids.clone();
+
+        let mut heartbeat = self.heartbeat.lock().await;
+        let task_id = heartbeat.register_async_task(
+            "启用策略数据推送".to_string(), 
+            move || {
+                let strategy_id = strategy_id;
+                let strategy_name = strategy_name.clone();
+                let cache_keys = cache_keys.clone();
+                let event_publisher = event_publisher.clone();
+                let request_ids = request_ids.clone();
+                async move {
+                    Self::get_strategy_data(strategy_id, strategy_name, cache_keys, event_publisher, request_ids).await;
+                }
+            },
+            5
+        ).await;
+        self.registered_tasks.write().await.insert("push_strategy_data".to_string(), task_id);
+        tracing::debug!("任务注册成功，当前任务列表：{:?}", self.registered_tasks.read().await);
+
+    }
+
+    pub async fn disable_strategy_data_push(&mut self) {
+        let task_id = self.registered_tasks.write().await.remove("push_strategy_data");
+        
+        if let Some(task_id) = task_id {
+            let mut heartbeat = self.heartbeat.lock().await;
+            heartbeat.unregister_task(task_id).await.unwrap();
+            tracing::debug!("任务取消成功，当前任务列表：{:?}", self.registered_tasks.read().await);
         }
     }
 
-    pub async fn disable_event_push(&mut self) {
-        self.enable_event_publish = false;
-        // 遍历所有节点，设置 enable_event_publish 为 false
-        for node in self.graph.node_weights_mut() {
-            node.disable_node_event_push().await.unwrap();
-        }
+    async fn get_strategy_data(
+        strategy_id: StrategyId,
+        strategy_name: String,
+        cache_keys: Arc<RwLock<Vec<CacheKey>>>,
+        event_publisher: EventPublisher,
+        request_ids: Arc<RwLock<Vec<Uuid>>>,
+    ) {
+        let request_id = Uuid::new_v4();
+        let cache_keys_clone = cache_keys.read().await.clone();
+        let params = GetCacheMultiParams {
+            strategy_id: strategy_id,
+            cache_keys: cache_keys_clone,
+            limit: Some(1), // 只获取最新的一条数据
+            sender: strategy_name,
+            timestamp: get_utc8_timestamp_millis(),
+            request_id: request_id,
+        };
+
+        request_ids.write().await.push(request_id);
+
+        let command_event = CommandEvent::CacheEngine(CacheEngineCommand::GetCacheMulti(params));
+        let _ = event_publisher.publish(command_event.into());
     }
+
     
 
     pub async fn wait_for_all_nodes_running(&self, timeout_secs: u64) -> Result<bool, String> {

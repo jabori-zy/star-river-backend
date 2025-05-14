@@ -13,6 +13,8 @@ pub enum CacheEngineCommand {
     AddCacheKey(AddCacheKeyParams), // 添加缓存键
     #[strum(serialize = "get-cache")]
     GetCache(GetCacheParams), // 获取缓存数据
+    #[strum(serialize = "get-cache-multi")]
+    GetCacheMulti(GetCacheMultiParams), // 一次性获取多个key的数据
 }
 
 // 添加K线缓存键参数
@@ -67,6 +69,17 @@ pub struct GetCacheParams {
     pub request_id: Uuid,
     pub timestamp:i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetCacheMultiParams {
+    pub strategy_id: StrategyId,
+    pub cache_keys: Vec<CacheKey>,
+    pub limit: Option<u32>,
+    pub sender: String,
+    pub request_id: Uuid,
+    pub timestamp:i64,
+}
+
 
 
 

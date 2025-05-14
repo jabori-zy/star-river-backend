@@ -2,11 +2,11 @@ use crate::star_river::StarRiver;
 use axum::http::StatusCode;
 use axum::extract::State;
 use serde::Deserialize;
-use axum::extract::Json;
+use axum::extract::{Json,Query};
 use crate::api::response::ApiResponse;
 use engine::EngineName;
 use engine::strategy_engine::StrategyEngine;
-
+use types::cache::CacheKey;
 
 #[derive(Deserialize, Debug)]
 pub struct SetupStrategyParams {
@@ -84,19 +84,62 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Json(params): Js
     }))
 }
 
-// 开启策略的事件推送
+// #[derive(Deserialize, Debug)]
+// pub struct DisableStrategyEventPushParams {
+//     pub strategy_id: i32,
+// }
+
+// pub async fn disable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<DisableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+//     let strategy_id = params.strategy_id;
+//     let engine_manager = star_river.engine_manager.lock().await;
+//     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+//     let mut engine_guard = engine.lock().await;
+//     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+//     strategy_engine.disable_strategy_event_push(strategy_id).await.expect("关闭策略事件推送失败");
+//     (StatusCode::OK, Json(ApiResponse {
+//         code: 0,
+//         message: "success".to_string(),
+//         data: None,
+//     }))
+// }
+
+
 #[derive(Deserialize, Debug)]
-pub struct EnableStrategyEventPushParams {
+pub struct GetStrategyCacheKeysParams {
     pub strategy_id: i32,
 }
 
-pub async fn enable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<EnableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+
+pub async fn get_strategy_cache_keys(State(star_river): State<StarRiver>, Query(params): Query<GetStrategyCacheKeysParams>) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
     let strategy_id = params.strategy_id;
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    strategy_engine.enable_strategy_event_push(strategy_id).await.expect("开启策略事件推送失败");
+    let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
+    let cache_keys_str = cache_keys.iter().map(|cache_key| cache_key.get_key()).collect();
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: Some(cache_keys_str),
+    }))
+}
+
+
+#[derive(Deserialize, Debug)]
+pub struct EnableStrategyDataPushParams {
+    pub strategy_id: i32,
+}
+
+pub async fn enable_strategy_data_push(State(star_river): State<StarRiver>, Json(params): Json<EnableStrategyDataPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    strategy_engine.enable_strategy_data_push(strategy_id).await.expect("开启策略数据推送失败");
+
+
     (StatusCode::OK, Json(ApiResponse {
         code: 0,
         message: "success".to_string(),
@@ -104,23 +147,31 @@ pub async fn enable_strategy_event_push(State(star_river): State<StarRiver>, Jso
     }))
 }
 
+
 #[derive(Deserialize, Debug)]
-pub struct DisableStrategyEventPushParams {
+pub struct DisableStrategyDataPushParams {
     pub strategy_id: i32,
 }
 
-pub async fn disable_strategy_event_push(State(star_river): State<StarRiver>, Json(params): Json<DisableStrategyEventPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn disable_strategy_data_push(State(star_river): State<StarRiver>, Json(params): Json<DisableStrategyDataPushParams>) -> (StatusCode, Json<ApiResponse<()>>) {
     let strategy_id = params.strategy_id;
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    strategy_engine.disable_strategy_event_push(strategy_id).await.expect("关闭策略事件推送失败");
+    strategy_engine.disable_strategy_data_push(strategy_id).await.expect("关闭策略数据推送失败");
+
+
     (StatusCode::OK, Json(ApiResponse {
         code: 0,
         message: "success".to_string(),
         data: None,
     }))
 }
+
+
+
+
+
 
 

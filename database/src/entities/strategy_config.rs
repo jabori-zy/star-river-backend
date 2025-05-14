@@ -16,6 +16,7 @@ pub struct Model {
     pub config: Option<Json>,
     pub nodes: Option<Json>,
     pub edges: Option<Json>,
+    pub chart_config: Option<Json>,
     pub created_time: DateTimeUtc,
     pub updated_time: DateTimeUtc,
 }

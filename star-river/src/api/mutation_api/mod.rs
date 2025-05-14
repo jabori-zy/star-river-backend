@@ -64,6 +64,7 @@ pub struct UpdateStrategyRequest {
     pub config: Option<serde_json::Value>,
     pub nodes: Option<serde_json::Value>,
     pub edges: Option<serde_json::Value>,
+    pub chart_config: Option<serde_json::Value>,
 }
 
 pub async fn update_strategy(
@@ -81,7 +82,8 @@ pub async fn update_strategy(
         request.status, 
         request.config,
         request.nodes, 
-        request.edges
+        request.edges,
+        request.chart_config,
     ).await {
         Ok(strategy) => (
             StatusCode::OK,

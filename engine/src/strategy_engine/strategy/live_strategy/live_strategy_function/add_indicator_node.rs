@@ -11,14 +11,16 @@ use event_center::{Event, EventPublisher};
 use types::strategy::TradeMode;
 use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
 use std::str::FromStr;
-
+use types::cache::CacheKey;
+use types::cache::cache_key::IndicatorCacheKey;
 
 impl LiveStrategyFunction {
     pub async fn add_indicator_node(
         graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
+        cache_keys: &mut Vec<CacheKey>,
         node_config: serde_json::Value,
-        event_publisher: EventPublisher, 
+        event_publisher: EventPublisher,
         response_event_receiver: broadcast::Receiver<Event>,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
@@ -33,16 +35,18 @@ impl LiveStrategyFunction {
         };
                 
         let indicator_config = live_config_json["indicatorConfig"].clone();
-        let indicator = IndicatorConfig::new(indicator_type, &indicator_config);
+        let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config);
         let symbol = live_config_json["symbol"].as_str().unwrap_or_default().to_string();
         let interval = KlineInterval::from_str(live_config_json["interval"].as_str().unwrap_or_default()).unwrap();
         let exchange = Exchange::from_str(live_config_json["exchange"].as_str().unwrap_or_default()).unwrap();
         let indicator_node_live_config = IndicatorNodeLiveConfig {
-            indicator_config: indicator.clone(),
-            symbol,
-            interval,
-            exchange,
+            indicator_config: indicator_config.clone(),
+            symbol: symbol.clone(),
+            interval: interval.clone(),
+            exchange: exchange.clone(),
         };
+        let cache_key = IndicatorCacheKey::new(exchange, symbol, interval, indicator_config);
+        cache_keys.push(cache_key.into());
 
         let mut node = IndicatorNode::new(
             strategy_id as i32,

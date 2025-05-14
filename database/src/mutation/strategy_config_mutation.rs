@@ -39,6 +39,7 @@ impl StrategyConfigMutation {
         strategy_config: Option<JsonValue>,
         nodes: Option<JsonValue>,
         edges: Option<JsonValue>,
+        chart_config: Option<JsonValue>,
     ) -> Result<Strategy, DbErr> {
         let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
             .one(db)
@@ -55,6 +56,7 @@ impl StrategyConfigMutation {
             config: Set(strategy_config),
             nodes: Set(nodes),
             edges: Set(edges),
+            chart_config: Set(chart_config),
             updated_time: Set(Utc::now()),
             ..Default::default()
         }

@@ -178,7 +178,7 @@ impl IfElseNodeContext {
 
                 // 发送事件
                 if self.is_enable_event_publish().clone() {
-                    let event = Event::Strategy(StrategyEvent::NodeMessage(NodeMessage::Signal(signal_message)));
+                    let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
                     if let Err(e) = self.get_event_publisher().publish(event.into()) {
                         tracing::error!(
                             node_id = %self.get_node_id(),
@@ -213,7 +213,7 @@ impl IfElseNodeContext {
 
             // 发送事件
             if self.is_enable_event_publish().clone() {
-                let event = Event::Strategy(StrategyEvent::NodeMessage(NodeMessage::Signal(signal_message)));
+                let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
                 if let Err(e) = self.get_event_publisher().publish(event.into()) {
                     tracing::error!(
                         node_id = %self.get_node_id(),

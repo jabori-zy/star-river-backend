@@ -17,7 +17,7 @@ use super::strategy::StrategyTrait;
 use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use types::strategy::{Strategy, TradeMode};
 use types::custom_type::StrategyId;
-
+use types::cache::CacheKey;
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
@@ -87,7 +87,28 @@ impl EngineContext for StrategyEngineContext {
 }
 
 impl StrategyEngineContext {
-    pub async fn get_strategy_by_id(&self, id: i32) -> Result<Strategy, String> {
+    
+    pub async fn get_strategy(&self, strategy_id: StrategyId) -> Result<Box<dyn StrategyTrait>, String> {
+        let strategy = self.strategy_list.get(&strategy_id).map(|strategy| strategy.clone());
+        if let Some(strategy) = strategy {
+            Ok(strategy)
+        } else {
+            tracing::error!("策略不存在");
+            Err("策略不存在".to_string())
+        }
+    }
+
+    pub async fn get_strategy_mut(&mut self, strategy_id: StrategyId) -> Result<&mut Box<dyn StrategyTrait>, String> {
+        if let Some(strategy) = self.strategy_list.get_mut(&strategy_id) {
+            Ok(strategy)
+        } else {
+            tracing::error!("策略不存在");
+            Err("策略不存在".to_string())
+        }
+    }
+
+
+    pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<Strategy, String> {
         let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap();
         if let Some(strategy) = strategy {
             Ok(strategy)
@@ -141,7 +162,12 @@ impl StrategyEngineContext {
         &mut self, 
         strategy_id: i32,
     ) -> Result<(), String> {
-        let strategy_info = self.get_strategy_by_id(strategy_id).await?;
+        // 判断策略是否在列表中、
+        if self.strategy_list.contains_key(&strategy_id) {
+            tracing::warn!("策略已存在, 不进行初始化");
+            return Ok(());
+        }
+        let strategy_info = self.get_strategy_info_by_id(strategy_id).await?;
         // 加载策略（实例化策略）
         self.load_strategy(
             strategy_info
@@ -171,6 +197,12 @@ impl StrategyEngineContext {
     async fn remove_strategy(&mut self, strategy_id: i32) {
         self.strategy_list.remove(&strategy_id);
         tracing::info!("策略实例已停止, 从引擎中移除, 策略名称: {}", strategy_id);
+    }
+
+    pub async fn get_strategy_cache_keys(&self, strategy_id: i32) -> Vec<CacheKey> {
+        let strategy = self.strategy_list.get(&strategy_id).unwrap();
+        let cache_keys = strategy.get_strategy_cache_keys().await;
+        cache_keys
     }
 
     // 开启策略的事件推送

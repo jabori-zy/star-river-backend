@@ -14,6 +14,7 @@ use strategy_context::StrategyContext;
 use strategy_state_machine::StrategyStateTransitionEvent;
 use strategy_functions::StrategyFunction;
 use strategy_state_machine::StrategyStateMachine;
+use types::cache::CacheKey;
 
 #[async_trait]
 pub trait StrategyTrait: Debug + Send + Sync + 'static {
@@ -39,6 +40,19 @@ pub trait StrategyTrait: Debug + Send + Sync + 'static {
         StrategyFunction::listen_node_message(context).await;
         Ok(())
     }
+    async fn listen_event(&self) -> Result<(), String> {
+        let context = self.get_context();
+        StrategyFunction::listen_event(context).await;
+        Ok(())
+    }
+    async fn get_strategy_cache_keys(&self) -> Vec<CacheKey> {
+        let context = self.get_context();
+        let context_guard = context.read().await;
+        context_guard.get_cache_keys().await
+    }
+    async fn enable_strategy_data_push(&mut self) -> Result<(), String>;
+    async fn disable_strategy_data_push(&mut self) -> Result<(), String>;
+    
     async fn init_strategy(&mut self) -> Result<(), String>;
     async fn start_strategy(&mut self) -> Result<(), String>;
     async fn stop_strategy(&mut self) -> Result<(), String>;

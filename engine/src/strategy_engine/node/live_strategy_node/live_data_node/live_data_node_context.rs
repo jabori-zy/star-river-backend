@@ -254,7 +254,7 @@ impl LiveDataNodeContext {
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
             frequency: 1000,
-            cache_size: 50,
+            cache_size: 500,
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),
             request_id: request_id,

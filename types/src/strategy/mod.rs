@@ -23,6 +23,7 @@ pub struct Strategy {
     pub config: Option<serde_json::Value>,
     pub nodes: Option<serde_json::Value>,
     pub edges: Option<serde_json::Value>,
+    pub chart_config: Option<serde_json::Value>,
     pub created_time: DateTime<Utc>,
     pub updated_time: DateTime<Utc>,
 }

@@ -18,7 +18,7 @@ use database::entities::strategy_config::Model as StrategyConfig;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use std::any::Any;
 use heartbeat::Heartbeat;
-
+use types::cache::CacheKey;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -91,20 +91,31 @@ impl StrategyEngine{
         strategy_context.stop_strategy(strategy_id).await
     }
 
-    pub async fn enable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        // let mut context = self.context.write().await;
-        // let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        // strategy_context.enable_strategy_event_push(strategy_id).await
+    pub async fn enable_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_engine_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy = strategy_engine_context.get_strategy_mut(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            strategy.enable_strategy_data_push().await.unwrap();
+        }
         Ok(())
     }
 
-    pub async fn disable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        // let mut context = self.context.write().await;
-        // let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        // strategy_context.disable_strategy_event_push(strategy_id).await
+    pub async fn disable_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_engine_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy = strategy_engine_context.get_strategy_mut(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            strategy.disable_strategy_data_push().await.unwrap();
+        }
         Ok(())
     }
     
+    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Vec<CacheKey> {
+        let context = self.context.read().await;
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_strategy_cache_keys(strategy_id).await
+    }
     
     
     

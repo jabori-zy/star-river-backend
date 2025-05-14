@@ -5,6 +5,7 @@ use uuid::Uuid;
 use types::cache::{CacheValue, CacheKey};
 use types::market::Kline;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -12,6 +13,7 @@ pub enum CacheEngineResponse {
     SubscribedIndicator(SubscribedIndicatorResponse),
     AddIndicatorCacheKey(AddIndicatorCacheKeyResponse),
     GetCacheData(GetCacheDataResponse),
+    GetCacheDataMulti(GetCacheDataMultiResponse),
 }
 
 
@@ -28,6 +30,15 @@ pub struct GetCacheDataResponse {
     pub message: String,
     pub cache_key: CacheKey,
     pub cache_data: Vec<Arc<CacheValue>>,
+    pub response_timestamp: i64,
+    pub response_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetCacheDataMultiResponse {
+    pub code: i32,
+    pub message: String,
+    pub cache_data: HashMap<String, Vec<Vec<f64>>>,
     pub response_timestamp: i64,
     pub response_id: Uuid,
 }

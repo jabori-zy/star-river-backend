@@ -6,10 +6,44 @@ use crate::indicator::Indicator;
 use serde_json::Value;
 use crate::indicator::IndicatorConfigTrait;
 use deepsize::DeepSizeOf;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SMAConfig {
     pub period: i32,
+}
+
+impl ToString for SMAConfig {
+    fn to_string(&self) -> String {
+        format!("sma(period={})", self.period)
+    }
+}
+
+impl FromStr for SMAConfig {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split('(').collect();
+        if parts.len() != 2 {
+            return Err("SMA配置格式无效".to_string());
+        }
+
+        // 移除右括号并获取内容
+        let content = parts[1].split(')').next().unwrap_or_default();
+        
+        // 只支持 "period=9" 格式
+        if content.contains("=") {
+            let kv_parts: Vec<&str> = content.split('=').collect();
+            if kv_parts.len() != 2 || kv_parts[0].trim() != "period" {
+                return Err("SMA参数格式无效，应为 'period=值'".to_string());
+            }
+            
+            let period = kv_parts[1].trim().parse::<i32>().map_err(|e| e.to_string())?;
+            Ok(SMAConfig { period })
+        } else {
+            return Err("SMA配置格式无效，应为 'sma(period=值)'".to_string());
+        }
+    }
 }
 
 impl IndicatorConfigTrait for SMAConfig {
@@ -20,15 +54,6 @@ impl IndicatorConfigTrait for SMAConfig {
             Self { period: 9 }
         }
     }
-}
-
-
-
-pub struct SMASeries {
-    pub exchange: Exchange,
-    pub symbol: String,
-    pub interval: KlineInterval,
-    pub series: Vec<SMA>,
 }
 
 
