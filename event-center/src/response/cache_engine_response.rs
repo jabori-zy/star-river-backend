@@ -1,0 +1,99 @@
+use serde::{Deserialize, Serialize};
+use types::{cache::cache_key::{IndicatorCacheKey, KlineCacheKey}, custom_type::{StrategyId, NodeId}};
+use strum::Display;
+use uuid::Uuid;
+use types::cache::{CacheValue, CacheKey};
+use std::sync::Arc;
+use std::collections::HashMap;
+use crate::response::{Response, ResponseTrait};
+
+#[derive(Debug)]
+pub enum CacheEngineResponse {
+    AddCacheKey(AddCacheKeyResponse),
+    AddIndicatorCacheKey(AddIndicatorCacheKeyResponse),
+    GetCacheData(GetCacheDataResponse),
+    GetCacheDataMulti(GetCacheDataMultiResponse),
+}
+
+impl ResponseTrait for CacheEngineResponse {
+    fn code(&self) -> i32 {
+        match self {
+            CacheEngineResponse::AddCacheKey(response) => response.code,
+            CacheEngineResponse::AddIndicatorCacheKey(response) => response.code,
+            CacheEngineResponse::GetCacheData(response) => response.code,
+            CacheEngineResponse::GetCacheDataMulti(response) => response.code,
+        }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            CacheEngineResponse::AddCacheKey(response) => response.message.clone(),
+            CacheEngineResponse::AddIndicatorCacheKey(response) => response.message.clone(),
+            CacheEngineResponse::GetCacheData(response) => response.message.clone(),
+            CacheEngineResponse::GetCacheDataMulti(response) => response.message.clone(),
+        }
+    }
+
+    fn response_timestamp(&self) -> i64 {
+        match self {
+            CacheEngineResponse::AddCacheKey(response) => response.response_timestamp,
+            CacheEngineResponse::AddIndicatorCacheKey(response) => response.response_timestamp,
+            CacheEngineResponse::GetCacheData(response) => response.response_timestamp,
+            CacheEngineResponse::GetCacheDataMulti(response) => response.response_timestamp,
+        }
+    }
+}
+
+impl From<CacheEngineResponse> for Response {
+    fn from(response: CacheEngineResponse) -> Self {
+        Response::CacheEngine(response)
+    }
+}
+
+impl TryFrom<Response> for CacheEngineResponse {
+    type Error = String;
+
+    fn try_from(response: Response) -> Result<Self, Self::Error> {
+        match response {
+            Response::CacheEngine(response) => Ok(response),
+            _ => Err("Invalid response type".to_string()),
+        }
+    }
+}
+#[derive(Debug)]
+pub struct AddCacheKeyResponse {
+    pub code: i32,
+    pub message: String,
+    pub cache_key: CacheKey,
+    pub response_timestamp: i64,
+}
+
+#[derive(Debug)]
+pub struct GetCacheDataResponse {
+    pub code: i32,
+    pub message: String,
+    pub cache_key: CacheKey,
+    pub cache_data: Vec<Arc<CacheValue>>,
+    pub response_timestamp: i64
+}
+
+#[derive(Debug)]
+pub struct GetCacheDataMultiResponse {
+    pub code: i32,
+    pub message: String,
+    pub cache_data: HashMap<String, Vec<Vec<f64>>>,
+    pub response_timestamp: i64,
+}
+
+#[derive(Debug)]
+pub struct AddIndicatorCacheKeyResponse {
+    pub code: i32,
+    pub message: String,
+    pub requested_strategy_id: StrategyId, // 请求的策略id
+    pub requested_node_id: NodeId, // 请求的节点id
+    pub indicator_cache_key: CacheKey,
+    pub response_timestamp: i64,
+}
+
+
+

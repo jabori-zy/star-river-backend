@@ -12,14 +12,14 @@ use event_center::EventPublisher;
 use crate::strategy_engine::node::{NodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use live_data_node_state_machine::{LiveDataNodeStateMachine, LiveDataNodeStateAction};
-use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
 use live_data_node_context::{LiveDataNodeContext, LiveDataNodeLiveConfig};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 #[derive(Debug, Clone)]
 pub struct LiveDataNode {
-    pub context: Arc<RwLock<Box<dyn NodeContext>>>,
+    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
 }
 
 impl LiveDataNode {
@@ -29,8 +29,10 @@ impl LiveDataNode {
         node_name: String, 
         live_config: LiveDataNodeLiveConfig,
         event_publisher: EventPublisher, 
-        market_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        market_event_receiver: EventReceiver,
+        response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let base_context = BaseNodeContext::new(
@@ -40,6 +42,8 @@ impl LiveDataNode {
             NodeType::LiveDataNode,
             event_publisher,
             vec![market_event_receiver, response_event_receiver],
+            command_publisher,
+            command_receiver,
             Box::new(LiveDataNodeStateMachine::new(node_id, node_name)),
         );
         Self {
@@ -47,7 +51,6 @@ impl LiveDataNode {
                 base_context,
                 stream_is_subscribed: Arc::new(RwLock::new(false)),
                 exchange_is_registered: Arc::new(RwLock::new(false)),
-                request_ids: Arc::new(Mutex::new(vec![])),
                 live_config,
                 heartbeat,
             }))), 
@@ -69,7 +72,7 @@ impl NodeTrait for LiveDataNode {
         Box::new(self.clone())
     }
     // 获取节点状态
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
         self.context.clone()
     }
 
@@ -192,25 +195,27 @@ impl NodeTrait for LiveDataNode {
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
-                            live_data_context.register_exchange().await?;
+                            let response = live_data_context.register_exchange().await?;
+                            if response.code() == 0 {
+                                tracing::info!("{}注册交易所成功", node_id);
+                                *live_data_context.exchange_is_registered.write().await = true;
+                            } else {
+                                tracing::error!("{}注册交易所失败: {:?}", node_id, response);
+                            }
                         }
                     }
                     LiveDataNodeStateAction::SubscribeKline => {
-                        // let current_state = self.context.read().await.get_state_machine().current_state();
-                        // if current_state != NodeRunState::Starting {
-                        //     tracing::warn!(
-                        //         node_id = %node_id,
-                        //         current_state = ?current_state,
-                        //         "节点不在Starting状态, 不订阅K线流"
-                        //     );
-                        // } else {
-                        //     tracing::info!("{}: 订阅K线流", node_id);
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
-                            live_data_context.subscribe_kline_stream().await?;
+                            let response = live_data_context.subscribe_kline_stream().await?;
+                            if response.code() == 0 {
+                                tracing::info!("{}订阅K线流成功", node_id);
+                                *live_data_context.stream_is_subscribed.write().await = true;
+                            } else {
+                                tracing::error!("{}订阅K线流失败: {:?}", node_id, response);
                             }
-                        // }
+                        }
                     }
                     LiveDataNodeStateAction::UnsubscribeKline => {
                         tracing::info!("{}: 取消订阅K线流", node_id);
@@ -232,7 +237,13 @@ impl NodeTrait for LiveDataNode {
                             let context = self.get_context();
                             let mut state_guard = context.write().await;
                             if let Some(live_data_context) = state_guard.as_any_mut().downcast_mut::<LiveDataNodeContext>() {
-                                live_data_context.unsubscribe_kline_stream().await?;
+                                let response = live_data_context.unsubscribe_kline_stream().await?;
+                                if response.code() == 0 {
+                                    tracing::info!("{}取消订阅K线流成功", node_id);
+                                    *live_data_context.stream_is_subscribed.write().await = false;
+                                } else {
+                                    tracing::error!("{}取消订阅K线流失败: {:?}", node_id, response);
+                                }
                             }
                         }
                     }

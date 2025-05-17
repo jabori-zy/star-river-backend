@@ -1,7 +1,6 @@
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
 use sea_orm::DatabaseConnection;
-use database::entities::strategy_config::Model as StrategyConfig;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use std::collections::HashMap;
 use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
@@ -18,12 +17,16 @@ use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use types::strategy::{Strategy, TradeMode};
 use types::custom_type::StrategyId;
 use types::cache::CacheKey;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::command::Command;
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
     pub engine_name: EngineName,
     pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<broadcast::Receiver<Event>>,
+    pub event_receiver: Vec<EventReceiver>,
+    pub command_publisher: CommandPublisher,
+    pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
     pub strategy_list: HashMap<StrategyId, Box<dyn StrategyTrait>>, //实现了StrategyTrait的策略
     pub market_event_receiver: broadcast::Receiver<Event>,
@@ -47,6 +50,8 @@ impl Clone for StrategyEngineContext {
             response_event_receiver: self.response_event_receiver.resubscribe(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -80,8 +85,19 @@ impl EngineContext for StrategyEngineContext {
         self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
     }
 
+    fn get_command_publisher(&self) -> &CommandPublisher {
+        &self.command_publisher
+    }
+
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+        self.command_receiver.clone()
+    }
     async fn handle_event(&mut self, event: Event) {
         let _event = event;
+    }
+
+    async fn handle_command(&mut self, command: Command) {
+        let _command = command;
     }
 
 }
@@ -124,7 +140,9 @@ impl StrategyEngineContext {
                 let strategy_id = strategy.id;
                 let strategy = LiveStrategy::new(
                     strategy, 
-                    self.event_publisher.clone(), 
+                    self.event_publisher.clone(),
+                    self.command_publisher.clone(),
+                    self.command_receiver.clone(),
                     self.market_event_receiver.resubscribe(), 
                     self.response_event_receiver.resubscribe(),
                     self.exchange_engine.clone(),
@@ -204,18 +222,5 @@ impl StrategyEngineContext {
         let cache_keys = strategy.get_strategy_cache_keys().await;
         cache_keys
     }
-
-    // 开启策略的事件推送
-    // pub async fn enable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-    //     let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
-    //     strategy.enable_strategy_event_push().await;
-    //     Ok(())
-    // }
-
-    // pub async fn disable_strategy_event_push(&mut self, strategy_id: i32) -> Result<(), String> {
-    //     let strategy = self.strategy_list.get_mut(&strategy_id).unwrap();
-    //     strategy.disable_event_push().await;
-    //     Ok(())
-    // }
 
 }

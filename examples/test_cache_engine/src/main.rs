@@ -1,5 +1,5 @@
 
-use event_center::command_event::market_engine_command::SubscribeKlineStreamParams;
+use event_center::command::market_engine_command::SubscribeKlineStreamParams;
 use event_center::{Channel, EventCenter};
 use database::DatabaseManager;
 use exchange_client::ExchangeClient;
@@ -8,22 +8,22 @@ use types::market::Exchange;
 use std::time::Duration;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
-use event_center::command_event::CommandEvent;
+use event_center::command::Command;
 use engine::engine_manager::EngineManager;
-use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
-use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
+use event_center::command::exchange_engine_command::RegisterExchangeParams;
+use event_center::command::exchange_engine_command::ExchangeEngineCommand;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::order::{OrderType, OrderSide};
-use event_center::command_event::order_engine_command::CreateOrderParams;
-use event_center::command_event::order_engine_command::OrderEngineCommand;
-use event_center::command_event::BaseCommandParams;
-use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
-use event_center::command_event::market_engine_command::MarketEngineCommand;
+use event_center::command::order_engine_command::CreateOrderParams;
+use event_center::command::order_engine_command::OrderEngineCommand;
+use event_center::command::BaseCommandParams;
+use event_center::command::exchange_engine_command::RegisterMt5ExchangeParams;
+use event_center::command::market_engine_command::MarketEngineCommand;
 use types::market::KlineInterval;
-use event_center::command_event::exchange_engine_command::UnregisterExchangeParams;
-use engine::EngineName;
+use event_center::command::exchange_engine_command::UnregisterExchangeParams;
+use types::engine::EngineName;
 use engine::exchange_engine::ExchangeEngine;
 use exchange_client::metatrader5::MetaTrader5;
 
@@ -38,7 +38,7 @@ async fn main() {
         // build but do not install the subscriber.
         .init();
 
-    let event_center = EventCenter::new();
+    let mut event_center = EventCenter::new();
 
     let database = DatabaseManager::new().await;
 
@@ -55,12 +55,7 @@ async fn main() {
     let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100)));
 
     let engine_manager = Arc::new(Mutex::new(EngineManager::new(
-        engine_event_publisher, 
-        exchange_event_receiver,
-        market_event_receiver, 
-        request_event_receiver, 
-        response_event_receiver,
-        account_event_receiver,
+        &mut event_center,
         database.get_conn(),
         heartbeat.clone()
     )));
@@ -93,13 +88,13 @@ async fn main() {
             timestamp: 1111,
             request_id: Uuid::new_v4(),
         };
-        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
+        let command_event = Command::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
         event_publisher.publish(command_event.into()).unwrap();
 
         // tokio::time::sleep(Duration::from_secs(10)).await;
 
         // // 获取第一个终端的数据
-        let command_event = CommandEvent::MarketEngine(MarketEngineCommand::SubscribeKlineStream(SubscribeKlineStreamParams {
+        let command_event = Command::MarketEngine(MarketEngineCommand::SubscribeKlineStream(SubscribeKlineStreamParams {
             strategy_id: 1,
             node_id: "test".to_string(),
             sender: "test".to_string(),

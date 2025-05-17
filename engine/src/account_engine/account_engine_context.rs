@@ -2,7 +2,7 @@ use tokio::sync::broadcast;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
-use crate::{Engine, EngineContext};
+use crate::EngineContext;
 use async_trait::async_trait;
 use std::any::Any;
 use crate::EngineName;
@@ -12,24 +12,26 @@ use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use tokio::sync::RwLock;
-use uuid::Uuid;
-use event_center::command_event::CommandEvent;
-use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
-use event_center::response_event::ResponseEvent;
-use event_center::response_event::exchange_engine_response::ExchangeEngineResponse;
+use event_center::command::Command;
+use event_center::command::exchange_engine_command::ExchangeEngineCommand;
+use event_center::response::exchange_engine_response::ExchangeEngineResponse;
 use event_center::account_event::AccountEvent;
 use types::account::ExchangeStatus;
 use types::account::Account;   
 use database::mutation::account_info_mutation::AccountInfoMutation;
 use database::query::account_config_query::AccountConfigQuery;
-use event_center::command_event::exchange_engine_command::UnregisterExchangeParams;
-use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
+use event_center::command::exchange_engine_command::UnregisterExchangeParams;
+use event_center::command::exchange_engine_command::RegisterExchangeParams;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use tokio::sync::oneshot;
 
 #[derive(Debug)]
 pub struct AccountEngineContext {
     pub engine_name: EngineName,
     pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<broadcast::Receiver<Event>>,
+    pub event_receiver: Vec<EventReceiver>,
+    pub command_publisher: CommandPublisher,
+    pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
@@ -42,6 +44,8 @@ impl Clone for AccountEngineContext {
             engine_name: self.engine_name.clone(),
             event_publisher: self.event_publisher.clone(),
             event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
             database: self.database.clone(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
@@ -77,29 +81,16 @@ impl EngineContext for AccountEngineContext {
         self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
     }
 
+    fn get_command_publisher(&self) -> &CommandPublisher {
+        &self.command_publisher
+    }
+
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+        self.command_receiver.clone()
+    }
+
     async fn handle_event(&mut self, event: Event) {
         match event {
-            Event::Response(response_event) => {
-                match response_event {
-                    ResponseEvent::ExchangeEngine(exchange_engine_event) => {
-                        match exchange_engine_event {
-                            // 注册交易所成功
-                            ExchangeEngineResponse::RegisterExchangeResponse(register_response) => {
-                                // self.handle_register_mt5_exchange_success(register_params).await;
-                                tracing::debug!("注册交易所成功: {:?}", register_response);
-                                if register_response.code == 0 {
-                                    // 更新账户的交易所状态
-                                    let mut accounts = self.monitor_account_list.write().await;
-                                    let index = accounts.iter().position(|account| account.get_account_id() == register_response.account_id).unwrap();
-                                    accounts[index].set_exchange_status(ExchangeStatus::Registed);
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
-            }
             Event::Account(account_event) => {
                 match account_event {
                     AccountEvent::AccountConfigAdded(account_id) => {
@@ -117,6 +108,10 @@ impl EngineContext for AccountEngineContext {
         }
 
     }
+
+    async fn handle_command(&mut self, command: Command) {
+        let _command = command;
+    }
 }
 
 
@@ -132,14 +127,15 @@ impl AccountEngineContext {
         let mut accounts = self.monitor_account_list.write().await;
         accounts.remove(index);
         // 同时向exchange_engine发送注销交易所的命令
+        let (resp_tx, resp_rx) = oneshot::channel();
         let unregister_params = UnregisterExchangeParams {
             account_id: account_id,
             sender: "account_engine".to_string(),
             timestamp: chrono::Utc::now().timestamp_millis(),
-            request_id: Uuid::new_v4(),
+            responder: resp_tx,
         };
-        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::UnregisterExchange(unregister_params));
-        self.event_publisher.publish(command_event.into()).unwrap();
+        let command_event = ExchangeEngineCommand::UnregisterExchange(unregister_params);
+        self.get_command_publisher().send(command_event.into()).await.unwrap();
 
     }
 
@@ -299,7 +295,7 @@ impl AccountEngineContext {
                                     accounts[index].set_account_info(account_info);
                                     // 3.发布账户已更新事件
                                     let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                                    event_publisher.publish(account_updated_event.into()).unwrap();
+                                    // event_publisher.publish(account_updated_event.into()).unwrap();
                                 }
                                 Err(e) => {
                                     let mut accounts = accounts.write().await;
@@ -326,7 +322,7 @@ impl AccountEngineContext {
                         Exchange::Metatrader5(_) => {
                             // 发布账户已更新事件
                             let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                            event_publisher.publish(account_updated_event.into()).unwrap();
+                            // event_publisher.publish(account_updated_event.into()).unwrap();
                         }
                         _ => {}
                     }
@@ -340,17 +336,33 @@ impl AccountEngineContext {
 
     pub async fn register_exchange(&mut self, account_id: i32) -> Result<(), String> {
         // 获取account_id的config
-
+        let (resp_tx, resp_rx) = oneshot::channel();
         let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await.unwrap();
         let register_params = RegisterExchangeParams {
             account_id: account_config.id,
             exchange: account_config.exchange,
             sender: "account_engine".to_string(),
             timestamp: chrono::Utc::now().timestamp_millis(),
-            request_id: Uuid::new_v4(),
+            responder: resp_tx,
         };
-        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_params));
-        self.event_publisher.publish(command_event.into()).unwrap();
+        let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_params);
+        self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
+
+        // 等待响应
+        let response = resp_rx.await.unwrap();
+        if response.code() == 0 {
+            let exchange_engine_response = ExchangeEngineResponse::try_from(response);
+            if let Ok(exchange_engine_response) = exchange_engine_response {
+                match exchange_engine_response {
+                    ExchangeEngineResponse::RegisterExchange(register_exchange_response) => {
+                        tracing::info!("账户引擎收到注册交易所响应: {:?}", register_exchange_response);
+                        let mut accounts = self.monitor_account_list.write().await;
+                        let index = accounts.iter().position(|account| account.get_account_id() == register_exchange_response.account_id).unwrap();
+                        accounts[index].set_exchange_status(ExchangeStatus::Registed);
+                    }
+                }
+            }
+        }
         Ok(())
     }
 

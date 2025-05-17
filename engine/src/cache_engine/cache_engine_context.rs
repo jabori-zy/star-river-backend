@@ -13,21 +13,26 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use types::cache::{CacheKey, CacheValue};
 use types::cache::cache_key::KlineCacheKey;
-use event_center::command_event::CommandEvent;
-use event_center::command_event::cache_engine_command::CacheEngineCommand;
+use event_center::command::Command;
+use event_center::command::cache_engine_command::CacheEngineCommand;
 use std::time::Duration;
-use event_center::response_event::cache_engine_response::{GetCacheDataResponse, GetCacheDataMultiResponse};
+use event_center::response::cache_engine_response::{GetCacheDataResponse, GetCacheDataMultiResponse};
 use chrono::Utc;
-use event_center::response_event::ResponseEvent;
-use event_center::response_event::cache_engine_response::CacheEngineResponse;
+use event_center::response::Response;
+use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::cache::{CacheEntry, cache_entry::{KlineCacheEntry, IndicatorCacheEntry}};
+use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
+use tokio::sync::Mutex;
+use event_center::response::cache_engine_response::AddCacheKeyResponse;
 
 #[derive(Debug)]
 pub struct CacheEngineContext {
     pub engine_name: EngineName,
     pub cache: Arc<RwLock<HashMap<CacheKey, CacheEntry>>>,
     pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<broadcast::Receiver<Event>>,
+    pub event_receiver: Vec<EventReceiver>,
+    pub command_publisher: CommandPublisher,
+    pub command_receiver: Arc<Mutex<CommandReceiver>>,
 }
 
 impl Clone for CacheEngineContext {
@@ -37,6 +42,8 @@ impl Clone for CacheEngineContext {
             event_publisher: self.event_publisher.clone(),
             event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
             engine_name: self.engine_name.clone(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -68,6 +75,14 @@ impl EngineContext for CacheEngineContext {
         self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
     }
 
+    fn get_command_publisher(&self) -> &CommandPublisher {
+        &self.command_publisher
+    }
+
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+        self.command_receiver.clone()
+    }
+
     async fn handle_event(&mut self, event: Event) {
         match event {
             Event::Exchange(exchange_event) => {
@@ -76,8 +91,57 @@ impl EngineContext for CacheEngineContext {
             Event::Indicator(indicator_event) => {
                 self.handle_indicator_event(indicator_event).await;
             }
-            Event::Command(command_event) => {
-                self.handle_command_event(command_event).await;
+            _ => {}
+        }
+    }
+
+    async fn handle_command(&mut self, command: Command) {
+        match command {
+            Command::CacheEngine(command) => {
+                match command {
+                    // 添加缓存
+                    CacheEngineCommand::AddCacheKey(params) => {
+                        self.add_cache_key(params.cache_key.clone(), params.max_size, params.duration).await.unwrap();
+                        let response = AddCacheKeyResponse {
+                            code: 0,
+                            message: "success".to_string(),
+                            cache_key: params.cache_key,
+                            response_timestamp: Utc::now().timestamp(),
+                        };
+                        let response_event = Response::CacheEngine(CacheEngineResponse::AddCacheKey(response));
+
+                        params.responder.send(response_event.into()).unwrap();
+
+                        
+
+
+                    }
+                    
+                    // 处理获取缓存数据命令
+                    CacheEngineCommand::GetCache(params) => {
+                        let data = self.get_cache(&params.cache_key, params.limit).await;
+                        let response = GetCacheDataResponse {
+                            code: 0,
+                            message: "success".to_string(),
+                            cache_key: params.cache_key,
+                            cache_data: data,
+                            response_timestamp: Utc::now().timestamp(),
+                        };
+                        let response = CacheEngineResponse::GetCacheData(response);
+                        params.responder.send(response.into()).unwrap();
+                    }
+                    CacheEngineCommand::GetCacheMulti(params) => {
+                        let multi_data = self.get_cache_multi(&params.cache_keys, params.limit).await;
+                        let response = GetCacheDataMultiResponse {
+                            code: 0,
+                            message: "success".to_string(),
+                            cache_data: multi_data.into_iter().map(|(cache_key, data)| (cache_key.get_key(), data.into_iter().map(|cache_value| cache_value.to_list()).collect())).collect(),
+                            response_timestamp: Utc::now().timestamp()
+                        };
+                        let response = CacheEngineResponse::GetCacheDataMulti(response);
+                        params.responder.send(response.into()).unwrap();
+                    }
+                }
             }
             _ => {}
         }
@@ -95,7 +159,6 @@ impl CacheEngineContext {
             }
             
             ExchangeEvent::ExchangeKlineSeriesUpdate(event) => {
-                // tracing::debug!("处理交易所系列更新事件: {:?}", event);
                 // 更新cache_key对应的数据
                 let cache_key = CacheKey::Kline(KlineCacheKey::new(event.exchange, event.symbol, event.interval));
                 let cache_series = event.kline_series.into_iter().map(|kline| kline.into()).collect();
@@ -107,51 +170,6 @@ impl CacheEngineContext {
 
     async fn handle_indicator_event(&mut self, indicator_event: IndicatorEvent) {
         tracing::info!("处理指标事件: {:?}", indicator_event);
-    }
-
-    async fn handle_command_event(&mut self, command_event: CommandEvent) {
-        match command_event {
-            CommandEvent::CacheEngine(command) => {
-                match command {
-                    // 添加缓存
-                    CacheEngineCommand::AddCacheKey(params) => {
-                        tracing::info!("接收到添加缓存键命令: {:?}", params);
-                        self.add_cache_key(params.cache_key, params.max_size, params.duration).await.unwrap();
-                        
-                    }
-                    
-                    // 处理获取缓存数据命令
-                    CacheEngineCommand::GetCache(params) => {
-                        let data = self.get_cache(&params.cache_key, params.limit).await;
-                        let response = GetCacheDataResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            cache_key: params.cache_key,
-                            cache_data: data,
-                            response_timestamp: Utc::now().timestamp(),
-                            response_id: params.request_id, // 使用请求id
-                        };
-                        let response_event = ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheData(response));
-                        let _ = self.event_publisher.publish(response_event.into());
-                    }
-                    CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self.get_cache_multi(&params.cache_keys, params.limit).await;
-                        
-
-                        let response = GetCacheDataMultiResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            cache_data: multi_data.into_iter().map(|(cache_key, data)| (cache_key.get_key(), data.into_iter().map(|cache_value| cache_value.to_list()).collect())).collect(),
-                            response_timestamp: Utc::now().timestamp(),
-                            response_id: params.request_id, // 使用请求id
-                        };
-                        let response_event = ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response));
-                        let _ = self.event_publisher.publish(response_event.into());
-                    }
-                }
-            }
-            _ => {}
-        }
     }
 
     // 获取缓存数据

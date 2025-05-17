@@ -1,5 +1,5 @@
 
-use event_center::command_event::market_engine_command::SubscribeKlineStreamParams;
+use event_center::command::market_engine_command::SubscribeKlineStreamParams;
 use event_center::{Channel, EventCenter};
 use database::DatabaseManager;
 use exchange_client::ExchangeClient;
@@ -8,24 +8,22 @@ use types::market::Exchange;
 use std::time::Duration;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
-use event_center::command_event::CommandEvent;
+use event_center::command::Command;
 use engine::engine_manager::EngineManager;
-use event_center::command_event::exchange_engine_command::RegisterExchangeParams;
-use event_center::command_event::exchange_engine_command::ExchangeEngineCommand;
+use event_center::command::exchange_engine_command::RegisterExchangeParams;
+use event_center::command::exchange_engine_command::ExchangeEngineCommand;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::order::{OrderType, OrderSide};
-use event_center::command_event::order_engine_command::CreateOrderParams;
-use event_center::command_event::order_engine_command::OrderEngineCommand;
-use event_center::command_event::BaseCommandParams;
-use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
-use event_center::command_event::market_engine_command::MarketEngineCommand;
+use event_center::command::exchange_engine_command::RegisterMt5ExchangeParams;
+use event_center::command::market_engine_command::MarketEngineCommand;
 use types::market::KlineInterval;
-use event_center::command_event::exchange_engine_command::UnregisterExchangeParams;
-use engine::EngineName;
+use event_center::command::exchange_engine_command::UnregisterExchangeParams;
+use types::engine::EngineName;
 use engine::exchange_engine::ExchangeEngine;
 use exchange_client::metatrader5::MetaTrader5;
+use tokio::sync::oneshot;
 
 #[tokio::main]
 async fn main() {
@@ -38,32 +36,18 @@ async fn main() {
         // build but do not install the subscriber.
         .init();
 
-    let event_center = EventCenter::new();
+    let mut event_center = EventCenter::new().init_channel().await;
 
     let database = DatabaseManager::new().await;
-
-
-    let engine_event_publisher = event_center.get_event_publisher();
-    let market_event_receiver = event_center.subscribe(&Channel::Market).unwrap();
-    let request_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
-    let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
-    let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).unwrap();
-    let account_event_receiver = event_center.subscribe(&Channel::Account).unwrap();
-
 
     // 初始化数据库
     let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100)));
 
     let engine_manager = Arc::new(Mutex::new(EngineManager::new(
-        engine_event_publisher, 
-        exchange_event_receiver,
-        market_event_receiver, 
-        request_event_receiver, 
-        response_event_receiver,
-        account_event_receiver,
+        &mut event_center,
         database.get_conn(),
         heartbeat.clone()
-    )));
+    ).await));
 
     // 启动心跳
     tokio::spawn(async move {
@@ -79,22 +63,49 @@ async fn main() {
     });
 
 
-    let event_publisher = event_center.get_event_publisher();
-    let engine_manager_clone = engine_manager.clone();
+    let command_publisher = event_center.get_command_publisher();
     // 注册交易所
     tokio::spawn(async move {
-        
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        // 注册第一个终端
+        tracing::info!("{}: 开始注册交易所", "test");
+        let (resp_tx, resp_rx) = oneshot::channel();
         let register_param = RegisterExchangeParams {
             account_id: 1,
             exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
             sender: "test".to_string(),
             timestamp: 1111,
-            request_id: Uuid::new_v4(),
+            responder: resp_tx,
         };
-        let command_event = CommandEvent::ExchangeEngine(ExchangeEngineCommand::RegisterExchange(register_param));
-        event_publisher.publish(command_event.into()).unwrap();
+
+        let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_param);
+        tracing::info!("{}注册交易所: {:?}", "test", register_exchange_command);
+        command_publisher.send(register_exchange_command.into()).await.unwrap();
+
+        // 等待响应
+        let response = resp_rx.await.unwrap();
+        tracing::info!("{}收到注册交易所响应: {:?}", "test", response);
+        
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
+        // 订阅K线
+        let (resp_tx, resp_rx) = oneshot::channel();
+        let subscribe_kline_stream_param = SubscribeKlineStreamParams {
+            strategy_id: 1,
+            account_id: 1,
+            exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
+            symbol: "BTCUSDm".to_string(),
+            interval: KlineInterval::Minutes1,
+            frequency: 1000,
+            cache_size: 10,
+            node_id: "test".to_string(),
+            sender: "test".to_string(),
+            timestamp: 1111,
+            responder: resp_tx,
+        };
+        let command_event = Command::MarketEngine(MarketEngineCommand::SubscribeKlineStream(subscribe_kline_stream_param));
+        command_publisher.send(command_event.into()).await.unwrap();
+
+        let response = resp_rx.await.unwrap();
+        tracing::info!("注册交易所响应: {:?}", response);
 
         // tokio::time::sleep(Duration::from_secs(10)).await;
 
@@ -142,34 +153,34 @@ async fn main() {
 
 
 
-        tracing::info!("创建订单");
-        let params = CreateOrderParams {
-            base_params: BaseCommandParams {
-                strategy_id: 1,
-                node_id: "test".to_string(),
-                sender: "test".to_string(),
-                timestamp: 1111,
-                request_id: Uuid::new_v4(),
-            },
-            account_id: 1,
-            exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
-            symbol: "BTCUSDm".to_string(),
-            order_type: OrderType::Market,
-            order_side: OrderSide::Long,
-            quantity: 0.01,
-            price: 81550.00,
-            tp: None,
-            sl: None,
-            comment: "111".to_string(),
-        };
-        let exchange_engine = engine_manager_clone.lock().await.get_engine(EngineName::ExchangeEngine).await;
-        let mut exchange_engine = exchange_engine.lock().await;
-        let exchange_engine = exchange_engine.as_any_mut().downcast_mut::<ExchangeEngine>().unwrap();
+        // tracing::info!("创建订单");
+        // let params = CreateOrderParams {
+        //     base_params: BaseCommandParams {
+        //         strategy_id: 1,
+        //         node_id: "test".to_string(),
+        //         sender: "test".to_string(),
+        //         timestamp: 1111,
+        //         request_id: Uuid::new_v4(),
+        //     },
+        //     account_id: 1,
+        //     exchange: Exchange::Metatrader5("Exness-MT5Trial5".to_string()),
+        //     symbol: "BTCUSDm".to_string(),
+        //     order_type: OrderType::Market,
+        //     order_side: OrderSide::Long,
+        //     quantity: 0.01,
+        //     price: 81550.00,
+        //     tp: None,
+        //     sl: None,
+        //     comment: "111".to_string(),
+        // };
+        // let exchange_engine = engine_manager_clone.lock().await.get_engine(EngineName::ExchangeEngine).await;
+        // let mut exchange_engine = exchange_engine.lock().await;
+        // let exchange_engine = exchange_engine.as_any_mut().downcast_mut::<ExchangeEngine>().unwrap();
         
         
-        let mut mt5_exchange = exchange_engine.get_exchange(&1).await.unwrap();
-        let mt5_exchange = mt5_exchange.as_any_mut().downcast_mut::<MetaTrader5>().unwrap();
-        mt5_exchange.create_order(params).await.unwrap();
+        // let mut mt5_exchange = exchange_engine.get_exchange(&1).await.unwrap();
+        // let mt5_exchange = mt5_exchange.as_any_mut().downcast_mut::<MetaTrader5>().unwrap();
+        // mt5_exchange.create_order(params).await.unwrap();
         
 
     });

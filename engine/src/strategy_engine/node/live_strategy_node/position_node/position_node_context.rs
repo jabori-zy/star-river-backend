@@ -1,4 +1,4 @@
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
 use super::position_node_types::*;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use exchange_client::ExchangeClient;
 use crate::Engine;
 use database::mutation::position_mutation::PositionMutation;
-use event_center::command_event::position_engine_command::GetPositionParam;
+use types::position::GetPositionParam;
 use types::strategy::node_message::PositionMessage;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
@@ -31,8 +31,8 @@ pub struct PositionNodeContext {
 
 
 #[async_trait]
-impl NodeContext for PositionNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContext> {
+impl NodeContextTrait for PositionNodeContext {
+    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
         Box::new(self.clone())
     }
 

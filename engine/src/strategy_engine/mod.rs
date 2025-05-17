@@ -19,6 +19,7 @@ use database::query::strategy_config_query::StrategyConfigQuery;
 use std::any::Any;
 use heartbeat::Heartbeat;
 use types::cache::CacheKey;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -49,9 +50,11 @@ impl Engine for StrategyEngine {
 impl StrategyEngine{
     pub fn new(
         event_publisher: EventPublisher,
-        market_event_receiver: broadcast::Receiver<Event>,
-        request_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: CommandReceiver,
+        market_event_receiver: EventReceiver,
+        request_event_receiver: EventReceiver,
+        response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
@@ -59,7 +62,9 @@ impl StrategyEngine{
         let context = StrategyEngineContext {
             engine_name: EngineName::StrategyEngine,
             event_publisher,
-            event_receiver: vec![market_event_receiver.resubscribe(), request_event_receiver.resubscribe(), response_event_receiver.resubscribe()],
+            event_receiver: vec![market_event_receiver.resubscribe()],
+            command_publisher,
+            command_receiver: Arc::new(Mutex::new(command_receiver)),
             database,
             strategy_list: HashMap::new(),
             market_event_receiver,

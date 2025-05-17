@@ -1,39 +1,29 @@
-use event_center::command_event::cache_engine_command::{AddIndicatorCacheKeyParams, CacheEngineCommand};
-use event_center::response_event::cache_engine_response::CacheEngineResponse;
-use event_center::response_event::indicator_engine_response::{RegisterIndicatorResponse, CalculateIndicatorResponse, IndicatorEngineResponse};
-use event_center::response_event::ResponseEvent;
+
+use event_center::response::indicator_engine_response::{RegisterIndicatorResponse, IndicatorEngineResponse};
 use tokio::sync::broadcast;
-use event_center::{exchange_event, Event};
+use event_center::Event;
 use async_trait::async_trait;
 use std::any::Any;
-use std::process::Command;
 use std::time::Duration;
-use crate::{cache_engine, EngineContext, EngineName};
-use event_center::command_event::CommandEvent;
-use event_center::command_event::indicator_engine_command::{CalculateIndicatorParams, IndicatorEngineCommand, RegisterIndicatorParams};
+use crate::{EngineContext, EngineName};
+use event_center::command::Command;
+use event_center::command::indicator_engine_command::IndicatorEngineCommand;
 use utils::get_utc8_timestamp_millis;
 use event_center::EventPublisher;
 use types::indicator::IndicatorConfig;
-use crate::indicator_engine::talib::TALib;
-use types::indicator::sma::SMAConfig;
-use types::cache::CacheKey;
-use uuid::Uuid;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use types::cache::cache_key::{KlineCacheKey, IndicatorCacheKey};
+use types::cache::cache_key::IndicatorCacheKey;
 use types::custom_type::{StrategyId, NodeId};
 use crate::cache_engine::CacheEngine;
-use types::indicator::sma::SMA;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
 use std::collections::HashMap;
-use types::market::Kline;
-use types::indicator::Indicator;
 use event_center::exchange_event::ExchangeEvent;
 use event_center::exchange_event::ExchangeKlineUpdateEvent;
 use types::market::{Exchange, KlineInterval};
-use types::cache::CacheValue;
 use heartbeat::Heartbeat;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
+use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
 
 #[derive(Debug)]
 pub struct IndicatorEngineContext {
@@ -41,8 +31,9 @@ pub struct IndicatorEngineContext {
     pub cache_engine: Arc<Mutex<CacheEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<broadcast::Receiver<Event>>,
-    pub request_ids: Arc<Mutex<Vec<Uuid>>>,
+    pub command_publisher: CommandPublisher,
+    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    pub event_receiver: Vec<EventReceiver>,
     pub subscribe_indicators: Arc<Mutex<HashMap<IndicatorSubKey, Vec<StrategyId>>>>, // 已订阅的指标
     
 }
@@ -54,10 +45,11 @@ impl Clone for IndicatorEngineContext {
             engine_name: self.engine_name.clone(),
             event_publisher: self.event_publisher.clone(),
             event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
-            request_ids: self.request_ids.clone(),
             cache_engine: self.cache_engine.clone(),
             heartbeat: self.heartbeat.clone(),
             subscribe_indicators: self.subscribe_indicators.clone(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -91,16 +83,15 @@ impl EngineContext for IndicatorEngineContext {
         self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
     }
 
-    async fn handle_event(&mut self, event: Event) {
-        if let Event::Command(CommandEvent::IndicatorEngine(indicator_engine_command)) = event.clone() {
-            match indicator_engine_command {
-                IndicatorEngineCommand::RegisterIndicator(register_indicator_params) => {
-                    self.register_indicator(register_indicator_params).await;
-                }
-                _ => {}
-            }
-        }
+    fn get_command_publisher(&self) -> &CommandPublisher {
+        &self.command_publisher
+    }
 
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+        self.command_receiver.clone()
+    }
+
+    async fn handle_event(&mut self, event: Event) {
         if let Event::Exchange(exchange_event) = event {
             match exchange_event {
                 // 接收到k线更新事件， 触发指标计算
@@ -109,6 +100,41 @@ impl EngineContext for IndicatorEngineContext {
                 }
                 _ => {}
             }
+        }
+    }
+
+    async fn handle_command(&mut self, command: Command) {
+        match command {
+            Command::IndicatorEngine(indicator_engine_command) => {
+                match indicator_engine_command {
+                    IndicatorEngineCommand::RegisterIndicator(register_indicator_params) => {
+                        self.register_indicator(
+                            register_indicator_params.strategy_id, 
+                            register_indicator_params.node_id.clone(), 
+                            register_indicator_params.exchange.clone(), 
+                            register_indicator_params.symbol.clone(), 
+                            register_indicator_params.interval.clone(), 
+                            register_indicator_params.indicator_config.clone()
+                        ).await;
+                        // 发送注册指标完成事件
+                        let register_indicator_response = RegisterIndicatorResponse {
+                            code: 0,
+                            message: "success".to_string(),
+                            strategy_id: register_indicator_params.strategy_id,
+                            node_id: register_indicator_params.node_id,
+                            exchange: register_indicator_params.exchange,
+                            symbol: register_indicator_params.symbol,
+                            interval: register_indicator_params.interval,
+                            indicator: register_indicator_params.indicator_config,
+                            response_timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let response_event = IndicatorEngineResponse::RegisterIndicatorResponse(register_indicator_response);
+                        register_indicator_params.responder.send(response_event.into()).unwrap();
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
         }
     }
 
@@ -178,21 +204,16 @@ impl IndicatorEngineContext {
         should_calculate
     }
 
-
-    async fn remove_request_id(&mut self, request_id: Uuid) {
-        let mut request_id_guard = self.request_ids.lock().await;
-        let index = request_id_guard.iter().position(|id| *id == request_id).unwrap();
-        request_id_guard.remove(index);
-    }
-
     // 注册指标
-    async fn register_indicator(&mut self, register_indicator_params: RegisterIndicatorParams) {
-        tracing::info!("接收到注册指标命令: {:?}", register_indicator_params);
-        let exchange = register_indicator_params.exchange.clone();
-        let symbol = register_indicator_params.symbol.clone();
-        let interval = register_indicator_params.interval.clone();
-        let indicator_config = register_indicator_params.indicator_config.clone();
-        let strategy_id = register_indicator_params.strategy_id.clone();
+    async fn register_indicator(&mut self,
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        exchange: Exchange,
+        symbol: String,
+        interval: KlineInterval,
+        indicator_config: IndicatorConfig,
+    ) {
+        // tracing::info!("接收到注册指标命令: {:?}", register_indicator_params);
 
         // 1. 将指标添加到已订阅的指标列表中,策略也添加到已订阅的策略列表中
         let indicator_sub_key = IndicatorSubKey {
@@ -213,26 +234,6 @@ impl IndicatorEngineContext {
         // tracing::info!("计算得到的指标: {:?}", indicators);
         // 4. 将指标添加到缓存中
         self.cache_engine.lock().await.initialize_indicator_cache(exchange.clone(), symbol.clone(), interval.clone(), indicator_config.clone(), indicators).await;
-        // 5. 发送注册指标完成事件
-        self.publish_register_indicator_response(0, "success".to_string(), register_indicator_params).await;
-    }
-
-    // 发送注册指标完成事件
-    async fn publish_register_indicator_response(&self, code: i32, message: String, register_indicator_params: RegisterIndicatorParams) {
-        let register_indicator_response = RegisterIndicatorResponse {
-            code: code,
-            message: message,
-            strategy_id: register_indicator_params.strategy_id,
-            node_id: register_indicator_params.node_id,
-            exchange: register_indicator_params.exchange,
-            symbol: register_indicator_params.symbol,
-            interval: register_indicator_params.interval,
-            indicator: register_indicator_params.indicator_config,
-            response_timestamp: get_utc8_timestamp_millis(),
-            response_id: register_indicator_params.request_id,
-        };
-        let response_event = ResponseEvent::IndicatorEngine(IndicatorEngineResponse::RegisterIndicatorResponse(register_indicator_response));
-        let _ = self.get_event_publisher().publish(response_event.into());
     }
 
 }

@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 
 impl LiveStrategyFunction {
@@ -23,7 +23,9 @@ impl LiveStrategyFunction {
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
@@ -44,6 +46,8 @@ impl LiveStrategyFunction {
             node_name,
             live_config,
             event_publisher,
+            command_publisher,
+            command_receiver,
             response_event_receiver,
             exchange_engine,
             database,

@@ -10,15 +10,17 @@ use std::any::Any;
 use types::strategy::node_message::NodeMessage;
 use types::strategy::TradeMode;
 use super::node_types::*;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[async_trait]
-pub trait NodeContext: Debug + Send + Sync + 'static {
+pub trait NodeContextTrait: Debug + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    fn clone_box(&self) -> Box<dyn NodeContext>;
+    fn clone_box(&self) -> Box<dyn NodeContextTrait>;
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String>;
     
@@ -39,8 +41,18 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
         &self.get_base_context().node_type
     }
 
-    fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
+    fn get_event_publisher(&self) -> &EventPublisher {
+        &self.get_base_context().event_publisher
+    }
+
+    fn get_event_receivers(&self) -> &Vec<EventReceiver> {
         &self.get_base_context().event_receivers
+    }
+    fn get_command_publisher(&self) -> &CommandPublisher {
+        &self.get_base_context().command_publisher
+    }
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+        self.get_base_context().command_receiver.clone()
     }
     fn get_cancel_token(&self) -> &CancellationToken {
         &self.get_base_context().cancel_token
@@ -99,14 +111,12 @@ pub trait NodeContext: Debug + Send + Sync + 'static {
         &self.get_base_context().is_enable_event_publish
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.get_base_context().event_publisher
-    }
+
 
 
 }
 
-impl Clone for Box<dyn NodeContext> {
+impl Clone for Box<dyn NodeContextTrait> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
@@ -122,8 +132,10 @@ pub struct BaseNodeContext {
     pub node_name: String,
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
+    pub event_receivers:Vec<EventReceiver>, // 事件接收器
+    pub command_publisher: CommandPublisher,
+    pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub message_receivers: Vec<NodeMessageReceiver>,
-    pub event_receivers:Vec<broadcast::Receiver<Event>>, // 事件接收器
     pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub is_enable_event_publish: bool, // 是否启用事件发布
     pub state_machine: Box<dyn NodeStateMachine>, // 状态机
@@ -145,6 +157,8 @@ impl Clone for BaseNodeContext {
             is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),
             from_node_id: self.from_node_id.clone(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -156,7 +170,9 @@ impl BaseNodeContext {
         node_name: String,
         node_type: NodeType,
         event_publisher: EventPublisher,
-        event_receivers: Vec<broadcast::Receiver<Event>>,
+        event_receivers: Vec<EventReceiver>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
         state_machine: Box<dyn NodeStateMachine>,
     ) -> Self {
         Self {
@@ -170,6 +186,8 @@ impl BaseNodeContext {
             cancel_token: CancellationToken::new(), 
             message_receivers: Vec::new(),
             event_receivers,
+            command_publisher,
+            command_receiver,
             state_machine,
             from_node_id: Vec::new(),
         }

@@ -16,19 +16,18 @@ use super::order_node::order_node_state_machine::{OrderNodeStateMachine, OrderNo
 use crate::strategy_engine::node::{NodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
 use std::time::Duration;
-use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
 use super::order_node::order_node_context::OrderNodeContext;
-use types::strategy::TradeMode;
 use order_node_types::*;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 #[derive(Debug, Clone)]
 pub struct OrderNode {
-    pub context: Arc<RwLock<Box<dyn NodeContext>>>,
+    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
 
 }
 
@@ -39,7 +38,9 @@ impl OrderNode {
         node_name: String,
         live_config: OrderNodeLiveConfig,
         event_publisher: EventPublisher,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
@@ -51,7 +52,10 @@ impl OrderNode {
             NodeType::OrderNode,
             event_publisher,
             vec![response_event_receiver],
+            command_publisher,
+            command_receiver,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
+            
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(OrderNodeContext {
@@ -84,7 +88,7 @@ impl NodeTrait for OrderNode {
         Box::new(self.clone())
     }
 
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
         self.context.clone()
     }
 

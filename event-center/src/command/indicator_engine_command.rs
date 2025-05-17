@@ -7,15 +7,43 @@ use uuid::Uuid;
 use types::indicator::IndicatorConfig;
 use types::cache::CacheValue;
 use std::sync::Arc;
+use crate::command::Command;
+use crate::Responder;
+use super::CommandTrait;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug)]
 pub enum IndicatorEngineCommand {
-    #[strum(serialize = "register-indicator")]
     RegisterIndicator(RegisterIndicatorParams), // 注册指标
 }
 
+impl CommandTrait for IndicatorEngineCommand {
+    fn responder(&self) -> &Responder {
+        match self {
+            IndicatorEngineCommand::RegisterIndicator(params) => &params.responder,
+        }
+    }
+    fn timestamp(&self) -> i64 {
+        match self {
+            IndicatorEngineCommand::RegisterIndicator(params) => params.command_timestamp,
+        }
+    }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+    fn sender(&self) -> String {
+        match self {
+            IndicatorEngineCommand::RegisterIndicator(params) => params.sender.clone(),
+        }
+    }
+    
+}
+
+impl From<IndicatorEngineCommand> for Command {
+    fn from(command: IndicatorEngineCommand) -> Self {
+        Command::IndicatorEngine(command)
+    }
+}
+
+
+#[derive(Debug)]
 pub struct RegisterIndicatorParams {
     pub strategy_id: StrategyId, // 策略ID
     pub node_id: NodeId, // 节点ID
@@ -25,10 +53,10 @@ pub struct RegisterIndicatorParams {
     pub indicator_config: IndicatorConfig, // 指标配置
     pub sender: String, // 发送者
     pub command_timestamp:i64, // 命令时间戳
-    pub request_id: Uuid, // 请求ID
+    pub responder: Responder, // 响应者
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct CalculateIndicatorParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
@@ -39,5 +67,5 @@ pub struct CalculateIndicatorParams {
     pub kline_series: Vec<Arc<CacheValue>>,
     pub sender: String,
     pub command_timestamp:i64,
-    pub request_id: Uuid,
+    pub responder: Responder,
 }

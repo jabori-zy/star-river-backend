@@ -20,6 +20,7 @@ use tokio::sync::Mutex;
 use crate::cache_engine::CacheEngine;
 use std::collections::HashMap;
 use heartbeat::Heartbeat;
+use event_center::{CommandPublisher, CommandReceiver};
 
 #[derive(Debug, Clone)]
 pub struct IndicatorEngine {
@@ -51,17 +52,18 @@ impl IndicatorEngine {
         heartbeat: Arc<Mutex<Heartbeat>>,
         cache_engine: Arc<Mutex<CacheEngine>>,
         event_publisher: EventPublisher,
-        exchange_event_receiver: broadcast::Receiver<Event>,
-        request_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: CommandReceiver,
+        exchange_event_receiver: broadcast::Receiver<Event>
     ) -> Self {
         let context = IndicatorEngineContext {
             heartbeat,
             cache_engine,
             engine_name: EngineName::IndicatorEngine,
             event_publisher,
-            event_receiver: vec![response_event_receiver, request_event_receiver, exchange_event_receiver],
-            request_ids: Arc::new(Mutex::new(vec![])),
+            command_publisher,
+            command_receiver: Arc::new(Mutex::new(command_receiver)),
+            event_receiver: vec![exchange_event_receiver],
             subscribe_indicators: Arc::new(Mutex::new(HashMap::new())),
         };
         Self {

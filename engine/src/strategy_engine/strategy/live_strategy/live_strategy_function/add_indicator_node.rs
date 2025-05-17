@@ -13,6 +13,9 @@ use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_
 use std::str::FromStr;
 use types::cache::CacheKey;
 use types::cache::cache_key::IndicatorCacheKey;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 impl LiveStrategyFunction {
     pub async fn add_indicator_node(
@@ -21,7 +24,9 @@ impl LiveStrategyFunction {
         cache_keys: &mut Vec<CacheKey>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let strategy_id = node_data["strategyId"].as_i64().unwrap();
@@ -53,7 +58,9 @@ impl LiveStrategyFunction {
             node_id.to_string(), 
             node_name.to_string(), 
             indicator_node_live_config,
-            event_publisher, 
+            event_publisher,
+            command_publisher,
+            command_receiver,
             response_event_receiver,
         );
         // 设置默认输出句柄

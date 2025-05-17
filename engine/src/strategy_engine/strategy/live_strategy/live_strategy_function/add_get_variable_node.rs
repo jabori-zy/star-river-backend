@@ -14,7 +14,7 @@ use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use crate::strategy_engine::node::live_strategy_node::get_variable_node::GetVariableNode;
 use crate::strategy_engine::node::live_strategy_node::get_variable_node::get_variable_node_types::*;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 
 impl LiveStrategyFunction {
@@ -23,7 +23,9 @@ impl LiveStrategyFunction {
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
@@ -43,6 +45,8 @@ impl LiveStrategyFunction {
             node_name,
             live_config,
             event_publisher,
+            command_publisher,
+            command_receiver,
             response_event_receiver,
             exchange_engine,
             heartbeat,

@@ -13,7 +13,7 @@ use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use super::node::node_functions::NodeFunction;
-use super::node::node_context::NodeContext;
+use super::node::node_context::NodeContextTrait;
 use super::node::node_state_machine::{NodeStateMachine, NodeRunState, NodeStateTransitionEvent};
 use node_types::*;
 
@@ -28,7 +28,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
     fn clone_box(&self) -> Box<dyn NodeTrait>;
     // get方法
     // 获取节点上下文
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>>;
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>>;
 
     async fn get_from_node_id(&self) -> Vec<String> {
         let context = self.get_context();

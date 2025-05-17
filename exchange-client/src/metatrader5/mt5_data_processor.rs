@@ -59,7 +59,7 @@ impl Mt5DataProcessor {
                 event_timestamp: get_utc8_timestamp_millis(),
             };
             let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();
-            let _ = self.event_publisher.lock().await.publish(event);
+            self.event_publisher.lock().await.publish(event).await.unwrap();
 
             
         }
@@ -119,9 +119,8 @@ impl Mt5DataProcessor {
             interval: interval.clone().into(),
             kline_series: klines,
         };
-
-        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update).into();
-        let _ = self.event_publisher.lock().await.publish(exchange_klineseries_update_event);
+        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
+        self.event_publisher.lock().await.publish(exchange_klineseries_update_event.into()).await.unwrap();
     }
 
     // 处理订单信息

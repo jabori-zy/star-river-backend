@@ -1,12 +1,11 @@
 use serde::{Serialize, Deserialize};
-use types::position::PositionNumberRequest;
+use types::position::GetPositionNumberParams;
 use types::market::{Exchange, MT5Server};
 use types::position::PositionSide;
 use strum::{EnumString, Display};
 use types::order::OrderStatus;
 use types::order::OriginalOrder;
 use std::any::Any;
-use event_center::command_event::order_engine_command::CreateOrderParams;
 use types::order::{OrderType, OrderSide};
 use chrono::{DateTime, Utc};
 use chrono::TimeZone;
@@ -14,6 +13,7 @@ use types::market::KlineInterval;
 use types::position::OriginalPosition;
 use types::transaction::OriginalTransaction;
 use types::transaction::{TransactionType, TransactionSide};
+use types::order::CreateOrderParams;
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum Mt5KlineInterval {
@@ -116,15 +116,15 @@ impl From<CreateOrderParams> for Mt5CreateOrderParams {
 
 
 #[derive(Debug, Serialize)]
-pub struct Mt5PositionNumberRequest {
+pub struct Mt5GetPositionNumberParams {
     pub exchange: Exchange,
     pub symbol: String,
     pub position_side: Option<PositionSide>,
 }
 
-impl From<PositionNumberRequest> for Mt5PositionNumberRequest {
-    fn from(value: PositionNumberRequest) -> Self {
-        Mt5PositionNumberRequest {
+impl From<GetPositionNumberParams> for Mt5GetPositionNumberParams {
+    fn from(value: GetPositionNumberParams) -> Self {
+        Mt5GetPositionNumberParams {
             exchange: value.exchange,
             symbol: value.symbol,
             position_side: value.position_side

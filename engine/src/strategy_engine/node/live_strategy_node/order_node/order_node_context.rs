@@ -5,17 +5,13 @@ use utils::get_utc8_timestamp_millis;
 use chrono::Utc;
 use event_center::Event;
 use uuid::Uuid;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
 use types::strategy::node_message::NodeMessage;
 use types::strategy::node_message::SignalType;
-use event_center::response_event::ResponseEvent;
-use event_center::command_event::CommandEvent;
-use event_center::command_event::order_engine_command::OrderEngineCommand;
-use event_center::command_event::order_engine_command::CreateOrderParams;
-use event_center::command_event::BaseCommandParams;
+use event_center::response::Response;
+use event_center::command::Command;
 use super::order_node_types::*;
 use types::strategy::TradeMode;
-use event_center::response_event::order_engine_response::{OrderEngineResponse, CreateOrderResponse};
 use tokio::sync::Mutex;
 use crate::Engine;
 use crate::exchange_engine::ExchangeEngine;
@@ -29,9 +25,9 @@ use database::mutation::order_mutation::OrderMutation;
 use tokio::sync::RwLock;
 use types::strategy::node_message::OrderMessage;
 use database::mutation::transaction_mutation::TransactionMutation;
-use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use exchange_client::ExchangeClient;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use types::order::{CreateOrderParams,GetTransactionDetailParams};
 
 #[derive(Debug, Clone)]
 pub struct OrderNodeContext {
@@ -102,74 +98,6 @@ impl OrderNodeContext {
 
         Ok(())
     }
-    async fn handle_response_event(&mut self, response_event: ResponseEvent){
-        // 如果request_id列表为空，说明没有请求，不处理，直接返回
-        if self.request_id.is_empty() {
-            return;
-        }
-        // 如果request_id列表不为空，则处理响应
-        match response_event {
-            // 订单引擎创建，创建订单成功的响应
-            ResponseEvent::OrderEngine(OrderEngineResponse::CreateOrderResponse(create_order_response)) => {
-                // 如果response_id在request_id列表中，则先处理，再删除request_id
-                if self.request_id.contains(&create_order_response.response_id) {
-                    // tracing::info!("{}: 订单创建成功: {:?}", self.get_node_id(), create_order_response);
-                    // self.request_id.remove(self.request_id.iter().position(|id| *id == create_order_response.response_id).unwrap());
-                    self.handle_create_order_response(create_order_response).await;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    async fn handle_create_order_response(&mut self, create_order_response: CreateOrderResponse) {
-        if create_order_response.code == 0 {
-            // 订单创建成功
-            tracing::info!("{}: 订单创建成功: {:?}", self.get_node_id(), create_order_response);
-            *self.is_processing_order.write().await = false; // 设置为false，表示订单创建成功，可以创建下一个订单
-            // 如果订单创建成功，则将request_id从列表中删除
-            self.request_id.remove(self.request_id.iter().position(|id| *id == create_order_response.response_id).unwrap());
-        } else {
-            // 订单未成交
-            tracing::warn!("{}: 订单未成交: {:?}", self.get_node_id(), create_order_response);
-        }
-    }
-
-    async fn create_order(&mut self) {
-        if *self.is_processing_order.read().await {
-            tracing::warn!("{}: 正在处理订单, 跳过", self.get_node_id());
-            return;
-        }
-        *self.is_processing_order.write().await = true;
-        
-        let request_id = Uuid::new_v4();
-        self.request_id.push(request_id); // 将request_id添加到request_id列表中
-        let create_order_params = CreateOrderParams {
-            base_params: BaseCommandParams {
-                strategy_id: self.get_strategy_id().clone(),
-                node_id: self.get_node_id().clone(),
-                sender: self.get_node_id().clone(),
-                timestamp: get_utc8_timestamp_millis(),
-                request_id: request_id,
-            },
-            account_id: self.live_config.selected_live_account.account_id,
-            exchange: self.live_config.selected_live_account.exchange.clone(),
-            symbol: self.live_config.order_config.symbol.clone(),
-            order_type: self.live_config.order_config.order_type.clone(),
-            order_side: self.live_config.order_config.order_side.clone(),
-            quantity: self.live_config.order_config.quantity,
-            price: self.live_config.order_config.price,
-            tp: self.live_config.order_config.tp,
-            sl: self.live_config.order_config.sl,
-            comment: "111".to_string(),
-
-        };
-
-        tracing::info!("{}: 发送创建订单命令: {:?}", self.get_node_id(), create_order_params);
-        let command_event = CommandEvent::OrderEngine(OrderEngineCommand::CreateOrder(create_order_params));
-        self.get_event_publisher().publish(command_event.into()).expect("发送创建订单命令失败");
-        
-    }
 
     
     async fn set_is_processing_order(&mut self, is_processing_order: bool) {
@@ -180,7 +108,7 @@ impl OrderNodeContext {
         *self.unfilled_order.write().await = unfilled_order;
     }
 
-    async fn create_order2(&mut self) {
+    async fn create_order(&mut self) {
         // 如果当前是正在处理订单的状态，则不创建订单
         if *self.is_processing_order.read().await || self.unfilled_order.read().await.is_some() {
             // tracing::warn!("{}: 当前正在处理订单, 跳过", self.get_node_name());
@@ -193,13 +121,8 @@ impl OrderNodeContext {
         
         let exchange = self.get_exchange(&self.live_config.selected_live_account.account_id).await.unwrap();
         let create_order_params = CreateOrderParams {
-            base_params: BaseCommandParams {
-                strategy_id: self.get_strategy_id().clone(),
-                node_id: self.get_node_id().clone(),
-                sender: self.get_node_id().clone(),
-                timestamp: get_utc8_timestamp_millis(),
-                request_id: Uuid::new_v4(),
-            },
+            strategy_id: self.get_strategy_id().clone(),
+            node_id: self.get_node_id().clone(),
             account_id: self.live_config.selected_live_account.account_id,
             exchange: self.live_config.selected_live_account.exchange.clone(),
             symbol: self.live_config.order_config.symbol.clone(),
@@ -340,8 +263,8 @@ impl OrderNodeContext {
 }
 
 #[async_trait]
-impl NodeContext for OrderNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContext> {
+impl NodeContextTrait for OrderNodeContext {
+    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -366,12 +289,12 @@ impl NodeContext for OrderNodeContext {
     }
     
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
-        match event {
-            Event::Response(response_event) => {
-                self.handle_response_event(response_event).await;
-            }
-            _ => {}
-        }
+        // match event {
+        //     Event::Response(response_event) => {
+        //         self.handle_response_event(response_event).await;
+        //     }
+        //     _ => {}
+        // }
         Ok(())
     }
 
@@ -384,7 +307,7 @@ impl NodeContext for OrderNodeContext {
                     // 如果信号为True，则执行下单
                     SignalType::ConditionMatch => {
                         // self.create_order().await;
-                        self.create_order2().await;
+                        self.create_order().await;
                         // self.send_test_signal().await;
                     }
                     _ => {}

@@ -1,5 +1,5 @@
 
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -29,8 +29,8 @@ pub struct GetVariableNodeContext {
 
 
 #[async_trait]
-impl NodeContext for GetVariableNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContext> {
+impl NodeContextTrait for GetVariableNodeContext {
+    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
         Box::new(self.clone())
     }
 

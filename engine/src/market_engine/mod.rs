@@ -12,7 +12,7 @@ use crate::EngineName;
 use tokio::sync::Mutex;
 use std::any::Any;
 use std::collections::HashMap;
-
+use event_center::{CommandReceiver, CommandPublisher, EventReceiver};
 
 #[derive(Clone, Debug)]
 pub struct MarketEngine {
@@ -42,16 +42,19 @@ impl Engine for MarketEngine {
 impl MarketEngine{
     pub fn new(
         event_publisher: EventPublisher,
-        request_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: CommandReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
+        
     ) -> Self {
         let context = MarketEngineContext {
             engine_name: EngineName::MarketEngine,
             event_publisher,
-            event_receiver: vec![response_event_receiver, request_event_receiver],
+            command_publisher,
+            event_receiver: vec![],
             exchange_engine,
             subscribe_klines: Arc::new(Mutex::new(HashMap::new())),
+            command_receiver: Arc::new(Mutex::new(command_receiver)),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

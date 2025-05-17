@@ -43,7 +43,7 @@ pub async fn add_account_config(
             let event_center = star_river.event_center.lock().await;
             let event_publisher = event_center.get_event_publisher();
             let event = Event::Account(AccountEvent::AccountConfigAdded(account_config.id));
-            event_publisher.publish(event).unwrap();
+            event_publisher.publish(event).await.unwrap();
 
             (
             StatusCode::OK,
@@ -84,7 +84,7 @@ pub async fn delete_account_config(
             let event_center = star_river.event_center.lock().await;
             let event_publisher = event_center.get_event_publisher();
             let event = Event::Account(AccountEvent::AccountConfigDeleted(request.id));
-            event_publisher.publish(event).unwrap();
+            event_publisher.publish(event).await.unwrap();
 
             (
             StatusCode::OK,
@@ -135,7 +135,7 @@ pub async fn update_account_config(
             let event_center = star_river.event_center.lock().await;
             let event_publisher = event_center.get_event_publisher();
             let event = Event::Account(AccountEvent::AccountConfigUpdated(account_config.clone()));
-            event_publisher.publish(event).unwrap();
+            event_publisher.publish(event).await.unwrap();
 
             (
             StatusCode::OK,
@@ -179,7 +179,7 @@ pub async fn update_account_config_is_available(
             let event_center = star_river.event_center.lock().await;
             let event_publisher = event_center.get_event_publisher();
             let event = Event::Account(AccountEvent::AccountConfigUpdated(account_config.clone()));
-            event_publisher.publish(event).unwrap();
+            event_publisher.publish(event).await.unwrap();
 
             (
             StatusCode::OK,

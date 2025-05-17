@@ -4,7 +4,7 @@ mod url;
 mod mt5_data_processor;
 mod mt5_types;
 
-use mt5_types::Mt5PositionNumberRequest;
+use mt5_types::Mt5GetPositionNumberParams;
 use types::position::PositionNumber;
 use mt5_http_client::Mt5HttpClient;
 use std::os::windows::process::ExitStatusExt;
@@ -24,12 +24,9 @@ use crate::ExchangeClient;
 use std::any::Any;
 use async_trait::async_trait;
 use types::order::{OriginalOrder, Order};
-use event_center::command_event::order_engine_command::CreateOrderParams;
-use types::position::{PositionNumberRequest, OriginalPosition, Position};
+use types::position::{GetPositionNumberParams, GetPositionParam, OriginalPosition, Position};
 use super::metatrader5::mt5_types::Mt5CreateOrderParams;
-use event_center::command_event::position_engine_command::GetPositionParam;
 use super::metatrader5::mt5_types::Mt5KlineInterval;
-use event_center::command_event::order_engine_command::GetTransactionDetailParams;
 use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
 use types::account::mt5_account::Mt5AccountInfo;
@@ -45,6 +42,7 @@ use std::sync::Mutex as StdMutex;
 use once_cell::sync::Lazy;
 use std::time::{SystemTime, UNIX_EPOCH};
 use types::market::Exchange;
+use types::order::{CreateOrderParams, GetTransactionDetailParams};
 
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
@@ -924,10 +922,10 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String> {
+    async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, String> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let mt5_position_number_request = Mt5PositionNumberRequest::from(position_number_request);
+            let mt5_position_number_request = Mt5GetPositionNumberParams::from(position_number_request);
             let position_number_info = mt5_http_client.get_position_number(mt5_position_number_request).await.expect("获取仓位数量失败");
             let mt5_data_processor = self.data_processor.lock().await;
             let position_number = mt5_data_processor.process_position_number(position_number_info).await.expect("解析position_number数据失败");

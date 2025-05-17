@@ -16,17 +16,19 @@ use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
 use super::if_else_node::if_else_node_state_machine::{IfElseNodeStateManager,IfElseNodeStateAction};
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
 use crate::strategy_engine::node::node_types::{NodeType,DefaultOutputHandleId};
 use if_else_node_context::IfElseNodeContext;
 use crate::strategy_engine::node::{NodeOutputHandle,NodeTrait};
 use types::strategy::TradeMode;
 use if_else_node_type::*;
+use event_center::{CommandPublisher, CommandReceiver};
+use tokio::sync::Mutex;
 
 // 条件分支节点
 #[derive(Debug, Clone)]
 pub struct IfElseNode {
-    pub context: Arc<RwLock<Box<dyn NodeContext>>>,
+    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
 }
 
 impl IfElseNode {
@@ -37,6 +39,8 @@ impl IfElseNode {
         node_name: String,
         live_config: IfElseNodeLiveConfig,
         event_publisher: EventPublisher,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -45,6 +49,8 @@ impl IfElseNode {
             NodeType::IfElseNode,
             event_publisher,
             vec![],
+            command_publisher,
+            command_receiver,
             Box::new(IfElseNodeStateManager::new(NodeRunState::Created, node_id, node_name)),
         );
         Self {
@@ -132,7 +138,7 @@ impl NodeTrait for IfElseNode {
         Box::new(self.clone())
     }
 
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
         self.context.clone()
     }
 

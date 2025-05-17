@@ -2,7 +2,7 @@ use std::sync::Arc;
 use event_center::EventPublisher;
 use sea_orm::DatabaseConnection;
 use tokio::sync::Mutex;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 use event_center::Event;
 
 use crate::indicator_engine::IndicatorEngine;
@@ -14,6 +14,11 @@ use crate::cache_engine::CacheEngine;
 use crate::account_engine::AccountEngine;
 use crate::EngineName;
 use heartbeat::Heartbeat;
+use event_center::EventCenter;
+use event_center::command::Command;
+use event_center::EventReceiver;
+use event_center::Channel;
+
 
 pub struct EngineManager {
     exchange_engine: Arc<Mutex<ExchangeEngine>>,
@@ -25,73 +30,94 @@ pub struct EngineManager {
 }
 
 impl EngineManager {
-    pub fn new(
-        event_publisher: EventPublisher,
-        exchange_event_receiver: broadcast::Receiver<Event>,
-        market_event_receiver: broadcast::Receiver<Event>,
-        request_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
-        account_event_receiver: broadcast::Receiver<Event>,
+    pub async fn new(
+        event_center: &mut EventCenter,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
     ) -> Self
     
     {
 
+        let (cache_command_tx, cache_command_rx) = mpsc::channel::<Command>(100);
+        let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).await.unwrap();
         let cache_engine = Arc::new(Mutex::new(CacheEngine::new(
-            event_publisher.clone(), 
-            exchange_event_receiver.resubscribe(),
-            request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe(),
+            event_center.get_event_publisher(),
+            event_center.get_command_publisher(),
+            cache_command_rx,
+            exchange_event_receiver,
         )));
 
-
+        // 交易所引擎
+        let (exchange_command_tx, exchange_command_rx) = mpsc::channel::<Command>(100);
         let exchange_engine = Arc::new(Mutex::new(ExchangeEngine::new(
-            event_publisher.clone(), 
-            request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe(),
+            event_center.get_event_publisher(), 
+            event_center.get_command_publisher(),
+            exchange_command_rx,
             database.clone()
         )));
 
-        // 新建市场引擎
+        // 市场引擎
+        let (market_command_tx, market_command_rx) = mpsc::channel::<Command>(100);
         let market_engine = MarketEngine::new(
-            event_publisher.clone(), 
-            request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe(),
-            exchange_engine.clone()
+            event_center.get_event_publisher(),
+            event_center.get_command_publisher(),
+            market_command_rx,
+            exchange_engine.clone(),
+            
         );
         
         // 指标引擎
+        let (indicator_command_tx, indicator_command_rx) = mpsc::channel::<Command>(100);
+        let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).await.unwrap();
         let indicator_engine = IndicatorEngine::new(
             heartbeat.clone(),
             cache_engine.clone(),
-            event_publisher.clone(), 
-            exchange_event_receiver.resubscribe(),
-            request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe(),
+            event_center.get_event_publisher(), 
+            event_center.get_command_publisher(),
+            indicator_command_rx,
+            exchange_event_receiver,
         );
 
+        // 策略引擎
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<Command>(100);
+        let market_event_receiver = event_center.subscribe(&Channel::Market).await.unwrap();
+
         let strategy_engine = StrategyEngine::new(
-            event_publisher.clone(), 
-            market_event_receiver.resubscribe(), 
-            request_event_receiver.resubscribe(), 
-            response_event_receiver.resubscribe(), 
+            event_center.get_event_publisher(), 
+            event_center.get_command_publisher(),
+            strategy_command_rx,
+            market_event_receiver.resubscribe(),
+            market_event_receiver.resubscribe(),
+            market_event_receiver.resubscribe(),
+
             database.clone(),
             exchange_engine.clone(),
             heartbeat.clone()
         );
 
         
-
+        // 账户引擎
+        let (account_command_tx, account_command_rx) = mpsc::channel::<Command>(100);
+        let account_event_receiver = event_center.subscribe(&Channel::Account).await.unwrap();
         let account_engine = AccountEngine::new(
-            event_publisher.clone(),
-            account_event_receiver.resubscribe(),
-            request_event_receiver.resubscribe(),
-            response_event_receiver.resubscribe(),
+            event_center.get_event_publisher(),
+            event_center.get_command_publisher(),
+            account_command_rx,
+            account_event_receiver,
             exchange_engine.clone(),
             database.clone(),
             heartbeat.clone()
         );
+
+        // 设置每一个引擎的命令发送器
+        {
+            event_center.set_engine_command_sender(EngineName::CacheEngine, cache_command_tx).await;
+            event_center.set_engine_command_sender(EngineName::ExchangeEngine, exchange_command_tx).await;
+            event_center.set_engine_command_sender(EngineName::MarketEngine, market_command_tx).await;
+            event_center.set_engine_command_sender(EngineName::IndicatorEngine, indicator_command_tx).await;
+            event_center.set_engine_command_sender(EngineName::StrategyEngine, strategy_command_tx).await;
+            event_center.set_engine_command_sender(EngineName::AccountEngine, account_command_tx).await;
+        }
 
 
         Self {

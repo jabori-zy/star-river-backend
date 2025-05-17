@@ -3,14 +3,12 @@ mod utils;
 pub mod metatrader5;
 
 use async_trait::async_trait;
-use event_center::command_event::position_engine_command::GetPositionParam;
 use types::market::KlineInterval;
-use types::position::{PositionNumberRequest, PositionNumber, Position,OriginalPosition};
+use types::position::{GetPositionNumberParams, GetPositionParam, PositionNumber, Position,OriginalPosition};
 use types::order::{Order, OriginalOrder};
 use std::fmt::Debug;
 use std::any::Any;
-use event_center::command_event::order_engine_command::CreateOrderParams;
-use event_center::command_event::order_engine_command::GetTransactionDetailParams;
+use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
 use types::market::Exchange;
@@ -37,7 +35,7 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn OriginalTransaction>, String>;
 
     // 仓位相关
-    async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String>;
+    async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, String>;
     async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, String>;
     async fn get_latest_position(&self, position: &Position) -> Result<Position, String>; // 获取最新持仓
 

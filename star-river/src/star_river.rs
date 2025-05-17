@@ -22,27 +22,17 @@ impl StarRiver {
         // 系统心跳间隔为100毫秒
         let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100))); 
         
-        let event_center = EventCenter::new();
+        let mut event_center = EventCenter::new().init_channel().await;
         // 初始化数据库
 
         let database = DatabaseManager::new().await;
 
         // 初始化引擎管理器
-        let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).unwrap();
-        let market_event_receiver = event_center.subscribe(&Channel::Market).unwrap();
-        let request_event_receiver = event_center.subscribe(&Channel::Command).unwrap();
-        let response_event_receiver = event_center.subscribe(&Channel::Response).unwrap();
-        let account_event_receiver = event_center.subscribe(&Channel::Account).unwrap();
         let engine_manager = EngineManager::new(
-            event_center.get_event_publisher(), 
-            exchange_event_receiver, 
-            market_event_receiver, 
-            request_event_receiver, 
-            response_event_receiver, 
-            account_event_receiver,
+            &mut event_center,
             database.get_conn(),
             heartbeat.clone()
-        );
+        ).await;
 
         Self {
             heartbeat: heartbeat.clone(),

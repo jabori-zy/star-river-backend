@@ -2,7 +2,7 @@ use crate::metatrader5::url::Mt5HttpUrl;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use serde::Serialize;
 
-use super::mt5_types::Mt5PositionNumberRequest;
+use super::mt5_types::Mt5GetPositionNumberParams;
 use super::mt5_types::Mt5CreateOrderParams;
 
 #[derive(Debug)]
@@ -162,7 +162,7 @@ impl Mt5HttpClient {
 
 
 
-    pub async fn get_position_number(&self, position_number_request: Mt5PositionNumberRequest) -> Result<serde_json::Value, String> {
+    pub async fn get_position_number(&self, position_number_request: Mt5GetPositionNumberParams) -> Result<serde_json::Value, String> {
         
         tracing::debug!("metatrader5 获取仓位数量: {:?}", position_number_request);
         let url = format!("{}?symbol={}{}",

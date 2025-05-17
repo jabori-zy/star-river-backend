@@ -3,10 +3,11 @@ use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use crate::strategy_engine::node::live_strategy_node::start_node::StartNode;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::NodeTrait;
 use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig, TradeMode};
-
+use event_center::{CommandPublisher, CommandReceiver, EventPublisher, EventReceiver};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 impl LiveStrategyFunction {
     pub async fn add_start_node(
@@ -14,6 +15,8 @@ impl LiveStrategyFunction {
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -32,7 +35,9 @@ impl LiveStrategyFunction {
             node_id.to_string(), 
             node_name.to_string(), 
             live_config, 
-            event_publisher
+            event_publisher,
+            command_publisher,
+            command_receiver,
         );
         // 设置默认输出句柄
         node.set_output_handle().await;

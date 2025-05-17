@@ -16,6 +16,7 @@ use async_trait::async_trait;
 use types::custom_type::StrategyId;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use tokio::sync::broadcast;
 use event_center::Event;
 use futures::stream::select_all;
@@ -23,27 +24,10 @@ use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use strum::{EnumString, Display};
 use serde::{Deserialize, Serialize};
-use event_center::EventPublisher;
-
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString)]
-pub enum EngineName {
-    #[strum(serialize="exchange-engine")]
-    ExchangeEngine, // 交易所引擎
-    #[strum(serialize="marekt-engine")]
-    MarketEngine, // 市场引擎
-    #[strum(serialize="indicator-engine")]
-    IndicatorEngine, // 指标引擎
-    #[strum(serialize="strategy-engine")]
-    StrategyEngine, // 策略引擎
-    #[strum(serialize="cache-engine")]
-    CacheEngine, // 缓存引擎
-    #[strum(serialize="account-engine")]
-    AccountEngine, // 账户引擎
-
-}
-
+use event_center::{EventPublisher, CommandPublisher};
+use types::engine::EngineName;
+use event_center::CommandReceiver;
+use event_center::command::Command;
 
 
 #[async_trait]
@@ -60,7 +44,13 @@ pub trait EngineContext: Debug + Send + Sync + 'static {
 
     fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>>;
 
+    fn get_command_publisher(&self) -> &CommandPublisher;
+
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>>;
+
     async fn handle_event(&mut self, event: Event);
+
+    async fn handle_command(&mut self, command: Command);
 }
 
 impl Clone for Box<dyn EngineContext> {
@@ -87,14 +77,26 @@ pub trait Engine : Debug + Send + Sync + 'static {
         let context_guard = context.read().await;
         context_guard.get_engine_name()
     }
+
+    // 监听事件
     async fn listen_events(&self) {
         let context = self.get_context();
         EngineFunction::listen_events(context).await;
     }
+
+    async fn listen_commands(&self) {
+        let context = self.get_context();
+        EngineFunction::listen_commands(context).await;
+    }
+
+
     async fn start(&self) {
         let engine_name = self.get_engine_name().await;
         tracing::info!("{}已启动", engine_name);
+        // 监听事件
         self.listen_events().await;
+        // 监听命令
+        self.listen_commands().await;
     }
 }
 
@@ -147,6 +149,27 @@ impl EngineFunction {
         });
 
 
+    }
+
+    pub async fn listen_commands(context: Arc<RwLock<Box<dyn EngineContext>>>) {
+        let (engine_name, command_receiver) = {
+            let context_guard = context.read().await;
+            let engine_name = context_guard.get_engine_name();
+            let command_receiver = context.read().await.get_command_receiver();
+            (engine_name, command_receiver)
+
+        };
+        tracing::debug!("{}: 开始监听命令", engine_name);
+        tokio::spawn(async move {
+            loop {
+                if let Some(received_command) = command_receiver.lock().await.recv().await {
+                    let mut context_guard = context.write().await;
+                    // tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
+                    context_guard.handle_command(received_command).await;
+                    }
+                }
+            }
+        );
     }
 }
 

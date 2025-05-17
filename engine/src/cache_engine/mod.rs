@@ -11,7 +11,6 @@ use crate::Engine;
 use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
-use event_center::Event;
 use std::any::Any;
 use std::collections::HashMap;
 use types::cache::{CacheKey, CacheValue};
@@ -21,7 +20,8 @@ use types::cache::cache_key::KlineCacheKey;
 use types::cache::cache_key::IndicatorCacheKey;
 use types::indicator::Indicator;
 use types::indicator::IndicatorConfig;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct CacheEngine {
@@ -51,15 +51,17 @@ impl Engine for CacheEngine {
 impl CacheEngine {
     pub fn new(
         event_publisher: EventPublisher,
-        exchange_event_receiver: broadcast::Receiver<Event>,
-        request_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>
+        command_publisher: CommandPublisher,
+        command_receiver: CommandReceiver,
+        exchange_event_receiver: EventReceiver,
     ) -> Self {
         let context = CacheEngineContext {
             engine_name: EngineName::CacheEngine,
             event_publisher,
-            event_receiver: vec![exchange_event_receiver, response_event_receiver, request_event_receiver],
+            event_receiver: vec![exchange_event_receiver],
             cache: Arc::new(RwLock::new(HashMap::new())),
+            command_publisher,
+            command_receiver: Arc::new(Mutex::new(command_receiver)),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

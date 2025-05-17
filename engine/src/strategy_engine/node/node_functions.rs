@@ -5,12 +5,12 @@ use tokio::sync::broadcast;
 use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
-use super::node_context::NodeContext;
+use super::node_context::NodeContextTrait;
 pub struct NodeFunction;
 
 
 impl NodeFunction {
-    pub async fn listen_external_event(context: Arc<RwLock<Box<dyn NodeContext>>>){
+    pub async fn listen_external_event(context: Arc<RwLock<Box<dyn NodeContextTrait>>>){
         let (event_receivers, cancel_token, node_id) = {
             // let state_guard = state.read().await;
             // 这里需要深度克隆接收器，而不是克隆引用
@@ -62,7 +62,7 @@ impl NodeFunction {
         });
     }
 
-    pub async fn listen_message(context: Arc<RwLock<Box<dyn NodeContext>>>) {
+    pub async fn listen_message(context: Arc<RwLock<Box<dyn NodeContextTrait>>>) {
         let (receivers, cancel_token, node_id) = {
             let state_guard = context.read().await;
             let receivers = state_guard.get_message_receivers().clone();
@@ -118,7 +118,7 @@ impl NodeFunction {
     }
 
     /// 通用的任务取消实现
-    pub async fn cancel_task(state: Arc<RwLock<Box<dyn NodeContext>>>) 
+    pub async fn cancel_task(state: Arc<RwLock<Box<dyn NodeContextTrait>>>) 
     {
         let (cancel_token, node_id, run_state) = {
             let state_guard = state.read().await;

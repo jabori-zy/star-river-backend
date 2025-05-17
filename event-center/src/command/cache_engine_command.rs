@@ -1,24 +1,55 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
 use types::custom_type::{NodeId, StrategyId};
 use std::fmt::Debug;
 use types::cache::CacheKey;
 use types::market::{Exchange, KlineInterval};
-use uuid::Uuid;
 use tokio::time::Duration;
+use crate::command::Command;
+use crate::Responder;
+use super::CommandTrait;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+
+#[derive(Debug)]
 pub enum CacheEngineCommand {
-    #[strum(serialize = "add-cache-key")]
     AddCacheKey(AddCacheKeyParams), // 添加缓存键
-    #[strum(serialize = "get-cache")]
     GetCache(GetCacheParams), // 获取缓存数据
-    #[strum(serialize = "get-cache-multi")]
     GetCacheMulti(GetCacheMultiParams), // 一次性获取多个key的数据
 }
 
+impl CommandTrait for CacheEngineCommand {
+    fn responder(&self) -> &Responder {
+        match self {
+            CacheEngineCommand::AddCacheKey(params) => &params.responder,
+            CacheEngineCommand::GetCache(params) => &params.responder,
+            CacheEngineCommand::GetCacheMulti(params) => &params.responder,
+        }
+    }
+    fn timestamp(&self) -> i64 {
+        match self {
+            CacheEngineCommand::AddCacheKey(params) => params.timestamp,
+            CacheEngineCommand::GetCache(params) => params.timestamp,
+            CacheEngineCommand::GetCacheMulti(params) => params.timestamp,
+        }
+    }
+
+    fn sender(&self) -> String {
+        match self {
+            CacheEngineCommand::AddCacheKey(params) => params.sender.clone(),
+            CacheEngineCommand::GetCache(params) => params.sender.clone(),
+            CacheEngineCommand::GetCacheMulti(params) => params.sender.clone(),
+        }
+    }
+}
+
+
+
+impl From<CacheEngineCommand> for Command {
+    fn from(command: CacheEngineCommand) -> Self {
+        Command::CacheEngine(command)
+    }
+}
+
 // 添加K线缓存键参数
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub struct AddCacheKeyParams {
     pub strategy_id: StrategyId,
     pub cache_key: CacheKey,
@@ -26,58 +57,59 @@ pub struct AddCacheKeyParams {
     pub duration: Duration,
     pub sender: String,
     pub timestamp:i64,
-    pub request_id: Uuid,
+    pub responder: Responder,
 }
 
 // 添加指标缓存键参数
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub struct AddIndicatorCacheKeyParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub indicator_cache_key: CacheKey,
     pub sender: String,
     pub timestamp:i64,
-    pub request_id: Uuid,
+    pub responder: Responder,
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct SubscribeIndicatorParams {
     pub cache_key: CacheKey,
     pub sender: String,
     pub timestamp:i64,
+    pub responder: Responder,
 }
 
 
-#[derive(Debug, Clone,Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct GetSubscribedIndicatorParams {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
     pub sender: String,
     pub timestamp:i64,
-    pub request_id: Uuid,
+    pub responder: Responder,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct GetCacheParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub cache_key: CacheKey, // 缓存键
     pub limit: Option<u32>, // 获取的缓存数据条数
     pub sender: String,
-    pub request_id: Uuid,
     pub timestamp:i64,
+    pub responder: Responder,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct GetCacheMultiParams {
     pub strategy_id: StrategyId,
     pub cache_keys: Vec<CacheKey>,
     pub limit: Option<u32>,
     pub sender: String,
-    pub request_id: Uuid,
     pub timestamp:i64,
+    pub responder: Responder,
 }
 
 

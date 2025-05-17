@@ -15,15 +15,15 @@ use std::time::Duration;
 use indicator_node_context::IndicatorNodeContext;
 use event_center::EventPublisher;
 use event_center::Event;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
 use indicator_node_type::IndicatorNodeLiveConfig;
 use tokio::sync::Mutex;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 // 指标节点
 #[derive(Debug, Clone)]
 pub struct IndicatorNode {
-    pub context: Arc<RwLock<Box<dyn NodeContext>>>,
+    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
     
 }
 
@@ -36,8 +36,10 @@ impl IndicatorNode {
         node_id: String, 
         node_name: String, 
         live_config: IndicatorNodeLiveConfig,
-        event_publisher: EventPublisher, 
-        response_event_receiver: broadcast::Receiver<Event>,
+        event_publisher: EventPublisher,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -46,6 +48,8 @@ impl IndicatorNode {
             NodeType::IndicatorNode,
             event_publisher,
             vec![response_event_receiver],
+            command_publisher,
+            command_receiver,
             Box::new(IndicatorNodeStateManager::new(NodeRunState::Created, node_id, node_name)),
         );
 
@@ -53,8 +57,6 @@ impl IndicatorNode {
             context: Arc::new(RwLock::new(Box::new(IndicatorNodeContext {
                 base_context,
                 live_config,
-                current_batch_id: None,
-                request_ids: Arc::new(Mutex::new(vec![])),
                 is_registered: Arc::new(RwLock::new(false)),
             }))),
             
@@ -78,7 +80,7 @@ impl NodeTrait for IndicatorNode {
         self
     }
 
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
         self.context.clone()
     }
 
@@ -168,7 +170,15 @@ impl NodeTrait for IndicatorNode {
                         tracing::info!("{}: 开始注册指标", node_id);
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
-                        context.register_indicator().await;
+                        let register_indicator_response = context.register_indicator().await;
+                        if let Ok(register_indicator_response) = register_indicator_response {
+                            if register_indicator_response.code() == 0 {
+                                *context.is_registered.write().await = true;
+                                tracing::info!("{}: 注册指标成功", node_id);
+                            } else {
+                                tracing::error!("{}: 注册指标失败: {:?}", node_id, register_indicator_response);
+                            }
+                        }
                     }
                     _ => {}
                 }

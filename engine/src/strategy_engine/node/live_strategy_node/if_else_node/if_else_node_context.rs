@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
 use super::condition::*;
 use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
 use super::if_else_node_type::*;
@@ -28,9 +28,9 @@ pub struct IfElseNodeContext {
 
 
 #[async_trait]
-impl NodeContext for IfElseNodeContext {
+impl NodeContextTrait for IfElseNodeContext {
     
-    fn clone_box(&self) -> Box<dyn NodeContext> {
+    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -179,7 +179,7 @@ impl IfElseNodeContext {
                 // 发送事件
                 if self.is_enable_event_publish().clone() {
                     let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
-                    if let Err(e) = self.get_event_publisher().publish(event.into()) {
+                    if let Err(e) = self.get_event_publisher().publish(event.into()).await {
                         tracing::error!(
                             node_id = %self.get_node_id(),
                             "条件节点发送信号事件失败"
@@ -214,7 +214,7 @@ impl IfElseNodeContext {
             // 发送事件
             if self.is_enable_event_publish().clone() {
                 let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
-                if let Err(e) = self.get_event_publisher().publish(event.into()) {
+                if let Err(e) = self.get_event_publisher().publish(event.into()).await {
                     tracing::error!(
                         node_id = %self.get_node_id(),
                         "条件节点发送信号事件失败"

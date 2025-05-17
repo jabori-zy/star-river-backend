@@ -5,6 +5,25 @@ use std::any::Any;
 use std::fmt::Debug;
 use chrono::{DateTime, Utc};
 
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetPositionNumberParam {
+    pub strategy_id: i32,
+    pub node_id: String,
+    pub position_number_request: GetPositionNumberParams,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetPositionParam {
+    pub strategy_id: i32,
+    pub node_id: String,
+    pub exchange: Exchange,
+    pub position_id: i64,
+}
+
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 // 订单方向
 pub enum PositionSide {
@@ -87,7 +106,7 @@ pub struct Position {
 
 // 订单数
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PositionNumberRequest {
+pub struct GetPositionNumberParams {
     pub exchange: Exchange,
     pub symbol: String,
     pub position_side: Option<PositionSide>,

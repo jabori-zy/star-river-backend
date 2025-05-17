@@ -1,49 +1,34 @@
 use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
-use event_center::command_event::exchange_engine_command::RegisterMt5ExchangeParams;
-use event_center::command_event::exchange_engine_command::UnregisterMt5ExchangeParams;
-use event_center::command_event::exchange_engine_command::{
-    ExchangeEngineCommand, RegisterExchangeParams,
-};
-use event_center::command_event::CommandEvent;
-use event_center::response_event::exchange_engine_response::RegisterMt5ExchangeSuccessResponse;
-use event_center::response_event::exchange_engine_response::{
-    ExchangeEngineResponse, RegisterExchangeResponse,
-};
-use event_center::response_event::ResponseEvent;
+use event_center::command::exchange_engine_command::ExchangeEngineCommand;
+use event_center::command::Command;
+use event_center::response::exchange_engine_response::{ExchangeEngineResponse, RegisterExchangeResponse};
 use event_center::Event;
 use event_center::EventPublisher;
-// use exchange_client::binance::BinanceExchange;
 use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::ExchangeClient;
-use rust_embed::Embed;
 use std::any::Any;
 use std::collections::HashMap;
-use std::fs;
-use std::process::Command as StdCommand;
-use std::process::Stdio;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use std::sync::Mutex as StdMutex;
-use tempfile::TempDir;
-use tokio::process::Child;
-use tokio::process::Command;
-use tokio::sync::broadcast;
 use types::market::Exchange;
 use utils::get_utc8_timestamp;
-use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use sea_orm::DatabaseConnection;
 use database::query::account_config_query::AccountConfigQuery;
 use types::account::AccountConfig;
-use event_center::command_event::exchange_engine_command::UnregisterExchangeParams;
+use event_center::command::exchange_engine_command::UnregisterExchangeParams;
 use types::custom_type::AccountId;
+use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
+use tokio::sync::Mutex;
+
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
     pub engine_name: EngineName,
     pub exchanges: HashMap<AccountId, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
     pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<broadcast::Receiver<Event>>,
+    pub event_receiver: Vec<EventReceiver>,
+    pub command_publisher: CommandPublisher,
+    pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
 }
 
@@ -62,6 +47,8 @@ impl Clone for ExchangeEngineContext {
                 .iter()
                 .map(|receiver| receiver.resubscribe())
                 .collect(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
             database: self.database.clone(),
         }
     }
@@ -89,57 +76,62 @@ impl EngineContext for ExchangeEngineContext {
         &self.event_publisher
     }
 
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>> {
+    fn get_event_receiver(&self) -> Vec<EventReceiver> {
         self.event_receiver
             .iter()
             .map(|receiver| receiver.resubscribe())
             .collect()
     }
 
+    fn get_command_publisher(&self) -> &CommandPublisher {
+        &self.command_publisher
+    }
+
+    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+        self.command_receiver.clone()
+    }
+
     async fn handle_event(&mut self, event: Event) {
-        match event {
-            Event::Command(command_event) => match command_event {
-                CommandEvent::ExchangeEngine(exchange_manager_command) => {
-                    match exchange_manager_command {
-                        ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
-                            tracing::debug!("接收到命令: {:?}", register_exchange_command);
-                                    self.register_exchange(register_exchange_command)
-                                        .await
-                                        .expect("注册交易所失败");
-                        }
-                        ExchangeEngineCommand::UnregisterExchange(unregister_exchange_command) => {
-                            tracing::debug!("接收到命令: {:?}", unregister_exchange_command);
-                            self.unregister_exchange(unregister_exchange_command)
-                                .await
-                                .expect("注销交易所失败");
-                        }
-                        _ => {}
+        let _event = event;
+
+    }
+
+    async fn handle_command(&mut self, command: Command) {
+        match command {
+            Command::ExchangeEngine(exchange_engine_command) => {
+                match exchange_engine_command {
+                    ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
+                        self.register_exchange(register_exchange_command.account_id).await.unwrap();
+                                // 发送响应事件
+                        let register_exchange_response = ExchangeEngineResponse::RegisterExchange(
+                            RegisterExchangeResponse {
+                                code: 0,
+                                message: "注册成功".to_string(),
+                                account_id: register_exchange_command.account_id,
+                                exchange: register_exchange_command.exchange,
+                                response_timestamp: get_utc8_timestamp(),
+                            },
+                        );
+                        register_exchange_command.responder.send(register_exchange_response.into()).unwrap();
                     }
+                    _ => {}
                 }
-                _ => {}
             }
             _ => {}
         }
-
     }
 }
 
 impl ExchangeEngineContext {
 
-    pub async fn register_exchange(&mut self, register_params: RegisterExchangeParams) -> Result<(), String> {
-        // todo: 判断是否已经注册
-        // 判断是否已经注册
-        // if self.is_registered(&register_params.account_id).await {
-        //     return Err(format!("账户-{} 已注册", register_params.account_id));
-        // }
-        
+    pub async fn register_exchange(&mut self, account_id: AccountId) -> Result<(), String> {
         // 从数据库中获取账户配置
-        let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, register_params.account_id).await;
+        let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await;
         match account_config {
             Ok(account_config) => {
                 match account_config.exchange.clone() {
                     Exchange::Metatrader5(_) => {
-                        Self::register_mt5_exchange(self, register_params, account_config).await?;
+                        Self::register_mt5_exchange(self, account_config).await?;
                         Ok(())
 
                     }
@@ -149,13 +141,13 @@ impl ExchangeEngineContext {
                 }
             }
             Err(_) => {
-                return Err(format!("账户-{} 获取配置失败", register_params.account_id));
+                return Err(format!("账户-{} 获取配置失败", account_id));
             }
         }
     }
 
 
-    async fn register_mt5_exchange(&mut self, register_params: RegisterExchangeParams, account_config: AccountConfig) -> Result<(), String> {
+    async fn register_mt5_exchange(&mut self, account_config: AccountConfig) -> Result<(), String> {
         
         let mut mt5 = MetaTrader5::new(
             account_config.id,
@@ -173,11 +165,7 @@ impl ExchangeEngineContext {
         
         tracing::debug!("开始启动mt5_server");
         while server_retry_count < max_server_retries {
-            match tokio::time::timeout(
-                tokio::time::Duration::from_secs(30), 
-                mt5.start_mt5_server(false)
-            )
-            .await
+            match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.start_mt5_server(false)).await
             {
                 Ok(port_result) => {
                     match port_result {
@@ -224,11 +212,7 @@ impl ExchangeEngineContext {
         let mut init_retry_count = 0;
         tracing::debug!("开始初始化终端");
         while init_retry_count < max_init_retries {
-            match tokio::time::timeout(
-                tokio::time::Duration::from_secs(30), 
-                mt5.initialize_terminal()
-            )
-            .await
+            match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.initialize_terminal()).await
             {
                 Ok(init_result) => {
                     match init_result {
@@ -293,22 +277,6 @@ impl ExchangeEngineContext {
         tracing::info!("MT5-{} 交易所注册成功!", account_config.id);
         self.exchanges
             .insert(account_config.id, mt5_exchange);
-
-        // 发送响应事件
-        let response_event = ResponseEvent::ExchangeEngine(ExchangeEngineResponse::RegisterExchangeResponse(
-                RegisterExchangeResponse {
-                    code: 0,
-                    message: "注册成功".to_string(),
-                    account_id: account_config.id,
-                    exchange: account_config.exchange,
-                    response_timestamp: get_utc8_timestamp(),
-                    response_id: register_params.request_id,
-                },
-            ));
-        self.get_event_publisher()
-            .publish(response_event.clone().into())
-            .unwrap();
-
         Ok(())
     }
 

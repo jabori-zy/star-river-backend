@@ -3,10 +3,12 @@ use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::IfElseNode;
-use event_center::EventPublisher;
+use event_center::{EventPublisher, CommandPublisher, CommandReceiver};
 use crate::strategy_engine::node::live_strategy_node::if_else_node::if_else_node_type::*;
 use crate::strategy_engine::node::NodeTrait;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::condition::Case;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 impl LiveStrategyFunction {
     pub async fn add_if_else_node(
@@ -14,6 +16,8 @@ impl LiveStrategyFunction {
         node_indices: &mut HashMap<String, NodeIndex>, 
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -36,6 +40,8 @@ impl LiveStrategyFunction {
             node_name.to_string(), 
             if_else_node_live_config, 
             event_publisher,
+            command_publisher,
+            command_receiver,
         );
         node.set_output_handle().await;
         let node = Box::new(node);

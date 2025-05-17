@@ -29,7 +29,7 @@ use live_strategy_function::LiveStrategyFunction;
 use live_strategy_state_machine::LiveStrategyStateMachine;
 use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
 use types::cache::CacheKey;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 #[derive(Debug, Clone)]
 pub struct LiveStrategy {
@@ -41,8 +41,10 @@ impl LiveStrategy {
     pub async fn new(
         strategy: Strategy,
         event_publisher: EventPublisher, 
-        market_event_receiver: broadcast::Receiver<Event>, 
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        market_event_receiver: EventReceiver, 
+        response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
@@ -88,6 +90,8 @@ impl LiveStrategy {
                         &mut cache_keys,
                         node_config, 
                         event_publisher.clone(), 
+                        command_publisher.clone(),
+                        command_receiver.clone(),
                         market_event_receiver.resubscribe(), 
                         response_event_receiver.resubscribe(),
                         exchange_engine.clone(),
@@ -136,7 +140,8 @@ impl LiveStrategy {
             database: database,
             heartbeat: heartbeat,
             registered_tasks: Arc::new(RwLock::new(HashMap::new())),
-            request_ids: Arc::new(RwLock::new(vec![])),
+            command_publisher: command_publisher,
+            command_receiver: command_receiver,
         };
         Self { context: Arc::new(RwLock::new(Box::new(context))) }
     }

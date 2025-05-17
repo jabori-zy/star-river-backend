@@ -6,17 +6,18 @@ use std::sync::Arc;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
 use crate::strategy_engine::node::{NodeTrait,NodeType};
-use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContextTrait};
 use super::start_node::start_node_state_machine::{StartNodeStateMachine,StartNodeStateAction};
 use std::time::Duration;
 use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
 use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig, TradeMode};
+use event_center::{CommandPublisher, CommandReceiver};
 
 #[derive(Debug)]
 pub struct StartNode {
-    pub context: Arc<RwLock<Box<dyn NodeContext>>>
+    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>
 }
 
 impl Clone for StartNode {
@@ -34,6 +35,8 @@ impl StartNode {
         node_name: String,
         live_config: LiveStrategyConfig,
         event_publisher: EventPublisher,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -42,6 +45,8 @@ impl StartNode {
             NodeType::StartNode,
             event_publisher,
             vec![],
+            command_publisher,
+            command_receiver,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
         );
         StartNode {
@@ -68,7 +73,7 @@ impl NodeTrait for StartNode {
 
     // get方法
     // 获取节点上下文
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
         self.context.clone()
     }
 

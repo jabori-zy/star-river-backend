@@ -70,7 +70,7 @@ impl BinanceDataProcessor {
         let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
         // let event_center = self.event_center.lock().await;
         // event_center.publish(exchange_klineseries_update_event).expect("发送k线系列更新事件失败");
-        let _ = event_publisher.publish(exchange_klineseries_update_event);
+        event_publisher.publish(exchange_klineseries_update_event);
         
         
     }

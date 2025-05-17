@@ -1,6 +1,6 @@
 use sea_orm::*;
 use crate::entities::{account_config, account_config::Entity as AccountConfigEntity};
-use types::account::AccountConfig;
+use types::{account::AccountConfig, custom_type::AccountId};
 
 
 pub struct AccountConfigQuery;
@@ -21,9 +21,9 @@ impl AccountConfigQuery {
 
     pub async fn get_account_config_by_id(
         db: &DbConn,
-        id: i32
+        account_id: AccountId
     ) -> Result<AccountConfig, DbErr> {
-        let account_config = AccountConfigEntity::find_by_id(id)
+        let account_config = AccountConfigEntity::find_by_id(account_id)
             .filter(account_config::Column::IsDelete.eq(false))
             .one(db)
             .await?

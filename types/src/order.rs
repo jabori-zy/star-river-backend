@@ -5,6 +5,38 @@ use chrono::{DateTime, Utc};
 use std::any::Any;
 use std::fmt::Debug;
 
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateOrderParams {
+    #[serde(flatten)]
+    pub strategy_id: i32,
+    pub node_id: String,
+    pub account_id: i32,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub order_type: OrderType,
+    pub order_side: OrderSide,
+    pub quantity: f64,
+    pub price: f64,
+    pub tp: Option<f64>,
+    pub sl: Option<f64>,
+    pub comment: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetTransactionDetailParams {
+    pub strategy_id: i32,
+    pub node_id: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub transaction_id: Option<i64>,
+    pub position_id: Option<i64>,
+    pub order_id: Option<i64>,
+}
+
+
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum OrderSide {
     #[strum(serialize = "long")]

@@ -29,14 +29,14 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::NodeRunState;
 use types::cache::CacheKey;
 use uuid::Uuid;
-use event_center::command_event::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
-use event_center::response_event::cache_engine_response::CacheEngineResponse;
-use event_center::response_event::ResponseEvent;
+use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
+use event_center::response::cache_engine_response::CacheEngineResponse;
+use event_center::response::Response;
 use utils::get_utc8_timestamp_millis;
-use event_center::command_event::CommandEvent;
+use event_center::command::Command;
 use event_center::strategy_event::{StrategyEvent, StrategyData};
-
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use tokio::sync::oneshot;
 
 #[derive(Debug)]
 // 实盘策略上下文
@@ -48,7 +48,9 @@ pub struct LiveStrategyContext {
     pub graph: Graph<Box<dyn NodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
     pub event_publisher: EventPublisher, // 事件发布器
-    pub event_receivers: Vec<broadcast::Receiver<Event>>, // 事件接收器
+    pub event_receivers: Vec<EventReceiver>, // 事件接收器
+    pub command_publisher: CommandPublisher, // 命令发布器
+    pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
     pub cancel_token: CancellationToken, // 取消令牌
     pub state_machine: Box<dyn StrategyStateMachine>, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
@@ -57,7 +59,6 @@ pub struct LiveStrategyContext {
     pub database: DatabaseConnection, // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 心跳
     pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
-    pub request_ids: Arc<RwLock<Vec<Uuid>>>, // 请求id
 }
 
 
@@ -80,7 +81,8 @@ impl Clone for LiveStrategyContext {
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
             registered_tasks: self.registered_tasks.clone(),
-            request_ids: self.request_ids.clone(),
+            command_publisher: self.command_publisher.clone(),
+            command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -135,15 +137,15 @@ impl StrategyContext for LiveStrategyContext {
     }
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
-        if let Event::Response(ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response))) = event {
-            let strategy_data = StrategyData {
-                strategy_id: self.strategy_id,
-                data: response.cache_data,
-                timestamp: get_utc8_timestamp_millis(),
-            };
-            let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
-            let _ = self.event_publisher.publish(strategy_event.into());
-        }
+        // if let Event::Response(ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response))) = event {
+        //     let strategy_data = StrategyData {
+        //         strategy_id: self.strategy_id,
+        //         data: response.cache_data,
+        //         timestamp: get_utc8_timestamp_millis(),
+        //     };
+        //     let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
+        //     let _ = self.event_publisher.publish(strategy_event.into());
+        // }
         Ok(())
     }
 
@@ -183,11 +185,11 @@ impl LiveStrategyContext {
 
     // 启用策略的数据推送功能
     pub async fn enable_strategy_data_push(&mut self) {
+        let command_publisher = self.command_publisher.clone();
         let event_publisher = self.event_publisher.clone();
         let strategy_id = self.strategy_id;
         let strategy_name = self.strategy_name.clone();
         let cache_keys = self.cache_keys.clone();
-        let request_ids = self.request_ids.clone();
 
         let mut heartbeat = self.heartbeat.lock().await;
         let task_id = heartbeat.register_async_task(
@@ -196,10 +198,10 @@ impl LiveStrategyContext {
                 let strategy_id = strategy_id;
                 let strategy_name = strategy_name.clone();
                 let cache_keys = cache_keys.clone();
+                let command_publisher = command_publisher.clone();
                 let event_publisher = event_publisher.clone();
-                let request_ids = request_ids.clone();
                 async move {
-                    Self::get_strategy_data(strategy_id, strategy_name, cache_keys, event_publisher, request_ids).await;
+                    Self::get_strategy_data(strategy_id, strategy_name, cache_keys, command_publisher, event_publisher).await;
                 }
             },
             5
@@ -223,24 +225,42 @@ impl LiveStrategyContext {
         strategy_id: StrategyId,
         strategy_name: String,
         cache_keys: Arc<RwLock<Vec<CacheKey>>>,
+        command_publisher: CommandPublisher,
         event_publisher: EventPublisher,
-        request_ids: Arc<RwLock<Vec<Uuid>>>,
     ) {
-        let request_id = Uuid::new_v4();
         let cache_keys_clone = cache_keys.read().await.clone();
+        let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheMultiParams {
             strategy_id: strategy_id,
             cache_keys: cache_keys_clone,
             limit: Some(1), // 只获取最新的一条数据
             sender: strategy_name,
             timestamp: get_utc8_timestamp_millis(),
-            request_id: request_id,
+            responder: resp_tx,
         };
 
-        request_ids.write().await.push(request_id);
+        let get_cache_multi_command = Command::CacheEngine(CacheEngineCommand::GetCacheMulti(params));
+        command_publisher.send(get_cache_multi_command).await.unwrap();
 
-        let command_event = CommandEvent::CacheEngine(CacheEngineCommand::GetCacheMulti(params));
-        let _ = event_publisher.publish(command_event.into());
+        // 等待响应
+        let response = resp_rx.await.unwrap();
+        if response.code() == 0 {
+            let cache_engine_response = CacheEngineResponse::try_from(response);
+            if let Ok(cache_engine_response) = cache_engine_response {
+                match cache_engine_response {
+                    CacheEngineResponse::GetCacheDataMulti(response) => {
+                        let strategy_data = StrategyData {
+                            strategy_id: strategy_id,
+                            data: response.cache_data,
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
+                        event_publisher.publish(strategy_event.into()).await.unwrap();
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     

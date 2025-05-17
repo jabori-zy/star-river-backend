@@ -12,6 +12,7 @@ use std::sync::Arc;
 use heartbeat::Heartbeat;
 use types::cache::CacheKey;
 use types::cache::cache_key::KlineCacheKey;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 impl LiveStrategyFunction {
     pub async fn add_live_data_node(
@@ -20,8 +21,10 @@ impl LiveStrategyFunction {
         cache_keys: &mut Vec<CacheKey>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
-        market_event_receiver: broadcast::Receiver<Event>,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        market_event_receiver: EventReceiver,
+        response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
         ) -> Result<(), String> {
             let node_data = node_config["data"].clone();
@@ -46,8 +49,10 @@ impl LiveStrategyFunction {
                 node_id.to_string(), 
                 node_name.to_string(), 
                 live_config,
-                event_publisher, 
-                market_event_receiver, 
+                event_publisher,
+                command_publisher,
+                command_receiver,
+                market_event_receiver,
                 response_event_receiver,
                 heartbeat,
             );

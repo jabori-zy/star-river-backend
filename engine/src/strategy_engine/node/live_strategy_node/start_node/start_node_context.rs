@@ -1,4 +1,4 @@
-use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContext};
+use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContextTrait};
 use std::any::Any;
 use event_center::Event;
 use types::strategy::node_message::NodeMessage;
@@ -17,9 +17,9 @@ pub struct StartNodeContext {
 
 
 #[async_trait]
-impl NodeContext for StartNodeContext {
+impl NodeContextTrait for StartNodeContext {
 
-    fn clone_box(&self) -> Box<dyn NodeContext> {
+    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
         Box::new(self.clone())
     }
 

@@ -2,7 +2,7 @@ pub mod get_variable_node_types;
 mod get_variable_node_context;
 mod get_variable_node_state_machine;
 
-use crate::strategy_engine::node::node_context::{NodeContext,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use get_variable_node_context::GetVariableNodeContext;
@@ -21,12 +21,12 @@ use tokio::sync::broadcast;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
 use tokio::sync::Mutex;
-
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNode {
-    pub context: Arc<RwLock<Box<dyn NodeContext>>>,
+    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
 }
 
 
@@ -37,7 +37,9 @@ impl GetVariableNode {
         node_name: String,
         live_config: GetVariableNodeLiveConfig,
         event_publisher: EventPublisher,
-        response_event_receiver: broadcast::Receiver<Event>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
@@ -49,6 +51,8 @@ impl GetVariableNode {
             NodeType::GetVariableNode,
             event_publisher,
             vec![response_event_receiver],
+            command_publisher,
+            command_receiver,
             Box::new(GetVariableNodeStateMachine::new(node_id, node_name)),
         );
         Self {
@@ -77,7 +81,7 @@ impl NodeTrait for GetVariableNode {
         Box::new(self.clone())
     }
 
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContext>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
         self.context.clone()
     }
 

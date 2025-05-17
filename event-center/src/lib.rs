@@ -2,8 +2,8 @@ pub mod market_event;
 pub mod order_event;
 pub mod position_event;
 pub mod database_event;
-pub mod command_event;
-pub mod response_event;
+pub mod command;
+pub mod response;
 pub mod strategy_event;
 pub mod indicator_event;
 pub mod exchange_event;
@@ -12,9 +12,9 @@ pub mod account_event;
 
 
 use crate::market_event::MarketEvent;
-use crate::command_event::CommandEvent;
+use crate::command::Command;
 use crate::exchange_event::ExchangeEvent;
-use crate::response_event::ResponseEvent;
+use crate::response::Response;
 use crate::strategy_event::StrategyEvent;
 use crate::indicator_event::IndicatorEvent;
 use crate::order_event::OrderEvent;
@@ -26,10 +26,17 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
-use tokio::sync::broadcast;
-
+use tokio::sync::{broadcast,mpsc,oneshot};
 use std::sync::Arc;
+use types::engine::EngineName;
+use tokio::sync::Mutex;
 
+
+pub type EventSender = broadcast::Sender<Event>;
+pub type EventReceiver = broadcast::Receiver<Event>;
+pub type CommandSender = mpsc::Sender<Command>; // 命令发送器
+pub type CommandReceiver = mpsc::Receiver<Command>; // 命令接收器
+pub type Responder = oneshot::Sender<Response>; // 响应
 
 
 
@@ -42,10 +49,13 @@ pub enum Channel {
     Position, // 仓位通道
     Indicator, // 指标通道
     Strategy, // 策略的数据通过这个通道发送
-    Command, // 命令通道
-    Response, // 响应通道
     Account, // 账户通道
 }
+
+
+
+
+
 
 impl Channel {
     pub fn get_all_channels() -> Vec<Channel> {
@@ -67,14 +77,6 @@ pub enum Event {
     #[strum(serialize = "indicator")]
     #[serde(rename = "indicator")]
     Indicator(IndicatorEvent),
-
-    #[strum(serialize = "command")]
-    #[serde(rename = "command")]
-    Command(CommandEvent),
-
-    #[strum(serialize = "response")]
-    #[serde(rename = "response")]
-    Response(ResponseEvent),
 
     #[strum(serialize = "strategy")]
     #[serde(rename = "strategy")]
@@ -98,9 +100,7 @@ impl Event {
         match self {
             Event::Market(_) => Channel::Market,
             Event::Indicator(_) => Channel::Indicator,
-            Event::Command(_) => Channel::Command,
             Event::Exchange(_) => Channel::Exchange,
-            Event::Response(_) => Channel::Response,
             Event::Strategy(_) => Channel::Strategy,
             Event::Order(_) => Channel::Order,
             Event::Position(_) => Channel::Position,
@@ -127,40 +127,46 @@ impl Display for EventCenterError {
     }
 }
 
+
+
+
 #[derive(Clone)]
 pub struct EventCenter {
-    channels: HashMap<Channel, broadcast::Sender<Event>>,
+    broadcast_channels: Arc<Mutex<HashMap<Channel, EventSender>>>,
+    command_channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>, // 保留每一个引擎的命令发送器
 }
 
 impl EventCenter {
     pub fn new() -> Self {
-        let mut event_center = Self {
-            channels: HashMap::new(),
+        let event_center = Self {
+            broadcast_channels: Arc::new(Mutex::new(HashMap::new())),
+            command_channels: Arc::new(Mutex::new(HashMap::new())),
         };
-        event_center.init_channel();
+        // event_center.init_channel();
         event_center
     }
 
-    fn init_channel(&mut self) {
+    pub async fn init_channel(self) -> Self{
         let channels = Channel::get_all_channels();
         for channel in channels.iter() {
             let (sender, _) = broadcast::channel::<Event>(100);
-            self.channels.insert(channel.clone(), sender);
+            let mut broadcast_channels = self.broadcast_channels.lock().await;
+            broadcast_channels.insert(channel.clone(), sender);
             tracing::debug!("Event center initialized successfully: {:?}", channel);
         }
+        self
     }
 
-    pub fn get_channels(&self) -> Vec<String> {
-        self.channels.keys().map(|k| k.to_string()).collect()
-    }
+    // pub fn get_channels(&self) -> Vec<String> {
+    //     self.broadcast_channels.lock().await.keys().map(|k| k.to_string()).collect()
+    // }
 
-    pub fn subscribe(
+    pub async fn subscribe(
         &self,
         channel: &Channel,
     ) -> Result<broadcast::Receiver<Event>, EventCenterError> {
-        let sender = self
-            .channels
-            .get(channel)
+        let broadcast_channels = self.broadcast_channels.lock().await;
+        let sender = broadcast_channels.get(channel)
             .ok_or(EventCenterError::ChannelError(format!(
                 "Channel {} not found",
                 channel
@@ -169,11 +175,10 @@ impl EventCenter {
         Ok(sender.subscribe())
     }
 
-    pub fn publish(&self, event: Event) -> Result<(), EventCenterError> {
+    pub async fn publish(&self, event: Event) -> Result<(), EventCenterError> {
         let event_channel = event.get_channel();
-        let sender = self
-            .channels
-            .get(&event_channel)
+        let broadcast_channels = self.broadcast_channels.lock().await;
+        let sender = broadcast_channels.get(&event_channel)
             .ok_or(EventCenterError::ChannelError(
                 "Channel not found".to_string(),
             ))?;
@@ -194,7 +199,18 @@ impl EventCenter {
 
     pub fn get_event_publisher(&self) -> EventPublisher {
         // 只克隆 Arc，非常轻量
-        EventPublisher::new(self.channels.clone())
+        EventPublisher::new(self.broadcast_channels.clone())
+    }
+
+    pub fn get_command_publisher(&self) -> CommandPublisher {
+        // 只克隆 Arc，非常轻量
+        CommandPublisher::new(self.command_channels.clone())
+    }
+
+    // 设置引擎的命令发送器
+    pub async fn set_engine_command_sender(&mut self, engine_name: EngineName, sender: CommandSender) {
+        let mut command_channels = self.command_channels.lock().await;
+        command_channels.insert(engine_name, sender);
     }
 
 
@@ -203,25 +219,24 @@ impl EventCenter {
 
 #[derive(Clone, Debug)]
 pub struct EventPublisher {
-    channels: Arc<HashMap<Channel, broadcast::Sender<Event>>>,
+    channels: Arc<Mutex<HashMap<Channel, broadcast::Sender<Event>>>>,
 }
 
 impl EventPublisher {
-    pub fn new(channels: HashMap<Channel, broadcast::Sender<Event>>) -> Self {
-        Self { 
-            channels: Arc::new(channels) 
-        }
+    pub fn new(channels: Arc<Mutex<HashMap<Channel, broadcast::Sender<Event>>>>) -> Self {
+        Self { channels }
     }
 
-    pub fn publish(&self, event: Event) -> Result<(), EventCenterError> {
+    pub async fn publish(&self, event: Event) -> Result<(), EventCenterError> {
         let channel = event.get_channel();
         // 使用 get 而不是 get_channel() 来避免额外的匹配开销
-        let sender = self.channels.get(&channel)
+        let channels = self.channels.lock().await;
+        let sender = channels.get(&channel)
             .ok_or_else(|| EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
 
         match event.clone() {
-            Event::Market(market_event) => {
-                // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, market_event);
+            Event::Exchange(exchange_event) => {
+                // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, exchange_event);
             }
             _ => {
                 // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
@@ -235,5 +250,29 @@ impl EventPublisher {
         
         Ok(())
     }
+}
+
+
+#[derive(Clone, Debug)]
+pub struct CommandPublisher {
+    channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>,
+}
+
+impl CommandPublisher {
+    pub fn new(channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>) -> Self {
+        Self { channels }
+    }
+
+    pub async fn send(&self, command: Command) -> Result<(), EventCenterError> {
+        let engine_name = command.get_engine_name();
+        let channels = self.channels.lock().await;
+        let sender = channels.get(&engine_name)
+            .ok_or(EventCenterError::ChannelError(format!("Engine name {} not found", engine_name)))?;
+        sender.send(command).await.map_err(|e| 
+            EventCenterError::EventSendError(format!("Failed to send command: {}", e))
+        )?;
+        Ok(())
+    }
+    
 }
 
