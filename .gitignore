@@ -2,6 +2,7 @@ target
 database/db
 backup/
 db/
+logs/
 .env
 /resource
 /build
