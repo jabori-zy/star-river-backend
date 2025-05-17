@@ -16,9 +16,6 @@ use heartbeat::Heartbeat;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::order::{OrderType, OrderSide};
-use event_center::command::order_engine_command::CreateOrderParams;
-use event_center::command::order_engine_command::OrderEngineCommand;
-use event_center::command::BaseCommandParams;
 use event_center::command::exchange_engine_command::RegisterMt5ExchangeParams;
 use event_center::command::market_engine_command::MarketEngineCommand;
 use types::market::KlineInterval;
@@ -82,7 +79,6 @@ async fn main() {
             duration: Duration::from_secs(1000),
             sender: "test".to_string(),
             timestamp: 1111,
-            request_id: Uuid::new_v4(),
             responder: resp_tx,
         });
         let command_event = Command::CacheEngine(add_cache_key_command);

@@ -79,8 +79,10 @@ impl Mt5DataProcessor {
     }
 
     pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: serde_json::Value) {
-        let data = raw_data["data"].as_array().expect("转换为array失败");
-        let klines = data
+        // let data = raw_data["data"].as_array().expect("转换为array失败");
+        let klines = raw_data
+            .as_array()
+            .expect("转换为array失败")
             .iter()
             .map(|k| {
                 if let Some(arr) = k.as_array() {

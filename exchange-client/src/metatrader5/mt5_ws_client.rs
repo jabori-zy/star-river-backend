@@ -8,13 +8,14 @@ use tokio_tungstenite::{
 
 use serde::Serialize;
 use serde_json::json;
-use crate::metatrader5::url::Mt5WsUrl;
+use tracing::instrument;
 
 pub struct Mt5WsClient;
 
 
 impl Mt5WsClient {
 
+    #[instrument]
     pub async fn connect(url: &str) -> Result<(WebSocketState, Response), Error> {
         let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
