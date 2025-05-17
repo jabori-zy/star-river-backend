@@ -13,7 +13,7 @@ use migration::Migrator;
 use log::LevelFilter;
 
 
-
+#[derive(Debug)]
 pub struct DatabaseManager {
     pub path: PathBuf,
     pub conn: DatabaseConnection,

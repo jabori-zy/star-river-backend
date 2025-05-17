@@ -127,7 +127,7 @@ impl Display for EventCenterError {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EventCenter {
     channels: HashMap<Channel, broadcast::Sender<Event>>,
 }

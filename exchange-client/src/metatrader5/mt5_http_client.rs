@@ -4,6 +4,26 @@ use serde::Serialize;
 
 use super::mt5_types::Mt5PositionNumberRequest;
 use super::mt5_types::Mt5CreateOrderParams;
+use thiserror::Error;
+use tracing::{instrument, event, info, error, debug};
+
+
+
+#[derive(Error, Debug)]
+pub enum Mt5HttpClientError {
+    #[error("HttpError: {0}")]
+    HttpError(#[from] reqwest::Error),
+    #[error("JsonError: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("InitializeTerminalError: {0}")]
+    InitializeTerminalError(String)
+}
+
+
+
+
+
+
 
 #[derive(Debug)]
 pub struct Mt5HttpClient {
@@ -37,14 +57,17 @@ impl Mt5HttpClient {
     }
 
     // 初始化MT5客户端
+    #[instrument(skip(self, password), fields(login = %login, server = %server, terminal_path = %terminal_path))]
     pub async fn initialize_terminal(
         &self,
         login: i64,
         password: &str,
         server: &str,
         terminal_path: &str
-    ) -> Result<(), String> {
+    ) -> Result<(), Mt5HttpClientError> {
+        info!("Start to initialize MT5 terminal");
         let url = self.get_url(Mt5HttpUrl::InitializeTerminal);
+        debug!("Initializing MT5 terminal url: {}", url);
         #[derive(Debug, Serialize)]
         struct InitializeTerminalRequest {
             login: i64,
@@ -60,11 +83,40 @@ impl Mt5HttpClient {
         };
         let response = self.client.post(&url)
         .json(&request)
-        .send().await.expect("初始化失败");
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
+        .map_err(|e| Mt5HttpClientError::HttpError(e))?;
 
-        let body = response.text().await.expect("初始化失败");
-        tracing::debug!("metatrader5 初始化响应: {}", body);
-        Ok(())
+        // 如果为200，则初始化成功
+        if response.status().is_success() {
+            let response_data = response.json::<serde_json::Value>().await.map_err(|e| Mt5HttpClientError::HttpError(e))?;
+            if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
+                if code == 0 {
+                    tracing::info!("MT5 terminal initialized successfully");
+                    return Ok(())
+                } else {
+                    // 获取错误信息
+                    let error_message = response_data.get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or(&format!("unknown error, the init terminal response code is {}", code))
+                    .to_string();
+                    info!(code = %code, error = %error_message, "Failed to initialize MT5 terminal");
+                    Err(Mt5HttpClientError::InitializeTerminalError(error_message))
+                }
+            } else {
+                let error_message = response_data["message"].as_str().unwrap_or("unknown error").to_string();
+                error!(error = %error_message, "Failed to initialize MT5 terminal - invalid response format");
+                Err(Mt5HttpClientError::InitializeTerminalError(error_message))
+            }
+        } else {
+            let status_code = response.status().as_u16();
+            let error_text = response.text().await
+            .map_err(|e| Mt5HttpClientError::HttpError(e))?;
+            // 如果是其他状态码，则返回错误
+            error!(status = %status_code, error = %error_text, "Failed to initialize MT5 terminal - HTTP error");
+            Err(Mt5HttpClientError::InitializeTerminalError(format!("status code: {}, error text: {}", status_code, error_text)))
+        }
     }
 
 

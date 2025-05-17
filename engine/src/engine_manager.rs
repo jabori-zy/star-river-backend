@@ -15,6 +15,7 @@ use crate::account_engine::AccountEngine;
 use crate::EngineName;
 use heartbeat::Heartbeat;
 
+#[derive(Debug)]
 pub struct EngineManager {
     exchange_engine: Arc<Mutex<ExchangeEngine>>,
     market_engine: Arc<Mutex<MarketEngine>>,

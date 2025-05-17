@@ -19,10 +19,24 @@ use crate::api::strategy_api::{run_strategy, stop_strategy, init_strategy, get_s
 use crate::api::cache_api::{get_cache_key, get_memory_size, get_cache_value};
 use crate::sse::{market_sse_handler, indicator_sse_handler, strategy_sse_handler, account_sse_handler};
 use crate::api::account_api::login_mt5_account;
-use tracing::Level;
+use tracing::{Level, instrument};
 use crate::websocket::ws_handler;
 use crate::star_river::init_app;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt::layer;
+use tracing_subscriber::fmt::time::{OffsetTime};
+use time::UtcOffset;
+use time::macros::format_description;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_appender::non_blocking::NonBlocking;
+use std::path::Path;
+use std::fs;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, Registry};
+use tracing_subscriber::fmt::format;
 
 #[tokio::main]
 pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,13 +46,51 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     //     .with_max_level(Level::DEBUG)
     //     // build but do not install the subscriber.
     //     .init();
+    // 确保log目录存在
+    let log_dir = Path::new("logs");
+    if !log_dir.exists() {
+        fs::create_dir_all(log_dir)?;
+    }
+    let file_appender = RollingFileAppender::new(
+        Rotation::DAILY,
+        log_dir,
+        "star-river.log"
+    );
+    // 处理非阻塞appender
+    let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file_appender);
+    let stdout = std::io::stdout.with_max_level(tracing::Level::DEBUG);
     let filter = EnvFilter::new("debug,hyper=error,hyper_util=error,reqwest=error");
-    tracing_subscriber::fmt()
-        // filter spans/events with level TRACE or higher.
-        .with_max_level(Level::DEBUG)
-        .with_env_filter(filter)
-        // build but do not install the subscriber.
+    
+    // 设置为UTC+8时区（北京时间）
+    let offset = UtcOffset::current_local_offset().expect("should get local offset!");
+    let time_format = format_description!(
+        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:6]"
+    );
+    let timer = OffsetTime::new(offset, time_format);
+    let console_layer = layer()
+    .with_writer(stdout)
+    .with_ansi(true) // 控制台保留ANSI颜色
+    .with_timer(timer.clone());
+
+    let file_layer = layer()
+    .with_writer(non_blocking_appender)
+    .with_ansi(false) // 文件中不使用ANSI颜色
+    .with_timer(timer.clone());
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(file_layer) // 文件输出放到控制台输出的上方。不然文件中会有乱码
+        .with(console_layer)
         .init();
+
+    // tracing_subscriber::fmt()
+    //     // filter spans/events with level TRACE or higher.
+    //     .with_max_level(Level::DEBUG)
+    //     .with_env_filter(filter)
+    //     .with_timer(timer)
+    //     .with_writer(stdout.and(file_appender))
+    //     // build but do not install the subscriber.
+    //     .init();
 
     // build our application with a route
     // 设置跨域
