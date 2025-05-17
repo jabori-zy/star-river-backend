@@ -1,5 +1,5 @@
 use crate::indicator_engine::talib_bindings::*;
-
+use crate::indicator_engine::talib_error::TalibError;
 #[derive(Clone)]
 pub struct TALib;
 
@@ -16,17 +16,43 @@ impl TALib {
         Ok(Self)
     }
 
-    pub fn sma(data: &[f64], period: i32) -> Result<Vec<f64>, String> {
+    pub fn sma(data: &[f64], period: i32) -> Result<Vec<f64>, TalibError> {
         unsafe {
-            let mut out: Vec<f64> = vec![0.0; data.len()];
+            // 查找第一个非NaN值的位置
+            let mut begin_idx = 0;
+            for (i, &value) in data.iter().enumerate() {
+                if value.is_nan() {
+                    begin_idx = i + 1;
+                } else {
+                    break;
+                }
+            }
+            
+            // 检查有效数据是否足够
+            if begin_idx >= data.len() {
+                return Ok(Vec::new()); // 全部是NaN值
+            }
+            
+            // 计算lookback期
+            let lookback = TA_SMA_Lookback(period);
+            let valid_len = data.len() - begin_idx;
+            
+            // 检查剩余数据长度是否足够
+            if valid_len <= lookback as usize {
+                return Ok(Vec::new()); // 有效数据不足以计算SMA
+            }
+            
+            // 分配结果空间
+            let result_size = valid_len - lookback as usize;
+            let mut out: Vec<f64> = vec![0.0; result_size];
             let mut out_begin: i32 = 0;
             let mut out_size: i32 = 0;
 
             let ret = TA_MA(
-                0,                       // startIdx
-                (data.len() - 1) as i32, // endIdx
-                data.as_ptr(),           // inReal
-                period,                  // optInTimePeriod
+                0,                                // startIdx (相对于有效数据的起始)
+                (valid_len - 1) as i32,           // endIdx (相对于有效数据的结束)
+                data[begin_idx..].as_ptr(),       // 从第一个有效数据开始
+                period,                           // optInTimePeriod
                 TA_MAType_TA_MAType_SMA as i32,
                 &mut out_begin,
                 &mut out_size,
@@ -34,12 +60,14 @@ impl TALib {
             );
 
             if ret != TA_RetCode_TA_SUCCESS {
-                return Err("Failed to calculate SMA".to_string());
+                return Err(TalibError::CalculateSMAError { period, error: format!("talib error code: {:?}", ret) });
             }
 
-            // out.drain(0..out_begin as usize);
-            // out.truncate(out_size as usize);
-            out.reverse();
+            // 验证结果并返回
+            if out_size as usize != result_size {
+                out.truncate(out_size as usize);
+            }
+            
             Ok(out)
         }
     }

@@ -5,4 +5,5 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(dead_code)]
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+// include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+include!("bindings.rs");

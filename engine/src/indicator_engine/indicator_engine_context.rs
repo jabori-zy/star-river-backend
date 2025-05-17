@@ -96,6 +96,7 @@ impl EngineContext for IndicatorEngineContext {
             match exchange_event {
                 // 接收到k线更新事件， 触发指标计算
                 ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event) => {
+                    // 处理k线更新事件， 触发指标计算
                     self.handle_exchange_kline_update(exchange_kline_update_event).await;
                 }
                 _ => {}
@@ -107,6 +108,7 @@ impl EngineContext for IndicatorEngineContext {
         match command {
             Command::IndicatorEngine(indicator_engine_command) => {
                 match indicator_engine_command {
+                    // 注册指标, 并且初始化
                     IndicatorEngineCommand::RegisterIndicator(register_indicator_params) => {
                         self.register_indicator(
                             register_indicator_params.strategy_id, 

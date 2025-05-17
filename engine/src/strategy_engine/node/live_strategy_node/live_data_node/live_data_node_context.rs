@@ -28,6 +28,7 @@ use event_center::response::cache_engine_response::CacheEngineResponse;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use tokio::sync::oneshot;
 use event_center::response::ResponseTrait;
+use tracing::instrument;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveDataNodeLiveConfig {
@@ -123,8 +124,9 @@ impl NodeContextTrait for LiveDataNodeContext {
 impl LiveDataNodeContext {
 
     // 注册交易所
+    #[instrument(skip(self))]
     pub async fn register_exchange(&mut self) -> Result<Response, String> {
-        tracing::info!("{}: 开始注册交易所", self.base_context.node_name);
+        tracing::info!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "start to register exchange");
         let (resp_tx, resp_rx) = oneshot::channel();
         let register_param = RegisterExchangeParams {
             account_id: self.live_config.selected_live_account.account_id.clone(),
@@ -135,18 +137,19 @@ impl LiveDataNodeContext {
         };
 
         let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_param);
-        tracing::info!("{}注册交易所: {:?}", self.base_context.node_id, register_exchange_command);
         self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        tracing::info!("{}收到注册交易所响应: {:?}", self.base_context.node_name, response);
+        tracing::debug!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "received register exchange response code: {:?}", response.code());
         Ok(response)
         
         
     }
 
+    #[instrument(skip(self))]
     pub async fn subscribe_kline_stream(&mut self) -> Result<Response, String> {
+        tracing::info!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "start to subscribe kline stream");
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = SubscribeKlineStreamParams {
             strategy_id: self.base_context.strategy_id.clone(),
@@ -156,19 +159,18 @@ impl LiveDataNodeContext {
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
             frequency: 1000,
-            cache_size: 500,
+            cache_size: 20,
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),
             responder: resp_tx,
         };
 
         let subscribe_kline_stream_command = MarketEngineCommand::SubscribeKlineStream(params);
-        tracing::info!("{}订阅k线流: {:?}", self.base_context.node_name, subscribe_kline_stream_command);
         self.get_command_publisher().send(subscribe_kline_stream_command.into()).await.unwrap();
         
         // 等待响应
         let response = resp_rx.await.unwrap();
-        tracing::info!("{}收到订阅k线流响应: {:?}", self.base_context.node_name, response);
+        tracing::debug!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "received subscribe kline stream response code: {:?}", response.code());
         Ok(response)
     }
 

@@ -4,12 +4,11 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
-use serde_json;
+use serde_json::{self, json};
 use std::str::FromStr;
 use serde::ser::Serializer;
 use crate::cache::{CacheValue, CacheItem};
 use deepsize::DeepSizeOf;
-use std::sync::Arc;
 
 pub type MT5Server = String;
 
@@ -193,6 +192,21 @@ impl From<Kline> for CacheValue {
     }
 }
 
+impl Kline {
+    pub fn close_to_json_with_time(&self) -> serde_json::Value {
+        json!(
+            {
+                "timestamp": utils::timestamp_to_utc8(self.timestamp),
+                "close": self.close
+            }
+        )
+    }
+
+    pub fn close(&self) -> f64 {
+        self.close
+    }
+}
+
 impl CacheItem for Kline {
     fn get_timestamp(&self) -> i64 {
         self.timestamp
@@ -202,6 +216,18 @@ impl CacheItem for Kline {
     }
     fn to_list(&self) -> Vec<f64> {
         vec![self.timestamp as f64, self.open, self.high, self.low, self.close, self.volume]
+    }
+    fn to_json_with_time(&self) -> serde_json::Value {
+        json!(
+            {
+                "timestamp": utils::timestamp_to_utc8(self.timestamp),
+                "open": self.open,
+                "high": self.high,
+                "low": self.low,
+                "close": self.close,
+                "volume": self.volume
+            }
+        )
     }
 }
 

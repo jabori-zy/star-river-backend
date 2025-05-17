@@ -821,6 +821,7 @@ dependencies = [
  "strum 0.27.1",
  "strum_macros",
  "tempfile",
+ "thiserror 2.0.12",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -2793,9 +2794,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.139"
+version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44f86c3acccc9c65b153fe1b85a3be07fe5515274ec9f0653b4a0875731c72a6"
+checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
  "itoa",
  "memchr",
@@ -3351,6 +3352,31 @@ dependencies = [
 
 [[package]]
 name = "test_event_center"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "database",
+ "engine",
+ "event-center",
+ "exchange-client",
+ "futures",
+ "futures-util",
+ "heartbeat",
+ "migration",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "types",
+ "utils",
+]
+
+[[package]]
+name = "test_indicator"
 version = "0.1.0"
 dependencies = [
  "chrono",

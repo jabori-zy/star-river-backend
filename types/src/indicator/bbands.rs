@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::cache::{CacheValue, CacheItem};
 use crate::market::{Exchange, KlineInterval};
 use deepsize::DeepSizeOf;
+use utils::timestamp_to_utc8;
+use serde_json::json;
 
 pub struct BBandsSeries {
     pub exchange: Exchange,
@@ -32,5 +34,15 @@ impl CacheItem for BBands {
     }
     fn get_timestamp(&self) -> i64 {
         self.timestamp
+    }
+    fn to_json_with_time(&self) -> serde_json::Value {
+        json!(
+            {
+                "timestamp": utils::timestamp_to_utc8(self.timestamp),
+                "upper": self.upper,
+                "middle": self.middle,
+                "lower": self.lower
+            }
+        )
     }
 }

@@ -87,6 +87,7 @@ impl CacheKey {
 
 pub trait CacheItem: Clone + Debug + DeepSizeOf {
     fn to_json(&self) -> serde_json::Value;
+    fn to_json_with_time(&self) -> serde_json::Value;
     fn to_list(&self) -> Vec<f64>;
     fn get_timestamp(&self) -> i64;
 }
@@ -106,12 +107,21 @@ impl CacheValue {
         }
     }
 
+    pub fn to_json_with_time(&self) -> serde_json::Value {
+        match self {
+            CacheValue::Kline(value) => value.to_json_with_time(),
+            CacheValue::Indicator(value) => value.to_json_with_time(),
+        }
+    }
+
     pub fn to_list(&self) -> Vec<f64> {
         match self {
             CacheValue::Kline(value) => value.to_list(),
             CacheValue::Indicator(value) => value.to_list(),
         }
     }
+
+    
 
     pub fn get_timestamp(&self) -> i64 {
         match self {

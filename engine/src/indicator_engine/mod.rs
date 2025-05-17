@@ -3,7 +3,7 @@ pub mod calculate;
 mod talib_bindings;
 mod talib;
 pub mod indicator_engine_type;
-
+pub mod talib_error;
 
 
 use std::sync::Arc;

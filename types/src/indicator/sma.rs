@@ -7,6 +7,9 @@ use serde_json::Value;
 use crate::indicator::IndicatorConfigTrait;
 use deepsize::DeepSizeOf;
 use std::str::FromStr;
+use utils::timestamp_to_utc8;
+use serde_json::json;
+
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SMAConfig {
@@ -70,6 +73,13 @@ impl From<SMA> for Indicator {
     }
 }
 
+impl SMA {
+    pub fn sma(&self) -> f64 {
+        self.sma
+    }
+}
+
+
 
 impl CacheItem for SMA {
     fn to_json(&self) -> serde_json::Value {
@@ -80,5 +90,13 @@ impl CacheItem for SMA {
     }
     fn get_timestamp(&self) -> i64 {
         self.timestamp
+    }
+    fn to_json_with_time(&self) -> serde_json::Value {
+        json!(
+            {
+                "timestamp": utils::timestamp_to_utc8(self.timestamp),
+                "sma": self.sma
+            }
+        )
     }
 }

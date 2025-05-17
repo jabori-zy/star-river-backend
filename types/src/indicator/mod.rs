@@ -15,6 +15,8 @@ use crate::indicator::sma::SMAConfig;
 use deepsize::DeepSizeOf;
 use crate::cache::CacheValue;
 use std::str::FromStr;
+use utils::timestamp_to_utc8;
+use serde_json::json;
 
 pub trait IndicatorConfigTrait {
     fn new(config: &Value) -> Self;
@@ -73,11 +75,23 @@ pub enum Indicator {
     BBands(BBands),
 }
 
+impl Indicator {
+    pub fn as_sma(&self) -> Option<&SMA> {
+        match self {
+            Indicator::SMA(sma) => Some(sma),
+            _ => None,
+        }
+    }
+    
+}
+
 impl From<Indicator> for CacheValue {
     fn from(indicator: Indicator) -> Self {
         CacheValue::Indicator(indicator)
     }
 }
+
+
 impl CacheItem for Indicator {
     fn get_timestamp(&self) -> i64 {
         match self {
@@ -99,7 +113,13 @@ impl CacheItem for Indicator {
             Indicator::BBands(bbands) => bbands.to_list(),
         }
     }
-    
+
+    fn to_json_with_time(&self) -> serde_json::Value {
+        match self {
+            Indicator::SMA(sma) => sma.to_json_with_time(),
+            Indicator::BBands(bbands) => bbands.to_json_with_time(),
+        }
+    }
 }
 
 #[typetag::serde(tag = "type")]
