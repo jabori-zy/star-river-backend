@@ -20,6 +20,7 @@ use event_center::EventReceiver;
 use event_center::Channel;
 
 
+#[derive(Debug)]
 pub struct EngineManager {
     exchange_engine: Arc<Mutex<ExchangeEngine>>,
     market_engine: Arc<Mutex<MarketEngine>>,

@@ -130,7 +130,7 @@ impl Display for EventCenterError {
 
 
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct EventCenter {
     broadcast_channels: Arc<Mutex<HashMap<Channel, EventSender>>>,
     command_channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>, // 保留每一个引擎的命令发送器

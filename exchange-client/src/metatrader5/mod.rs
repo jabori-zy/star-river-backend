@@ -29,7 +29,6 @@ use super::metatrader5::mt5_types::Mt5CreateOrderParams;
 use super::metatrader5::mt5_types::Mt5KlineInterval;
 use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
-use types::account::mt5_account::Mt5AccountInfo;
 use rust_embed::Embed;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -42,6 +41,8 @@ use std::sync::Mutex as StdMutex;
 use once_cell::sync::Lazy;
 use std::time::{SystemTime, UNIX_EPOCH};
 use types::market::Exchange;
+use thiserror::Error;
+use crate::metatrader5::mt5_http_client::Mt5HttpClientError;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 
 #[derive(Embed)]
@@ -145,10 +146,10 @@ fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, 
     Ok(terminal_exe_path)
 }
 
-pub struct MetaTrader5AccountConfig {
-    pub account_id: String,
-    pub password: String,
-    pub server: String,
+#[derive(Error, Debug)]
+pub enum MetaTrader5Error {
+    #[error("metatrader5 HTTP Error: {0}")]
+    Mt5HttpClientError(#[from] Mt5HttpClientError),
 }
 
 
@@ -647,7 +648,7 @@ impl MetaTrader5 {
         }
     }
 
-    pub async fn initialize_terminal(&mut self) -> Result<(), String> {
+    pub async fn initialize_terminal(&mut self) -> Result<(), MetaTrader5Error> {
         tracing::debug!("开始初始化MT5-{}终端", self.terminal_id);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
@@ -671,9 +672,9 @@ impl MetaTrader5 {
             }
             
             // 如果多次重试后仍然失败，则返回错误
-            Err(format!("MT5-{} 终端初始化超时，请检查终端是否正常启动", self.terminal_id))
+            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminalError(format!("MT5-{} 终端初始化超时，请检查终端是否正常启动", self.terminal_id))))
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminalError("MT5 HTTP客户端未初始化".to_string())))
         }
     }
 

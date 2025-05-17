@@ -5,10 +5,10 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 use axum::extract::State;
 use engine::engine_manager::EngineManager;
+use tracing::instrument;
 
 
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StarRiver {
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub event_center: Arc<Mutex<EventCenter>>,
@@ -43,7 +43,7 @@ impl StarRiver {
     }
 }
 
-
+#[instrument]
 pub async fn init_app(State(app_state): State<StarRiver>) {
     // 初始化app
     start_heartbeat(State(app_state.clone())).await;

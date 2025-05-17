@@ -1,0 +1,143 @@
+2025-05-17 11:40:35.463132 DEBUG event_center: Event center initialized successfully: Market
+2025-05-17 11:40:35.463499 DEBUG event_center: Event center initialized successfully: Exchange
+2025-05-17 11:40:35.463676 DEBUG event_center: Event center initialized successfully: Trade
+2025-05-17 11:40:35.463828 DEBUG event_center: Event center initialized successfully: Order
+2025-05-17 11:40:35.463980 DEBUG event_center: Event center initialized successfully: Position
+2025-05-17 11:40:35.464125 DEBUG event_center: Event center initialized successfully: Indicator
+2025-05-17 11:40:35.464271 DEBUG event_center: Event center initialized successfully: Strategy
+2025-05-17 11:40:35.464431 DEBUG event_center: Event center initialized successfully: Account
+2025-05-17 11:40:35.464653  INFO database: 数据库路径: sqlite:D:/project/star-river-backend/db/db.sqlite?mode=rwc
+2025-05-17 11:40:35.467633  INFO star_river::star_river: 心跳已启动
+2025-05-17 11:40:35.467834  INFO engine: strategy-engine已启动
+2025-05-17 11:40:35.467827  INFO engine: marekt-engine已启动
+2025-05-17 11:40:35.467810  INFO engine::account_engine: account-engine已启动
+2025-05-17 11:40:35.467921  INFO engine: exchange-engine已启动
+2025-05-17 11:40:35.467984  INFO engine: cache-engine已启动
+2025-05-17 11:40:35.468005  INFO engine: indicator-engine已启动
+2025-05-17 11:40:35.468109 DEBUG engine: strategy-engine: 开始监听事件
+2025-05-17 11:40:35.468175  WARN engine: marekt-engine: 没有事件接收器
+2025-05-17 11:40:35.469435  WARN engine: exchange-engine: 没有事件接收器
+2025-05-17 11:40:35.469515 DEBUG engine: cache-engine: 开始监听事件
+2025-05-17 11:40:35.468949 DEBUG engine: account-engine: 开始监听事件
+2025-05-17 11:40:35.470108 DEBUG engine: strategy-engine: 开始监听命令
+2025-05-17 11:40:35.470164 DEBUG engine: cache-engine: 开始监听命令
+2025-05-17 11:40:35.470181  INFO star_river: listening on 0.0.0.0:3100
+2025-05-17 11:40:35.470231 DEBUG engine: marekt-engine: 开始监听命令
+2025-05-17 11:40:35.470344 DEBUG engine: exchange-engine: 开始监听命令
+2025-05-17 11:40:35.470461 DEBUG engine: indicator-engine: 开始监听事件
+2025-05-17 11:40:35.471313 DEBUG engine: indicator-engine: 开始监听命令
+2025-05-17 11:40:35.472245 DEBUG engine::account_engine::account_engine_context: 监控账户的交易所状态: [Account { account_config: AccountConfig { id: 1, account_name: "账号1", exchange: Metatrader5("Exness-MT5Trial5"), config: Object {"login": Number(76898751), "password": String("HhazJ520...."), "server": String("Exness-MT5Trial5"), "terminal_path": String("D:/Program Files/MetaTrader 5-1/terminal64.exe")}, is_available: true, is_deleted: false, sort_index: 1, create_time: 2025-05-13T17:16:45.617995400Z, update_time: 2025-05-13T17:16:45.617997400Z }, account_info: None, exchange_status: NotRegist }]
+2025-05-17 11:40:35.472578  INFO heartbeat: 注册异步任务: aa0ff175-518c-4b8f-8622-830e4367b6f4 监控账户的交易所状态
+2025-05-17 11:40:35.472726  INFO heartbeat: 注册异步任务: 76578083-ddc6-4754-8169-06e856e3e374 监控账户信息
+2025-05-17 11:44:55.199244 DEBUG engine::strategy_engine::strategy::live_strategy: 添加节点: Object {"data": Object {"liveConfig": Object {"liveAccounts": Array [Object {"accountName": String("账号1"), "availableBalance": Number(0), "exchange": String("metatrader5(Exness-MT5Trial5)"), "id": Number(1)}]}, "nodeName": String("策略起点"), "strategyId": Number(2), "strategyName": String("测试策略1")}, "dragging": Bool(false), "id": String("start_node"), "measured": Object {"height": Number(114), "width": Number(200)}, "position": Object {"x": Number(-26.98706746217985), "y": Number(-15.669910139330234)}, "selected": Bool(false), "type": String("startNode")}
+2025-05-17 11:44:55.200004 DEBUG engine::strategy_engine::node: 策略起点: 设置节点默认出口
+2025-05-17 11:44:55.200211 DEBUG engine::strategy_engine::node: 策略起点: 设置节点默认出口成功: start_node_output
+2025-05-17 11:44:55.200362 DEBUG engine::strategy_engine::strategy::live_strategy: 添加节点: Object {"data": Object {"klineData": Object {"close": Null, "high": Null, "low": Null, "open": Null, "timestamp": Null, "volume": Null}, "liveConfig": Object {"interval": String("1m"), "selectedLiveAccount": Object {"accountName": String("账号1"), "availableBalance": Number(0), "exchange": String("metatrader5(Exness-MT5Trial5)"), "id": Number(1)}, "symbol": String("BTCUSDm")}, "nodeName": String("实时数据"), "strategyId": Number(2)}, "dragging": Bool(false), "id": String("live_data_node_2"), "measured": Object {"height": Number(102), "width": Number(200)}, "position": Object {"x": Number(345.3482986803147), "y": Number(-12.44173583575067)}, "selected": Bool(false), "type": String("liveDataNode")}
+2025-05-17 11:44:55.200726 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_live_data_node: 实时数据节点数据: Object {"klineData": Object {"close": Null, "high": Null, "low": Null, "open": Null, "timestamp": Null, "volume": Null}, "liveConfig": Object {"interval": String("1m"), "selectedLiveAccount": Object {"accountName": String("账号1"), "availableBalance": Number(0), "exchange": String("metatrader5(Exness-MT5Trial5)"), "id": Number(1)}, "symbol": String("BTCUSDm")}, "nodeName": String("实时数据"), "strategyId": Number(2)}
+2025-05-17 11:44:55.201028 DEBUG engine::strategy_engine::node: 实时数据: 设置节点默认出口
+2025-05-17 11:44:55.201185 DEBUG engine::strategy_engine::node: 实时数据: 设置节点默认出口成功: live_data_node_output
+2025-05-17 11:44:55.201311 DEBUG engine::strategy_engine::strategy::live_strategy: 添加节点: Object {"data": Object {"backtestConfig": Object {"exchange": String("metatrader5(Exness-MT5Trial5)"), "indicator_config": Object {"period": Number(9), "priceSource": String("close")}, "interval": String("1m"), "symbol": String("BTCUSDm")}, "indicatorType": String("sma"), "indicatorValue": Object {"sma": Object {"showName": String("均线"), "value": Number(0)}}, "liveConfig": Object {"exchange": String("metatrader5(Exness-MT5Trial5)"), "indicator_config": Object {"period": Number(9), "priceSource": String("close")}, "interval": String("1m"), "symbol": String("BTCUSDm")}, "nodeName": String("技术指标"), "simulateConfig": Object {"exchange": String("metatrader5(Exness-MT5Trial5)"), "indicator_config": Object {"period": Number(9), "priceSource": String("close")}, "interval": String("1m"), "symbol": String("BTCUSDm")}, "strategyId": Number(2)}, "dragging": Bool(false), "id": String("indicator_node_2"), "measured": Object {"height": Number(120), "width": Number(220)}, "position": Object {"x": Number(856.1727307612746), "y": Number(-71.22766986932022)}, "selected": Bool(true), "type": String("indicatorNode")}
+2025-05-17 11:44:55.201759 DEBUG engine::strategy_engine::node: 技术指标: 设置节点默认出口
+2025-05-17 11:44:55.201911 DEBUG engine::strategy_engine::node: 技术指标: 设置节点默认出口成功: indicator_node_output
+2025-05-17 11:44:55.202106 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_edge: 添加边: "start_node" -> "live_data_node_2", 源节点handle = start_node_output
+2025-05-17 11:44:55.202305 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_edge: start_node_output: sender: broadcast::Sender
+2025-05-17 11:44:55.202501 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_edge: 实时数据: 添加了一个接收者: [NodeMessageReceiver { from_node_id: "start_node", from_handle_id: "start_node_output", input_handle_id: "live_data_node_input", receiver: broadcast::Receiver }]
+2025-05-17 11:44:55.202834 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_edge: 添加边: "live_data_node_2" -> "indicator_node_2", 源节点handle = live_data_node_output
+2025-05-17 11:44:55.203012 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_edge: live_data_node_output: sender: broadcast::Sender
+2025-05-17 11:44:55.203186 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function::add_edge: 技术指标: 添加了一个接收者: [NodeMessageReceiver { from_node_id: "live_data_node_2", from_handle_id: "live_data_node_output", input_handle_id: "indicator_node_input", receiver: broadcast::Receiver }]
+2025-05-17 11:44:55.203426 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_function: 添加所有节点节点的输出句柄
+2025-05-17 11:44:55.203601 DEBUG engine::strategy_engine::strategy::live_strategy: 策略的输出句柄: [NodeOutputHandle { node_id: "start_node", output_handle_id: "start_node_output", message_sender: broadcast::Sender, connect_count: 2 }, NodeOutputHandle { node_id: "live_data_node_2", output_handle_id: "live_data_node_output", message_sender: broadcast::Sender, connect_count: 2 }, NodeOutputHandle { node_id: "indicator_node_2", output_handle_id: "indicator_node_output", message_sender: broadcast::Sender, connect_count: 1 }]
+2025-05-17 11:44:55.203892  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 开始初始化策略
+2025-05-17 11:44:55.204042  INFO engine::strategy_engine::strategy::live_strategy: 需要执行的动作: [LogTransition, ListenAndHandleEvent, ListenAndHandleNodeMessage, InitNode, LoadPositions]
+2025-05-17 11:44:55.204237  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 状态转换: Created -> Initializing
+2025-05-17 11:44:55.204353  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 监听事件
+2025-05-17 11:44:55.204545  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 监听节点消息
+2025-05-17 11:44:55.204690  INFO engine::strategy_engine::strategy::live_strategy: ++++++++++++++++++++++++++++++++++++++
+2025-05-17 11:44:55.204799  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 开始初始化节点
+2025-05-17 11:44:55.205056  INFO engine::strategy_engine::node::live_strategy_node::start_node: =================策略起点====================
+2025-05-17 11:44:55.205189  INFO engine::strategy_engine::node::live_strategy_node::start_node: 策略起点: 开始初始化
+2025-05-17 11:44:55.205329  INFO engine::strategy_engine::node::live_strategy_node::start_node: start_node需要执行的动作: [LogTransition]
+2025-05-17 11:44:55.205495  INFO engine::strategy_engine::node::live_strategy_node::start_node: start_node: 状态转换: Created -> Initializing
+2025-05-17 11:44:55.205616  INFO engine::strategy_engine::node::live_strategy_node::start_node: Initializing: 初始化完成
+2025-05-17 11:44:55.205723  INFO engine::strategy_engine::node::live_strategy_node::start_node: start_node需要执行的动作: [LogTransition, LogNodeState]
+2025-05-17 11:44:55.205884  INFO engine::strategy_engine::node::live_strategy_node::start_node: start_node: 状态转换: Initializing -> Ready
+2025-05-17 11:44:55.206010  INFO engine::strategy_engine::node::live_strategy_node::start_node: start_node: 当前状态: Ready
+2025-05-17 11:44:55.206192 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_context: 节点 start_node 已进入Ready状态
+2025-05-17 11:44:56.220295  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: =================实时数据====================
+2025-05-17 11:44:56.220636  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: 实时数据: 开始初始化
+2025-05-17 11:44:56.221345 DEBUG engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2需要执行的动作: [LogTransition, ListenAndHandleExternalEvents, RegisterExchange, SubscribeKline]
+2025-05-17 11:44:56.221650  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2: 状态转换: Created -> Initializing
+2025-05-17 11:44:56.221912  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2: 开始监听外部事件
+2025-05-17 11:44:56.222099  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2: 注册交易所
+2025-05-17 11:44:56.222291  INFO engine::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context: 实时数据: 开始注册交易所
+2025-05-17 11:44:56.232518  INFO engine::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context: live_data_node_2注册交易所: RegisterExchange(RegisterExchangeParams { account_id: 1, exchange: Metatrader5("Exness-MT5Trial5"), sender: "live_data_node_2", timestamp: 1747453496232, responder: Sender { inner: Some(Inner { state: State { is_complete: false, is_closed: false, is_rx_task_set: false, is_tx_task_set: false } }) } })
+2025-05-17 11:44:56.233439 DEBUG engine::exchange_engine::exchange_engine_context: 开始启动mt5_server
+2025-05-17 11:44:56.233634  INFO exchange_client::metatrader5: APPDATA: C:\Users\thebe\AppData\Roaming
+2025-05-17 11:44:56.770099  INFO exchange_client::metatrader5: 检查是否存在同名的MT5进程: Metatrader5-1.exe
+2025-05-17 11:44:57.279179  INFO exchange_client::metatrader5: mt5-1开始创建终端exe: Metatrader5-1.exe
+2025-05-17 11:44:57.280401 DEBUG exchange_client::metatrader5: 已删除旧的exe文件: C:\Users\thebe\AppData\Roaming\StarRiver\MetaTrader5\terminal_1\Metatrader5-1.exe
+2025-05-17 11:44:57.293808  INFO exchange_client::metatrader5: 为MT5-1创建了新的exe: C:\Users\thebe\AppData\Roaming\StarRiver\MetaTrader5\terminal_1\Metatrader5-1.exe
+2025-05-17 11:44:57.294317  INFO exchange_client::metatrader5: 为 MT5-1 分配端口: 8001
+2025-05-17 11:44:57.321564  INFO exchange_client::metatrader5: MT5-1 进程已启动，PID: 39852
+2025-05-17 11:44:57.322277  INFO exchange_client::metatrader5: 初始化http客户端成功
+2025-05-17 11:44:57.338213 DEBUG exchange_client::metatrader5::mt5_http_client: metatrader5 ping响应: {"code":0,"message":"pong","data":null}
+2025-05-17 11:44:57.338610  INFO exchange_client::metatrader5: metatrader5服务启动成功
+2025-05-17 11:44:57.338789  INFO engine::exchange_engine::exchange_engine_context: MT5-1 服务器启动成功, 端口: 8001
+2025-05-17 11:44:57.338979 DEBUG engine::exchange_engine::exchange_engine_context: 开始初始化终端
+2025-05-17 11:44:57.339354 DEBUG exchange_client::metatrader5: 开始初始化MT5-1终端
+2025-05-17 11:44:57.339539 DEBUG exchange_client::metatrader5: 准备初始化MT5-1终端
+2025-05-17 11:44:57.339772  INFO initialize_terminal{login=76898751 server=Exness-MT5Trial5 terminal_path=D:/Program Files/MetaTrader 5-1/terminal64.exe}: exchange_client::metatrader5::mt5_http_client: Start to initialize MT5 terminal
+2025-05-17 11:44:57.340365 DEBUG initialize_terminal{login=76898751 server=Exness-MT5Trial5 terminal_path=D:/Program Files/MetaTrader 5-1/terminal64.exe}: exchange_client::metatrader5::mt5_http_client: Initializing MT5 terminal url: http://localhost:8001/initialize_terminal
+2025-05-17 11:44:57.349341  INFO initialize_terminal{login=76898751 server=Exness-MT5Trial5 terminal_path=D:/Program Files/MetaTrader 5-1/terminal64.exe}: exchange_client::metatrader5::mt5_http_client: MT5 terminal initialized successfully
+2025-05-17 11:44:57.349638  INFO exchange_client::metatrader5: MT5-1 终端初始化中，等待连接就绪...
+2025-05-17 11:44:57.354675  INFO exchange_client::metatrader5: MT5-1 终端初始化结果: Ok(Object {"code": Number(0), "data": Object {"build": Number(4755), "codepage": Number(936), "commondata_path": String("C:\\Users\\thebe\\AppData\\Roaming\\MetaQuotes\\Terminal\\Common"), "community_account": Bool(false), "community_balance": Number(0.0), "community_connection": Bool(false), "company": String("MetaQuotes Ltd."), "connected": Bool(true), "data_path": String("C:\\Users\\thebe\\AppData\\Roaming\\MetaQuotes\\Terminal\\246E8B84A8F83D7827343AB178213077"), "dlls_allowed": Bool(true), "email_enabled": Bool(false), "ftp_enabled": Bool(false), "language": String("Chinese (Simplified)"), "maxbars": Number(100000), "mqid": Bool(true), "name": String("MetaTrader 5"), "notifications_enabled": Bool(false), "path": String("D:\\Program Files\\MetaTrader 5-1"), "ping_last": Number(75483), "retransmission": Number(1.972570871090599), "trade_allowed": Bool(true), "tradeapi_disabled": Bool(false)}, "message": String("获取终端信息成功")})
+2025-05-17 11:44:57.355499  INFO exchange_client::metatrader5: MT5-1 终端连接成功
+2025-05-17 11:44:57.355617  INFO engine::exchange_engine::exchange_engine_context: MT5-1 终端初始化成功
+2025-05-17 11:44:57.355725 DEBUG engine::exchange_engine::exchange_engine_context: 开始连接websocket
+2025-05-17 11:44:57.355839 DEBUG exchange_client::metatrader5: Metatrader5连接websocket
+2025-05-17 11:44:59.416890 DEBUG tungstenite::handshake::client: Client handshake done.    
+2025-05-17 11:44:59.417279  INFO exchange_client::metatrader5::mt5_ws_client: 连接至metatrader5 websocket服务器成功, 耗时: 2.06128s。 响应状态: 101
+2025-05-17 11:44:59.417508  INFO engine::exchange_engine::exchange_engine_context: MT5-1 WebSocket连接成功
+2025-05-17 11:44:59.417717  INFO engine::exchange_engine::exchange_engine_context: MT5-1 交易所注册成功!
+2025-05-17 11:44:59.417885  INFO engine::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context: 实时数据收到注册交易所响应: ExchangeEngine(RegisterExchange(RegisterExchangeResponse { code: 0, message: "注册成功", account_id: 1, exchange: Metatrader5("Exness-MT5Trial5"), response_timestamp: 1747453499 }))
+2025-05-17 11:44:59.418095  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2注册交易所成功
+2025-05-17 11:44:59.418236  INFO engine::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context: 实时数据订阅k线流: SubscribeKlineStream(SubscribeKlineStreamParams { strategy_id: 2, node_id: "live_data_node_2", account_id: 1, exchange: Metatrader5("Exness-MT5Trial5"), symbol: "BTCUSDm", interval: Minutes1, frequency: 1000, cache_size: 500, sender: "live_data_node_2", timestamp: 1747453499418, responder: Sender { inner: Some(Inner { state: State { is_complete: false, is_closed: false, is_rx_task_set: false, is_tx_task_set: false } }) } })
+2025-05-17 11:44:59.418537 DEBUG engine::market_engine::market_engine_context: 市场数据引擎添加缓存key成功, 请求id: CacheEngine(AddCacheKey(AddCacheKeyResponse { code: 0, message: "success", cache_key: Kline(KlineCacheKey { exchange: Metatrader5("Exness-MT5Trial5"), symbol: "BTCUSDm", interval: Minutes1 }), response_timestamp: 1747453499 }))
+2025-05-17 11:44:59.426036 DEBUG exchange_client::metatrader5: Metatrader5订阅k线流: "BTCUSDm", "M1", 1000
+2025-05-17 11:44:59.426247 DEBUG exchange_client::metatrader5: Metatrader5订阅k线流参数: Object {"interval": String("M1"), "symbol": String("BTCUSDm")}
+2025-05-17 11:44:59.426464 DEBUG exchange_client::metatrader5::mt5_ws_client: 发送消息: Text(Utf8Bytes(b"{\"command\":\"subscribe\",\"data_type\":\"kline\",\"frequency\":1000,\"params\":{\"interval\":\"M1\",\"symbol\":\"BTCUSDm\"}}"))
+2025-05-17 11:44:59.426728 DEBUG exchange_client::metatrader5: metatrader5开始处理流数据
+2025-05-17 11:44:59.426877 DEBUG engine::market_engine::market_engine_context: 市场数据引擎订阅K线流成功, 请求节点: live_data_node_2
+2025-05-17 11:44:59.427059  INFO engine::strategy_engine::node::live_strategy_node::live_data_node::live_data_node_context: 实时数据收到订阅k线流响应: MarketEngine(SubscribeKlineStream(SubscribeKlineStreamResponse { code: 0, message: "success", exchange: Metatrader5("Exness-MT5Trial5"), symbol: "BTCUSDm", interval: Minutes1, response_timestamp: 1747453499427 }))
+2025-05-17 11:44:59.427397  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2订阅K线流成功
+2025-05-17 11:44:59.427549  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: Initializing: 初始化完成
+2025-05-17 11:44:59.427698 DEBUG engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2需要执行的动作: [LogTransition, LogNodeState]
+2025-05-17 11:44:59.428049  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2: 状态转换: Initializing -> Ready
+2025-05-17 11:44:59.428177  INFO engine::strategy_engine::node::live_strategy_node::live_data_node: live_data_node_2: 当前状态: Ready
+2025-05-17 11:44:59.428310 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_context: 节点 live_data_node_2 已进入Ready状态
+2025-05-17 11:45:00.431833  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: =================技术指标====================
+2025-05-17 11:45:00.432087  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: 技术指标: 开始初始化
+2025-05-17 11:45:00.432269  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2需要执行的动作: [LogTransition, ListenAndHandleExternalEvents, ListenAndHandleMessage, RegisterIndicator]
+2025-05-17 11:45:00.432437  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 状态转换: Created -> Initializing
+2025-05-17 11:45:00.432570  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 开始监听外部事件
+2025-05-17 11:45:00.432716  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 开始监听节点传递的message
+2025-05-17 11:45:00.432858  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 开始注册指标
+2025-05-17 11:45:00.433019  INFO engine::indicator_engine::indicator_engine_context: 已订阅的指标: {IndicatorSubKey { exchange: Metatrader5("Exness-MT5Trial5"), symbol: "BTCUSDm", interval: Minutes1, indicator_config: SMA(SMAConfig { period: 9 }) }: [2]}
+2025-05-17 11:45:00.433184  INFO engine::cache_engine::cache_engine_context: 插入指标缓存键: IndicatorCacheKey { exchange: Metatrader5("Exness-MT5Trial5"), symbol: "BTCUSDm", interval: Minutes1, indicator_config: SMA(SMAConfig { period: 9 }) }
+2025-05-17 11:45:00.433557  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 注册指标成功
+2025-05-17 11:45:00.433696  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 检查是否已经注册指标: true
+2025-05-17 11:45:00.433820  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: Initializing: 初始化完成
+2025-05-17 11:45:00.433929  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2需要执行的动作: [LogTransition, LogNodeState]
+2025-05-17 11:45:00.434057  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 状态转换: Initializing -> Ready
+2025-05-17 11:45:00.434180  INFO engine::strategy_engine::node::live_strategy_node::indicator_node: indicator_node_2: 当前状态: Ready
+2025-05-17 11:45:00.434299 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_context: 节点 indicator_node_2 已进入Ready状态
+2025-05-17 11:45:01.448498  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 所有节点已成功初始化
+2025-05-17 11:45:01.449312  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 加载持仓
+2025-05-17 11:45:01.451841  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 初始化完成
+2025-05-17 11:45:01.452366  INFO engine::strategy_engine::strategy::live_strategy: 需要执行的动作: [LogTransition]
+2025-05-17 11:45:01.452846  INFO engine::strategy_engine::strategy::live_strategy: 测试策略1: 状态转换: Initializing -> Ready
+2025-05-17 11:45:05.946707  INFO heartbeat: 注册异步任务: 3e0c45a8-d4f6-4d6d-85e7-0d5be8e7a59f 启用策略数据推送
+2025-05-17 11:45:05.946994 DEBUG engine::strategy_engine::strategy::live_strategy::live_strategy_context: 任务注册成功，当前任务列表：{"push_strategy_data": 3e0c45a8-d4f6-4d6d-85e7-0d5be8e7a59f}
+2025-05-17 11:45:13.742873  INFO star_river::sse: Strategy SSE连接成功: 2
+2025-05-17 11:45:43.276510  INFO star_river: 接收到关闭信号，正在优雅关闭...
+2025-05-17 11:45:43.276740  INFO star_river: 正在清理 MetaTrader5 进程...
