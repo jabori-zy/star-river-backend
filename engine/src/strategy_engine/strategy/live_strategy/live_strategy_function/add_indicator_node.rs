@@ -16,6 +16,7 @@ use types::cache::cache_key::IndicatorCacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use types::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_indicator_node(
@@ -27,6 +28,7 @@ impl LiveStrategyFunction {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
+        strategy_command_sender: NodeCommandSender,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let strategy_id = node_data["strategyId"].as_i64().unwrap();
@@ -62,6 +64,7 @@ impl LiveStrategyFunction {
             command_publisher,
             command_receiver,
             response_event_receiver,
+            strategy_command_sender,
         );
         // 设置默认输出句柄
         node.set_output_handle().await;

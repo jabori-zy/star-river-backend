@@ -31,7 +31,7 @@ use event_center::response::ResponseTrait;
 use tracing::instrument;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LiveDataNodeLiveConfig {
+pub struct KlineNodeLiveConfig {
     #[serde(rename = "selectedLiveAccount")]
     pub selected_live_account: SelectedAccount,
     pub symbol: String,
@@ -73,16 +73,16 @@ pub struct LiveDataNodeBacktestConfig {
 
 
 #[derive(Debug, Clone)]
-pub struct LiveDataNodeContext {
+pub struct KlineNodeContext {
     pub base_context: BaseNodeContext,
     pub stream_is_subscribed: Arc<RwLock<bool>>,
     pub exchange_is_registered: Arc<RwLock<bool>>,
-    pub live_config: LiveDataNodeLiveConfig,
+    pub live_config: KlineNodeLiveConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
 }
 
 #[async_trait]
-impl NodeContextTrait for LiveDataNodeContext {
+impl NodeContextTrait for KlineNodeContext {
 
     fn clone_box(&self) -> Box<dyn NodeContextTrait> {
         Box::new(self.clone())
@@ -121,7 +121,7 @@ impl NodeContextTrait for LiveDataNodeContext {
 }
 
 
-impl LiveDataNodeContext {
+impl KlineNodeContext {
 
     // 注册交易所
     #[instrument(skip(self))]
@@ -257,6 +257,7 @@ impl LiveDataNodeContext {
             strategy_id: strategy_id,
             node_id: node_id.clone(),
             cache_key: kline_cache_key.clone(),
+            index: None,
             limit: Some(limit),
             sender: node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),

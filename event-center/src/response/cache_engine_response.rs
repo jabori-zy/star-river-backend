@@ -13,6 +13,8 @@ pub enum CacheEngineResponse {
     AddIndicatorCacheKey(AddIndicatorCacheKeyResponse),
     GetCacheData(GetCacheDataResponse),
     GetCacheDataMulti(GetCacheDataMultiResponse),
+    GetCacheLength(GetCacheLengthResponse),
+    GetCacheLengthMulti(GetCacheLengthMultiResponse),
 }
 
 impl ResponseTrait for CacheEngineResponse {
@@ -22,6 +24,8 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::AddIndicatorCacheKey(response) => response.code,
             CacheEngineResponse::GetCacheData(response) => response.code,
             CacheEngineResponse::GetCacheDataMulti(response) => response.code,
+            CacheEngineResponse::GetCacheLength(response) => response.code,
+            CacheEngineResponse::GetCacheLengthMulti(response) => response.code,
         }
     }
 
@@ -31,6 +35,8 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::AddIndicatorCacheKey(response) => response.message.clone(),
             CacheEngineResponse::GetCacheData(response) => response.message.clone(),
             CacheEngineResponse::GetCacheDataMulti(response) => response.message.clone(),
+            CacheEngineResponse::GetCacheLength(response) => response.message.clone(),
+            CacheEngineResponse::GetCacheLengthMulti(response) => response.message.clone(),
         }
     }
 
@@ -40,6 +46,8 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::AddIndicatorCacheKey(response) => response.response_timestamp,
             CacheEngineResponse::GetCacheData(response) => response.response_timestamp,
             CacheEngineResponse::GetCacheDataMulti(response) => response.response_timestamp,
+            CacheEngineResponse::GetCacheLength(response) => response.response_timestamp,
+            CacheEngineResponse::GetCacheLengthMulti(response) => response.response_timestamp,
         }
     }
 }
@@ -95,5 +103,20 @@ pub struct AddIndicatorCacheKeyResponse {
     pub response_timestamp: i64,
 }
 
+#[derive(Debug)]
+pub struct GetCacheLengthResponse {
+    pub code: i32,
+    pub message: String,
+    pub cache_key: CacheKey,
+    pub cache_length: u32,
+    pub response_timestamp: i64,
+}
 
 
+#[derive(Debug)]
+pub struct GetCacheLengthMultiResponse {
+    pub code: i32,
+    pub message: String,
+    pub cache_length: HashMap<CacheKey, u32>,
+    pub response_timestamp: i64,
+}

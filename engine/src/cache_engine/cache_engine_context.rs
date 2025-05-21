@@ -16,14 +16,16 @@ use types::cache::cache_key::KlineCacheKey;
 use event_center::command::Command;
 use event_center::command::cache_engine_command::CacheEngineCommand;
 use std::time::Duration;
-use event_center::response::cache_engine_response::{GetCacheDataResponse, GetCacheDataMultiResponse};
+use event_center::response::cache_engine_response::{GetCacheDataResponse, GetCacheDataMultiResponse, GetCacheLengthMultiResponse};
 use chrono::Utc;
 use event_center::response::Response;
 use event_center::response::cache_engine_response::CacheEngineResponse;
-use types::cache::{CacheEntry, cache_entry::{KlineCacheEntry, IndicatorCacheEntry}};
+use types::cache::{CacheEntry, cache_entry::{KlineCacheEntry, IndicatorCacheEntry, HistoryKlineCacheEntry, HistoryIndicatorCacheEntry}};
 use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
 use tokio::sync::Mutex;
 use event_center::response::cache_engine_response::AddCacheKeyResponse;
+use types::cache::cache_key::HistoryKlineCacheKey;
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct CacheEngineContext {
@@ -111,15 +113,11 @@ impl EngineContext for CacheEngineContext {
                         let response_event = Response::CacheEngine(CacheEngineResponse::AddCacheKey(response));
 
                         params.responder.send(response_event.into()).unwrap();
-
-                        
-
-
                     }
                     
                     // 处理获取缓存数据命令
                     CacheEngineCommand::GetCache(params) => {
-                        let data = self.get_cache(&params.cache_key, params.limit).await;
+                        let data = self.get_cache(&params.cache_key, params.index, params.limit).await;
                         let response = GetCacheDataResponse {
                             code: 0,
                             message: "success".to_string(),
@@ -131,7 +129,7 @@ impl EngineContext for CacheEngineContext {
                         params.responder.send(response.into()).unwrap();
                     }
                     CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self.get_cache_multi(&params.cache_keys, params.limit).await;
+                        let multi_data = self.get_cache_multi(&params.cache_keys, params.index, params.limit).await;
                         let response = GetCacheDataMultiResponse {
                             code: 0,
                             message: "success".to_string(),
@@ -141,6 +139,23 @@ impl EngineContext for CacheEngineContext {
                         let response = CacheEngineResponse::GetCacheDataMulti(response);
                         params.responder.send(response.into()).unwrap();
                     }
+                    CacheEngineCommand::GetCacheLengthMulti(params) => {
+                        let mut length_result = HashMap::new();
+                        for cache_key in params.cache_keys.iter() {
+                            length_result.insert(cache_key.clone(), self.get_cache_length(cache_key).await);
+                        }
+
+                        let get_cache_length_multi_response = GetCacheLengthMultiResponse {
+                            code: 0,
+                            message: "success".to_string(),
+                            cache_length: length_result.clone(),
+                            response_timestamp: Utc::now().timestamp()
+                        };
+                        tracing::debug!(cache_lengths = ?length_result, "get cache length multi");
+                        let response = CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response);
+                        params.responder.send(response.into()).unwrap();
+                    }
+                    _ => {}
                 }
             }
             _ => {}
@@ -159,9 +174,24 @@ impl CacheEngineContext {
             }
             
             ExchangeEvent::ExchangeKlineSeriesUpdate(event) => {
+                tracing::debug!("处理k线系列更新事件");
                 // 更新cache_key对应的数据
                 let cache_key = CacheKey::Kline(KlineCacheKey::new(event.exchange, event.symbol, event.interval));
                 let cache_series = event.kline_series.into_iter().map(|kline| kline.into()).collect();
+                self.initialize_cache(cache_key, cache_series).await;
+            }
+            // 历史k线更新
+            ExchangeEvent::ExchangeKlineHistoryUpdate(event) => {
+                // 更新cache_key对应的数据
+                let cache_key = HistoryKlineCacheKey::new(
+                    event.exchange, 
+                    event.symbol, 
+                    event.interval,
+                    event.time_range.start_date.to_string(), 
+                    event.time_range.end_date.to_string())
+                    .into();
+                tracing::debug!("更新历史k线缓存: {:?}", cache_key);
+                let cache_series = event.kline_history.into_iter().map(|kline| kline.into()).collect();
                 self.initialize_cache(cache_key, cache_series).await;
             }
             _ => {}
@@ -173,19 +203,30 @@ impl CacheEngineContext {
     }
 
     // 获取缓存数据
-    pub async fn get_cache(&self, cache_key: &CacheKey, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+    pub async fn get_cache(&self, cache_key: &CacheKey, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
         let mut cache = self.cache.write().await;
         let cache_entry = cache.get_mut(&cache_key);
         if cache_entry.is_none() {
             tracing::error!("缓存键不存在: {:?}", cache_key);
             return vec![];
         }
-        cache_entry.unwrap().get_cache_data(limit)
+        cache_entry.unwrap().get_cache_data(index, limit)
 
     }
 
+    async fn get_cache_length(&self, cache_key: &CacheKey) -> u32 {
+        let mut cache = self.cache.write().await;
+        match cache.get_mut(&cache_key) {
+            Some(cache_entry) => cache_entry.get_length(),
+            None => {
+                tracing::error!("缓存键不存在: {:?}", cache_key);
+                0
+            }
+        }
+    }
+
     // 获取多个缓存数据
-    pub async fn get_cache_multi(&self, cache_keys: &Vec<CacheKey>, limit: Option<u32>) -> HashMap<CacheKey, Vec<Arc<CacheValue>>> {
+    pub async fn get_cache_multi(&self, cache_keys: &Vec<CacheKey>, index: Option<u32>, limit: Option<u32>) -> HashMap<CacheKey, Vec<Arc<CacheValue>>> {
         let cache = self.cache.read().await;
         let mut cache_data = HashMap::new();
         for cache_key in cache_keys {
@@ -195,7 +236,7 @@ impl CacheEngineContext {
                 cache_data.insert(cache_key.clone(), vec![]);
                 continue;
             }
-            cache_data.insert(cache_key.clone(), cache_entry.unwrap().get_cache_data(limit));
+            cache_data.insert(cache_key.clone(), cache_entry.unwrap().get_cache_data(index, limit));
         }
         cache_data
     }
@@ -211,6 +252,16 @@ impl CacheEngineContext {
                 CacheKey::Kline(kline_cache_key) => {
                     let mut cache = self.cache.write().await;
                     let cache_entry = KlineCacheEntry::new(kline_cache_key.clone(), max_size.unwrap_or(1000), ttl);
+                    cache.insert(cache_key, cache_entry.into());
+                }
+                CacheKey::HistoryKline(history_kline_cache_key) => {
+                    let mut cache = self.cache.write().await;
+                    let cache_entry = HistoryKlineCacheEntry::new(history_kline_cache_key.clone(), max_size.unwrap_or(1000), ttl);
+                    cache.insert(cache_key, cache_entry.into());
+                }
+                CacheKey::HistoryIndicator(history_indicator_cache_key) => {
+                    let mut cache = self.cache.write().await;
+                    let cache_entry = HistoryIndicatorCacheEntry::new(history_indicator_cache_key.clone(), max_size.unwrap_or(1000), ttl);
                     cache.insert(cache_key, cache_entry.into());
                 }
                 CacheKey::Indicator(indicator_cache_key) => {
@@ -248,8 +299,10 @@ impl CacheEngineContext {
     }
 
 
+    #[instrument(skip(self, cache_series), fields(cache_key=?cache_key, cache_series_length=cache_series.len()))]
     pub async fn initialize_cache(&mut self, cache_key: CacheKey, cache_series: Vec<CacheValue>) {
         // 更新cache_key对应的数据
+        tracing::info!(cache_key=?cache_key, cache_series_length=cache_series.len(), "initailize cache value");
         let mut cache = self.cache.write().await;
         let cache_entry = cache.get_mut(&cache_key).unwrap();
         // 初始化数据

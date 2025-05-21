@@ -15,7 +15,7 @@ use heartbeat::Heartbeat;
 use crate::strategy_engine::node::live_strategy_node::get_variable_node::GetVariableNode;
 use crate::strategy_engine::node::live_strategy_node::get_variable_node::get_variable_node_types::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-
+use types::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_get_variable_node(
@@ -29,6 +29,7 @@ impl LiveStrategyFunction {
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
+        strategy_command_sender: NodeCommandSender,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let node_id = node_config["id"].as_str().unwrap().to_string();
@@ -51,6 +52,7 @@ impl LiveStrategyFunction {
             exchange_engine,
             heartbeat,
             database,
+            strategy_command_sender,
         );
         node.set_output_handle().await;
 

@@ -104,6 +104,7 @@ pub enum Signal {
 pub enum SignalType {
     ConditionMatch,// 条件匹配
     OrderFilled, // 订单成交
+    FetchKlineData(u32), // 拉取K线数据(信号计数:根据这个值去请求缓存的下标)
 
 }
 

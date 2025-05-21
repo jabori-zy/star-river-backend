@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::fmt::{Debug, Formatter};
-
+use tracing::instrument;
 
 // 普通任务类型定义
 type NormalFunction = Box<dyn Fn() + Send + Sync + 'static>;
@@ -197,11 +197,12 @@ impl Heartbeat {
         }
     }
 
+    #[instrument(skip(self, function))]
     pub async fn run_async_task_once<F>(&self, task_name: String, function: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
-
+        tracing::info!(task_name=%task_name, "run async task once");
         tokio::spawn(async move {
             // tracing::info!("执行异步任务: {}", task_name);
             function.await;

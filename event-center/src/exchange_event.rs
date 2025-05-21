@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use types::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
+use types::strategy::TimeRange;
 use strum::Display;
 use crate::Event;
 use std::sync::Arc;
@@ -17,6 +18,9 @@ pub enum ExchangeEvent {
     #[strum(serialize = "exchange-ticker-price-update")]
     #[serde(rename = "exchange-ticker-price-update")]
     ExchangeTickerPriceUpdate(ExchangeTickerPriceUpdateEvent),
+    #[strum(serialize = "exchange-kline-history-update")]
+    #[serde(rename = "exchange-kline-history-update")]
+    ExchangeKlineHistoryUpdate(ExchangeKlineHistoryUpdateEvent),
 }
 
 impl From<ExchangeEvent> for Event {
@@ -35,6 +39,16 @@ pub struct ExchangeKlineSeriesUpdateEvent {
     pub event_timestamp: i64,
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExchangeKlineHistoryUpdateEvent {
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub time_range: TimeRange,
+    pub kline_history: Vec<Kline>, // 历史k线
+    pub event_timestamp: i64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeKlineUpdateEvent {

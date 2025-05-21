@@ -13,6 +13,7 @@ use super::node_types::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use types::strategy::node_command::NodeCommandSender;
 
 #[async_trait]
 pub trait NodeContextTrait: Debug + Send + Sync + 'static {
@@ -54,6 +55,11 @@ pub trait NodeContextTrait: Debug + Send + Sync + 'static {
     fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
         self.get_base_context().command_receiver.clone()
     }
+    
+    fn get_strategy_command_sender(&self) -> &NodeCommandSender {
+        &self.get_base_context().strategy_command_sender
+    }
+
     fn get_cancel_token(&self) -> &CancellationToken {
         &self.get_base_context().cancel_token
     }
@@ -140,6 +146,7 @@ pub struct BaseNodeContext {
     pub is_enable_event_publish: bool, // 是否启用事件发布
     pub state_machine: Box<dyn NodeStateMachine>, // 状态机
     pub from_node_id: Vec<String>, // 来源节点ID
+    pub strategy_command_sender: NodeCommandSender, // 策略命令发送器
 }
 
 impl Clone for BaseNodeContext {
@@ -159,6 +166,7 @@ impl Clone for BaseNodeContext {
             from_node_id: self.from_node_id.clone(),
             command_publisher: self.command_publisher.clone(),
             command_receiver: self.command_receiver.clone(),
+            strategy_command_sender: self.strategy_command_sender.clone(),
         }
     }
 }
@@ -174,6 +182,7 @@ impl BaseNodeContext {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         state_machine: Box<dyn NodeStateMachine>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Self {
         Self {
             strategy_id,
@@ -190,6 +199,7 @@ impl BaseNodeContext {
             command_receiver,
             state_machine,
             from_node_id: Vec::new(),
+            strategy_command_sender,
         }
     }
 }

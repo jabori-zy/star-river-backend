@@ -30,6 +30,9 @@ use live_strategy_state_machine::LiveStrategyStateMachine;
 use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use tokio::sync::mpsc;
+use types::strategy::node_command::NodeCommand;
+
 
 #[derive(Debug, Clone)]
 pub struct LiveStrategy {
@@ -56,6 +59,7 @@ impl LiveStrategy {
             variables: None,
         };
         let mut cache_keys: Vec<CacheKey> = vec![];
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<NodeCommand>(100);
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
@@ -97,6 +101,7 @@ impl LiveStrategy {
                         exchange_engine.clone(),
                         database.clone(),
                         heartbeat.clone(),
+                        strategy_command_tx.clone(),
                     ).await.unwrap();
 
                 }
@@ -142,6 +147,7 @@ impl LiveStrategy {
             registered_tasks: Arc::new(RwLock::new(HashMap::new())),
             command_publisher: command_publisher,
             command_receiver: command_receiver,
+            strategy_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
         };
         Self { context: Arc::new(RwLock::new(Box::new(context))) }
     }
@@ -302,6 +308,11 @@ impl StrategyTrait for LiveStrategy {
                         tracing::info!("{}: 监听节点消息", strategy_name);
                         self.listen_node_message().await.unwrap();
                     }
+                    LiveStrategyStateAction::ListenAndHandleCommand => {
+                        tracing::info!("{}: 监听命令", strategy_name);
+                        self.listen_command().await.unwrap();
+                    }
+                    
                     LiveStrategyStateAction::ListenAndHandleEvent => {
                         tracing::info!("{}: 监听事件", strategy_name);
                         self.listen_event().await.unwrap();

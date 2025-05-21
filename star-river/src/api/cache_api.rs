@@ -57,7 +57,7 @@ pub async fn get_cache_value(
     let mut engine_guard = engine.lock().await;
     let cache_engine = engine_guard.as_any_mut().downcast_mut::<CacheEngine>().unwrap();
     let cache_key = CacheKey::from_str(&cache_key).unwrap();
-    let cache = cache_engine.get_cache_value(&cache_key, None).await;
+    let cache = cache_engine.get_cache_value(&cache_key, None, None).await;
     let cache_values: Vec<Vec<f64>> = cache.iter().map(|cache_value| cache_value.to_list()).collect();
     (StatusCode::OK, Json(ApiResponse {
         code: 0,

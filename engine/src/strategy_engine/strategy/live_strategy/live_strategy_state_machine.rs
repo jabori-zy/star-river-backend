@@ -10,6 +10,7 @@ pub enum LiveStrategyStateAction {
     LoadPositions,        // 加载持仓
     ListenAndHandleNodeMessage,  // 监听节点消息
     ListenAndHandleEvent,  // 监听事件消息
+    ListenAndHandleCommand,  // 监听命令
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
 }
@@ -82,6 +83,7 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                         Box::new(LiveStrategyStateAction::LogTransition),
                         Box::new(LiveStrategyStateAction::ListenAndHandleEvent),
                         Box::new(LiveStrategyStateAction::ListenAndHandleNodeMessage),
+                        Box::new(LiveStrategyStateAction::ListenAndHandleCommand),
                         Box::new(LiveStrategyStateAction::InitNode),
                         Box::new(LiveStrategyStateAction::LoadPositions),
                     ],

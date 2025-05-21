@@ -12,8 +12,9 @@ use std::time::Duration;
 use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
-use types::strategy::{LiveStrategyConfig, BacktestConfig, SimulatedConfig, TradeMode};
+use types::strategy::{LiveStrategyConfig, BacktestStrategyConfig, SimulatedConfig, TradeMode};
 use event_center::{CommandPublisher, CommandReceiver};
+use types::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -37,6 +38,7 @@ impl StartNode {
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -48,6 +50,7 @@ impl StartNode {
             command_publisher,
             command_receiver,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
+            strategy_command_sender,
         );
         StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {

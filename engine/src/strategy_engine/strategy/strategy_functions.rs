@@ -5,11 +5,14 @@ use tokio::sync::broadcast;
 use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
-// use super::node::node_types::NodeContext;
-pub struct StrategyFunction;
-use types::strategy::node_message::NodeMessage;
+use tokio::time::Duration;
+use crate::strategy_engine::node::NodeTrait;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::strategy::strategy_context::StrategyContext;
+use crate::strategy_engine::node::node_state_machine::NodeRunState;
+
+
+pub struct StrategyFunction;
 
 impl StrategyFunction {
     pub async fn listen_event(context: Arc<RwLock<Box<dyn StrategyContext>>>){
@@ -120,6 +123,38 @@ impl StrategyFunction {
         });
     }
 
+    pub async fn listen_command(context: Arc<RwLock<Box<dyn StrategyContext>>>) {
+        let (strategy_name, command_receiver) = {
+            let context_guard = context.read().await;
+            let strategy_name = context_guard.get_strategy_name();
+            let command_receiver = context.read().await.get_command_receiver();
+            (strategy_name, command_receiver)
+
+        };
+        tracing::debug!("{}: 开始监听节点命令", strategy_name);
+        tokio::spawn(async move {
+            loop {
+                // 先获取命令并立即释放锁
+                let command = {
+                    let received_command = command_receiver.lock().await.recv().await;
+                    if let Some(cmd) = received_command {
+                        cmd
+                    } else {
+                        continue;
+                    }
+                };
+                tracing::debug!("{}: 收到命令: {:?}", strategy_name, command);
+                // 然后再获取context的写锁处理命令
+                let context_guard = context.try_write();
+                if let Ok(mut context_guard) = context_guard {
+                    context_guard.handle_command(command).await.unwrap();
+                } else {
+                    tracing::error!("{}: 获取context写锁失败", strategy_name);
+                }
+            }
+        });
+    }
+
     /// 通用的任务取消实现
     pub async fn cancel_task(context: Arc<RwLock<Box<dyn StrategyContext>>>) 
     {
@@ -133,6 +168,60 @@ impl StrategyFunction {
         
         cancel_token.cancel();
         tracing::info!("{}: 节点已安全停止, 当前节点状态: {:?}", strategy_name, run_state);
+    }
+
+
+    pub async fn start_node(node: &Box<dyn NodeTrait>) -> Result<(), String> {
+        // 启动节点
+        let mut node_clone = node.clone();
+        
+        let node_handle = tokio::spawn(async move {
+            let node_name = node_clone.get_node_name().await;
+            if let Err(e) = node_clone.start().await {
+                tracing::error!("{} 节点启动失败: {}", node_name, e);
+                return Err(format!("节点启动失败: {}", e));
+            }
+            Ok(())
+        });
+
+        let node_name = node.get_node_name().await;
+        let node_id = node.get_node_id().await;
+        
+        
+        // 等待节点启动完成
+        match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
+            Ok(result) => {
+                if let Err(e) = result {
+                    return Err(format!("节点 {} 启动任务失败: {}", node_name, e));
+                }
+                
+                if let Ok(Err(e)) = result {
+                    return Err(format!("节点 {} 启动过程中出错: {}", node_name, e));
+                }
+            }
+            Err(_) => {
+                return Err(format!("节点 {} 启动超时", node_id));
+            }
+        }
+        
+        // 等待节点进入Running状态
+        let mut retry_count = 0;
+        let max_retries = 50;
+        
+        while retry_count < max_retries {
+            let run_state = node.get_run_state().await;
+            if run_state == NodeRunState::Running {
+                tracing::debug!("节点 {} 已进入Running状态", node_id);
+                // 节点启动间隔
+                // tokio::time::sleep(Duration::from_millis(1000)).await;
+                return Ok(());
+            }
+            retry_count += 1;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        
+        Err(format!("节点 {} 未能进入Running状态", node_id))
+
     }
     
 }

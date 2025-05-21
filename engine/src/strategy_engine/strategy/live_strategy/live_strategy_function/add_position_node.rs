@@ -15,7 +15,7 @@ use heartbeat::Heartbeat;
 use crate::strategy_engine::node::live_strategy_node::position_node::PositionNode;
 use crate::strategy_engine::node::live_strategy_node::position_node::position_node_types::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-
+use types::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_position_node(
@@ -29,6 +29,7 @@ impl LiveStrategyFunction {
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let node_id = node_config["id"].as_str().unwrap().to_string();
@@ -51,6 +52,7 @@ impl LiveStrategyFunction {
             exchange_engine,
             database,
             heartbeat,
+            strategy_command_sender,
         );
         node.set_output_handle().await;
 

@@ -97,11 +97,11 @@ impl CacheEngine {
         }
     }
 
-    pub async fn get_cache_value(&self, cache_key: &CacheKey, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+    pub async fn get_cache_value(&self, cache_key: &CacheKey, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();
 
-        cache_engine_context.get_cache(cache_key, limit).await
+        cache_engine_context.get_cache(cache_key, index, limit).await
     }
 
     pub async fn get_memory_size(&self) -> Result<HashMap<String, u32>, String> {

@@ -9,6 +9,7 @@ use crate::strategy_engine::node::NodeTrait;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::condition::Case;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use types::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_if_else_node(
@@ -18,6 +19,7 @@ impl LiveStrategyFunction {
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -42,6 +44,7 @@ impl LiveStrategyFunction {
             event_publisher,
             command_publisher,
             command_receiver,
+            strategy_command_sender,
         );
         node.set_output_handle().await;
         let node = Box::new(node);

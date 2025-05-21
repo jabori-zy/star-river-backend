@@ -19,6 +19,7 @@ use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrai
 use indicator_node_type::IndicatorNodeLiveConfig;
 use tokio::sync::Mutex;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use types::strategy::node_command::NodeCommandSender;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -40,6 +41,7 @@ impl IndicatorNode {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
+        strategy_command_sender: NodeCommandSender,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -51,6 +53,7 @@ impl IndicatorNode {
             command_publisher,
             command_receiver,
             Box::new(IndicatorNodeStateManager::new(NodeRunState::Created, node_id, node_name)),
+            strategy_command_sender,
         );
 
         Self {

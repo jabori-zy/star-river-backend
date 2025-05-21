@@ -11,7 +11,9 @@ use std::any::Any;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
-use types::market::Exchange;
+use types::market::{Exchange, Kline};
+use types::strategy::TimeRange;
+
 #[async_trait]
 pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     fn as_any(&self) -> &dyn Any;
@@ -22,10 +24,11 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
 
     // 市场相关
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String>;
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<(), String>;
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, String>;
     async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String>;
     async fn get_socket_stream(&self) -> Result<(), String>;
+    async fn get_kline_history(&self, symbol: &str, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, String>;
 
     //订单相关
     async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String>; // 发送订单

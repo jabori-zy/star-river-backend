@@ -77,6 +77,24 @@ def create_router(terminal: Mt5Terminal):
             message="获取K线系列成功",
             data=kline_series[1]
         )
+    
+    @router.get("/get_kline_series_by_time_range")
+    async def get_kline_series_by_time_range(symbol: str = Query(),interval: str = Query(),start_time: str = Query(),end_time: str = Query()) -> Dict:
+        print(symbol, interval, start_time, end_time)
+        kline_series = await terminal.market.get_kline_series_by_time_range(symbol, interval, start_time, end_time)
+        if not kline_series[0]:
+            return standardize_response(
+                success=False,
+                message="获取K线系列失败",
+                error_code=2,
+                data=kline_series[1]
+            )
+        return standardize_response(
+            success=True,
+            message="获取K线系列成功",
+            data=kline_series[1]
+        )
+    
 
     @router.get("/get_latest_kline")
     async def get_latest_kline(symbol: str = Query(),interval: str = Query()) -> Dict:

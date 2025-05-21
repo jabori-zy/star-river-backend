@@ -14,6 +14,7 @@ use crate::exchange_engine::ExchangeEngine;
 use heartbeat::Heartbeat;
 use super::strategy::StrategyTrait;
 use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
+use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::strategy::{Strategy, TradeMode};
 use types::custom_type::StrategyId;
 use types::cache::CacheKey;
@@ -152,6 +153,22 @@ impl StrategyEngineContext {
                 self.strategy_list.insert(strategy_id, Box::new(strategy));
                 Ok(strategy_id)
             }
+            TradeMode::Backtest => {
+                let strategy_id = strategy.id;
+                let strategy = BacktestStrategy::new(
+                    strategy,
+                    self.event_publisher.clone(),
+                    self.command_publisher.clone(),
+                    self.command_receiver.clone(),
+                    self.market_event_receiver.resubscribe(),
+                    self.response_event_receiver.resubscribe(),
+                    self.exchange_engine.clone(),
+                    self.database.clone(),
+                    self.heartbeat.clone()
+                ).await;
+                self.strategy_list.insert(strategy_id, Box::new(strategy));
+                Ok(strategy_id)
+            }
             _ => {
                 tracing::error!("不支持的策略类型: {}", strategy.trade_mode);
                 Err("不支持的策略类型".to_string())
@@ -176,10 +193,7 @@ impl StrategyEngineContext {
 
 
     // 初始化策略
-    pub async fn init_strategy(
-        &mut self, 
-        strategy_id: i32,
-    ) -> Result<(), String> {
+    pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
         // 判断策略是否在列表中、
         if self.strategy_list.contains_key(&strategy_id) {
             tracing::warn!("策略已存在, 不进行初始化");

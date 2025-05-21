@@ -78,9 +78,9 @@ impl Mt5DataProcessor {
         }
     }
 
-    pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: serde_json::Value) {
+    pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: serde_json::Value) -> Vec<Kline> {
         // let data = raw_data["data"].as_array().expect("转换为array失败");
-        let klines = raw_data
+        let klines: Vec<Kline> = raw_data
             .as_array()
             .expect("转换为array失败")
             .iter()
@@ -107,22 +107,17 @@ impl Mt5DataProcessor {
                 }
             })
             .collect::<Vec<Kline>>();
-        // let kline_series = KlineSeries {
+
+        // let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent {
         //     exchange: Exchange::Metatrader5(self.server.clone()),
+        //     event_timestamp: get_utc8_timestamp_millis(),
         //     symbol: symbol.to_string(),
         //     interval: interval.clone().into(),
-        //     series: klines,
+        //     kline_series: klines.clone(),
         // };
-
-        let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent {
-            exchange: Exchange::Metatrader5(self.server.clone()),
-            event_timestamp: get_utc8_timestamp_millis(),
-            symbol: symbol.to_string(),
-            interval: interval.clone().into(),
-            kline_series: klines,
-        };
-        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
-        self.event_publisher.lock().await.publish(exchange_klineseries_update_event.into()).await.unwrap();
+        // let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
+        // self.event_publisher.lock().await.publish(exchange_klineseries_update_event.into()).await.unwrap();
+        klines
     }
 
     // 处理订单信息

@@ -3,6 +3,7 @@ pub mod strategy_state_machine;
 pub mod strategy_functions;
 pub mod strategy_context;
 pub mod live_strategy;
+pub mod backtest_strategy;
 
 
 use std::sync::Arc;
@@ -45,6 +46,13 @@ pub trait StrategyTrait: Debug + Send + Sync + 'static {
         StrategyFunction::listen_event(context).await;
         Ok(())
     }
+    
+    async fn listen_command(&self) -> Result<(), String> {
+        let context = self.get_context();
+        StrategyFunction::listen_command(context).await;
+        Ok(())
+    }
+
     async fn get_strategy_cache_keys(&self) -> Vec<CacheKey> {
         let context = self.get_context();
         let context_guard = context.read().await;

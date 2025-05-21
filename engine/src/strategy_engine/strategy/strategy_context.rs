@@ -9,12 +9,16 @@ use super::strategy_state_machine::StrategyRunState;
 use super::strategy_state_machine::StrategyStateMachine;
 use tokio::sync::broadcast;
 use event_center::Event;
+use types::strategy::node_command::NodeCommandReceiver;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use types::strategy::node_command::NodeCommand;
 
 #[async_trait]
 pub trait StrategyContext: Debug + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn clone_box(&self) -> Box<dyn StrategyContext>;
+    // fn clone_box(&self) -> Box<dyn StrategyContext>;
     fn get_strategy_id(&self) -> i32;
     fn get_strategy_name(&self) -> String;
     async fn get_cache_keys(&self) -> Vec<CacheKey>;
@@ -23,15 +27,17 @@ pub trait StrategyContext: Debug + Send + Sync + 'static {
     fn get_state_machine(&self) -> Box<dyn StrategyStateMachine>;
     fn set_state_machine(&mut self, state_machine: Box<dyn StrategyStateMachine>);
     fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>>;
+    fn get_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>>;
     async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String>;
     async fn handle_event(&mut self, event: Event) -> Result<(), String>;
+    async fn handle_command(&mut self, command: NodeCommand) -> Result<(), String>;
     fn get_run_state(&self) -> StrategyRunState {
         self.get_state_machine().current_state()
     }
 }
 
-impl Clone for Box<dyn StrategyContext> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
+// impl Clone for Box<dyn StrategyContext> {
+//     fn clone(&self) -> Self {
+//         self.clone_box()
+//     }
+// }

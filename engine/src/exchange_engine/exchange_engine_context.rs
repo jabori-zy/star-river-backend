@@ -102,7 +102,7 @@ impl EngineContext for ExchangeEngineContext {
                 match exchange_engine_command {
                     ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
                         self.register_exchange(register_exchange_command.account_id).await.unwrap();
-                                // 发送响应事件
+                        // 发送响应事件
                         let register_exchange_response = ExchangeEngineResponse::RegisterExchange(
                             RegisterExchangeResponse {
                                 code: 0,

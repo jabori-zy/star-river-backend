@@ -6,6 +6,7 @@ use super::mt5_types::Mt5GetPositionNumberParams;
 use super::mt5_types::Mt5CreateOrderParams;
 use thiserror::Error;
 use tracing::instrument;
+use types::strategy::TimeRange;
 
 
 
@@ -21,6 +22,8 @@ pub enum Mt5HttpClientError {
     GetTerminalInfoError(String),
     #[error("GetKlineSeriesError: {0}")]
     GetKlineSeriesError(String),
+    #[error("GetKlineHistoryError: {0}")]
+    GetKlineHistoryError(String),
     #[error("CreateOrderError: {0}")]
     CreateOrderError(String),
     #[error("GetOrderError: {0}")]
@@ -253,6 +256,61 @@ impl Mt5HttpClient {
             Err(Mt5HttpClientError::GetKlineSeriesError(format!("status code: {}, error text: {}", status_code, error_text)))
         }
     }
+
+    // 获取历史
+    pub async fn get_kline_history(&self, symbol: &str, interval: Mt5KlineInterval, time_range: TimeRange) -> Result<serde_json::Value, Mt5HttpClientError> {
+        let start_time = time_range.start_date.format("%Y-%m-%d").to_string();
+        let end_time = time_range.end_date.format("%Y-%m-%d").to_string();
+
+        let url = format!("{}?symbol={}&interval={}&start_time={}&end_time={}", self.get_url(Mt5HttpUrl::GetKlineHistory), symbol, interval, start_time, end_time);
+        tracing::debug!(url = %url, symbol = %symbol, interval = %interval, time_range = %time_range, "Getting kline history");
+        
+        let response = self.client.get(&url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| Mt5HttpClientError::HttpError(e))?;
+
+        // 如果为200，则获取K线数据成功
+        if response.status().is_success() {
+            let response_data = response.json::<serde_json::Value>().await
+                .map_err(|e| Mt5HttpClientError::HttpError(e))?;
+            
+            // 判断是否有code
+            if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
+                // 如果code为0，则返回data，否则返回错误
+                if code == 0 {
+                    // 如果有data，则返回data，否则返回null
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
+                    tracing::debug!(symbol = %symbol, "Successfully got kline history");
+                    Ok(data.clone())
+                } else {
+                    // code不为0，则返回message
+                    let error_message = response_data.get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or(&format!("unknown error, the get kline series response code is {}", code))
+                    .to_string();
+                    tracing::error!(code = %code, error = %error_message, symbol = %symbol, "Failed to get kline history");
+                    Err(Mt5HttpClientError::GetKlineHistoryError(error_message))
+                }
+            } else {
+                // 没有code，则返回"无code错误"
+                let error_message = "No code field in the response".to_string();
+                tracing::error!(error = %error_message, symbol = %symbol, "Failed to get kline history");
+                Err(Mt5HttpClientError::GetKlineHistoryError(error_message))
+            }
+        } 
+        // 如果为其他状态码，则返回错误
+        else {
+            let status_code = response.status().as_u16();
+            let error_text = response.text().await
+                .map_err(|e| Mt5HttpClientError::HttpError(e))?;
+            
+            tracing::error!(status = %status_code, error = %error_text, symbol = %symbol, "Failed to get kline history - HTTP error");
+            Err(Mt5HttpClientError::GetKlineHistoryError(format!("status code: {}, error text: {}", status_code, error_text)))
+        }
+    }
+
 
     #[instrument(skip(self))]
     pub async fn create_order(&self, params: Mt5CreateOrderParams) -> Result<serde_json::Value, Mt5HttpClientError> {

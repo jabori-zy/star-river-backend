@@ -25,8 +25,7 @@ pub enum Command {
     CacheEngine(CacheEngineCommand), // 缓存引擎命令
     IndicatorEngine(IndicatorEngineCommand), // 指标引擎命令
     ExchangeEngine(ExchangeEngineCommand), // 交易所引擎命令
-    MarketEngine(MarketEngineCommand), // 市场引擎命令
-    
+    MarketEngine(MarketEngineCommand), // 市场引擎命令 
 }
 
 

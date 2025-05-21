@@ -1,4 +1,5 @@
 use tokio::sync::broadcast;
+use types::cache::cache_key::HistoryKlineCacheKey;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -10,7 +11,7 @@ use crate::EngineName;
 use std::sync::Arc;
 use event_center::command::Command;
 use event_center::command::cache_engine_command::CacheEngineCommand;
-use event_center::response::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamResponse, UnsubscribeKlineStreamResponse};
+use event_center::response::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamResponse, UnsubscribeKlineStreamResponse, GetKlineHistoryResponse};
 use event_center::command::market_engine_command::MarketEngineCommand;
 use event_center::command::cache_engine_command::AddCacheKeyParams;
 use types::cache::{CacheKey, cache_key::KlineCacheKey};
@@ -23,8 +24,9 @@ use std::collections::HashMap;
 use types::custom_type::{StrategyId, AccountId};
 use event_center::{EventReceiver, CommandReceiver, CommandPublisher, EventPublisher};
 use tokio::sync::oneshot;
-
-
+use types::strategy::TimeRange;
+use types::market::Kline;
+use event_center::exchange_event::{ExchangeEvent, ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent};
 
 #[derive(Debug)]
 pub struct MarketEngineContext {
@@ -135,6 +137,30 @@ impl EngineContext for MarketEngineContext {
                 });
                 command_params.responder.send(unsubscribe_kline_stream_response.into()).unwrap();
             }
+            Command::MarketEngine(MarketEngineCommand::GetKlineHistory(params)) => {
+                let kline_history = self.get_kline_history(params.strategy_id, params.account_id, params.exchange.clone(), params.symbol.clone(), params.interval.clone(), params.time_range.clone()).await.unwrap();
+                
+                // 发布k线历史更新事件
+                let exchange_kline_history_update_event = ExchangeEvent::ExchangeKlineHistoryUpdate(ExchangeKlineHistoryUpdateEvent {
+                    exchange: params.exchange.clone(),
+                    symbol: params.symbol.clone(),
+                    interval: params.interval.clone(),
+                    time_range: params.time_range.clone(),
+                    kline_history: kline_history,
+                    event_timestamp: get_utc8_timestamp_millis(),
+                });
+                self.get_event_publisher().publish(exchange_kline_history_update_event.into()).await.unwrap();
+                
+                let get_kline_history_response = MarketEngineResponse::GetKlineHistory(GetKlineHistoryResponse {
+                    code: 0,
+                    message: "success".to_string(),
+                    exchange: params.exchange,
+                    symbol: params.symbol,
+                    interval: params.interval,
+                    response_timestamp: get_utc8_timestamp_millis(),
+                });
+                params.responder.send(get_kline_history_response.into()).unwrap();
+            }
             _ => {}
         }
     }
@@ -144,7 +170,7 @@ impl EngineContext for MarketEngineContext {
 
 impl MarketEngineContext {
 
-    async fn add_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, max_size: u32) {
+    async fn add_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, max_size: u32) {
         // 调用缓存器的订阅事件
         let cache_key = CacheKey::Kline(KlineCacheKey {
             exchange: exchange,
@@ -172,6 +198,41 @@ impl MarketEngineContext {
         // self.get_event_publisher().publish(command_event.clone().into()).unwrap();
     }
 
+    async fn add_history_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange) {
+        // 调用缓存器的订阅事件
+        let cache_key = CacheKey::HistoryKline(HistoryKlineCacheKey {
+            exchange: exchange,
+            symbol: symbol.to_string(),
+            interval: interval.clone(),
+            start_time: time_range.start_date.to_string(),
+            end_time: time_range.end_date.to_string(),
+        });
+        let (resp_tx, resp_rx) = oneshot::channel();
+        let params = AddCacheKeyParams {
+            strategy_id,
+            cache_key,
+            max_size: None,
+            duration: Duration::from_millis(10),
+            sender: format!("strategy_{}", strategy_id),
+            timestamp: get_utc8_timestamp_millis(),
+            responder: resp_tx,
+        };
+
+        let add_cache_key_command = CacheEngineCommand::AddCacheKey(params);
+
+        self.get_command_publisher().send(add_cache_key_command.into()).await.unwrap();
+
+        let response_event = resp_rx.await.unwrap();
+        tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
+
+        // self.get_event_publisher().publish(command_event.clone().into()).unwrap();
+    }
+
+    async fn exchange_is_registered(&self, account_id: AccountId) -> bool {
+        let exchange_engine_guard = self.exchange_engine.lock().await;
+        exchange_engine_guard.is_registered(&account_id).await
+    }
+
 
     async fn subscribe_kline_stream(&self, 
         strategy_id: StrategyId,
@@ -184,13 +245,10 @@ impl MarketEngineContext {
     ) -> Result<(), String> {
         // tracing::debug!("市场数据引擎订阅K线流: {:?}", params);
         // 添加缓存key
-        self.add_cache_key(strategy_id, exchange.clone(), symbol.clone(), interval.clone(), cache_size).await;
+        self.add_kline_cache_key(strategy_id, exchange.clone(), symbol.clone(), interval.clone(), cache_size).await;
 
         // 1. 先检查注册状态
-        let is_registered = {
-            let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.is_registered(&account_id).await
-        };
+        let is_registered = self.exchange_is_registered(account_id).await;
 
         if !is_registered {
             return Err(format!("交易所 {:?} 未注册", exchange));
@@ -209,15 +267,24 @@ impl MarketEngineContext {
             .downcast_ref::<ExchangeEngineContext>()
             .unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
+        let exchange_client = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
 
         // 先获取历史k线
-        // k线长度设置
-        exchange.get_kline_series(&symbol, interval.clone(), cache_size).await?;
+        // 初始的k线
+        let initail_kline_series = exchange_client.get_kline_series(&symbol, interval.clone(), cache_size).await?;
+        let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent {
+            exchange: exchange,
+            event_timestamp: get_utc8_timestamp_millis(),
+            symbol: symbol.to_string(),
+            interval: interval.clone().into(),
+            kline_series: initail_kline_series.clone(),
+        };
+        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
+        self.get_event_publisher().publish(exchange_klineseries_update_event.into()).await.unwrap();
         // 再订阅k线流
-        exchange.subscribe_kline_stream(&symbol, interval.clone(), frequency).await.unwrap();
+        exchange_client.subscribe_kline_stream(&symbol, interval.clone(), frequency).await.unwrap();
         // 获取socket流
-        exchange.get_socket_stream().await.unwrap();
+        exchange_client.get_socket_stream().await.unwrap();
 
         
         // self.get_event_publisher().publish(response_event.clone().into()).unwrap();
@@ -229,10 +296,7 @@ impl MarketEngineContext {
         // tracing::debug!("市场数据引擎取消订阅K线流: {:?}", params);
 
         // 1. 先检查注册状态
-        let exchange_is_registered = {
-            let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.is_registered(&account_id).await
-        };
+        let exchange_is_registered = self.exchange_is_registered(account_id).await;
 
         if !exchange_is_registered {
             return Err(format!("交易所 {:?} 未注册", exchange));
@@ -256,6 +320,36 @@ impl MarketEngineContext {
 
         
         Ok(())
+    }
+
+    async fn get_kline_history(&self, strategy_id: StrategyId, account_id: AccountId, exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, String> {
+        // 添加缓存key
+        self.add_history_kline_cache_key(strategy_id, exchange.clone(), symbol.clone(), interval.clone(), time_range.clone()).await;
+        
+        // 1. 先检查注册状态
+        let exchange_is_registered = self.exchange_is_registered(account_id).await;
+
+        if !exchange_is_registered {
+            return Err(format!("交易所 {:?} 未注册", exchange));
+        }
+
+        // 2. 获取上下文（新的锁范围）
+        let exchange_engine_context = {
+            let exchange_engine_guard = self.exchange_engine.lock().await;
+            exchange_engine_guard.get_context()
+        };
+
+        // 3. 获取读锁
+        let context_read = exchange_engine_context.read().await;
+        let exchange_engine_context_guard = context_read
+            .as_any()
+            .downcast_ref::<ExchangeEngineContext>()
+            .unwrap();
+
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
+        let kline_history = exchange.get_kline_history(&symbol, interval.clone(), time_range).await.unwrap();
+        
+        Ok(kline_history)
     }
 
     // pub async fn get_ticker_price(&self, exchange: Exchange, symbol: String) -> Result<serde_json::Value, String> {

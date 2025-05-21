@@ -37,18 +37,16 @@ class MarketManager:
     
 
     # 获取历史k线
-    async def get_kline_series_by_time_range(self, symbol: str, time_frame: int, start_time: str, end_time: str) -> list:
+    async def get_kline_series_by_time_range(self, symbol: str, interval: str, start_time: str, end_time: str) -> list:
+        time_frame = get_time_frame(interval)
+        start = datetime.strptime(start_time,'%Y-%m-%d').replace(tzinfo=self.terminal.timezone)
+        end = datetime.strptime(end_time,'%Y-%m-%d').replace(tzinfo=self.terminal.timezone)
         
-        def _get_history_kline():
-            start = datetime.strptime(start_time,'%Y-%m-%d').replace(tzinfo=self.terminal.timezone)
-            end = datetime.strptime(end_time,'%Y-%m-%d').replace(tzinfo=self.terminal.timezone)
-            
-            history_kline = self.terminal.terminal.copy_rates_range(symbol, time_frame, start, end)
-            if history_kline is None:
-                return []
-            return [row[:-2] for row in history_kline.tolist()]
-            
-        return await asyncio.to_thread(_get_history_kline)
+        history_kline = self.terminal.terminal.copy_rates_range(symbol, time_frame, start, end)
+        if history_kline is None:
+            return False, self.terminal.terminal.last_error()
+        return True, [row[:-2] for row in history_kline.tolist()]
+    
     
     # 获取k线系列
     async def get_kline_series(self, symbol: str, interval: str, limit: int) -> list:

@@ -1,4 +1,5 @@
 pub mod live_strategy_node;
+pub mod backtest_strategy_node;
 
 pub mod node_types;
 pub mod node_context;
@@ -81,6 +82,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_message_receivers().clone()
     }
 
+    // 获取节点类型
     async fn get_node_type(&self) -> NodeType {
         let context = self.get_context();
         let context_guard = context.read().await;
@@ -104,7 +106,7 @@ pub trait NodeTrait: Debug + Send + Sync + 'static {
 
         let default_output_handle_id = match node_type {
             NodeType::StartNode => DefaultOutputHandleId::StartNodeOutput,
-            NodeType::LiveDataNode => DefaultOutputHandleId::LiveDataNodeOutput,
+            NodeType::KlineNode => DefaultOutputHandleId::KlineNodeOutput,
             NodeType::IndicatorNode => DefaultOutputHandleId::IndicatorNodeOutput,
             NodeType::IfElseNode => DefaultOutputHandleId::IfElseNodeElseOutput,
             NodeType::OrderNode => DefaultOutputHandleId::OrderNodeOutput,

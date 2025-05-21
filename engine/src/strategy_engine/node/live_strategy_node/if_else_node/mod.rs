@@ -24,6 +24,7 @@ use types::strategy::TradeMode;
 use if_else_node_type::*;
 use event_center::{CommandPublisher, CommandReceiver};
 use tokio::sync::Mutex;
+use types::strategy::node_command::NodeCommandSender;
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -41,6 +42,7 @@ impl IfElseNode {
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -52,6 +54,7 @@ impl IfElseNode {
             command_publisher,
             command_receiver,
             Box::new(IfElseNodeStateManager::new(NodeRunState::Created, node_id, node_name)),
+            strategy_command_sender,
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(IfElseNodeContext {

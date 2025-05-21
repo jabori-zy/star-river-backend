@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
-use types::market::{Exchange, KlineInterval};
+use types::market::{Exchange, KlineInterval, Kline};
 use crate::response::{Response, ResponseTrait};
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MarketEngineResponse {
     SubscribeKlineStream(SubscribeKlineStreamResponse),
     UnsubscribeKlineStream(UnsubscribeKlineStreamResponse),
+    GetKlineHistory(GetKlineHistoryResponse),
 }
 
 impl ResponseTrait for MarketEngineResponse {
@@ -13,6 +15,7 @@ impl ResponseTrait for MarketEngineResponse {
         match self {
             MarketEngineResponse::SubscribeKlineStream(response) => response.code,
             MarketEngineResponse::UnsubscribeKlineStream(response) => response.code,
+            MarketEngineResponse::GetKlineHistory(response) => response.code,
         }
     }
 
@@ -20,6 +23,7 @@ impl ResponseTrait for MarketEngineResponse {
         match self {
             MarketEngineResponse::SubscribeKlineStream(response) => response.message.clone(),
             MarketEngineResponse::UnsubscribeKlineStream(response) => response.message.clone(),
+            MarketEngineResponse::GetKlineHistory(response) => response.message.clone(),
         }
     }
 
@@ -27,6 +31,7 @@ impl ResponseTrait for MarketEngineResponse {
         match self {
             MarketEngineResponse::SubscribeKlineStream(response) => response.response_timestamp,
             MarketEngineResponse::UnsubscribeKlineStream(response) => response.response_timestamp,
+            MarketEngineResponse::GetKlineHistory(response) => response.response_timestamp,
         }
     }
 }
@@ -64,6 +69,16 @@ pub struct SubscribeKlineStreamResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnsubscribeKlineStreamResponse {
+    pub code: i32,
+    pub message: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub response_timestamp: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetKlineHistoryResponse {
     pub code: i32,
     pub message: String,
     pub exchange: Exchange,

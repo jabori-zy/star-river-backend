@@ -38,11 +38,12 @@ use tokio::process::Child;
 use tokio::process::Command;
 use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use once_cell::sync::Lazy;
-use types::market::Exchange;
+use types::market::{Exchange, Kline};
 use thiserror::Error;
 use crate::metatrader5::mt5_http_client::Mt5HttpClientError;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use tracing::instrument;
+use types::strategy::TimeRange;
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
@@ -703,14 +704,14 @@ impl ExchangeClient for MetaTrader5 {
         Ok(serde_json::Value::Null)
     }
 
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<(), String> {
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, String> {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await.expect("获取k线系列失败");
             let data_processor = self.data_processor.lock().await;
-            data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
-            Ok(())
+            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
+            Ok(kline_series)
         } else {
             Err("MT5 HTTP客户端未初始化".to_string())
         }
@@ -810,6 +811,20 @@ impl ExchangeClient for MetaTrader5 {
         };
         tokio::spawn(future);
         Ok(())
+    }
+
+    // 获取k线历史
+    async fn get_kline_history(&self, symbol: &str, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, String> {
+        let mt5_interval = Mt5KlineInterval::from(interval);
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await.expect("获取k线历史失败");
+            let data_processor = self.data_processor.lock().await;
+            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await;
+            Ok(klines)
+        } else {
+            Err("MT5 HTTP客户端未初始化".to_string())
+        }
     }
 
     async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String> {

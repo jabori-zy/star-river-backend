@@ -15,7 +15,7 @@ use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-
+use types::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_order_node(
@@ -29,6 +29,7 @@ impl LiveStrategyFunction {
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone(); // 节点数据
 
@@ -52,6 +53,7 @@ impl LiveStrategyFunction {
             exchange_engine,
             database,
             heartbeat,
+            strategy_command_sender,
         );
         node.set_output_handle().await;
 

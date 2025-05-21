@@ -17,8 +17,8 @@ use std::str::FromStr;
 pub enum NodeType {
     #[strum(serialize = "start_node")]
     StartNode,
-    #[strum(serialize = "live_data_node")]
-    LiveDataNode,
+    #[strum(serialize = "kline_node")]
+    KlineNode,
     #[strum(serialize = "indicator_node")]
     IndicatorNode,
     #[strum(serialize = "if_else_node")]
@@ -43,7 +43,7 @@ impl FromStr for NodeType {
         // 其他节点类型保持原有的下划线命名方式
         match s {
             "start_node" => Ok(NodeType::StartNode),
-            "live_data_node" => Ok(NodeType::LiveDataNode),
+            "kline_node" => Ok(NodeType::KlineNode),
             "indicator_node" => Ok(NodeType::IndicatorNode),
             "if_else_node" => Ok(NodeType::IfElseNode),
             "order_node" => Ok(NodeType::OrderNode),
@@ -60,8 +60,8 @@ impl FromStr for NodeType {
 pub enum DefaultOutputHandleId {
     #[strum(serialize = "start_node_output")]
     StartNodeOutput,
-    #[strum(serialize = "live_data_node_output")]
-    LiveDataNodeOutput,
+    #[strum(serialize = "kline_node_output")]
+    KlineNodeOutput,
     #[strum(serialize = "indicator_node_output")]
     IndicatorNodeOutput,
     #[strum(serialize = "if_else_node_else_output")]
@@ -73,30 +73,6 @@ pub enum DefaultOutputHandleId {
 
 }
 
-
-
-
-// #[derive(Debug, Clone)]
-// pub struct NodeSender {
-//     pub node_id: String, // 节点id
-//     pub output_handle_id: String, // 出口id
-//     pub sender: broadcast::Sender<NodeMessage>, // 发送者
-// }
-
-// impl NodeSender {
-//     pub fn new(node_id: String, handle_id: String, sender: broadcast::Sender<NodeMessage>) -> Self {
-//         Self { node_id, output_handle_id: handle_id, sender }
-//     }
-//     pub fn subscribe(&self, input_handle_id: String) -> NodeMessageReceiver {
-//         NodeMessageReceiver::new(self.node_id.clone(), self.output_handle_id.clone(), input_handle_id, self.sender.subscribe())
-//     }
-//     pub fn receiver_count(&self) -> usize {
-//         self.sender.receiver_count()
-//     }
-//     pub fn send(&self, message: NodeMessage) -> Result<usize, SendError<NodeMessage>> {
-//         self.sender.send(message)
-//     }
-// }
 
 
 #[derive(Debug)]
@@ -164,3 +140,4 @@ impl NodeOutputHandle {
         }
     }
 }
+

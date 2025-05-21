@@ -37,14 +37,14 @@ impl CalculateIndicatorFunction {
                 // 如果ignore_config为true，则不使用配置的period，而是使用缓存中的所有数据
                 let kline_series: Vec<Arc<CacheValue>>;
                 if ignore_config {
-                    kline_series = cache_engine.lock().await.get_cache_value(&kline_cache_key.into(), None).await;
+                    kline_series = cache_engine.lock().await.get_cache_value(&kline_cache_key.into(), None, None).await;
                     // let kline_series_json = kline_series.iter().map(|kline| kline.as_kline().unwrap().close()).collect::<Vec<_>>();
                     // let kline_series_json_str = serde_json::to_string_pretty(&kline_series_json).unwrap();
                     // // println!("{}", kline_series_json_str);
 
                 } else {
                     let period = sma_config.period as u32;
-                    kline_series = cache_engine.lock().await.get_cache_value(&kline_cache_key.into(), Some(period + offset)).await;
+                    kline_series = cache_engine.lock().await.get_cache_value(&kline_cache_key.into(), None,Some(period + offset)).await;
                 }
                 let sma_list: Vec<types::indicator::sma::SMA> = CalculateIndicatorFunction::calculate_sma(sma_config, kline_series).await.unwrap();
                 let sma: Vec<Indicator> = sma_list.into_iter().map(|sma| sma.into()).collect();

@@ -37,6 +37,7 @@ use event_center::command::Command;
 use event_center::strategy_event::{StrategyEvent, StrategyData};
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
+use types::strategy::node_command::{NodeCommandReceiver, NodeCommand};
 
 #[derive(Debug)]
 // 实盘策略上下文
@@ -59,33 +60,34 @@ pub struct LiveStrategyContext {
     pub database: DatabaseConnection, // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 心跳
     pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
+    pub strategy_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 策略命令接收器
 }
 
 
-impl Clone for LiveStrategyContext {
-    fn clone(&self) -> Self {
-        Self {
-            strategy_id: self.strategy_id,
-            strategy_name: self.strategy_name.clone(),
-            strategy_config: self.strategy_config.clone(),
-            cache_keys: self.cache_keys.clone(),
-            graph: self.graph.clone(),
-            node_indices: self.node_indices.clone(),
-            event_publisher: self.event_publisher.clone(),
-            event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
-            cancel_token: self.cancel_token.clone(),
-            state_machine: self.state_machine.clone_box(),
-            all_node_output_handles: self.all_node_output_handles.clone(),
-            positions: self.positions.clone(),
-            exchange_engine: self.exchange_engine.clone(),
-            database: self.database.clone(),
-            heartbeat: self.heartbeat.clone(),
-            registered_tasks: self.registered_tasks.clone(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
-        }
-    }
-}
+// impl Clone for LiveStrategyContext {
+//     fn clone(&self) -> Self {
+//         Self {
+//             strategy_id: self.strategy_id,
+//             strategy_name: self.strategy_name.clone(),
+//             strategy_config: self.strategy_config.clone(),
+//             cache_keys: self.cache_keys.clone(),
+//             graph: self.graph.clone(),
+//             node_indices: self.node_indices.clone(),
+//             event_publisher: self.event_publisher.clone(),
+//             event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
+//             cancel_token: self.cancel_token.clone(),
+//             state_machine: self.state_machine.clone_box(),
+//             all_node_output_handles: self.all_node_output_handles.clone(),
+//             positions: self.positions.clone(),
+//             exchange_engine: self.exchange_engine.clone(),
+//             database: self.database.clone(),
+//             heartbeat: self.heartbeat.clone(),
+//             registered_tasks: self.registered_tasks.clone(),
+//             command_publisher: self.command_publisher.clone(),
+//             command_receiver: self.command_receiver.clone(),
+//         }
+//     }
+// }
 
 
 
@@ -99,9 +101,9 @@ impl StrategyContext for LiveStrategyContext {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn StrategyContext> {
-        Box::new(self.clone())
-    }
+    // fn clone_box(&self) -> Box<dyn StrategyContext> {
+    //     Box::new(self.clone())
+    // }
 
     fn get_strategy_id(&self) -> i32 {
         self.strategy_id
@@ -134,6 +136,14 @@ impl StrategyContext for LiveStrategyContext {
 
     fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
         &self.event_receivers
+    }
+
+    fn get_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>> {
+        self.strategy_command_receiver.clone()
+    }
+
+    async fn handle_command(&mut self, command: NodeCommand) -> Result<(), String> {
+        Ok(())
     }
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
@@ -233,6 +243,7 @@ impl LiveStrategyContext {
         let params = GetCacheMultiParams {
             strategy_id: strategy_id,
             cache_keys: cache_keys_clone,
+            index: None,
             limit: Some(1), // 只获取最新的一条数据
             sender: strategy_name,
             timestamp: get_utc8_timestamp_millis(),

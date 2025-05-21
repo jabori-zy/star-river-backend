@@ -16,6 +16,8 @@ pub(crate) enum Mt5HttpUrl {
     Login,
     #[strum(serialize = "/market/get_kline_series")]
     GetKlineSeries,
+    #[strum(serialize = "/market/get_kline_series_by_time_range")]
+    GetKlineHistory,
     #[strum(serialize = "/trade/create_order")]
     CreateOrder,
     #[strum(serialize = "/order/get_order")]

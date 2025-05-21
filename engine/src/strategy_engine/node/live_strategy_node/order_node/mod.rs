@@ -24,6 +24,7 @@ use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use types::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug, Clone)]
 pub struct OrderNode {
@@ -44,6 +45,7 @@ impl OrderNode {
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
+        strategy_command_sender: NodeCommandSender,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -55,6 +57,7 @@ impl OrderNode {
             command_publisher,
             command_receiver,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
+            strategy_command_sender,
             
         );
         Self {

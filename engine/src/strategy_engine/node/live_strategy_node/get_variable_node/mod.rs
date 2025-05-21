@@ -22,7 +22,7 @@ use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
 use tokio::sync::Mutex;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-
+use types::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNode {
@@ -43,6 +43,7 @@ impl GetVariableNode {
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
+        strategy_command_sender: NodeCommandSender,
     ) -> Self {
         let base_context = BaseNodeContext::new(
             strategy_id,
@@ -54,6 +55,7 @@ impl GetVariableNode {
             command_publisher,
             command_receiver,
             Box::new(GetVariableNodeStateMachine::new(node_id, node_name)),
+            strategy_command_sender,
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(GetVariableNodeContext {
