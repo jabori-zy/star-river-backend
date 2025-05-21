@@ -146,6 +146,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     // run it
     // let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let listener = bind_with_retry(addr, 3).await?;
+    clean_mei_temp_dirs(); // 清理MetaTrader5的_MEI临时文件夹
     tracing::info!("listening on {}", listener.local_addr().unwrap());
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     
@@ -279,51 +280,24 @@ async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::ne
 }
 
 
-// async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
-//     let mut retries = 0;
-//     loop {
-//         match tokio::net::TcpListener::bind(addr).await {
-//             Ok(listener) => return Ok(listener),
-//             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-//                 if retries >= max_retries {
-//                     return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
-//                 }
-//                 tracing::warn!("端口 {} 被占用，尝试清理 MetaTrader5 进程...", addr.port());
-                
-//                 #[cfg(windows)]
-//                 {
-//                     // 查找并清理 MetaTrader5 进程
-//                     let output = std::process::Command::new("tasklist")
-//                         .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
-//                         .output()?;
-                    
-//                     let output_str = String::from_utf8_lossy(&output.stdout);
-//                     if output_str.contains("MetaTrader5.exe") {
-//                         tracing::warn!("发现旧的MetaTrader5进程, 正在清理...");
-                        
-//                         // 强制结束所有MetaTrader5.exe进程
-//                         let kill_result = std::process::Command::new("taskkill")
-//                             .args(&["/F", "/IM", "MetaTrader5.exe"])
-//                             .output();
-                            
-//                         match kill_result {
-//                             Ok(_) => tracing::info!("成功清理 MetaTrader5 进程"),
-//                             Err(e) => tracing::warn!("清理 MetaTrader5 进程失败: {}", e),
-//                         }
-//                     }
-//                 }
-                
-//                 // 等待进程完全退出
-//                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-//                 retries += 1;
-//             }
-//             Err(e) => return Err(e.into()),
-//         }
-//     }
-// }
-
-
-
-
-
-
+// 清理MetaTrader5的临时文件夹
+fn clean_mei_temp_dirs() {
+    // 获取临时目录
+    if let Ok(temp_dir) = std::env::var("TEMP").or_else(|_| std::env::var("TMP")) {
+        if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+            for entry in entries.flatten() {
+                if let Ok(file_name) = entry.file_name().into_string() {
+                    if file_name.starts_with("_MEI") {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            match std::fs::remove_dir_all(&path) {
+                                Ok(_) => tracing::info!("已删除_MEI临时文件夹: {}", path.display()),
+                                Err(e) => tracing::warn!("删除_MEI临时文件夹失败: {}, 错误: {}", path.display(), e),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
