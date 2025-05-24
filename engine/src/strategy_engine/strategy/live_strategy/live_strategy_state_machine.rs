@@ -1,5 +1,27 @@
-use crate::strategy_engine::strategy::strategy_state_machine::*;
-use std::any::Any;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LiveStrategyRunState {
+    Created,        // 策略已创建但未初始化
+    Initializing,   // 策略正在初始化
+    Ready,          // 策略已初始化，准备好但未运行
+    Starting,       // 策略正在启动
+    Running,        // 策略正在运行
+    Stopping,       // 策略正在停止
+    Stopped,        // 策略已停止
+    Failed,         // 策略发生错误
+}
+
+
+#[derive(Debug)]
+pub enum LiveStrategyStateTransitionEvent {
+    Initialize,     // 初始化开始
+    InitializeComplete,  // 初始化完成 -> 进入Ready状态
+    Start,          // 启动策略
+    StartComplete,  // 启动完成 -> 进入Running状态
+    Stop,           // 停止策略
+    StopComplete,   // 停止完成 -> 进入Stopped状态
+    Fail(String),   // 策略失败，带有错误信息
+}
 
 #[derive(Debug, Clone)]
 pub enum LiveStrategyStateAction {
@@ -15,31 +37,19 @@ pub enum LiveStrategyStateAction {
     LogError(String),       // 记录错误
 }
 
-impl TransitionAction for LiveStrategyStateAction {
-    fn get_action(&self) -> Box<dyn TransitionAction> {
-        Box::new(self.clone())
-    }
-    fn clone_box(&self) -> Box<dyn TransitionAction> {
-        Box::new(self.clone())
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
 
 #[derive(Debug)]
-pub struct StrategyStateChangeActions {
+pub struct LiveStrategyStateChangeActions {
     pub new_state: LiveStrategyRunState,
-    pub actions: Vec<Box<dyn TransitionAction>>,
+    pub actions: Vec<LiveStrategyStateAction>,
 }
 
-impl StateChangeActions for StrategyStateChangeActions {
-    fn get_new_state(&self) -> LiveStrategyRunState {
+impl LiveStrategyStateChangeActions {
+    pub fn get_new_state(&self) -> LiveStrategyRunState {
         self.new_state.clone()
     }
-    fn get_actions(&self) -> Vec<Box<dyn TransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+    pub fn get_actions(&self) -> Vec<LiveStrategyStateAction> {
+        self.actions.clone()
     }
 }
 
@@ -47,9 +57,9 @@ impl StateChangeActions for StrategyStateChangeActions {
 
 #[derive(Debug, Clone)]
 pub struct LiveStrategyStateMachine {
-    current_state: LiveStrategyRunState,
-    strategy_id: i32,
-    strategy_name: String,
+    pub current_state: LiveStrategyRunState,
+    pub strategy_id: i32,
+    pub strategy_name: String,
 }
 
 impl LiveStrategyStateMachine {
@@ -60,96 +70,92 @@ impl LiveStrategyStateMachine {
 
 
 
-impl LiveStrategyStateMachineTrait for LiveStrategyStateMachine {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn clone_box(&self) -> Box<dyn LiveStrategyStateMachineTrait> {
-        Box::new(self.clone())
-    }
+impl LiveStrategyStateMachine {
 
-    fn current_state(&self) -> LiveStrategyRunState {
+    pub fn current_state(&self) -> LiveStrategyRunState {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: LiveStrategyStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String> {
+    pub fn transition(&mut self, event: LiveStrategyStateTransitionEvent) -> Result<LiveStrategyStateChangeActions, String> {
         match (self.current_state.clone(), event) {
             // created => initializing
             (LiveStrategyRunState::Created, LiveStrategyStateTransitionEvent::Initialize) => {
                 self.current_state = LiveStrategyRunState::Initializing;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Initializing,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition),
-                        Box::new(LiveStrategyStateAction::ListenAndHandleEvent),
-                        Box::new(LiveStrategyStateAction::ListenAndHandleNodeMessage),
-                        Box::new(LiveStrategyStateAction::ListenAndHandleCommand),
-                        Box::new(LiveStrategyStateAction::InitNode),
-                        Box::new(LiveStrategyStateAction::LoadPositions),
+                        LiveStrategyStateAction::LogTransition,
+                        LiveStrategyStateAction::ListenAndHandleEvent,
+                        LiveStrategyStateAction::ListenAndHandleNodeMessage,
+                        LiveStrategyStateAction::ListenAndHandleCommand,
+                        LiveStrategyStateAction::InitNode,
+                        LiveStrategyStateAction::LoadPositions,
                     ],
-                }))
+                })
             }
             // initializing => ready
             (LiveStrategyRunState::Initializing, LiveStrategyStateTransitionEvent::InitializeComplete) => {
                 self.current_state = LiveStrategyRunState::Ready;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Ready,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition)
+                        LiveStrategyStateAction::LogTransition,
                     ],
-                }))
+                })
             }
             // ready => starting
             (LiveStrategyRunState::Ready, LiveStrategyStateTransitionEvent::Start) => {
                 self.current_state = LiveStrategyRunState::Starting;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Starting,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition), 
-                        Box::new(LiveStrategyStateAction::StartNode),
+                        LiveStrategyStateAction::LogTransition, 
+                        LiveStrategyStateAction::StartNode,
                     ],
-                }))
+                })
             }
             // starting => running
             (LiveStrategyRunState::Starting, LiveStrategyStateTransitionEvent::StartComplete) => {
                 self.current_state = LiveStrategyRunState::Running;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Running,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition),
-                        Box::new(LiveStrategyStateAction::RegisterTask), // 当启动成功之后, 注册任务
+                        LiveStrategyStateAction::LogTransition,
+                        LiveStrategyStateAction::RegisterTask, // 当启动成功之后, 注册任务
                     ],
-                }))
+                })
             }
             // running => stopping
             (LiveStrategyRunState::Running, LiveStrategyStateTransitionEvent::Stop) => {
                 self.current_state = LiveStrategyRunState::Stopping;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Stopping,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition), 
-                        Box::new(LiveStrategyStateAction::StopNode),
+                        LiveStrategyStateAction::LogTransition, 
+                        LiveStrategyStateAction::StopNode,
                     ],
-                }))
+                })
             }
             // stopping => stopped
             (LiveStrategyRunState::Stopping, LiveStrategyStateTransitionEvent::StopComplete) => {
                 self.current_state = LiveStrategyRunState::Stopped;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Stopped,
-                    actions: vec![Box::new(LiveStrategyStateAction::LogTransition)],
-                }))
+                    actions: vec![
+                        LiveStrategyStateAction::LogTransition,
+                    ],
+                })
             }
             // 从任何状态都可以失败
             (_, LiveStrategyStateTransitionEvent::Fail(error)) => {
                 self.current_state = LiveStrategyRunState::Failed;
-                Ok(Box::new(StrategyStateChangeActions {
+                Ok(LiveStrategyStateChangeActions {
                     new_state: LiveStrategyRunState::Failed,
                     actions: vec![
-                        Box::new(LiveStrategyStateAction::LogTransition), 
-                        Box::new(LiveStrategyStateAction::LogError(error)),
+                        LiveStrategyStateAction::LogTransition, 
+                        LiveStrategyStateAction::LogError(error),
                     ],
-                }))
+                })
             }
             // 处理无效的状态转换
             (state, event) => {

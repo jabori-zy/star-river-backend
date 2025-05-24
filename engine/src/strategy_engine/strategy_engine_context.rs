@@ -3,7 +3,6 @@ use event_center::{Event, EventPublisher};
 use sea_orm::DatabaseConnection;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use std::collections::HashMap;
-use crate::strategy_engine::strategy::strategy_state_machine::LiveStrategyRunState;
 use crate::EngineName;
 use async_trait::async_trait;
 use crate::EngineContext;
@@ -12,7 +11,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use heartbeat::Heartbeat;
-use super::strategy::LiveStrategyTrait;
 use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::strategy::{Strategy, TradeMode};
@@ -34,7 +32,7 @@ pub struct StrategyEngineContext {
     pub response_event_receiver: broadcast::Receiver<Event>,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub live_strategy_list: HashMap<StrategyId, Box<dyn LiveStrategyTrait>>,
+    pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
     pub backtest_strategy_list: HashMap<StrategyId, BacktestStrategy>,
 }
 
@@ -106,22 +104,11 @@ impl EngineContext for StrategyEngineContext {
 }
 
 impl StrategyEngineContext {
-    
-    pub async fn get_strategy(&self, strategy_id: StrategyId) -> Result<Box<dyn LiveStrategyTrait>, String> {
-        let strategy = self.live_strategy_list.get(&strategy_id).map(|strategy| strategy.clone());
-        if let Some(strategy) = strategy {
-            Ok(strategy)
-        } else {
-            tracing::error!("策略不存在");
-            Err("策略不存在".to_string())
-        }
-    }
 
-    pub async fn get_strategy_mut(&mut self, strategy_id: StrategyId) -> Result<&mut Box<dyn LiveStrategyTrait>, String> {
+    pub async fn get_live_strategy_mut(&mut self, strategy_id: StrategyId) -> Result<&mut LiveStrategy, String> {
         if let Some(strategy) = self.live_strategy_list.get_mut(&strategy_id) {
             Ok(strategy)
         } else {
-            tracing::error!("策略不存在");
             Err("策略不存在".to_string())
         }
     }
@@ -161,7 +148,7 @@ impl StrategyEngineContext {
                     self.database.clone(),
                     self.heartbeat.clone()
                 ).await;
-                self.live_strategy_list.insert(strategy_id, Box::new(strategy));
+                self.live_strategy_list.insert(strategy_id, strategy);
                 Ok(strategy_id)
             }
             TradeMode::Backtest => {
@@ -188,15 +175,16 @@ impl StrategyEngineContext {
     }
 
 
-    pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.live_strategy_list.get_mut(&strategy_id);
+    // 启动实盘策略
+    pub async fn live_strategy_start(&mut self, strategy_id: i32) -> Result<(), String> {
+        let strategy = self.get_live_strategy_mut(strategy_id).await;
         match strategy {
-            Some(strategy) => {
+            Ok(strategy) => {
                 strategy.start_strategy().await.unwrap();
                 Ok(())
             }
-            None => {
-                Err("策略不存在".to_string())
+            Err(e) => {
+                Err(e)
             }
         }
     }
@@ -233,25 +221,27 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
+    // 实盘策略停止
+    pub async fn live_strategy_stop(&mut self, strategy_id: i32) -> Result<(), String> {
 
 
         let strategy = self.live_strategy_list.get_mut(&strategy_id).unwrap();
         strategy.stop_strategy().await?;
-        self.remove_strategy(strategy_id).await;
+        self.remove_live_strategy_instance(strategy_id).await;
 
 
         Ok(())
     }
 
-    async fn remove_strategy(&mut self, strategy_id: i32) {
+    // 移除策略
+    async fn remove_live_strategy_instance(&mut self, strategy_id: i32) {
         self.live_strategy_list.remove(&strategy_id);
         tracing::info!("策略实例已停止, 从引擎中移除, 策略名称: {}", strategy_id);
     }
 
     pub async fn get_strategy_cache_keys(&self, strategy_id: i32) -> Vec<CacheKey> {
         let strategy = self.live_strategy_list.get(&strategy_id).unwrap();
-        let cache_keys = strategy.get_strategy_cache_keys().await;
+        let cache_keys = strategy.get_context().read().await.get_cache_keys().await;
         cache_keys
     }
 

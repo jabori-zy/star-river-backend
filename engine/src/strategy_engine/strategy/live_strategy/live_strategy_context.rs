@@ -7,7 +7,6 @@ use event_center::{Event, EventPublisher};
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::LiveNodeTrait;
-use crate::strategy_engine::strategy::strategy_state_machine::*;
 use types::strategy::{TradeMode, LiveStrategyConfig};
 use types::strategy::node_message::NodeMessage;
 use crate::exchange_engine::ExchangeEngine;
@@ -17,8 +16,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use types::position::Position;
-use crate::strategy_engine::strategy::strategy_context::StrategyContext;
-use async_trait::async_trait;
 use std::any::Any;
 use database::query::position_query::PositionQuery;
 use database::mutation::position_mutation::PositionMutation;
@@ -31,13 +28,13 @@ use types::cache::CacheKey;
 use uuid::Uuid;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
-use event_center::response::Response;
 use utils::get_utc8_timestamp_millis;
 use event_center::command::Command;
 use event_center::strategy_event::{StrategyEvent, StrategyData};
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
 use types::strategy::node_command::{NodeCommandReceiver, NodeCommand};
+use super::live_strategy_state_machine::LiveStrategyStateMachine;
 
 #[derive(Debug)]
 // 实盘策略上下文
@@ -53,7 +50,7 @@ pub struct LiveStrategyContext {
     pub command_publisher: CommandPublisher, // 命令发布器
     pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
     pub cancel_token: CancellationToken, // 取消令牌
-    pub state_machine: Box<dyn LiveStrategyStateMachineTrait>, // 策略状态机
+    pub state_machine: LiveStrategyStateMachine, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
     pub positions: Arc<RwLock<Vec<Position>>>, // 策略的所有持仓
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
@@ -64,35 +61,7 @@ pub struct LiveStrategyContext {
 }
 
 
-// impl Clone for LiveStrategyContext {
-//     fn clone(&self) -> Self {
-//         Self {
-//             strategy_id: self.strategy_id,
-//             strategy_name: self.strategy_name.clone(),
-//             strategy_config: self.strategy_config.clone(),
-//             cache_keys: self.cache_keys.clone(),
-//             graph: self.graph.clone(),
-//             node_indices: self.node_indices.clone(),
-//             event_publisher: self.event_publisher.clone(),
-//             event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
-//             cancel_token: self.cancel_token.clone(),
-//             state_machine: self.state_machine.clone_box(),
-//             all_node_output_handles: self.all_node_output_handles.clone(),
-//             positions: self.positions.clone(),
-//             exchange_engine: self.exchange_engine.clone(),
-//             database: self.database.clone(),
-//             heartbeat: self.heartbeat.clone(),
-//             registered_tasks: self.registered_tasks.clone(),
-//             command_publisher: self.command_publisher.clone(),
-//             command_receiver: self.command_receiver.clone(),
-//         }
-//     }
-// }
-
-
-
-#[async_trait]
-impl StrategyContext for LiveStrategyContext {
+impl LiveStrategyContext {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -105,48 +74,48 @@ impl StrategyContext for LiveStrategyContext {
     //     Box::new(self.clone())
     // }
 
-    fn get_strategy_id(&self) -> i32 {
+    pub fn get_strategy_id(&self) -> i32 {
         self.strategy_id
     }
 
-    fn get_strategy_name(&self) -> String {
+    pub fn get_strategy_name(&self) -> String {
         self.strategy_name.clone()
     }
 
-    async fn get_cache_keys(&self) -> Vec<CacheKey> {
+    pub async fn get_cache_keys(&self) -> Vec<CacheKey> {
         self.cache_keys.read().await.clone()
     }
 
-    fn get_state_machine(&self) -> Box<dyn LiveStrategyStateMachineTrait> {
-        self.state_machine.clone_box()
+    pub fn get_state_machine(&self) -> LiveStrategyStateMachine {
+        self.state_machine.clone()
     }
 
-    fn set_state_machine(&mut self, state_machine: Box<dyn LiveStrategyStateMachineTrait>) {
+    pub fn set_state_machine(&mut self, state_machine: LiveStrategyStateMachine) {
         self.state_machine = state_machine;
     }
 
-    fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
+    pub fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
         self.all_node_output_handles.clone()
     }
 
 
-    fn get_cancel_token(&self) -> CancellationToken {
+    pub fn get_cancel_token(&self) -> CancellationToken {
         self.cancel_token.clone()
     }
 
-    fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
+    pub fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
         &self.event_receivers
     }
 
-    fn get_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>> {
+    pub fn get_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>> {
         self.strategy_command_receiver.clone()
     }
 
-    async fn handle_command(&mut self, command: NodeCommand) -> Result<(), String> {
+    pub async fn handle_command(&mut self, command: NodeCommand) -> Result<(), String> {
         Ok(())
     }
 
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+    pub async fn handle_event(&mut self, event: Event) -> Result<(), String> {
         // if let Event::Response(ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response))) = event {
         //     let strategy_data = StrategyData {
         //         strategy_id: self.strategy_id,
@@ -159,7 +128,7 @@ impl StrategyContext for LiveStrategyContext {
         Ok(())
     }
 
-    async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    pub async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String> {
         // tracing::debug!("策略: {:?} 收到来自节点消息: {:?}", self.get_strategy_name(), message);
         match message {
             NodeMessage::Position(position_message) => {

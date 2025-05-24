@@ -6,11 +6,9 @@ pub mod live_strategy_function;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use live_strategy_context::LiveStrategyContext;
-use crate::strategy_engine::strategy::LiveStrategyTrait;
-use crate::strategy_engine::strategy::strategy_context::StrategyContext;
 use async_trait::async_trait;
 use std::any::Any;
-use crate::strategy_engine::strategy::strategy_state_machine::{LiveStrategyStateTransitionEvent,LiveStrategyStateMachineTrait};
+use live_strategy_state_machine::{LiveStrategyStateTransitionEvent,LiveStrategyRunState};
 use live_strategy_state_machine::LiveStrategyStateAction;
 use types::strategy::Strategy;
 use event_center::EventPublisher;
@@ -27,7 +25,6 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use live_strategy_function::LiveStrategyFunction;
 use live_strategy_state_machine::LiveStrategyStateMachine;
-use crate::strategy_engine::strategy::strategy_state_machine::LiveStrategyRunState;
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::mpsc;
@@ -36,7 +33,7 @@ use types::strategy::node_command::NodeCommand;
 
 #[derive(Debug, Clone)]
 pub struct LiveStrategy {
-    pub context: Arc<RwLock<Box<dyn StrategyContext>>>,
+    pub context: Arc<RwLock<LiveStrategyContext>>,
 }
 
 
@@ -138,7 +135,7 @@ impl LiveStrategy {
             event_publisher,
             event_receivers: vec![response_event_receiver],
             cancel_token,
-            state_machine: Box::new(LiveStrategyStateMachine::new(strategy_id, strategy_name, LiveStrategyRunState::Created)),
+            state_machine: LiveStrategyStateMachine::new(strategy_id, strategy_name, LiveStrategyRunState::Created),
             all_node_output_handles: strategy_output_handles,
             positions: Arc::new(RwLock::new(vec![])),
             exchange_engine: exchange_engine,
@@ -149,72 +146,57 @@ impl LiveStrategy {
             command_receiver: command_receiver,
             strategy_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
         };
-        Self { context: Arc::new(RwLock::new(Box::new(context))) }
+        Self { context: Arc::new(RwLock::new(context)) }
     }
 }
 
 
 
+impl LiveStrategy {
 
-#[async_trait]
-impl LiveStrategyTrait for LiveStrategy {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn LiveStrategyTrait> {
-        Box::new(self.clone())
-    }
-
-    fn get_context(&self) -> Arc<RwLock<Box<dyn StrategyContext>>> {
+    pub fn get_context(&self) -> Arc<RwLock<LiveStrategyContext>> {
         self.context.clone()
     }
 
-    async fn get_strategy_id(&self) -> i32 {
+    pub async fn get_strategy_id(&self) -> i32 {
         self.context.read().await.get_strategy_id()
     }
 
-    async fn get_strategy_name(&self) -> String {
+    pub async fn get_strategy_name(&self) -> String {
         self.context.read().await.get_strategy_name()
     }
 
-    async fn get_state_machine(&self) -> Box<dyn LiveStrategyStateMachineTrait> {
+    pub async fn get_state_machine(&self) -> LiveStrategyStateMachine {
         self.context.read().await.get_state_machine()
     }
 
-    async fn update_strategy_state(&mut self, event: LiveStrategyStateTransitionEvent) -> Result<(), String> {
+
+    pub async fn update_strategy_state(&mut self, event: LiveStrategyStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let strategy_name = self.get_strategy_name().await;
 
         let (transition_result, state_machine) = {
-            let mut state_manager = self.context.read().await.get_state_machine().clone_box();
+            let mut state_manager = self.context.read().await.get_state_machine();
             let transition_result = state_manager.transition(event).unwrap();
             (transition_result, state_manager)
         };
 
         tracing::info!("需要执行的动作: {:?}", transition_result.get_actions());
         for action in transition_result.get_actions() {
-            if let Some(live_strategy_state_action) = action.as_any().downcast_ref::<LiveStrategyStateAction>() {
-                match live_strategy_state_action {
-                    LiveStrategyStateAction::InitNode => {
-                        tracing::info!("++++++++++++++++++++++++++++++++++++++");
+            match action {
+                LiveStrategyStateAction::InitNode => {
+                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
                         tracing::info!("{}: 开始初始化节点", strategy_name);
                         let nodes = {
                             let context_guard = self.context.read().await;
-                            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
-                            live_strategy_context.topological_sort()
+                            context_guard.topological_sort()
                         };
                         
                         let mut all_nodes_initialized = true;
 
                         for node in nodes {
                             let context_guard = self.context.read().await;
-                            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
-                            if let Err(e) = live_strategy_context.init_node(node).await {
+                            if let Err(e) = context_guard.init_node(node).await {
                                 tracing::error!("{}", e);
                                 all_nodes_initialized = false;
                                 break;
@@ -233,8 +215,7 @@ impl LiveStrategyTrait for LiveStrategy {
                         tracing::info!("{}: 开始启动节点", strategy_name);
                         let nodes = {
                             let context_guard = self.context.read().await;
-                            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
-                            live_strategy_context.topological_sort()
+                            context_guard.topological_sort()
                         };
                         
                         let mut all_nodes_started = true;
@@ -242,9 +223,8 @@ impl LiveStrategyTrait for LiveStrategy {
                         for node in nodes {
                             // let mut node = node.clone();
                             let context_guard = self.context.read().await;
-                            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
                             
-                            if let Err(e) = live_strategy_context.start_node(node).await {
+                            if let Err(e) = context_guard.start_node(node).await {
                                 tracing::error!("{}", e);
                                 all_nodes_started = false;
                                 break;
@@ -264,8 +244,7 @@ impl LiveStrategyTrait for LiveStrategy {
                         tracing::info!("{}: 开始停止节点", strategy_name);
                         let nodes = {
                             let context_guard = self.context.read().await;
-                            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
-                            live_strategy_context.topological_sort()
+                            context_guard.topological_sort()
                         };
                         
                         let mut all_nodes_stopped = true;
@@ -273,9 +252,8 @@ impl LiveStrategyTrait for LiveStrategy {
                         for node in nodes {
                             // let mut node = node.clone();
                             let context_guard = self.context.read().await;
-                            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
                             
-                            if let Err(e) = live_strategy_context.stop_node(node).await {
+                            if let Err(e) = context_guard.stop_node(node).await {
                                 tracing::error!("{}", e);
                                 all_nodes_stopped = false;
                                 break;
@@ -295,35 +273,33 @@ impl LiveStrategyTrait for LiveStrategy {
                     LiveStrategyStateAction::RegisterTask => {
                         tracing::info!("{}: 注册任务", strategy_name);
                         let mut context_guard = self.context.write().await;
-                        let live_strategy_context = context_guard.as_any_mut().downcast_mut::<LiveStrategyContext>().unwrap();
-                        live_strategy_context.monitor_positions().await;
+                        context_guard.monitor_positions().await;
                     }
                     LiveStrategyStateAction::LoadPositions => {
                         tracing::info!("{}: 加载持仓", strategy_name);
                         let mut context_guard = self.context.write().await;
-                        let live_strategy_context = context_guard.as_any_mut().downcast_mut::<LiveStrategyContext>().unwrap();
-                        live_strategy_context.load_all_positions().await;
+                        context_guard.load_all_positions().await;
                     }
                     LiveStrategyStateAction::ListenAndHandleNodeMessage => {
                         tracing::info!("{}: 监听节点消息", strategy_name);
-                        self.listen_node_message().await.unwrap();
+                        LiveStrategyFunction::listen_node_message(self.get_context()).await;
                     }
                     LiveStrategyStateAction::ListenAndHandleCommand => {
                         tracing::info!("{}: 监听命令", strategy_name);
-                        self.listen_command().await.unwrap();
+                        LiveStrategyFunction::listen_command(self.get_context()).await;
                     }
                     
                     LiveStrategyStateAction::ListenAndHandleEvent => {
                         tracing::info!("{}: 监听事件", strategy_name);
-                        self.listen_event().await.unwrap();
+                        LiveStrategyFunction::listen_event(self.get_context()).await;
                     }
                     _ => {}
-                }
             }
+            
 
             {
                 let mut context_guard = self.context.write().await;
-                context_guard.set_state_machine(state_machine.clone_box());
+                context_guard.set_state_machine(state_machine.clone());
             }
             
 
@@ -334,7 +310,7 @@ impl LiveStrategyTrait for LiveStrategy {
     }
 
     
-    async fn init_strategy(&mut self) -> Result<(), String> {
+    pub async fn init_strategy(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始初始化策略", self.get_strategy_name().await);
 
         // created => initializing
@@ -348,7 +324,7 @@ impl LiveStrategyTrait for LiveStrategy {
         Ok(())
     }
 
-    async fn start_strategy(&mut self) -> Result<(), String> {
+    pub async fn start_strategy(&mut self) -> Result<(), String> {
         tracing::info!("启动策略: {}", self.get_strategy_name().await);
         // 获取当前状态
         let current_state = self.get_state_machine().await.current_state();
@@ -366,8 +342,7 @@ impl LiveStrategyTrait for LiveStrategy {
         // 先获取是否所有节点都在运行的结果，然后释放不可变借用
         let all_running = {
             let context_guard = self.context.read().await;
-            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
-            live_strategy_context.wait_for_all_nodes_running(10).await.unwrap()
+            context_guard.wait_for_all_nodes_running(10).await.unwrap()
         };
         
         if all_running {
@@ -378,7 +353,7 @@ impl LiveStrategyTrait for LiveStrategy {
         }
     }
 
-    async fn stop_strategy(&mut self) -> Result<(), String> {
+    pub async fn stop_strategy(&mut self) -> Result<(), String> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
         let current_state = self.get_state_machine().await.current_state();
@@ -392,8 +367,7 @@ impl LiveStrategyTrait for LiveStrategy {
         // 发送完信号后，循环遍历所有的节点，获取节点的状态，如果所有的节点状态都为stopped，则更新策略状态为Stopped
         let all_stopped = {
             let context_guard = self.context.read().await;
-            let live_strategy_context = context_guard.as_any().downcast_ref::<LiveStrategyContext>().unwrap();
-            live_strategy_context.wait_for_all_nodes_stopped(10).await.unwrap()
+            context_guard.wait_for_all_nodes_stopped(10).await.unwrap()
         };
         if all_stopped {
             self.update_strategy_state(LiveStrategyStateTransitionEvent::StopComplete).await.unwrap();
@@ -403,19 +377,19 @@ impl LiveStrategyTrait for LiveStrategy {
         }
     }
 
-    async fn enable_strategy_data_push(&mut self) -> Result<(), String> {
+    pub async fn enable_strategy_data_push(&mut self) -> Result<(), String> {
         let mut context_guard = self.context.write().await;
-        let live_strategy_context = context_guard.as_any_mut().downcast_mut::<LiveStrategyContext>().unwrap();
-        live_strategy_context.enable_strategy_data_push().await;
+        context_guard.enable_strategy_data_push().await;
         Ok(())
     }
 
-    async fn disable_strategy_data_push(&mut self) -> Result<(), String> {
+    pub async fn disable_strategy_data_push(&mut self) -> Result<(), String> {
         let mut context_guard = self.context.write().await;
-        let live_strategy_context = context_guard.as_any_mut().downcast_mut::<LiveStrategyContext>().unwrap();
-        live_strategy_context.disable_strategy_data_push().await;
+        context_guard.disable_strategy_data_push().await;
         Ok(())
     }
+
+
     
 
 

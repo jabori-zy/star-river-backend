@@ -6,9 +6,6 @@ pub mod backtest_strategy_function;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use backtest_strategy_context::BacktestStrategyContext;
-use crate::strategy_engine::strategy::strategy_context::StrategyContext;
-use async_trait::async_trait;
-use std::any::Any;
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
 use types::strategy::Strategy;
 use event_center::EventPublisher;
@@ -21,16 +18,12 @@ use std::collections::HashMap;
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use backtest_strategy_function::BacktestStrategyFunction;
-// use backtest_strategy_state_machine::BacktestStrategyStateMachine;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::BacktestStrategyConfig;
 use tokio::sync::mpsc;
 use types::strategy::node_command::NodeCommand;
-use crate::strategy_engine::strategy::strategy_functions::StrategyFunction;
-use super::super::node::node_types::NodeType;
-use super::super::node::backtest_strategy_node::start_node::StartNode;
 
 
 #[derive(Debug, Clone)]

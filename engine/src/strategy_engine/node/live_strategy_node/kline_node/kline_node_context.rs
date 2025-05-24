@@ -105,7 +105,7 @@ impl LiveNodeContextTrait for KlineNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("live_data_node_output")).unwrap().clone()
+        self.base_context.output_handle.get(&format!("kline_node_output")).unwrap().clone()
     }
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {

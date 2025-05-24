@@ -3,19 +3,16 @@ mod strategy;
 pub mod node;
 
 use std::collections::HashMap;
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 use std::vec;
-use event_center::{Event,EventPublisher};
+use event_center::EventPublisher;
 use tokio::sync::RwLock;
 use crate::{exchange_engine::ExchangeEngine, strategy_engine::strategy_engine_context::StrategyEngineContext};
-use tokio::sync::broadcast;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use crate::EngineName;
 use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
-use database::entities::strategy_config::Model as StrategyConfig;
-use database::query::strategy_config_query::StrategyConfigQuery;
 use std::any::Any;
 use heartbeat::Heartbeat;
 use types::cache::CacheKey;
@@ -88,19 +85,19 @@ impl StrategyEngine{
     pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.start_strategy(strategy_id).await
+        strategy_context.live_strategy_start(strategy_id).await
     }
 
     pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.stop_strategy(strategy_id).await
+        strategy_context.live_strategy_stop(strategy_id).await
     }
 
     pub async fn enable_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_engine_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_engine_context.get_strategy_mut(strategy_id).await;
+        let strategy = strategy_engine_context.get_live_strategy_mut(strategy_id).await;
         if let Ok(strategy) = strategy {
             strategy.enable_strategy_data_push().await.unwrap();
         }
@@ -110,7 +107,7 @@ impl StrategyEngine{
     pub async fn disable_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_engine_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_engine_context.get_strategy_mut(strategy_id).await;
+        let strategy = strategy_engine_context.get_live_strategy_mut(strategy_id).await;
         if let Ok(strategy) = strategy {
             strategy.disable_strategy_data_push().await.unwrap();
         }
