@@ -6,11 +6,11 @@ pub mod live_strategy_function;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use live_strategy_context::LiveStrategyContext;
-use crate::strategy_engine::strategy::StrategyTrait;
+use crate::strategy_engine::strategy::LiveStrategyTrait;
 use crate::strategy_engine::strategy::strategy_context::StrategyContext;
 use async_trait::async_trait;
 use std::any::Any;
-use crate::strategy_engine::strategy::strategy_state_machine::{StrategyStateTransitionEvent,StrategyStateMachine};
+use crate::strategy_engine::strategy::strategy_state_machine::{LiveStrategyStateTransitionEvent,LiveStrategyStateMachineTrait};
 use live_strategy_state_machine::LiveStrategyStateAction;
 use types::strategy::Strategy;
 use event_center::EventPublisher;
@@ -27,7 +27,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use live_strategy_function::LiveStrategyFunction;
 use live_strategy_state_machine::LiveStrategyStateMachine;
-use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
+use crate::strategy_engine::strategy::strategy_state_machine::LiveStrategyRunState;
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::mpsc;
@@ -138,7 +138,7 @@ impl LiveStrategy {
             event_publisher,
             event_receivers: vec![response_event_receiver],
             cancel_token,
-            state_machine: Box::new(LiveStrategyStateMachine::new(strategy_id, strategy_name, StrategyRunState::Created)),
+            state_machine: Box::new(LiveStrategyStateMachine::new(strategy_id, strategy_name, LiveStrategyRunState::Created)),
             all_node_output_handles: strategy_output_handles,
             positions: Arc::new(RwLock::new(vec![])),
             exchange_engine: exchange_engine,
@@ -157,7 +157,7 @@ impl LiveStrategy {
 
 
 #[async_trait]
-impl StrategyTrait for LiveStrategy {
+impl LiveStrategyTrait for LiveStrategy {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -166,7 +166,7 @@ impl StrategyTrait for LiveStrategy {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn StrategyTrait> {
+    fn clone_box(&self) -> Box<dyn LiveStrategyTrait> {
         Box::new(self.clone())
     }
 
@@ -182,11 +182,11 @@ impl StrategyTrait for LiveStrategy {
         self.context.read().await.get_strategy_name()
     }
 
-    async fn get_state_machine(&self) -> Box<dyn StrategyStateMachine> {
+    async fn get_state_machine(&self) -> Box<dyn LiveStrategyStateMachineTrait> {
         self.context.read().await.get_state_machine()
     }
 
-    async fn update_strategy_state(&mut self, event: StrategyStateTransitionEvent) -> Result<(), String> {
+    async fn update_strategy_state(&mut self, event: LiveStrategyStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let strategy_name = self.get_strategy_name().await;
 
@@ -338,12 +338,12 @@ impl StrategyTrait for LiveStrategy {
         tracing::info!("{}: 开始初始化策略", self.get_strategy_name().await);
 
         // created => initializing
-        self.update_strategy_state(StrategyStateTransitionEvent::Initialize).await.unwrap();
+        self.update_strategy_state(LiveStrategyStateTransitionEvent::Initialize).await.unwrap();
 
         // 
         // initializing => ready
         tracing::info!("{}: 初始化完成", self.get_strategy_name().await);
-        self.update_strategy_state(StrategyStateTransitionEvent::InitializeComplete).await.unwrap();
+        self.update_strategy_state(LiveStrategyStateTransitionEvent::InitializeComplete).await.unwrap();
 
         Ok(())
     }
@@ -353,7 +353,7 @@ impl StrategyTrait for LiveStrategy {
         // 获取当前状态
         let current_state = self.get_state_machine().await.current_state();
         // 如果当前状态为 Running，则不进行操作
-        if current_state != StrategyRunState::Ready {
+        if current_state != LiveStrategyRunState::Ready {
             tracing::info!("策略未处于Ready状态, 不能启动: {}", self.get_strategy_name().await);
             return Ok(());
         }
@@ -361,7 +361,7 @@ impl StrategyTrait for LiveStrategy {
 
         tracing::info!("{}: 发送启动策略信号", self.get_strategy_name().await);
         tracing::info!("等待所有节点启动...");
-        self.update_strategy_state(StrategyStateTransitionEvent::Start).await.unwrap();
+        self.update_strategy_state(LiveStrategyStateTransitionEvent::Start).await.unwrap();
 
         // 先获取是否所有节点都在运行的结果，然后释放不可变借用
         let all_running = {
@@ -371,7 +371,7 @@ impl StrategyTrait for LiveStrategy {
         };
         
         if all_running {
-            self.update_strategy_state(StrategyStateTransitionEvent::StartComplete).await.unwrap();
+            self.update_strategy_state(LiveStrategyStateTransitionEvent::StartComplete).await.unwrap();
             Ok(())
         } else {
             Err("等待节点启动超时".to_string())
@@ -382,12 +382,12 @@ impl StrategyTrait for LiveStrategy {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
         let current_state = self.get_state_machine().await.current_state();
-        if current_state == StrategyRunState::Stopping {
+        if current_state == LiveStrategyRunState::Stopping {
             tracing::info!("策略{}已停止", self.get_strategy_name().await);
             return Ok(());
         }
         tracing::info!("等待所有节点停止...");
-        self.update_strategy_state(StrategyStateTransitionEvent::Stop).await.unwrap();
+        self.update_strategy_state(LiveStrategyStateTransitionEvent::Stop).await.unwrap();
 
         // 发送完信号后，循环遍历所有的节点，获取节点的状态，如果所有的节点状态都为stopped，则更新策略状态为Stopped
         let all_stopped = {
@@ -396,7 +396,7 @@ impl StrategyTrait for LiveStrategy {
             live_strategy_context.wait_for_all_nodes_stopped(10).await.unwrap()
         };
         if all_stopped {
-            self.update_strategy_state(StrategyStateTransitionEvent::StopComplete).await.unwrap();
+            self.update_strategy_state(LiveStrategyStateTransitionEvent::StopComplete).await.unwrap();
             Ok(())
         } else {
             Err("等待节点停止超时".to_string())

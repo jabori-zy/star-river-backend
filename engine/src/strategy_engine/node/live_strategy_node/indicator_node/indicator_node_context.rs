@@ -9,7 +9,7 @@ use event_center::response::indicator_engine_response::IndicatorEngineResponse;
 use event_center::command::indicator_engine_command::{IndicatorEngineCommand, RegisterIndicatorParams};
 use utils::get_utc8_timestamp_millis;
 use types::strategy::node_message::{IndicatorMessage, NodeMessage};
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::indicator_node_type::IndicatorNodeLiveConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ use event_center::response::ResponseTrait;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub live_config: IndicatorNodeLiveConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
 }
@@ -33,8 +33,8 @@ pub struct IndicatorNodeContext {
 
 
 #[async_trait]
-impl NodeContextTrait for IndicatorNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+impl LiveNodeContextTrait for IndicatorNodeContext {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -46,11 +46,11 @@ impl NodeContextTrait for IndicatorNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
 

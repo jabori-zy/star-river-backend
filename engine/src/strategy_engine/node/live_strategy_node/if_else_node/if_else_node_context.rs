@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::condition::*;
 use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
 use super::if_else_node_type::*;
@@ -15,7 +15,7 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub current_batch_id: Option<String>,
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
@@ -28,9 +28,9 @@ pub struct IfElseNodeContext {
 
 
 #[async_trait]
-impl NodeContextTrait for IfElseNodeContext {
+impl LiveNodeContextTrait for IfElseNodeContext {
     
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -42,11 +42,11 @@ impl NodeContextTrait for IfElseNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
 

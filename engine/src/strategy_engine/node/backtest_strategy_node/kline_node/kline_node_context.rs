@@ -1,16 +1,19 @@
 use event_center::command::Command;
 use sea_orm::sea_query::Index;
 use types::cache::cache_key::HistoryKlineCacheKey;
+use types::cache::CacheKeyTrait;
 use types::market::KlineInterval;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::any::Any;
+use std::hash::Hash;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
 use types::strategy::node_message::{KlineSeriesMessage, NodeMessage};
 use uuid::Uuid;
 use event_center::response::Response;
-use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
 use event_center::command::market_engine_command::{MarketEngineCommand, GetKlineHistoryParams};
 use event_center::command::exchange_engine_command::RegisterExchangeParams;
 use event_center::response::market_engine_response::MarketEngineResponse;
@@ -33,13 +36,12 @@ use event_center::response::ResponseTrait;
 use tracing::instrument;
 use super::kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_message::SignalType;
-
-
+use event_center::strategy_event::{StrategyEvent,BacktestStrategyData};
 
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: BacktestBaseNodeContext,
     pub exchange_is_registered: Arc<RwLock<bool>>,
     pub data_is_loaded: Arc<RwLock<bool>>,
     pub backtest_config: KlineNodeBacktestConfig,
@@ -47,9 +49,9 @@ pub struct KlineNodeContext {
 }
 
 #[async_trait]
-impl NodeContextTrait for KlineNodeContext {
+impl BacktestNodeContextTrait for KlineNodeContext {
 
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+    fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -61,11 +63,11 @@ impl NodeContextTrait for KlineNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &BacktestBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
         &mut self.base_context
     }
 
@@ -79,7 +81,7 @@ impl NodeContextTrait for KlineNodeContext {
     }
 
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
-        tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
+        // tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
         // 收到消息之后，直接发送给下一个节点
         let exchange = self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.exchange.clone();
         let symbol = self.backtest_config.exchange_config.as_ref().unwrap().symbol.clone();
@@ -113,7 +115,17 @@ impl NodeContextTrait for KlineNodeContext {
                             if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
                                 match cache_reponse {
                                     CacheEngineResponse::GetCacheData(get_cache_data_response) => {
-                                        // tracing::info!("{}: 收到缓存数据: {:?}", self.base_context.node_id, get_cache_data_response.cache_data[0].to_json_with_time());
+                                        // 发送回测数据更新事件
+                                        let cache_data: Vec<Vec<f64>> = get_cache_data_response.cache_data.into_iter().map(|cache_value| cache_value.to_list()).collect();
+                                        let strategy_data = BacktestStrategyData {
+                                            strategy_id: self.base_context.strategy_id.clone(),
+                                            cache_key: get_cache_data_response.cache_key.get_key(),
+                                            data: cache_data[0].clone(),
+                                            timestamp: get_utc8_timestamp_millis(),
+                                        };
+                                        let strategy_event = StrategyEvent::BacktestStrategyDataUpdate(strategy_data);
+                                        // tracing::info!("{}: 发送回测数据更新事件", self.base_context.strategy_id);
+                                        self.get_event_publisher().publish(strategy_event.into()).await.unwrap();
                                     }
                                     _ => {}
                                 }

@@ -1,5 +1,5 @@
 use super::BacktestStrategyFunction;
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::BacktestNodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ use types::strategy::node_command::NodeCommandSender;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
+        graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
         cache_keys: &mut Vec<CacheKey>,
         node_config: Value,

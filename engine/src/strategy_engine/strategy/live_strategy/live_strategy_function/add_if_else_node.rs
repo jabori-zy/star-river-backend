@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::IfElseNode;
 use event_center::{EventPublisher, CommandPublisher, CommandReceiver};
 use crate::strategy_engine::node::live_strategy_node::if_else_node::if_else_node_type::*;
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::LiveNodeTrait;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::condition::Case;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -13,7 +13,7 @@ use types::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_if_else_node(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
+        graph: &mut Graph<Box<dyn LiveNodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>, 
         node_config: serde_json::Value,
         event_publisher: EventPublisher,

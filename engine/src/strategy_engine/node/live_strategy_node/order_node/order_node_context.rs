@@ -5,7 +5,7 @@ use utils::get_utc8_timestamp_millis;
 use chrono::Utc;
 use event_center::Event;
 use uuid::Uuid;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use types::strategy::node_message::NodeMessage;
 use types::strategy::node_message::SignalType;
 use event_center::response::Response;
@@ -31,7 +31,7 @@ use types::order::{CreateOrderParams,GetTransactionDetailParams};
 
 #[derive(Debug, Clone)]
 pub struct OrderNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub live_config: OrderNodeLiveConfig,
     pub request_id: Vec<Uuid>,
     pub is_processing_order: Arc<RwLock<bool>>, // 是否正在处理订单
@@ -263,8 +263,8 @@ impl OrderNodeContext {
 }
 
 #[async_trait]
-impl NodeContextTrait for OrderNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+impl LiveNodeContextTrait for OrderNodeContext {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -276,11 +276,11 @@ impl NodeContextTrait for OrderNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
 

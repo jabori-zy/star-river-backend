@@ -6,11 +6,9 @@ pub mod backtest_strategy_function;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use backtest_strategy_context::BacktestStrategyContext;
-use crate::strategy_engine::strategy::StrategyTrait;
 use crate::strategy_engine::strategy::strategy_context::StrategyContext;
 use async_trait::async_trait;
 use std::any::Any;
-use crate::strategy_engine::strategy::strategy_state_machine::{StrategyStateTransitionEvent,StrategyStateMachine};
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
 use types::strategy::Strategy;
 use event_center::EventPublisher;
@@ -24,7 +22,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use backtest_strategy_function::BacktestStrategyFunction;
 // use backtest_strategy_state_machine::BacktestStrategyStateMachine;
-use crate::strategy_engine::strategy::strategy_state_machine::StrategyRunState;
+use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::BacktestStrategyConfig;
@@ -37,7 +35,7 @@ use super::super::node::backtest_strategy_node::start_node::StartNode;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
-    pub context: Arc<RwLock<Box<dyn StrategyContext>>>,
+    pub context: Arc<RwLock<BacktestStrategyContext>>,
 }
 
 
@@ -65,6 +63,7 @@ impl BacktestStrategy {
 
         // 当策略创建时，状态为 Created
         let cancel_token = CancellationToken::new();
+        let cancel_play_token = CancellationToken::new();
 
 
         match strategy.config {
@@ -131,12 +130,13 @@ impl BacktestStrategy {
             strategy_name: strategy_name.clone(),
             strategy_config: strategy_backtest_config,
             cache_keys: Arc::new(RwLock::new(cache_keys)),
+            cache_lengths: HashMap::new(),
             graph,
             node_indices,
             event_publisher,
             event_receivers: vec![response_event_receiver],
             cancel_token,
-            state_machine: Box::new(BacktestStrategyStateMachine::new(strategy_id, strategy_name, StrategyRunState::Created)),
+            state_machine: BacktestStrategyStateMachine::new(strategy_id, strategy_name, BacktestStrategyRunState::Created),
             all_node_output_handles: strategy_output_handles, // 所有节点的输出控制器
             positions: Arc::new(RwLock::new(vec![])),
             exchange_engine: exchange_engine,
@@ -146,73 +146,91 @@ impl BacktestStrategy {
             command_publisher: command_publisher,
             command_receiver: command_receiver,
             strategy_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
+            signal_count: Arc::new(RwLock::new(0)),
+            played_signal_count: Arc::new(RwLock::new(0)),
+            is_playing: Arc::new(RwLock::new(false)),
+            initial_play_speed: Arc::new(RwLock::new(0)),
+            cancel_play_token: cancel_play_token,
         };
-        Self { context: Arc::new(RwLock::new(Box::new(context))) }
+        Self { context: Arc::new(RwLock::new(context)) }
     }
 }
 
 
+impl BacktestStrategy {
 
-
-#[async_trait]
-impl StrategyTrait for BacktestStrategy {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn StrategyTrait> {
-        Box::new(self.clone())
-    }
-
-    fn get_context(&self) -> Arc<RwLock<Box<dyn StrategyContext>>> {
+    fn get_context(&self) -> Arc<RwLock<BacktestStrategyContext>> {
         self.context.clone()
     }
 
     async fn get_strategy_id(&self) -> i32 {
-        self.context.read().await.get_strategy_id()
+        self.context.read().await.strategy_id
     }
 
     async fn get_strategy_name(&self) -> String {
-        self.context.read().await.get_strategy_name()
+        self.context.read().await.strategy_name.clone()
     }
 
-    async fn get_state_machine(&self) -> Box<dyn StrategyStateMachine> {
-        self.context.read().await.get_state_machine()
+    async fn get_state_machine(&self) -> BacktestStrategyStateMachine {
+        self.context.read().await.state_machine.clone()
     }
 
-    async fn update_strategy_state(&mut self, event: StrategyStateTransitionEvent) -> Result<(), String> {
+    async fn update_strategy_state(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let strategy_name = self.get_strategy_name().await;
 
         let (transition_result, state_machine) = {
-            let mut state_manager = self.context.read().await.get_state_machine().clone_box();
+            let mut state_manager = self.context.read().await.state_machine.clone();
             let transition_result = state_manager.transition(event).unwrap();
             (transition_result, state_manager)
         };
 
-        tracing::info!("需要执行的动作: {:?}", transition_result.get_actions());
-        for action in transition_result.get_actions() {
-            if let Some(backtest_strategy_state_action) = action.as_any().downcast_ref::<BacktestStrategyStateAction>() {
-                match backtest_strategy_state_action {
-                    BacktestStrategyStateAction::InitNode => {
-                        tracing::info!("++++++++++++++++++++++++++++++++++++++");
+        tracing::info!("需要执行的动作: {:?}", transition_result.actions);
+        for action in transition_result.actions {
+            match action {
+                BacktestStrategyStateAction::InitInitialPlaySpeed => {
+                    tracing::info!("{}: 初始化初始播放速度", strategy_name);
+                    let context_guard = self.context.read().await;
+                    let backtest_config = context_guard.strategy_config.clone();
+                    let initial_play_speed = backtest_config.play_speed as u32;
+                    let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
+                    *initial_play_speed_guard = initial_play_speed;
+                }
+                BacktestStrategyStateAction::InitSignalCount => {
+                    tracing::info!("{}: 初始化信号计数", strategy_name);
+                    let mut context_guard = self.context.write().await;
+                    let signal_count = context_guard.get_signal_count().await;
+                    if let Ok(signal_count) = signal_count {
+                        let mut signal_count_guard = context_guard.signal_count.write().await;
+                        *signal_count_guard = signal_count;
+                        tracing::info!("{}: 初始化信号计数成功", strategy_name);
+                    } else {
+                        tracing::error!("{}: 获取信号计数失败", strategy_name);
+                    }
+                }
+                BacktestStrategyStateAction::InitCacheLength => {
+                    tracing::info!("{}: 初始化缓存长度", strategy_name);
+                    let mut context_guard = self.context.write().await;
+                    let cache_lengths = context_guard.get_cache_length().await;
+                    if let Ok(cache_lengths) = cache_lengths {
+                        context_guard.cache_lengths = cache_lengths;
+                    } else {
+                        tracing::error!("{}: 获取缓存长度失败", strategy_name);
+                    }
+                }
+                BacktestStrategyStateAction::InitNode => {
+                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
                         tracing::info!("{}: 开始初始化节点", strategy_name);
                         let nodes = {
                             let context_guard = self.context.read().await;
-                            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
-                            backtest_strategy_context.topological_sort()
+                            context_guard.topological_sort()
                         };
                         
                         let mut all_nodes_initialized = true;
 
                         for node in nodes {
                             let context_guard = self.context.read().await;
-                            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
-                            if let Err(e) = backtest_strategy_context.init_node(node).await {
+                            if let Err(e) = context_guard.init_node(node).await {
                                 tracing::error!("{}", e);
                                 all_nodes_initialized = false;
                                 break;
@@ -226,49 +244,13 @@ impl StrategyTrait for BacktestStrategy {
                         }
                     }
 
-                    BacktestStrategyStateAction::StartNode => {
-                        tracing::info!("++++++++++++++++++++++++++++++++++++++");
-                        tracing::info!("{}: 开始启动节点", strategy_name);
-                        let nodes = {
-                            let context_guard = self.context.read().await;
-                            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
-                            backtest_strategy_context.topological_sort()
-                        };
-                        
-                        let mut all_nodes_started = true;
-
-                        for node in nodes.iter() {
-                            if let Err(e) = StrategyFunction::start_node(node).await {
-                                tracing::error!("{}", e);
-                                all_nodes_started = false;
-                                break;
-                            }
-                        }
-
-                        if all_nodes_started {
-                            tracing::info!("{}: 所有节点已成功启动", strategy_name);
-                            // 找到开始节点
-                            for node in nodes {
-                                if node.get_node_type().await == NodeType::StartNode {
-                                    let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
-                                    start_node.send_signal().await;
-                                    
-                                    break;
-                                }
-                            }
-                        } else {
-                            tracing::error!("{}: 部分节点启动失败，策略无法正常运行", strategy_name);
-                        }
-                    }
-
 
                     BacktestStrategyStateAction::StopNode => {
                         tracing::info!("++++++++++++++++++++++++++++++++++++++");
                         tracing::info!("{}: 开始停止节点", strategy_name);
                         let nodes = {
                             let context_guard = self.context.read().await;
-                            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
-                            backtest_strategy_context.topological_sort()
+                            context_guard.topological_sort()
                         };
                         
                         let mut all_nodes_stopped = true;
@@ -276,9 +258,8 @@ impl StrategyTrait for BacktestStrategy {
                         for node in nodes {
                             // let mut node = node.clone();
                             let context_guard = self.context.read().await;
-                            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
                             
-                            if let Err(e) = backtest_strategy_context.stop_node(node).await {
+                            if let Err(e) = context_guard.stop_node(node).await {
                                 tracing::error!("{}", e);
                                 all_nodes_stopped = false;
                                 break;
@@ -293,133 +274,104 @@ impl StrategyTrait for BacktestStrategy {
                     }
                     
                     BacktestStrategyStateAction::LogTransition => {
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", strategy_name, self.get_state_machine().await.current_state(), transition_result.get_new_state());
-                    }
-                    BacktestStrategyStateAction::RegisterTask => {
-                        tracing::info!("{}: 注册任务", strategy_name);
-                        let mut context_guard = self.context.write().await;
-                        let backtest_strategy_context = context_guard.as_any_mut().downcast_mut::<BacktestStrategyContext>().unwrap();
-                        backtest_strategy_context.monitor_positions().await;
+                        tracing::info!("{}: 状态转换: {:?} -> {:?}", strategy_name, self.get_state_machine().await.current_state(), transition_result.new_state);
                     }
                     BacktestStrategyStateAction::LoadPositions => {
                         tracing::info!("{}: 加载持仓", strategy_name);
                         let mut context_guard = self.context.write().await;
-                        let backtest_strategy_context = context_guard.as_any_mut().downcast_mut::<BacktestStrategyContext>().unwrap();
-                        backtest_strategy_context.load_all_positions().await;
+                        context_guard.load_all_positions().await;
                     }
                     BacktestStrategyStateAction::ListenAndHandleNodeMessage => {
                         tracing::info!("{}: 监听节点消息", strategy_name);
-                        self.listen_node_message().await.unwrap();
+                        BacktestStrategyFunction::listen_node_message(self.get_context()).await;
                     }
                     BacktestStrategyStateAction::ListenAndHandleCommand => {
                         tracing::info!("{}: 监听命令", strategy_name);
-                        self.listen_command().await.unwrap();
+                        BacktestStrategyFunction::listen_command(self.get_context()).await;
                     }
-
-                    BacktestStrategyStateAction::ListenAndHandleEvent => {
-                        tracing::info!("{}: 监听事件", strategy_name);
-                        self.listen_event().await.unwrap();
+                    BacktestStrategyStateAction::LogError(error) => {
+                        tracing::error!("{}: {}", strategy_name, error);
                     }
-                    _ => {}
                 }
-            }
 
             {
                 let mut context_guard = self.context.write().await;
-                context_guard.set_state_machine(state_machine.clone_box());
+                context_guard.set_state_machine(state_machine.clone());
             }
             
 
             
         }
         Ok(())
+        
 
     }
 
     
-    async fn init_strategy(&mut self) -> Result<(), String> {
+    pub async fn init_strategy(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始初始化策略", self.get_strategy_name().await);
 
         // created => initializing
-        self.update_strategy_state(StrategyStateTransitionEvent::Initialize).await.unwrap();
+        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Initialize).await.unwrap();
 
         // 
         // initializing => ready
         tracing::info!("{}: 初始化完成", self.get_strategy_name().await);
-        self.update_strategy_state(StrategyStateTransitionEvent::InitializeComplete).await.unwrap();
+        self.update_strategy_state(BacktestStrategyStateTransitionEvent::InitializeComplete).await.unwrap();
 
         Ok(())
-    }
-
-    async fn start_strategy(&mut self) -> Result<(), String> {
-        tracing::info!("启动策略: {}", self.get_strategy_name().await);
-        // 获取当前状态
-        let current_state = self.get_state_machine().await.current_state();
-        // 如果当前状态为 Running，则不进行操作
-        if current_state != StrategyRunState::Ready {
-            tracing::info!("策略未处于Ready状态, 不能启动: {}", self.get_strategy_name().await);
-            return Ok(());
-        }
-        // 策略发送启动信号
-
-        tracing::info!("{}: 发送启动策略信号", self.get_strategy_name().await);
-        tracing::info!("等待所有节点启动...");
-        self.update_strategy_state(StrategyStateTransitionEvent::Start).await.unwrap();
-
-        // 先获取是否所有节点都在运行的结果，然后释放不可变借用
-        let all_running = {
-            let context_guard = self.context.read().await;
-            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
-            backtest_strategy_context.wait_for_all_nodes_running(10).await.unwrap()
-        };
-        
-        if all_running {
-            self.update_strategy_state(StrategyStateTransitionEvent::StartComplete).await.unwrap();
-            Ok(())
-        } else {
-            Err("等待节点启动超时".to_string())
-        }
     }
 
     async fn stop_strategy(&mut self) -> Result<(), String> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
         let current_state = self.get_state_machine().await.current_state();
-        if current_state == StrategyRunState::Stopping {
+        if current_state == BacktestStrategyRunState::Stopping {
             tracing::info!("策略{}已停止", self.get_strategy_name().await);
             return Ok(());
         }
         tracing::info!("等待所有节点停止...");
-        self.update_strategy_state(StrategyStateTransitionEvent::Stop).await.unwrap();
+        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Stop).await.unwrap();
 
         // 发送完信号后，循环遍历所有的节点，获取节点的状态，如果所有的节点状态都为stopped，则更新策略状态为Stopped
         let all_stopped = {
             let context_guard = self.context.read().await;
-            let backtest_strategy_context = context_guard.as_any().downcast_ref::<BacktestStrategyContext>().unwrap();
-            backtest_strategy_context.wait_for_all_nodes_stopped(10).await.unwrap()
+            context_guard.wait_for_all_nodes_stopped(10).await.unwrap()
         };
         if all_stopped {
-            self.update_strategy_state(StrategyStateTransitionEvent::StopComplete).await.unwrap();
+            self.update_strategy_state(BacktestStrategyStateTransitionEvent::StopComplete).await.unwrap();
             Ok(())
         } else {
             Err("等待节点停止超时".to_string())
         }
     }
 
-    async fn enable_strategy_data_push(&mut self) -> Result<(), String> {
-        let mut context_guard = self.context.write().await;
-        let backtest_strategy_context = context_guard.as_any_mut().downcast_mut::<BacktestStrategyContext>().unwrap();
-        backtest_strategy_context.enable_strategy_data_push().await;
+    pub async fn play(&mut self) -> Result<(), String> {
+        tracing::info!("{}: 开始播放k线", self.get_strategy_name().await);
+        let context_guard = self.context.read().await;
+        context_guard.play().await;
         Ok(())
     }
 
-    async fn disable_strategy_data_push(&mut self) -> Result<(), String> {
+    pub async fn pause(&mut self) -> Result<(), String> {
+        tracing::info!("{}: 开始暂停策略", self.get_strategy_name().await);
         let mut context_guard = self.context.write().await;
-        let backtest_strategy_context = context_guard.as_any_mut().downcast_mut::<BacktestStrategyContext>().unwrap();
-        backtest_strategy_context.disable_strategy_data_push().await;
+        context_guard.pause().await;
+        Ok(())
+    }
+
+    pub async fn stop(&mut self) -> Result<(), String> {
+        tracing::info!("{}: 停止播放", self.get_strategy_name().await);
+        let mut context_guard = self.context.write().await;
+        context_guard.stop().await;
+        Ok(())
+    }
+
+    pub async fn play_one_kline(&mut self) -> Result<(), String> {
+        
+        let context_guard = self.context.read().await;
+        context_guard.play_one_kline().await;
         Ok(())
     }
     
-
-
 }

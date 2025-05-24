@@ -1,4 +1,4 @@
-use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
 use std::any::Any;
 use event_center::Event;
 use types::strategy::node_message::NodeMessage;
@@ -10,16 +10,16 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub live_config: LiveStrategyConfig,
     
 }
 
 
 #[async_trait]
-impl NodeContextTrait for StartNodeContext {
+impl LiveNodeContextTrait for StartNodeContext {
 
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -29,11 +29,11 @@ impl NodeContextTrait for StartNodeContext {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
     
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
 

@@ -8,7 +8,7 @@ mod add_order_node;
 mod add_position_node;
 mod add_get_variable_node;
 pub mod sys_variable_function;
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::LiveNodeTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use petgraph::{Graph, Directed};
 
@@ -18,7 +18,7 @@ pub struct LiveStrategyFunction;
 
 impl LiveStrategyFunction {
     // 将所有节点的output_handle添加到策略中
-    pub async fn add_node_output_handle(graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>) -> Vec<NodeOutputHandle> {
+    pub async fn add_node_output_handle(graph: &mut Graph<Box<dyn LiveNodeTrait>, (), Directed>) -> Vec<NodeOutputHandle> {
         tracing::debug!("添加所有节点节点的输出句柄");
         let mut strategy_output_handles = Vec::new();
         // 先将所有的连接数+1

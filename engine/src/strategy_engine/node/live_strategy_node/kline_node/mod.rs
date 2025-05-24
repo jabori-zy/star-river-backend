@@ -9,10 +9,10 @@ use event_center::Event;
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use event_center::EventPublisher;
-use crate::strategy_engine::node::{NodeTrait,NodeType};
+use crate::strategy_engine::node::{LiveNodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use kline_node_state_machine::{KlineNodeStateMachine, KlineNodeStateAction};
-use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{LiveNodeContextTrait,LiveBaseNodeContext};
 use kline_node_context::{KlineNodeContext, KlineNodeLiveConfig};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
@@ -22,7 +22,7 @@ use types::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
-    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
+    pub context: Arc<RwLock<Box<dyn LiveNodeContextTrait>>>,
 }
 
 impl KlineNode {
@@ -39,7 +39,7 @@ impl KlineNode {
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: NodeCommandSender,
     ) -> Self {
-        let base_context = BaseNodeContext::new(
+        let base_context = LiveBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -64,7 +64,7 @@ impl KlineNode {
 }
 
 #[async_trait]
-impl NodeTrait for KlineNode {
+impl LiveNodeTrait for KlineNode {
 
     fn as_any(&self) -> &dyn Any {
         self
@@ -73,11 +73,11 @@ impl NodeTrait for KlineNode {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn NodeTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeTrait> {
         Box::new(self.clone())
     }
     // 获取节点状态
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn LiveNodeContextTrait>>> {
         self.context.clone()
     }
 
@@ -87,7 +87,7 @@ impl NodeTrait for KlineNode {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
 
         // 检查交易所是否注册成功，并且K线流是否订阅成功
@@ -105,7 +105,7 @@ impl NodeTrait for KlineNode {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
@@ -130,15 +130,15 @@ impl NodeTrait for KlineNode {
             return Err("交易所未注册或K线流未订阅".to_string());
         }
 
-        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
-        self.update_node_state(NodeStateTransitionEvent::StartComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         let state = self.get_context();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
 
 
         // 检查是否应该订阅K线流，判断is_subscribed=false
@@ -160,12 +160,12 @@ impl NodeTrait for KlineNode {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
-        self.update_node_state(NodeStateTransitionEvent::StopComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await?;
         self.cancel_task().await.unwrap();
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let node_id = self.context.read().await.get_node_id().clone();
         
@@ -227,7 +227,7 @@ impl NodeTrait for KlineNode {
                         let should_stop = {
                             let node_name = self.context.read().await.get_node_name().clone();
                             let current_state = self.context.read().await.get_state_machine().current_state();
-                            if current_state != NodeRunState::Stopping {
+                            if current_state != LiveNodeRunState::Stopping {
                                 tracing::warn!(
                                     node_name = %node_name,
                                     current_state = ?current_state,

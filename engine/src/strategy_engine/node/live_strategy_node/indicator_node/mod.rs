@@ -8,14 +8,14 @@ use std::any::Any;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::strategy_engine::node::{NodeTrait,NodeType};
+use crate::strategy_engine::node::{LiveNodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use indicator_node_state_machine::{IndicatorNodeStateManager,IndicatorNodeStateAction};
 use std::time::Duration;
 use indicator_node_context::IndicatorNodeContext;
 use event_center::EventPublisher;
 use event_center::Event;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use indicator_node_type::IndicatorNodeLiveConfig;
 use tokio::sync::Mutex;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
@@ -24,7 +24,7 @@ use types::strategy::node_command::NodeCommandSender;
 // 指标节点
 #[derive(Debug, Clone)]
 pub struct IndicatorNode {
-    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
+    pub context: Arc<RwLock<Box<dyn LiveNodeContextTrait>>>,
     
 }
 
@@ -43,7 +43,7 @@ impl IndicatorNode {
         response_event_receiver: EventReceiver,
         strategy_command_sender: NodeCommandSender,
     ) -> Self {
-        let base_context = BaseNodeContext::new(
+        let base_context = LiveBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -52,7 +52,7 @@ impl IndicatorNode {
             vec![response_event_receiver],
             command_publisher,
             command_receiver,
-            Box::new(IndicatorNodeStateManager::new(NodeRunState::Created, node_id, node_name)),
+            Box::new(IndicatorNodeStateManager::new(LiveNodeRunState::Created, node_id, node_name)),
             strategy_command_sender,
         );
 
@@ -70,12 +70,12 @@ impl IndicatorNode {
 }
 
 #[async_trait]
-impl NodeTrait for IndicatorNode {
+impl LiveNodeTrait for IndicatorNode {
 
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn NodeTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeTrait> {
         Box::new(self.clone())
     }
 
@@ -83,7 +83,7 @@ impl NodeTrait for IndicatorNode {
         self
     }
 
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn LiveNodeContextTrait>>> {
         self.context.clone()
     }
 
@@ -91,7 +91,7 @@ impl NodeTrait for IndicatorNode {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
 
         // 循环检查是否已经注册指标
         // 检查交易所是否注册成功，并且K线流是否订阅成功
@@ -111,34 +111,34 @@ impl NodeTrait for IndicatorNode {
 
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await?;
 
         Ok(())
     }
     async fn start(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始启动", self.get_node_id().await);
-        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为running状态
-        self.update_node_state(NodeStateTransitionEvent::StartComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await.unwrap();
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
 
         // 等待所有任务结束
         self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(NodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await.unwrap();
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
         let node_id = self.get_node_id().await;
         
         // 获取状态管理器并执行转换

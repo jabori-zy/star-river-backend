@@ -8,7 +8,7 @@ use event_center::Event;
 use types::strategy::node_message::{KlineSeriesMessage, NodeMessage};
 use uuid::Uuid;
 use event_center::response::Response;
-use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{LiveNodeContextTrait,LiveBaseNodeContext};
 use event_center::command::market_engine_command::{MarketEngineCommand, SubscribeKlineStreamParams, UnsubscribeKlineStreamParams};
 use event_center::command::exchange_engine_command::RegisterExchangeParams;
 use event_center::response::market_engine_response::MarketEngineResponse;
@@ -74,7 +74,7 @@ pub struct LiveDataNodeBacktestConfig {
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub stream_is_subscribed: Arc<RwLock<bool>>,
     pub exchange_is_registered: Arc<RwLock<bool>>,
     pub live_config: KlineNodeLiveConfig,
@@ -82,9 +82,9 @@ pub struct KlineNodeContext {
 }
 
 #[async_trait]
-impl NodeContextTrait for KlineNodeContext {
+impl LiveNodeContextTrait for KlineNodeContext {
 
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -96,11 +96,11 @@ impl NodeContextTrait for KlineNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
 

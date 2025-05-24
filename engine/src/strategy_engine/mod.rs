@@ -66,7 +66,8 @@ impl StrategyEngine{
             command_publisher,
             command_receiver: Arc::new(Mutex::new(command_receiver)),
             database,
-            strategy_list: HashMap::new(),
+            live_strategy_list: HashMap::new(),
+            backtest_strategy_list: HashMap::new(),
             market_event_receiver,
             request_event_receiver,
             response_event_receiver,
@@ -121,8 +122,51 @@ impl StrategyEngine{
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context.get_strategy_cache_keys(strategy_id).await
     }
+
+    // 播放策略
+    pub async fn play(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            strategy.play().await.unwrap();
+        }
+        Ok(())
+    }
+
+    // 暂停播放策略
+    pub async fn pause(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            strategy.pause().await.unwrap();
+        }
+        Ok(())
+    }
+
+    // 停止播放策略
+    pub async fn stop(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            strategy.stop().await.unwrap();
+        }
+        Ok(())
+    }
+
+
+    // 播放单根k线
+    pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            strategy.play_one_kline().await.unwrap();
+        }
+        Ok(())
+    }
     
-    
-    
-    
+
 }

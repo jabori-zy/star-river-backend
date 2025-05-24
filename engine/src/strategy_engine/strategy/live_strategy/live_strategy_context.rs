@@ -6,7 +6,7 @@ use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::LiveNodeTrait;
 use crate::strategy_engine::strategy::strategy_state_machine::*;
 use types::strategy::{TradeMode, LiveStrategyConfig};
 use types::strategy::node_message::NodeMessage;
@@ -26,7 +26,7 @@ use types::position::PositionState;
 use types::strategy::node_message::PositionMessage;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use crate::strategy_engine::node::node_state_machine::NodeRunState;
+use crate::strategy_engine::node::node_state_machine::LiveNodeRunState;
 use types::cache::CacheKey;
 use uuid::Uuid;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
@@ -46,14 +46,14 @@ pub struct LiveStrategyContext {
     pub strategy_name: String, // 策略名称
     pub strategy_config: LiveStrategyConfig, // 策略配置
     pub cache_keys: Arc<RwLock<Vec<CacheKey>>>, // 缓存键
-    pub graph: Graph<Box<dyn NodeTrait>, (),  Directed>, // 策略的拓扑图
+    pub graph: Graph<Box<dyn LiveNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
     pub event_publisher: EventPublisher, // 事件发布器
     pub event_receivers: Vec<EventReceiver>, // 事件接收器
     pub command_publisher: CommandPublisher, // 命令发布器
     pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
     pub cancel_token: CancellationToken, // 取消令牌
-    pub state_machine: Box<dyn StrategyStateMachine>, // 策略状态机
+    pub state_machine: Box<dyn LiveStrategyStateMachineTrait>, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
     pub positions: Arc<RwLock<Vec<Position>>>, // 策略的所有持仓
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
@@ -117,11 +117,11 @@ impl StrategyContext for LiveStrategyContext {
         self.cache_keys.read().await.clone()
     }
 
-    fn get_state_machine(&self) -> Box<dyn StrategyStateMachine> {
+    fn get_state_machine(&self) -> Box<dyn LiveStrategyStateMachineTrait> {
         self.state_machine.clone_box()
     }
 
-    fn set_state_machine(&mut self, state_machine: Box<dyn StrategyStateMachine>) {
+    fn set_state_machine(&mut self, state_machine: Box<dyn LiveStrategyStateMachineTrait>) {
         self.state_machine = state_machine;
     }
 
@@ -185,7 +185,7 @@ impl StrategyContext for LiveStrategyContext {
 impl LiveStrategyContext {
 
     // 拓扑排序
-    pub fn topological_sort(&self) -> Vec<Box<dyn NodeTrait>> {
+    pub fn topological_sort(&self) -> Vec<Box<dyn LiveNodeTrait>> {
         petgraph::algo::toposort(&self.graph, None)
         .unwrap_or_default()
         .into_iter()
@@ -265,7 +265,7 @@ impl LiveStrategyContext {
                             data: response.cache_data,
                             timestamp: get_utc8_timestamp_millis(),
                         };
-                        let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
+                        let strategy_event = StrategyEvent::LiveStrategyDataUpdate(strategy_data);
                         event_publisher.publish(strategy_event.into()).await.unwrap();
                     }
                     _ => {}
@@ -286,7 +286,7 @@ impl LiveStrategyContext {
             // 检查所有节点状态
             for node in self.graph.node_weights() {
                 let run_state = node.get_run_state().await;
-                if run_state != NodeRunState::Running {
+                if run_state != LiveNodeRunState::Running {
                     all_running = false;
                     break;
                 }
@@ -320,7 +320,7 @@ impl LiveStrategyContext {
             // 检查所有节点状态
             for node in self.graph.node_weights() {
                 let run_state = node.get_run_state().await;
-                if run_state != NodeRunState::Stopped {
+                if run_state != LiveNodeRunState::Stopped {
                     all_stopped = false;
                     break;
                 }
@@ -344,7 +344,7 @@ impl LiveStrategyContext {
     }
 
 
-    pub async fn init_node(&self, node: Box<dyn NodeTrait>) -> Result<(), String> {
+    pub async fn init_node(&self, node: Box<dyn LiveNodeTrait>) -> Result<(), String> {
         let mut node_clone = node.clone();
 
         let node_handle = tokio::spawn(async move {
@@ -381,7 +381,7 @@ impl LiveStrategyContext {
         
         while retry_count < max_retries {
             let run_state = node.get_run_state().await;
-            if run_state == NodeRunState::Ready {
+            if run_state == LiveNodeRunState::Ready {
                 tracing::debug!("节点 {} 已进入Ready状态", node_id);
                 // 节点初始化间隔
                 tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -395,7 +395,7 @@ impl LiveStrategyContext {
     }
 
     // 添加一个新的辅助方法
-    pub async fn start_node(&self, node: Box<dyn NodeTrait>) -> Result<(), String> {
+    pub async fn start_node(&self, node: Box<dyn LiveNodeTrait>) -> Result<(), String> {
         
         
         // 启动节点
@@ -436,7 +436,7 @@ impl LiveStrategyContext {
         
         while retry_count < max_retries {
             let run_state = node.get_run_state().await;
-            if run_state == NodeRunState::Running {
+            if run_state == LiveNodeRunState::Running {
                 tracing::debug!("节点 {} 已进入Running状态", node_id);
                 // 节点启动间隔
                 // tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -449,7 +449,7 @@ impl LiveStrategyContext {
         Err(format!("节点 {} 未能进入Running状态", node_id))
     }
 
-    pub async fn stop_node(&self, node: Box<dyn NodeTrait>) -> Result<(), String> {
+    pub async fn stop_node(&self, node: Box<dyn LiveNodeTrait>) -> Result<(), String> {
         // 启动节点
         let mut node_clone = node.clone();
         
@@ -488,7 +488,7 @@ impl LiveStrategyContext {
         
         while retry_count < max_retries {
             let run_state = node.get_run_state().await;
-            if run_state == NodeRunState::Stopped {
+            if run_state == LiveNodeRunState::Stopped {
                 tracing::debug!("节点 {} 已进入Stopped状态", node_id);
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 return Ok(());

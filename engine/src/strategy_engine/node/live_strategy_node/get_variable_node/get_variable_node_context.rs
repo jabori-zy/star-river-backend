@@ -1,5 +1,5 @@
 
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ use types::strategy::node_message::SignalType;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub live_config: GetVariableNodeLiveConfig,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
@@ -29,8 +29,8 @@ pub struct GetVariableNodeContext {
 
 
 #[async_trait]
-impl NodeContextTrait for GetVariableNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+impl LiveNodeContextTrait for GetVariableNodeContext {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -42,11 +42,11 @@ impl NodeContextTrait for GetVariableNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
 

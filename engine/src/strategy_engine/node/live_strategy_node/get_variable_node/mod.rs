@@ -2,13 +2,13 @@ pub mod get_variable_node_types;
 mod get_variable_node_context;
 mod get_variable_node_state_machine;
 
-use crate::strategy_engine::node::node_context::{NodeContextTrait,BaseNodeContext};
+use crate::strategy_engine::node::node_context::{LiveNodeContextTrait,LiveBaseNodeContext};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use get_variable_node_context::GetVariableNodeContext;
 use get_variable_node_state_machine::{GetVariableNodeStateAction,GetVariableNodeStateMachine};
-use crate::strategy_engine::node::{NodeTrait,NodeType,NodeOutputHandle};
-use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
+use crate::strategy_engine::node::{LiveNodeTrait,NodeType,NodeOutputHandle};
+use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
 use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
@@ -26,7 +26,7 @@ use types::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNode {
-    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>,
+    pub context: Arc<RwLock<Box<dyn LiveNodeContextTrait>>>,
 }
 
 
@@ -45,7 +45,7 @@ impl GetVariableNode {
         database: DatabaseConnection,
         strategy_command_sender: NodeCommandSender,
     ) -> Self {
-        let base_context = BaseNodeContext::new(
+        let base_context = LiveBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -71,7 +71,7 @@ impl GetVariableNode {
 }
 
 #[async_trait]
-impl NodeTrait for GetVariableNode {
+impl LiveNodeTrait for GetVariableNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -79,11 +79,11 @@ impl NodeTrait for GetVariableNode {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn NodeTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeTrait> {
         Box::new(self.clone())
     }
 
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn LiveNodeContextTrait>>> {
         self.context.clone()
     }
 
@@ -113,42 +113,42 @@ impl NodeTrait for GetVariableNode {
         tracing::info!("================={}====================", self.get_node_name().await);
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
-        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn start(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始启动", self.get_node_id().await);
-        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为running状态
-        self.update_node_state(NodeStateTransitionEvent::StartComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await.unwrap();
         Ok(())
         
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
 
         // 等待所有任务结束
         self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(NodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await.unwrap();
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
         let node_id = self.get_node_id().await;
 
         // 获取状态管理器并执行转换

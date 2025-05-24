@@ -30,12 +30,12 @@ impl TransitionAction for LiveStrategyStateAction {
 
 #[derive(Debug)]
 pub struct StrategyStateChangeActions {
-    pub new_state: StrategyRunState,
+    pub new_state: LiveStrategyRunState,
     pub actions: Vec<Box<dyn TransitionAction>>,
 }
 
 impl StateChangeActions for StrategyStateChangeActions {
-    fn get_new_state(&self) -> StrategyRunState {
+    fn get_new_state(&self) -> LiveStrategyRunState {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn TransitionAction>> {
@@ -47,38 +47,38 @@ impl StateChangeActions for StrategyStateChangeActions {
 
 #[derive(Debug, Clone)]
 pub struct LiveStrategyStateMachine {
-    current_state: StrategyRunState,
+    current_state: LiveStrategyRunState,
     strategy_id: i32,
     strategy_name: String,
 }
 
 impl LiveStrategyStateMachine {
-    pub fn new(strategy_id: i32, strategy_name: String, current_state: StrategyRunState) -> Self {
+    pub fn new(strategy_id: i32, strategy_name: String, current_state: LiveStrategyRunState) -> Self {
         Self { current_state, strategy_id, strategy_name }
     }
 }
 
 
 
-impl StrategyStateMachine for LiveStrategyStateMachine {
+impl LiveStrategyStateMachineTrait for LiveStrategyStateMachine {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn StrategyStateMachine> {
+    fn clone_box(&self) -> Box<dyn LiveStrategyStateMachineTrait> {
         Box::new(self.clone())
     }
 
-    fn current_state(&self) -> StrategyRunState {
+    fn current_state(&self) -> LiveStrategyRunState {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: StrategyStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String> {
+    fn transition(&mut self, event: LiveStrategyStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String> {
         match (self.current_state.clone(), event) {
             // created => initializing
-            (StrategyRunState::Created, StrategyStateTransitionEvent::Initialize) => {
-                self.current_state = StrategyRunState::Initializing;
+            (LiveStrategyRunState::Created, LiveStrategyStateTransitionEvent::Initialize) => {
+                self.current_state = LiveStrategyRunState::Initializing;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Initializing,
+                    new_state: LiveStrategyRunState::Initializing,
                     actions: vec![
                         Box::new(LiveStrategyStateAction::LogTransition),
                         Box::new(LiveStrategyStateAction::ListenAndHandleEvent),
@@ -90,20 +90,20 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                 }))
             }
             // initializing => ready
-            (StrategyRunState::Initializing, StrategyStateTransitionEvent::InitializeComplete) => {
-                self.current_state = StrategyRunState::Ready;
+            (LiveStrategyRunState::Initializing, LiveStrategyStateTransitionEvent::InitializeComplete) => {
+                self.current_state = LiveStrategyRunState::Ready;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Ready,
+                    new_state: LiveStrategyRunState::Ready,
                     actions: vec![
                         Box::new(LiveStrategyStateAction::LogTransition)
                     ],
                 }))
             }
             // ready => starting
-            (StrategyRunState::Ready, StrategyStateTransitionEvent::Start) => {
-                self.current_state = StrategyRunState::Starting;
+            (LiveStrategyRunState::Ready, LiveStrategyStateTransitionEvent::Start) => {
+                self.current_state = LiveStrategyRunState::Starting;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Starting,
+                    new_state: LiveStrategyRunState::Starting,
                     actions: vec![
                         Box::new(LiveStrategyStateAction::LogTransition), 
                         Box::new(LiveStrategyStateAction::StartNode),
@@ -111,10 +111,10 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                 }))
             }
             // starting => running
-            (StrategyRunState::Starting, StrategyStateTransitionEvent::StartComplete) => {
-                self.current_state = StrategyRunState::Running;
+            (LiveStrategyRunState::Starting, LiveStrategyStateTransitionEvent::StartComplete) => {
+                self.current_state = LiveStrategyRunState::Running;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Running,
+                    new_state: LiveStrategyRunState::Running,
                     actions: vec![
                         Box::new(LiveStrategyStateAction::LogTransition),
                         Box::new(LiveStrategyStateAction::RegisterTask), // 当启动成功之后, 注册任务
@@ -122,10 +122,10 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                 }))
             }
             // running => stopping
-            (StrategyRunState::Running, StrategyStateTransitionEvent::Stop) => {
-                self.current_state = StrategyRunState::Stopping;
+            (LiveStrategyRunState::Running, LiveStrategyStateTransitionEvent::Stop) => {
+                self.current_state = LiveStrategyRunState::Stopping;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Stopping,
+                    new_state: LiveStrategyRunState::Stopping,
                     actions: vec![
                         Box::new(LiveStrategyStateAction::LogTransition), 
                         Box::new(LiveStrategyStateAction::StopNode),
@@ -133,18 +133,18 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
                 }))
             }
             // stopping => stopped
-            (StrategyRunState::Stopping, StrategyStateTransitionEvent::StopComplete) => {
-                self.current_state = StrategyRunState::Stopped;
+            (LiveStrategyRunState::Stopping, LiveStrategyStateTransitionEvent::StopComplete) => {
+                self.current_state = LiveStrategyRunState::Stopped;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Stopped,
+                    new_state: LiveStrategyRunState::Stopped,
                     actions: vec![Box::new(LiveStrategyStateAction::LogTransition)],
                 }))
             }
             // 从任何状态都可以失败
-            (_, StrategyStateTransitionEvent::Fail(error)) => {
-                self.current_state = StrategyRunState::Failed;
+            (_, LiveStrategyStateTransitionEvent::Fail(error)) => {
+                self.current_state = LiveStrategyRunState::Failed;
                 Ok(Box::new(StrategyStateChangeActions {
-                    new_state: StrategyRunState::Failed,
+                    new_state: LiveStrategyRunState::Failed,
                     actions: vec![
                         Box::new(LiveStrategyStateAction::LogTransition), 
                         Box::new(LiveStrategyStateAction::LogError(error)),
@@ -153,7 +153,7 @@ impl StrategyStateMachine for LiveStrategyStateMachine {
             }
             // 处理无效的状态转换
             (state, event) => {
-                self.current_state = StrategyRunState::Failed;
+                self.current_state = LiveStrategyRunState::Failed;
                 Err(format!("策略 {} 无效的状态转换: {:?} -> {:?}", self.strategy_name, state, event))
             }
 

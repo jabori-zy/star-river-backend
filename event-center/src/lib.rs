@@ -134,6 +134,7 @@ impl Display for EventCenterError {
 pub struct EventCenter {
     broadcast_channels: Arc<Mutex<HashMap<Channel, EventSender>>>,
     command_channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>, // 保留每一个引擎的命令发送器
+    black_hole: Arc<Mutex<HashMap<Channel, EventReceiver>>>, // 黑洞通道，用于接收所有事件，但不进行处理
 }
 
 impl EventCenter {
@@ -141,6 +142,7 @@ impl EventCenter {
         let event_center = Self {
             broadcast_channels: Arc::new(Mutex::new(HashMap::new())),
             command_channels: Arc::new(Mutex::new(HashMap::new())),
+            black_hole: Arc::new(Mutex::new(HashMap::new())),
         };
         // event_center.init_channel();
         event_center
@@ -149,9 +151,11 @@ impl EventCenter {
     pub async fn init_channel(self) -> Self{
         let channels = Channel::get_all_channels();
         for channel in channels.iter() {
-            let (sender, _) = broadcast::channel::<Event>(100);
+            let (tx, rx) = broadcast::channel::<Event>(100);
             let mut broadcast_channels = self.broadcast_channels.lock().await;
-            broadcast_channels.insert(channel.clone(), sender);
+            broadcast_channels.insert(channel.clone(), tx);
+            let mut black_hole = self.black_hole.lock().await;
+            black_hole.insert(channel.clone(), rx); // 插入黑洞通道，用于接收所有事件，但不进行处理
             tracing::debug!("Event center initialized successfully: {:?}", channel);
         }
         self

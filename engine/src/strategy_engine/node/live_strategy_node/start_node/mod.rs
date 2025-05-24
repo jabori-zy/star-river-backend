@@ -4,9 +4,9 @@ pub mod start_node_context;
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use event_center::EventPublisher;
-use crate::strategy_engine::node::node_state_machine::NodeStateTransitionEvent;
-use crate::strategy_engine::node::{NodeTrait,NodeType};
-use crate::strategy_engine::node::node_context::{BaseNodeContext, NodeContextTrait};
+use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
+use crate::strategy_engine::node::{LiveNodeTrait,NodeType};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
 use super::start_node::start_node_state_machine::{StartNodeStateMachine,StartNodeStateAction};
 use std::time::Duration;
 use std::any::Any;
@@ -18,7 +18,7 @@ use types::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug)]
 pub struct StartNode {
-    pub context: Arc<RwLock<Box<dyn NodeContextTrait>>>
+    pub context: Arc<RwLock<Box<dyn LiveNodeContextTrait>>>
 }
 
 impl Clone for StartNode {
@@ -40,7 +40,7 @@ impl StartNode {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         strategy_command_sender: NodeCommandSender,
     ) -> Self {
-        let base_context = BaseNodeContext::new(
+        let base_context = LiveBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -63,20 +63,20 @@ impl StartNode {
 }
 
 #[async_trait]
-impl NodeTrait for StartNode {
+impl LiveNodeTrait for StartNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn NodeTrait> {
+    fn clone_box(&self) -> Box<dyn LiveNodeTrait> {
         Box::new(self.clone())
     }
 
     // get方法
     // 获取节点上下文
-    fn get_context(&self) -> Arc<RwLock<Box<dyn NodeContextTrait>>> {
+    fn get_context(&self) -> Arc<RwLock<Box<dyn LiveNodeContextTrait>>> {
         self.context.clone()
     }
 
@@ -89,36 +89,36 @@ impl NodeTrait for StartNode {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(NodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
 
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(NodeStateTransitionEvent::InitializeComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await.unwrap();
         Ok(())
     }
 
     async fn start(&mut self) -> Result<(), String> {
         let state = self.context.clone();
         tracing::info!("{}: 开始启动", state.read().await.get_node_id());
-        self.update_node_state(NodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为running状态
-        self.update_node_state(NodeStateTransitionEvent::StartComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await.unwrap();
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_node_state(NodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
         
         // 等待所有任务结束
         self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(NodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await.unwrap();
         Ok(())
     }
 
@@ -134,7 +134,7 @@ impl NodeTrait for StartNode {
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: NodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
         let node_id = self.context.read().await.get_node_id().clone();
         let (transition_result, state_manager) = {
             let node_guard = self.context.read().await;  // 使用读锁获取当前状态

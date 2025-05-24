@@ -6,10 +6,10 @@ use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use tokio::time::Duration;
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::LiveNodeTrait;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::strategy::strategy_context::StrategyContext;
-use crate::strategy_engine::node::node_state_machine::NodeRunState;
+use crate::strategy_engine::node::node_state_machine::LiveNodeRunState;
 
 
 pub struct StrategyFunction;
@@ -171,7 +171,7 @@ impl StrategyFunction {
     }
 
 
-    pub async fn start_node(node: &Box<dyn NodeTrait>) -> Result<(), String> {
+    pub async fn start_node(node: &Box<dyn LiveNodeTrait>) -> Result<(), String> {
         // 启动节点
         let mut node_clone = node.clone();
         
@@ -210,7 +210,7 @@ impl StrategyFunction {
         
         while retry_count < max_retries {
             let run_state = node.get_run_state().await;
-            if run_state == NodeRunState::Running {
+            if run_state == LiveNodeRunState::Running {
                 tracing::debug!("节点 {} 已进入Running状态", node_id);
                 // 节点启动间隔
                 // tokio::time::sleep(Duration::from_millis(1000)).await;

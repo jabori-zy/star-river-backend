@@ -36,8 +36,8 @@ pub struct Strategy {
 pub enum TradeMode {
     #[strum(serialize = "backtest")]
     Backtest, // 回测
-    #[strum(serialize = "simulated")]
-    Simulated, // 模拟
+    // #[strum(serialize = "simulated")]
+    // Simulated, // 模拟
     #[strum(serialize = "live")]
     Live, // 实盘
 }

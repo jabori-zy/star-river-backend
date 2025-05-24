@@ -170,8 +170,80 @@ pub async fn disable_strategy_data_push(State(star_river): State<StarRiver>, Jso
 }
 
 
+#[derive(Deserialize, Debug)]
+pub struct PlayParams {
+    pub strategy_id: i32,
+}
+pub async fn play(State(star_river): State<StarRiver>, Json(params): Json<PlayParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    strategy_engine.play(strategy_id).await.unwrap();
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: None,
+    }))
+}
 
 
+#[derive(Deserialize, Debug)]
+pub struct PauseParams {
+    pub strategy_id: i32,
+}
+
+pub async fn pause(State(star_river): State<StarRiver>, Json(params): Json<PauseParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    strategy_engine.pause(strategy_id).await.unwrap();
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: None,
+    }))
+}
 
 
+#[derive(Deserialize, Debug)]
+pub struct StopParams {
+    pub strategy_id: i32,
+}
 
+pub async fn stop(State(star_river): State<StarRiver>, Json(params): Json<StopParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    strategy_engine.stop(strategy_id).await.unwrap();
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: None,
+    }))
+}
+
+
+#[derive(Deserialize, Debug)]
+pub struct PlayOneParams {
+    pub strategy_id: i32,
+}
+
+pub async fn play_one(State(star_river): State<StarRiver>, Json(params): Json<PlayOneParams>) -> (StatusCode, Json<ApiResponse<()>>) {
+    let strategy_id = params.strategy_id;
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    strategy_engine.play_one_kline(strategy_id).await.unwrap();
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: None,
+    }))
+}

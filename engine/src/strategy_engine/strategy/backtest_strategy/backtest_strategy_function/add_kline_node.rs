@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use tokio::sync::broadcast;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::KlineNode;
 use event_center::{Event, EventPublisher};
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::KlineNodeBacktestConfig;
 use std::sync::Arc;
 use heartbeat::Heartbeat;
@@ -18,7 +18,7 @@ use types::strategy::BacktestDataSource;
 
 impl BacktestStrategyFunction {
     pub async fn add_kline_node(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>, 
+        graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
         cache_keys: &mut Vec<CacheKey>,
         node_config: serde_json::Value,

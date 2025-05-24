@@ -1,4 +1,4 @@
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::position_node_types::*;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: LiveBaseNodeContext,
     pub live_config: PositionNodeLiveConfig,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub database: DatabaseConnection,
@@ -31,8 +31,8 @@ pub struct PositionNodeContext {
 
 
 #[async_trait]
-impl NodeContextTrait for PositionNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+impl LiveNodeContextTrait for PositionNodeContext {
+    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -44,11 +44,11 @@ impl NodeContextTrait for PositionNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &LiveBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
     

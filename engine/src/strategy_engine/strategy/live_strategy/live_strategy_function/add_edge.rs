@@ -1,4 +1,4 @@
-use crate::strategy_engine::node::NodeTrait;
+use crate::strategy_engine::node::LiveNodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use super::LiveStrategyFunction;
 
 impl LiveStrategyFunction {
     pub async fn add_edge(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
+        graph: &mut Graph<Box<dyn LiveNodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
         from_node_id: &str,
         from_handle_id: &str,
