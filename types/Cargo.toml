@@ -22,3 +22,4 @@ futures.workspace = true
 chrono.workspace = true
 petgraph = "0.8.1"
 deepsize = "0.2.0"
+utoipa.workspace = true

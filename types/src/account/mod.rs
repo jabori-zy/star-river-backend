@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use std::any::Any;
 use std::fmt::Debug;
 use crate::market::Exchange;
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -77,7 +78,7 @@ impl Account {
 }
 
 //系统的账户配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AccountConfig {
     pub id: i32, // 账户id
     pub account_name: String, // 账户名称

@@ -1,7 +1,7 @@
 pub mod account_mutation;
 
 
-use axum::extract::{Json, Query, State};
+use axum::extract::{Json, Query, State, Path};
 
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::entities::strategy_config;
@@ -69,10 +69,13 @@ pub struct UpdateStrategyRequest {
 
 pub async fn update_strategy(
     State(star_river): State<StarRiver>,
-    Json(request): Json<UpdateStrategyRequest>,
+    Path(id): Path<i32>,
+    Json(mut request): Json<UpdateStrategyRequest>,
 ) -> (StatusCode, Json<ApiResponse<Strategy>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
+    // 使用路径参数中的id，覆盖请求体中的id
+    request.id = id;
     match StrategyConfigMutation::update_strategy_by_id(
         conn,
         request.id, 
@@ -111,11 +114,11 @@ pub struct DeleteStrategyRequest {
 
 pub async fn delete_strategy(
     State(star_river): State<StarRiver>,
-    Query(request): Query<DeleteStrategyRequest>,
+    Path(id): Path<i32>,
 ) -> (StatusCode, Json<ApiResponse<()>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyConfigMutation::delete_strategy(conn, request.id).await {
+    match StrategyConfigMutation::delete_strategy(conn, id).await {
         Ok(_) => (
             StatusCode::OK,
             Json(ApiResponse {

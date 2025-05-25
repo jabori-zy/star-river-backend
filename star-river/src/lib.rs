@@ -2,6 +2,7 @@ pub mod star_river;
 pub mod api;
 pub mod websocket;
 pub mod sse;
+pub mod routes;
 
 
 use axum::{routing::{get, post, delete}, Router, routing::any};
@@ -37,6 +38,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, Registry};
 use tracing_subscriber::fmt::format;
+use crate::routes::create_app_routes;
 
 #[tokio::main]
 pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
@@ -102,39 +104,38 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     // 创建app状态
     let star_river = StarRiver::new().await;
 
-    let app = Router::new()
-        .route("/ws", any(ws_handler))
-        .route("/market_sse", get(market_sse_handler))
-        .route("/indicator_sse", get(indicator_sse_handler))
-        .route("/live_strategy_sse", get(live_strategy_sse_handler))
-        .route("/backtest_strategy_sse", get(backtest_strategy_sse_handler))
-        .route("/account_sse", get(account_sse_handler))
-        .route("/create_strategy", post(create_strategy))
-        .route("/init_strategy", post(init_strategy))
-        .route("/run_strategy", post(run_strategy))
-        .route("/stop_strategy", post(stop_strategy))
-        .route("/get_strategy_list", get(get_strategy_list))
-        .route("/update_strategy", post(update_strategy))
-        .route("/delete_strategy", delete(delete_strategy))
-        .route("/get_strategy", get(get_strategy_by_id))
-        .route("/add_account_config", post(add_account_config))
-        .route("/get_account_config", get(get_account_config))
-        .route("/delete_account_config", delete(delete_account_config))
-        .route("/update_account_config", post(update_account_config))
-        .route("/update_account_config_is_available", post(update_account_config_is_available))
-        .route("/login_mt5_account", post(login_mt5_account))
-        .route("/get_cache_key", get(get_cache_key))
-        .route("/get_memory_size", get(get_memory_size))
-        .route("/get_strategy_cache_keys", get(get_strategy_cache_keys))
-        .route("/get_cache_value", get(get_cache_value))
-        .route("/enable_strategy_data_push", post(enable_strategy_data_push))
-        .route("/disable_strategy_data_push", post(disable_strategy_data_push))
-        .route("/play", post(play))
-        .route("/pause", post(pause))
-        .route("/play_one", post(play_one))
-        .route("/stop", post(stop))
-        .layer(cors)
-        .with_state(star_river.clone());
+    let app = create_app_routes(star_river.clone())
+        // .route("/ws", any(ws_handler))
+        // .route("/market_sse", get(market_sse_handler))
+        // .route("/indicator_sse", get(indicator_sse_handler))
+        // .route("/live_strategy_sse", get(live_strategy_sse_handler))
+        // .route("/backtest_strategy_sse", get(backtest_strategy_sse_handler))
+        // .route("/account_sse", get(account_sse_handler))
+        // .route("/create_strategy", post(create_strategy))
+        // .route("/init_strategy", post(init_strategy))
+        // .route("/run_strategy", post(run_strategy))
+        // .route("/stop_strategy", post(stop_strategy))
+        // .route("/get_strategy_list", get(get_strategy_list))
+        // .route("/update_strategy", post(update_strategy))
+        // .route("/delete_strategy", delete(delete_strategy))
+        // .route("/get_strategy", get(get_strategy_by_id))
+        // .route("/add_account_config", post(add_account_config))
+        // .route("/get_account_config", get(get_account_config))
+        // .route("/delete_account_config", delete(delete_account_config))
+        // .route("/update_account_config", post(update_account_config))
+        // .route("/update_account_config_is_available", post(update_account_config_is_available))
+        // .route("/login_mt5_account", post(login_mt5_account))
+        // .route("/get_cache_key", get(get_cache_key))
+        // .route("/get_memory_size", get(get_memory_size))
+        // .route("/get_strategy_cache_keys", get(get_strategy_cache_keys))
+        // .route("/get_cache_value", get(get_cache_value))
+        // .route("/enable_strategy_data_push", post(enable_strategy_data_push))
+        // .route("/disable_strategy_data_push", post(disable_strategy_data_push))
+        // .route("/play", post(play))
+        // .route("/pause", post(pause))
+        // .route("/play_one", post(play_one))
+        // .route("/stop", post(stop))
+        .layer(cors);
 
     // 初始化app
     init_app(State(star_river)).await;
@@ -153,6 +154,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let listener = bind_with_retry(addr, 3).await?;
     clean_mei_temp_dirs(); // 清理MetaTrader5的_MEI临时文件夹
     tracing::info!("listening on {}", listener.local_addr().unwrap());
+    print_startup_info(addr);
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     
     let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>());
@@ -305,4 +307,19 @@ fn clean_mei_temp_dirs() {
             }
         }
     }
+}
+
+/// 打印服务启动信息和文档链接（简洁版）
+fn print_startup_info(addr: SocketAddr) {
+    let host = if addr.ip().is_unspecified() { "localhost" } else { "localhost" };
+    let port = addr.port();
+    let base_url = format!("http://{}:{}", host, port);
+    
+    println!("\n🚀 Star River 启动成功!");
+    println!("📡 服务地址: {}", addr);
+    println!("📚 API 文档: {}/docs", base_url);
+    println!("🔗 OpenAPI:  {}/api-docs/openapi.json", base_url);
+    println!("按 Ctrl+C 停止服务\n");
+    
+    tracing::info!("服务启动成功，文档地址: {}/docs", base_url);
 }

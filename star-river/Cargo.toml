@@ -31,5 +31,6 @@ database = { path = "../database" }
 migration = { path = "../migration" }
 engine = { path = "../engine" }
 async-stream.workspace = true
-
+utoipa.workspace = true
+utoipa-scalar = {version="0.3", features=["axum"]}
 

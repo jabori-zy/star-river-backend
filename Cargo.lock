@@ -1570,6 +1570,7 @@ checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
+ "serde",
 ]
 
 [[package]]
@@ -3176,6 +3177,8 @@ dependencies = [
  "tracing-subscriber",
  "types",
  "utils",
+ "utoipa",
+ "utoipa-scalar",
 ]
 
 [[package]]
@@ -3847,6 +3850,7 @@ dependencies = [
  "tracing-subscriber",
  "typetag",
  "utils",
+ "utoipa",
  "uuid",
 ]
 
@@ -3954,6 +3958,42 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "rand 0.9.0",
+]
+
+[[package]]
+name = "utoipa"
+version = "5.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "435c6f69ef38c9017b4b4eea965dfb91e71e53d869e896db40d1cf2441dd75c0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "5.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a77d306bc75294fd52f3e99b13ece67c02c1a2789190a6f31d32f736624326f7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "utoipa-scalar"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59559e1509172f6b26c1cdbc7247c4ddd1ac6560fe94b584f81ee489b141f719"
+dependencies = [
+ "axum",
+ "serde",
+ "serde_json",
+ "utoipa",
 ]
 
 [[package]]

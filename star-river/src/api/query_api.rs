@@ -1,4 +1,4 @@
-use axum::extract::{State, Query, Json};
+use axum::extract::{State, Query, Json, Path};
 
 use database::query::strategy_config_query::StrategyConfigQuery;
 use database::entities::strategy_config;
@@ -60,10 +60,10 @@ pub struct GetStrategyByIdResponse {
 
 pub async fn get_strategy_by_id(
     State(star_river): State<StarRiver>,
-    Query(params): Query<GetStrategyByIdParams>,
+    Path(id): Path<i32>,
 ) -> (StatusCode, Json<GetStrategyByIdResponse>) {
     let db = &star_river.database.lock().await.conn;
-    let strategy = StrategyConfigQuery::get_strategy_by_id(db, params.id).await.unwrap();
+    let strategy = StrategyConfigQuery::get_strategy_by_id(db, id).await.unwrap();
     (
         StatusCode::OK,
         Json(

@@ -15,10 +15,7 @@ pub struct LoginMt5AccountParams {
 
 
 #[axum::debug_handler]
-pub async fn login_mt5_account(
-    State(star_river): State<StarRiver>,
-    Json(params): Json<LoginMt5AccountParams>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn login_mt5_account(State(star_river): State<StarRiver>,Json(params): Json<LoginMt5AccountParams>,) -> (StatusCode, Json<ApiResponse<()>>) {
     let account_id = params.account_id;
 
     let engine_manager = star_river.engine_manager.lock().await;

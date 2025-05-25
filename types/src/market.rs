@@ -9,11 +9,11 @@ use std::str::FromStr;
 use serde::ser::Serializer;
 use crate::cache::{CacheValue, CacheItem};
 use deepsize::DeepSizeOf;
-
+use utoipa::ToSchema;
 pub type MT5Server = String;
 
 
-#[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash, DeepSizeOf)]
+#[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash, DeepSizeOf, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Exchange {
     Binance,
