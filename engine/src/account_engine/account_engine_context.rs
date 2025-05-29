@@ -156,7 +156,7 @@ impl AccountEngineContext {
         {
             let all_account_config = AccountConfigQuery::get_all_account_config(&self.database).await.unwrap();
             let account = all_account_config.iter().map(|account_config| Account::new(account_config.clone(), None, ExchangeStatus::NotRegist)).collect::<Vec<Account>>();
-            tracing::debug!("监控账户的交易所状态: {:?}", account);
+            // tracing::debug!("监控账户的交易所状态: {:?}", account);
             self.monitor_account_list.write().await.extend(account.into_iter());
         }
 

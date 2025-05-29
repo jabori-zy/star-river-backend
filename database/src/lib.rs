@@ -28,8 +28,17 @@ impl DatabaseManager {
         Self { path, conn }
     }
 
-    pub async fn migrate(&self) {
-        Migrator::up(&self.conn, None).await.unwrap();
+    pub async fn migrate(conn: &DatabaseConnection) {
+        let pending_migrations = Migrator::get_pending_migrations(conn).await.unwrap();
+        if !pending_migrations.is_empty() {
+            tracing::info!("发现 {} 个待应用的迁移", pending_migrations.len());
+            
+            // 应用迁移
+            Migrator::up(conn, None).await.unwrap();
+            tracing::info!("所有迁移已成功应用");
+        } else {
+            tracing::info!("数据库已是最新版本，无需迁移");
+        }
     }
 
     pub fn get_conn(&self) -> DatabaseConnection {
@@ -62,16 +71,17 @@ impl DatabaseManager {
     }
 
     pub async fn create_database(path: &PathBuf) -> Result<DatabaseConnection, DbErr> {
-
         // 创建数据库文件
         // let db_path = path.join("db.sqlite");
         // let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
         let path = PathBuf::from("D:/project/star-river-backend/db/db.sqlite");
         let database_url = format!("sqlite:{}?mode=rwc", path.display());
         tracing::info!("数据库路径: {}", database_url);
+        
         let mut opt = ConnectOptions::new(database_url);
         opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);
         let conn = Database::connect(opt).await.unwrap();
+        Self::migrate(&conn).await;
         Ok(conn)
     }
 

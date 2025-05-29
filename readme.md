@@ -3,6 +3,15 @@
 2. 波动率节点
 3. 因子节点（节点打包）
 
+# 创建新的Migration文件
+cargo run -- generate add_test1_to_strategy_config
+
+# 升级
+cargo run -- up
+
+# 降级
+cargo run -- down
+
 # 数据库刷新表
 sea-orm-cli migrate refresh -d ./migration
 
