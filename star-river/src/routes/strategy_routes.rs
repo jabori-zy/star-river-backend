@@ -2,12 +2,10 @@ use axum::{
     routing::{get, post, delete},
     Router,
 };
-use crate::api::mutation_api::{create_strategy, update_strategy, delete_strategy};
-use crate::api::query_api::{get_strategy_list, get_strategy_by_id};
 use crate::api::strategy_api::{
     run_strategy, stop_strategy, init_strategy, get_strategy_cache_keys,
     enable_strategy_data_push, disable_strategy_data_push,
-    play, pause, play_one, stop
+    play, pause, play_one, stop, create_strategy, update_strategy, delete_strategy, get_strategy_list, get_strategy_by_id
 };
 use crate::star_river::StarRiver;
 
@@ -16,14 +14,14 @@ pub fn create_strategy_routes() -> Router<StarRiver> {
         // 策略管理
         .route("/", post(create_strategy))
         .route("/", get(get_strategy_list))
-        .route("/{id}", get(get_strategy_by_id))
-        .route("/{id}", post(update_strategy))
-        .route("/{id}", delete(delete_strategy))
+        .route("/{strategy_id}", get(get_strategy_by_id))
+        .route("/{strategy_id}", post(update_strategy))
+        .route("/{strategy_id}", delete(delete_strategy))
         
         // 策略生命周期管理
-        .route("/{id}/init", post(init_strategy))
+        .route("/{strategy_id}/init", post(init_strategy))
         // 策略缓存
-        .route("/{id}/cache-keys", get(get_strategy_cache_keys))
+        .route("/{strategy_id}/cache-keys", get(get_strategy_cache_keys))
 }
 
 

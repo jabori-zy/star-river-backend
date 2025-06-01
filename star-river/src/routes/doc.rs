@@ -1,41 +1,52 @@
 use utoipa::OpenApi;
 use crate::api::response::ApiResponse;
 use types::account::AccountConfig;
-use crate::api::mutation_api::account_mutation::{
+use crate::api::account_api::{
     Mt5AccountConfigParams, AccountConfigType, AddAccountConfigParams,
 };
+use crate::api::cache_api::CacheKeyType;
+use crate::api::account_api::ExchangeType;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         // 策略相关路径
-        // crate::api::mutation_api::create_strategy,
-        // crate::api::query_api::get_strategy_list,
-        // crate::api::query_api::get_strategy_by_id,
-        // crate::api::mutation_api::update_strategy,
-        // crate::api::mutation_api::delete_strategy,
-        // crate::api::strategy_api::init_strategy,
+        crate::api::strategy_api::create_strategy,
+        crate::api::strategy_api::get_strategy_list,
+        crate::api::strategy_api::get_strategy_by_id,
+        crate::api::strategy_api::update_strategy,
+        crate::api::strategy_api::delete_strategy,
+        crate::api::strategy_api::init_strategy,
+
+        // 实盘策略
         // crate::api::strategy_api::run_strategy,
         // crate::api::strategy_api::stop_strategy,
+
+        // 回测策略
+        crate::api::strategy_api::play,
+        crate::api::strategy_api::pause,
+        crate::api::strategy_api::stop,
+        crate::api::strategy_api::play_one,
         
+
         // 账户相关路径
-        crate::api::mutation_api::account_mutation::add_account_config,
-        // crate::api::query_api::get_account_config,
-        // crate::api::mutation_api::account_mutation::delete_account_config,
-        // crate::api::mutation_api::account_mutation::update_account_config,
-        // crate::api::mutation_api::account_mutation::update_account_config_is_available,
-        // crate::api::account_api::login_mt5_account,
+        crate::api::account_api::get_account_configs,
+        crate::api::account_api::add_account_config,
+        crate::api::account_api::delete_account_config,
+        crate::api::account_api::update_account_config,
+        crate::api::account_api::update_account_is_available,
+        crate::api::account_api::start_mt5_terminal,
+        crate::sse::account_sse::account_sse_handler,
         
         // // 缓存相关路径
-        // crate::api::cache_api::get_cache_key,
-        // crate::api::cache_api::get_memory_size,
-        // crate::api::cache_api::get_cache_value,
-        // crate::api::strategy_api::get_strategy_cache_keys,
+        crate::api::cache_api::get_cache_keys,
+        crate::api::cache_api::get_cache_value,
+        crate::api::cache_api::get_memory_size,
         
         // // 其他路径
         // crate::api::strategy_api::enable_strategy_data_push,
         // crate::api::strategy_api::disable_strategy_data_push,
-        // crate::api::strategy_api::play,
+        
         // crate::api::strategy_api::pause,
         // crate::api::strategy_api::play_one,
         // crate::api::strategy_api::stop,
@@ -50,8 +61,12 @@ use crate::api::mutation_api::account_mutation::{
             AccountConfigType,
             AddAccountConfigParams,
             
-            // 业务类型
+            // 账户配置
             AccountConfig,
+            ExchangeType,
+
+            // 缓存相关类型
+            CacheKeyType,
         )
     ),
     tags(

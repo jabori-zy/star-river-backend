@@ -227,11 +227,10 @@ impl Mt5DataProcessor {
 
     }
 
-    pub async fn process_account_info(&self, account_id: i32, account_info: serde_json::Value) -> Result<Box<dyn OriginalAccountInfo>, String> {
-        let mut account_info_data = account_info["data"].clone();
+    pub async fn process_account_info(&self, account_id: i32, mut account_info: serde_json::Value) -> Result<Box<dyn OriginalAccountInfo>, String> {
         // 把account_id 添加到account_info_data中
-        account_info_data["account_id"] = account_id.into();
-        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info_data)
+        account_info["account_id"] = account_id.into();
+        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info)
             .map_err(|e| format!("解析账户信息失败: {}", e)).expect("解析账户信息失败");
         Ok(Box::new(account_info))
     }

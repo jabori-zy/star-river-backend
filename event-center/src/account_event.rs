@@ -23,7 +23,7 @@ pub enum AccountEvent {
 
     #[strum(serialize = "account-updated")]
     #[serde(rename = "account-updated")]
-    AccountUpdated(Account), // 账户更新
+    AccountUpdated(Account), // 账户信息更新
 
 
 }

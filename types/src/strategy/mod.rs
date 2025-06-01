@@ -11,27 +11,39 @@ use std::str::FromStr;
 use strum::{EnumString, Display};
 use chrono::{DateTime, Utc};
 use std::fmt;
+use utoipa::ToSchema;
 
 
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Strategy {
+    /// 策略ID
     pub id: i32,
+    /// 策略名称
     pub name: String,
+    /// 策略描述
     pub description: String,
+    /// 策略状态
     pub status: i32,
+    /// 是否删除
     pub is_deleted: bool,
+    /// 交易模式
     pub trade_mode: TradeMode,
+    /// 策略配置
     pub config: Option<serde_json::Value>,
+    /// 策略节点
     pub nodes: Option<serde_json::Value>,
+    /// 策略边
     pub edges: Option<serde_json::Value>,
+    /// 策略图表配置
     pub chart_config: Option<serde_json::Value>,
+    /// 创建时间
     pub created_time: DateTime<Utc>,
+    /// 更新时间
     pub updated_time: DateTime<Utc>,
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum TradeMode {
     #[strum(serialize = "backtest")]
@@ -42,7 +54,7 @@ pub enum TradeMode {
     Live, // 实盘
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SelectedAccount {
     #[serde(rename = "id")]
     pub account_id: i32, // 账户ID

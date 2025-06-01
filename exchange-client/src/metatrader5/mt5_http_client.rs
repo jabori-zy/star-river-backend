@@ -683,7 +683,6 @@ impl Mt5HttpClient {
     #[instrument(skip(self))]
     pub async fn get_account_info(&self) -> Result<serde_json::Value, Mt5HttpClientError> {
         let url = self.get_url(Mt5HttpUrl::GetAccountInfo);
-        tracing::debug!(url = %url, "Getting account info");
         
         let response = self.client.get(&url)
         .timeout(std::time::Duration::from_secs(10))
@@ -702,7 +701,6 @@ impl Mt5HttpClient {
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
                     let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
-                    tracing::debug!("Successfully got account info");
                     Ok(data.clone())
                 } else {
                     // code不为0，则返回message

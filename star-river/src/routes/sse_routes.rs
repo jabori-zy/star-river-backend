@@ -3,9 +3,10 @@ use axum::{
     Router,
 };
 use crate::sse::{
-    market_sse_handler, indicator_sse_handler, live_strategy_sse_handler,
-    account_sse_handler, backtest_strategy_sse_handler
+    market_sse_handler, indicator_sse_handler, live_strategy_sse_handler
 };
+use crate::sse::account_sse::account_sse_handler;
+use crate::sse::backtest_strategy_sse::backtest_strategy_sse_handler;
 use crate::star_river::StarRiver;
 
 pub fn create_sse_routes() -> Router<StarRiver> {

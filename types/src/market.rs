@@ -16,9 +16,13 @@ pub type MT5Server = String;
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash, DeepSizeOf, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Exchange {
+    #[serde(rename = "binance")]
     Binance,
+    #[serde(rename = "huobi")]
     Huobi,
+    #[serde(rename = "okx")]
     Okx,
+    #[serde(rename = "metatrader5")]
     Metatrader5(MT5Server),
 }
 

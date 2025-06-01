@@ -295,7 +295,7 @@ impl AccountEngineContext {
                                     accounts[index].set_account_info(account_info);
                                     // 3.发布账户已更新事件
                                     let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                                    // event_publisher.publish(account_updated_event.into()).unwrap();
+                                    event_publisher.publish(account_updated_event.into()).await.unwrap();
                                 }
                                 Err(e) => {
                                     let mut accounts = accounts.write().await;
@@ -322,7 +322,7 @@ impl AccountEngineContext {
                         Exchange::Metatrader5(_) => {
                             // 发布账户已更新事件
                             let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                            // event_publisher.publish(account_updated_event.into()).unwrap();
+                            event_publisher.publish(account_updated_event.into()).await.unwrap();
                         }
                         _ => {}
                     }

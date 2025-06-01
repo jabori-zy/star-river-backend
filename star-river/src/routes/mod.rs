@@ -24,7 +24,7 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
         // 嵌套缓存相关路由
         .nest("/api/v1/cache", cache_routes::create_cache_routes())
         // 嵌套实时数据流路由
-        .nest("/api/v1/stream", sse_routes::create_sse_routes())
+        .nest("/api/v1/sse", sse_routes::create_sse_routes())
         // WebSocket路由
         // .merge(websocket_routes::create_websocket_routes())
         .merge(create_docs_routes())
