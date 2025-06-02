@@ -8,7 +8,7 @@ use crate::market::KlineInterval;
 use std::hash::Hash;
 use std::fmt::Debug;
 use crate::market::Kline;
-use cache_key::{KlineCacheKey, IndicatorCacheKey, HistoryKlineCacheKey, HistoryIndicatorCacheKey};
+use cache_key::{KlineCacheKey, IndicatorCacheKey, BacktestKlineCacheKey, BacktestIndicatorCacheKey};
 use std::time::Duration;
 use cache_entry::{KlineCacheEntry, IndicatorCacheEntry, HistoryKlineCacheEntry, HistoryIndicatorCacheEntry};
 use crate::indicator::Indicator;
@@ -31,8 +31,8 @@ pub trait CacheKeyTrait{
 pub enum CacheKey {
     Kline(KlineCacheKey), // 实时K线缓存键
     Indicator(IndicatorCacheKey), // 实时指标缓存键
-    HistoryKline(HistoryKlineCacheKey), // 历史K线缓存键
-    HistoryIndicator(HistoryIndicatorCacheKey), // 历史指标缓存键
+    BacktestKline(BacktestKlineCacheKey), // 回测K线缓存键
+    BacktestIndicator(BacktestIndicatorCacheKey), // 回测指标缓存键
 }
 
 impl FromStr for CacheKey {
@@ -44,8 +44,8 @@ impl FromStr for CacheKey {
         match key_type {
             "kline" => Ok(CacheKey::Kline(KlineCacheKey::from_str(s)?)),
             "indicator" => Ok(CacheKey::Indicator(IndicatorCacheKey::from_str(s)?)),
-            "history_kline" => Ok(CacheKey::HistoryKline(HistoryKlineCacheKey::from_str(s)?)),
-            "history_indicator" => Ok(CacheKey::HistoryIndicator(HistoryIndicatorCacheKey::from_str(s)?)),
+            "backtest_kline" => Ok(CacheKey::BacktestKline(BacktestKlineCacheKey::from_str(s)?)),
+            "backtest_indicator" => Ok(CacheKey::BacktestIndicator(BacktestIndicatorCacheKey::from_str(s)?)),
             _ => Err("Invalid cache key type".to_string()),
         }
     }
@@ -56,8 +56,8 @@ impl CacheKey {
         match self {
             CacheKey::Kline(key) => key.get_key(),
             CacheKey::Indicator(key) => key.get_key(),
-            CacheKey::HistoryKline(key) => key.get_key(),
-            CacheKey::HistoryIndicator(key) => key.get_key(),
+            CacheKey::BacktestKline(key) => key.get_key(),
+            CacheKey::BacktestIndicator(key) => key.get_key(),
         }
     }
 
@@ -65,8 +65,8 @@ impl CacheKey {
         match self {
             CacheKey::Kline(key) => key.exchange.clone(),
             CacheKey::Indicator(key) => key.exchange.clone(),
-            CacheKey::HistoryKline(key) => key.exchange.clone(),
-            CacheKey::HistoryIndicator(key) => key.exchange.clone(),
+            CacheKey::BacktestKline(key) => key.exchange.clone(),
+            CacheKey::BacktestIndicator(key) => key.exchange.clone(),
         }
     }
 
@@ -74,8 +74,8 @@ impl CacheKey {
         match self {
             CacheKey::Kline(key) => key.symbol.clone(),
             CacheKey::Indicator(key) => key.symbol.clone(),
-            CacheKey::HistoryKline(key) => key.symbol.clone(),
-            CacheKey::HistoryIndicator(key) => key.symbol.clone(),
+            CacheKey::BacktestKline(key) => key.symbol.clone(),
+            CacheKey::BacktestIndicator(key) => key.symbol.clone(),
         }
     }
 
@@ -83,8 +83,8 @@ impl CacheKey {
         match self {
             CacheKey::Kline(key) => key.interval.clone(),
             CacheKey::Indicator(key) => key.interval.clone(),
-            CacheKey::HistoryKline(key) => key.interval.clone(),
-            CacheKey::HistoryIndicator(key) => key.interval.clone(),
+            CacheKey::BacktestKline(key) => key.interval.clone(),
+            CacheKey::BacktestIndicator(key) => key.interval.clone(),
         }
     }
     
@@ -149,9 +149,9 @@ impl CacheValue {
         }
     }
 
-    pub fn as_kline(&self) -> Option<Arc<Kline>> {
+    pub fn as_kline(&self) -> Option<Kline> {
         match self {
-            CacheValue::Kline(value) => Some(Arc::new(value.clone())),
+            CacheValue::Kline(value) => Some(value.clone()),
             _ => None,
         }
     }
@@ -163,9 +163,9 @@ impl CacheValue {
         }
     }
 
-    pub fn as_indicator(&self) -> Option<Arc<Indicator>> {
+    pub fn as_indicator(&self) -> Option<Indicator> {
         match self {
-            CacheValue::Indicator(value) => Some(Arc::new(value.clone())),
+            CacheValue::Indicator(value) => Some(value.clone()),
             _ => None,
         }
     }
@@ -202,8 +202,8 @@ impl CacheEntry {
         match key {
             CacheKey::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
             CacheKey::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
-            CacheKey::HistoryKline(key) => CacheEntry::HistoryKline(HistoryKlineCacheEntry::new(key, max_size, ttl)),
-            CacheKey::HistoryIndicator(key) => CacheEntry::HistoryIndicator(HistoryIndicatorCacheEntry::new(key, max_size, ttl)),
+            CacheKey::BacktestKline(key) => CacheEntry::HistoryKline(HistoryKlineCacheEntry::new(key, Some(max_size), ttl)),
+            CacheKey::BacktestIndicator(key) => CacheEntry::HistoryIndicator(HistoryIndicatorCacheEntry::new(key, Some(max_size), ttl)),
         }
     }
 

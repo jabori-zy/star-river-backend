@@ -12,6 +12,7 @@ use strum::{EnumString, Display};
 use chrono::{DateTime, Utc};
 use std::fmt;
 use utoipa::ToSchema;
+use crate::market::deserialize_exchange;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -66,14 +67,7 @@ pub struct SelectedAccount {
     pub available_balance: f64, // 可用余额
 }
 
-fn deserialize_exchange<'de, D>(deserializer: D) -> Result<Exchange, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    // 首先尝试常规的反序列化
-    let exchange_str = String::deserialize(deserializer)?;
-    Exchange::from_str(&exchange_str).map_err(serde::de::Error::custom)
-}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VariableType {

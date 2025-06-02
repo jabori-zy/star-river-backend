@@ -1,5 +1,5 @@
 use tokio::sync::broadcast;
-use types::cache::cache_key::HistoryKlineCacheKey;
+use types::cache::cache_key::BacktestKlineCacheKey;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -200,7 +200,7 @@ impl MarketEngineContext {
 
     async fn add_history_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange) {
         // 调用缓存器的订阅事件
-        let cache_key = CacheKey::HistoryKline(HistoryKlineCacheKey {
+        let cache_key = CacheKey::BacktestKline(BacktestKlineCacheKey {
             exchange: exchange,
             symbol: symbol.to_string(),
             interval: interval.clone(),

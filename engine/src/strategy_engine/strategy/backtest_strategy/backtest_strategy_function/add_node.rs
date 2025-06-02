@@ -40,21 +40,21 @@ impl BacktestStrategyFunction {
         // 根据节点类型，添加节点
         match node_type {
             NodeType::StartNode => {
-                Self::add_start_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, heartbeat, strategy_command_sender).await;
+                Self::add_start_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, heartbeat, strategy_command_sender).await.unwrap();
                 Ok(())
             }
             // 实时数据节点
             NodeType::KlineNode => {
-                Self::add_kline_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, market_event_receiver, response_event_receiver, heartbeat, strategy_command_sender).await;
+                Self::add_kline_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, market_event_receiver, response_event_receiver, heartbeat, strategy_command_sender).await.unwrap();
                 Ok(())
                 
             }
-            // // 指标节点
-            // NodeType::IndicatorNode => {
-            //     Self::add_indicator_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver).await;
-            //     Ok(())
+            // 指标节点
+            NodeType::IndicatorNode => {
+                Self::add_indicator_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, strategy_command_sender).await;
+                Ok(())
                 
-            // }
+            }
             
             // // 条件分支节点
             // NodeType::IfElseNode => {

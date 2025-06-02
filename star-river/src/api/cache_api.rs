@@ -42,7 +42,7 @@ pub struct GetAllCacheKeyParams {
 /// 获取所有缓存键
 #[utoipa::path(
     get,
-    path = "/cache/keys",
+    path = "/api/v1/cache/keys",
     params(GetAllCacheKeyParams),
     tag = "缓存引擎",
     summary = "获取所有缓存键",
@@ -80,7 +80,7 @@ pub struct GetCacheValueParams {
 
 #[utoipa::path(
     get,
-    path = "/cache/value",
+    path = "/api/v1/cache/value",
     params(GetCacheValueParams),
     tag = "缓存引擎",
     summary = "获取缓存值",
@@ -111,7 +111,7 @@ pub async fn get_cache_value(
 
 #[utoipa::path(
     get,
-    path = "/cache/memory_size",
+    path = "/api/v1/cache/memory_size",
     tag = "缓存引擎",
     summary = "获取缓存内存大小",
     responses(

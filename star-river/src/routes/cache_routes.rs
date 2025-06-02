@@ -8,6 +8,6 @@ use crate::star_river::StarRiver;
 pub fn create_cache_routes() -> Router<StarRiver> {
     Router::new()
         .route("/keys", get(get_cache_keys))
-        .route("/memory-size", get(get_memory_size))
+        .route("/memory_size", get(get_memory_size))
         .route("/value", get(get_cache_value))
 }

@@ -9,7 +9,7 @@ use types::indicator::IndicatorConfig;
 use crate::strategy_engine::node::live_strategy_node::indicator_node::IndicatorNode;
 use event_center::{Event, EventPublisher};
 use types::strategy::TradeMode;
-use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_node_type::{IndicatorNodeLiveConfig, IndicatorNodeBacktestConfig, IndicatorNodeSimulateConfig};
+use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_node_type::IndicatorNodeLiveConfig;
 use std::str::FromStr;
 use types::cache::CacheKey;
 use types::cache::cache_key::IndicatorCacheKey;
@@ -35,14 +35,16 @@ impl LiveStrategyFunction {
         let node_id = node_config["id"].as_str().unwrap();
         let node_name = node_data["nodeName"].as_str().unwrap_or_default();
 
-        let indicator_type = node_data["indicatorType"].as_str().unwrap_or_default(); // 指标类型
         let live_config_json = node_data["liveConfig"].clone();
         if live_config_json.is_null() {
             return Err("liveConfig is null".to_string());
         };
-                
-        let indicator_config = live_config_json["indicatorConfig"].clone();
-        let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config);
+
+        // 解析指标类型
+        let indicator_type = node_data["indicatorType"].as_str().unwrap_or_default();
+        // 解析指标配置
+        let indicator_config_json = live_config_json["indicatorConfig"].clone();
+        let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json);
         let symbol = live_config_json["symbol"].as_str().unwrap_or_default().to_string();
         let interval = KlineInterval::from_str(live_config_json["interval"].as_str().unwrap_or_default()).unwrap();
         let exchange = Exchange::from_str(live_config_json["exchange"].as_str().unwrap_or_default()).unwrap();

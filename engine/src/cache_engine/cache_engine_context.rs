@@ -24,7 +24,7 @@ use types::cache::{CacheEntry, cache_entry::{KlineCacheEntry, IndicatorCacheEntr
 use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
 use tokio::sync::Mutex;
 use event_center::response::cache_engine_response::AddCacheKeyResponse;
-use types::cache::cache_key::HistoryKlineCacheKey;
+use types::cache::cache_key::BacktestKlineCacheKey;
 use tracing::instrument;
 
 #[derive(Debug)]
@@ -183,7 +183,7 @@ impl CacheEngineContext {
             // 历史k线更新
             ExchangeEvent::ExchangeKlineHistoryUpdate(event) => {
                 // 更新cache_key对应的数据
-                let cache_key = HistoryKlineCacheKey::new(
+                let cache_key = BacktestKlineCacheKey::new(
                     event.exchange, 
                     event.symbol, 
                     event.interval,
@@ -254,14 +254,14 @@ impl CacheEngineContext {
                     let cache_entry = KlineCacheEntry::new(kline_cache_key.clone(), max_size.unwrap_or(1000), ttl);
                     cache.insert(cache_key, cache_entry.into());
                 }
-                CacheKey::HistoryKline(history_kline_cache_key) => {
+                CacheKey::BacktestKline(backtest_kline_cache_key) => {
                     let mut cache = self.cache.write().await;
-                    let cache_entry = HistoryKlineCacheEntry::new(history_kline_cache_key.clone(), max_size.unwrap_or(1000), ttl);
+                    let cache_entry = HistoryKlineCacheEntry::new(backtest_kline_cache_key.clone(), max_size, ttl);
                     cache.insert(cache_key, cache_entry.into());
                 }
-                CacheKey::HistoryIndicator(history_indicator_cache_key) => {
+                CacheKey::BacktestIndicator(history_indicator_cache_key) => {
                     let mut cache = self.cache.write().await;
-                    let cache_entry = HistoryIndicatorCacheEntry::new(history_indicator_cache_key.clone(), max_size.unwrap_or(1000), ttl);
+                    let cache_entry = HistoryIndicatorCacheEntry::new(history_indicator_cache_key.clone(), max_size, ttl);
                     cache.insert(cache_key, cache_entry.into());
                 }
                 CacheKey::Indicator(indicator_cache_key) => {

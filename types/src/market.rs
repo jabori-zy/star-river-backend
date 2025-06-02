@@ -104,6 +104,15 @@ impl FromStr for Exchange {
     }
 }
 
+pub fn deserialize_exchange<'de, D>(deserializer: D) -> Result<Exchange, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // 首先尝试常规的反序列化
+    let exchange_str = String::deserialize(deserializer)?;
+    Exchange::from_str(&exchange_str).map_err(serde::de::Error::custom)
+}
+
 
 // k线间隔
 #[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash)]

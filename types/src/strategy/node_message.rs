@@ -7,6 +7,7 @@ use strum::Display;
 use crate::order::Order;
 use crate::position::Position;
 use crate::cache::CacheValue;
+use crate::cache::cache_key::BacktestKlineCacheKey;
 use std::sync::Arc;
 
 
@@ -31,6 +32,9 @@ pub enum NodeMessage {
     #[strum(serialize = "variable")]
     #[serde(rename = "variable")]
     Variable(VariableMessage),
+    #[strum(serialize = "backtest_kline_update")]
+    #[serde(rename = "backtest_kline_update")]
+    BacktestKlineUpdate(BacktestKlineMessage), // 回测K线更新(缓存index, K线) 回测k线更新
 }
 
 impl NodeMessage {
@@ -100,12 +104,12 @@ pub enum Signal {
 
 
 // 信号类型
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignalType {
     ConditionMatch,// 条件匹配
     OrderFilled, // 订单成交
-    FetchKlineData(u32), // 拉取K线数据(信号计数:根据这个值去请求缓存的下标)
     KlinePlayFinished, // k线播放完毕
+    KlineTick(u32), // K线跳动(信号计数:根据这个值去请求缓存的下标)
 }
 
 
@@ -159,3 +163,16 @@ pub struct VariableMessage {
 
     
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BacktestKlineMessage {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub from_node_handle_id: String,
+    pub kline_cache_index: u32,
+    pub kline_cache_key: BacktestKlineCacheKey,
+    pub kline: Vec<f64>,
+    pub message_timestamp: i64,
+}
+

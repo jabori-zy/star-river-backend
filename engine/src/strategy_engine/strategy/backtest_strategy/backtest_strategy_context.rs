@@ -386,7 +386,7 @@ impl BacktestStrategyContext {
             .read()
             .await
             .iter()
-            .filter(|cache_key| matches!(cache_key, CacheKey::HistoryKline(_)))
+            .filter(|cache_key| matches!(cache_key, CacheKey::BacktestKline(_)))
             .map(|cache_key| cache_key.clone())
             .collect();
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -462,7 +462,7 @@ impl BacktestStrategyContext {
                     break;
                 }
                 
-                tracing::info!("{}: 播放k线，signal_count: {}, played_signal_count: {}", start_node.get_node_id().await, *signal_count.read().await, *played_signal_count.read().await);
+                // tracing::info!("{}: 播放k线，signal_count: {}, played_signal_count: {}", start_node.get_node_id().await, *signal_count.read().await, *played_signal_count.read().await);
                 
                 // 1. 判断是否为播放状态
                 // 如果不是播放状态，则continue

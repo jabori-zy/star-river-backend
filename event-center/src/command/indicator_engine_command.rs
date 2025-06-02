@@ -5,8 +5,7 @@ use std::fmt::Debug;
 use types::market::{Exchange, KlineInterval};
 use uuid::Uuid;
 use types::indicator::IndicatorConfig;
-use types::cache::CacheValue;
-use std::sync::Arc;
+use types::cache::cache_key::BacktestKlineCacheKey;
 use crate::command::Command;
 use crate::Responder;
 use super::CommandTrait;
@@ -14,23 +13,27 @@ use super::CommandTrait;
 #[derive(Debug)]
 pub enum IndicatorEngineCommand {
     RegisterIndicator(RegisterIndicatorParams), // 注册指标
+    CalculateBacktestIndicator(CalculateBacktestIndicatorParams), // 计算回测指标
 }
 
 impl CommandTrait for IndicatorEngineCommand {
     fn responder(&self) -> &Responder {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => &params.responder,
+            IndicatorEngineCommand::CalculateBacktestIndicator(params) => &params.responder,
         }
     }
     fn timestamp(&self) -> i64 {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => params.command_timestamp,
+            IndicatorEngineCommand::CalculateBacktestIndicator(params) => params.command_timestamp,
         }
     }
 
     fn sender(&self) -> String {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => params.sender.clone(),
+            IndicatorEngineCommand::CalculateBacktestIndicator(params) => params.sender.clone(),
         }
     }
     
@@ -57,14 +60,12 @@ pub struct RegisterIndicatorParams {
 }
 
 #[derive(Debug)]
-pub struct CalculateIndicatorParams {
+// 计算回测指标命令参数
+pub struct CalculateBacktestIndicatorParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
-    pub exchange: Exchange,
-    pub symbol: String,
-    pub interval: KlineInterval,
+    pub kline_cache_key: BacktestKlineCacheKey, // 回测K线缓存键
     pub indicator_config: IndicatorConfig,
-    pub kline_series: Vec<Arc<CacheValue>>,
     pub sender: String,
     pub command_timestamp:i64,
     pub responder: Responder,

@@ -18,6 +18,7 @@ use std::time::Duration;
 use types::market::{Exchange, KlineInterval,Kline};
 use types::cache::cache_key::KlineCacheKey;
 use types::cache::cache_key::IndicatorCacheKey;
+use types::cache::cache_key::BacktestIndicatorCacheKey;
 use types::indicator::Indicator;
 use types::indicator::IndicatorConfig;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
@@ -135,7 +136,7 @@ impl CacheEngine {
         &self, 
         exchange: Exchange, 
         symbol: String, 
-        interval: KlineInterval, 
+        interval: KlineInterval,
         indicator_config: IndicatorConfig,
         indicator_series: Vec<Indicator>) {
         let mut context = self.context.write().await;
@@ -143,6 +144,20 @@ impl CacheEngine {
         let cache_key = CacheKey::Indicator(IndicatorCacheKey::new(exchange, symbol, interval, indicator_config));
         let cache_series = indicator_series.into_iter().map(|indicator| indicator.into()).collect();
         cache_engine_context.initialize_cache(cache_key, cache_series).await;
+    }
+
+    // 初始化回测指标缓存
+    pub async fn initialize_backtest_indicator_cache(
+        &self, 
+        kline_cache_key: CacheKey,
+        indicator_config: IndicatorConfig,
+        indicator_series: Vec<Indicator>) -> CacheKey {
+        let mut context = self.context.write().await;
+        let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
+        let cache_key = CacheKey::BacktestIndicator(BacktestIndicatorCacheKey::new(kline_cache_key,indicator_config));
+        let cache_series = indicator_series.into_iter().map(|indicator| indicator.into()).collect();
+        cache_engine_context.initialize_cache(cache_key.clone(), cache_series).await;
+        cache_key
     }
 
     pub async fn update_indicator_cache(

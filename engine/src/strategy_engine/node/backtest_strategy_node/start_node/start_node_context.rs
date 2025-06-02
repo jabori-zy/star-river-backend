@@ -71,7 +71,7 @@ impl StartNodeContext {
             from_node_id: self.base_context.node_id.clone(),
             from_node_name: self.base_context.node_name.clone(),
             from_node_handle_id: self.base_context.output_handle.get(&format!("start_node_output")).unwrap().output_handle_id.clone(),
-            signal_type: SignalType::FetchKlineData(signal_count),
+            signal_type: SignalType::KlineTick(signal_count),
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
         

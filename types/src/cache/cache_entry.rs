@@ -527,7 +527,7 @@ pub struct GenericCacheEntry<K: Clone + Debug + Into<CacheKey>> {
     pub data: VecDeque<Arc<CacheValue>>, 
     pub create_time: i64,
     pub update_time: i64,
-    pub max_size: u32,
+    pub max_size: Option<u32>, // 如果为None，则表示无限缓存
     pub is_fresh: bool, 
     pub ttl: Duration,
 }
@@ -548,11 +548,16 @@ impl<K: Clone + Debug + Into<CacheKey>> CacheEntryTrait for GenericCacheEntry<K>
             self.data.push_back(cache_value.into());
         } else {
             // 如果最新的一条数据时间戳不等于最后一根k线的时间戳，则插入新数据
-            // 如果缓存长度大于最大缓存长度，则删除最旧的一条数据
-            if self.data.len() >= self.max_size as usize {
-                self.data.pop_front();
+            // 如果max_size为None，则无限缓存
+            if self.max_size.is_none() {
+                self.data.push_back(cache_value.into());
+            } else {
+                // 如果缓存长度大于最大缓存长度，则删除最旧的一条数据
+                if self.data.len() >= self.max_size.unwrap() as usize {
+                    self.data.pop_front();
+                }
+                self.data.push_back(cache_value.into());
             }
-            self.data.push_back(cache_value.into());
         }
     }
 
@@ -610,7 +615,10 @@ impl<K: Clone + Debug + Into<CacheKey>> CacheEntryTrait for GenericCacheEntry<K>
     }
 
     fn get_max_size(&self) -> u32 {
-        self.max_size
+        if self.max_size.is_none() {
+            return u32::MAX;
+        }
+        self.max_size.unwrap()
     }
 
     fn get_is_fresh(&self) -> bool {
@@ -631,10 +639,10 @@ impl<K: Clone + Debug + Into<CacheKey>> CacheEntryTrait for GenericCacheEntry<K>
 }
 
 
-pub type HistoryKlineCacheEntry = GenericCacheEntry<HistoryKlineCacheKey>;
+pub type HistoryKlineCacheEntry = GenericCacheEntry<BacktestKlineCacheKey>;
 
 impl HistoryKlineCacheEntry {
-    pub fn new(key: HistoryKlineCacheKey, max_size: u32, ttl: Duration) -> Self {
+    pub fn new(key: BacktestKlineCacheKey, max_size: Option<u32>, ttl: Duration) -> Self {
         Self {
             key,
             data: VecDeque::new(),
@@ -653,7 +661,7 @@ impl From<HistoryKlineCacheEntry> for CacheEntry {
     }
 }
 
-pub type HistoryIndicatorCacheEntry = GenericCacheEntry<HistoryIndicatorCacheKey>;
+pub type HistoryIndicatorCacheEntry = GenericCacheEntry<BacktestIndicatorCacheKey>;
 
 
 impl From<HistoryIndicatorCacheEntry> for CacheEntry {
@@ -663,7 +671,7 @@ impl From<HistoryIndicatorCacheEntry> for CacheEntry {
 }
 
 impl HistoryIndicatorCacheEntry {
-    pub fn new(key: HistoryIndicatorCacheKey, max_size: u32, ttl: Duration) -> Self {
+    pub fn new(key: BacktestIndicatorCacheKey, max_size: Option<u32>, ttl: Duration) -> Self {
         Self {
             key,
             data: VecDeque::new(),

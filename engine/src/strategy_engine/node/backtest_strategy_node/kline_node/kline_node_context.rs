@@ -1,6 +1,6 @@
 use event_center::command::Command;
 use sea_orm::sea_query::Index;
-use types::cache::cache_key::HistoryKlineCacheKey;
+use types::cache::cache_key::BacktestKlineCacheKey;
 use types::cache::CacheKeyTrait;
 use types::market::KlineInterval;
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ use std::hash::Hash;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
-use types::strategy::node_message::{KlineSeriesMessage, NodeMessage};
+use types::strategy::node_message::{KlineSeriesMessage, NodeMessage, BacktestKlineMessage};
 use uuid::Uuid;
 use event_center::response::Response;
 use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
@@ -72,7 +72,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("live_data_node_output")).unwrap().clone()
+        self.base_context.output_handle.get(&format!("kline_node_output")).unwrap().clone()
     }
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
@@ -82,24 +82,24 @@ impl BacktestNodeContextTrait for KlineNodeContext {
 
     async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
         // tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
-        // 收到消息之后，直接发送给下一个节点
+        // 收到消息之后，获取对应index的k线数据
         let exchange = self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.exchange.clone();
         let symbol = self.backtest_config.exchange_config.as_ref().unwrap().symbol.clone();
         let interval = self.backtest_config.exchange_config.as_ref().unwrap().interval.clone();
         let start_time = self.backtest_config.exchange_config.as_ref().unwrap().time_range.start_date.to_string();
         let end_time = self.backtest_config.exchange_config.as_ref().unwrap().time_range.end_date.to_string();
-        let cache_key = HistoryKlineCacheKey::new(exchange, symbol, interval, start_time, end_time);
+        let cache_key = BacktestKlineCacheKey::new(exchange, symbol, interval, start_time, end_time);
         
         match message {
             NodeMessage::Signal(signal_message) => {
                 let signal_type = signal_message.signal_type;
                 match signal_type {
-                    SignalType::FetchKlineData(index) => {
+                    SignalType::KlineTick(index) => {
                         let (resp_tx, resp_rx) = oneshot::channel();
                         let get_cache_params = GetCacheParams {
                             strategy_id: self.base_context.strategy_id.clone(),
                             node_id: self.base_context.node_id.clone(),
-                            cache_key: cache_key.into(),
+                            cache_key: cache_key.clone().into(),
                             index: Some(index),
                             limit: Some(1),
                             sender: self.base_context.node_id.clone(),
@@ -126,6 +126,19 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                                         let strategy_event = StrategyEvent::BacktestStrategyDataUpdate(strategy_data);
                                         // tracing::info!("{}: 发送回测数据更新事件", self.base_context.strategy_id);
                                         self.get_event_publisher().publish(strategy_event.into()).await.unwrap();
+
+                                        // 发送回测K线更新事件
+                                        let kline_message = BacktestKlineMessage {
+                                            from_node_id: self.base_context.node_id.clone(),
+                                            from_node_name: self.base_context.node_name.clone(),
+                                            from_node_handle_id: self.base_context.node_id.clone(),
+                                            kline_cache_index: index,
+                                            kline_cache_key: cache_key.clone(),
+                                            kline: cache_data[0].clone(),
+                                            message_timestamp: get_utc8_timestamp_millis(),
+                                        };
+                                        let kline_event = NodeMessage::BacktestKlineUpdate(kline_message);
+                                        self.get_default_output_handle().send(kline_event).unwrap();
                                     }
                                     _ => {}
                                 }

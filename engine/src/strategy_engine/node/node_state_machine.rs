@@ -99,7 +99,9 @@ pub trait BacktestNodeTransitionAction: Debug + Any + Send + Sync {
 pub enum BacktestNodeRunState {
     Created,        // 节点已创建但未初始化
     Initializing,   // 节点正在初始化
-    Ready,          // 节点已初始化，准备好但未运行
+    Ready,        // 节点已初始化，准备好但未运行
+    Backtesting,    // 节点正在回测
+    BacktestComplete,    // 节点回测完成
     Stopping,       // 节点正在停止
     Stopped,        // 节点已停止
     Failed,         // 节点发生错误
