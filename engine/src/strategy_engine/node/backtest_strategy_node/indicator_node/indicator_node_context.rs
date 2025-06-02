@@ -76,9 +76,20 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
             NodeMessage::BacktestKlineUpdate(backtest_kline_message) => {
                 // tracing::info!("节点{}收到回测K线更新: {:?}", self.base_context.node_id, backtest_kline_message);
                 let indicator_cache_data = self.get_backtest_indicator_cache(backtest_kline_message.kline_cache_index).await.unwrap();
-                // 将K线数据转换为IndicatorValue
-                let indicator_value = indicator_cache_data.into_iter().map(|cache_value| cache_value.as_indicator().unwrap()).collect::<Vec<Indicator>>();
-                tracing::info!("节点{}收到回测指标数据: {:?}, index: {}", self.base_context.node_id, indicator_value, backtest_kline_message.kline_cache_index);
+                let indicator_message = IndicatorMessage {
+                    from_node_id: self.base_context.node_id.clone(),
+                    from_node_name: self.base_context.node_name.clone(),
+                    exchange: self.backtest_config.exchange_config.clone().unwrap().exchange,
+                    symbol: self.backtest_config.exchange_config.clone().unwrap().symbol,
+                    interval: self.backtest_config.exchange_config.clone().unwrap().interval,
+                    indicator_config: self.backtest_config.indicator_config.clone(),
+                    indicator_series: indicator_cache_data,
+                    message_timestamp: get_utc8_timestamp_millis(),
+                };
+                tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, indicator_message);
+                // 发送指标message
+                let handle = self.get_default_output_handle();
+                handle.send(NodeMessage::Indicator(indicator_message)).unwrap();
 
 
             }
@@ -154,7 +165,6 @@ impl IndicatorNodeContext {
             if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
                 match cache_reponse {
                     CacheEngineResponse::GetCacheData(get_cache_data_response) => {
-                        tracing::info!("节点{}收到回测K线缓存数据: {:?}", self.base_context.node_id, get_cache_data_response.cache_data.len());
                         return Ok(get_cache_data_response.cache_data)
                     }
                     _ => {

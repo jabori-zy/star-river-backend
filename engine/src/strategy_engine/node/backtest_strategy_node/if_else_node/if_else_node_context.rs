@@ -5,22 +5,20 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
-use super::condition::*;
 use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
-use super::if_else_node_type::*;
+use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-
-
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
+use super::condition::*;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
-    pub base_context: BaseNodeContext,
+    pub base_context: BacktestBaseNodeContext,
     pub current_batch_id: Option<String>,
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
     pub received_message: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
-    pub live_config: IfElseNodeLiveConfig,
+    pub backtest_config: IfElseNodeBacktestConfig,
     
 
 }
@@ -28,9 +26,9 @@ pub struct IfElseNodeContext {
 
 
 #[async_trait]
-impl NodeContextTrait for IfElseNodeContext {
+impl BacktestNodeContextTrait for IfElseNodeContext {
     
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+    fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -42,11 +40,11 @@ impl NodeContextTrait for IfElseNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &BacktestBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
         &mut self.base_context
     }
 
@@ -94,35 +92,6 @@ impl IfElseNodeContext {
         .or_insert(flag);
     }
 
-    // 处理指标消息
-    // async fn handle_indicator_message(&mut self, indicator_message: IndicatorMessage) {
-    //     // tracing::debug!("{}: 收到指标消息: {:?}", self.base_context.node_id, indicator_message);
-    //     let from_node_id = indicator_message.from_node_id.clone();
-
-    //     // 接收到信息之后，更新值的槽位
-    //     // 更新接收值
-    //     let received_message = self.received_message.get_mut(&from_node_id).unwrap();
-    //     *received_message = Some(NodeMessage::Indicator(indicator_message));
-
-    //     // 更新接收标记
-    //     let received_flag = self.received_flag.get_mut(&from_node_id).unwrap();
-    //     *received_flag = true;
-    // }
-
-    // // 处理变量消息
-    // async fn handle_variable_message(&mut self, variable_message: VariableMessage) {
-    //     // tracing::debug!("{}: 收到变量消息: {:?}", self.base_context.node_id, variable_message);
-    //     let from_node_id = variable_message.from_node_id.clone();
-
-    //     // 更新接收值
-    //     let received_message = self.received_message.get_mut(&from_node_id).unwrap();
-    //     *received_message = Some(NodeMessage::Variable(variable_message));
-
-    //     // 更新接收标记
-    //     let received_flag = self.received_flag.get_mut(&from_node_id).unwrap();
-    //     *received_flag = true;
-    // }
-
     // 初始化接收标记
     pub async fn init_received_flag(&mut self) {
         for from_node_id in self.get_from_node_id().clone() {
@@ -147,7 +116,7 @@ impl IfElseNodeContext {
 
         
         // 遍历case
-        for case in self.live_config.cases.clone() {
+        for case in self.backtest_config.cases.clone() {
             let case_result = self.evaluate_case(case.clone()).await;
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估

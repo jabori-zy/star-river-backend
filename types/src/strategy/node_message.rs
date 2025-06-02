@@ -76,7 +76,7 @@ pub struct IndicatorMessage {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub indicator: IndicatorConfig,
+    pub indicator_config: IndicatorConfig,
     pub indicator_series: Vec<Arc<CacheValue>>,
     pub message_timestamp: i64,
 }
@@ -89,7 +89,7 @@ impl Clone for IndicatorMessage {
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             interval: self.interval.clone(),
-            indicator: self.indicator.clone(),
+            indicator_config: self.indicator_config.clone(),
             indicator_series: self.indicator_series.clone(),
             message_timestamp: self.message_timestamp,
         }

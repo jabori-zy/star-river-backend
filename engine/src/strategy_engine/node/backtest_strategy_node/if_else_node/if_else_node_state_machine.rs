@@ -14,11 +14,11 @@ pub enum IfElseNodeStateAction {
     LogError(String),       // 记录错误
 }
 
-impl TransitionAction for IfElseNodeStateAction {
-    fn get_action(&self) -> Box<dyn TransitionAction> {
+impl BacktestNodeTransitionAction for IfElseNodeStateAction {
+    fn get_action(&self) -> Box<dyn BacktestNodeTransitionAction> {
         Box::new(self.clone())
     }
-    fn clone_box(&self) -> Box<dyn TransitionAction> {
+    fn clone_box(&self) -> Box<dyn BacktestNodeTransitionAction> {
         Box::new(self.clone())
     }
     fn as_any(&self) -> &dyn Any {
@@ -28,15 +28,15 @@ impl TransitionAction for IfElseNodeStateAction {
 
 #[derive(Debug)]
 pub struct IfElseNodeStateChangeActions {
-    pub new_state: NodeRunState,
-    pub actions: Vec<Box<dyn TransitionAction>>,
+    pub new_state: BacktestNodeRunState,
+    pub actions: Vec<Box<dyn BacktestNodeTransitionAction>>,
 }
 
-impl StateChangeActions for IfElseNodeStateChangeActions {
-    fn get_new_state(&self) -> NodeRunState {
+impl BacktestStateChangeActions for IfElseNodeStateChangeActions {
+    fn get_new_state(&self) -> BacktestNodeRunState {
         self.new_state.clone()
     }
-    fn get_actions(&self) -> Vec<Box<dyn TransitionAction>> {
+    fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
         self.actions.iter().map(|action| action.clone_box()).collect()
     }
 }
@@ -45,13 +45,13 @@ impl StateChangeActions for IfElseNodeStateChangeActions {
 // 状态管理器
 #[derive(Debug, Clone)]
 pub struct IfElseNodeStateManager {
-    current_state: NodeRunState,
+    current_state: BacktestNodeRunState,
     node_id: String,
     node_name: String,
 }
 
 impl IfElseNodeStateManager {
-    pub fn new(current_state: NodeRunState, node_id: String, node_name: String) -> Self {
+    pub fn new(current_state: BacktestNodeRunState, node_id: String, node_name: String) -> Self {
         Self {
             current_state,
             node_id,
@@ -63,30 +63,30 @@ impl IfElseNodeStateManager {
 
 
 
-impl NodeStateMachine for IfElseNodeStateManager {
+impl BacktestNodeStateMachine for IfElseNodeStateManager {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn NodeStateMachine> {
+    fn clone_box(&self) -> Box<dyn BacktestNodeStateMachine> {
         Box::new(self.clone())
     }
   
 
     // 获取当前状态
-    fn current_state(&self) -> NodeRunState {
+    fn current_state(&self) -> BacktestNodeRunState {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: NodeStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String> {
+    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, String> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
-            (NodeRunState::Created, NodeStateTransitionEvent::Initialize) => {
+            (BacktestNodeRunState::Created, BacktestNodeStateTransitionEvent::Initialize) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Initializing;
+                self.current_state = BacktestNodeRunState::Initializing;
                 Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Initializing,
+                    new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
                         Box::new(IfElseNodeStateAction::LogTransition), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal), 
@@ -96,67 +96,44 @@ impl NodeStateMachine for IfElseNodeStateManager {
                 }))
             }
             // 初始化完成，进入Ready状态
-            (NodeRunState::Initializing, NodeStateTransitionEvent::InitializeComplete) => {
+            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Ready;
+                self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Ready,
+                    new_state: BacktestNodeRunState::Ready,
                     actions: vec![
                         Box::new(IfElseNodeStateAction::LogTransition), 
                         Box::new(IfElseNodeStateAction::LogNodeState),
+                        Box::new(IfElseNodeStateAction::Evaluate),
                     ],
                 }))
             }
             // 从Ready状态开始启动
-            (NodeRunState::Ready, NodeStateTransitionEvent::Start) => {
+            (BacktestNodeRunState::Ready, BacktestNodeStateTransitionEvent::Stop) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Starting;
+                self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Starting,
-                    actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::Evaluate)],
-                }))
-            }
-            // 启动完成，进入Running状态
-            (NodeRunState::Starting, NodeStateTransitionEvent::StartComplete) => {
-                // 修改manager的状态
-                self.current_state = NodeRunState::Running;
-                Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Running,
-                    actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::LogNodeState)],
-                }))
-            }
-            // 从Running状态开始停止
-            (NodeRunState::Running, NodeStateTransitionEvent::Stop) => {
-                // 修改manager的状态
-                self.current_state = NodeRunState::Stopping;
-                Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Stopping,
-                    actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::LogNodeState)],
+                    new_state: BacktestNodeRunState::Stopping,
+                    actions: vec![Box::new(IfElseNodeStateAction::LogTransition)]    
                 }))
             }
             // 停止完成，进入Stopped状态
-            (NodeRunState::Stopping, NodeStateTransitionEvent::StopComplete) => {
+            (BacktestNodeRunState::Stopping, BacktestNodeStateTransitionEvent::StopComplete) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Stopped;
+                self.current_state = BacktestNodeRunState::Stopped;
                 Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Stopped,
+                    new_state: BacktestNodeRunState::Stopped,
                     actions: vec![
                         Box::new(IfElseNodeStateAction::LogTransition), 
                         Box::new(IfElseNodeStateAction::LogNodeState)],
                 }))
             }
             // 从任何状态都可以失败
-            (_, NodeStateTransitionEvent::Fail(error)) => {
+            (_, BacktestNodeStateTransitionEvent::Fail(error)) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Failed;
+                self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(IfElseNodeStateChangeActions {
-                    new_state: NodeRunState::Failed,
+                    new_state: BacktestNodeRunState::Failed,
                     actions: vec![
                         Box::new(IfElseNodeStateAction::LogTransition), 
                         Box::new(IfElseNodeStateAction::LogError(error))],
@@ -165,7 +142,7 @@ impl NodeStateMachine for IfElseNodeStateManager {
             // 处理无效的状态转换
             (state, event) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Failed;
+                self.current_state = BacktestNodeRunState::Failed;
                 Err(format!("节点 {} 无效的状态转换: {:?} -> {:?}", self.node_id, state, event))
             }
 

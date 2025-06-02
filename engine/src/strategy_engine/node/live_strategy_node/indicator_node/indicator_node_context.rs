@@ -129,7 +129,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                                     exchange: self.live_config.exchange.clone(),
                                     symbol: self.live_config.symbol.clone(),
                                     interval: self.live_config.interval.clone(),
-                                    indicator: self.live_config.indicator_config.clone(),
+                                    indicator_config: self.live_config.indicator_config.clone(),
                                     indicator_series: indicator_series,
                                     message_timestamp: get_utc8_timestamp_millis(),
                                 };

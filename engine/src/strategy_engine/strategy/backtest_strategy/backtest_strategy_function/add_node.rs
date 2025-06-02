@@ -51,16 +51,16 @@ impl BacktestStrategyFunction {
             }
             // 指标节点
             NodeType::IndicatorNode => {
-                Self::add_indicator_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, strategy_command_sender).await;
+                Self::add_indicator_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, strategy_command_sender).await.unwrap();
                 Ok(())
                 
             }
             
-            // // 条件分支节点
-            // NodeType::IfElseNode => {
-            //     Self::add_if_else_node(graph,node_indices,node_config,event_publisher,command_publisher,command_receiver).await;
-            //     Ok(())
-            // }
+            // 条件分支节点
+            NodeType::IfElseNode => {
+                Self::add_if_else_node(graph,node_indices,node_config,event_publisher,command_publisher,command_receiver,strategy_command_sender).await.unwrap();
+                Ok(())
+            }
             // // 订单节点
             // NodeType::OrderNode => {
             //     Self::add_order_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, exchange_engine, database, heartbeat).await;

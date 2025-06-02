@@ -37,9 +37,9 @@ pub fn create_live_strategy_routes() -> Router<StarRiver> {
 pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
     Router::new()
         // 策略控制 (实时/回测)
-        .route("/{id}/play", post(play))
-        .route("/{id}/pause", post(pause))
-        .route("/{id}/play-one", post(play_one))
-        .route("/{id}/stop-playback", post(stop))
+        .route("/{strategy_id}/play", post(play))
+        .route("/{strategy_id}/pause", post(pause))
+        .route("/{strategy_id}/play-one", post(play_one))
+        .route("/{strategy_id}/stop-playback", post(stop))
                 
 }

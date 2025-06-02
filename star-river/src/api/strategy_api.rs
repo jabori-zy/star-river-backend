@@ -321,13 +321,6 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 
 
 
-
-
-#[derive(Deserialize, Debug)]
-pub struct RunStrategyParams {
-    pub strategy_id: i32,
-}
-
 // todo
 // 将strategy_engine 中将策略的启动逻辑拆分为两部分：
 // start_strategy: 负责策略的初始化和启动，确保策略可以正常运行（比如检查配置、建立连接等）
@@ -390,11 +383,6 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 // }
 
 
-#[derive(Deserialize, Debug)]
-pub struct GetStrategyCacheKeysParams {
-    pub strategy_id: i32,
-}
-
 
 pub async fn get_strategy_cache_keys(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
@@ -411,11 +399,6 @@ pub async fn get_strategy_cache_keys(State(star_river): State<StarRiver>, Path(s
 }
 
 
-#[derive(Deserialize, Debug)]
-pub struct EnableStrategyDataPushParams {
-    pub strategy_id: i32,
-}
-
 pub async fn enable_strategy_data_push(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
@@ -431,11 +414,6 @@ pub async fn enable_strategy_data_push(State(star_river): State<StarRiver>, Path
     }))
 }
 
-
-#[derive(Deserialize, Debug)]
-pub struct DisableStrategyDataPushParams {
-    pub strategy_id: i32,
-}
 
 pub async fn disable_strategy_data_push(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
@@ -536,7 +514,7 @@ pub async fn stop(State(star_river): State<StarRiver>, Path(strategy_id): Path<i
 
 #[utoipa::path(
     post,
-    path = "/api/v1/strategy/backtest/{strategy_id}/play_one",
+    path = "/api/v1/strategy/backtest/{strategy_id}/play-one",
     tag = "策略控制",
     summary = "播放单个K线",
     params(

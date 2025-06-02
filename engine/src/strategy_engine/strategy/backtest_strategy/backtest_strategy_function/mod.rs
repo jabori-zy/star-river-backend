@@ -2,7 +2,7 @@ mod add_edge;
 mod add_node;
 mod add_start_node;
 mod add_kline_node;
-// mod add_if_else_node;
+mod add_if_else_node;
 mod add_indicator_node;
 // mod add_order_node;
 // mod add_position_node;
