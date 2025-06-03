@@ -1,0 +1,11 @@
+[package]
+name = "virtual-trading"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+types = { path = "../types" }
+utils = { path = "../utils" }
+chrono.workspace = true
