@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
@@ -25,6 +25,8 @@ use if_else_node_type::IfElseNodeBacktestConfig;
 use event_center::{CommandPublisher, CommandReceiver};
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
+use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
+
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -43,6 +45,7 @@ impl IfElseNode {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -55,15 +58,16 @@ impl IfElseNode {
             command_receiver,
             Box::new(IfElseNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(IfElseNodeContext {
                 base_context,
-                current_batch_id: None,
                 is_processing: false,
                 received_flag: HashMap::new(),
                 received_message: HashMap::new(),
                 backtest_config,
+                played_index: Arc::new(RwLock::new(0)),
             }))),
             
         }
@@ -148,7 +152,7 @@ impl BacktestNodeTrait for IfElseNode {
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
-        let (tx, _) = broadcast::channel::<NodeMessage>(100);
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
 
         self.add_output_handle(DefaultOutputHandleId::IfElseNodeElseOutput.to_string(), tx).await;
 
@@ -158,11 +162,11 @@ impl BacktestNodeTrait for IfElseNode {
             let cases = if_else_node_context.backtest_config.cases.clone();
 
             for case in cases {
-                let (tx, _) = broadcast::channel::<NodeMessage>(100);
+                let (tx, _) = broadcast::channel::<NodeEvent>(100);
                 let handle = NodeOutputHandle {
                     node_id: node_id.clone(),
                     output_handle_id: format!("if_else_node_case_{}_output", case.case_id),
-                    message_sender: tx,
+                    node_event_sender: tx,
                     connect_count: 0,
                 };
 
@@ -226,9 +230,13 @@ impl BacktestNodeTrait for IfElseNode {
                     tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
                 }
 
-                IfElseNodeStateAction::ListenAndHandleMessage => {
+                IfElseNodeStateAction::ListenAndHandleNodeEvents => {
                     tracing::info!("{}: 开始监听节点传递的message", node_id);
-                    self.listen_message().await?;
+                    self.listen_node_events().await?;
+                }
+                IfElseNodeStateAction::ListenAndHandleInnerEvents => {
+                    tracing::info!("{}: 开始监听策略内部事件", node_id);
+                    self.listen_strategy_inner_events().await?;
                 }
                 IfElseNodeStateAction::InitReceivedFlag => {
                     tracing::info!("{}: 开始初始化接收标记", node_id);

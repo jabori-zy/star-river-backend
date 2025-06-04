@@ -18,6 +18,7 @@ use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use std::collections::HashMap;
+use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -43,6 +44,7 @@ impl StartNode {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -55,14 +57,14 @@ impl StartNode {
             command_receiver,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
         StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
                 base_context,
                 backtest_config: Arc::new(RwLock::new(backtest_config)),
                 heartbeat,
-                strategy_cache_keys: vec![],
-                cache_lengths: HashMap::new(),
+                played_index: Arc::new(RwLock::new(0)),
             }))),
         }
     }
@@ -129,7 +131,7 @@ impl BacktestNodeTrait for StartNode {
         Ok(())
     }
 
-    async fn listen_message(&self) -> Result<(), String> {
+    async fn listen_node_events(&self) -> Result<(), String> {
         Ok(())
     }
 
@@ -150,6 +152,10 @@ impl BacktestNodeTrait for StartNode {
                     let current_state = self.context.read().await.get_state_machine().current_state();
                     tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
                 }
+                StartNodeStateAction::ListenAndHandleInnerEvents => {
+                    tracing::info!("{}: 开始监听策略内部事件", node_id);
+                    self.listen_strategy_inner_events().await?;
+                }
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();
                     tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
@@ -169,19 +175,19 @@ impl BacktestNodeTrait for StartNode {
 
 
 impl StartNode {
-    pub async fn send_fetch_data_signal(&self, signal_count : u32) {
+    pub async fn send_kline_tick_signal(&self, signal_count : u32) {
         let context = self.get_context();
         let mut state_guard = context.write().await;
         if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-            start_node_context.send_fetch_kline_data_signal(signal_count).await;
+            start_node_context.send_kline_tick_signal(signal_count).await;
         }
     }
 
-    pub async fn send_finish_signal(&self) {
+    pub async fn send_finish_signal(&self, signal_index : u32) {
         let context = self.get_context();
         let mut state_guard = context.write().await;
         if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-            start_node_context.send_finish_signal().await;
+            start_node_context.send_finish_signal(signal_index).await;
         }
     }
 }

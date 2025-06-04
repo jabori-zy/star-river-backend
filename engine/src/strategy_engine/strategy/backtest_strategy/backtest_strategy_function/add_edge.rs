@@ -2,7 +2,7 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
-use crate::strategy_engine::node::node_types::NodeMessageReceiver;
+use crate::strategy_engine::node::node_types::NodeEventReceiver;
 use super::BacktestStrategyFunction;
 
 impl BacktestStrategyFunction {
@@ -33,13 +33,13 @@ impl BacktestStrategyFunction {
                 // 获取接收者数量
                 
                 // tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
-                let node_message_receiver = NodeMessageReceiver::new(
+                let node_message_receiver = NodeEventReceiver::new(
                     from_node_id.to_string(), 
                     from_handle_id.to_string(), 
                     to_handle_id.to_string(), 
                     receiver);
                 target_node.add_message_receiver(node_message_receiver).await;
-                let message_receivers = target_node.get_message_receivers().await;
+                let message_receivers = target_node.get_node_event_receivers().await;
                 tracing::debug!("{}: 添加了一个接收者: {:?}", target_node.get_node_name().await, message_receivers);
                 target_node.add_from_node_id(from_node_id.to_string()).await;
             }

@@ -7,7 +7,7 @@ use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::condition::*;
-use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
+use types::strategy::node_event::{NodeEvent, SignalEvent, ConditionMatchEvent, IndicatorEvent};
 use super::if_else_node_type::*;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
@@ -19,7 +19,7 @@ pub struct IfElseNodeContext {
     pub current_batch_id: Option<String>,
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
-    pub received_message: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
+    pub received_message: HashMap<String, Option<NodeEvent>>, // 用于记录每个节点的数据
     pub live_config: IfElseNodeLiveConfig,
     
 
@@ -60,21 +60,28 @@ impl LiveNodeContextTrait for IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    async fn handle_message(&mut self, event: NodeEvent) -> Result<(), String> {
         // tracing::debug!("{}: 收到消息: {:?}", self.get_node_name(), message);
-        self.update_received_message(message);
+        self.update_received_event(event);
         Ok(())
     }
 }
 
 impl IfElseNodeContext {
 
-    fn update_received_message(&mut self, received_message: NodeMessage) {
+    fn update_received_event(&mut self, received_message: NodeEvent) {
         let from_node_id = match &received_message {
-            NodeMessage::Indicator(indicator_message) => {
-                indicator_message.from_node_id.clone()
+            NodeEvent::Indicator(indicator_event) => {
+                match indicator_event {
+                    IndicatorEvent::LiveIndicatorUpdate(indicator_message) => {
+                        indicator_message.from_node_id.clone()
+                    }
+                    _ => {
+                        return;
+                    }
+                }
             }
-            NodeMessage::Variable(variable_message) => {
+            NodeEvent::Variable(variable_message) => {
                 variable_message.from_node_id.clone()
             }
             _ => {
@@ -155,21 +162,20 @@ impl IfElseNodeContext {
                 let case_sender = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
                 tracing::debug!("{}: 信号发送者: {:?}", self.get_node_name(), case_sender);
                 // 节点信息
-                let signal_message = SignalMessage {
+                let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
-                    signal_type: SignalType::ConditionMatch,
                     message_timestamp: get_utc8_timestamp()
-                };
-                tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_message);
+                });
+                tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
 
                 // 获取case的handle
                 let case_handle = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
-                tracing::debug!("{}：节点信息: {:?}", self.get_node_id(), signal_message);
+                tracing::debug!("{}：节点信息: {:?}", self.get_node_id(), signal_event);
                 if case_handle.connect_count > 0 {
-                    tracing::debug!("{}发送信号: {:?}", case_handle.output_handle_id, signal_message);
-                    if let Err(e) = case_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
+                    tracing::debug!("{}发送信号: {:?}", case_handle.output_handle_id, signal_event);
+                    if let Err(e) = case_sender.node_event_sender.send(NodeEvent::Signal(signal_event.clone())) {
                         tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                     }
 
@@ -178,7 +184,7 @@ impl IfElseNodeContext {
 
                 // 发送事件
                 if self.is_enable_event_publish().clone() {
-                    let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
+                    let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeEvent::Signal(signal_event)));
                     if let Err(e) = self.get_event_publisher().publish(event.into()).await {
                         tracing::error!(
                             node_id = %self.get_node_id(),
@@ -194,26 +200,25 @@ impl IfElseNodeContext {
         // 只有当所有case都为false时才执行else
         if !case_matched {
             let else_sender = self.get_all_output_handle().get("if_else_node_else_output").unwrap();
-            let signal_message = SignalMessage {
+            let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
                 from_node_handle_id: self.get_all_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
-                signal_type: SignalType::ConditionMatch,
                 message_timestamp: get_utc8_timestamp()
-            };
+            });
             
 
             let else_handle = self.get_all_output_handle().get("if_else_node_else_output").expect("else handle not found");
             if else_handle.connect_count > 0 {
-                tracing::debug!("条件节点发送信号: {:?}", signal_message);
-                if let Err(e) = else_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
+                tracing::debug!("条件节点发送信号: {:?}", signal_event);
+                if let Err(e) = else_sender.node_event_sender.send(NodeEvent::Signal(signal_event.clone())) {
                     tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
                 }
             }
 
             // 发送事件
             if self.is_enable_event_publish().clone() {
-                let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
+                let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeEvent::Signal(signal_event)));
                 if let Err(e) = self.get_event_publisher().publish(event.into()).await {
                     tracing::error!(
                         node_id = %self.get_node_id(),
@@ -242,7 +247,7 @@ impl IfElseNodeContext {
     fn get_variable_value(
         node_id: &str, 
         variable_name: &str, 
-        received_value: &HashMap<String, Option<NodeMessage>>
+        received_value: &HashMap<String, Option<NodeEvent>>
     ) -> Option<f64> {
         let message = received_value.get(node_id)?.as_ref()?;
         
@@ -253,7 +258,7 @@ impl IfElseNodeContext {
             //     // .get(variable_name)
             //     // .map(|v| v.value)
             // }
-            NodeMessage::Variable(variable_message) => {
+            NodeEvent::Variable(variable_message) => {
                 Some(variable_message.variable_value)
             }
             _ => None

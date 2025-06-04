@@ -20,6 +20,7 @@ use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::{BacktestDataSource, TimeRange};
 use types::cache::cache_key::BacktestIndicatorCacheKey;
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 
 impl BacktestStrategyFunction {
     pub async fn add_indicator_node(
@@ -32,6 +33,7 @@ impl BacktestStrategyFunction {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let strategy_id = node_data["strategyId"].as_i64().unwrap();
@@ -89,6 +91,7 @@ impl BacktestStrategyFunction {
             command_receiver,
             response_event_receiver,
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
         // 设置默认输出句柄
         node.set_output_handle().await;

@@ -10,6 +10,7 @@ use crate::strategy_engine::node::backtest_strategy_node::if_else_node::conditio
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 
 impl BacktestStrategyFunction {
     pub async fn add_if_else_node(
@@ -20,6 +21,7 @@ impl BacktestStrategyFunction {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -45,6 +47,7 @@ impl BacktestStrategyFunction {
             command_publisher,
             command_receiver,
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
         node.set_output_handle().await;
         let node = Box::new(node);

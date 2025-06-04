@@ -1,5 +1,5 @@
 
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use serde::{Serialize, Deserialize};
 use strum::Display;
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use crate::Event;
 pub enum StrategyEvent {
     #[strum(serialize = "node-message-update")]
     #[serde(rename = "node-message-update")]
-    NodeMessageUpdate(NodeMessage), // 节点消息
+    NodeMessageUpdate(NodeEvent), // 节点消息
     #[strum(serialize = "live-strategy-data-update")]
     #[serde(rename = "live-strategy-data-update")]
     LiveStrategyDataUpdate(StrategyData), // 实时策略数据更新

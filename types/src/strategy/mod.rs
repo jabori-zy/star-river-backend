@@ -1,8 +1,9 @@
-pub mod node_message;
+pub mod node_event;
 pub mod info;
 pub mod sys_varibale;// 图表消息
 pub mod node_command;
 pub mod node_response;
+pub mod strategy_inner_event;
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};

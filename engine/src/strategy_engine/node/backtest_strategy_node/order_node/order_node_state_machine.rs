@@ -5,18 +5,19 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub enum OrderNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
-    ListenAndHandleMessage,         // 处理消息
+    ListenAndHandleNodeEvents,         // 处理消息
+    ListenAndHandleInnerEvents,         // 处理内部事件
     RegisterTask,          // 注册任务
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
 }
 
-impl TransitionAction for OrderNodeStateAction {
-    fn get_action(&self) -> Box<dyn TransitionAction> {
+impl BacktestNodeTransitionAction for OrderNodeStateAction {
+    fn get_action(&self) -> Box<dyn BacktestNodeTransitionAction> {
         Box::new(self.clone())
     }
-    fn clone_box(&self) -> Box<dyn TransitionAction> {
+    fn clone_box(&self) -> Box<dyn BacktestNodeTransitionAction> {
         Box::new(self.clone())
     }
     fn as_any(&self) -> &dyn Any {
@@ -25,15 +26,15 @@ impl TransitionAction for OrderNodeStateAction {
 }
 #[derive(Debug)]
 pub struct OrderNodeStateChangeActions {
-    pub new_state: NodeRunState,
-    pub actions: Vec<Box<dyn TransitionAction>>,
+    pub new_state: BacktestNodeRunState,
+    pub actions: Vec<Box<dyn BacktestNodeTransitionAction>>,
 }
 
-impl StateChangeActions for OrderNodeStateChangeActions {
-    fn get_new_state(&self) -> NodeRunState {
+impl BacktestStateChangeActions for OrderNodeStateChangeActions {
+    fn get_new_state(&self) -> BacktestNodeRunState {
         self.new_state.clone()
     }
-    fn get_actions(&self) -> Vec<Box<dyn TransitionAction>> {
+    fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
         self.actions.iter().map(|action| action.clone_box()).collect()
     }
 }
@@ -41,7 +42,7 @@ impl StateChangeActions for OrderNodeStateChangeActions {
 // 状态管理器
 #[derive(Debug, Clone)]
 pub struct OrderNodeStateMachine {
-    current_state: NodeRunState,
+    current_state: BacktestNodeRunState,
     node_id: String,
     node_name: String,
 }
@@ -49,100 +50,83 @@ pub struct OrderNodeStateMachine {
 impl OrderNodeStateMachine {
     pub fn new(node_id: String, node_name: String) -> Self {
         Self {
-            current_state: NodeRunState::Created,
+            current_state: BacktestNodeRunState::Created,
             node_id,
             node_name,
         }
     }
 }
 
-impl NodeStateMachine for OrderNodeStateMachine {
+impl BacktestNodeStateMachine for OrderNodeStateMachine {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn clone_box(&self) -> Box<dyn NodeStateMachine> {
+    fn clone_box(&self) -> Box<dyn BacktestNodeStateMachine> {
         Box::new(self.clone())
     }
 
     // 获取当前状态
-    fn current_state(&self) -> NodeRunState {
+    fn current_state(&self) -> BacktestNodeRunState {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: NodeStateTransitionEvent) -> Result<Box<dyn StateChangeActions>, String> {
+    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, String> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
-            (NodeRunState::Created, NodeStateTransitionEvent::Initialize) => {
+            (BacktestNodeRunState::Created, BacktestNodeStateTransitionEvent::Initialize) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Initializing;
+                self.current_state = BacktestNodeRunState::Initializing;
                 Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Initializing,
+                    new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
                         Box::new(OrderNodeStateAction::LogTransition), 
                         Box::new(OrderNodeStateAction::ListenAndHandleExternalEvents), 
-                        Box::new(OrderNodeStateAction::ListenAndHandleMessage),
+                        Box::new(OrderNodeStateAction::ListenAndHandleNodeEvents),
+                        Box::new(OrderNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(OrderNodeStateAction::RegisterTask)],
                 }))
             }
             // 初始化完成，进入Ready状态
-            (NodeRunState::Initializing, NodeStateTransitionEvent::InitializeComplete) => {
+            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Ready;
+                self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Ready,
+                    new_state: BacktestNodeRunState::Ready,
                     actions: vec![Box::new(OrderNodeStateAction::LogTransition), Box::new(OrderNodeStateAction::LogNodeState)],
                 }))
             }
             // 从Ready状态开始启动
-            (NodeRunState::Ready, NodeStateTransitionEvent::Start) => {
+            (BacktestNodeRunState::Ready, BacktestNodeStateTransitionEvent::Stop) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Starting;
+                self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Starting,
-                    actions: vec![Box::new(OrderNodeStateAction::LogTransition)],
-                }))
-            }
-            // 启动完成，进入Running状态
-            (NodeRunState::Starting, NodeStateTransitionEvent::StartComplete) => {
-                // 修改manager的状态
-                self.current_state = NodeRunState::Running;
-                Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Running,
-                    actions: vec![Box::new(OrderNodeStateAction::LogTransition)],
-                }))
-            }
-            // 从Running状态开始停止
-            (NodeRunState::Running, NodeStateTransitionEvent::Stop) => {
-                // 修改manager的状态
-                self.current_state = NodeRunState::Stopping;
-                Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Stopping,
+                    new_state: BacktestNodeRunState::Stopping,
                     actions: vec![Box::new(OrderNodeStateAction::LogTransition)],
                 }))
             }
             // 停止完成，进入Stopped状态
-            (NodeRunState::Stopping, NodeStateTransitionEvent::StopComplete) => {
+            (BacktestNodeRunState::Stopping, BacktestNodeStateTransitionEvent::StopComplete) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Stopped;
+                self.current_state = BacktestNodeRunState::Stopped;
                 Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Stopped,
+                    new_state: BacktestNodeRunState::Stopped,
                     actions: vec![Box::new(OrderNodeStateAction::LogTransition)],
                 }))
             }
             // 从任何状态都可以失败
-            (_, NodeStateTransitionEvent::Fail(error)) => {
+            (_, BacktestNodeStateTransitionEvent::Fail(error)) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Failed;
+                self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(OrderNodeStateChangeActions {
-                    new_state: NodeRunState::Failed,
+                    new_state: BacktestNodeRunState::Failed,
                     actions: vec![Box::new(OrderNodeStateAction::LogTransition), Box::new(OrderNodeStateAction::LogError(error))],
                 }))
             }
             // 处理无效的状态转换
             (state, event) => {
                 // 修改manager的状态
-                self.current_state = NodeRunState::Failed;
+                self.current_state = BacktestNodeRunState::Failed;
                 Err(format!("节点 {} 无效的状态转换: {:?} -> {:?}", self.node_id, state, event))
             }
 

@@ -3,22 +3,27 @@ use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp;
+use utils::get_utc8_timestamp_millis;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use types::strategy::node_message::{SignalMessage, NodeMessage, SignalType};
+use types::strategy::node_event::{SignalEvent, NodeEvent, ConditionMatchEvent, IndicatorEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::condition::*;
+use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub current_batch_id: Option<String>,
     pub is_processing: bool,
     pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
-    pub received_message: HashMap<String, Option<NodeMessage>>, // 用于记录每个节点的数据
+    pub received_message: HashMap<String, Option<NodeEvent>>, // 用于记录每个节点的数据
     pub backtest_config: IfElseNodeBacktestConfig,
+    pub played_index: Arc<RwLock<u32>>, // 回测播放索引
     
 
 }
@@ -58,21 +63,51 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
-        // tracing::debug!("{}: 收到消息: {:?}", self.get_node_name(), message);
-        self.update_received_message(message);
+    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String> {
+        tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
+        //如果事件类型是回测指标更新或者k线更新
+        match &node_event {
+            NodeEvent::Indicator(IndicatorEvent::BacktestIndicatorUpdate(backtest_indicator_update_event)) => {
+                // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
+                if *self.played_index.read().await == backtest_indicator_update_event.kline_cache_index {
+                    self.update_received_event(node_event);
+                }
+            }
+            NodeEvent::BacktestKline(backtest_kline_update_event) => {
+                // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
+                if *self.played_index.read().await == backtest_kline_update_event.kline_cache_index {
+                    self.update_received_event(node_event);
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+        match strategy_inner_event {
+            StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
+                // 更新播放索引
+                *self.played_index.write().await = play_index_update_event.played_index;
+                tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+            }
+        }
         Ok(())
     }
 }
 
 impl IfElseNodeContext {
 
-    fn update_received_message(&mut self, received_message: NodeMessage) {
-        let from_node_id = match &received_message {
-            NodeMessage::Indicator(indicator_message) => {
-                indicator_message.from_node_id.clone()
+    fn update_received_event(&mut self, received_event: NodeEvent) {
+        let from_node_id = match &received_event {
+            NodeEvent::Indicator(indicator_message) => {
+                if let IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event) = indicator_message {
+                    indicator_update_event.from_node_id.clone()
+                } else {
+                    return;
+                }
             }
-            NodeMessage::Variable(variable_message) => {
+            NodeEvent::Variable(variable_message) => {
                 variable_message.from_node_id.clone()
             }
             _ => {
@@ -80,8 +115,8 @@ impl IfElseNodeContext {
             }
         };
         self.received_message.entry(from_node_id.clone())
-        .and_modify(|e| *e = Some(received_message.clone()))
-        .or_insert(Some(received_message));
+        .and_modify(|e| *e = Some(received_event.clone()))
+        .or_insert(Some(received_event));
         
         self.update_received_flag(from_node_id, true);
     }
@@ -118,36 +153,27 @@ impl IfElseNodeContext {
         // 遍历case
         for case in self.backtest_config.cases.clone() {
             let case_result = self.evaluate_case(case.clone()).await;
+            tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
             if case_result {
-                let case_sender = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
-                tracing::debug!("{}: 信号发送者: {:?}", self.get_node_name(), case_sender);
                 // 节点信息
-                let signal_message = SignalMessage {
+                let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
-                    signal_type: SignalType::ConditionMatch,
                     message_timestamp: get_utc8_timestamp()
-                };
-                tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_message);
+                });
+                // tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
 
                 // 获取case的handle
                 let case_handle = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
-                tracing::debug!("{}：节点信息: {:?}", self.get_node_id(), signal_message);
-                if case_handle.connect_count > 0 {
-                    tracing::debug!("{}发送信号: {:?}", case_handle.output_handle_id, signal_message);
-                    if let Err(e) = case_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
-                        tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
-                    }
-
-                }
-                
+                tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
+                case_handle.send(NodeEvent::Signal(signal_event.clone())).unwrap();
 
                 // 发送事件
                 if self.is_enable_event_publish().clone() {
-                    let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
+                    let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeEvent::Signal(signal_event.clone())));
                     if let Err(e) = self.get_event_publisher().publish(event.into()).await {
                         tracing::error!(
                             node_id = %self.get_node_id(),
@@ -162,27 +188,22 @@ impl IfElseNodeContext {
 
         // 只有当所有case都为false时才执行else
         if !case_matched {
-            let else_sender = self.get_all_output_handle().get("if_else_node_else_output").unwrap();
-            let signal_message = SignalMessage {
+            let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
                 from_node_handle_id: self.get_all_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
-                signal_type: SignalType::ConditionMatch,
                 message_timestamp: get_utc8_timestamp()
-            };
+            });
             
 
             let else_handle = self.get_all_output_handle().get("if_else_node_else_output").expect("else handle not found");
-            if else_handle.connect_count > 0 {
-                tracing::debug!("条件节点发送信号: {:?}", signal_message);
-                if let Err(e) = else_sender.message_sender.send(NodeMessage::Signal(signal_message.clone())) {
-                    tracing::error!("节点 {} 发送信号失败: {}", self.get_node_id(), e);
-                }
-            }
+            tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
+            else_handle.send(NodeEvent::Signal(signal_event.clone())).unwrap();
+
 
             // 发送事件
             if self.is_enable_event_publish().clone() {
-                let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeMessage::Signal(signal_message)));
+                let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeEvent::Signal(signal_event.clone())));
                 if let Err(e) = self.get_event_publisher().publish(event.into()).await {
                     tracing::error!(
                         node_id = %self.get_node_id(),
@@ -210,19 +231,32 @@ impl IfElseNodeContext {
     // 获取变量值
     fn get_variable_value(
         node_id: &str, 
-        variable_name: &str, 
-        received_value: &HashMap<String, Option<NodeMessage>>
+        variable_name: &str,
+        received_value: &HashMap<String, Option<NodeEvent>>
     ) -> Option<f64> {
-        let message = received_value.get(node_id)?.as_ref()?;
+        let node_event = received_value.get(node_id)?.as_ref()?;
         
-        match message {
-            // NodeMessage::Indicator(indicator_message) => {
-            //     // indicator_message.indicator_series
-            //     // .get_latest_indicator_value()
-            //     // .get(variable_name)
-            //     // .map(|v| v.value)
-            // }
-            NodeMessage::Variable(variable_message) => {
+        match node_event {
+            NodeEvent::Indicator(indicator_event) => {
+                if let IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event) = indicator_event {
+                    indicator_update_event
+                        .indicator_series
+                        .last()
+                        .and_then(|last_indicator| {
+                            let indicator_json = last_indicator.to_json();
+                            indicator_json.get(variable_name).cloned()
+                        })
+                        .and_then(|indicator_value| {
+                            indicator_value.as_f64().or_else(|| {
+                                // tracing::warn!("variable '{}'s value '{}' is not a number", variable_name, indicator_value);
+                                None
+                            })
+                        })
+                } else {
+                    None
+                }
+            }
+            NodeEvent::Variable(variable_message) => {
                 Some(variable_message.variable_value)
             }
             _ => None
@@ -266,12 +300,16 @@ impl IfElseNodeContext {
                     ComparisonOperator::LessThanOrEqual => left_value <= right_value,
                     ComparisonOperator::NotEqual => left_value != right_value,
                 };
-                // tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
+                tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
                 
                 // 如果有任何一个条件不满足，立即返回false并中止后续条件判断
                 if !condition_result {
                     return false;
                 }
+            }
+            else {
+                tracing::warn!("left value is: {:?}, right value is: {:?}, there is exist none value, condition is not match", left_value, right_value);
+                return false;
             }
         }
         // 所有条件都满足
@@ -324,6 +362,10 @@ impl IfElseNodeContext {
                 if condition_result {
                     return true;
                 }
+            }
+            else {
+                // tracing::warn!("left value is: {:?}, right value is: {:?}, there is exist none value, condition is not match", left_value, right_value);
+                return false;
             }
         }
         // 所有条件都不满足

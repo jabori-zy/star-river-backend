@@ -34,7 +34,7 @@ pub enum NodeEvent {
     Variable(VariableMessage),
     #[strum(serialize = "backtest_kline_update")]
     #[serde(rename = "backtest_kline_update")]
-    BacktestKlineUpdate(BacktestKlineMessage), // 回测K线更新(缓存index, K线) 回测k线更新
+    BacktestKline(BacktestKlineUpdateEvent), // 回测K线更新(缓存index, K线) 回测k线更新
     // #[strum(serialize = "backtest_signal")]
     // #[serde(rename = "backtest_signal")]
     // BacktestSignal(BacktestSignalEvent), // 回测信号
@@ -75,12 +75,14 @@ pub struct KlineSeriesMessage {
 pub enum IndicatorEvent {
     #[strum(serialize = "indicator_update")]
     #[serde(rename = "indicator_update")]
-    IndicatorUpdate(IndicatorUpdateEvent), // 实盘指标更新
+    LiveIndicatorUpdate(LiveIndicatorUpdateEvent), // 实盘指标更新
+    BacktestIndicatorUpdate(BacktestIndicatorUpdateEvent), // 回测指标更新
+    IndicatorUpdateError,
 }
 
 // 指标消息
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct IndicatorUpdateEvent {
+pub struct LiveIndicatorUpdateEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub exchange: Exchange,
@@ -88,6 +90,19 @@ pub struct IndicatorUpdateEvent {
     pub interval: KlineInterval,
     pub indicator_config: IndicatorConfig,
     pub indicator_series: Vec<Arc<CacheValue>>,
+    pub message_timestamp: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BacktestIndicatorUpdateEvent {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub exchange: Exchange,
+    pub symbol: String,
+    pub interval: KlineInterval,
+    pub indicator_config: IndicatorConfig,
+    pub indicator_series: Vec<Arc<CacheValue>>,
+    pub kline_cache_index: u32,
     pub message_timestamp: i64,
 }
 
@@ -156,7 +171,7 @@ pub struct VariableMessage {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BacktestKlineMessage {
+pub struct BacktestKlineUpdateEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
@@ -168,30 +183,8 @@ pub struct BacktestKlineMessage {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BacktestSignalEvent {
-    pub from_node_id: String,
-    pub from_node_name: String,
-    pub from_node_handle_id: String,
-    pub signal_type: BacktestSignalType,
-    pub message_timestamp: i64,
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-//回测信号类型
-pub enum BacktestSignalType {
-    ConditionMatch(u32),// 条件匹配
-    OrderFilled, // 订单成交
-    KlinePlayFinished(u32), // k线播放完毕
-    KlineTick(u32), // K线跳动(信号计数:根据这个值去请求缓存的下标)
-
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignalEvent {
     ConditionMatch(ConditionMatchEvent), // 实盘条件匹配
-    OrderFilled,
     KlinePlayFinished(KlinePlayFinishedEvent), // k线播放完毕
     KlineTick(KlineTickEvent), // K线跳动(信号计数:根据这个值去请求缓存的下标)
 }
@@ -205,14 +198,7 @@ pub struct ConditionMatchEvent {
     pub message_timestamp: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BacktestConditionMatchEvent {
-    pub from_node_id: String,
-    pub from_node_name: String,
-    pub from_node_handle_id: String,
-    pub signal_index: u32,
-    pub message_timestamp: i64,
-}
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -233,7 +219,3 @@ pub struct KlinePlayFinishedEvent {
     pub signal_index: u32,
     pub message_timestamp: i64,
 }
-
-
-
-

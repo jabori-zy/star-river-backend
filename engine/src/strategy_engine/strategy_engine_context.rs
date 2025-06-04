@@ -160,7 +160,6 @@ impl StrategyEngineContext {
                     self.command_receiver.clone(),
                     self.market_event_receiver.resubscribe(),
                     self.response_event_receiver.resubscribe(),
-                    self.exchange_engine.clone(),
                     self.database.clone(),
                     self.heartbeat.clone()
                 ).await;

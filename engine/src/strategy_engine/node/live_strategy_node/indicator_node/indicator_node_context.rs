@@ -8,7 +8,7 @@ use event_center::response::Response;
 use event_center::response::indicator_engine_response::IndicatorEngineResponse;
 use event_center::command::indicator_engine_command::{IndicatorEngineCommand, RegisterIndicatorParams};
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_message::{IndicatorMessage, NodeMessage};
+use types::strategy::node_event::{LiveIndicatorUpdateEvent, NodeEvent, IndicatorEvent};
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::indicator_node_type::IndicatorNodeLiveConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -106,9 +106,9 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
     }
 
     
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
         match message {
-            NodeMessage::KlineSeries(_) => {
+            NodeEvent::KlineSeries(_) => {
                 // 接收到k线数据， 向缓存引擎请求指标数据
                 let indicator_cache_key = IndicatorCacheKey::new(
                     self.live_config.exchange.clone(), 
@@ -123,7 +123,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                             CacheEngineResponse::GetCacheData(get_cache_data_response) => {
                                 let indicator_series = get_cache_data_response.cache_data.clone();
                                 // 发送指标数据
-                                let indicator_message = IndicatorMessage {
+                                let indicator_message = LiveIndicatorUpdateEvent {
                                     from_node_id: self.base_context.node_id.clone(),
                                     from_node_name: self.base_context.node_name.clone(),
                                     exchange: self.live_config.exchange.clone(),
@@ -136,7 +136,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                                 tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, indicator_message);
                                 // 发送指标message
                                 let handle = self.get_default_output_handle();
-                                handle.send(NodeMessage::Indicator(indicator_message)).unwrap();
+                                handle.send(NodeEvent::Indicator(IndicatorEvent::LiveIndicatorUpdate(indicator_message))).unwrap();
                             }
                             _ => {}
                         }

@@ -8,7 +8,7 @@ use event_center::response::Response;
 use event_center::response::indicator_engine_response::IndicatorEngineResponse;
 use event_center::command::indicator_engine_command::{IndicatorEngineCommand, RegisterIndicatorParams};
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_message::{IndicatorMessage, NodeMessage};
+use types::strategy::node_event::{BacktestIndicatorUpdateEvent, NodeEvent, IndicatorEvent};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::sync::Arc;
@@ -26,12 +26,14 @@ use types::cache::cache_key::{BacktestIndicatorCacheKey, BacktestKlineCacheKey};
 use tokio::time::Duration;
 use types::indicator::IndicatorConfig;
 use types::indicator::Indicator;
+use types::strategy::strategy_inner_event::StrategyInnerEvent;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
+    pub kline_cache_index: Arc<RwLock<u32>>, // 回测K线缓存索引
 }
 
 
@@ -71,30 +73,51 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
     }
 
     
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    async fn handle_node_event(&mut self, message: NodeEvent) -> Result<(), String> {
         match message {
-            NodeMessage::BacktestKlineUpdate(backtest_kline_message) => {
-                // tracing::info!("节点{}收到回测K线更新: {:?}", self.base_context.node_id, backtest_kline_message);
-                let indicator_cache_data = self.get_backtest_indicator_cache(backtest_kline_message.kline_cache_index).await.unwrap();
-                let indicator_message = IndicatorMessage {
-                    from_node_id: self.base_context.node_id.clone(),
-                    from_node_name: self.base_context.node_name.clone(),
-                    exchange: self.backtest_config.exchange_config.clone().unwrap().exchange,
-                    symbol: self.backtest_config.exchange_config.clone().unwrap().symbol,
-                    interval: self.backtest_config.exchange_config.clone().unwrap().interval,
-                    indicator_config: self.backtest_config.indicator_config.clone(),
-                    indicator_series: indicator_cache_data,
-                    message_timestamp: get_utc8_timestamp_millis(),
-                };
-                tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, indicator_message);
-                // 发送指标message
-                let handle = self.get_default_output_handle();
-                handle.send(NodeMessage::Indicator(indicator_message)).unwrap();
+            NodeEvent::BacktestKline(backtest_kline_update_event) => {
+                tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), backtest_kline_update_event);
+
+                // 如果k线缓存索引与信号索引相同，则发送回测数据更新事件
+                if *self.kline_cache_index.read().await == backtest_kline_update_event.kline_cache_index {
+                    let indicator_cache_data = self.get_backtest_indicator_cache(backtest_kline_update_event.kline_cache_index).await.unwrap();
+                    let indicator_update_event = BacktestIndicatorUpdateEvent {
+                        from_node_id: self.base_context.node_id.clone(),
+                        from_node_name: self.base_context.node_name.clone(),
+                        exchange: self.backtest_config.exchange_config.clone().unwrap().exchange,
+                        symbol: self.backtest_config.exchange_config.clone().unwrap().symbol,
+                        interval: self.backtest_config.exchange_config.clone().unwrap().interval,
+                        indicator_config: self.backtest_config.indicator_config.clone(),
+                        indicator_series: indicator_cache_data,
+                        kline_cache_index: backtest_kline_update_event.kline_cache_index,
+                        message_timestamp: get_utc8_timestamp_millis(),
+                    };
+                    // 发送指标message
+                    let handle = self.get_default_output_handle();
+                    handle.send(NodeEvent::Indicator(IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event))).unwrap();
+                } else {
+                    tracing::error!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "kline cache index is not equal to signal index");
+                }
+                
+                
+
+
 
 
             }
             _ => {}
 
+        }
+        Ok(())
+    }
+
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+        match strategy_inner_event {
+            StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
+                // 更新k线缓存索引
+                *self.kline_cache_index.write().await = play_index_update_event.played_index;
+                tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+            }
         }
         Ok(())
     }

@@ -11,7 +11,7 @@ pub struct KlineNodeBacktestConfig {
     #[serde(rename = "fileConfig")]
     pub file_config: Option<FileConfig>,
     #[serde(rename = "exchangeConfig")]
-    pub exchange_config: Option<ExchangeConfig>,
+    pub exchange_config: Option<KlineNodeExchangeConfig>,
 }
 
 
@@ -24,7 +24,7 @@ pub struct FileConfig {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExchangeConfig {
+pub struct KlineNodeExchangeConfig {
     #[serde(rename = "selectedDataSource")]
     pub selected_data_source: DataSourceExchange,
     pub symbol: String,

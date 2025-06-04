@@ -8,20 +8,8 @@ pub type NodeCommandReceiver = mpsc::Receiver<NodeCommand>;
 
 #[derive(Debug)]
 pub enum NodeCommand {
-    Strategy(StrategyCommand),
-}
-
-
-
-#[derive(Debug)]
-pub enum StrategyCommand {
     GetStrategyCacheKeys(GetStrategyCacheKeysParams),
-}
-
-impl From<StrategyCommand> for NodeCommand {
-    fn from(command: StrategyCommand) -> Self {
-        NodeCommand::Strategy(command)
-    }
+    GetKlineIndex(GetKlineIndexParams),
 }
 
 #[derive(Debug)]
@@ -32,7 +20,9 @@ pub struct GetStrategyCacheKeysParams {
 
 }
 
-
-
-
-
+#[derive(Debug)]
+pub struct GetKlineIndexParams {
+    pub node_id: String,
+    pub timestamp: i64,
+    pub responder: NodeResponder,
+}

@@ -8,7 +8,7 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::LiveNodeTrait;
 use types::strategy::{TradeMode, LiveStrategyConfig};
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
@@ -20,7 +20,7 @@ use std::any::Any;
 use database::query::position_query::PositionQuery;
 use database::mutation::position_mutation::PositionMutation;
 use types::position::PositionState;
-use types::strategy::node_message::PositionMessage;
+use types::strategy::node_event::PositionMessage;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::LiveNodeRunState;
@@ -128,10 +128,10 @@ impl LiveStrategyContext {
         Ok(())
     }
 
-    pub async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    pub async fn handle_node_message(&mut self, message: NodeEvent) -> Result<(), String> {
         // tracing::debug!("策略: {:?} 收到来自节点消息: {:?}", self.get_strategy_name(), message);
         match message {
-            NodeMessage::Position(position_message) => {
+            NodeEvent::Position(position_message) => {
                 match position_message {
                     // 仓位更新事件
                     PositionMessage::PositionUpdated(position) => {

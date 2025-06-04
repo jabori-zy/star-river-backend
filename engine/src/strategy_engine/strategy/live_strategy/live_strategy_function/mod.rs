@@ -117,7 +117,7 @@ impl LiveStrategyFunction {
 
         // 创建一个流，用于接收节点传递过来的message
         let streams: Vec<_> = receivers.iter()
-            .map(|output_handle| BroadcastStream::new(output_handle.message_sender.subscribe()))
+            .map(|output_handle| BroadcastStream::new(output_handle.node_event_sender.subscribe()))
             .collect();
 
         let mut combined_stream = select_all(streams);

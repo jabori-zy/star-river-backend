@@ -1,6 +1,6 @@
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
-use types::custom_type::StrategyId;
+use types::custom_type::{NodeId, StrategyId};
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
@@ -8,38 +8,32 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
-use types::strategy::{TradeMode, LiveStrategyConfig};
-use types::strategy::node_message::NodeMessage;
-use crate::exchange_engine::ExchangeEngine;
+use types::strategy::node_event::NodeEvent;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::position::Position;
-use database::query::position_query::PositionQuery;
-use database::mutation::position_mutation::PositionMutation;
-use types::position::PositionState;
-use types::strategy::node_message::PositionMessage;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
 use types::cache::CacheKey;
 use uuid::Uuid;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
-use event_center::response::Response;
 use utils::get_utc8_timestamp_millis;
 use event_center::command::Command;
-use event_center::strategy_event::{StrategyEvent, BacktestStrategyData};
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
 use types::strategy::BacktestStrategyConfig;
-use types::strategy::node_command::{NodeCommandReceiver, NodeCommand, StrategyCommand};
-use types::strategy::node_response::{GetStrategyCacheKeysResponse, StrategyResponse};
+use types::strategy::node_command::{NodeCommandReceiver, NodeCommand};
+use types::strategy::node_response::{GetStrategyCacheKeysResponse};
 use tracing::instrument;
 use event_center::command::cache_engine_command::GetCacheLengthMultiParams;
-use crate::strategy_engine::node::node_types::NodeType;
 use crate::strategy_engine::node::backtest_strategy_node::start_node::StartNode;
+use virtual_trading::VirtualTradingSystem;
+use types::strategy::node_response::NodeResponse;
+use types::strategy::strategy_inner_event::StrategyInnerEventPublisher;
+use types::strategy::strategy_inner_event::{StrategyInnerEvent, PlayIndexUpdateEvent};
 
 #[derive(Debug)]
 // 实盘策略上下文
@@ -58,17 +52,17 @@ pub struct BacktestStrategyContext {
     pub cancel_token: CancellationToken, // 取消令牌
     pub state_machine: BacktestStrategyStateMachine, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
-    pub positions: Arc<RwLock<Vec<Position>>>, // 策略的所有持仓
-    pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
     pub database: DatabaseConnection, // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 心跳
     pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
-    pub strategy_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 策略命令接收器
+    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 节点命令接收器
     pub signal_count: Arc<RwLock<u32>>, // 信号计数
-    pub played_signal_count: Arc<RwLock<u32>>, // 已发送的信号计数
+    pub played_signal_index: Arc<RwLock<u32>>, // 已发送的信号计数
     pub is_playing: Arc<RwLock<bool>>, // 是否正在播放
     pub initial_play_speed: Arc<RwLock<u32>>, // 初始播放速度 （从策略配置中加载）
     pub cancel_play_token: CancellationToken, // 取消播放令牌
+    pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, // 虚拟交易系统
+    pub strategy_inner_event_publisher: StrategyInnerEventPublisher, // 策略内部事件发布器
 }
 
 
@@ -94,16 +88,28 @@ impl BacktestStrategyContext {
         self.cancel_token.clone()
     }
 
-    fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
+    pub fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
         &self.event_receivers
     }
 
     pub fn get_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>> {
-        self.strategy_command_receiver.clone()
+        self.node_command_receiver.clone()
     }
 
-    pub async fn handle_command(&mut self, command: NodeCommand) -> Result<(), String> {
-        // tracing::info!("{}: 收到命令: {:?}", self.get_strategy_name(), command);
+    pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
+        match command {
+            NodeCommand::GetStrategyCacheKeys(get_strategy_cache_keys_command) => {
+                let cache_keys = self.get_cache_keys().await;
+                let get_strategy_cache_keys_response = NodeResponse::GetStrategyCacheKeys(GetStrategyCacheKeysResponse {
+                    code: 0,
+                    message: "success".to_string(),
+                    cache_keys: cache_keys,
+                    response_timestamp: get_utc8_timestamp_millis(),
+                });
+                get_strategy_cache_keys_command.responder.send(get_strategy_cache_keys_response).unwrap();
+            }
+            _ => {}
+        }
         Ok(())
     }
 
@@ -120,24 +126,8 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
-    pub async fn handle_node_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    pub async fn handle_node_events(&mut self, event: NodeEvent) -> Result<(), String> {
         // tracing::debug!("策略: {:?} 收到来自节点消息: {:?}", self.get_strategy_name(), message);
-        // match message {
-        //     NodeMessage::Position(position_message) => {
-        //         match position_message {
-        //             // 仓位更新事件
-        //             PositionMessage::PositionUpdated(position) => {
-        //                 // 更新持仓
-        //                 self.positions.write().await.push(position);
-        //                 // 更新系统变量
-        //                 let sys_variable = SysVariableFunction::update_position_number(&self.database, self.strategy_id).await.unwrap();
-        //                 tracing::info!("更新系统变量: {:?}", sys_variable);
-        //             }
-        //             _ => {}
-        //         }
-        //     }
-        //     _ => {}
-        // }
         Ok(())
     }
     
@@ -443,14 +433,17 @@ impl BacktestStrategyContext {
         let start_node_index = self.node_indices.get("start_node").unwrap();
         let node = self.graph.node_weight(*start_node_index).unwrap().clone();
 
-        let played_signal_count = self.played_signal_count.clone();
+        let played_signal_count = self.played_signal_index.clone();
         let signal_count = self.signal_count.clone();
         let is_playing = self.is_playing.clone();
         let initial_play_speed = self.initial_play_speed.clone();
         
         let strategy_name = self.strategy_name.clone();
         let child_cancel_play_token = self.cancel_play_token.child_token();
-        
+
+        let virtual_trading_system = self.virtual_trading_system.clone();
+        let strategy_inner_event_publisher = self.strategy_inner_event_publisher.clone();
+
         tokio::spawn(async move {
             let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
 
@@ -500,12 +493,18 @@ impl BacktestStrategyContext {
 
                 // 3. 获取信号计数和已发送的信号计数
                 let signal_count = signal_count.read().await;
+
                 let mut played_signal_count = played_signal_count.write().await;
                 
                 // 4. 如果已发送的信号计数小于等于信号计数，则发送信号
                 if *played_signal_count <= *signal_count {
+                    tracing::info!("=========== 发送信号 ===========");
                     // 发送信号
-                    start_node.send_fetch_data_signal(*played_signal_count).await;
+                    // start_node.send_kline_tick_signal(*played_signal_count).await;
+                    Self::send_play_index_update_event(*played_signal_count, *signal_count, strategy_inner_event_publisher.clone()).await;
+                    // 更新虚拟交易系统中的k线缓存索引
+                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
+                    virtual_trading_system_guard.set_kline_cache_index(*played_signal_count);
                     // 更新已发送的信号计数
                     *played_signal_count += 1;
                 }
@@ -513,7 +512,10 @@ impl BacktestStrategyContext {
                 // 5. 如果已发送的信号计数大于信号计数，则停止播放
                 if *played_signal_count > *signal_count {
                     // 发送k线播放完毕的信号
-                    start_node.send_finish_signal().await;
+                    start_node.send_finish_signal(*played_signal_count).await;
+                    // 更新虚拟交易系统中的k线缓存索引
+                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
+                    virtual_trading_system_guard.set_kline_cache_index(*played_signal_count);
                     tracing::info!("{}: k线播放完毕，正常退出播放任务", strategy_name);
                     *is_playing.write().await = false;
                     break;
@@ -556,7 +558,7 @@ impl BacktestStrategyContext {
         tracing::info!("{}: 停止播放", self.strategy_name.clone());
         self.cancel_play_token.cancel();
         // 重置信号计数
-        *self.played_signal_count.write().await = 0;
+        *self.played_signal_index.write().await = 0;
         // 重置播放状态
         *self.is_playing.write().await = false;
         // 替换已经取消的令牌
@@ -573,127 +575,49 @@ impl BacktestStrategyContext {
         }
 
         // 检查是否已经播放完毕
-        if *self.played_signal_count.read().await > *self.signal_count.read().await {
+        if *self.played_signal_index.read().await > *self.signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法播放更多K线", self.strategy_name);
             return;
         }
-
-        tracing::info!("{}: 开始播放单根k线", self.strategy_name.clone());
         // 获取开始节点的索引
-        let start_node_index = self.node_indices.get("start_node").unwrap();
-        let node = self.graph.node_weight(*start_node_index).unwrap().clone();
-        let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
+        // let start_node_index = self.node_indices.get("start_node").unwrap();
+        // let node = self.graph.node_weight(*start_node_index).unwrap().clone();
+        // let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
 
         let signal_count = self.signal_count.read().await;
-        let mut played_signal_count = self.played_signal_count.write().await;
-        tracing::info!("{}: 播放单根k线，signal_count: {}, played_signal_count: {}", start_node.get_node_id().await, *signal_count, *played_signal_count);
+        let mut played_signal_count = self.played_signal_index.write().await;
+        
         // 3. 如果已发送的信号计数小于等于信号计数，则发送信号
         if *played_signal_count <= *signal_count {
             // 发送信号
-            start_node.send_fetch_data_signal(*played_signal_count).await;
+            tracing::info!("{}: 播放单根k线，signal_count: {}, played_signal_count: {}", self.strategy_name.clone(), *signal_count, *played_signal_count);
+            Self::send_play_index_update_event(*played_signal_count, *signal_count, self.strategy_inner_event_publisher.clone()).await;
+            // 发送信号
+            // start_node.send_kline_tick_signal(*played_signal_count).await;
+            // 更新虚拟交易系统中的k线缓存索引
+            let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
+            virtual_trading_system_guard.set_kline_cache_index(*played_signal_count);
+            
             // 更新已发送的信号计数
             *played_signal_count += 1;
+            
 
         }
 
         // 4. 如果已发送的信号计数大于信号计数，则停止播放
         if *played_signal_count > *signal_count {
             // 发送k线播放完毕的信号
-            start_node.send_finish_signal().await;
-        }
-    }
-    
-    
-
-
-    // 获取策略的所有持仓
-    pub async fn load_all_positions(&mut self) {
-        let positions = PositionQuery::get_all_positions_by_strategy_id(&self.database, self.strategy_id).await.unwrap();
-        self.positions.write().await.extend(positions);
-    }
-
-    // 监控持仓
-    pub async fn monitor_positions(&mut self) {
-        let positions = self.positions.clone();
-        let exchange_engine = self.exchange_engine.clone();
-        let database = self.database.clone();
-        let mut heartbeat = self.heartbeat.lock().await;
-        heartbeat.register_async_task(
-            "监控持仓".to_string(),
-            move || {
-                let positions = positions.clone();
-                let exchange_engine = exchange_engine.clone();
-                let database = database.clone();
-                async move {
-                    Self::process_positions(
-                        positions,
-                        exchange_engine,
-                        database
-                    ).await
-                }
-            },
-            10
-        ).await;
-    }
-
-    // 处理仓位
-    async fn process_positions(
-        positions: Arc<RwLock<Vec<Position>>>,
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
-        database: DatabaseConnection,
-    ) {
-        let positions_clone = {
-            let positions = positions.read().await;
-            positions.clone()
-        };
-
-        // 如果hashmap为空，则直接返回
-        if positions_clone.is_empty() {
             return;
         }
+    }
 
-        // 遍历持仓, 获取下标和持仓
-        for (index, position) in positions_clone.iter().enumerate() {
-            // 获取交易所的上下文
-            let exchange_engine_guard = exchange_engine.lock().await;
-            // 获取交易所对象
-            let exchange = exchange_engine_guard.get_exchange(&position.account_id).await;
-            match exchange {
-                Ok(exchange) => {
-                    // 获取持仓信息
-                    let latest_position = exchange.get_latest_position(position).await;
-                    match latest_position {
-                        Ok(position) => {
-                            // 更新列表中的持仓
-                            positions.write().await[index] = position.clone();
-                            // 更新持仓到数据库
-                            PositionMutation::update_position(
-                                &database,
-                                position.clone()
-                            ).await.unwrap();
-
-                            // tracing::info!("未平仓利润: {:?}", position.unrealized_profit);
-
-
-                        }
-                        Err(e) => {
-                            // tracing::error!("获取最新持仓失败: {:?}", e);
-                        }
-                    }
-                    
-                }
-                Err(_) => {
-                    tracing::warn!("仓位已关闭: {:?}", position.position_id);
-                    PositionMutation::update_position_state(
-                        &database,
-                        position.position_id,
-                        PositionState::Closed
-                    ).await.unwrap();
-                }
-            }
-        }
-
-        
+    async fn send_play_index_update_event(played_index: u32, total_signal_count: u32, strategy_inner_event_publisher: StrategyInnerEventPublisher) {
+        let event = StrategyInnerEvent::PlayIndexUpdate(PlayIndexUpdateEvent {
+            played_index,
+            total_signal_count,
+            timestamp: get_utc8_timestamp_millis(),
+        });
+        strategy_inner_event_publisher.send(event).unwrap();
     }
 
 

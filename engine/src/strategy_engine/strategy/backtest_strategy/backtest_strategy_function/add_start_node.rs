@@ -10,7 +10,7 @@ use event_center::{CommandPublisher, CommandReceiver, EventPublisher, EventRecei
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use heartbeat::Heartbeat;
-
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 
 impl BacktestStrategyFunction {
     pub async fn add_start_node(
@@ -22,6 +22,7 @@ impl BacktestStrategyFunction {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -46,6 +47,7 @@ impl BacktestStrategyFunction {
             command_receiver,
             heartbeat,
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
         // 设置默认输出句柄
         node.set_output_handle().await;

@@ -115,7 +115,7 @@ where
 
 
 // k线间隔
-#[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum KlineInterval {
     #[strum(serialize = "1m")]
     #[serde(rename = "1m")]

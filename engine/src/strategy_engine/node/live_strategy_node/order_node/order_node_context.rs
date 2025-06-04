@@ -6,8 +6,8 @@ use chrono::Utc;
 use event_center::Event;
 use uuid::Uuid;
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
-use types::strategy::node_message::NodeMessage;
-use types::strategy::node_message::SignalType;
+use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::SignalEvent;
 use event_center::response::Response;
 use event_center::command::Command;
 use super::order_node_types::*;
@@ -23,7 +23,7 @@ use types::order::Order;
 use types::order::OrderStatus;
 use database::mutation::order_mutation::OrderMutation;
 use tokio::sync::RwLock;
-use types::strategy::node_message::OrderMessage;
+use types::strategy::node_event::OrderMessage;
 use database::mutation::transaction_mutation::TransactionMutation;
 use exchange_client::ExchangeClient;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -144,7 +144,7 @@ impl OrderNodeContext {
                 let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
                 let order_message = OrderMessage::OrderFilled(order.clone());
                 // 发送消息
-                output_handle.send(NodeMessage::Order(order_message.clone())).unwrap();
+                output_handle.send(NodeEvent::Order(order_message.clone())).unwrap();
                 // 获取交易明细
                 self.get_transaction_detail(order).await.unwrap();
 
@@ -180,7 +180,7 @@ impl OrderNodeContext {
             created_time: Utc::now(),
             updated_time: Utc::now(),
         });
-        output_handle.send(NodeMessage::Order(order_message.clone())).unwrap();
+        output_handle.send(NodeEvent::Order(order_message.clone())).unwrap();
     }
 
     pub async fn monitor_unfilled_order(&mut self) {
@@ -298,14 +298,14 @@ impl LiveNodeContextTrait for OrderNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
         match message {
-            NodeMessage::Signal(signal_message) => {
+            NodeEvent::Signal(signal_message) => {
                 tracing::debug!("{}: 收到信号: {:?}", self.get_node_name(), signal_message);
 
-                match signal_message.signal_type {
+                match signal_message {
                     // 如果信号为True，则执行下单
-                    SignalType::ConditionMatch => {
+                    SignalEvent::ConditionMatch(_) => {
                         // self.create_order().await;
                         self.create_order().await;
                         // self.send_test_signal().await;

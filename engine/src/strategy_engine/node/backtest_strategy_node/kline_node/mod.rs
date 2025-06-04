@@ -20,7 +20,7 @@ use tokio::sync::Mutex;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_command::NodeCommandSender;
-
+use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -40,6 +40,7 @@ impl KlineNode {
         response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -52,6 +53,7 @@ impl KlineNode {
             command_receiver,
             Box::new(KlineNodeStateMachine::new(node_id, node_name, backtest_config.data_source.clone())),
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(KlineNodeContext {
@@ -60,6 +62,7 @@ impl KlineNode {
                 exchange_is_registered: Arc::new(RwLock::new(false)),
                 backtest_config,
                 heartbeat,
+                kline_cache_index: Arc::new(RwLock::new(0)),
             }))), 
         }
     }
@@ -171,9 +174,13 @@ impl BacktestNodeTrait for KlineNode {
                         tracing::info!("{}: 开始监听外部事件", node_id);
                         self.listen_external_events().await?;
                     }
-                    KlineNodeStateAction::ListenNodeMessage => {
+                    KlineNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
-                        self.listen_message().await?;
+                        self.listen_node_events().await?;
+                    }
+                    KlineNodeStateAction::ListenAndHandleInnerEvents => {
+                        tracing::info!("{}: 开始监听策略内部事件", node_id);
+                        self.listen_strategy_inner_events().await?;
                     }
                     KlineNodeStateAction::RegisterExchange => {
                         tracing::info!("{}: 注册交易所", node_id);

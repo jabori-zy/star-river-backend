@@ -5,6 +5,7 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub enum StartNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
+    ListenAndHandleInnerEvents,      // 处理内部事件
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
@@ -83,7 +84,10 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Initializing;
                 Ok(Box::new(StartNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Initializing,
-                    actions: vec![Box::new(StartNodeStateAction::LogTransition)],
+                    actions: vec![
+                        Box::new(StartNodeStateAction::LogTransition), 
+                        Box::new(StartNodeStateAction::ListenAndHandleInnerEvents) // 处理内部事件
+                        ],
                 }))
             }
             // 初始化完成，进入Ready状态

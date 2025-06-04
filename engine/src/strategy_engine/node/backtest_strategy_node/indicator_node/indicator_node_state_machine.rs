@@ -5,7 +5,8 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub enum IndicatorNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
-    ListenAndHandleMessage, // 处理消息
+    ListenAndHandleNodeEvents, // 处理消息
+    ListenAndHandleInnerEvents, // 处理内部事件
     RegisterIndicatorCacheKey, // 注册指标缓存键
     CalculateIndicator, // 计算指标
     LogNodeState,    // 记录节点状态
@@ -86,7 +87,8 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                     actions: vec![
                         Box::new(IndicatorNodeStateAction::LogTransition), 
                         Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents), 
-                        Box::new(IndicatorNodeStateAction::ListenAndHandleMessage),
+                        Box::new(IndicatorNodeStateAction::ListenAndHandleNodeEvents),
+                        Box::new(IndicatorNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(IndicatorNodeStateAction::RegisterIndicatorCacheKey),
                         Box::new(IndicatorNodeStateAction::CalculateIndicator),
                         ],

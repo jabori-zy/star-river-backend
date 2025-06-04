@@ -7,13 +7,15 @@ use event_center::Event;
 use std::fmt::Debug;
 use async_trait::async_trait;
 use std::any::Any;
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use types::strategy::TradeMode;
 use super::node_types::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
+use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
+use types::strategy::strategy_inner_event::StrategyInnerEvent;
 
 #[async_trait]
 pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
@@ -25,7 +27,7 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String>;
     
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String>;
+    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String>;
 
     fn get_base_context(&self) -> &LiveBaseNodeContext;
 
@@ -90,16 +92,16 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_all_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
-    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
-        self.get_base_context().output_handle.values().map(|handle| handle.message_sender.clone()).collect()
+    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeEvent>> {
+        self.get_base_context().output_handle.values().map(|handle| handle.node_event_sender.clone()).collect()
     }
-    fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
-        self.get_base_context().output_handle.get(&handle_id).unwrap().message_sender.clone()
+    fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
+        self.get_base_context().output_handle.get(&handle_id).unwrap().node_event_sender.clone()
     }
-    fn get_message_receivers(&self) -> &Vec<NodeMessageReceiver> {
+    fn get_message_receivers(&self) -> &Vec<NodeEventReceiver> {
         &self.get_base_context().message_receivers
     }
-    fn get_message_receivers_mut(&mut self) -> &mut Vec<NodeMessageReceiver> {
+    fn get_message_receivers_mut(&mut self) -> &mut Vec<NodeEventReceiver> {
         &mut self.get_base_context_mut().message_receivers
     }
     fn get_enable_event_publish_mut(&mut self) -> &mut bool {
@@ -141,7 +143,7 @@ pub struct LiveBaseNodeContext {
     pub event_receivers:Vec<EventReceiver>, // 事件接收器
     pub command_publisher: CommandPublisher,
     pub command_receiver: Arc<Mutex<CommandReceiver>>,
-    pub message_receivers: Vec<NodeMessageReceiver>,
+    pub message_receivers: Vec<NodeEventReceiver>,
     pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub is_enable_event_publish: bool, // 是否启用事件发布
     pub state_machine: Box<dyn LiveNodeStateMachine>, // 状态机
@@ -219,7 +221,9 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String>;
     
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String>;
+    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String>;
+
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String>;
 
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 
@@ -284,18 +288,23 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_all_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
-    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeMessage>> {
-        self.get_base_context().output_handle.values().map(|handle| handle.message_sender.clone()).collect()
+    fn get_all_node_event_senders(&self) -> Vec<broadcast::Sender<NodeEvent>> {
+        self.get_base_context().output_handle.values().map(|handle| handle.node_event_sender.clone()).collect()
     }
-    fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
-        self.get_base_context().output_handle.get(&handle_id).unwrap().message_sender.clone()
+    fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
+        self.get_base_context().output_handle.get(&handle_id).unwrap().node_event_sender.clone()
     }
-    fn get_message_receivers(&self) -> &Vec<NodeMessageReceiver> {
-        &self.get_base_context().message_receivers
+    fn get_node_event_receivers(&self) -> &Vec<NodeEventReceiver> {
+        &self.get_base_context().node_event_receivers
     }
-    fn get_message_receivers_mut(&mut self) -> &mut Vec<NodeMessageReceiver> {
-        &mut self.get_base_context_mut().message_receivers
+    fn get_node_event_receivers_mut(&mut self) -> &mut Vec<NodeEventReceiver> {
+        &mut self.get_base_context_mut().node_event_receivers
     }
+
+    fn get_strategy_inner_event_receiver(&self) -> &StrategyInnerEventReceiver {
+        &self.get_base_context().strategy_inner_event_receiver
+    }
+
     fn get_enable_event_publish_mut(&mut self) -> &mut bool {
         &mut self.get_base_context_mut().is_enable_event_publish
     }
@@ -334,7 +343,8 @@ pub struct BacktestBaseNodeContext {
     pub event_receivers:Vec<EventReceiver>, // 事件接收器
     pub command_publisher: CommandPublisher,
     pub command_receiver: Arc<Mutex<CommandReceiver>>,
-    pub message_receivers: Vec<NodeMessageReceiver>,
+    pub node_event_receivers: Vec<NodeEventReceiver>, // 节点事件接收器
+    pub strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
     pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub is_enable_event_publish: bool, // 是否启用事件发布
     pub state_machine: Box<dyn BacktestNodeStateMachine>, // 状态机
@@ -351,7 +361,7 @@ impl Clone for BacktestBaseNodeContext {
             node_name: self.node_name.clone(),
             cancel_token: self.cancel_token.clone(),
             event_publisher: self.event_publisher.clone(),
-            message_receivers: self.message_receivers.clone(),
+            node_event_receivers: self.node_event_receivers.clone(),
             event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
             output_handle: self.output_handle.clone(),
             is_enable_event_publish: self.is_enable_event_publish.clone(),
@@ -360,6 +370,7 @@ impl Clone for BacktestBaseNodeContext {
             command_publisher: self.command_publisher.clone(),
             command_receiver: self.command_receiver.clone(),
             strategy_command_sender: self.strategy_command_sender.clone(),
+            strategy_inner_event_receiver: self.strategy_inner_event_receiver.resubscribe(),
         }
     }
 }
@@ -376,6 +387,7 @@ impl BacktestBaseNodeContext {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         state_machine: Box<dyn BacktestNodeStateMachine>,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
         Self {
             strategy_id,
@@ -386,13 +398,14 @@ impl BacktestBaseNodeContext {
             event_publisher,
             is_enable_event_publish: false, 
             cancel_token: CancellationToken::new(), 
-            message_receivers: Vec::new(),
+            node_event_receivers: Vec::new(),
             event_receivers,
             command_publisher,
             command_receiver,
             state_machine,
             from_node_id: Vec::new(),
             strategy_command_sender,
+            strategy_inner_event_receiver,
         }
     }
 }

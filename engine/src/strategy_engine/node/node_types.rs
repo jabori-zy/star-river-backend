@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use tokio::sync::broadcast::error::SendError;
 use std::error::Error;
 use serde::{Deserialize, Serialize};
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use sea_orm::prelude::*;
 use strum_macros::Display;
 use std::str::FromStr;
@@ -76,31 +76,31 @@ pub enum DefaultOutputHandleId {
 
 
 #[derive(Debug)]
-pub struct NodeMessageReceiver {
+pub struct NodeEventReceiver {
     // 来自哪个节点
     pub from_node_id: String,
     pub from_handle_id: String,
     pub input_handle_id: String, // 对应的input_handle_id
-    pub receiver: broadcast::Receiver<NodeMessage>,
+    pub receiver: broadcast::Receiver<NodeEvent>,
 }
 
-impl NodeMessageReceiver {
+impl NodeEventReceiver {
     pub fn new(
         from_node_id: String,
         from_handle_id: String,
         input_handle_id: String, 
-        receiver: broadcast::Receiver<NodeMessage>
+        receiver: broadcast::Receiver<NodeEvent>
     ) -> Self {
         Self { from_node_id, from_handle_id, input_handle_id, receiver }
     }
 
-    pub fn get_receiver(&self) -> broadcast::Receiver<NodeMessage> {
+    pub fn get_receiver(&self) -> broadcast::Receiver<NodeEvent> {
         self.receiver.resubscribe()
     }
 }
 
 
-impl Clone for NodeMessageReceiver {
+impl Clone for NodeEventReceiver {
     fn clone(&self) -> Self {
         Self { 
             from_node_id: self.from_node_id.clone(), 
@@ -126,14 +126,14 @@ pub struct Edge {
 pub struct NodeOutputHandle {
     pub node_id: String,
     pub output_handle_id: String,
-    pub message_sender: broadcast::Sender<NodeMessage>,
+    pub node_event_sender: broadcast::Sender<NodeEvent>,
     pub connect_count: usize,
 }
 
 impl NodeOutputHandle {
-    pub fn send(&self, message: NodeMessage) -> Result<usize, String> {
+    pub fn send(&self, event: NodeEvent) -> Result<usize, String> {
         if self.connect_count > 0 {
-            self.message_sender.send(message).map_err(|e| format!("节点{}的出口{}发送消息失败: {}", self.node_id, self.output_handle_id, e))
+            self.node_event_sender.send(event).map_err(|e| format!("节点{}的出口{}发送消息失败: {}", self.node_id, self.output_handle_id, e))
         } else {
             // 如果connect_count为0，则不发送消息
             Err(format!("节点{}的出口{}没有连接", self.node_id, self.output_handle_id))

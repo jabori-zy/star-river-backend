@@ -19,6 +19,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,Backtes
 use tokio::sync::Mutex;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
 
 // 指标节点
@@ -42,6 +43,7 @@ impl IndicatorNode {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
         strategy_command_sender: NodeCommandSender,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
 
         let base_context = BacktestBaseNodeContext::new(
@@ -55,6 +57,7 @@ impl IndicatorNode {
             command_receiver,
             Box::new(IndicatorNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
             strategy_command_sender,
+            strategy_inner_event_receiver,
         );
 
         Self {
@@ -62,6 +65,7 @@ impl IndicatorNode {
                 base_context,
                 backtest_config,
                 is_registered: Arc::new(RwLock::new(false)),
+                kline_cache_index: Arc::new(RwLock::new(0)),
             }))),
             
         }
@@ -157,9 +161,13 @@ impl BacktestNodeTrait for IndicatorNode {
                         tracing::info!("{}: 开始监听外部事件", node_id);
                         self.listen_external_events().await?;
                     }
-                    IndicatorNodeStateAction::ListenAndHandleMessage => {
+                    IndicatorNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点传递的message", node_id);
-                        self.listen_message().await?;
+                        self.listen_node_events().await?;
+                    }
+                    IndicatorNodeStateAction::ListenAndHandleInnerEvents => {
+                        tracing::info!("{}: 开始监听策略内部事件", node_id);
+                        self.listen_strategy_inner_events().await?;
                     }
                     IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
                         tracing::info!("{}: 开始注册指标缓存键", node_id);

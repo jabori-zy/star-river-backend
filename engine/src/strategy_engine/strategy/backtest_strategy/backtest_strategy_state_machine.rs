@@ -33,7 +33,6 @@ pub enum BacktestStrategyStateAction { // 当切换到某一个状态时, 需要
     InitInitialPlaySpeed, // 初始化初始播放速度
     InitNode,             // 初始化节点
     StopNode,             // 停止节点
-    LoadPositions,        // 加载持仓
     ListenAndHandleNodeMessage,  // 监听节点消息
     ListenAndHandleCommand,  // 监听命令
     LogTransition,          // 记录状态转换

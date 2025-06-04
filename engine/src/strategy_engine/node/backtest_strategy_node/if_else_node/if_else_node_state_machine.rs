@@ -5,7 +5,8 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub enum IfElseNodeStateAction {
     ListenAndHandleStrategySignal,   // 处理策略信号
-    ListenAndHandleMessage,
+    ListenAndHandleNodeEvents,
+    ListenAndHandleInnerEvents,
     InitReceivedFlag,
     InitReceivedValue,
     Evaluate,
@@ -90,7 +91,8 @@ impl BacktestNodeStateMachine for IfElseNodeStateManager {
                     actions: vec![
                         Box::new(IfElseNodeStateAction::LogTransition), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal), 
-                        Box::new(IfElseNodeStateAction::ListenAndHandleMessage), 
+                        Box::new(IfElseNodeStateAction::ListenAndHandleNodeEvents), 
+                        Box::new(IfElseNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(IfElseNodeStateAction::InitReceivedFlag), 
                         Box::new(IfElseNodeStateAction::InitReceivedValue)],
                 }))

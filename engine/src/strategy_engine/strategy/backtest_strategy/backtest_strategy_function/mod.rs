@@ -4,7 +4,7 @@ mod add_start_node;
 mod add_kline_node;
 mod add_if_else_node;
 mod add_indicator_node;
-// mod add_order_node;
+mod add_order_node;
 // mod add_position_node;
 // mod add_get_variable_node;
 // pub mod sys_variable_function;
@@ -43,7 +43,7 @@ impl BacktestStrategyFunction {
         strategy_output_handles
     }
 
-    pub async fn listen_node_message(context: Arc<RwLock<BacktestStrategyContext>>) {
+    pub async fn listen_node_events(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (receivers, cancel_token, strategy_name) = {
             let context_guard = context.read().await;
             let receivers = context_guard.get_all_node_output_handles();
@@ -59,7 +59,7 @@ impl BacktestStrategyFunction {
 
         // 创建一个流，用于接收节点传递过来的message
         let streams: Vec<_> = receivers.iter()
-            .map(|output_handle| BroadcastStream::new(output_handle.message_sender.subscribe()))
+            .map(|output_handle| BroadcastStream::new(output_handle.node_event_sender.subscribe()))
             .collect();
 
         let mut combined_stream = select_all(streams);
@@ -83,7 +83,7 @@ impl BacktestStrategyFunction {
                             Some(Ok(message)) => {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut state_guard = context_clone.write().await;
-                                state_guard.handle_node_message(message).await.unwrap();
+                                state_guard.handle_node_events(message).await.unwrap();
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", strategy_name, e);
@@ -119,10 +119,10 @@ impl BacktestStrategyFunction {
                         continue;
                     }
                 };
-                tracing::debug!("{}: 收到命令: {:?}", strategy_name, command);
+                // tracing::debug!("{}: 收到命令: {:?}", strategy_name, command);
                 // 然后再获取context的写锁处理命令
                 let mut context_guard = context.write().await;
-                context_guard.handle_command(command).await.unwrap();
+                context_guard.handle_node_command(command).await.unwrap();
                 
             }
         });

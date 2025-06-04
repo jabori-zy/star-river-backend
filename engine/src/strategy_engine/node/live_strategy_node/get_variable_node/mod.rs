@@ -12,7 +12,7 @@ use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEve
 use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use event_center::EventPublisher;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
@@ -95,11 +95,11 @@ impl LiveNodeTrait for GetVariableNode {
             let variable_config = get_variable_node_context.live_config.variables.clone();
             
             for variable in variable_config {
-                let (tx, _) = broadcast::channel::<NodeMessage>(100);
+                let (tx, _) = broadcast::channel::<NodeEvent>(100);
                 let handle = NodeOutputHandle {
                     node_id: node_id.clone(),
                     output_handle_id: format!("get_variable_node_output_{}", variable.variable.to_string()),
-                    message_sender: tx,
+                    node_event_sender: tx,
                     connect_count: 0,
                 };
 

@@ -11,12 +11,12 @@ use event_center::Event;
 use super::get_variable_node_types::*;
 use types::strategy::sys_varibale::SysVariable;
 use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
-use types::strategy::node_message::VariableMessage;
+use types::strategy::node_event::VariableMessage;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::collections::HashMap;
-use types::strategy::node_message::SignalType;
+use types::strategy::node_event::SignalEvent;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {
@@ -64,13 +64,13 @@ impl LiveNodeContextTrait for GetVariableNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
+    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
         match message {
-            NodeMessage::Signal(signal_message) => {
-                tracing::info!("{}: 收到信号: {:?}", self.get_node_name(), signal_message.signal_type);
-                match signal_message.signal_type {
+            NodeEvent::Signal(signal_message) => {
+                tracing::info!("{}: 收到信号: {:?}", self.get_node_name(), signal_message);
+                match signal_message {
                     // 如果信号为True，则执行下单
-                    SignalType::ConditionMatch => {
+                    SignalEvent::ConditionMatch(_) => {
                         self.get_variable().await;
                     }
                     _ => {}
@@ -182,7 +182,7 @@ impl GetVariableNodeContext {
                     message_timestamp: get_utc8_timestamp_millis(),
                 };
                 let output_handle = output_handle.get(&variable.config_id).unwrap();
-                output_handle.message_sender.send(NodeMessage::Variable(variable_message)).unwrap();
+                output_handle.node_event_sender.send(NodeEvent::Variable(variable_message)).unwrap();
                 Ok(())
             }
             Err(e) => {

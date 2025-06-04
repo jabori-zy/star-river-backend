@@ -8,7 +8,8 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub enum KlineNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
-    ListenNodeMessage,    // 监听节点消息
+    ListenAndHandleNodeEvents,    // 监听节点消息
+    ListenAndHandleInnerEvents,    // 监听内部事件
     LogNodeState,    // 记录节点状态
     RegisterExchange, // 注册交易所
     LoadHistoryFromExchange, // 从交易所加载K线历史
@@ -94,7 +95,8 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                             actions: vec![
                                 Box::new(KlineNodeStateAction::LogTransition), 
                                 Box::new(KlineNodeStateAction::ListenAndHandleExternalEvents),
-                                Box::new(KlineNodeStateAction::ListenNodeMessage),
+                                Box::new(KlineNodeStateAction::ListenAndHandleNodeEvents),
+                                Box::new(KlineNodeStateAction::ListenAndHandleInnerEvents),
                                 Box::new(KlineNodeStateAction::RegisterExchange), // 注册交易所
                                 Box::new(KlineNodeStateAction::LoadHistoryFromExchange), // 从交易所加载K线历史
                             ],

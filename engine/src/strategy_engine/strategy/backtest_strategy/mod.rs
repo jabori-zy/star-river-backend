@@ -10,7 +10,6 @@ use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrat
 use types::strategy::Strategy;
 use event_center::EventPublisher;
 use tokio::sync::Mutex;
-use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use petgraph::Graph;
@@ -22,9 +21,10 @@ use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::BacktestStrategyConfig;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, broadcast};
 use types::strategy::node_command::NodeCommand;
-
+use virtual_trading::VirtualTradingSystem;
+use types::strategy::strategy_inner_event::StrategyInnerEvent;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -40,7 +40,6 @@ impl BacktestStrategy {
         command_receiver: Arc<Mutex<CommandReceiver>>,
         market_event_receiver: EventReceiver, 
         response_event_receiver: EventReceiver,
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
     ) -> Self {
@@ -48,10 +47,13 @@ impl BacktestStrategy {
         let mut node_indices = HashMap::new();
         let mut strategy_backtest_config = BacktestStrategyConfig::default();
         let mut cache_keys: Vec<CacheKey> = vec![];
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new()));
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<NodeCommand>(100);
+        // 创建策略内部事件的广播通道
+        let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
 
         // 当策略创建时，状态为 Created
@@ -64,6 +66,10 @@ impl BacktestStrategy {
                 let backtest_config = config["backtestConfig"].clone();
                 if let Ok(backtest_config) = serde_json::from_value::<BacktestStrategyConfig>(backtest_config) {
                     strategy_backtest_config = backtest_config;
+                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
+                    virtual_trading_system_guard.set_initial_balance(strategy_backtest_config.initial_balance);
+                    virtual_trading_system_guard.set_leverage(strategy_backtest_config.leverage as u32);
+
                 } else {
                     tracing::error!("策略配置解析失败");
                 }
@@ -88,10 +94,11 @@ impl BacktestStrategy {
                         command_receiver.clone(),
                         market_event_receiver.resubscribe(), 
                         response_event_receiver.resubscribe(),
-                        exchange_engine.clone(),
                         database.clone(),
                         heartbeat.clone(),
                         strategy_command_tx.clone(),
+                        virtual_trading_system.clone(),
+                        strategy_inner_event_rx.resubscribe()
                     ).await.unwrap();
 
                 }
@@ -117,7 +124,8 @@ impl BacktestStrategy {
         let strategy_output_handles = BacktestStrategyFunction::add_node_output_handle(&mut graph).await;
         
         
-        tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
+        // tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
+        tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_cache_keys);
         let context = BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
@@ -131,19 +139,19 @@ impl BacktestStrategy {
             cancel_token,
             state_machine: BacktestStrategyStateMachine::new(strategy_id, strategy_name, BacktestStrategyRunState::Created),
             all_node_output_handles: strategy_output_handles, // 所有节点的输出控制器
-            positions: Arc::new(RwLock::new(vec![])),
-            exchange_engine: exchange_engine,
             database: database,
             heartbeat: heartbeat,
             registered_tasks: Arc::new(RwLock::new(HashMap::new())),
             command_publisher: command_publisher,
             command_receiver: command_receiver,
-            strategy_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
+            node_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
             signal_count: Arc::new(RwLock::new(0)),
-            played_signal_count: Arc::new(RwLock::new(0)),
+            played_signal_index: Arc::new(RwLock::new(0)),
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token: cancel_play_token,
+            virtual_trading_system: virtual_trading_system,
+            strategy_inner_event_publisher: strategy_inner_event_tx,
         };
         Self { context: Arc::new(RwLock::new(context)) }
     }
@@ -269,14 +277,10 @@ impl BacktestStrategy {
                     BacktestStrategyStateAction::LogTransition => {
                         tracing::info!("{}: 状态转换: {:?} -> {:?}", strategy_name, self.get_state_machine().await.current_state(), transition_result.new_state);
                     }
-                    BacktestStrategyStateAction::LoadPositions => {
-                        tracing::info!("{}: 加载持仓", strategy_name);
-                        let mut context_guard = self.context.write().await;
-                        context_guard.load_all_positions().await;
-                    }
+
                     BacktestStrategyStateAction::ListenAndHandleNodeMessage => {
                         tracing::info!("{}: 监听节点消息", strategy_name);
-                        BacktestStrategyFunction::listen_node_message(self.get_context()).await;
+                        BacktestStrategyFunction::listen_node_events(self.get_context()).await;
                     }
                     BacktestStrategyStateAction::ListenAndHandleCommand => {
                         tracing::info!("{}: 监听命令", strategy_name);

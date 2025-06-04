@@ -9,7 +9,7 @@ pub mod node_state_machine;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -68,14 +68,14 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_all_output_handle().values().cloned().collect()
     }
 
-    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
+    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_message_sender(handle_id).clone()
     }
 
     // 获取节点消息接收器
-    async fn get_message_receivers(&self) -> Vec<NodeMessageReceiver> {
+    async fn get_message_receivers(&self) -> Vec<NodeEventReceiver> {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_message_receivers().clone()
@@ -94,7 +94,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_name().await);
         let node_name = self.get_node_name().await;
-        let (tx, _) = broadcast::channel::<NodeMessage>(100);
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
 
         let node_type = self.get_node_type().await;
 
@@ -117,17 +117,17 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
     }
 
-    async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {
+    async fn add_message_receiver(&mut self, receiver: NodeEventReceiver) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
         context_guard.get_message_receivers_mut().push(receiver);
     } 
     // 添加出口
-    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeEvent>) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
             output_handle_id: handle_id.clone(),
-            message_sender: sender,
+            node_event_sender: sender,
             connect_count: 0,
         };
 
@@ -252,17 +252,17 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_all_output_handle().values().cloned().collect()
     }
 
-    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeMessage> {
+    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_message_sender(handle_id).clone()
+        context_guard.get_node_event_sender(handle_id).clone()
     }
 
     // 获取节点消息接收器
-    async fn get_message_receivers(&self) -> Vec<NodeMessageReceiver> {
+    async fn get_node_event_receivers(&self) -> Vec<NodeEventReceiver> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_message_receivers().clone()
+        context_guard.get_node_event_receivers().clone()
     }
 
     // 获取节点类型
@@ -278,7 +278,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_name().await);
         let node_name = self.get_node_name().await;
-        let (tx, _) = broadcast::channel::<NodeMessage>(100);
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
 
         let node_type = self.get_node_type().await;
 
@@ -301,17 +301,17 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
     }
 
-    async fn add_message_receiver(&mut self, receiver: NodeMessageReceiver) {
+    async fn add_message_receiver(&mut self, receiver: NodeEventReceiver) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_message_receivers_mut().push(receiver);
+        context_guard.get_node_event_receivers_mut().push(receiver);
     } 
     // 添加出口
-    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeMessage>) {
+    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeEvent>) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
             output_handle_id: handle_id.clone(),
-            message_sender: sender,
+            node_event_sender: sender,
             connect_count: 0,
         };
 
@@ -359,9 +359,15 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         Ok(())
     }
     // 监听节点传递过来的message
-    async fn listen_message(&self) -> Result<(), String> {
+    async fn listen_node_events(&self) -> Result<(), String> {
         let context = self.get_context();
-        BacktestNodeFunction::listen_message(context).await;
+        BacktestNodeFunction::listen_node_events(context).await;
+        Ok(())
+    }
+    // 监听内部事件
+    async fn listen_strategy_inner_events(&self) -> Result<(), String> {
+        let context = self.get_context();
+        BacktestNodeFunction::listen_strategy_inner_events(context).await;
         Ok(())
     }
     // 取消所有异步任务

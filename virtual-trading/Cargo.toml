@@ -9,3 +9,4 @@ edition.workspace = true
 types = { path = "../types" }
 utils = { path = "../utils" }
 chrono.workspace = true
+tracing.workspace = true
