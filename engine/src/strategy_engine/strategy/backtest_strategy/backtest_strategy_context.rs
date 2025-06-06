@@ -8,12 +8,11 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::{NodeEvent, SignalEvent};
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock,Notify};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
 use types::cache::CacheKey;
@@ -29,11 +28,10 @@ use types::strategy::node_command::{NodeCommandReceiver, NodeCommand};
 use types::strategy::node_response::{GetStrategyCacheKeysResponse};
 use tracing::instrument;
 use event_center::command::cache_engine_command::GetCacheLengthMultiParams;
-use crate::strategy_engine::node::backtest_strategy_node::start_node::StartNode;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::node_response::NodeResponse;
 use types::strategy::strategy_inner_event::StrategyInnerEventPublisher;
-use types::strategy::strategy_inner_event::{StrategyInnerEvent, PlayIndexUpdateEvent};
+
 
 #[derive(Debug)]
 // 实盘策略上下文
@@ -63,6 +61,8 @@ pub struct BacktestStrategyContext {
     pub cancel_play_token: CancellationToken, // 取消播放令牌
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, // 虚拟交易系统
     pub strategy_inner_event_publisher: StrategyInnerEventPublisher, // 策略内部事件发布器
+    pub updated_play_index_node_ids: Arc<RwLock<Vec<NodeId>>>, // 已经更新播放索引的节点id
+    pub updated_play_index_notify: Arc<Notify>, // 已经更新播放索引的节点id通知
 }
 
 
@@ -126,8 +126,29 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
-    pub async fn handle_node_events(&mut self, event: NodeEvent) -> Result<(), String> {
-        // tracing::debug!("策略: {:?} 收到来自节点消息: {:?}", self.get_strategy_name(), message);
+    pub async fn handle_node_events(&self, node_event: NodeEvent) -> Result<(), String> {
+        match node_event {
+            NodeEvent::Signal(signal_event) => {
+                match signal_event {
+                    SignalEvent::PlayIndexUpdated(play_index_update_event) => {
+                        tracing::info!("{}: {:?}", play_index_update_event.from_node_id, play_index_update_event.node_play_index);
+                        // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
+                        let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
+                        if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
+                                    updated_play_index_node_ids.push(play_index_update_event.from_node_id.clone());
+                        }
+                        
+                        // 如果所有节点索引更新完毕，则通知等待的线程
+                        if updated_play_index_node_ids.len() == self.graph.node_count() {
+                            tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
+                            self.updated_play_index_notify.notify_waiters();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
         Ok(())
     }
     
@@ -419,206 +440,7 @@ impl BacktestStrategyContext {
         Ok(min_cache_length)
     }
 
-    // 播放k线
-    pub async fn play(&self) {
-        // 判断播放状态是否为true
-        if *self.is_playing.read().await {
-            tracing::warn!("{}: 正在播放，无需重复播放", self.strategy_name.clone());
-            return;
-        }
-        // 播放状态为true
-        *self.is_playing.write().await = true;
 
-        // 获取开始节点的索引
-        let start_node_index = self.node_indices.get("start_node").unwrap();
-        let node = self.graph.node_weight(*start_node_index).unwrap().clone();
-
-        let played_signal_count = self.played_signal_index.clone();
-        let signal_count = self.signal_count.clone();
-        let is_playing = self.is_playing.clone();
-        let initial_play_speed = self.initial_play_speed.clone();
-        
-        let strategy_name = self.strategy_name.clone();
-        let child_cancel_play_token = self.cancel_play_token.child_token();
-
-        let virtual_trading_system = self.virtual_trading_system.clone();
-        let strategy_inner_event_publisher = self.strategy_inner_event_publisher.clone();
-
-        tokio::spawn(async move {
-            let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
-
-            loop {
-                // 首先检查取消令牌状态
-                if child_cancel_play_token.is_cancelled() {
-                    tracing::info!("{}: 收到取消信号，优雅退出播放任务", strategy_name);
-                    *is_playing.write().await = false;
-                    break;
-                }
-                
-                // tracing::info!("{}: 播放k线，signal_count: {}, played_signal_count: {}", start_node.get_node_id().await, *signal_count.read().await, *played_signal_count.read().await);
-                
-                // 1. 判断是否为播放状态
-                // 如果不是播放状态，则continue
-                if !*is_playing.read().await {
-                    tracing::info!("{}: 暂停播放, signal_count: {}, played_signal_count: {}", start_node.get_node_id().await, *signal_count.read().await, *played_signal_count.read().await);
-                    
-                    // 使用 tokio::select! 同时等待睡眠和取消信号
-                    tokio::select! {
-                        _ = tokio::time::sleep(tokio::time::Duration::from_millis(500)) => {
-                            continue;
-                        }
-                        _ = child_cancel_play_token.cancelled() => {
-                            tracing::info!("{}: 在暂停状态收到取消信号，优雅退出播放任务", strategy_name);
-                            *is_playing.write().await = false;
-                            break;
-                        }
-                    }
-                }
-
-                // 2. 获取当前播放速度
-                let play_speed = {
-                    let speed = *initial_play_speed.read().await;
-                    
-                    // 确保 play_speed 在合理范围内（1-100）
-                    if speed < 1 {
-                        tracing::warn!("播放速度小于1，已调整为1");
-                        1
-                    } else if speed > 100 {
-                        tracing::warn!("播放速度大于100，已调整为100");
-                        100
-                    } else {
-                        speed
-                    }
-                };
-
-                // 3. 获取信号计数和已发送的信号计数
-                let signal_count = signal_count.read().await;
-
-                let mut played_signal_count = played_signal_count.write().await;
-                
-                // 4. 如果已发送的信号计数小于等于信号计数，则发送信号
-                if *played_signal_count <= *signal_count {
-                    tracing::info!("=========== 发送信号 ===========");
-                    // 发送信号
-                    // start_node.send_kline_tick_signal(*played_signal_count).await;
-                    Self::send_play_index_update_event(*played_signal_count, *signal_count, strategy_inner_event_publisher.clone()).await;
-                    // 更新虚拟交易系统中的k线缓存索引
-                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                    virtual_trading_system_guard.set_kline_cache_index(*played_signal_count);
-                    // 更新已发送的信号计数
-                    *played_signal_count += 1;
-                }
-
-                // 5. 如果已发送的信号计数大于信号计数，则停止播放
-                if *played_signal_count > *signal_count {
-                    // 发送k线播放完毕的信号
-                    start_node.send_finish_signal(*played_signal_count).await;
-                    // 更新虚拟交易系统中的k线缓存索引
-                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                    virtual_trading_system_guard.set_kline_cache_index(*played_signal_count);
-                    tracing::info!("{}: k线播放完毕，正常退出播放任务", strategy_name);
-                    *is_playing.write().await = false;
-                    break;
-                }
-
-                // 根据播放速度计算延迟时间（毫秒）
-                let delay_millis = 1000 / play_speed as u64;
-                
-                // 使用 tokio::select! 同时等待睡眠和取消信号
-                tokio::select! {
-                    _ = tokio::time::sleep(tokio::time::Duration::from_millis(delay_millis)) => {
-                        // 正常继续下一次循环
-                    }
-                    _ = child_cancel_play_token.cancelled() => {
-                        tracing::info!("{}: 在播放过程中收到取消信号，优雅退出播放任务", strategy_name);
-                        *is_playing.write().await = false;
-                        break;
-                    }
-                }
-            }
-            
-            tracing::info!("{}: 播放任务已完全退出", strategy_name);
-        });
-    }
-
-    // 暂停播放
-    pub async fn pause(&mut self) {
-        // 判断播放状态是否为true
-        if !*self.is_playing.read().await {
-            tracing::warn!("{}: 正在暂停，无需重复暂停", self.strategy_name.clone());
-            return;
-        }
-        tracing::info!("{}: 请求暂停播放", self.strategy_name);
-        self.cancel_play_token.cancel();
-        // 替换已经取消的令牌
-        self.cancel_play_token = CancellationToken::new();
-    }
-
-    pub async fn stop(&mut self) {
-        tracing::info!("{}: 停止播放", self.strategy_name.clone());
-        self.cancel_play_token.cancel();
-        // 重置信号计数
-        *self.played_signal_index.write().await = 0;
-        // 重置播放状态
-        *self.is_playing.write().await = false;
-        // 替换已经取消的令牌
-        self.cancel_play_token = CancellationToken::new();
-
-    }
-
-    // 播放单根k线
-    pub async fn play_one_kline(&self) {
-        // 判断播放状态是否为true
-        if *self.is_playing.read().await {
-            tracing::warn!("{}: 正在播放，无法播放单根k线", self.strategy_name.clone());
-            return;
-        }
-
-        // 检查是否已经播放完毕
-        if *self.played_signal_index.read().await > *self.signal_count.read().await {
-            tracing::warn!("{}: 已播放完毕，无法播放更多K线", self.strategy_name);
-            return;
-        }
-        // 获取开始节点的索引
-        // let start_node_index = self.node_indices.get("start_node").unwrap();
-        // let node = self.graph.node_weight(*start_node_index).unwrap().clone();
-        // let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
-
-        let signal_count = self.signal_count.read().await;
-        let mut played_signal_count = self.played_signal_index.write().await;
-        
-        // 3. 如果已发送的信号计数小于等于信号计数，则发送信号
-        if *played_signal_count <= *signal_count {
-            // 发送信号
-            tracing::info!("{}: 播放单根k线，signal_count: {}, played_signal_count: {}", self.strategy_name.clone(), *signal_count, *played_signal_count);
-            Self::send_play_index_update_event(*played_signal_count, *signal_count, self.strategy_inner_event_publisher.clone()).await;
-            // 发送信号
-            // start_node.send_kline_tick_signal(*played_signal_count).await;
-            // 更新虚拟交易系统中的k线缓存索引
-            let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
-            virtual_trading_system_guard.set_kline_cache_index(*played_signal_count);
-            
-            // 更新已发送的信号计数
-            *played_signal_count += 1;
-            
-
-        }
-
-        // 4. 如果已发送的信号计数大于信号计数，则停止播放
-        if *played_signal_count > *signal_count {
-            // 发送k线播放完毕的信号
-            return;
-        }
-    }
-
-    async fn send_play_index_update_event(played_index: u32, total_signal_count: u32, strategy_inner_event_publisher: StrategyInnerEventPublisher) {
-        let event = StrategyInnerEvent::PlayIndexUpdate(PlayIndexUpdateEvent {
-            played_index,
-            total_signal_count,
-            timestamp: get_utc8_timestamp_millis(),
-        });
-        strategy_inner_event_publisher.send(event).unwrap();
-    }
 
 
 

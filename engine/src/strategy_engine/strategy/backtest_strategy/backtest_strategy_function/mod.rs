@@ -57,7 +57,7 @@ impl BacktestStrategyFunction {
             return;
         }
 
-        // 创建一个流，用于接收节点传递过来的message
+        // 创建一个流，用于接收节点传递过来的event
         let streams: Vec<_> = receivers.iter()
             .map(|output_handle| BroadcastStream::new(output_handle.node_event_sender.subscribe()))
             .collect();
@@ -80,10 +80,9 @@ impl BacktestStrategyFunction {
                     // 接收消息
                     receive_result = combined_stream.next() => {
                         match receive_result {
-                            Some(Ok(message)) => {
-                                // tracing::debug!("{} 收到消息: {:?}", node_id, message);
-                                let mut state_guard = context_clone.write().await;
-                                state_guard.handle_node_events(message).await.unwrap();
+                            Some(Ok(event)) => {
+                                let state_guard = context_clone.write().await;
+                                state_guard.handle_node_events(event).await.unwrap();
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", strategy_name, e);

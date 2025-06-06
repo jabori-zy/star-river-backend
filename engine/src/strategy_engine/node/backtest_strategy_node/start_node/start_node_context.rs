@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::{KlineTickEvent, KlinePlayFinishedEvent, SignalEvent};
+use types::strategy::node_event::{KlineTickEvent, KlinePlayFinishedEvent, SignalEvent, PlayIndexUpdateEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 
 #[derive(Debug, Clone)]
@@ -64,15 +64,16 @@ impl BacktestNodeContextTrait for StartNodeContext {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新播放索引
                 *self.played_index.write().await = play_index_update_event.played_index;
-                tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
-                if play_index_update_event.played_index == play_index_update_event.total_signal_count {
-                    // 发送k线播放完毕信号
-                    self.send_finish_signal(play_index_update_event.played_index).await;
-                }
-                else {
-                    // 发送k线跳动信号
-                    self.send_kline_tick_signal(play_index_update_event.played_index).await;
-                }
+                // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                // 更新完成后，发送索引已更新事件
+                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    node_play_index: self.played_index.read().await.clone(),
+                    message_timestamp: get_utc8_timestamp_millis(),
+                }));
+                self.get_default_output_handle().send(signal).unwrap();
             }
         }
         Ok(())

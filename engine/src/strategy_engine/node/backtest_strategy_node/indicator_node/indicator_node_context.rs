@@ -27,6 +27,7 @@ use tokio::time::Duration;
 use types::indicator::IndicatorConfig;
 use types::indicator::Indicator;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use types::strategy::node_event::{PlayIndexUpdateEvent, SignalEvent};
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
@@ -76,7 +77,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
     async fn handle_node_event(&mut self, message: NodeEvent) -> Result<(), String> {
         match message {
             NodeEvent::BacktestKline(backtest_kline_update_event) => {
-                tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), backtest_kline_update_event);
+                // tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), backtest_kline_update_event);
 
                 // 如果k线缓存索引与信号索引相同，则发送回测数据更新事件
                 if *self.kline_cache_index.read().await == backtest_kline_update_event.kline_cache_index {
@@ -96,7 +97,14 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     let handle = self.get_default_output_handle();
                     handle.send(NodeEvent::Indicator(IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event))).unwrap();
                 } else {
-                    tracing::error!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "kline cache index is not equal to signal index");
+                    let signal_index = *self.kline_cache_index.read().await;
+                    let kline_cache_index = backtest_kline_update_event.kline_cache_index;
+                    tracing::error!(
+                        node_id = %self.base_context.node_id, 
+                        node_name = %self.base_context.node_name, 
+                        kline_cache_index = %kline_cache_index,
+                        signal_index = %signal_index, 
+                        "kline cache index is not equal to signal index");
                 }
                 
                 
@@ -116,7 +124,15 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
                 *self.kline_cache_index.write().await = play_index_update_event.played_index;
-                tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    node_play_index: self.kline_cache_index.read().await.clone(),
+                    message_timestamp: get_utc8_timestamp_millis(),
+                }));
+                self.get_default_output_handle().send(signal).unwrap();
             }
         }
         Ok(())

@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use super::CacheKeyTrait;
 use super::CacheKey;
 use std::str::FromStr;
-use std::time::Duration;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct KlineCacheKey {

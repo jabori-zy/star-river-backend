@@ -1,6 +1,7 @@
 pub mod backtest_strategy_context;
 pub mod backtest_strategy_state_machine;
 pub mod backtest_strategy_function;
+pub mod backtest_strategy_control;
 
 
 use std::sync::Arc;
@@ -9,7 +10,7 @@ use backtest_strategy_context::BacktestStrategyContext;
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
 use types::strategy::Strategy;
 use event_center::EventPublisher;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use petgraph::Graph;
@@ -47,7 +48,7 @@ impl BacktestStrategy {
         let mut node_indices = HashMap::new();
         let mut strategy_backtest_config = BacktestStrategyConfig::default();
         let mut cache_keys: Vec<CacheKey> = vec![];
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new()));
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone())));
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
@@ -125,7 +126,7 @@ impl BacktestStrategy {
         
         
         // tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
-        tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_cache_keys);
+        tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_cache_data);
         let context = BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
@@ -152,6 +153,8 @@ impl BacktestStrategy {
             cancel_play_token: cancel_play_token,
             virtual_trading_system: virtual_trading_system,
             strategy_inner_event_publisher: strategy_inner_event_tx,
+            updated_play_index_node_ids: Arc::new(RwLock::new(vec![])),
+            updated_play_index_notify: Arc::new(Notify::new()),
         };
         Self { context: Arc::new(RwLock::new(context)) }
     }
@@ -278,7 +281,7 @@ impl BacktestStrategy {
                         tracing::info!("{}: 状态转换: {:?} -> {:?}", strategy_name, self.get_state_machine().await.current_state(), transition_result.new_state);
                     }
 
-                    BacktestStrategyStateAction::ListenAndHandleNodeMessage => {
+                    BacktestStrategyStateAction::ListenAndHandleNodeEvent => {
                         tracing::info!("{}: 监听节点消息", strategy_name);
                         BacktestStrategyFunction::listen_node_events(self.get_context()).await;
                     }

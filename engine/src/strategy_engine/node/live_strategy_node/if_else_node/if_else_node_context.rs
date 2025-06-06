@@ -7,7 +7,7 @@ use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::condition::*;
-use types::strategy::node_event::{NodeEvent, SignalEvent, ConditionMatchEvent, IndicatorEvent};
+use types::strategy::node_event::{NodeEvent, SignalEvent, LiveConditionMatchEvent, IndicatorEvent};
 use super::if_else_node_type::*;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
@@ -162,7 +162,7 @@ impl IfElseNodeContext {
                 let case_sender = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).unwrap();
                 tracing::debug!("{}: 信号发送者: {:?}", self.get_node_name(), case_sender);
                 // 节点信息
-                let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
+                let signal_event = SignalEvent::LiveConditionMatch(LiveConditionMatchEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
@@ -200,7 +200,7 @@ impl IfElseNodeContext {
         // 只有当所有case都为false时才执行else
         if !case_matched {
             let else_sender = self.get_all_output_handle().get("if_else_node_else_output").unwrap();
-            let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
+            let signal_event = SignalEvent::LiveConditionMatch(LiveConditionMatchEvent {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
                 from_node_handle_id: self.get_all_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),

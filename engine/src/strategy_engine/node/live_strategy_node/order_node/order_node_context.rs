@@ -305,7 +305,7 @@ impl LiveNodeContextTrait for OrderNodeContext {
 
                 match signal_message {
                     // 如果信号为True，则执行下单
-                    SignalEvent::ConditionMatch(_) => {
+                    SignalEvent::LiveConditionMatch(_) => {
                         // self.create_order().await;
                         self.create_order().await;
                         // self.send_test_signal().await;

@@ -40,6 +40,8 @@ use types::strategy::node_response::NodeResponse;
 use types::cache::CacheKey;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use types::order::OrderType;
+use types::strategy::node_event::PlayIndexUpdateEvent;
 
 #[derive(Debug, Clone)]
 pub struct OrderNodeContext {
@@ -74,11 +76,14 @@ impl OrderNodeContext {
         // 将is_processing_order设置为true
         self.set_is_processing_order(true).await;
         tracing::info!("{}: 开始创建订单", self.get_node_id());
+
         let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
+        // 创建订单
         let virtual_order_id = virtual_trading_system_guard.create_order(
             self.get_strategy_id().clone(),
             self.get_node_id().clone(),
             self.backtest_config.order_config.symbol.clone(),
+            self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.exchange.clone(),
             self.backtest_config.order_config.price,
             self.backtest_config.order_config.order_side.clone(),
             self.backtest_config.order_config.order_type.clone(),
@@ -88,7 +93,17 @@ impl OrderNodeContext {
         );
 
         let all_order = virtual_trading_system_guard.get_orders();
-        tracing::info!("{}: 所有订单: {:?}", self.get_node_id(), all_order);
+        let unfilled_order = virtual_trading_system_guard.get_unfilled_orders();
+        let position = virtual_trading_system_guard.get_positions();
+        // tracing::info!("{}: 所有订单: {:?}", self.get_node_id(), all_order);
+        // tracing::info!("{}: 未成交订单: {:?}", self.get_node_id(), unfilled_order);
+        // tracing::info!("{}: 持仓: {:?}", self.get_node_id(), position);
+
+        // 释放virtual_trading_system_guard
+        drop(virtual_trading_system_guard);
+        
+        // 重置is_processing_order
+        self.set_is_processing_order(false).await;
     }
 
     // async fn send_test_signal(&mut self) {
@@ -216,7 +231,6 @@ impl OrderNodeContext {
             // 这里需要减去1 ，因为信号发送后，strategy中会+1 ， 而这里需要获取+1前的index
             let kline_cache_index = *self.kline_cache_index.read().await;
 
-            tracing::info!("{}: 获取K线缓存数据, index: {:?}", self.get_node_id(), kline_cache_index);
             let (tx, rx) = oneshot::channel();
             let get_cache_params = GetCacheParams {
                 strategy_id: self.base_context.strategy_id.clone(),
@@ -289,10 +303,13 @@ impl BacktestNodeContextTrait for OrderNodeContext {
         match node_event {
             NodeEvent::Signal(signal_event) => {
                 match signal_event {
-                    SignalEvent::ConditionMatch(_) => {
-                        tracing::debug!("{}: 收到信号事件: {:?}", self.get_node_id(), signal_event);
-                        self.get_kline_cache_data().await;
-                        // self.create_order().await;
+                    SignalEvent::BacktestConditionMatch(backtest_condition_match_event) => {
+                        if backtest_condition_match_event.play_index == *self.kline_cache_index.read().await {
+                            self.create_order().await;
+                        }
+                        else {
+                            tracing::warn!("{}: 当前k线缓存索引不匹配, 跳过", self.get_node_id());
+                        }
                     }
                     _ => {}
                 }
@@ -307,7 +324,15 @@ impl BacktestNodeContextTrait for OrderNodeContext {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
                 *self.kline_cache_index.write().await = play_index_update_event.played_index;
-                tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    node_play_index: self.kline_cache_index.read().await.clone(),
+                    message_timestamp: get_utc8_timestamp_millis(),
+                }));
+                self.get_default_output_handle().send(signal).unwrap();
             }
             _ => {}
         }

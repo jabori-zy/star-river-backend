@@ -6,7 +6,7 @@ use utils::get_utc8_timestamp;
 use utils::get_utc8_timestamp_millis;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use types::strategy::node_event::{SignalEvent, NodeEvent, ConditionMatchEvent, IndicatorEvent};
+use types::strategy::node_event::{SignalEvent, NodeEvent, BacktestConditionMatchEvent, IndicatorEvent, PlayIndexUpdateEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
@@ -14,7 +14,6 @@ use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
@@ -64,7 +63,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String> {
-        tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
+        // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
         //如果事件类型是回测指标更新或者k线更新
         match &node_event {
             NodeEvent::Indicator(IndicatorEvent::BacktestIndicatorUpdate(backtest_indicator_update_event)) => {
@@ -89,7 +88,15 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新播放索引
                 *self.played_index.write().await = play_index_update_event.played_index;
-                tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    node_play_index: self.played_index.read().await.clone(),
+                    message_timestamp: get_utc8_timestamp_millis(),
+                }));
+                self.get_default_output_handle().send(signal).unwrap();
             }
         }
         Ok(())
@@ -153,22 +160,23 @@ impl IfElseNodeContext {
         // 遍历case
         for case in self.backtest_config.cases.clone() {
             let case_result = self.evaluate_case(case.clone()).await;
-            tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
+            // tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
             if case_result {
                 // 节点信息
-                let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
+                let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
+                    play_index: *self.played_index.read().await,
                     message_timestamp: get_utc8_timestamp()
                 });
                 // tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
 
                 // 获取case的handle
                 let case_handle = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
-                tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
+                // tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
                 case_handle.send(NodeEvent::Signal(signal_event.clone())).unwrap();
 
                 // 发送事件
@@ -188,16 +196,17 @@ impl IfElseNodeContext {
 
         // 只有当所有case都为false时才执行else
         if !case_matched {
-            let signal_event = SignalEvent::ConditionMatch(ConditionMatchEvent {
+            let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
                 from_node_handle_id: self.get_all_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
+                play_index: *self.played_index.read().await,
                 message_timestamp: get_utc8_timestamp()
             });
             
 
             let else_handle = self.get_all_output_handle().get("if_else_node_else_output").expect("else handle not found");
-            tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
+            // tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
             else_handle.send(NodeEvent::Signal(signal_event.clone())).unwrap();
 
 
@@ -300,7 +309,7 @@ impl IfElseNodeContext {
                     ComparisonOperator::LessThanOrEqual => left_value <= right_value,
                     ComparisonOperator::NotEqual => left_value != right_value,
                 };
-                tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
+                // tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
                 
                 // 如果有任何一个条件不满足，立即返回false并中止后续条件判断
                 if !condition_result {
@@ -308,7 +317,7 @@ impl IfElseNodeContext {
                 }
             }
             else {
-                tracing::warn!("left value is: {:?}, right value is: {:?}, there is exist none value, condition is not match", left_value, right_value);
+                // tracing::warn!("left value is: {:?}, right value is: {:?}, there is exist none value, condition is not match", left_value, right_value);
                 return false;
             }
         }

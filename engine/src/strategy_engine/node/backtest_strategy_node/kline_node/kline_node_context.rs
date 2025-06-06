@@ -27,7 +27,7 @@ use super::kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_event::SignalEvent;
 use event_center::strategy_event::{StrategyEvent,BacktestStrategyData};
 use types::cache::CacheValue;
-
+use types::strategy::node_event::PlayIndexUpdateEvent;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -117,8 +117,15 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             self.get_default_output_handle().send(kline_event).unwrap();
 
                         } else {
-                            tracing::error!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "kline cache index is not equal to signal index");
-                        }
+                            let signal_index = *self.kline_cache_index.read().await;
+                            let kline_cache_index = kline_tick_event.signal_index;
+                            tracing::error!(
+                                node_id = %self.base_context.node_id, 
+                                node_name = %self.base_context.node_name, 
+                                kline_cache_index = %kline_cache_index,
+                                signal_index = %signal_index, 
+                                "kline cache index is not equal to signal index");
+                                }
                         
                     }
                     _ => {}
@@ -139,7 +146,15 @@ impl BacktestNodeContextTrait for KlineNodeContext {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
                 *self.kline_cache_index.write().await = play_index_update_event.played_index;
-                tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    node_play_index: self.kline_cache_index.read().await.clone(),
+                    message_timestamp: get_utc8_timestamp_millis(),
+                }));
+                self.get_default_output_handle().send(signal).unwrap();
                 
             }
         }

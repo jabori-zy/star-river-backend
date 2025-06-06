@@ -70,7 +70,7 @@ impl LiveNodeContextTrait for GetVariableNodeContext {
                 tracing::info!("{}: 收到信号: {:?}", self.get_node_name(), signal_message);
                 match signal_message {
                     // 如果信号为True，则执行下单
-                    SignalEvent::ConditionMatch(_) => {
+                    SignalEvent::LiveConditionMatch(_) => {
                         self.get_variable().await;
                     }
                     _ => {}

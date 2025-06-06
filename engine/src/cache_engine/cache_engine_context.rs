@@ -215,8 +215,8 @@ impl CacheEngineContext {
     }
 
     async fn get_cache_length(&self, cache_key: &CacheKey) -> u32 {
-        let mut cache = self.cache.write().await;
-        match cache.get_mut(&cache_key) {
+        let cache = self.cache.read().await;
+        match cache.get(&cache_key) {
             Some(cache_entry) => cache_entry.get_length(),
             None => {
                 tracing::error!("缓存键不存在: {:?}", cache_key);

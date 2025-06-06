@@ -8,5 +8,7 @@ edition.workspace = true
 [dependencies]
 types = { path = "../types" }
 utils = { path = "../utils" }
+event-center = {path = "../event-center" }
 chrono.workspace = true
 tracing.workspace = true
+tokio.workspace = true

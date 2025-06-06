@@ -184,14 +184,16 @@ pub struct BacktestKlineUpdateEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignalEvent {
-    ConditionMatch(ConditionMatchEvent), // 实盘条件匹配
+    LiveConditionMatch(LiveConditionMatchEvent), // 实盘条件匹配
+    BacktestConditionMatch(BacktestConditionMatchEvent), // 回测条件匹配
     KlinePlayFinished(KlinePlayFinishedEvent), // k线播放完毕
     KlineTick(KlineTickEvent), // K线跳动(信号计数:根据这个值去请求缓存的下标)
+    PlayIndexUpdated(PlayIndexUpdateEvent), // 节点播放索引更新
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConditionMatchEvent {
+pub struct LiveConditionMatchEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
@@ -199,6 +201,14 @@ pub struct ConditionMatchEvent {
 }
 
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BacktestConditionMatchEvent {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub from_node_handle_id: String,
+    pub play_index: u32,
+    pub message_timestamp: i64,
+}
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,5 +227,14 @@ pub struct KlinePlayFinishedEvent {
     pub from_node_name: String,
     pub from_node_handle_id: String,
     pub signal_index: u32,
+    pub message_timestamp: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayIndexUpdateEvent {
+    pub from_node_id: String,
+    pub from_node_name: String,
+    pub from_node_handle_id: String,
+    pub node_play_index: u32,
     pub message_timestamp: i64,
 }
