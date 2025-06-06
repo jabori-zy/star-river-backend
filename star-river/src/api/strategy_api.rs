@@ -486,23 +486,23 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 
 #[utoipa::path(
     post,
-    path = "/api/v1/strategy/backtest/{strategy_id}/stop",
+    path = "/api/v1/strategy/backtest/{strategy_id}/reset",
     tag = "策略控制",
-    summary = "停止播放k线",
+    summary = "重置播放",
     params(
-        ("strategy_id" = i32, Path, description = "要停止的策略ID")
+        ("strategy_id" = i32, Path, description = "要重置的策略ID")
     ),
     responses(
-        (status = 200, description = "停止策略成功"),
-        (status = 400, description = "停止策略失败")
+        (status = 200, description = "重置策略成功"),
+        (status = 400, description = "重置策略失败")
     )
 )]
-pub async fn stop(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    strategy_engine.stop(strategy_id).await.unwrap();
+    strategy_engine.reset(strategy_id).await.unwrap();
     (StatusCode::OK, Json(ApiResponse {
         code: 0,
         message: "success".to_string(),

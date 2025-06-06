@@ -5,7 +5,7 @@ use axum::{
 use crate::api::strategy_api::{
     run_strategy, stop_strategy, init_strategy, get_strategy_cache_keys,
     enable_strategy_data_push, disable_strategy_data_push,
-    play, pause, play_one, stop, create_strategy, update_strategy, delete_strategy, get_strategy_list, get_strategy_by_id
+    play, pause, play_one, reset, create_strategy, update_strategy, delete_strategy, get_strategy_list, get_strategy_by_id
 };
 use crate::star_river::StarRiver;
 
@@ -40,6 +40,6 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/play", post(play))
         .route("/{strategy_id}/pause", post(pause))
         .route("/{strategy_id}/play-one", post(play_one))
-        .route("/{strategy_id}/stop-playback", post(stop))
+        .route("/{strategy_id}/reset", post(reset))
                 
 }

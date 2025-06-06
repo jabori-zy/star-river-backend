@@ -25,7 +25,7 @@ use crate::api::account_api::ExchangeType;
         // 回测策略
         crate::api::strategy_api::play,
         crate::api::strategy_api::pause,
-        crate::api::strategy_api::stop,
+        crate::api::strategy_api::reset,
         crate::api::strategy_api::play_one,
         
 

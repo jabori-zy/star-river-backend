@@ -408,8 +408,9 @@ impl BacktestStrategyContext {
         self.cancel_play_token = CancellationToken::new();
     }
 
-    pub async fn stop(&mut self) {
-        tracing::info!("{}: 停止播放", self.strategy_name.clone());
+    // 重置播放
+    pub async fn reset(&mut self) {
+        tracing::info!("{}: 重置播放", self.strategy_name.clone());
         self.cancel_play_token.cancel();
         // 重置信号计数
         *self.played_signal_index.write().await = 0;
@@ -486,7 +487,7 @@ impl BacktestStrategyContext {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return;
         }
-        
+
         if !self.can_play_one_kline().await {
             return;
         }

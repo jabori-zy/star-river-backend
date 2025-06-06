@@ -360,10 +360,10 @@ impl BacktestStrategy {
         Ok(())
     }
 
-    pub async fn stop(&mut self) -> Result<(), String> {
-        tracing::info!("{}: 停止播放", self.get_strategy_name().await);
+    pub async fn reset(&mut self) -> Result<(), String> {
+        tracing::info!("{}: 重置播放", self.get_strategy_name().await);
         let mut context_guard = self.context.write().await;
-        context_guard.stop().await;
+        context_guard.reset().await;
         Ok(())
     }
 

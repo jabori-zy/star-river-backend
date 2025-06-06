@@ -143,12 +143,12 @@ impl StrategyEngine{
     }
 
     // 停止播放策略
-    pub async fn stop(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn reset(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
         if let Ok(strategy) = strategy {
-            strategy.stop().await.unwrap();
+            strategy.reset().await.unwrap();
         }
         Ok(())
     }
