@@ -21,7 +21,7 @@ impl BacktestStrategyFunction {
             
             tracing::debug!("添加边: {:?} -> {:?}, 源节点handle = {}", from_node_id, to_node_id, from_handle_id);
             // 先获取源节点的发送者
-            let sender = graph.node_weight(source).unwrap().get_message_sender(from_handle_id.to_string()).await;
+            let sender = graph.node_weight(source).unwrap().get_node_event_sender(from_handle_id.to_string()).await;
             
             tracing::debug!("{}: sender: {:?}", from_handle_id, sender);
             // 增加源节点的出口连接数

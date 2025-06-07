@@ -1,6 +1,5 @@
-
-use super::LiveStrategyFunction;
-use crate::strategy_engine::node::NodeTrait;
+use super::BacktestStrategyFunction;
+use crate::strategy_engine::node::BacktestNodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
@@ -12,45 +11,52 @@ use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use crate::strategy_engine::node::live_strategy_node::get_variable_node::GetVariableNode;
-use crate::strategy_engine::node::live_strategy_node::get_variable_node::get_variable_node_types::*;
+use crate::strategy_engine::node::backtest_strategy_node::get_variable_node::GetVariableNode;
+use types::node::get_variable_node::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use types::strategy::node_command::NodeCommandSender;
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use virtual_trading::VirtualTradingSystem;
 
 
-impl LiveStrategyFunction {
+impl BacktestStrategyFunction {
     pub async fn add_get_variable_node(
-        graph: &mut Graph<Box<dyn NodeTrait>, (), Directed>,
+        graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
+        strategy_command_sender: NodeCommandSender,
+        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let node_id = node_config["id"].as_str().unwrap().to_string();
         let strategy_id = node_data["strategyId"].as_i64().unwrap();
         let node_name = node_data["nodeName"].as_str().unwrap().to_string();
-        let live_config_json = node_data["liveConfig"].clone();
-        if live_config_json.is_null() {
-            return Err("liveConfig is null".to_string());
+        let backtest_config_json = node_data["backtestConfig"].clone();
+        if backtest_config_json.is_null() {
+            return Err("backtestConfig is null".to_string());
         }
-        let live_config = serde_json::from_value::<GetVariableNodeLiveConfig>(live_config_json).unwrap();
+        let backtest_config = serde_json::from_value::<GetVariableNodeBacktestConfig>(backtest_config_json).unwrap();
         let mut node = GetVariableNode::new(
             strategy_id as i32,
             node_id.clone(),
             node_name,
-            live_config,
+            backtest_config,
             event_publisher,
             command_publisher,
             command_receiver,
             response_event_receiver,
-            exchange_engine,
             heartbeat,
             database,
+            strategy_command_sender,
+            virtual_trading_system,
+            strategy_inner_event_receiver,
         );
         node.set_output_handle().await;
 

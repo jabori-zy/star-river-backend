@@ -63,14 +63,15 @@ impl BacktestNodeContextTrait for StartNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新播放索引
-                *self.played_index.write().await = play_index_update_event.played_index;
+                // *self.played_index.write().await = play_index_update_event.played_index;
+                self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 // 更新完成后，发送索引已更新事件
                 let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
-                    node_play_index: self.played_index.read().await.clone(),
+                    node_play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 self.get_default_output_handle().send(signal).unwrap();
@@ -88,7 +89,7 @@ impl StartNodeContext {
             from_node_id: self.base_context.node_id.clone(),
             from_node_name: self.base_context.node_name.clone(),
             from_node_handle_id: self.base_context.output_handle.get(&format!("start_node_output")).unwrap().output_handle_id.clone(),
-            signal_index,
+            play_index: signal_index,
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
         

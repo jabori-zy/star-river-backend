@@ -1,10 +1,23 @@
-use types::strategy::SelectedAccount;
-use types::strategy::sys_varibale::SysVariable;
 use serde::{Deserialize, Serialize};
+use crate::strategy::sys_varibale::SysVariable;
+use crate::strategy::SelectedAccount;
+use crate::strategy::{BacktestDataSource,DataSourceExchange,TimeRange};
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TimeUnit {
+    #[serde(rename = "second")]
+    Second,
+    #[serde(rename = "minute")]
+    Minute,
+    #[serde(rename = "hour")]
+    Hour,
+    #[serde(rename = "day")]
+    Day,
+}
 
 // 获取变量的方式
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum GetVariableType {
     #[serde(rename = "condition")]
     Condition, // 条件触发
@@ -40,21 +53,6 @@ pub struct GetVariableConfig {
 }
 
 
-// 时间单位
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TimeUnit {
-    #[serde(rename = "second")]
-    Second,
-    #[serde(rename = "minute")]
-    Minute,
-    #[serde(rename = "hour")]
-    Hour,
-    #[serde(rename = "day")]
-    Day,
-}
-
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeLiveConfig {
     #[serde(rename = "selectedLiveAccount")]
@@ -74,7 +72,30 @@ pub struct GetVariableNodeSimulateConfig {
 }
 
 
+
+// 回测配置
+
+
+//交易所模式配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetVariableNodeExchangeModeConfig {
+    #[serde(rename = "selectedDataSource")]
+    pub selected_data_source: DataSourceExchange,
+    pub symbol: String,
+    #[serde(rename = "timeRange")]
+    pub time_range: TimeRange,
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeBacktestConfig {
+    #[serde(rename = "dataSource")]
+    pub data_source: BacktestDataSource,
+    #[serde(rename = "exchangeModeConfig")]
+    pub exchange_mode_config: Option<GetVariableNodeExchangeModeConfig>,
     pub variables: Vec<GetVariableConfig>,
+    #[serde(rename = "getVariableType")]
+    pub get_variable_type: GetVariableType,
+    #[serde(rename = "timerConfig")]
+    pub timer_config: Option<TimerConfig>,
 }

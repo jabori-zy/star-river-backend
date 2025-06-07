@@ -65,7 +65,6 @@ impl IndicatorNode {
                 base_context,
                 backtest_config,
                 is_registered: Arc::new(RwLock::new(false)),
-                kline_cache_index: Arc::new(RwLock::new(0)),
             }))),
             
         }

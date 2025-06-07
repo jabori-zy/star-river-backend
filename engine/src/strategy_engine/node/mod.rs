@@ -252,7 +252,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_all_output_handle().values().cloned().collect()
     }
 
-    async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
+    async fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_node_event_sender(handle_id).clone()
@@ -294,6 +294,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
             NodeType::IfElseNode => DefaultOutputHandleId::IfElseNodeElseOutput,
             NodeType::OrderNode => DefaultOutputHandleId::OrderNodeOutput,
             NodeType::PositionNode => DefaultOutputHandleId::PositionNodeUpdateOutput,
+            NodeType::GetVariableNode => DefaultOutputHandleId::GetVariableNodeOutput,
             _ => return,
         };
 

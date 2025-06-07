@@ -70,6 +70,8 @@ pub enum DefaultOutputHandleId {
     OrderNodeOutput,
     #[strum(serialize = "position_node_update_output")]
     PositionNodeUpdateOutput,
+    #[strum(serialize = "get_variable_node_output")]
+    GetVariableNodeOutput,
 
 }
 

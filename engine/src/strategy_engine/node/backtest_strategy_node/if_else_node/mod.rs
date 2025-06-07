@@ -67,7 +67,6 @@ impl IfElseNode {
                 received_flag: HashMap::new(),
                 received_message: HashMap::new(),
                 backtest_config,
-                played_index: Arc::new(RwLock::new(0)),
             }))),
             
         }

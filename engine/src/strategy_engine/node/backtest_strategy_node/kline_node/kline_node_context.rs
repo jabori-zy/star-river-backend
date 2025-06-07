@@ -36,7 +36,7 @@ pub struct KlineNodeContext {
     pub data_is_loaded: Arc<RwLock<bool>>,
     pub backtest_config: KlineNodeBacktestConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub kline_cache_index: Arc<RwLock<u32>>,
+    // pub kline_cache_index: Arc<RwLock<u32>>,
 }
 
 #[async_trait]
@@ -87,9 +87,9 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                     SignalEvent::KlineTick(kline_tick_event) => {
 
                         // 如果k线缓存索引与信号索引相同，则发送回测数据更新事件
-                        if *self.kline_cache_index.read().await == kline_tick_event.signal_index {
+                        if self.get_play_index().await == kline_tick_event.play_index {
                             let cache_key: CacheKey = backtest_kline_cache_key.clone().into();
-                            let kline_cache_value = self.get_history_kline_cache(cache_key.clone(), kline_tick_event.signal_index).await.unwrap();
+                            let kline_cache_value = self.get_history_kline_cache(cache_key.clone(), kline_tick_event.play_index).await.unwrap();
                             // 发送回测数据更新事件
                             let cache_data: Vec<Vec<f64>> = kline_cache_value.into_iter().map(|cache_value| cache_value.to_list()).collect();
                                             
@@ -108,7 +108,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                                 from_node_id: self.base_context.node_id.clone(),
                                 from_node_name: self.base_context.node_name.clone(),
                                 from_node_handle_id: self.base_context.node_id.clone(),
-                                kline_cache_index: kline_tick_event.signal_index,
+                                kline_cache_index: kline_tick_event.play_index,
                                 kline_cache_key: backtest_kline_cache_key.clone(),
                                 kline: cache_data[0].clone(),
                                 message_timestamp: get_utc8_timestamp_millis(),
@@ -117,13 +117,13 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             self.get_default_output_handle().send(kline_event).unwrap();
 
                         } else {
-                            let signal_index = *self.kline_cache_index.read().await;
-                            let kline_cache_index = kline_tick_event.signal_index;
+                            let play_index = self.get_play_index().await;
+                            let kline_cache_index = kline_tick_event.play_index;
                             tracing::error!(
                                 node_id = %self.base_context.node_id, 
                                 node_name = %self.base_context.node_name, 
                                 kline_cache_index = %kline_cache_index,
-                                signal_index = %signal_index, 
+                                signal_index = %play_index, 
                                 "kline cache index is not equal to signal index");
                                 }
                         
@@ -145,13 +145,14 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
-                *self.kline_cache_index.write().await = play_index_update_event.played_index;
+                // *self.kline_cache_index.write().await = play_index_update_event.played_index;
+                self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
-                    node_play_index: self.kline_cache_index.read().await.clone(),
+                    node_play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 self.get_default_output_handle().send(signal).unwrap();

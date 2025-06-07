@@ -62,7 +62,6 @@ impl KlineNode {
                 exchange_is_registered: Arc::new(RwLock::new(false)),
                 backtest_config,
                 heartbeat,
-                kline_cache_index: Arc::new(RwLock::new(0)),
             }))), 
         }
     }

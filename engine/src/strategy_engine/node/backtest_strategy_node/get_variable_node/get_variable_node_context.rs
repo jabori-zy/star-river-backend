@@ -1,5 +1,4 @@
-
-use crate::strategy_engine::node::node_context::{BaseNodeContext,NodeContextTrait};
+use crate::strategy_engine::node::{node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait}};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use std::sync::Arc;
@@ -8,29 +7,32 @@ use sea_orm::DatabaseConnection;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use super::get_variable_node_types::*;
+use types::node::get_variable_node::*;
 use types::strategy::sys_varibale::SysVariable;
 use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
-use types::strategy::node_message::VariableMessage;
+use types::strategy::node_event::{SignalEvent, VariableMessage, PlayIndexUpdateEvent};
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_message::NodeMessage;
+use types::strategy::node_event::NodeEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::collections::HashMap;
-use types::strategy::node_message::SignalType;
+use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use types::node::get_variable_node::GetVariableType;
+use virtual_trading::VirtualTradingSystem;
+
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {
-    pub base_context: BaseNodeContext,
-    pub live_config: GetVariableNodeLiveConfig,
-    pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
+    pub base_context: BacktestBaseNodeContext,
+    pub backtest_config: GetVariableNodeBacktestConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub database: DatabaseConnection,
+    pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
 }
 
 
 #[async_trait]
-impl NodeContextTrait for GetVariableNodeContext {
-    fn clone_box(&self) -> Box<dyn NodeContextTrait> {
+impl BacktestNodeContextTrait for GetVariableNodeContext {
+    fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait> {
         Box::new(self.clone())
     }
 
@@ -42,11 +44,11 @@ impl NodeContextTrait for GetVariableNodeContext {
         self
     }
 
-    fn get_base_context(&self) -> &BaseNodeContext {
+    fn get_base_context(&self) -> &BacktestBaseNodeContext {
         &self.base_context
     }
 
-    fn get_base_context_mut(&mut self) -> &mut BaseNodeContext {
+    fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
         &mut self.base_context
     }
 
@@ -64,20 +66,43 @@ impl NodeContextTrait for GetVariableNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeMessage) -> Result<(), String> {
-        match message {
-            NodeMessage::Signal(signal_message) => {
-                tracing::info!("{}: 收到信号: {:?}", self.get_node_name(), signal_message.signal_type);
-                match signal_message.signal_type {
-                    // 如果信号为True，则执行下单
-                    SignalType::ConditionMatch => {
-                        self.get_variable().await;
-                    }
-                    _ => {}
+    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String> {
+        match node_event {
+            NodeEvent::Signal(SignalEvent::BacktestConditionMatch(condition_match_event)) => {
+                // 判断当前节点的模式
+                // 如果是条件触发模式，则获取变量
+                if self.backtest_config.get_variable_type == GetVariableType::Condition {
+                    tracing::info!("{}: 条件触发模式，获取变量", self.get_node_name());
+                    self.get_variable().await;
+
                 }
+
+            }
+
+            _ => {}
+
+        }
+        Ok(())
+    }
+
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+        match strategy_inner_event {
+            StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
+                // 更新k线缓存索引
+                self.set_play_index(play_index_update_event.played_index).await;
+                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    node_play_index: self.get_play_index().await,
+                    message_timestamp: get_utc8_timestamp_millis(),
+                }));
+                self.get_default_output_handle().send(signal).unwrap();
             }
             _ => {}
         }
+        
         Ok(())
     }
 
@@ -86,9 +111,9 @@ impl NodeContextTrait for GetVariableNodeContext {
 impl GetVariableNodeContext {
     pub async fn register_task(&mut self) {
         let database = self.database.clone();
-        let live_config = self.live_config.clone();
-        let timer_config = live_config.timer_config.unwrap();
-        let variables = live_config.variables.clone();
+        let backtest_config = self.backtest_config.clone();
+        let timer_config = backtest_config.timer_config.unwrap();
+        let variables = backtest_config.variables.clone();
         let node_name = self.get_node_name().clone();
         let strategy_id = self.get_strategy_id().clone();
         let node_id = self.get_node_id().clone();
@@ -119,20 +144,24 @@ impl GetVariableNodeContext {
 
     
     pub async fn get_variable(&mut self) {
-        let variables = self.live_config.variables.clone();
+        let variables = self.backtest_config.variables.clone();
 
         for var in variables {
             let variable_type = var.variable.clone();
             match variable_type {
                 SysVariable::PositionNumber => {
-                    Self::get_position_number(
-                        &self.database, 
-                        self.get_strategy_id().clone(), 
-                        self.get_node_id().clone(), 
-                        self.get_node_name().clone(), 
-                        var, 
-                        &self.get_all_output_handle()
-                    ).await.unwrap();
+                    let position_number = self.get_position_number().await;
+                    let variable_message = VariableMessage {
+                        from_node_id: self.get_node_id().clone(),
+                        from_node_name: self.get_node_name().clone(),
+                        from_node_handle_id: var.config_id.clone(),
+                        variable: var.variable.to_string(),
+                        variable_value: position_number as f64,
+                        message_timestamp: get_utc8_timestamp_millis(),
+                    };
+                    let output_handle = self.get_all_output_handle().get(&var.config_id).unwrap();
+                    tracing::debug!("{}: 发送仓位数量更新事件: {:?}", self.get_node_id(), variable_message);
+                    output_handle.send(NodeEvent::Variable(variable_message)).unwrap();
                 }
                 _ => {}
             }
@@ -153,7 +182,6 @@ impl GetVariableNodeContext {
             let variable_type = var.variable.clone();
             match variable_type {
                 SysVariable::PositionNumber => {
-                    Self::get_position_number(&database, strategy_id, node_id.clone(), node_name.clone(), var, &output_handle).await;
                 }
                 _ => {}
             }
@@ -162,34 +190,12 @@ impl GetVariableNodeContext {
         
     }
 
-    async fn get_position_number(
-        database: &DatabaseConnection, 
-        strategy_id: i32,
-        node_id: String,
-        node_name: String,
-        variable: GetVariableConfig,
-        output_handle: &HashMap<String, NodeOutputHandle>,
-    ) -> Result<(), String> {
-        let position_numeber = StrategySysVariableQuery::get_strategy_position_number(database, strategy_id).await;
-        match position_numeber {
-            Ok(position_number) => {
-                let variable_message = VariableMessage {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_node_handle_id: variable.config_id.clone(), // 使用config_id作为handle_id
-                    variable: variable.variable.to_string(),
-                    variable_value: position_number as f64,
-                    message_timestamp: get_utc8_timestamp_millis(),
-                };
-                let output_handle = output_handle.get(&variable.config_id).unwrap();
-                output_handle.message_sender.send(NodeMessage::Variable(variable_message)).unwrap();
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!("获取持仓数量失败: {:?}", e);
-                Err(e.to_string())
-            }
-        }
+    async fn get_position_number(&self) -> u32 {
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_data_source.exchange.clone();
+        let symbol = self.backtest_config.exchange_mode_config.as_ref().unwrap().symbol.clone();
+        let position_number = virtual_trading_system.get_symbol_position_number(&symbol, &exchange);
+        position_number
     }
 }
 

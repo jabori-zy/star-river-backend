@@ -53,7 +53,6 @@ pub struct OrderNodeContext {
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, // 虚拟交易系统
     pub unfilled_virtual_order: Arc<RwLock<Vec<VirtualOrder>>>, // 未成交的虚拟订单列表
     pub min_kline_interval: Option<KlineInterval>, // 最小K线间隔(最新价格只需要获取最小间隔的价格即可)
-    pub kline_cache_index: Arc<RwLock<u32>>, // 回测播放索引
 }
 
 impl OrderNodeContext {
@@ -95,9 +94,9 @@ impl OrderNodeContext {
         let all_order = virtual_trading_system_guard.get_orders();
         let unfilled_order = virtual_trading_system_guard.get_unfilled_orders();
         let position = virtual_trading_system_guard.get_positions();
-        // tracing::info!("{}: 所有订单: {:?}", self.get_node_id(), all_order);
-        // tracing::info!("{}: 未成交订单: {:?}", self.get_node_id(), unfilled_order);
-        // tracing::info!("{}: 持仓: {:?}", self.get_node_id(), position);
+        tracing::info!("{}: 所有订单: {:?}", self.get_node_id(), all_order);
+        tracing::info!("{}: 未成交订单: {:?}", self.get_node_id(), unfilled_order);
+        tracing::info!("{}: 持仓: {:?}", self.get_node_id(), position);
 
         // 释放virtual_trading_system_guard
         drop(virtual_trading_system_guard);
@@ -228,8 +227,8 @@ impl OrderNodeContext {
                 self.backtest_config.exchange_config.as_ref().unwrap().time_range.end_date.to_string(),
             );
 
-            // 这里需要减去1 ，因为信号发送后，strategy中会+1 ， 而这里需要获取+1前的index
-            let kline_cache_index = *self.kline_cache_index.read().await;
+
+            let kline_cache_index = self.get_play_index().await;
 
             let (tx, rx) = oneshot::channel();
             let get_cache_params = GetCacheParams {
@@ -304,7 +303,7 @@ impl BacktestNodeContextTrait for OrderNodeContext {
             NodeEvent::Signal(signal_event) => {
                 match signal_event {
                     SignalEvent::BacktestConditionMatch(backtest_condition_match_event) => {
-                        if backtest_condition_match_event.play_index == *self.kline_cache_index.read().await {
+                        if backtest_condition_match_event.play_index == self.get_play_index().await {
                             self.create_order().await;
                         }
                         else {
@@ -323,13 +322,13 @@ impl BacktestNodeContextTrait for OrderNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
-                *self.kline_cache_index.write().await = play_index_update_event.played_index;
+                self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
-                    node_play_index: self.kline_cache_index.read().await.clone(),
+                    node_play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 self.get_default_output_handle().send(signal).unwrap();

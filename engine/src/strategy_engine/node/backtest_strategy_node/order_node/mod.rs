@@ -73,7 +73,6 @@ impl OrderNode {
                 virtual_trading_system,
                 unfilled_virtual_order: Arc::new(RwLock::new(vec![])),
                 min_kline_interval: None,
-                kline_cache_index: Arc::new(RwLock::new(0)),
             }))),
         }
     }

@@ -16,6 +16,8 @@ use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use tokio::sync::RwLock;
+
 
 #[async_trait]
 pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
@@ -320,6 +322,14 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &self.get_base_context().is_enable_event_publish
     }
 
+    async fn get_play_index(&self) -> u32 {
+        *self.get_base_context().play_index.read().await
+    }
+
+    async fn set_play_index(&mut self, play_index: u32) {
+        *self.get_base_context_mut().play_index.write().await = play_index;
+    }
+
 
 
 
@@ -338,6 +348,7 @@ pub struct BacktestBaseNodeContext {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
+    pub play_index: Arc<RwLock<u32>>, // 回测播放索引
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub event_receivers:Vec<EventReceiver>, // 事件接收器
@@ -359,6 +370,7 @@ impl Clone for BacktestBaseNodeContext {
             strategy_id: self.strategy_id.clone(),
             node_id: self.node_id.clone(),
             node_name: self.node_name.clone(),
+            play_index: self.play_index.clone(),
             cancel_token: self.cancel_token.clone(),
             event_publisher: self.event_publisher.clone(),
             node_event_receivers: self.node_event_receivers.clone(),
@@ -394,6 +406,7 @@ impl BacktestBaseNodeContext {
             node_id, 
             node_name,
             node_type,
+            play_index: Arc::new(RwLock::new(0)),
             output_handle: HashMap::new(), 
             event_publisher,
             is_enable_event_publish: false, 

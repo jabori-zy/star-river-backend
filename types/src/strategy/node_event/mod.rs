@@ -1,3 +1,5 @@
+pub mod variable_event;
+
 
 use crate::market::{Kline, KlineSeries};
 use crate::indicator::{IndicatorConfig, Indicator};
@@ -9,6 +11,8 @@ use crate::position::Position;
 use crate::cache::CacheValue;
 use crate::cache::cache_key::BacktestKlineCacheKey;
 use std::sync::Arc;
+use variable_event::PositionNumberUpdateEvent;
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -39,24 +43,6 @@ pub enum NodeEvent {
     // #[serde(rename = "backtest_signal")]
     // BacktestSignal(BacktestSignalEvent), // 回测信号
 }
-
-// impl NodeEvent {
-//     pub fn as_indicator(&self) -> Option<&LiveIndicatorUpdateEvent> {
-//         if let NodeEvent::Indicator(msg) = self {
-//             Some(msg)
-//         } else {
-//             None
-//         }
-//     }
-
-//     pub fn as_variable(&self) -> Option<&VariableMessage> {
-//         if let NodeEvent::Variable(msg) = self {
-//             Some(msg)
-//         } else {
-//             None
-//         }
-//     }
-// }
 
 
 // k线系列消息
@@ -170,6 +156,28 @@ pub struct VariableMessage {
 }
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "message_type")]
+pub enum VariableEvent {
+    #[strum(serialize = "position-number-updated")]
+    #[serde(rename = "position-number-updated")]
+    PositionNumberUpdate(PositionNumberUpdateEvent), // 仓位数量更新
+}
+
+impl VariableEvent {
+    pub fn get_from_node_id(&self) -> String {
+        match self {
+            VariableEvent::PositionNumberUpdate(event) => event.from_node_id.clone(),
+        }
+    }
+
+}
+
+
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BacktestKlineUpdateEvent {
     pub from_node_id: String,
@@ -216,7 +224,7 @@ pub struct KlineTickEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub signal_index: u32,
+    pub play_index: u32,
     pub message_timestamp: i64,
 }
 
