@@ -1,8 +1,7 @@
 use sea_orm::*;
-use crate::entities::account_info;
+use ::entity::account_info;
 use chrono::Utc;
 use types::account::AccountInfo;
-use crate::entities::account_info::Entity as AccountInfoEntity;
 
 
 

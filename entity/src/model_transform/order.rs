@@ -1,5 +1,5 @@
 use types::order::{Order, OrderSide, OrderType, OrderStatus};
-use crate::entities::order::Model as OrderModel;
+use crate::order::Model as OrderModel;
 use types::market::Exchange;
 use std::str::FromStr;
 

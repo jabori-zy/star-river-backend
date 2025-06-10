@@ -1,5 +1,5 @@
 use sea_orm::*;
-use crate::entities::{account_config, account_config::Entity as AccountConfigEntity};
+use ::entity::{account_config, account_config::Entity as AccountConfigEntity};
 use types::{account::AccountConfig, custom_type::AccountId, market::Exchange};
 
 

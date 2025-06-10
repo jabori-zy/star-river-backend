@@ -9,7 +9,8 @@ use crate::order::OrderSide;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VirtualPosition {
-    pub position_id: i32,
+    pub position_id: PositionId,
+    pub order_id: OrderId,
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub exchange: Exchange,
@@ -21,7 +22,7 @@ pub struct VirtualPosition {
     pub current_price: f64,
     pub tp: Option<f64>,
     pub sl: Option<f64>,
-    pub unrealized_profit: Option<f64>, // 未实现盈亏
+    pub unrealized_profit: f64, // 未实现盈亏
     pub create_time: DateTime<Utc>,
     pub update_time: DateTime<Utc>,
 }
@@ -35,6 +36,7 @@ impl VirtualPosition {
 
         Self {
             position_id: virtual_order.order_id,
+            order_id: virtual_order.order_id,
             strategy_id: virtual_order.strategy_id,
             node_id: virtual_order.node_id.clone(),
             exchange: virtual_order.exchange.clone(),
@@ -46,11 +48,15 @@ impl VirtualPosition {
             current_price: current_price,
             tp: virtual_order.tp,
             sl: virtual_order.sl,
-            unrealized_profit: None,
-            create_time: virtual_order.created_time,
-            update_time: virtual_order.updated_time,
+            unrealized_profit: 0.0,
+            create_time: Utc::now(),
+            update_time: Utc::now(),
         }
     }
 
-    
+    pub fn update_position(&mut self, current_price: f64) {
+        self.current_price = current_price;
+        self.update_time = Utc::now();
+        self.unrealized_profit = self.quantity * (current_price - self.open_price);
+    }
 }

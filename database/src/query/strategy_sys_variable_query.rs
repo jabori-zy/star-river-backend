@@ -1,5 +1,5 @@
 use sea_orm::*;
-use crate::entities::{strategy_sys_variable, strategy_sys_variable::Entity as StrategySysVariableEntity};
+use ::entity::{strategy_sys_variable, strategy_sys_variable::Entity as StrategySysVariableEntity};
 use chrono::Utc;
 use types::strategy::sys_varibale::StrategySysVariable;
 

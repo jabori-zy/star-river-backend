@@ -1,5 +1,5 @@
 use types::account::AccountConfig;
-use crate::entities::account_config::Model as AccountConfigModel;
+use crate::account_config::Model as AccountConfigModel;
 use types::market::Exchange;
 use std::str::FromStr;
 

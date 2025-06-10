@@ -1,5 +1,5 @@
 use sea_orm::*;
-use crate::entities::{strategy_config, strategy_config::Entity as StrategyConfig};
+use ::entity::{strategy_config, strategy_config::Entity as StrategyConfig};
 use chrono::Utc;
 use types::strategy::Strategy;
 

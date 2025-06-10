@@ -1,7 +1,7 @@
 
 use types::{market::Exchange, order::OriginalOrder};
 use sea_orm::*;
-use crate::entities::{order, order::Entity as Order};
+use ::entity::{order, order::Entity as Order};
 use types::order::Order as TypeOrder;
 
 

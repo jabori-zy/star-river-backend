@@ -11,7 +11,7 @@ members = [
     "types",
     "utils", 
     "engine", 
-    "virtual-trading"]
+    "virtual-trading", "entity"]
 
 [workspace.package]
 version = "0.1.0"

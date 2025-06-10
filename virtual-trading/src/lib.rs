@@ -1,5 +1,6 @@
 pub mod order;
 pub mod position;
+pub mod transaction;
 
 use types::cache::cache_key::BacktestKlineCacheKey;
 use types::cache::{CacheKey, CacheValue};
@@ -28,7 +29,7 @@ pub struct VirtualTradingSystem {
     pub current_positions: Vec<VirtualPosition>, // 当前持仓
     pub unfilled_orders: Vec<VirtualOrder>, // 未成交订单
     pub orders: Vec<VirtualOrder>, // 所有订单(已成交订单 + 未成交订单)
-    pub transaction_history: Vec<VirtualTransaction>, // 交易历史
+    pub transactions: Vec<VirtualTransaction>, // 交易历史
     pub command_publisher: CommandPublisher, // 命令发布者
 }
 
@@ -46,7 +47,7 @@ impl VirtualTradingSystem {
             current_positions: vec![], 
             unfilled_orders: vec![],
             orders: vec![],
-            transaction_history: vec![],
+            transactions: vec![],
             command_publisher,
         }
     }
@@ -77,7 +78,9 @@ impl VirtualTradingSystem {
                 else {
                     tracing::warn!("{}: 要插入的k线缓存key的interval大于过滤出的k线缓存key的interval，不插入", kline_cache_key.symbol);
                 }
-            } else {
+            } 
+            // 如果过滤出的列表长度为0，则直接插入
+            else {
                 self.kline_cache_data.insert(kline_cache_key, 0.0);
             }
         }
@@ -90,12 +93,15 @@ impl VirtualTradingSystem {
     // 设置k线缓存索引
     pub async fn set_kline_cache_index(&mut self, kline_cache_index: u32) {
         self.kline_cache_index = kline_cache_index;
-        // 更新k线缓存key的最新收盘价
+        // 当k线索引更新后，更新k线缓存key的最新收盘价
         let keys: Vec<BacktestKlineCacheKey> = self.kline_cache_data.keys().cloned().collect();
         for kline_cache_key in keys {
             let close_price = self.get_close_price(kline_cache_key.clone().into()).await.unwrap();
             self.kline_cache_data.entry(kline_cache_key).and_modify(|e| *e = close_price);
         }
+        // 更新仓位
+        self.update_position();
+        tracing::debug!("持仓: {:?}", self.current_positions);
     }
 
     // 设置初始资金
@@ -131,8 +137,8 @@ impl VirtualTradingSystem {
     }
 
     // 获取当前持仓
-    pub fn get_positions(&self) -> Vec<VirtualPosition> {
-        self.current_positions.clone()
+    pub fn get_positions(&self) -> &Vec<VirtualPosition> {
+        &self.current_positions
     }
 
     // 获取当前持仓数量
@@ -146,22 +152,22 @@ impl VirtualTradingSystem {
     }
 
     // 获取所有订单
-    pub fn get_orders(&self) -> Vec<VirtualOrder> {
-        self.orders.clone()
+    pub fn get_orders(&self) -> &Vec<VirtualOrder> {
+        &self.orders
     }
 
     // 获取未成交订单
-    pub fn get_unfilled_orders(&self) -> Vec<VirtualOrder> {
-        self.unfilled_orders.clone()
+    pub fn get_unfilled_orders(&self) -> &Vec<VirtualOrder> {
+        &self.unfilled_orders
     }
 
-    pub fn get_order(&self, order_id: OrderId) -> Option<VirtualOrder> {
-        self.unfilled_orders.iter().find(|order| order.order_id == order_id).cloned()
+    pub fn get_order(&self, order_id: OrderId) -> Option<&VirtualOrder> {
+        self.unfilled_orders.iter().find(|order| order.order_id == order_id)
     }
 
     // 获取交易历史
-    pub fn get_transaction_history(&self) -> Vec<VirtualTransaction> {
-        self.transaction_history.clone()
+    pub fn get_transactions(&self) -> &Vec<VirtualTransaction> {
+        &self.transactions
     }
 
     // 从缓存引擎获取k线数据
@@ -197,7 +203,8 @@ impl VirtualTradingSystem {
             Err(format!("get history kline cache failed"))
         }
 
-    // 根据订单类型判断是否需要立即成交
+
+    // 根据交易所和symbol获取k线缓存key
     fn get_kline_cache_key(&self, exchange: &Exchange, symbol: &String) -> Option<BacktestKlineCacheKey> {
         for kline_cache_key in self.kline_cache_data.keys() {
             if &kline_cache_key.exchange == exchange && &kline_cache_key.symbol == symbol {

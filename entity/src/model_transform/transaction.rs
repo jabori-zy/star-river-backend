@@ -1,5 +1,4 @@
-
-use crate::entities::transaction::Model as TransactionModel;
+use crate::transaction::Model as TransactionModel;
 use types::transaction::Transaction;
 use types::market::Exchange;
 use types::transaction::TransactionType;

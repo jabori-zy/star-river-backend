@@ -1,0 +1,11 @@
+[package]
+name = "entity"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+sea-orm.workspace = true
+serde.workspace = true
+types = {path = "../types" }

@@ -6,6 +6,7 @@ use crate::api::account_api::{
 };
 use crate::api::cache_api::CacheKeyType;
 use crate::api::account_api::ExchangeType;
+use types::system::system_config::SystemConfigUpdateParams;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -50,6 +51,10 @@ use crate::api::account_api::ExchangeType;
         // crate::api::strategy_api::pause,
         // crate::api::strategy_api::play_one,
         // crate::api::strategy_api::stop,
+
+        // 系统配置相关路径
+        crate::api::system_api::update_system_config,
+        crate::api::system_api::get_system_config,
     ),
     components(
         schemas(
@@ -67,6 +72,9 @@ use crate::api::account_api::ExchangeType;
 
             // 缓存相关类型
             CacheKeyType,
+
+            // 系统配置相关类型
+            SystemConfigUpdateParams,
         )
     ),
     tags(

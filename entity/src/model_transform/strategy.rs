@@ -1,5 +1,5 @@
 use types::strategy::Strategy;
-use crate::entities::strategy_config::Model as StrategyConfigModel;
+use crate::strategy_config::Model as StrategyConfigModel;
 use types::strategy::TradeMode;
 use std::str::FromStr;
 

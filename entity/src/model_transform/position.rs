@@ -1,5 +1,5 @@
 use types::position::{Position, PositionSide, PositionState};
-use crate::entities::position::Model as PositionModel;
+use crate::position::Model as PositionModel;
 use types::market::Exchange;
 use std::str::FromStr;
 

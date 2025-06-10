@@ -4,6 +4,7 @@ pub type AccountId = i32;
 pub type NodeId = String;
 pub type OrderId = i32;
 pub type PositionId = i32;
+pub type TransactionId = i32;
 
 pub type Leverage = u32;
 pub type Balance = f64;

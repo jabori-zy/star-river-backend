@@ -1,6 +1,6 @@
 use types::account::AccountConfig;
 use sea_orm::*;
-use crate::entities::account_config;
+use ::entity::account_config;
 use chrono::Utc;
 use types::market::Exchange;
 

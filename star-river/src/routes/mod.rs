@@ -4,6 +4,7 @@ pub mod account_routes;
 pub mod cache_routes;
 pub mod sse_routes;
 pub mod doc;
+pub mod system_routes;
 // pub mod websocket_routes;
 
 use axum::Router;
@@ -25,6 +26,8 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
         .nest("/api/v1/cache", cache_routes::create_cache_routes())
         // 嵌套实时数据流路由
         .nest("/api/v1/sse", sse_routes::create_sse_routes())
+        // 嵌套系统相关路由
+        .nest("/api/v1/system", system_routes::create_system_routes())
         // WebSocket路由
         // .merge(websocket_routes::create_websocket_routes())
         .merge(create_docs_routes())

@@ -94,9 +94,11 @@ impl OrderNodeContext {
         let all_order = virtual_trading_system_guard.get_orders();
         let unfilled_order = virtual_trading_system_guard.get_unfilled_orders();
         let position = virtual_trading_system_guard.get_positions();
+        let transaction = virtual_trading_system_guard.get_transactions();
         tracing::info!("{}: 所有订单: {:?}", self.get_node_id(), all_order);
         tracing::info!("{}: 未成交订单: {:?}", self.get_node_id(), unfilled_order);
         tracing::info!("{}: 持仓: {:?}", self.get_node_id(), position);
+        tracing::info!("{}: 交易明细: {:?}", self.get_node_id(), transaction);
 
         // 释放virtual_trading_system_guard
         drop(virtual_trading_system_guard);

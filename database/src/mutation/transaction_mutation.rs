@@ -1,7 +1,7 @@
 use types::transaction::OriginalTransaction;
 use types::transaction::Transaction;
 use sea_orm::*;
-use crate::entities::transaction;
+use ::entity::transaction;
 
 
 

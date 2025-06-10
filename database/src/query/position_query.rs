@@ -1,4 +1,4 @@
-use crate::entities::position;
+use ::entity::position;
 use types::position::Position;
 use sea_orm::*;
 

@@ -1,5 +1,5 @@
 use types::account::AccountInfo;
-use crate::entities::account_info::Model as AccountInfoModel;
+use crate::account_info::Model as AccountInfoModel;
 
 impl From<AccountInfoModel> for AccountInfo {
     fn from(info: AccountInfoModel) -> Self {

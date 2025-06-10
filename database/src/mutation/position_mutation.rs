@@ -1,7 +1,7 @@
 
 use types::position::{OriginalPosition, PositionState};
 use sea_orm::*;
-use crate::entities::position;
+use ::entity::position;
 use types::position::Position;
 use types::market::Exchange;
 

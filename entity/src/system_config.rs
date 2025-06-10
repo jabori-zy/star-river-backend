@@ -4,16 +4,11 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "strategy_info")]
+#[sea_orm(table_name = "system_config")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub name: String,
-    pub description: String,
-    pub status: i32,
-    pub is_deleted: i32,
-    pub nodes: Option<Json>,
-    pub edges: Option<Json>,
+    pub localization: String,
     pub created_time: DateTimeUtc,
     pub updated_time: DateTimeUtc,
 }
