@@ -19,6 +19,8 @@ use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use std::collections::HashMap;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
+use types::strategy::node_event::NodeEvent;
+use tokio::sync::broadcast;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -95,27 +97,40 @@ impl BacktestNodeTrait for StartNode {
     }
 
     async fn init(&mut self) -> Result<(), String> {
-        tracing::info!("================={}====================", self.context.read().await.get_node_name());
-        tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+        tracing::info!(node_id = %node_id, node_name = %node_name, "=================init start node====================");
+        tracing::info!(node_id = %node_id, node_name = %node_name, "start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
 
-        tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
+        tracing::info!(node_id = %node_id, node_name = %node_name, "init complete");
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await.unwrap();
         Ok(())
     }
 
-    // async fn start(&mut self) -> Result<(), String> {
-    //     let state = self.context.clone();
-    //     tracing::info!("{}: 开始启动", state.read().await.get_node_id());
-    //     self.update_node_state(BacktestNodeStateTransitionEvent::Start).await.unwrap();
-    //     // 休眠500毫秒
-    //     tokio::time::sleep(Duration::from_secs(1)).await;
-    //     // 切换为running状态
-    //     self.update_node_state(BacktestNodeStateTransitionEvent::StartComplete).await.unwrap();
-    //     Ok(())
-    // }
+    // 设置节点默认出口
+    async fn set_output_handle(&mut self) {
+        
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+        
+        
+        // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        self.add_output_handle(strategy_output_handle_id, tx).await;
+
+        // 添加默认出口
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let default_output_handle_id = format!("{}_default_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting start node default output handle");
+        self.add_output_handle(default_output_handle_id, tx).await;
+    }
+
+    
 
     async fn stop(&mut self) -> Result<(), String> {
         let state = self.context.clone();
@@ -136,29 +151,30 @@ impl BacktestNodeTrait for StartNode {
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
-        let node_id = self.context.read().await.get_node_id().clone();
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
         let (transition_result, state_manager) = {
             let node_guard = self.context.read().await;  // 使用读锁获取当前状态
             let mut state_manager = node_guard.get_state_machine().clone_box();
             let transition_result = state_manager.transition(event)?;
             (transition_result, state_manager)
         };
-        tracing::info!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
+
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题
             if let Some(start_action) = action.as_any().downcast_ref::<StartNodeStateAction>() {
                 match start_action {
                 StartNodeStateAction::LogTransition => {
                     let current_state = self.context.read().await.get_state_machine().current_state();
-                    tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
                 }
                 StartNodeStateAction::ListenAndHandleInnerEvents => {
-                    tracing::info!("{}: 开始监听策略内部事件", node_id);
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy inner events");
                     self.listen_strategy_inner_events().await?;
                 }
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();
-                    tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "current state: {:?}", current_state);
                 }
                 _ => {}
             }

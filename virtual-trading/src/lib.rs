@@ -8,6 +8,7 @@ use types::custom_type::*;
 use types::position::virtual_position::VirtualPosition;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::order::virtual_order::VirtualOrder;
+use types::order::OrderStatus;
 use event_center::CommandPublisher;
 use tokio::sync::oneshot;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
@@ -27,7 +28,6 @@ pub struct VirtualTradingSystem {
     pub current_balance: Balance, // 当前资金
     pub margin: Margin, // 保证金
     pub current_positions: Vec<VirtualPosition>, // 当前持仓
-    pub unfilled_orders: Vec<VirtualOrder>, // 未成交订单
     pub orders: Vec<VirtualOrder>, // 所有订单(已成交订单 + 未成交订单)
     pub transactions: Vec<VirtualTransaction>, // 交易历史
     pub command_publisher: CommandPublisher, // 命令发布者
@@ -44,8 +44,7 @@ impl VirtualTradingSystem {
             leverage: 0, 
             current_balance: 0.0,
             margin: 0.0, 
-            current_positions: vec![], 
-            unfilled_orders: vec![],
+            current_positions: vec![],
             orders: vec![],
             transactions: vec![],
             command_publisher,
@@ -157,12 +156,15 @@ impl VirtualTradingSystem {
     }
 
     // 获取未成交订单
-    pub fn get_unfilled_orders(&self) -> &Vec<VirtualOrder> {
-        &self.unfilled_orders
+    pub fn get_unfilled_orders(&self) -> Vec<&VirtualOrder> {
+        self.orders
+            .iter()
+            .filter(|order| order.order_status == OrderStatus::Created || order.order_status == OrderStatus::Placed)
+            .collect::<Vec<&VirtualOrder>>()
     }
 
     pub fn get_order(&self, order_id: OrderId) -> Option<&VirtualOrder> {
-        self.unfilled_orders.iter().find(|order| order.order_id == order_id)
+        self.orders.iter().find(|order| order.order_id == order_id)
     }
 
     // 获取交易历史

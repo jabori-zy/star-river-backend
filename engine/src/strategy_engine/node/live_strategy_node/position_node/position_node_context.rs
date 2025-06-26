@@ -8,7 +8,7 @@ use heartbeat::Heartbeat;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use types::strategy::node_event::{NodeEvent, OrderMessage};
+use types::strategy::node_event::{NodeEvent, OrderEvent};
 use types::order::Order;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use exchange_client::ExchangeClient;
@@ -70,7 +70,7 @@ impl LiveNodeContextTrait for PositionNodeContext {
         match message {
             NodeEvent::Order(order_message) => {
                 match order_message {
-                    OrderMessage::OrderFilled(order) => {
+                    OrderEvent::OrderFilled(order) => {
                         tracing::debug!("{}: 收到订单已完成信息: {:?}", self.get_node_name(), order);
                         if let Err(e) = self.get_position(order).await {
                             tracing::error!("{}: 获取仓位信息失败: {:?}", self.get_node_name(), e);

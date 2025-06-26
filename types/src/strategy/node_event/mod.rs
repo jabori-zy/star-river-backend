@@ -12,6 +12,7 @@ use crate::cache::CacheValue;
 use crate::cache::cache_key::BacktestKlineCacheKey;
 use std::sync::Arc;
 use variable_event::PositionNumberUpdateEvent;
+use crate::order::virtual_order::VirtualOrder;
 
 
 
@@ -21,27 +22,36 @@ pub enum NodeEvent {
     #[strum(serialize = "kline_series")]
     #[serde(rename = "kline_series")]
     KlineSeries(KlineSeriesMessage),
+
     #[strum(serialize = "indicator")]
     #[serde(rename = "indicator")]
     Indicator(IndicatorEvent),
+
     #[strum(serialize = "signal")]
     #[serde(rename = "signal")]
     Signal(SignalEvent),
+
     #[strum(serialize = "order")]
     #[serde(rename = "order")]
-    Order(OrderMessage),
+    Order(OrderEvent),
+
     #[strum(serialize = "position")]
     #[serde(rename = "position")]
     Position(PositionMessage),
+
     #[strum(serialize = "variable")]
     #[serde(rename = "variable")]
     Variable(VariableMessage),
+
     #[strum(serialize = "backtest_kline_update")]
     #[serde(rename = "backtest_kline_update")]
     BacktestKline(BacktestKlineUpdateEvent), // 回测K线更新(缓存index, K线) 回测k线更新
-    // #[strum(serialize = "backtest_signal")]
-    // #[serde(rename = "backtest_signal")]
-    // BacktestSignal(BacktestSignalEvent), // 回测信号
+
+    #[strum(serialize = "virtual_order")]
+    #[serde(rename = "virtual_order")]
+    VirtualOrder(VirtualOrderEvent),
+
+
 }
 
 
@@ -83,9 +93,11 @@ pub struct LiveIndicatorUpdateEvent {
 pub struct BacktestIndicatorUpdateEvent {
     pub from_node_id: String,
     pub from_node_name: String,
+    pub from_handle_id: String,
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
+    pub indicator_id: i32,
     pub indicator_config: IndicatorConfig,
     pub indicator_series: Vec<Arc<CacheValue>>,
     pub kline_cache_index: u32,
@@ -117,7 +129,7 @@ pub struct BacktestIndicatorUpdateEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "message_type")]
-pub enum OrderMessage {
+pub enum OrderEvent {
     #[strum(serialize = "order-created")]
     #[serde(rename = "order-created")]
     OrderCreated(Order),
@@ -131,6 +143,27 @@ pub enum OrderMessage {
     #[serde(rename = "order-filled")]
     OrderFilled(Order),
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "event_type")]
+pub enum VirtualOrderEvent {
+    #[strum(serialize = "virtual-order-created")]
+    #[serde(rename = "virtual-order-created")]
+    VirtualOrderCreated(VirtualOrder),
+    #[strum(serialize = "virtual-order-updated")]
+    #[serde(rename = "virtual-order-updated")]
+    VirtualOrderUpdated(VirtualOrder),
+    #[strum(serialize = "virtual-order-canceled")]
+    #[serde(rename = "virtual-order-canceled")]
+    VirtualOrderCanceled(VirtualOrder),
+    #[strum(serialize = "virtual-order-filled")]
+    #[serde(rename = "virtual-order-filled")]
+    VirtualOrderFilled(VirtualOrder),
+}
+
+
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]

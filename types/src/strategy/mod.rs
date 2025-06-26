@@ -60,10 +60,13 @@ pub enum TradeMode {
 pub struct SelectedAccount {
     #[serde(rename = "id")]
     pub account_id: i32, // 账户ID
+
     #[serde(rename = "accountName")]
     pub account_name: String, // 账户名称
+
     #[serde(deserialize_with = "deserialize_exchange")]
     pub exchange: Exchange, // 交易所
+
     #[serde(rename = "availableBalance")]
     pub available_balance: f64, // 可用余额
 }
@@ -101,6 +104,7 @@ pub enum BacktestDataSource {
     #[strum(serialize = "file")]
     #[serde(rename = "file")]
     File, // 文件
+
     #[strum(serialize = "exchange")]
     #[serde(rename = "exchange")]
     Exchange, // 交易所
@@ -121,7 +125,7 @@ impl fmt::Display for TimeRange {
 }
 
 
-fn deserialize_time_range<'de, D>(deserializer: D) -> Result<Option<TimeRange>, D::Error>
+fn deserialize_time_range<'de, D>(deserializer: D) -> Result<TimeRange, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -135,7 +139,7 @@ where
             match (chrono::NaiveDate::parse_from_str(start, "%Y-%m-%d"), 
                    chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d")) {
                 (Ok(start_date), Ok(end_date)) => {
-                    return Ok(Some(TimeRange { start_date, end_date }));
+                    return Ok(TimeRange { start_date, end_date });
                 }
                 _ => return Err(serde::de::Error::custom("无法解析日期格式"))
             }
@@ -157,38 +161,53 @@ pub struct DataSourceExchange {
     pub exchange: Exchange, // 交易所
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExchangeModeConfig {
+    #[serde(rename = "selectedAccounts")]
+    pub selected_accounts: Vec<SelectedAccount>,
+
+    #[serde(rename = "timeRange")]
+    #[serde(deserialize_with = "deserialize_time_range")]
+    pub time_range: TimeRange,
+}
+
+
 // 回测模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BacktestStrategyConfig {
     #[serde(rename = "dataSource")]
     pub data_source: BacktestDataSource, // 数据源
-    #[serde(rename = "timeRange")]
-    #[serde(deserialize_with = "deserialize_time_range")]
-    pub time_range: Option<TimeRange>, // 时间范围
-    #[serde(rename = "fromExchanges")]
-    pub from_exchanges: Option<Vec<DataSourceExchange>>, // 数据来源交易所
+
+
+    #[serde(rename = "exchangeModeConfig")]
+    pub exchange_mode_config: Option<ExchangeModeConfig>, // 交易所模式配置
+
     #[serde(rename = "initialBalance")]
     pub initial_balance: f64, // 初始资金
+
     #[serde(rename = "leverage")]
     pub leverage: i32, // 杠杆
+
     #[serde(rename = "feeRate")]
     pub fee_rate: f64, // 手续费率
+
     #[serde(rename = "playSpeed")]
     pub play_speed: i32, // 回放速度
-    pub variables: Option<HashMap<String, Variable>>, // 变量 var_name -> Variable
+    
+    #[serde(rename = "variables")]
+    pub variables: Vec<Variable>, // 变量 var_name -> Variable
 }
 
 impl Default for BacktestStrategyConfig {
     fn default() -> Self {
         BacktestStrategyConfig {
             data_source: BacktestDataSource::File,
-            time_range: None,
-            from_exchanges: None,
+            exchange_mode_config: None,
             initial_balance: 10000.0,
             leverage: 10,
             fee_rate: 0.0001,
             play_speed: 1,
-            variables: None,
+            variables: Vec::new(),
         }
     }
 }

@@ -21,6 +21,7 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
+use types::strategy::node_event::NodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -83,6 +84,42 @@ impl BacktestNodeTrait for KlineNode {
     // 获取节点状态
     fn get_context(&self) -> Arc<RwLock<Box<dyn BacktestNodeContextTrait>>> {
         self.context.clone()
+    }
+
+    // 设置节点的出口
+    async fn set_output_handle(&mut self) {
+        
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+
+        // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        self.add_output_handle(strategy_output_handle_id, tx).await;
+
+        // 添加默认出口
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let default_output_handle_id = format!("{}_default_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        self.add_output_handle(default_output_handle_id, tx).await;
+
+        // 添加每一个symbol的出口
+        let selected_symbols = {
+            let context = self.get_context();
+            let context_guard = context.read().await;
+            let kline_node_context = context_guard.as_any().downcast_ref::<KlineNodeContext>().unwrap();
+            let exchange_mode_config = kline_node_context.backtest_config.exchange_mode_config.as_ref().unwrap();
+            exchange_mode_config.selected_symbols.clone()
+        };
+        
+        for symbol in selected_symbols.iter() {
+            let symbol_output_handle_id = symbol.handle_id.clone();
+            tracing::debug!(node_id = %node_id, node_name = %node_name, symbol_output_handle_id = %symbol_output_handle_id, "setting symbol output handle");
+            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(symbol_output_handle_id, tx).await;
+        }
+        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
 
@@ -153,8 +190,6 @@ impl BacktestNodeTrait for KlineNode {
             let transition_result = state_machine.transition(event)?;
             (transition_result, state_machine)
         };
-
-        tracing::debug!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
         
         
         // 执行转换后需要执行的动作
@@ -201,13 +236,13 @@ impl BacktestNodeTrait for KlineNode {
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            let response = kline_node_context.load_kline_history_from_exchange().await?;
-                            if response.code() == 0 {
+                            let is_all_success = kline_node_context.load_kline_history_from_exchange().await?;
+                            if is_all_success {
                                 // 加载K线历史成功后，设置data_is_loaded=true
                                 *kline_node_context.data_is_loaded.write().await = true;
                                 tracing::info!("{}从交易所加载K线历史成功", node_id);
                             } else {
-                                tracing::error!("{}从交易所加载K线历史失败: {:?}", node_id, response);
+                                tracing::error!("{}从交易所加载K线历史失败", node_id);
                             }
                         }
                     }

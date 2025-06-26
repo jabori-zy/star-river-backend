@@ -40,7 +40,6 @@ impl BacktestStrategyFunction {
             
             // k线频率设置
             let frequency = 2000;
-            tracing::debug!("实时数据节点数据: {:?}", node_data);
             // 解析策略配置
             let kline_config_json = node_data["backtestConfig"].clone();
             if kline_config_json.is_null() {
@@ -50,12 +49,12 @@ impl BacktestStrategyFunction {
             let backtest_config = serde_json::from_value::<KlineNodeBacktestConfig>(kline_config_json).unwrap();
             match backtest_config.data_source {
                 BacktestDataSource::Exchange => {
-                    let exchange_config = backtest_config.clone().exchange_config.unwrap();
-                    let exchange = exchange_config.selected_data_source.exchange.clone();
-                    let symbol = exchange_config.symbol.clone();
-                    let interval = exchange_config.interval.clone();
-                    let start_time = exchange_config.time_range.start_date.to_string();
-                    let end_time = exchange_config.time_range.end_date.to_string();
+                    let exchange_mode_config = backtest_config.clone().exchange_mode_config.unwrap();
+                    let exchange = exchange_mode_config.selected_account.exchange.clone();
+                    let symbol = exchange_mode_config.selected_symbols.first().unwrap().symbol.clone();
+                    let interval = exchange_mode_config.selected_symbols.first().unwrap().interval.clone();
+                    let start_time = exchange_mode_config.time_range.start_date.to_string();
+                    let end_time = exchange_mode_config.time_range.end_date.to_string();
                     let backtest_kline_cache_key = BacktestKlineCacheKey::new(exchange, symbol, interval, start_time, end_time);
                     // 添加到策略缓存key列表中
                     strategy_cache_keys.push(backtest_kline_cache_key.clone().into());
@@ -87,6 +86,7 @@ impl BacktestStrategyFunction {
             let node = Box::new(node);
             let node_index = graph.add_node(node);
             node_indices.insert(node_id.to_string(), node_index);
+            tracing::debug!("成功添加k线节点: {:?}", node_id);
             Ok(())
         }
 }

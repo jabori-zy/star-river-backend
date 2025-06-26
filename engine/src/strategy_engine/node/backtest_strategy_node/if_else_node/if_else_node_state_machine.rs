@@ -7,8 +7,7 @@ pub enum IfElseNodeStateAction {
     ListenAndHandleStrategySignal,   // 处理策略信号
     ListenAndHandleNodeEvents,
     ListenAndHandleInnerEvents,
-    InitReceivedFlag,
-    InitReceivedValue,
+    InitReceivedData,
     Evaluate,
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
@@ -93,8 +92,8 @@ impl BacktestNodeStateMachine for IfElseNodeStateManager {
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleNodeEvents), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleInnerEvents),
-                        Box::new(IfElseNodeStateAction::InitReceivedFlag), 
-                        Box::new(IfElseNodeStateAction::InitReceivedValue)],
+                        Box::new(IfElseNodeStateAction::InitReceivedData), 
+                        ],
                 }))
             }
             // 初始化完成，进入Ready状态

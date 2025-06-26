@@ -2,6 +2,7 @@ mod if_else_node_state_machine;
 mod if_else_node_context;
 pub mod condition;
 pub mod if_else_node_type;
+mod utils;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -91,34 +92,34 @@ impl IfElseNode {
                         break;
                     }
                     _ = async {
-                        // 检查状态并获取需要的数据
-                        // 是否可以评估条件？
+                        // 使用更短的锁持有时间
                         let should_evaluate = {
-                            // 如果所有节点都已接收数据，则返回true
-                            let mut context_guard = context.write().await;
-                            let if_else_node_context = context_guard.as_any_mut().downcast_mut::<IfElseNodeContext>().expect("转换为IfElseNodeContext失败");
-
-                            if !if_else_node_context.received_flag.values().all(|flag| *flag) {
-                                    false
-                                } else {
-                                    // 重置标记位
-                                    for flag in if_else_node_context.received_flag.values_mut() {
-                                        *flag = false;
-                                    
-                                }
-                                true
-                            }
-                        
+                            let context_guard = context.read().await; // 使用读锁检查状态
+                            let if_else_node_context = context_guard
+                                .as_any()
+                                .downcast_ref::<IfElseNodeContext>()
+                                .expect("转换为IfElseNodeContext失败");
+                            
+                            if_else_node_context.is_all_value_received()
                         };
 
                         if should_evaluate {
-                            let mut context_guard = context.write().await;
-                            let if_else_node_context = context_guard.as_any_mut().downcast_mut::<IfElseNodeContext>().expect("转换为IfElseNodeContext失败");
-                            if_else_node_context.evaluate().await;
+                            let mut context_guard = context.write().await; // 只有需要时才获取写锁
+                            let if_else_node_context = context_guard
+                                .as_any_mut()
+                                .downcast_mut::<IfElseNodeContext>()
+                                .expect("转换为IfElseNodeContext失败");
+                            
+                            // 双重检查，防止竞态条件
+                            if if_else_node_context.is_all_value_received() {
+                                if_else_node_context.evaluate().await;
+                                if_else_node_context.reset_received_flag();
+                            }
                         }
 
-                        // 添加短暂延迟避免过度循环
-                        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                        // 动态调整sleep时间
+                        let sleep_duration = if should_evaluate { 10 } else { 50 };
+                        tokio::time::sleep(tokio::time::Duration::from_millis(sleep_duration)).await;
                     } => {}
                 }
             }
@@ -151,28 +152,32 @@ impl BacktestNodeTrait for IfElseNode {
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        self.add_output_handle(strategy_output_handle_id, tx).await;
 
-        self.add_output_handle(DefaultOutputHandleId::IfElseNodeElseOutput.to_string(), tx).await;
+        // 添加默认出口
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let default_output_handle_id = format!("{}_else_output", node_id); // else分支作为默认出口
+        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        self.add_output_handle(default_output_handle_id, tx).await;
 
-        let context = self.get_context();
-        let mut state_guard = context.write().await;
-        if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-            let cases = if_else_node_context.backtest_config.cases.clone();
+        let cases = {
+            let context = self.get_context();
+            let context_guard = context.read().await;
+            let if_else_node_context = context_guard.as_any().downcast_ref::<IfElseNodeContext>().unwrap();
+            if_else_node_context.backtest_config.cases.clone()
+        };
 
-            for case in cases {
-                let (tx, _) = broadcast::channel::<NodeEvent>(100);
-                let handle = NodeOutputHandle {
-                    node_id: node_id.clone(),
-                    output_handle_id: format!("if_else_node_case_{}_output", case.case_id),
-                    node_event_sender: tx,
-                    connect_count: 0,
-                };
-
-                if_else_node_context.get_all_output_handle_mut().insert(format!("if_else_node_case_{}_output", case.case_id), handle);
-            }
+        for case in cases {
+            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            let case_id = case.case_id;
+            let case_output_handle_id = format!("{}_output{}", node_id, case_id);
+            self.add_output_handle(case_output_handle_id, tx).await;
         }
-        tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, DefaultOutputHandleId::IfElseNodeElseOutput.to_string());
+        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
 
@@ -215,7 +220,6 @@ impl BacktestNodeTrait for IfElseNode {
             (transition_result, state_manager)
         };
 
-        tracing::info!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题
             if let Some(if_else_node_state_action) = action.as_any().downcast_ref::<IfElseNodeStateAction>() {
@@ -237,20 +241,12 @@ impl BacktestNodeTrait for IfElseNode {
                     tracing::info!("{}: 开始监听策略内部事件", node_id);
                     self.listen_strategy_inner_events().await?;
                 }
-                IfElseNodeStateAction::InitReceivedFlag => {
+                IfElseNodeStateAction::InitReceivedData => {
                     tracing::info!("{}: 开始初始化接收标记", node_id);
                     let context = self.get_context();
                     let mut state_guard = context.write().await;
                     if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-                        if_else_node_context.init_received_flag().await;
-                    }
-                }
-                IfElseNodeStateAction::InitReceivedValue => {
-                    tracing::info!("{}: 开始初始化接收值", node_id);
-                    let context = self.get_context();
-                    let mut state_guard = context.write().await;
-                    if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-                        if_else_node_context.init_received_value().await;
+                        if_else_node_context.init_received_data().await;
                     }
                 }
                 IfElseNodeStateAction::Evaluate => {

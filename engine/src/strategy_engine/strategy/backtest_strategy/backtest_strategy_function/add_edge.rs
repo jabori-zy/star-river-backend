@@ -2,7 +2,7 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
-use crate::strategy_engine::node::node_types::NodeEventReceiver;
+use crate::strategy_engine::node::node_types::NodeInputHandle;
 use super::BacktestStrategyFunction;
 
 impl BacktestStrategyFunction {
@@ -20,22 +20,24 @@ impl BacktestStrategyFunction {
         ){
             
             tracing::debug!("添加边: {:?} -> {:?}, 源节点handle = {}", from_node_id, to_node_id, from_handle_id);
-            // 先获取源节点的发送者
-            let sender = graph.node_weight(source).unwrap().get_node_event_sender(from_handle_id.to_string()).await;
+            let from_node_handles = graph.node_weight(source).unwrap().get_all_output_handles().await;
+            tracing::debug!("from_node_handles: {:?}", from_node_handles);
+            // 先获取源节点的output_handle
+            let from_node_output_handle = graph.node_weight(source).unwrap().get_output_handle(&from_handle_id.to_string()).await;
             
-            tracing::debug!("{}: sender: {:?}", from_handle_id, sender);
+            tracing::debug!("{}: from_node_output_handle: {:?}", from_handle_id, from_node_output_handle);
             // 增加源节点的出口连接数
-            graph.node_weight_mut(source).unwrap().add_output_handle_connect_count(from_handle_id.to_string()).await;
+            graph.node_weight_mut(source).unwrap().add_output_handle_connect_count(&from_handle_id.to_string()).await;
             // tracing::debug!("sender: {:?}", sender);
 
             if let Some(target_node) = graph.node_weight_mut(target) {
-                let receiver = sender.subscribe();
+                let receiver = from_node_output_handle.subscribe();
                 // 获取接收者数量
                 
                 // tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
-                let node_message_receiver = NodeEventReceiver::new(
+                let node_message_receiver = NodeInputHandle::new(
                     from_node_id.to_string(), 
-                    from_handle_id.to_string(), 
+                    from_handle_id.to_string(),
                     to_handle_id.to_string(), 
                     receiver);
                 target_node.add_message_receiver(node_message_receiver).await;

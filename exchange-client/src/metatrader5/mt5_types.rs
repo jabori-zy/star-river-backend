@@ -6,7 +6,7 @@ use strum::{EnumString, Display};
 use types::order::OrderStatus;
 use types::order::OriginalOrder;
 use std::any::Any;
-use types::order::{OrderType, OrderSide};
+use types::order::{OrderType, FuturesOrderSide};
 use chrono::{DateTime, Utc};
 use chrono::TimeZone;
 use types::market::KlineInterval;
@@ -213,18 +213,18 @@ impl From<Mt5OrderType> for OrderType {
     }
 }
 
-impl From<Mt5OrderType> for OrderSide {
+impl From<Mt5OrderType> for FuturesOrderSide {
     fn from(value: Mt5OrderType) -> Self {
         match value {
-            Mt5OrderType::OrderTypeBuy => OrderSide::Long,
-            Mt5OrderType::OrderTypeSell => OrderSide::Short,
-            Mt5OrderType::OrderTypeBuyLimit => OrderSide::Long,
-            Mt5OrderType::OrderTypeSellLimit => OrderSide::Short,
-            Mt5OrderType::OrderTypeBuyStop => OrderSide::Long,
-            Mt5OrderType::OrderTypeSellStop => OrderSide::Short,
-            Mt5OrderType::OrderTypeBuyStopLimit => OrderSide::Long,
-            Mt5OrderType::OrderTypeSellStopLimit => OrderSide::Short,
-            Mt5OrderType::OrderTypeCloseBy => OrderSide::Long,
+            Mt5OrderType::OrderTypeBuy => FuturesOrderSide::Long,
+            Mt5OrderType::OrderTypeSell => FuturesOrderSide::Short,
+            Mt5OrderType::OrderTypeBuyLimit => FuturesOrderSide::Long,
+            Mt5OrderType::OrderTypeSellLimit => FuturesOrderSide::Short,
+            Mt5OrderType::OrderTypeBuyStop => FuturesOrderSide::Long,
+            Mt5OrderType::OrderTypeSellStop => FuturesOrderSide::Short,
+            Mt5OrderType::OrderTypeBuyStopLimit => FuturesOrderSide::Long,
+            Mt5OrderType::OrderTypeSellStopLimit => FuturesOrderSide::Short,
+            Mt5OrderType::OrderTypeCloseBy => FuturesOrderSide::Long,
         }
     }
 }
@@ -271,8 +271,8 @@ impl OriginalOrder for Mt5Order {
     fn get_symbol(&self) -> String {
         self.symbol.clone()
     }
-    fn get_order_side(&self) -> OrderSide {
-        let order_side: OrderSide = self.order_type.clone().into();
+    fn get_order_side(&self) -> FuturesOrderSide {
+        let order_side: FuturesOrderSide = self.order_type.clone().into();
         order_side.clone()
     }
     fn get_order_type(&self) -> OrderType {

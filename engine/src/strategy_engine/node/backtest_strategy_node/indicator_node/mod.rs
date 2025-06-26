@@ -21,6 +21,8 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
+use types::cache::cache_key::{BacktestIndicatorCacheKey, BacktestKlineCacheKey};
+use types::strategy::node_event::NodeEvent;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -60,14 +62,59 @@ impl IndicatorNode {
             strategy_inner_event_receiver,
         );
 
+        // 通过配置，获取指标缓存键
+        let indicator_cache_keys = Self::get_indicator_cache_keys(&backtest_config);
+        tracing::debug!("indicator_cache_keys: {:?}", indicator_cache_keys);
+        // 通过配置，获取回测K线缓存键
+        let kline_cache_key = Self::get_kline_cache_key(&backtest_config);
+
         Self {
             context: Arc::new(RwLock::new(Box::new(IndicatorNodeContext {
                 base_context,
                 backtest_config,
                 is_registered: Arc::new(RwLock::new(false)),
+                indicator_cache_keys,
+                kline_cache_key,
             }))),
             
         }
+    }
+
+    fn get_indicator_cache_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<BacktestIndicatorCacheKey> {
+        let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+        let symbol = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.symbol.clone();
+        let interval = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.interval.clone();
+        let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+
+        let mut indicator_cache_keys = vec![];
+        for indicator in backtest_config.exchange_mode_config.as_ref().unwrap().selected_indicators.iter() {
+            let indicator_cache_key = BacktestIndicatorCacheKey {
+                exchange: exchange.clone(), 
+                symbol: symbol.clone(), 
+                interval: interval.clone(), 
+                indicator_config: indicator.indicator_config.clone(),
+                start_time: time_range.start_date.to_string(),
+                end_time: time_range.end_date.to_string(),
+            };
+            indicator_cache_keys.push(indicator_cache_key);
+        }
+        indicator_cache_keys
+    }
+
+    fn get_kline_cache_key(backtest_config: &IndicatorNodeBacktestConfig) -> BacktestKlineCacheKey {
+        let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+        let symbol = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.symbol.clone();
+        let interval = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.interval.clone();
+        let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+
+        let kline_cache_key = BacktestKlineCacheKey {
+            exchange: exchange.clone(), 
+            symbol: symbol.clone(), 
+            interval: interval.clone(), 
+            start_time: time_range.start_date.to_string(),
+            end_time: time_range.end_date.to_string(),
+        };
+        kline_cache_key
     }
     
     
@@ -89,6 +136,44 @@ impl BacktestNodeTrait for IndicatorNode {
 
     fn get_context(&self) -> Arc<RwLock<Box<dyn BacktestNodeContextTrait>>> {
         self.context.clone()
+    }
+
+    // 设置节点的出口
+    async fn set_output_handle(&mut self) {
+        
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+
+        // 添加strategy_ouput_handle
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        self.add_output_handle(strategy_output_handle_id, tx).await;
+        
+        
+
+        // 添加默认出口
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let default_output_handle_id = format!("{}_default_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        self.add_output_handle(default_output_handle_id, tx).await;
+
+        // 添加每一个indicator的出口
+        let selected_indicator = {
+            let context = self.get_context();
+            let context_guard = context.read().await;
+            let indicator_node_context = context_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
+            let exchange_mode_config = indicator_node_context.backtest_config.exchange_mode_config.as_ref().unwrap();
+            exchange_mode_config.selected_indicators.clone()
+        };
+        
+        for indicator in selected_indicator.iter() {
+            let indicator_output_handle_id = indicator.handle_id.clone();
+            tracing::debug!(node_id = %node_id, node_name = %node_name, indicator_output_handle_id = %indicator_output_handle_id, "setting indicator output handle");
+            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(indicator_output_handle_id, tx).await;
+        }
+        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), String> {
@@ -142,8 +227,7 @@ impl BacktestNodeTrait for IndicatorNode {
             let transition_result = state_machine.transition(event)?;
             (transition_result, state_machine)
         };
-
-        tracing::info!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
+        
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {
             if let Some(indicator_node_state_action) = action.as_any().downcast_ref::<IndicatorNodeStateAction>() {
@@ -172,13 +256,13 @@ impl BacktestNodeTrait for IndicatorNode {
                         tracing::info!("{}: 开始注册指标缓存键", node_id);
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
-                        let register_indicator_response = context.register_indicator_cache_key().await;
-                        if let Ok(register_indicator_response) = register_indicator_response {
-                            if register_indicator_response.code() == 0 {
+                        let is_all_success = context.register_indicator_cache_key().await;
+                        if let Ok(is_all_success) = is_all_success {
+                            if is_all_success {
                                 *context.is_registered.write().await = true;
                                 tracing::info!("{}: 注册指标缓存键成功", node_id);
                             } else {
-                                tracing::error!("{}: 注册指标缓存键失败: {:?}", node_id, register_indicator_response);
+                                tracing::error!("{}: 注册指标缓存键失败", node_id);
                             }
                         }
                     }
@@ -186,11 +270,15 @@ impl BacktestNodeTrait for IndicatorNode {
                         tracing::info!("{}: 开始计算指标", node_id);
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
-                        let calculate_indicator_response = context.calculate_indicator().await;
-                        if let Ok(calculate_indicator_response) = calculate_indicator_response {
-                            tracing::info!("{}: 计算指标成功: {:?}", node_id, calculate_indicator_response);
+                        let is_all_success = context.calculate_indicator().await;
+                        if let Ok(is_all_success) = is_all_success {
+                            if is_all_success {
+                                tracing::info!("{}: 计算指标成功", node_id);
+                            } else {
+                                tracing::error!("{}: 计算指标失败", node_id);
+                            }
                         } else {
-                            tracing::error!("{}: 计算指标失败: {:?}", node_id, calculate_indicator_response);
+                            tracing::error!("{}: 计算指标失败", node_id);
                         }
                     }
                     _ => {}

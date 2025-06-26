@@ -46,7 +46,7 @@ impl BacktestNodeContextTrait for StartNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("start_node_output")).unwrap().clone()
+        self.base_context.output_handles.get(&format!("start_node_default_output")).unwrap().clone()
     }
 
 
@@ -66,15 +66,16 @@ impl BacktestNodeContextTrait for StartNodeContext {
                 // *self.played_index.write().await = play_index_update_event.played_index;
                 self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let strategy_output_handle = self.get_strategy_output_handle();
                 // 更新完成后，发送索引已更新事件
                 let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
                     node_play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
-                self.get_default_output_handle().send(signal).unwrap();
+                strategy_output_handle.send(signal).unwrap();
             }
         }
         Ok(())
@@ -88,29 +89,30 @@ impl StartNodeContext {
         let kline_tick_event = KlineTickEvent {
             from_node_id: self.base_context.node_id.clone(),
             from_node_name: self.base_context.node_name.clone(),
-            from_node_handle_id: self.base_context.output_handle.get(&format!("start_node_output")).unwrap().output_handle_id.clone(),
+            from_node_handle_id: "start_node_default_output".to_string(),
             play_index: signal_index,
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
         
         let signal = NodeEvent::Signal(SignalEvent::KlineTick(kline_tick_event.clone()));
-        self.get_default_output_handle().send(signal).unwrap();
+        // 通过default出口，给节点发送信号
+        self.get_default_output_handle().send(signal.clone()).unwrap();
 
     }
 
     // 发送k线播放完毕信号
     pub async fn send_finish_signal(&self, signal_index : u32) {
+        let default_output_handle = self.get_default_output_handle();
         let finish_signal = KlinePlayFinishedEvent {
             from_node_id: self.get_node_id().clone(),
             from_node_name: self.get_node_name().clone(),
-            from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+            from_node_handle_id: default_output_handle.output_handle_id.clone(),
             signal_index,
             message_timestamp: get_utc8_timestamp_millis(),
         };
 
         let signal = NodeEvent::Signal(SignalEvent::KlinePlayFinished(finish_signal));
-        // tracing::info!("{}: 发送信号: {:?}", node_id, signal);
-        self.get_default_output_handle().send(signal).unwrap();
+        default_output_handle.send(signal.clone()).unwrap();
 
     }
 }

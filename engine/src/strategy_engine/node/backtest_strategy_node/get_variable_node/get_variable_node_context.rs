@@ -53,7 +53,7 @@ impl BacktestNodeContextTrait for GetVariableNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("get_variable_node_output")).unwrap().clone()
+        self.base_context.output_handles.get(&format!("get_variable_node_output")).unwrap().clone()
     }
     
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {

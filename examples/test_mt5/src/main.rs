@@ -14,7 +14,7 @@ use event_center::command::exchange_engine_command::ExchangeEngineCommand;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use types::order::{OrderType, OrderSide};
+use types::order::{OrderType, FuturesOrderSide};
 use event_center::command::exchange_engine_command::RegisterMt5ExchangeParams;
 use event_center::command::market_engine_command::MarketEngineCommand;
 use types::market::KlineInterval;

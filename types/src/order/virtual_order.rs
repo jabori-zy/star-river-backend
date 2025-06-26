@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
-use crate::order::{OrderSide,OrderType,OrderStatus};
+use crate::order::{FuturesOrderSide,OrderType,OrderStatus};
 use crate::market::Exchange;
 use crate::custom_type::*;
 use crate::position::virtual_position::VirtualPosition;
@@ -11,7 +11,7 @@ pub struct VirtualOrder {
     pub node_id: NodeId, // 节点ID
     pub exchange: Exchange, // 交易所
     pub symbol: String, // 交易对
-    pub order_side: OrderSide, // 订单方向
+    pub order_side: FuturesOrderSide, // 订单方向
     pub order_type: OrderType, // 订单类型
     pub order_status: OrderStatus, // 订单状态
     pub quantity: f64, // 数量
@@ -29,7 +29,7 @@ impl VirtualOrder {
         node_id: NodeId,
         exchange: Exchange,
         symbol: String,
-        order_side: OrderSide,
+        order_side: FuturesOrderSide,
         order_type: OrderType,
         quantity: f64,
         open_price: f64,

@@ -195,22 +195,22 @@ impl BacktestNodeFunction {
     }
 
     pub async fn listen_node_events(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
-        let (receivers, cancel_token, node_id) = {
+        let (input_handles, cancel_token, node_id) = {
             let state_guard = context.read().await;
-            let receivers = state_guard.get_node_event_receivers().clone();
+            let input_handles = state_guard.get_all_input_handles().clone();
             let cancel_token = state_guard.get_cancel_token().clone();
             let node_id = state_guard.get_node_id().to_string();
-            (receivers, cancel_token, node_id)
+            (input_handles, cancel_token, node_id)
         };
 
-        if receivers.is_empty() {
+        if input_handles.is_empty() {
             tracing::warn!("{}: 没有消息接收器", node_id);
             return;
         }
 
         // 创建一个流，用于接收节点传递过来的message
-        let streams: Vec<_> = receivers.iter()
-            .map(|receiver| BroadcastStream::new(receiver.get_receiver()))
+        let streams: Vec<_> = input_handles.iter()
+            .map(|input_handle| BroadcastStream::new(input_handle.get_receiver()))
             .collect();
 
         let mut combined_stream = select_all(streams);

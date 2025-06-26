@@ -18,7 +18,7 @@ pub struct CreateOrderParams {
     pub exchange: Exchange,
     pub symbol: String,
     pub order_type: OrderType,
-    pub order_side: OrderSide,
+    pub order_side: FuturesOrderSide,
     pub quantity: f64,
     pub price: f64,
     pub tp: Option<f64>,
@@ -40,15 +40,15 @@ pub struct GetTransactionDetailParams {
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
-pub enum OrderSide {
-    #[strum(serialize = "long")]
+pub enum FuturesOrderSide {
+    #[strum(serialize = "LONG")]
     Long,
-    #[strum(serialize = "short")]
+    #[strum(serialize = "SHORT")]
     Short,
 }
 
 
-pub fn deserialize_order_side<'de, D>(deserializer: D) -> Result<OrderSide, D::Error>
+pub fn deserialize_futures_order_side<'de, D>(deserializer: D) -> Result<FuturesOrderSide, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -56,7 +56,7 @@ where
     let s = String::deserialize(deserializer)?;
     
     // 使用as_str()方法获取&str，然后传递给from_str
-    match OrderSide::from_str(s.as_str()) {
+    match FuturesOrderSide::from_str(s.as_str()) {
         Ok(order_side) => Ok(order_side),
         Err(e) => Err(serde::de::Error::custom(format!("无法解析OrderSide: {}", e)))
     }
@@ -64,13 +64,13 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum OrderType {
-    #[strum(serialize = "market")]
+    #[strum(serialize = "MARKET")]
     Market,
-    #[strum(serialize = "limit")]
+    #[strum(serialize = "LIMIT")]
     Limit,
-    #[strum(serialize = "stop")]
+    #[strum(serialize = "STOP")]
     Stop,
-    #[strum(serialize = "stop_limit")]
+    #[strum(serialize = "STOP_LIMIT")]
     StopLimit
 }
 
@@ -121,7 +121,7 @@ pub struct Order {
     pub account_id: i32, // 账户ID
     pub exchange: Exchange, // 交易所
     pub symbol: String, // 交易对
-    pub order_side: OrderSide, // 订单方向
+    pub order_side: FuturesOrderSide, // 订单方向
     pub order_type: OrderType, // 订单类型
     pub order_status: OrderStatus, // 订单状态
     pub quantity: f64, // 数量
@@ -139,7 +139,7 @@ pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
     fn get_exchange_order_id(&self) -> i64;
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
-    fn get_order_side(&self) -> OrderSide;
+    fn get_order_side(&self) -> FuturesOrderSide;
     fn get_order_type(&self) -> OrderType;
     fn get_order_status(&self) -> OrderStatus;
     fn get_quantity(&self) -> f64;

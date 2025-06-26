@@ -4,8 +4,8 @@ use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use event_center::EventPublisher;
-use crate::strategy_engine::node::backtest_strategy_node::order_node::order_node_types::*;
-use crate::strategy_engine::node::backtest_strategy_node::order_node::OrderNode;
+use crate::strategy_engine::node::backtest_strategy_node::futures_order_node::futures_order_node_types::*;
+use crate::strategy_engine::node::backtest_strategy_node::futures_order_node::FuturesOrderNode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
@@ -16,7 +16,7 @@ use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 
 impl BacktestStrategyFunction {
-    pub async fn add_order_node(
+    pub async fn add_futures_order_node(
         graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: serde_json::Value,
@@ -39,8 +39,8 @@ impl BacktestStrategyFunction {
         if backtest_config_json.is_null() {
             return Err("backtestConfig is null".to_string());
         }
-        let backtest_config = serde_json::from_value::<OrderNodeBacktestConfig>(backtest_config_json).unwrap();
-        let mut node = OrderNode::new(
+        let backtest_config = serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).unwrap();
+        let mut node = FuturesOrderNode::new(
             strategy_id as i32,
             node_id.clone(),
             node_name,

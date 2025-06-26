@@ -126,12 +126,14 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
+    // 所有节点发送的事件都会汇集到这里
     pub async fn handle_node_events(&self, node_event: NodeEvent) -> Result<(), String> {
+        tracing::info!("{}: 收到消息: {:?}", self.strategy_name, node_event);
         match node_event {
             NodeEvent::Signal(signal_event) => {
                 match signal_event {
                     SignalEvent::PlayIndexUpdated(play_index_update_event) => {
-                        tracing::debug!("{}play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.node_play_index);
+                        tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.node_play_index);
                         // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
                         let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
                         if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
@@ -140,7 +142,7 @@ impl BacktestStrategyContext {
                         
                         // 如果所有节点索引更新完毕，则通知等待的线程
                         if updated_play_index_node_ids.len() == self.graph.node_count() {
-                            // tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
+                            tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
                             self.updated_play_index_notify.notify_waiters();
                             // 通知完成后，清空updated_play_index_node_ids
                             updated_play_index_node_ids.clear();

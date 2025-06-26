@@ -2,7 +2,7 @@ use crate::strategy_engine::node::LiveNodeTrait;
 use petgraph::{Graph, Directed};
 use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
-use crate::strategy_engine::node::node_types::NodeEventReceiver;
+use crate::strategy_engine::node::node_types::NodeInputHandle;
 use super::LiveStrategyFunction;
 
 impl LiveStrategyFunction {
@@ -33,7 +33,7 @@ impl LiveStrategyFunction {
                 // 获取接收者数量
                 
                 // tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
-                let node_message_receiver = NodeEventReceiver::new(
+                let node_message_receiver = NodeInputHandle::new(
                     from_node_id.to_string(), 
                     from_handle_id.to_string(), 
                     to_handle_id.to_string(), 

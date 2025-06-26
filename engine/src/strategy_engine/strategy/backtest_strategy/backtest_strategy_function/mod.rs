@@ -4,7 +4,7 @@ mod add_start_node;
 mod add_kline_node;
 mod add_if_else_node;
 mod add_indicator_node;
-mod add_order_node;
+mod add_futures_order_node;
 mod add_get_variable_node;
 // mod add_position_node;
 // pub mod sys_variable_function;
@@ -22,23 +22,20 @@ pub struct BacktestStrategyFunction;
 
 
 impl BacktestStrategyFunction {
-    // 将所有节点的output_handle添加到策略中
-    pub async fn add_node_output_handle(graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>) -> Vec<NodeOutputHandle> {
-        tracing::debug!("添加所有节点节点的输出句柄");
+    // 将所有节点的strategy_output_handle添加到策略中
+    pub async fn add_strategy_output_handle(graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>) -> Vec<NodeOutputHandle> {
         let mut strategy_output_handles = Vec::new();
         // 先将所有的连接数+1
         for node in graph.node_weights_mut() {
-            let output_handles = node.get_all_output_handles().await;
-            for output_handle in output_handles {
-                let output_handle_id = output_handle.output_handle_id.clone();
-                // 增加节点的出口连接数
-                node.add_output_handle_connect_count(output_handle_id).await;
-            }
+            let output_handle = node.get_strategy_output_handle().await;
+            let output_handle_id = &output_handle.output_handle_id;
+            // 增加节点的出口连接数
+            node.add_output_handle_connect_count(output_handle_id).await;
         }
-        // 再将所有的输出句柄添加到策略中
+        // 再将所有节点的策略输出句柄添加到策略中
         for node in graph.node_weights_mut() {
-            let output_handles = node.get_all_output_handles().await;
-            strategy_output_handles.extend(output_handles);
+            let output_handle = node.get_strategy_output_handle().await;
+            strategy_output_handles.push(output_handle);
         }
         strategy_output_handles
     }
@@ -46,10 +43,11 @@ impl BacktestStrategyFunction {
     pub async fn listen_node_events(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (receivers, cancel_token, strategy_name) = {
             let context_guard = context.read().await;
-            let receivers = context_guard.get_all_node_output_handles();
+            let node_handles = context_guard.get_all_node_output_handles();
+            tracing::debug!("待监听的node handles: {:?}", node_handles);
             let cancel_token = context_guard.get_cancel_token();
             let strategy_name = context_guard.get_strategy_name();
-            (receivers, cancel_token, strategy_name)
+            (node_handles, cancel_token, strategy_name)
         };
 
         if receivers.is_empty() {
@@ -97,6 +95,7 @@ impl BacktestStrategyFunction {
             }
         });
     }
+
 
     pub async fn listen_command(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (strategy_name, command_receiver) = {

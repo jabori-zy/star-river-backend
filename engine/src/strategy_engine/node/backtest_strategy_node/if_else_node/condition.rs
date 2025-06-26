@@ -6,22 +6,27 @@ use strum_macros::Display;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
-pub enum ComparisonOperator {
+pub enum ComparisonSymbol {
     #[serde(rename = ">")]
     #[strum(serialize = ">")]
     GreaterThan,
+
     #[serde(rename = "<")]
     #[strum(serialize = "<")]
     LessThan,
+
     #[serde(rename = "=")]
     #[strum(serialize = "=")]
     Equal,
+
     #[serde(rename = "!=")]
     #[strum(serialize = "!=")]
     NotEqual,
+
     #[serde(rename = ">=")]
     #[strum(serialize = ">=")]
     GreaterThanOrEqual,
+
     #[serde(rename = "<=")]
     #[strum(serialize = "<=")]
     LessThanOrEqual,
@@ -39,18 +44,29 @@ pub enum VarType {
 pub struct Variable {
     #[serde(rename = "nodeId")]
     pub node_id: Option<String>,
+
+    #[serde(rename = "nodeName")]
+    pub node_name: Option<String>,
+
     #[serde(rename = "varType")]
     pub var_type: VarType,
-    #[serde(rename = "varibale")]  // 注意：保持与 JSON 中的拼写一致
+
+    #[serde(rename = "handleId")]
+    pub handle_id: Option<String>,
+
+    #[serde(rename = "variableId")]
+    pub variable_id: Option<i32>,
+
+    #[serde(rename = "variable")]  // 注意：保持与 JSON 中的拼写一致
     pub variable: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Condition {
     #[serde(rename = "conditionId")]
-    pub condition_id: String,
-    #[serde(rename = "comparisonOperator")]
-    pub comparison_operator: ComparisonOperator,
+    pub condition_id: i32,
+    #[serde(rename = "comparisonSymbol")]
+    pub comparison_symbol: ComparisonSymbol,
     #[serde(rename = "leftVariable")]
     pub left_variable: Variable,
     #[serde(rename = "rightVariable")]
@@ -59,7 +75,7 @@ pub struct Condition {
 
 // 逻辑操作符
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum LogicOperator {
+pub enum LogicalSymbol {
     #[serde(rename = "and")]
     And,
     #[serde(rename = "or")]
@@ -72,8 +88,8 @@ pub struct Case {
     #[serde(rename = "caseId")]
     pub case_id: i32,
     pub conditions: Vec<Condition>,
-    #[serde(rename = "logicalOperator")]
-    pub logic_operator: LogicOperator,
+    #[serde(rename = "logicalSymbol")]
+    pub logical_symbol: LogicalSymbol,
 }
 
 // 使用示例

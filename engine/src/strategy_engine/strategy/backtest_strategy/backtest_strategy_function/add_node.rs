@@ -64,8 +64,8 @@ impl BacktestStrategyFunction {
                 Ok(())
             }
             // 订单节点
-            NodeType::OrderNode => {
-                Self::add_order_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, database, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+            NodeType::FuturesOrderNode => {
+                Self::add_futures_order_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, database, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
                 Ok(())
             }
             // // 持仓节点

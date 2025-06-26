@@ -23,7 +23,7 @@ use types::order::Order;
 use types::order::OrderStatus;
 use database::mutation::order_mutation::OrderMutation;
 use tokio::sync::RwLock;
-use types::strategy::node_event::OrderMessage;
+use types::strategy::node_event::OrderEvent;
 use database::mutation::transaction_mutation::TransactionMutation;
 use exchange_client::ExchangeClient;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -142,7 +142,7 @@ impl OrderNodeContext {
             if original_order.get_order_status() == OrderStatus::Filled {
                 // 发送订单已成交信号
                 let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
-                let order_message = OrderMessage::OrderFilled(order.clone());
+                let order_message = OrderEvent::OrderFilled(order.clone());
                 // 发送消息
                 output_handle.send(NodeEvent::Order(order_message.clone())).unwrap();
                 // 获取交易明细
@@ -161,7 +161,7 @@ impl OrderNodeContext {
 
     async fn send_test_signal(&mut self) {
         let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
-        let order_message = OrderMessage::OrderFilled(Order {
+        let order_message = OrderEvent::OrderFilled(Order {
             order_id: 1,
             strategy_id: self.get_strategy_id().clone(),
             node_id: self.get_node_id().clone(),

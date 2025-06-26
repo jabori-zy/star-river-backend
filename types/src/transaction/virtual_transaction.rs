@@ -6,7 +6,7 @@ use crate::transaction::TransactionType;
 use crate::transaction::TransactionSide;
 use crate::order::virtual_order::VirtualOrder;
 use crate::position::virtual_position::VirtualPosition;
-use crate::order::OrderSide;
+use crate::order::FuturesOrderSide;
 
 
 
@@ -45,8 +45,8 @@ impl VirtualTransaction {
             symbol: virtual_order.symbol.clone(),
             transaction_type: TransactionType::Open,
             transaction_side: match virtual_order.order_side {
-                OrderSide::Long => TransactionSide::Long,
-                OrderSide::Short => TransactionSide::Short,
+                FuturesOrderSide::Long => TransactionSide::Long,
+                FuturesOrderSide::Short => TransactionSide::Short,
             },
             quantity: virtual_order.quantity,
             price: virtual_position.open_price,

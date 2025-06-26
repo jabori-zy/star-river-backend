@@ -1,4 +1,3 @@
-
 use types::cache::cache_key::BacktestKlineCacheKey;
 use std::fmt::Debug;
 use std::any::Any;
@@ -36,7 +35,6 @@ pub struct KlineNodeContext {
     pub data_is_loaded: Arc<RwLock<bool>>,
     pub backtest_config: KlineNodeBacktestConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    // pub kline_cache_index: Arc<RwLock<u32>>,
 }
 
 #[async_trait]
@@ -63,7 +61,8 @@ impl BacktestNodeContextTrait for KlineNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("kline_node_output")).unwrap().clone()
+        let node_id = self.base_context.node_id.clone();
+        self.base_context.output_handles.get(&format!("{}_default_output", node_id)).unwrap().clone()
     }
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
@@ -72,61 +71,132 @@ impl BacktestNodeContextTrait for KlineNodeContext {
     }
 
     async fn handle_node_event(&mut self, message: NodeEvent) -> Result<(), String> {
-        // tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
+        tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
         // 收到消息之后，获取对应index的k线数据
-        let exchange = self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.exchange.clone();
-        let symbol = self.backtest_config.exchange_config.as_ref().unwrap().symbol.clone();
-        let interval = self.backtest_config.exchange_config.as_ref().unwrap().interval.clone();
-        let start_time = self.backtest_config.exchange_config.as_ref().unwrap().time_range.start_date.to_string();
-        let end_time = self.backtest_config.exchange_config.as_ref().unwrap().time_range.end_date.to_string();
-        let backtest_kline_cache_key= BacktestKlineCacheKey::new(exchange, symbol, interval, start_time, end_time);
         
         match message {
             NodeEvent::Signal(signal_event) => {
                 match signal_event {
                     SignalEvent::KlineTick(kline_tick_event) => {
-
-                        // 如果k线缓存索引与信号索引相同，则发送回测数据更新事件
-                        if self.get_play_index().await == kline_tick_event.play_index {
-                            let cache_key: CacheKey = backtest_kline_cache_key.clone().into();
-                            let kline_cache_value = self.get_history_kline_cache(cache_key.clone(), kline_tick_event.play_index).await.unwrap();
-                            // 发送回测数据更新事件
-                            let cache_data: Vec<Vec<f64>> = kline_cache_value.into_iter().map(|cache_value| cache_value.to_list()).collect();
-                                            
-                            let strategy_data = BacktestStrategyData {
-                                strategy_id: self.base_context.strategy_id.clone(),
-                                cache_key: cache_key.get_key(),
-                                data: cache_data[0].clone(),
-                                timestamp: get_utc8_timestamp_millis(),
-                            };
-                            let strategy_event = StrategyEvent::BacktestStrategyDataUpdate(strategy_data);
-                            // tracing::info!("{}: 发送回测数据更新事件", self.base_context.strategy_id);
-                            self.get_event_publisher().publish(strategy_event.into()).await.unwrap();
-
-                            // 发送回测K线更新事件
-                            let kline_message = BacktestKlineUpdateEvent {
-                                from_node_id: self.base_context.node_id.clone(),
-                                from_node_name: self.base_context.node_name.clone(),
-                                from_node_handle_id: self.base_context.node_id.clone(),
-                                kline_cache_index: kline_tick_event.play_index,
-                                kline_cache_key: backtest_kline_cache_key.clone(),
-                                kline: cache_data[0].clone(),
-                                message_timestamp: get_utc8_timestamp_millis(),
-                            };
-                            let kline_event = NodeEvent::BacktestKline(kline_message);
-                            self.get_default_output_handle().send(kline_event).unwrap();
-
-                        } else {
-                            let play_index = self.get_play_index().await;
-                            let kline_cache_index = kline_tick_event.play_index;
+                        // 提前获取配置信息，统一错误处理
+                        let exchange_config = self.backtest_config.exchange_mode_config.as_ref()
+                            .ok_or("Exchange mode config is not set")?;
+                        
+                        let current_play_index = self.get_play_index().await;
+                        
+                        // 如果索引不匹配，提前返回错误日志
+                        if current_play_index != kline_tick_event.play_index {
                             tracing::error!(
                                 node_id = %self.base_context.node_id, 
                                 node_name = %self.base_context.node_name, 
-                                kline_cache_index = %kline_cache_index,
-                                signal_index = %play_index, 
-                                "kline cache index is not equal to signal index");
-                                }
+                                kline_cache_index = %kline_tick_event.play_index,
+                                signal_index = %current_play_index, 
+                                "kline cache index is not equal to signal index"
+                            );
+                            return Ok(());
+                        }
+
+                        // 提取公共数据
+                        let exchange = exchange_config.selected_account.exchange.clone();
+                        let start_time = exchange_config.time_range.start_date.to_string();
+                        let end_time = exchange_config.time_range.end_date.to_string();
+                        let node_id = self.get_node_id().clone();
+                        let node_name = self.get_node_name().clone();
+                        let timestamp = get_utc8_timestamp_millis();
                         
+                        // 循环处理所有选定的交易对
+                        for symbol_config in exchange_config.selected_symbols.iter() {
+                            // 创建k线缓存键
+                            let backtest_kline_cache_key = BacktestKlineCacheKey::new(
+                                exchange.clone(),
+                                symbol_config.symbol.clone(),
+                                symbol_config.interval.clone(),
+                                start_time.clone(),
+                                end_time.clone(),
+                            );
+                            
+                            let cache_key: CacheKey = backtest_kline_cache_key.clone().into();
+                            
+                            // 获取k线缓存值
+                            let kline_cache_value = match self.get_history_kline_cache(&cache_key, kline_tick_event.play_index).await {
+                                Ok(value) => value,
+                                Err(e) => {
+                                    tracing::error!(
+                                        node_id = %self.base_context.node_id, 
+                                        node_name = %self.base_context.node_name,
+                                        symbol = %symbol_config.symbol,
+                                        "Failed to get history kline cache: {}", e
+                                    );
+                                    continue;
+                                }
+                            };
+                            
+                            let cache_data: Vec<Vec<f64>> = kline_cache_value
+                                .into_iter()
+                                .map(|cache_value| cache_value.to_list())
+                                .collect();
+                                
+                            if cache_data.is_empty() {
+                                tracing::warn!(
+                                    node_id = %self.base_context.node_id, 
+                                    node_name = %self.base_context.node_name,
+                                    symbol = %symbol_config.symbol,
+                                    "Cache data is empty"
+                                );
+                                continue;
+                            }
+                            
+                            let kline_data = &cache_data[0];
+                            
+                            // 发送回测数据更新事件(向外部发送)
+                            let strategy_data = BacktestStrategyData {
+                                strategy_id: self.base_context.strategy_id.clone(),
+                                cache_key: cache_key.get_key(),
+                                data: kline_data.clone(),
+                                timestamp,
+                            };
+                            
+                            let strategy_event = StrategyEvent::BacktestStrategyDataUpdate(strategy_data);
+                            if let Err(e) = self.get_event_publisher().publish(strategy_event.into()).await {
+                                tracing::error!(
+                                    node_id = %self.base_context.node_id, 
+                                    node_name = %self.base_context.node_name,
+                                    "Failed to publish backtest strategy data update: {}", e
+                                );
+                            }
+
+                            // 发送K线更新事件的通用函数
+                            let send_kline_event = |handle_id: String, output_handle: NodeOutputHandle| {
+                                let kline_message = BacktestKlineUpdateEvent {
+                                    from_node_id: node_id.clone(),
+                                    from_node_name: node_name.clone(),
+                                    from_node_handle_id: handle_id,
+                                    kline_cache_index: kline_tick_event.play_index,
+                                    kline_cache_key: backtest_kline_cache_key.clone(),
+                                    kline: kline_data.clone(),
+                                    message_timestamp: timestamp,
+                                };
+                                
+                                let kline_event = NodeEvent::BacktestKline(kline_message);
+                                if let Err(e) = output_handle.send(kline_event) {
+                                    tracing::error!(
+                                        node_id = %self.base_context.node_id, 
+                                        node_name = %self.base_context.node_name, 
+                                        "send kline event failed: {}", e
+                                    );
+                                }
+                            };
+
+                            // 发送到交易对特定的输出handle
+                            let symbol_handle_id = symbol_config.handle_id.clone();
+                            if let Some(symbol_output_handle) = self.base_context.output_handles.get(&symbol_handle_id) {
+                                send_kline_event(symbol_handle_id, symbol_output_handle.clone());
+                            }
+
+                            // 发送到默认输出handle
+                            let default_output_handle = self.get_default_output_handle();
+                            send_kline_event(default_output_handle.output_handle_id.clone(), default_output_handle);
+                        }
                     }
                     _ => {}
                 }
@@ -141,6 +211,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         Ok(())
     }
 
+    // 处理策略内部事件
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
@@ -148,14 +219,17 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                 // *self.kline_cache_index.write().await = play_index_update_event.played_index;
                 self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let strategy_output_handle = self.get_strategy_output_handle();
                 let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
                     node_play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
-                self.get_default_output_handle().send(signal).unwrap();
+                if let Err(e) = strategy_output_handle.send(signal) {
+                    tracing::error!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "send event failed: {}", e);
+                }
                 
             }
         }
@@ -173,8 +247,8 @@ impl KlineNodeContext {
         tracing::info!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "start to register exchange");
         let (resp_tx, resp_rx) = oneshot::channel();
         let register_param = RegisterExchangeParams {
-            account_id: self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.account_id.clone(),
-            exchange: self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.exchange.clone(),
+            account_id: self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.account_id.clone(),
+            exchange: self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone(),
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),
             responder: resp_tx,
@@ -191,34 +265,42 @@ impl KlineNodeContext {
 
     // 从交易所获取k线历史
     #[instrument(skip(self))]
-    pub async fn load_kline_history_from_exchange(&mut self) -> Result<Response, String> {
+    pub async fn load_kline_history_from_exchange(&mut self) -> Result<bool, String> {
         tracing::info!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "start to load backtest kline data from exchange");
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetKlineHistoryParams {
-            strategy_id: self.base_context.strategy_id.clone(),
-            node_id: self.base_context.node_id.clone(),
-            account_id: self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.account_id.clone(),
-            exchange: self.backtest_config.exchange_config.as_ref().unwrap().selected_data_source.exchange.clone(),
-            symbol: self.backtest_config.exchange_config.as_ref().unwrap().symbol.clone(),
-            interval: self.backtest_config.exchange_config.as_ref().unwrap().interval.clone(),
-            time_range: self.backtest_config.exchange_config.as_ref().unwrap().time_range.clone(),
-            sender: self.base_context.node_id.clone(),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+        // 已配置的symbol
+        let selected_symbols = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.clone();
 
-        let get_kline_history_command = MarketEngineCommand::GetKlineHistory(params);
-        self.get_command_publisher().send(get_kline_history_command.into()).await.unwrap();
-        
-        // 等待响应
-        let response = resp_rx.await.unwrap();
-        // tracing::debug!(response = ?response);
-        Ok(response)
+        let mut is_all_success = true;
+        // 遍历每一个symbol，从交易所获取k线历史
+        for symbol in selected_symbols.iter() {
+            let (resp_tx, resp_rx) = oneshot::channel();
+            let params = GetKlineHistoryParams {
+                strategy_id: self.base_context.strategy_id.clone(),
+                node_id: self.base_context.node_id.clone(),
+                account_id: self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.account_id.clone(),
+                exchange: self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone(),
+                symbol: symbol.symbol.clone(),
+                interval: symbol.interval.clone(),
+                time_range: self.backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone(),
+                sender: self.base_context.node_id.clone(),
+                timestamp: get_utc8_timestamp_millis(),
+                responder: resp_tx,
+            };
+            let get_kline_history_command = MarketEngineCommand::GetKlineHistory(params);
+            self.get_command_publisher().send(get_kline_history_command.into()).await.unwrap();
+            let response = resp_rx.await.unwrap();
+            if response.code() != 0 {
+                is_all_success = false;
+                break;
+            }
+
+        }
+        Ok(is_all_success)
     }
 
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(&self,
-        kline_cache_key: CacheKey,
+        kline_cache_key: &CacheKey,
         index: u32, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();

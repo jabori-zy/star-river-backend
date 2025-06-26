@@ -4,7 +4,7 @@ use crate::custom_type::*;
 use crate::market::Exchange;
 use crate::position::{PositionSide, PositionState};
 use crate::order::virtual_order::VirtualOrder;
-use crate::order::OrderSide;
+use crate::order::FuturesOrderSide;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,8 +30,8 @@ pub struct VirtualPosition {
 impl VirtualPosition {
     pub fn new(virtual_order: &VirtualOrder, current_price: f64) -> Self {
         let position_side = match virtual_order.order_side {
-            OrderSide::Long => PositionSide::Long,
-            OrderSide::Short => PositionSide::Short,
+            FuturesOrderSide::Long => PositionSide::Long,
+            FuturesOrderSide::Short => PositionSide::Short,
         };
 
         Self {

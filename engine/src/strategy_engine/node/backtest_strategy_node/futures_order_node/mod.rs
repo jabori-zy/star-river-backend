@@ -1,0 +1,313 @@
+
+mod futures_order_node_state_machine;
+mod futures_order_node_context;
+pub mod futures_order_node_types;
+
+
+use tokio::sync::broadcast;
+use std::fmt::Debug;
+use std::any::Any;
+use async_trait::async_trait;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use event_center::EventPublisher;
+use super::futures_order_node::futures_order_node_state_machine::{OrderNodeStateMachine, OrderNodeStateAction};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
+use std::time::Duration;
+use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
+use super::futures_order_node::futures_order_node_context::FuturesOrderNodeContext;
+use futures_order_node_types::*;
+use sea_orm::DatabaseConnection;
+use heartbeat::Heartbeat;
+use tokio::sync::Mutex;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use types::strategy::node_command::NodeCommandSender;
+use crate::strategy_engine::node::node_state_machine::*;
+use virtual_trading::VirtualTradingSystem;
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use types::strategy::node_event::NodeEvent;
+use types::order::OrderType;
+use tokio_stream::wrappers::BroadcastStream;
+use futures::StreamExt;
+use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+pub struct FuturesOrderNode {
+    pub context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>,
+
+}
+
+impl FuturesOrderNode {
+    pub fn new(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        backtest_config: FuturesOrderNodeBacktestConfig,
+        event_publisher: EventPublisher,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+        response_event_receiver: EventReceiver,
+        database: DatabaseConnection,
+        heartbeat: Arc<Mutex<Heartbeat>>,
+        strategy_command_sender: NodeCommandSender,
+        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        strategy_inner_event_receiver: StrategyInnerEventReceiver,
+    ) -> Self {
+        let base_context = BacktestBaseNodeContext::new(
+            strategy_id,
+            node_id.clone(),
+            node_name.clone(),
+            NodeType::OrderNode,
+            event_publisher,
+            vec![response_event_receiver],
+            command_publisher,
+            command_receiver,
+            Box::new(OrderNodeStateMachine::new(node_id, node_name)),
+            strategy_command_sender,
+            strategy_inner_event_receiver,
+        );
+        Self {
+            context: Arc::new(RwLock::new(Box::new(FuturesOrderNodeContext {
+                base_context,
+                backtest_config,
+                is_processing_order: Arc::new(RwLock::new(HashMap::new())),
+                database,
+                heartbeat,
+                virtual_trading_system,
+                unfilled_virtual_order: Arc::new(RwLock::new(HashMap::new())),
+                min_kline_interval: None,
+            }))),
+        }
+    }
+    
+}
+
+
+
+#[async_trait]
+impl BacktestNodeTrait for FuturesOrderNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn BacktestNodeTrait> {
+        Box::new(self.clone())
+    }
+
+    fn get_context(&self) -> Arc<RwLock<Box<dyn BacktestNodeContextTrait>>> {
+        self.context.clone()
+    }
+
+    async fn set_output_handle(&mut self) {
+        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        self.add_output_handle(strategy_output_handle_id, tx).await;
+
+        let futures_order_configs = {
+            let context = self.get_context();
+            let context_guard = context.read().await;
+            let futures_order_node_context = context_guard.as_any().downcast_ref::<FuturesOrderNodeContext>().unwrap();
+            futures_order_node_context.backtest_config.futures_order_configs.clone()
+        };
+        // 为每一个订单添加出口
+        for order_config in futures_order_configs.iter() {
+            let created_output_handle_id = format!("{}_created_output{}", node_id, order_config.order_config_id);
+            let (created_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(created_output_handle_id, created_tx).await;
+
+            match order_config.order_type {
+                OrderType::Limit => {
+                    let placed_output_handle_id = format!("{}_placed_output{}", node_id, order_config.order_config_id);
+                    let (placed_tx, _) = broadcast::channel::<NodeEvent>(100);
+                    self.add_output_handle(placed_output_handle_id, placed_tx).await;
+
+                }
+                _ => {}
+            }
+            
+
+            let partial_output_handle_id = format!("{}_partial_output{}", node_id, order_config.order_config_id);
+            let (partial_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(partial_output_handle_id, partial_tx).await;
+
+            let filled_output_handle_id = format!("{}_filled_output{}", node_id, order_config.order_config_id);
+            let (filled_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(filled_output_handle_id, filled_tx).await;
+
+            let cancelled_output_handle_id = format!("{}_cancelled_output{}", node_id, order_config.order_config_id);
+            let (cancelled_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(cancelled_output_handle_id, cancelled_tx).await;
+
+            let expired_output_handle_id = format!("{}_expired_output{}", node_id, order_config.order_config_id);
+            let (expired_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(expired_output_handle_id, expired_tx).await;
+
+            let rejected_output_handle_id = format!("{}_rejected_output{}", node_id, order_config.order_config_id);
+            let (rejected_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(rejected_output_handle_id, rejected_tx).await;
+
+            let error_output_handle_id = format!("{}_error_output{}", node_id, order_config.order_config_id);
+            let (error_tx, _) = broadcast::channel::<NodeEvent>(100);
+            self.add_output_handle(error_output_handle_id, error_tx).await;
+        }
+
+        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
+    }
+
+    async fn init(&mut self) -> Result<(), String> {
+        tracing::info!("================={}====================", self.get_node_name().await);
+        tracing::info!("{}: 开始初始化", self.get_node_name().await);
+        // 开始初始化 created -> Initialize
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
+
+        // 休眠500毫秒
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        // 初始化完成 Initialize -> InitializeComplete
+        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
+        Ok(())
+    }
+
+    async fn stop(&mut self) -> Result<(), String> {
+        tracing::info!("{}: 开始停止", self.get_node_id().await);
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
+
+        // 等待所有任务结束
+        self.cancel_task().await.unwrap();
+        // 休眠500毫秒
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        // 切换为stopped状态
+        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await.unwrap();
+        Ok(())
+    }
+
+    // 重写监听节点事件的方法
+    async fn listen_node_events(&self) -> Result<(), String> {
+        let (input_handles, cancel_token, node_id) = {
+            let state_guard = self.context.read().await;
+            let input_handles = state_guard.get_all_input_handles().clone();
+            let cancel_token = state_guard.get_cancel_token().clone();
+            let node_id = state_guard.get_node_id().to_string();
+            (input_handles, cancel_token, node_id)
+        };
+
+        if input_handles.is_empty() {
+            tracing::warn!("{}: 没有消息接收器", node_id);
+            return Ok(());
+        }
+        // 为每个接收器独立创建监听任务
+        for input_handle in input_handles {
+            let context = self.context.clone();
+            let cancel_token = cancel_token.clone();
+            let node_id = node_id.clone();
+            let from_node_id = input_handle.from_node_id.clone();
+            let input_handle_id = input_handle.input_handle_id.clone();
+            
+            // 为每个接收器创建独立的监听流
+            let mut stream = BroadcastStream::new(input_handle.get_receiver());
+            
+            tokio::spawn(async move {
+                loop {
+                    tokio::select! {
+                        // 如果取消信号被触发，则中止任务
+                        _ = cancel_token.cancelled() => {
+                            tracing::info!("{} 节点接收器 {} 监听任务已中止", node_id, input_handle_id);
+                            break;
+                        }
+                        // 接收消息
+                        receive_result = stream.next() => {
+                            match receive_result {
+                                Some(Ok(node_event)) => {
+                                    // 根据订单配置处理特定订单的事件
+                                    let mut context_guard = context.write().await;
+                                    if let Err(e) = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap().handle_node_event_for_specific_order(
+                                        node_event, 
+                                        &from_node_id, 
+                                        &input_handle_id
+                                    ).await {
+                                        tracing::error!("节点{}处理特定订单事件错误: {}", node_id, e);
+                                    }
+                                }
+                                Some(Err(e)) => {
+                                    tracing::error!("节点{}接收器{}接收消息错误: {}", node_id, input_handle_id, e);
+                                }
+                                None => {
+                                    tracing::warn!("节点{}接收器{}消息流已关闭", node_id, input_handle_id);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    Ok(())
+
+
+    }
+
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
+        let node_id = self.get_node_id().await;
+
+        // 获取状态管理器并执行转换
+        let (transition_result, state_machine) = {
+            let mut state_machine = self.get_state_machine().await;
+            let transition_result = state_machine.transition(event)?;
+            (transition_result, state_machine)
+        };
+
+
+        // 执行转换后需要执行的动作
+        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
+            if let Some(order_node_state_action) = action.as_any().downcast_ref::<OrderNodeStateAction>() {
+                match order_node_state_action {
+                    OrderNodeStateAction::LogTransition => {
+                        let current_state = self.get_state_machine().await.current_state();
+                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                    }
+                    OrderNodeStateAction::LogNodeState => {
+                        let current_state = self.get_state_machine().await.current_state();
+                        tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                    }
+                    OrderNodeStateAction::ListenAndHandleExternalEvents => {
+                        tracing::info!("{}: 开始监听外部事件", node_id);
+                        self.listen_external_events().await?;
+                    }
+                    OrderNodeStateAction::ListenAndHandleInnerEvents => {
+                        tracing::info!("{}: 开始监听策略内部事件", node_id);
+                        self.listen_strategy_inner_events().await?;
+                    }
+                    OrderNodeStateAction::RegisterTask => {
+                        tracing::info!("{}: 开始注册心跳任务", node_id);
+                        let mut context_guard = self.context.write().await;
+                        let order_node_context = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap();
+                        order_node_context.monitor_unfilled_order().await;
+                    }
+                    OrderNodeStateAction::ListenAndHandleNodeEvents => {
+                        tracing::info!("{}: 开始监听节点消息", node_id);
+                        self.listen_node_events().await?;
+                    }
+                    OrderNodeStateAction::LogError(error) => {
+                        tracing::error!("{}: 发生错误: {}", node_id, error);
+                    }
+                }
+                // 所有动作执行完毕后更新节点最新的状态
+                {
+                    self.context.write().await.set_state_machine(state_machine.clone_box());
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+

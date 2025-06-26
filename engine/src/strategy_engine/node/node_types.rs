@@ -23,12 +23,14 @@ pub enum NodeType {
     IndicatorNode,
     #[strum(serialize = "if_else_node")]
     IfElseNode,
-    #[strum(serialize = "order_node")]
-    OrderNode,
+    #[strum(serialize = "futures_order_node")]
+    FuturesOrderNode,
     #[strum(serialize = "position_node")]
     PositionNode,
     #[strum(serialize = "get_variable_node")]
     GetVariableNode,
+    #[strum(serialize = "order_node")]
+    OrderNode,
 }
 
 impl FromStr for NodeType {
@@ -46,9 +48,10 @@ impl FromStr for NodeType {
             "kline_node" => Ok(NodeType::KlineNode),
             "indicator_node" => Ok(NodeType::IndicatorNode),
             "if_else_node" => Ok(NodeType::IfElseNode),
-            "order_node" => Ok(NodeType::OrderNode),
+            "futures_order_node" => Ok(NodeType::FuturesOrderNode),
             "position_node" => Ok(NodeType::PositionNode),
             "get_variable_node" => Ok(NodeType::GetVariableNode),
+            "order_node" => Ok(NodeType::OrderNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }
@@ -78,7 +81,7 @@ pub enum DefaultOutputHandleId {
 
 
 #[derive(Debug)]
-pub struct NodeEventReceiver {
+pub struct NodeInputHandle {
     // 来自哪个节点
     pub from_node_id: String,
     pub from_handle_id: String,
@@ -86,7 +89,7 @@ pub struct NodeEventReceiver {
     pub receiver: broadcast::Receiver<NodeEvent>,
 }
 
-impl NodeEventReceiver {
+impl NodeInputHandle {
     pub fn new(
         from_node_id: String,
         from_handle_id: String,
@@ -102,7 +105,7 @@ impl NodeEventReceiver {
 }
 
 
-impl Clone for NodeEventReceiver {
+impl Clone for NodeInputHandle {
     fn clone(&self) -> Self {
         Self { 
             from_node_id: self.from_node_id.clone(), 
@@ -137,9 +140,13 @@ impl NodeOutputHandle {
         if self.connect_count > 0 {
             self.node_event_sender.send(event).map_err(|e| format!("节点{}的出口{}发送消息失败: {}", self.node_id, self.output_handle_id, e))
         } else {
-            // 如果connect_count为0，则不发送消息
-            Err(format!("节点{}的出口{}没有连接", self.node_id, self.output_handle_id))
+            // 如果connect_count为1(默认的一个是连接到策略的)，则不发送消息
+            Err(format!("output handle have no connection, node_id:{}, output_handle_id:{}", self.node_id, self.output_handle_id))
         }
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<NodeEvent> {
+        self.node_event_sender.subscribe()
     }
 }
 

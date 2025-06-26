@@ -12,13 +12,15 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use types::custom_type::{NodeId, HandleId, VariableId};
+use super::utils::{get_variable_value, get_condition_variable_value};
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub is_processing: bool,
-    pub received_flag: HashMap<String, bool>, // 用于记录每个节点的数据是否接收完成
-    pub received_message: HashMap<String, Option<NodeEvent>>, // 用于记录每个节点的数据
+    pub received_flag: HashMap<(NodeId, VariableId), bool>, // 用于记录每个variable的数据是否接收
+    pub received_message: HashMap<(NodeId, VariableId), Option<NodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     pub backtest_config: IfElseNodeBacktestConfig,
     
 
@@ -50,7 +52,8 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("if_else_node_else_output")).unwrap().clone()
+        let default_output_handle_id = format!("{}_else_output", self.get_node_id());
+        self.base_context.output_handles.get(&default_output_handle_id).unwrap().clone()
     }
 
 
@@ -89,14 +92,15 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 // 更新播放索引
                 self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
                 let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: self.get_default_output_handle().output_handle_id.clone(),
+                    from_node_handle_id: strategy_output_handle_id.clone(),
                     node_play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
-                self.get_default_output_handle().send(signal).unwrap();
+                self.get_strategy_output_handle().send(signal).unwrap();
             }
         }
         Ok(())
@@ -107,49 +111,78 @@ impl IfElseNodeContext {
 
     fn update_received_event(&mut self, received_event: NodeEvent) {
         tracing::debug!("接收到的变量消息: {:?}", received_event);
-        let from_node_id = match &received_event {
+        let (from_node_id, from_variable_id) = match &received_event {
             NodeEvent::Indicator(indicator_message) => {
                 if let IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event) = indicator_message {
-                    indicator_update_event.from_node_id.clone()
+                    let from_node_id = indicator_update_event.from_node_id.clone();
+                    // let from_handle_id = indicator_update_event.from_handle_id.clone();
+                    let from_variable_id = indicator_update_event.indicator_id;
+                    (from_node_id, from_variable_id)
                 } else {
                     return;
                 }
             }
-            NodeEvent::Variable(variable_message) => {
-                variable_message.from_node_id.clone()
-            }
+            // NodeEvent::Variable(variable_message) => {
+            //     variable_message.from_node_id.clone()
+            // }
             _ => {
                 return;
             }
         };
-        self.received_message.entry(from_node_id.clone())
+        self.received_message.entry((from_node_id.clone(), from_variable_id))
         .and_modify(|e| *e = Some(received_event.clone()))
         .or_insert(Some(received_event));
+        tracing::debug!("received_message: {:?}", self.received_message);
         
-        self.update_received_flag(from_node_id, true);
+        self.update_received_flag(from_node_id, from_variable_id, true);
     }
 
-    fn update_received_flag(&mut self, from_node_id: String, flag: bool) {
-        self.received_flag.entry(from_node_id.clone())
+    fn update_received_flag(&mut self, from_node_id: NodeId, from_variable_id: VariableId, flag: bool) {
+        self.received_flag.entry((from_node_id, from_variable_id))
         .and_modify(|e| *e = flag)
         .or_insert(flag);
     }
 
     // 初始化接收标记
-    pub async fn init_received_flag(&mut self) {
-        for from_node_id in self.get_from_node_id().clone() {
-            self.received_flag.insert(from_node_id.clone(), false);
+    pub async fn init_received_data(&mut self) {
+        for case in &self.backtest_config.cases {
+            for condition in &case.conditions {
+                // 处理左值
+                if let (Some(left_node_id), Some(left_variable_id)) = (
+                    condition.left_variable.node_id.clone(),
+                    condition.left_variable.variable_id,
+                ) {
+                    let key = (left_node_id, left_variable_id);
+                    self.received_flag.insert(key.clone(), false);
+                    self.received_message.insert(key, None);
+                }
+
+                // 处理右值（如果是变量类型）
+                if matches!(condition.right_variable.var_type, VarType::Variable) {
+                    if let (Some(right_node_id), Some(right_variable_id)) = (
+                        condition.right_variable.node_id.clone(),
+                        condition.right_variable.variable_id,
+                    ) {
+                        let key = (right_node_id, right_variable_id);
+                        self.received_flag.insert(key.clone(), false);
+                        self.received_message.insert(key, None);
+                    }
+                }
+            }
         }
-        
+        tracing::debug!(node_id = %self.get_node_id(), "init received data success: {:?}, {:?}", self.received_flag, self.received_message);
     }
 
-    pub async fn init_received_value(&mut self) {
-        for from_node_id in self.get_from_node_id().clone() {
-            self.received_message.insert(from_node_id.clone(), None);
-        }
+    pub fn is_all_value_received(&self) -> bool {
+        // 直接检查所有标志是否都为true
+        self.received_flag.values().all(|&flag| flag)
     }
 
-
+    pub fn reset_received_flag(&mut self) {
+        for flag in self.received_flag.values_mut() {
+            *flag = false;
+        }
+    }
 
     // 开始评估各个分支
     pub async fn evaluate(&mut self) {
@@ -159,226 +192,128 @@ impl IfElseNodeContext {
 
         
         // 遍历case
-        for case in self.backtest_config.cases.clone() {
-            let case_result = self.evaluate_case(case.clone()).await;
+        for case in self.backtest_config.cases.iter() {
+            let case_result = self.evaluate_case(case).await;
             // tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
             if case_result {
                 // 节点信息
+                let case_output_handle_id = format!("{}_output{}", self.get_node_id(), case.case_id);
+                let case_output_handle = self.get_output_handle(&case_output_handle_id);
                 let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: format!("if_else_node_case_{}_output", case.case_id),
+                    from_node_handle_id: case_output_handle_id.clone(),
                     play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp()
                 });
                 // tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
 
                 // 获取case的handle
-                let case_handle = self.get_all_output_handle().get(&format!("if_else_node_case_{}_output", case.case_id)).expect("case handle not found");
                 tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
-                case_handle.send(NodeEvent::Signal(signal_event.clone())).unwrap();
-
-                // 发送事件
-                if self.is_enable_event_publish().clone() {
-                    let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeEvent::Signal(signal_event.clone())));
-                    if let Err(e) = self.get_event_publisher().publish(event.into()).await {
-                        tracing::error!(
-                            node_id = %self.get_node_id(),
-                            "条件节点发送信号事件失败"
-                        );
-                    }
+                if let Err(e) = case_output_handle.send(NodeEvent::Signal(signal_event.clone())) {
+                    tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
                 }
+
                 case_matched = true;
                 break;
             }
         }
 
         // 只有当所有case都为false时才执行else
+        let default_ouput_handle = self.get_default_output_handle(); // 获取else的输出句柄,else是默认出口
         if !case_matched {
             let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
-                from_node_handle_id: self.get_all_output_handle().get("if_else_node_else_output").unwrap().output_handle_id.clone(),
+                from_node_handle_id: default_ouput_handle.output_handle_id.clone(),
                 play_index: self.get_play_index().await,
                 message_timestamp: get_utc8_timestamp()
             });
             
 
-            let else_handle = self.get_all_output_handle().get("if_else_node_else_output").expect("else handle not found");
             tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
-            else_handle.send(NodeEvent::Signal(signal_event.clone())).unwrap();
-
-
-            // 发送事件
-            if self.is_enable_event_publish().clone() {
-                let event = Event::Strategy(StrategyEvent::NodeMessageUpdate(NodeEvent::Signal(signal_event.clone())));
-                if let Err(e) = self.get_event_publisher().publish(event.into()).await {
-                    tracing::error!(
-                        node_id = %self.get_node_id(),
-                        "条件节点发送信号事件失败"
-                    );
-                }
+            if let Err(e) = default_ouput_handle.send(NodeEvent::Signal(signal_event.clone())) {
+                tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
             }
         }
                         
 
     }
 
-    pub async fn evaluate_case(&self, case: Case) -> bool {
-        let logic_operator = case.logic_operator;
-        match logic_operator {
-            LogicOperator::And => {
-                self.evaluate_and_conditions(case.conditions).await
+    pub async fn evaluate_case(&self, case: &Case) -> bool {
+        match case.logical_symbol {
+            LogicalSymbol::And => {
+                self.evaluate_and_conditions(&case.conditions).await
             }
-            LogicOperator::Or => {
-                self.evaluate_or_conditions(case.conditions).await
+            LogicalSymbol::Or => {
+                self.evaluate_or_conditions(&case.conditions).await
             }
         }
     }
 
-    // 获取变量值
-    fn get_variable_value(
-        node_id: &str, 
-        variable_name: &str,
-        received_value: &HashMap<String, Option<NodeEvent>>
-    ) -> Option<f64> {
-        let node_event = received_value.get(node_id)?.as_ref()?;
+    
+    
+
+    
+
+    // 评估单个条件
+    fn evaluate_single_condition(&self, condition: &Condition) -> bool {
+        let received_value = &self.received_message;
+
+        // 获取左值
+        let left_value = get_condition_variable_value(&condition.left_variable, received_value);
         
-        match node_event {
-            NodeEvent::Indicator(indicator_event) => {
-                if let IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event) = indicator_event {
-                    indicator_update_event
-                        .indicator_series
-                        .last()
-                        .and_then(|last_indicator| {
-                            let indicator_json = last_indicator.to_json();
-                            indicator_json.get(variable_name).cloned()
-                        })
-                        .and_then(|indicator_value| {
-                            indicator_value.as_f64().or_else(|| {
-                                tracing::warn!("variable '{}'s value '{}' is not a number", variable_name, indicator_value);
-                                None
-                            })
-                        })
-                } else {
-                    None
-                }
-            }
-            NodeEvent::Variable(variable_message) => {
-                Some(variable_message.variable_value)
-            }
-            _ => None
+        // 获取右值
+        let right_value = get_condition_variable_value(&condition.right_variable, received_value);
+
+        if let (Some(left_value), Some(right_value)) = (left_value, right_value) {
+            let condition_result = match condition.comparison_symbol {
+                ComparisonSymbol::GreaterThan => left_value > right_value,
+                ComparisonSymbol::LessThan => left_value < right_value,
+                ComparisonSymbol::Equal => (left_value - right_value).abs() < f64::EPSILON, // 浮点数比较
+                ComparisonSymbol::GreaterThanOrEqual => left_value >= right_value,
+                ComparisonSymbol::LessThanOrEqual => left_value <= right_value,
+                ComparisonSymbol::NotEqual => (left_value - right_value).abs() >= f64::EPSILON,
+            };
+            
+            tracing::debug!(
+                "条件评估: 左值={:.6}, 比较符号={}, 右值={:.6}, 结果={}",
+                left_value,
+                condition.comparison_symbol.to_string(),
+                right_value,
+                condition_result
+            );
+            
+            condition_result
+        } else {
+            tracing::debug!(
+                "条件评估失败: 左值={:?}, 右值={:?}, 存在空值",
+                left_value,
+                right_value
+            );
+            false
         }
     }
 
     // 评估and条件组
-    async fn evaluate_and_conditions(&self, conditions: Vec<Condition>) -> bool{
-        let received_value = &self.received_message;
-        
-        for condition in conditions {
-            // 获取左值
-            let left_node_id = condition.left_variable.node_id.unwrap();
-            let left_variabale = condition.left_variable.variable;
-            let left_value = Self::get_variable_value(&left_node_id, &left_variabale, received_value);
-
-            // 获取右值
-            let right_var_type = condition.right_variable.var_type;
-            let right_value = match right_var_type {
-                VarType::Variable => {
-                    let right_node_id = condition.right_variable.node_id.unwrap();
-                    let right_variabale = condition.right_variable.variable;
-                    Self::get_variable_value(&right_node_id, &right_variabale, received_value)
-                },
-                VarType::Constant => {
-                    let right_variabale = condition.right_variable.variable;
-                    Some(right_variabale.parse::<f64>().unwrap())
-                },
-            };
-
-            let operator = condition.comparison_operator;
-            
-            if left_value.is_some() && right_value.is_some() {
-                let left_value = left_value.unwrap();
-                let right_value = right_value.unwrap();
-                let condition_result = match operator {
-                    ComparisonOperator::GreaterThan => left_value > right_value,
-                    ComparisonOperator::LessThan => left_value < right_value,
-                    ComparisonOperator::Equal => (left_value - right_value).abs() < f64::EPSILON, // 浮点数比较
-                    ComparisonOperator::GreaterThanOrEqual => left_value >= right_value,
-                    ComparisonOperator::LessThanOrEqual => left_value <= right_value,
-                    ComparisonOperator::NotEqual => left_value != right_value,
-                };
-                tracing::debug!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
-                
-                // 如果有任何一个条件不满足，立即返回false并中止后续条件判断
-                if !condition_result {
-                    return false;
-                }
-            }
-            else {
-                tracing::debug!("left value is: {:?}, right value is: {:?}, there is exist none value, condition is not match", left_value, right_value);
-                return false;
-            }
+    async fn evaluate_and_conditions(&self, conditions: &Vec<Condition>) -> bool {
+        if conditions.is_empty() {
+            return true; // 空条件组默认为true
         }
-        // 所有条件都满足
-        true
+
+        // 使用迭代器的all方法，更简洁且在第一个false时短路
+        conditions.iter().all(|condition| self.evaluate_single_condition(condition))
     }
 
-    async fn evaluate_or_conditions(&self, conditions: Vec<Condition>) -> bool {
-        let received_value = &self.received_message;
-        
+    // 评估or条件组
+    async fn evaluate_or_conditions(&self, conditions: &Vec<Condition>) -> bool {
         if conditions.is_empty() {
-            return false;
+            return false; // 空条件组默认为false
         }
-        
-        for condition in conditions {
-            // 获取左值
-            let left_node_id = condition.left_variable.node_id.unwrap();
-            let left_variabale = condition.left_variable.variable;
-            let left_value = Self::get_variable_value(&left_node_id, &left_variabale, received_value);
 
-            // 获取右值
-            let right_var_type = condition.right_variable.var_type;
-            let right_value = match right_var_type {
-                VarType::Variable => {
-                    let right_node_id = condition.right_variable.node_id.unwrap();
-                    let right_variabale = condition.right_variable.variable;
-                    Self::get_variable_value(&right_node_id, &right_variabale, received_value)
-                },
-                VarType::Constant => {
-                    let right_variabale = condition.right_variable.variable;
-                    Some(right_variabale.parse::<f64>().unwrap())
-                },
-            };
-
-            let operator = condition.comparison_operator;
-            
-            if left_value.is_some() && right_value.is_some() {
-                let left_value = left_value.unwrap();
-                let right_value = right_value.unwrap();
-                let condition_result = match operator {
-                    ComparisonOperator::GreaterThan => left_value > right_value,
-                    ComparisonOperator::LessThan => left_value < right_value,
-                    ComparisonOperator::Equal => (left_value - right_value).abs() < f64::EPSILON,
-                    ComparisonOperator::GreaterThanOrEqual => left_value >= right_value,
-                    ComparisonOperator::LessThanOrEqual => left_value <= right_value,
-                    ComparisonOperator::NotEqual => left_value != right_value,
-                };
-                // tracing::warn!("左值: {:?}, 比较符号: {:?}, 右值: {:?}, 结果: {:?}", left_value, operator.to_string(), right_value, condition_result);
-                
-                // 如果有任何一个条件满足，立即返回true并中止后续条件判断
-                if condition_result {
-                    return true;
-                }
-            }
-            else {
-                // tracing::warn!("left value is: {:?}, right value is: {:?}, there is exist none value, condition is not match", left_value, right_value);
-                return false;
-            }
-        }
-        // 所有条件都不满足
-        false
+        // 使用迭代器的any方法，更简洁且在第一个true时短路
+        conditions.iter().any(|condition| self.evaluate_single_condition(condition))
     }
 }

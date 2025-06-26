@@ -122,7 +122,8 @@ impl BacktestStrategy {
         }
 
         // 将所有节点的输出控制器添加到 strategy_output_handles 中
-        let strategy_output_handles = BacktestStrategyFunction::add_node_output_handle(&mut graph).await;
+        let strategy_output_handles = BacktestStrategyFunction::add_strategy_output_handle(&mut graph).await;
+        tracing::debug!("all node's strategy output handles: {:?}", strategy_output_handles);
         
         
         // tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
@@ -222,77 +223,78 @@ impl BacktestStrategy {
                         tracing::error!("{}: 获取缓存长度失败", strategy_name);
                     }
                 }
+
                 BacktestStrategyStateAction::InitNode => {
-                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
-                        tracing::info!("{}: 开始初始化节点", strategy_name);
-                        let nodes = {
-                            let context_guard = self.context.read().await;
-                            context_guard.topological_sort()
-                        };
-                        
-                        let mut all_nodes_initialized = true;
-
-                        for node in nodes {
-                            let context_guard = self.context.read().await;
-                            if let Err(e) = context_guard.init_node(node).await {
-                                tracing::error!("{}", e);
-                                all_nodes_initialized = false;
-                                break;
-                            }
-                        }
-
-                        if all_nodes_initialized {
-                            tracing::info!("{}: 所有节点已成功初始化", strategy_name);
-                        } else {
-                            tracing::error!("{}: 部分节点初始化失败，策略无法正常运行", strategy_name);
-                        }
-                    }
-
-
-                    BacktestStrategyStateAction::StopNode => {
-                        tracing::info!("++++++++++++++++++++++++++++++++++++++");
-                        tracing::info!("{}: 开始停止节点", strategy_name);
-                        let nodes = {
-                            let context_guard = self.context.read().await;
-                            context_guard.topological_sort()
-                        };
-                        
-                        let mut all_nodes_stopped = true;
-
-                        for node in nodes {
-                            // let mut node = node.clone();
-                            let context_guard = self.context.read().await;
-                            
-                            if let Err(e) = context_guard.stop_node(node).await {
-                                tracing::error!("{}", e);
-                                all_nodes_stopped = false;
-                                break;
-                            }
-                        }
-
-                        if all_nodes_stopped {
-                            tracing::info!("{}: 所有节点已成功停止", strategy_name);
-                        } else {
-                            tracing::error!("{}: 部分节点停止失败，策略无法正常运行", strategy_name);
-                        }
-                    }
                     
-                    BacktestStrategyStateAction::LogTransition => {
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", strategy_name, self.get_state_machine().await.current_state(), transition_result.new_state);
+                    let strategy_id = self.get_strategy_id().await;
+                    tracing::info!(strategy_id = %strategy_id, strategy_name = %strategy_name, "start init node");
+                    let nodes = {
+                        let context_guard = self.context.read().await;
+                        context_guard.topological_sort()
+                    };
+                    
+                    let mut all_nodes_initialized = true;
+
+                    for node in nodes {
+                        let context_guard = self.context.read().await;
+                        if let Err(e) = context_guard.init_node(node).await {
+                            tracing::error!("{}", e);
+                            all_nodes_initialized = false;
+                            break;
+                        }
                     }
 
-                    BacktestStrategyStateAction::ListenAndHandleNodeEvent => {
-                        tracing::info!("{}: 监听节点消息", strategy_name);
-                        BacktestStrategyFunction::listen_node_events(self.get_context()).await;
-                    }
-                    BacktestStrategyStateAction::ListenAndHandleCommand => {
-                        tracing::info!("{}: 监听命令", strategy_name);
-                        BacktestStrategyFunction::listen_command(self.get_context()).await;
-                    }
-                    BacktestStrategyStateAction::LogError(error) => {
-                        tracing::error!("{}: {}", strategy_name, error);
+                    if all_nodes_initialized {
+                        tracing::info!("{}: 所有节点已成功初始化", strategy_name);
+                    } else {
+                        tracing::error!("{}: 部分节点初始化失败，策略无法正常运行", strategy_name);
                     }
                 }
+
+                BacktestStrategyStateAction::StopNode => {
+                    tracing::info!("++++++++++++++++++++++++++++++++++++++");
+                    tracing::info!("{}: 开始停止节点", strategy_name);
+                    let nodes = {
+                        let context_guard = self.context.read().await;
+                        context_guard.topological_sort()
+                    };
+                    
+                    let mut all_nodes_stopped = true;
+
+                    for node in nodes {
+                        // let mut node = node.clone();
+                        let context_guard = self.context.read().await;
+                        
+                        if let Err(e) = context_guard.stop_node(node).await {
+                            tracing::error!("{}", e);
+                            all_nodes_stopped = false;
+                            break;
+                        }
+                    }
+
+                    if all_nodes_stopped {
+                        tracing::info!("{}: 所有节点已成功停止", strategy_name);
+                    } else {
+                        tracing::error!("{}: 部分节点停止失败，策略无法正常运行", strategy_name);
+                    }
+                }
+                
+                BacktestStrategyStateAction::LogTransition => {
+                    tracing::info!("{}: 状态转换: {:?} -> {:?}", strategy_name, self.get_state_machine().await.current_state(), transition_result.new_state);
+                }
+
+                BacktestStrategyStateAction::ListenAndHandleNodeEvent => {
+                    tracing::info!("{}: 监听节点消息", strategy_name);
+                    BacktestStrategyFunction::listen_node_events(self.get_context()).await;
+                }
+                BacktestStrategyStateAction::ListenAndHandleCommand => {
+                    tracing::info!("{}: 监听命令", strategy_name);
+                    BacktestStrategyFunction::listen_command(self.get_context()).await;
+                }
+                BacktestStrategyStateAction::LogError(error) => {
+                    tracing::error!("{}: {}", strategy_name, error);
+                }
+            }
 
             {
                 let mut context_guard = self.context.write().await;

@@ -1,4 +1,4 @@
-use types::order::{Order, OrderSide, OrderType, OrderStatus};
+use types::order::{Order, FuturesOrderSide, OrderType, OrderStatus};
 use crate::order::Model as OrderModel;
 use types::market::Exchange;
 use std::str::FromStr;
@@ -13,7 +13,7 @@ impl From<OrderModel> for Order {
             account_id: order.account_id,
             exchange: Exchange::from_str(&order.exchange).unwrap(),
             symbol: order.symbol,
-            order_side: OrderSide::from_str(&order.order_side).unwrap(),
+            order_side: FuturesOrderSide::from_str(&order.order_side).unwrap(),
             order_type: OrderType::from_str(&order.order_type).unwrap(),
             order_status: OrderStatus::from_str(&order.order_status).unwrap(),
             quantity: order.quantity,

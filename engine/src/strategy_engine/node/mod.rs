@@ -75,7 +75,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 获取节点消息接收器
-    async fn get_message_receivers(&self) -> Vec<NodeEventReceiver> {
+    async fn get_message_receivers(&self) -> Vec<NodeInputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_message_receivers().clone()
@@ -117,7 +117,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
     }
 
-    async fn add_message_receiver(&mut self, receiver: NodeEventReceiver) {
+    async fn add_message_receiver(&mut self, receiver: NodeInputHandle) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
         context_guard.get_message_receivers_mut().push(receiver);
@@ -259,10 +259,10 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 获取节点消息接收器
-    async fn get_node_event_receivers(&self) -> Vec<NodeEventReceiver> {
+    async fn get_node_event_receivers(&self) -> Vec<NodeInputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_node_event_receivers().clone()
+        context_guard.get_all_input_handles().clone()
     }
 
     // 获取节点类型
@@ -270,6 +270,20 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_node_type().clone()
+    }
+
+    // 获取节点输出句柄
+    async fn get_output_handle(&self, handle_id: &String) -> NodeOutputHandle {
+        let context = self.get_context();
+        let context_guard = context.read().await;
+        context_guard.get_output_handle(handle_id).clone()
+    }
+
+    // 获取向strategy发送的出口句柄
+    async fn get_strategy_output_handle(&self) -> NodeOutputHandle {
+        let context = self.get_context();
+        let context_guard = context.read().await;
+        context_guard.get_strategy_output_handle().clone()
     }
 
 
@@ -302,10 +316,10 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
     }
 
-    async fn add_message_receiver(&mut self, receiver: NodeEventReceiver) {
+    async fn add_message_receiver(&mut self, receiver: NodeInputHandle) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_node_event_receivers_mut().push(receiver);
+        context_guard.get_all_input_handles_mut().push(receiver);
     } 
     // 添加出口
     async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<NodeEvent>) {
@@ -321,10 +335,10 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_all_output_handle_mut().insert(handle_id, node_output_handle);
     }
     // 增加handle的连接计数
-    async fn add_output_handle_connect_count(&mut self, handle_id: String) {
+    async fn add_output_handle_connect_count(&mut self, handle_id: &String) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_all_output_handle_mut().get_mut(&handle_id).unwrap().connect_count += 1;
+        context_guard.get_all_output_handle_mut().get_mut(handle_id).unwrap().connect_count += 1;
     }
     // 添加from_node_id
     async fn add_from_node_id(&mut self, from_node_id: String) {
@@ -352,25 +366,33 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     //     let mut context_guard = context.write().await;
     //     context_guard.set_enable_event_publish(false);
     //     Ok(())
-    // } 
+    // }
+
+
     // 监听外部事件
     async fn listen_external_events(&self) -> Result<(), String> {
         let context = self.get_context();
         BacktestNodeFunction::listen_external_event(context).await;
         Ok(())
     }
+
+
     // 监听节点传递过来的message
     async fn listen_node_events(&self) -> Result<(), String> {
         let context = self.get_context();
         BacktestNodeFunction::listen_node_events(context).await;
         Ok(())
     }
+
+
     // 监听内部事件
     async fn listen_strategy_inner_events(&self) -> Result<(), String> {
         let context = self.get_context();
         BacktestNodeFunction::listen_strategy_inner_events(context).await;
         Ok(())
     }
+
+
     // 取消所有异步任务
     async fn cancel_task(&self) -> Result<(), String> {
         let state = self.get_context();

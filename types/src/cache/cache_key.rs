@@ -225,12 +225,16 @@ impl BacktestIndicatorCacheKey {
                 exchange: backtest_kline_cache_key.exchange, 
                 symbol: backtest_kline_cache_key.symbol, 
                 interval: backtest_kline_cache_key.interval, 
-                indicator_config, 
+                indicator_config,
                 start_time: backtest_kline_cache_key.start_time, 
                 end_time: backtest_kline_cache_key.end_time
             },
             _ => panic!("Invalid cache key"),
         }
+    }
+
+    pub fn get_indicator_config(&self) -> IndicatorConfig {
+        self.indicator_config.clone()
     }
 }
 

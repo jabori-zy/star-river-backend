@@ -133,7 +133,6 @@ impl NodeTrait for PositionNode {
             (transition_result, state_machine)
         };
 
-        tracing::debug!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题

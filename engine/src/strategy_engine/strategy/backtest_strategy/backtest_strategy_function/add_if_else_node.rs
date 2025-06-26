@@ -23,7 +23,7 @@ impl BacktestStrategyFunction {
         strategy_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
-
+        
         let node_data = node_config["data"].clone();
         let node_id = node_config["id"].as_str().unwrap();
         let node_name = node_data["nodeName"].as_str().unwrap_or_default();
@@ -32,7 +32,10 @@ impl BacktestStrategyFunction {
         if backtest_config_json.is_null() {
             return Err("backtestConfig is null".to_string());
         }
-        let cases: Vec<Case> = serde_json::from_value(backtest_config_json["cases"].clone()).unwrap();
+
+        let cases_json = backtest_config_json["cases"].clone();
+        tracing::debug!("cases_json: {:?}", cases_json);
+        let cases: Vec<Case> = serde_json::from_value(cases_json).unwrap();
         let if_else_node_backtest_config = IfElseNodeBacktestConfig {
             cases: cases.clone(),
         };
