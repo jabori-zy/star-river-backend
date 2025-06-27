@@ -1,1 +1,1 @@
-pub mod get_variable_node;
+pub mod variable_node;

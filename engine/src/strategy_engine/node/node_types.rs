@@ -27,10 +27,14 @@ pub enum NodeType {
     FuturesOrderNode,
     #[strum(serialize = "position_node")]
     PositionNode,
+    #[strum(serialize = "position_management_node")]
+    PositionManagementNode,
     #[strum(serialize = "get_variable_node")]
     GetVariableNode,
     #[strum(serialize = "order_node")]
     OrderNode,
+    #[strum(serialize = "variable_node")]
+    VariableNode,
 }
 
 impl FromStr for NodeType {
@@ -50,8 +54,10 @@ impl FromStr for NodeType {
             "if_else_node" => Ok(NodeType::IfElseNode),
             "futures_order_node" => Ok(NodeType::FuturesOrderNode),
             "position_node" => Ok(NodeType::PositionNode),
+            "position_management_node" => Ok(NodeType::PositionManagementNode),
             "get_variable_node" => Ok(NodeType::GetVariableNode),
             "order_node" => Ok(NodeType::OrderNode),
+            "variable_node" => Ok(NodeType::VariableNode),
             _ => Err(format!("Unknown node type: {}", s))
         }
     }

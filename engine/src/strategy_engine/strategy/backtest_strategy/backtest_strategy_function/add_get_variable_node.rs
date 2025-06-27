@@ -11,8 +11,8 @@ use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use crate::strategy_engine::node::backtest_strategy_node::get_variable_node::GetVariableNode;
-use types::node::get_variable_node::*;
+use crate::strategy_engine::node::backtest_strategy_node::variable_node::VariableNode;
+use types::node::variable_node::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
@@ -20,7 +20,7 @@ use virtual_trading::VirtualTradingSystem;
 
 
 impl BacktestStrategyFunction {
-    pub async fn add_get_variable_node(
+    pub async fn add_variable_node(
         graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
         node_config: serde_json::Value,
@@ -42,8 +42,8 @@ impl BacktestStrategyFunction {
         if backtest_config_json.is_null() {
             return Err("backtestConfig is null".to_string());
         }
-        let backtest_config = serde_json::from_value::<GetVariableNodeBacktestConfig>(backtest_config_json).unwrap();
-        let mut node = GetVariableNode::new(
+        let backtest_config = serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json).unwrap();
+        let mut node = VariableNode::new(
             strategy_id as i32,
             node_id.clone(),
             node_name,

@@ -37,7 +37,7 @@ pub enum NodeEvent {
 
     #[strum(serialize = "position")]
     #[serde(rename = "position")]
-    Position(PositionMessage),
+    Position(PositionEvent),
 
     #[strum(serialize = "variable")]
     #[serde(rename = "variable")]
@@ -167,8 +167,8 @@ pub enum VirtualOrderEvent {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
-#[serde(tag = "message_type")]
-pub enum PositionMessage {
+#[serde(tag = "event_type")]
+pub enum PositionEvent {
     #[strum(serialize = "position-updated")]
     #[serde(rename = "position-updated")]
     PositionUpdated(Position),

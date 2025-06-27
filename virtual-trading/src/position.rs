@@ -9,7 +9,7 @@ use types::transaction::virtual_transaction::VirtualTransaction;
 impl VirtualTradingSystem {
     /// 执行订单, 返回持仓id
     /// 生成仓位和交易明细
-    pub fn execute_order(&mut self, mut virtual_order: VirtualOrder, current_price: f64) -> PositionId {
+    pub fn execute_order(&mut self, virtual_order: VirtualOrder, current_price: f64) -> PositionId {
         // tracing::info!("执行订单: {:?}, 成交价格: {:?}", virtual_order, current_price);
         // 执行订单，生成模拟仓位
         let virtual_position = VirtualPosition::new(&virtual_order, current_price);
@@ -21,9 +21,7 @@ impl VirtualTradingSystem {
         let virtual_transaction = VirtualTransaction::new(transaction_id, &virtual_order, &virtual_position);
 
         // 修改订单的状态
-        virtual_order.order_status = OrderStatus::Filled;
-        // 将订单加入到订单历史中
-        self.orders.push(virtual_order);
+        self.update_order_status(virtual_order.order_id, OrderStatus::Filled).unwrap();
 
         // 将交易明细添加到交易明细列表中
         self.transactions.push(virtual_transaction);

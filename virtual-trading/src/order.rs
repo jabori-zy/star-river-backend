@@ -35,8 +35,10 @@ impl VirtualTradingSystem {
                     // 获取当前价格
                     let current_price = self.kline_cache_data.get(&kline_cache_key).unwrap();
                     // 市价单忽略创建订单时的价格，而是使用最新的价格
-                    let mut market_order = VirtualOrder::new(order_id, strategy_id, node_id, exchange.clone(), symbol.clone(), order_side, order_type, quantity, current_price.clone(), tp, sl);
-                    tracing::debug!("创建市价订单: {:?}", market_order);
+                    let market_order = VirtualOrder::new(order_id, strategy_id, node_id, exchange.clone(), symbol.clone(), order_side, order_type, quantity, current_price.clone(), tp, sl);
+                    // 插入订单
+                    self.orders.push(market_order.clone());
+                    
                     // 创建完成后，直接成交订单
                     let position_id = self.execute_order(market_order, current_price.clone());
                     
@@ -58,6 +60,18 @@ impl VirtualTradingSystem {
             return Err(format!("k线缓存key不存在: {:?}", kline_cache_key));
         }
         Ok(order_id)
+    }
+
+    pub fn update_order_status(&mut self, order_id: OrderId, order_status: OrderStatus) -> Result<(), String> {
+        if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
+            // 更新订单状态
+            order.order_status = order_status;
+            // 更新订单更新时间
+            order.updated_time = Utc::now();
+            Ok(())
+        } else {
+            Err(format!("订单不存在: {:?}", order_id))
+        }
     }
     
 }

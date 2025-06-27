@@ -15,7 +15,7 @@ use exchange_client::ExchangeClient;
 use crate::Engine;
 use database::mutation::position_mutation::PositionMutation;
 use types::position::GetPositionParam;
-use types::strategy::node_event::PositionMessage;
+use types::strategy::node_event::PositionEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
@@ -157,7 +157,7 @@ impl PositionNodeContext {
                 // 发送仓位更新消息
                 let output_handle = self.get_all_output_handle().get("position_node_update_output").unwrap();
 
-                let position_message = PositionMessage::PositionUpdated(position);
+                let position_message = PositionEvent::PositionUpdated(position);
                 tracing::debug!("{}: 发送仓位更新消息: {:?}", self.get_node_name(), position_message);
                 output_handle.send(NodeEvent::Position(position_message)).unwrap();
             }

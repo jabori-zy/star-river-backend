@@ -20,7 +20,7 @@ use std::any::Any;
 use database::query::position_query::PositionQuery;
 use database::mutation::position_mutation::PositionMutation;
 use types::position::PositionState;
-use types::strategy::node_event::PositionMessage;
+use types::strategy::node_event::PositionEvent;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::LiveNodeRunState;
@@ -134,7 +134,7 @@ impl LiveStrategyContext {
             NodeEvent::Position(position_message) => {
                 match position_message {
                     // 仓位更新事件
-                    PositionMessage::PositionUpdated(position) => {
+                    PositionEvent::PositionUpdated(position) => {
                         // 更新持仓
                         self.positions.write().await.push(position);
                         // 更新系统变量

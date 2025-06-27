@@ -68,15 +68,15 @@ impl BacktestStrategyFunction {
                 Self::add_futures_order_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, database, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
                 Ok(())
             }
-            // // 持仓节点
-            // NodeType::PositionNode => {
-            //     Self::add_position_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, exchange_engine, database, heartbeat).await;
-            //     Ok(())
+            // 持仓节点
+            NodeType::PositionManagementNode => {
+                Self::add_position_management_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, database, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+                Ok(())
                 
-            // }
+            }
             // 获取变量节点
-            NodeType::GetVariableNode => {
-                Self::add_get_variable_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, heartbeat, database, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await;
+            NodeType::VariableNode => {
+                Self::add_variable_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, heartbeat, database, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await;
                 Ok(())
             }
             _ => {

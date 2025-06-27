@@ -44,21 +44,35 @@ impl TimerConfig {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetVariableConfig {
+pub struct VariableConfig {
     #[serde(rename = "configId")]
-    pub config_id: String,
+    pub config_id: i32,
+
+    #[serde(rename = "inputHandleId")]
+    pub input_handle_id: String,
+
+    #[serde(rename = "symbol")]
+    pub symbol: Option<String>,
+
+    #[serde(rename = "getVariableType")]
+    pub get_variable_type: GetVariableType,
+
+    #[serde(rename = "timerConfig")]
+    pub timer_config: Option<TimerConfig>,
+
     #[serde(rename = "variableName")]
     pub variable_name: String, // 变量名称
+
     pub variable: SysVariable, // 变量类型，使用StrategySysVariable的值
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetVariableNodeLiveConfig {
+pub struct VariableNodeLiveConfig {
     #[serde(rename = "selectedLiveAccount")]
     pub selected_live_account: SelectedAccount,
     pub symbol: Option<String>,
-    pub variables: Vec<GetVariableConfig>,
+    pub variables: Vec<VariableConfig>,
     #[serde(rename = "getVariableType")]
     pub get_variable_type: GetVariableType,
     #[serde(rename = "timerConfig")]
@@ -68,7 +82,7 @@ pub struct GetVariableNodeLiveConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeSimulateConfig {
-    pub variables: Vec<GetVariableConfig>,
+    pub variables: Vec<VariableConfig>,
 }
 
 
@@ -78,24 +92,20 @@ pub struct GetVariableNodeSimulateConfig {
 
 //交易所模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetVariableNodeExchangeModeConfig {
-    #[serde(rename = "selectedDataSource")]
-    pub selected_data_source: DataSourceExchange,
-    pub symbol: String,
-    #[serde(rename = "timeRange")]
-    pub time_range: TimeRange,
+pub struct VariableNodeExchangeModeConfig {
+    #[serde(rename = "selectedAccount")]
+    pub selected_account : SelectedAccount,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetVariableNodeBacktestConfig {
+pub struct VariableNodeBacktestConfig {
     #[serde(rename = "dataSource")]
     pub data_source: BacktestDataSource,
+
     #[serde(rename = "exchangeModeConfig")]
-    pub exchange_mode_config: Option<GetVariableNodeExchangeModeConfig>,
-    pub variables: Vec<GetVariableConfig>,
-    #[serde(rename = "getVariableType")]
-    pub get_variable_type: GetVariableType,
-    #[serde(rename = "timerConfig")]
-    pub timer_config: Option<TimerConfig>,
+    pub exchange_mode_config: Option<VariableNodeExchangeModeConfig>,
+
+    #[serde(rename = "variableConfigs")]
+    pub variable_configs: Vec<VariableConfig>,
 }

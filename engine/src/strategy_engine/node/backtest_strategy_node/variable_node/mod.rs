@@ -1,11 +1,11 @@
-mod get_variable_node_context;
-mod get_variable_node_state_machine;
+mod variable_node_context;
+mod variable_node_state_machine;
 
 use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use get_variable_node_context::GetVariableNodeContext;
-use get_variable_node_state_machine::{GetVariableNodeStateAction,GetVariableNodeStateMachine};
+use variable_node_context::VariableNodeContext;
+use variable_node_state_machine::{VariableNodeStateAction,VariableNodeStateMachine};
 use crate::strategy_engine::node::{BacktestNodeTrait,NodeType,NodeOutputHandle};
 use crate::strategy_engine::node::node_state_machine::BacktestNodeStateTransitionEvent;
 use std::any::Any;
@@ -15,7 +15,7 @@ use types::strategy::node_event::NodeEvent;
 use event_center::EventPublisher;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use types::node::get_variable_node::*;
+use types::node::variable_node::*;
 use tokio::sync::broadcast;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -28,17 +28,17 @@ use crate::strategy_engine::node::node_types::DefaultOutputHandleId;
 
 
 #[derive(Debug, Clone)]
-pub struct GetVariableNode {
+pub struct VariableNode {
     pub context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>,
 }
 
 
-impl GetVariableNode {
+impl VariableNode {
     pub fn new(
         strategy_id: i32,
         node_id: String,
         node_name: String,
-        backtest_config: GetVariableNodeBacktestConfig,
+        backtest_config: VariableNodeBacktestConfig,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -58,12 +58,12 @@ impl GetVariableNode {
             vec![response_event_receiver],
             command_publisher,
             command_receiver,
-            Box::new(GetVariableNodeStateMachine::new(node_id, node_name)),
+            Box::new(VariableNodeStateMachine::new(node_id, node_name)),
             strategy_command_sender,
             strategy_inner_event_receiver,
         );
         Self {
-            context: Arc::new(RwLock::new(Box::new(GetVariableNodeContext {
+            context: Arc::new(RwLock::new(Box::new(VariableNodeContext {
                 base_context,
                 backtest_config,
                 heartbeat,
@@ -76,7 +76,7 @@ impl GetVariableNode {
 }
 
 #[async_trait]
-impl BacktestNodeTrait for GetVariableNode {
+impl BacktestNodeTrait for VariableNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -93,39 +93,29 @@ impl BacktestNodeTrait for GetVariableNode {
     }
 
     async fn set_output_handle(&mut self) {
+
+        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
-        let context = self.get_context();
-        let mut state_guard = context.write().await;
-        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
-            let variable_config = get_variable_node_context.backtest_config.variables.clone();
+        let node_name = self.get_node_name().await;
+        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        self.add_output_handle(strategy_output_handle_id, tx).await;
+
+        let variable_configs = {
+            let context = self.get_context();
+            let context_guard = context.read().await;
+            let variable_node_context = context_guard.as_any().downcast_ref::<VariableNodeContext>().unwrap();
+            variable_node_context.backtest_config.variable_configs.clone()
+        };
             
-            for variable in variable_config {
-                let (tx, _) = broadcast::channel::<NodeEvent>(100);
-                let output_handle = NodeOutputHandle {
-                    node_id: node_id.clone(),
-                    output_handle_id: format!("get_variable_node_output_{}", variable.variable.to_string()),
-                    node_event_sender: tx,
-                    connect_count: 0,
-                };
-
-                get_variable_node_context.get_all_output_handle_mut().insert(format!("get_variable_node_output_{}", variable.variable.to_string()), output_handle);
-                tracing::debug!("{}: 设置节点出口: {}", node_id, format!("get_variable_node_output_{}", variable.variable.to_string()));
-            }
-
-            // 添加一个默认出口，向策略发送消息
+        for variable in variable_configs {
             let (tx, _) = broadcast::channel::<NodeEvent>(100);
-            let default_output_handle_id = DefaultOutputHandleId::GetVariableNodeOutput;
-            let output_handle = NodeOutputHandle {
-                node_id: node_id.clone(),
-                output_handle_id: default_output_handle_id.to_string(),
-                node_event_sender: tx,
-                connect_count: 0,
-            };
-
-            get_variable_node_context.get_all_output_handle_mut().insert(default_output_handle_id.to_string(), output_handle);
-            tracing::debug!("{}: 所有的输出句柄: {:?}", node_id, get_variable_node_context.get_all_output_handle());
-
+            let output_handle_id = format!("{}_output{}", node_id, variable.config_id);
+            self.add_output_handle(output_handle_id, tx).await;
         }
+
+        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), String> {
@@ -168,38 +158,38 @@ impl BacktestNodeTrait for GetVariableNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题
-            if let Some(get_variable_node_state_action) = action.as_any().downcast_ref::<GetVariableNodeStateAction>() {
-                match get_variable_node_state_action {
-                    GetVariableNodeStateAction::LogTransition => {
+            if let Some(variable_node_state_action) = action.as_any().downcast_ref::<VariableNodeStateAction>() {
+                match variable_node_state_action {
+                    VariableNodeStateAction::LogTransition => {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
                     }
-                    GetVariableNodeStateAction::LogNodeState => {
+                    VariableNodeStateAction::LogNodeState => {
                         let current_state = self.get_state_machine().await.current_state();
                         tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
                     }
-                    GetVariableNodeStateAction::RegisterTask => {
+                    VariableNodeStateAction::RegisterTask => {
                         tracing::info!("{}: 开始注册任务", node_id);
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
-                            let backtest_config = get_variable_node_context.backtest_config.clone();
-                            let get_variable_type = backtest_config.get_variable_type.clone();
-                            // 如果获取变量类型为定时触发，则注册任务
-                            if let GetVariableType::Timer = get_variable_type {
-                                get_variable_node_context.register_task().await;
-                            }
-                        }
+                        // let context = self.get_context();
+                        // let mut state_guard = context.write().await;
+                        // if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
+                        //     let backtest_config = get_variable_node_context.backtest_config.clone();
+                        //     let get_variable_type = backtest_config.get_variable_type.clone();
+                        //     // 如果获取变量类型为定时触发，则注册任务
+                        //     if let GetVariableType::Timer = get_variable_type {
+                        //         get_variable_node_context.register_task().await;
+                        //     }
+                        // }
                     }
-                    GetVariableNodeStateAction::ListenAndHandleNodeEvents => {
+                    VariableNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
                         self.listen_node_events().await?;
                     }
-                    GetVariableNodeStateAction::ListenAndHandleStrategyInnerEvents => {
+                    VariableNodeStateAction::ListenAndHandleStrategyInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部消息", node_id);
                         self.listen_strategy_inner_events().await?;
                     }
-                    GetVariableNodeStateAction::LogError(error) => {
+                    VariableNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);
                     }
                 }
