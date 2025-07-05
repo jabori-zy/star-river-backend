@@ -31,7 +31,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(StrategyConfig::Config).json())
                     .col(ColumnDef::new(StrategyConfig::Nodes).json())
                     .col(ColumnDef::new(StrategyConfig::Edges).json())
-                    .col(ColumnDef::new(StrategyConfig::ChartConfig).json())
+                    .col(ColumnDef::new(StrategyConfig::LiveChartConfig).json())
+                    .col(ColumnDef::new(StrategyConfig::BacktestChartConfig).json())
                     .col(ColumnDef::new(StrategyConfig::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     .col(ColumnDef::new(StrategyConfig::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     // .foreign_key(
@@ -66,7 +67,8 @@ pub enum StrategyConfig {
     Config,//策略配置
     Nodes,//节点
     Edges,//边
-    ChartConfig,//图表配置
+    LiveChartConfig,//实盘图表配置
+    BacktestChartConfig,//回测图表配置
     CreatedTime,//创建时间
     UpdatedTime,//更新时间
 }

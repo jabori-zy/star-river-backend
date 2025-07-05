@@ -15,7 +15,8 @@ impl From<StrategyConfigModel> for Strategy {
             config: config.config,
             nodes: config.nodes,
             edges: config.edges,
-            chart_config: config.chart_config,
+            live_chart_config: config.live_chart_config,
+            backtest_chart_config: config.backtest_chart_config,
             created_time: config.created_time,
             updated_time: config.updated_time,
         }

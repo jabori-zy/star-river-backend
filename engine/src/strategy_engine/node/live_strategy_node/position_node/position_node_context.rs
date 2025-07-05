@@ -8,7 +8,7 @@ use heartbeat::Heartbeat;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use types::strategy::node_event::{NodeEvent, OrderEvent};
+use types::strategy::node_event::{BacktestNodeEvent, OrderEvent};
 use types::order::Order;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use exchange_client::ExchangeClient;
@@ -66,9 +66,9 @@ impl LiveNodeContextTrait for PositionNodeContext {
         self.base_context.output_handle.get(&format!("position_node_update_output")).unwrap().clone()
     }
 
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
-            NodeEvent::Order(order_message) => {
+            BacktestNodeEvent::Order(order_message) => {
                 match order_message {
                     OrderEvent::OrderFilled(order) => {
                         tracing::debug!("{}: 收到订单已完成信息: {:?}", self.get_node_name(), order);
@@ -159,7 +159,7 @@ impl PositionNodeContext {
 
                 let position_message = PositionEvent::PositionUpdated(position);
                 tracing::debug!("{}: 发送仓位更新消息: {:?}", self.get_node_name(), position_message);
-                output_handle.send(NodeEvent::Position(position_message)).unwrap();
+                output_handle.send(BacktestNodeEvent::Position(position_message)).unwrap();
             }
             Err(_) => {
                 tracing::warn!("仓位已关闭: {:?}", order.exchange_order_id);

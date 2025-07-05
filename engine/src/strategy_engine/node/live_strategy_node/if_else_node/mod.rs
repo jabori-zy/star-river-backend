@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
@@ -148,7 +148,7 @@ impl LiveNodeTrait for IfElseNode {
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
 
         self.add_output_handle(DefaultOutputHandleId::IfElseNodeElseOutput.to_string(), tx).await;
 
@@ -158,7 +158,7 @@ impl LiveNodeTrait for IfElseNode {
             let cases = if_else_node_context.live_config.cases.clone();
 
             for case in cases {
-                let (tx, _) = broadcast::channel::<NodeEvent>(100);
+                let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
                 let handle = NodeOutputHandle {
                     node_id: node_id.clone(),
                     output_handle_id: format!("if_else_node_case_{}_output", case.case_id),

@@ -40,9 +40,11 @@ pub async fn backtest_strategy_sse_handler(State(star_river): State<StarRiver>,)
         let _guard = Guard { channel_name: "Strategy" };
         let mut stream = tokio_stream::wrappers::BroadcastStream::new(strategy_event_receiver);
         while let Some(result) = stream.next().await {
+            // 过滤事件
             let event = match result {
-                Ok(EventCenterEvent::Strategy(StrategyEvent::BacktestStrategyDataUpdate(_))) => {
+                Ok(EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(_))) => {
                     let json = serde_json::to_string(&result.as_ref().unwrap()).unwrap();
+                    // tracing::debug!("backtest-strategy-sse: {:?}", json);
                     Some(Event::default().data(json))
                 }
                 Ok(_) => None,

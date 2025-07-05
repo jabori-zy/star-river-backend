@@ -39,5 +39,17 @@ impl StrategyConfigQuery {
         let strategy_config = StrategyConfig::find_by_id(id).one(db).await?;
         Ok(strategy_config.map(|config| config.into()))
     }
+
+    pub async fn get_backtest_chart_config_by_strategy_id(
+        db: &DbConn,
+        strategy_id: i32
+    ) -> Result<JsonValue, DbErr> {
+        let strategy_config = StrategyConfig::find_by_id(strategy_id).one(db).await?;
+        if let Some(config) = strategy_config {
+            Ok(config.backtest_chart_config.unwrap_or(JsonValue::Null))
+        } else {
+            Ok(JsonValue::Null)
+        }
+    }
 }
 

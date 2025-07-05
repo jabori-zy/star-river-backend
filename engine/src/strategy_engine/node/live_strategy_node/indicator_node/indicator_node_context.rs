@@ -8,7 +8,7 @@ use event_center::response::Response;
 use event_center::response::indicator_engine_response::IndicatorEngineResponse;
 use event_center::command::indicator_engine_command::{IndicatorEngineCommand, RegisterIndicatorParams};
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::{LiveIndicatorUpdateEvent, NodeEvent, IndicatorEvent};
+use types::strategy::node_event::{LiveIndicatorUpdateEvent, BacktestNodeEvent, IndicatorNodeEvent};
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::indicator_node_type::IndicatorNodeLiveConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -106,9 +106,9 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
     }
 
     
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
-            NodeEvent::KlineSeries(_) => {
+            BacktestNodeEvent::KlineSeries(_) => {
                 // 接收到k线数据， 向缓存引擎请求指标数据
                 let indicator_cache_key = IndicatorCacheKey::new(
                     self.live_config.exchange.clone(), 
@@ -136,7 +136,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                                 tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, indicator_message);
                                 // 发送指标message
                                 let handle = self.get_default_output_handle();
-                                handle.send(NodeEvent::Indicator(IndicatorEvent::LiveIndicatorUpdate(indicator_message))).unwrap();
+                                handle.send(BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::LiveIndicatorUpdate(indicator_message))).unwrap();
                             }
                             _ => {}
                         }

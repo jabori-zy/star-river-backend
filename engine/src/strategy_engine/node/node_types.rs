@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use tokio::sync::broadcast::error::SendError;
 use std::error::Error;
 use serde::{Deserialize, Serialize};
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use sea_orm::prelude::*;
 use strum_macros::Display;
 use std::str::FromStr;
@@ -92,7 +92,7 @@ pub struct NodeInputHandle {
     pub from_node_id: String,
     pub from_handle_id: String,
     pub input_handle_id: String, // 对应的input_handle_id
-    pub receiver: broadcast::Receiver<NodeEvent>,
+    pub receiver: broadcast::Receiver<BacktestNodeEvent>,
 }
 
 impl NodeInputHandle {
@@ -100,12 +100,12 @@ impl NodeInputHandle {
         from_node_id: String,
         from_handle_id: String,
         input_handle_id: String, 
-        receiver: broadcast::Receiver<NodeEvent>
+        receiver: broadcast::Receiver<BacktestNodeEvent>
     ) -> Self {
         Self { from_node_id, from_handle_id, input_handle_id, receiver }
     }
 
-    pub fn get_receiver(&self) -> broadcast::Receiver<NodeEvent> {
+    pub fn get_receiver(&self) -> broadcast::Receiver<BacktestNodeEvent> {
         self.receiver.resubscribe()
     }
 }
@@ -137,12 +137,12 @@ pub struct Edge {
 pub struct NodeOutputHandle {
     pub node_id: String,
     pub output_handle_id: String,
-    pub node_event_sender: broadcast::Sender<NodeEvent>,
+    pub node_event_sender: broadcast::Sender<BacktestNodeEvent>,
     pub connect_count: usize,
 }
 
 impl NodeOutputHandle {
-    pub fn send(&self, event: NodeEvent) -> Result<usize, String> {
+    pub fn send(&self, event: BacktestNodeEvent) -> Result<usize, String> {
         if self.connect_count > 0 {
             self.node_event_sender.send(event).map_err(|e| format!("节点{}的出口{}发送消息失败: {}", self.node_id, self.output_handle_id, e))
         } else {
@@ -151,7 +151,7 @@ impl NodeOutputHandle {
         }
     }
 
-    pub fn subscribe(&self) -> broadcast::Receiver<NodeEvent> {
+    pub fn subscribe(&self) -> broadcast::Receiver<BacktestNodeEvent> {
         self.node_event_sender.subscribe()
     }
 }

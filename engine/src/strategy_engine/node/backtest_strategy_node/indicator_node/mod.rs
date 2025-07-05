@@ -22,7 +22,7 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
 use types::cache::cache_key::{BacktestIndicatorCacheKey, BacktestKlineCacheKey};
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -147,13 +147,13 @@ impl BacktestNodeTrait for IndicatorNode {
         // 添加strategy_ouput_handle
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         self.add_output_handle(strategy_output_handle_id, tx).await;
         
         
 
         // 添加默认出口
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
         self.add_output_handle(default_output_handle_id, tx).await;
@@ -170,7 +170,7 @@ impl BacktestNodeTrait for IndicatorNode {
         for indicator in selected_indicator.iter() {
             let indicator_output_handle_id = indicator.handle_id.clone();
             tracing::debug!(node_id = %node_id, node_name = %node_name, indicator_output_handle_id = %indicator_output_handle_id, "setting indicator output handle");
-            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(indicator_output_handle_id, tx).await;
         }
         tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");

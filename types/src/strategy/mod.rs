@@ -36,8 +36,10 @@ pub struct Strategy {
     pub nodes: Option<serde_json::Value>,
     /// 策略边
     pub edges: Option<serde_json::Value>,
-    /// 策略图表配置
-    pub chart_config: Option<serde_json::Value>,
+    /// 实盘图表配置
+    pub live_chart_config: Option<serde_json::Value>,
+    /// 回测图表配置
+    pub backtest_chart_config: Option<serde_json::Value>,
     /// 创建时间
     pub created_time: DateTime<Utc>,
     /// 更新时间

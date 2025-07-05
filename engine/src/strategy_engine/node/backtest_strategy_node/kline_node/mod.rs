@@ -21,7 +21,7 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -93,13 +93,13 @@ impl BacktestNodeTrait for KlineNode {
         let node_name = self.get_node_name().await;
 
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
         self.add_output_handle(default_output_handle_id, tx).await;
@@ -116,7 +116,7 @@ impl BacktestNodeTrait for KlineNode {
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.handle_id.clone();
             tracing::debug!(node_id = %node_id, node_name = %node_name, symbol_output_handle_id = %symbol_output_handle_id, "setting symbol output handle");
-            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(symbol_output_handle_id, tx).await;
         }
         tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");

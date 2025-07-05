@@ -164,23 +164,23 @@ impl BacktestStrategy {
 
 impl BacktestStrategy {
 
-    fn get_context(&self) -> Arc<RwLock<BacktestStrategyContext>> {
+    pub fn get_context(&self) -> Arc<RwLock<BacktestStrategyContext>> {
         self.context.clone()
     }
 
-    async fn get_strategy_id(&self) -> i32 {
+    pub async fn get_strategy_id(&self) -> i32 {
         self.context.read().await.strategy_id
     }
 
-    async fn get_strategy_name(&self) -> String {
+    pub async fn get_strategy_name(&self) -> String {
         self.context.read().await.strategy_name.clone()
     }
 
-    async fn get_state_machine(&self) -> BacktestStrategyStateMachine {
+    pub async fn get_state_machine(&self) -> BacktestStrategyStateMachine {
         self.context.read().await.state_machine.clone()
     }
 
-    async fn update_strategy_state(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<(), String> {
+    pub async fn update_strategy_state(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let strategy_name = self.get_strategy_name().await;
 
@@ -198,7 +198,10 @@ impl BacktestStrategy {
                     let context_guard = self.context.read().await;
                     let backtest_config = context_guard.strategy_config.clone();
                     let initial_play_speed = backtest_config.play_speed as u32;
+                    tracing::info!("{}: 初始化初始播放速度成功。播放速度: {:?}", strategy_name, backtest_config);
+
                     let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
+                    tracing::info!("{}: 初始化初始播放速度成功。播放速度: {}", strategy_name, initial_play_speed);
                     *initial_play_speed_guard = initial_play_speed;
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
@@ -369,11 +372,15 @@ impl BacktestStrategy {
         Ok(())
     }
 
-    pub async fn play_one_kline(&mut self) -> Result<(), String> {
+    pub async fn play_one_kline(&mut self) -> Result<u32, String> {
         
         let context_guard = self.context.read().await;
-        context_guard.play_one_kline().await;
-        Ok(())
+        let played_signal_count = context_guard.play_one_kline().await;
+        if let Ok(played_signal_count) = played_signal_count {
+            Ok(played_signal_count)
+        } else {
+            Err("播放单根k线失败".to_string())
+        }
     }
     
 }

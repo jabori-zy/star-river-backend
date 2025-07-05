@@ -2,7 +2,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, Backte
 use std::any::Any;
 use event_center::{command::cache_engine_command::{GetCacheLengthMultiParams, GetCacheLengthParams, CacheEngineCommand}, Event};
 use tracing::instrument;
-use types::strategy::{node_command::{GetStrategyCacheKeysParams}, node_event::{NodeEvent}};
+use types::strategy::{node_command::{GetStrategyCacheKeysParams}, node_event::{BacktestNodeEvent}};
 use async_trait::async_trait;
 use types::strategy::BacktestStrategyConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -54,7 +54,7 @@ impl BacktestNodeContextTrait for StartNodeContext {
         tracing::info!("{}: 收到事件: {:?}", self.base_context.node_id, event);
         Ok(())
     }
-    async fn handle_node_event(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
         Ok(())
     }
@@ -68,7 +68,7 @@ impl BacktestNodeContextTrait for StartNodeContext {
                 // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let strategy_output_handle = self.get_strategy_output_handle();
                 // 更新完成后，发送索引已更新事件
-                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
@@ -94,7 +94,7 @@ impl StartNodeContext {
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
         
-        let signal = NodeEvent::Signal(SignalEvent::KlineTick(kline_tick_event.clone()));
+        let signal = BacktestNodeEvent::Signal(SignalEvent::KlineTick(kline_tick_event.clone()));
         // 通过default出口，给节点发送信号
         self.get_default_output_handle().send(signal.clone()).unwrap();
 
@@ -111,7 +111,7 @@ impl StartNodeContext {
             message_timestamp: get_utc8_timestamp_millis(),
         };
 
-        let signal = NodeEvent::Signal(SignalEvent::KlinePlayFinished(finish_signal));
+        let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlayFinished(finish_signal));
         default_output_handle.send(signal.clone()).unwrap();
 
     }

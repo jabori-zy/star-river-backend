@@ -47,20 +47,25 @@ impl BacktestStrategyFunction {
             }
 
             let backtest_config = serde_json::from_value::<KlineNodeBacktestConfig>(kline_config_json).unwrap();
+
             match backtest_config.data_source {
                 BacktestDataSource::Exchange => {
-                    let exchange_mode_config = backtest_config.clone().exchange_mode_config.unwrap();
-                    let exchange = exchange_mode_config.selected_account.exchange.clone();
-                    let symbol = exchange_mode_config.selected_symbols.first().unwrap().symbol.clone();
-                    let interval = exchange_mode_config.selected_symbols.first().unwrap().interval.clone();
-                    let start_time = exchange_mode_config.time_range.start_date.to_string();
-                    let end_time = exchange_mode_config.time_range.end_date.to_string();
-                    let backtest_kline_cache_key = BacktestKlineCacheKey::new(exchange, symbol, interval, start_time, end_time);
-                    // 添加到策略缓存key列表中
-                    strategy_cache_keys.push(backtest_kline_cache_key.clone().into());
-                    // 添加到虚拟交易系统中
-                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                    virtual_trading_system_guard.add_kline_cache_key(backtest_kline_cache_key);
+
+                    let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+                    let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+
+                    for symbol_config in backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.iter() {
+                        let backtest_kline_cache_key = BacktestKlineCacheKey::new(
+                            exchange.clone(), 
+                            symbol_config.symbol.clone(), 
+                            symbol_config.interval.clone(), 
+                            time_range.start_date.to_string(), 
+                            time_range.end_date.to_string()
+                        );
+                        // 添加到策略缓存key列表中
+                        strategy_cache_keys.push(backtest_kline_cache_key.clone().into());
+                    }
+                    
                 }
                 _ => {
                     return Err("data_source is not supported".to_string());

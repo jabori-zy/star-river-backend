@@ -39,7 +39,8 @@ impl StrategyConfigMutation {
         strategy_config: Option<JsonValue>,
         nodes: Option<JsonValue>,
         edges: Option<JsonValue>,
-        chart_config: Option<JsonValue>,
+        live_chart_config: Option<JsonValue>,
+        backtest_chart_config: Option<JsonValue>,
     ) -> Result<Strategy, DbErr> {
         let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
             .one(db)
@@ -56,7 +57,8 @@ impl StrategyConfigMutation {
             config: Set(strategy_config),
             nodes: Set(nodes),
             edges: Set(edges),
-            chart_config: Set(chart_config),
+            live_chart_config: Set(live_chart_config),
+            backtest_chart_config: Set(backtest_chart_config),
             updated_time: Set(Utc::now()),
             ..Default::default()
         }
@@ -89,6 +91,29 @@ impl StrategyConfigMutation {
 
 
 
+    }
+
+    // 更新回测图表配置
+    pub async fn update_backtest_chart_config(
+        db: &DbConn,
+        strategy_id: i32,
+        backtest_chart_config: Option<JsonValue>,
+    ) -> Result<JsonValue, DbErr> {
+        let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
+            .map(Into::into)?;
+
+        let strategy_config_model = strategy_config::ActiveModel {
+            id: strategy.id,
+            backtest_chart_config: Set(backtest_chart_config),
+            updated_time: Set(Utc::now()),
+            ..Default::default()
+        }
+        .update(db)
+        .await?;
+        Ok(strategy_config_model.backtest_chart_config.unwrap_or(JsonValue::Null))
     }
 
         

@@ -6,7 +6,7 @@ use chrono::Utc;
 use event_center::Event;
 use uuid::Uuid;
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::node_event::SignalEvent;
 use event_center::response::Response;
 use event_center::command::Command;
@@ -144,7 +144,7 @@ impl OrderNodeContext {
                 let output_handle = self.get_all_output_handle().get("order_node_output").unwrap();
                 let order_message = OrderEvent::OrderFilled(order.clone());
                 // 发送消息
-                output_handle.send(NodeEvent::Order(order_message.clone())).unwrap();
+                output_handle.send(BacktestNodeEvent::Order(order_message.clone())).unwrap();
                 // 获取交易明细
                 self.get_transaction_detail(order).await.unwrap();
 
@@ -180,7 +180,7 @@ impl OrderNodeContext {
             created_time: Utc::now(),
             updated_time: Utc::now(),
         });
-        output_handle.send(NodeEvent::Order(order_message.clone())).unwrap();
+        output_handle.send(BacktestNodeEvent::Order(order_message.clone())).unwrap();
     }
 
     pub async fn monitor_unfilled_order(&mut self) {
@@ -298,9 +298,9 @@ impl LiveNodeContextTrait for OrderNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
-            NodeEvent::Signal(signal_message) => {
+            BacktestNodeEvent::Signal(signal_message) => {
                 tracing::debug!("{}: 收到信号: {:?}", self.get_node_name(), signal_message);
 
                 match signal_message {

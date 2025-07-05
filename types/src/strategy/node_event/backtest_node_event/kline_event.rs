@@ -1,0 +1,67 @@
+use serde::{Deserialize, Serialize};
+use strum::Display;
+use crate::cache::{cache_key::BacktestKlineCacheKey, CacheKeyTrait, CacheValue};
+use std::sync::Arc;
+
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "event")]
+pub enum KlineNodeEvent {
+    #[strum(serialize = "kline-update")]
+    #[serde(rename = "kline-update")]
+    KlineUpdate(KlineUpdateEvent),
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KlineUpdateEvent {
+    #[serde(rename = "fromNodeId")]
+    pub from_node_id: String,
+
+    #[serde(rename = "fromNodeName")]
+    pub from_node_name: String,
+
+    #[serde(rename = "fromHandleId")]
+    pub from_handle_id: String,
+
+    #[serde(rename = "klineCacheIndex")]
+    pub kline_cache_index: u32,
+
+    #[serde(serialize_with = "serialize_kline_cache_key")]
+    #[serde(rename = "klineCacheKey")]
+    pub kline_cache_key: BacktestKlineCacheKey,
+
+    // pub kline: Vec<f64>,
+    #[serde(serialize_with = "serialize_kline_data")]
+    pub kline: Vec<Arc<CacheValue>>,
+    pub timestamp: i64,
+}
+
+
+fn serialize_kline_cache_key<'de, S>(kline_cache_key: &BacktestKlineCacheKey, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let kline_cache_key_str = kline_cache_key.get_key();
+    serializer.serialize_str(&kline_cache_key_str)
+}
+
+fn serialize_kline_data<S>(kline_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeSeq;
+    
+    let mut seq = serializer.serialize_seq(Some(kline_data.len()))?;
+    kline_data.iter().map(|cache_value| {
+        let json_value = cache_value.to_json();
+        seq.serialize_element(&json_value)
+    }).collect::<Result<(), S::Error>>()?;
+    seq.end()
+}
+
+    
+    

@@ -6,7 +6,7 @@ use utils::get_utc8_timestamp;
 use utils::get_utc8_timestamp_millis;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use types::strategy::node_event::{SignalEvent, NodeEvent, BacktestConditionMatchEvent, IndicatorEvent, PlayIndexUpdateEvent};
+use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, PlayIndexUpdateEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
@@ -14,13 +14,14 @@ use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::custom_type::{NodeId, HandleId, VariableId};
 use super::utils::{get_variable_value, get_condition_variable_value};
+use types::strategy::node_event::backtest_node_event::kline_event::KlineNodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub is_processing: bool,
     pub received_flag: HashMap<(NodeId, VariableId), bool>, // 用于记录每个variable的数据是否接收
-    pub received_message: HashMap<(NodeId, VariableId), Option<NodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
+    pub received_message: HashMap<(NodeId, VariableId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     pub backtest_config: IfElseNodeBacktestConfig,
     
 
@@ -62,23 +63,25 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
         tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
         //如果事件类型是回测指标更新或者k线更新
         match &node_event {
-            NodeEvent::Indicator(IndicatorEvent::BacktestIndicatorUpdate(backtest_indicator_update_event)) => {
+            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(backtest_indicator_update_event)) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if self.get_play_index().await == backtest_indicator_update_event.kline_cache_index {
                     self.update_received_event(node_event);
                 }
             }
-            NodeEvent::BacktestKline(backtest_kline_update_event) => {
+            BacktestNodeEvent::KlineNode(kline_event) => {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if self.get_play_index().await == backtest_kline_update_event.kline_cache_index {
-                    self.update_received_event(node_event);
+                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
+                    if self.get_play_index().await == kline_update_event.kline_cache_index {
+                        self.update_received_event(node_event);
+                    }
                 }
             }
-            NodeEvent::Variable(variable_message) => {
+            BacktestNodeEvent::Variable(variable_message) => {
                 self.update_received_event(node_event);
             }
             _ => {}
@@ -93,7 +96,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle_id.clone(),
@@ -109,11 +112,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
 
 impl IfElseNodeContext {
 
-    fn update_received_event(&mut self, received_event: NodeEvent) {
+    fn update_received_event(&mut self, received_event: BacktestNodeEvent) {
         tracing::debug!("接收到的变量消息: {:?}", received_event);
         let (from_node_id, from_variable_id) = match &received_event {
-            NodeEvent::Indicator(indicator_message) => {
-                if let IndicatorEvent::BacktestIndicatorUpdate(indicator_update_event) = indicator_message {
+            BacktestNodeEvent::IndicatorNode(indicator_message) => {
+                if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_message {
                     let from_node_id = indicator_update_event.from_node_id.clone();
                     // let from_handle_id = indicator_update_event.from_handle_id.clone();
                     let from_variable_id = indicator_update_event.indicator_id;
@@ -212,7 +215,7 @@ impl IfElseNodeContext {
 
                 // 获取case的handle
                 tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
-                if let Err(e) = case_output_handle.send(NodeEvent::Signal(signal_event.clone())) {
+                if let Err(e) = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
                     tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
                 }
 
@@ -234,7 +237,7 @@ impl IfElseNodeContext {
             
 
             tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
-            if let Err(e) = default_ouput_handle.send(NodeEvent::Signal(signal_event.clone())) {
+            if let Err(e) = default_ouput_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
                 tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
             }
         }

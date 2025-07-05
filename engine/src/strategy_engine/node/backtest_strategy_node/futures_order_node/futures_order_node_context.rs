@@ -7,7 +7,7 @@ use chrono::Utc;
 use event_center::Event;
 use uuid::Uuid;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use event_center::response::Response;
 use event_center::command::Command;
 use super::futures_order_node_types::*;
@@ -119,13 +119,13 @@ impl FuturesOrderNodeContext {
 
     pub async fn handle_node_event_for_specific_order(
         &mut self, 
-        node_event: NodeEvent, 
+        node_event: BacktestNodeEvent, 
         from_node_id: &str, 
         input_handle_id: &str
     ) -> Result<(), String> {
         tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?} 来自节点: {}", self.get_node_id(), input_handle_id, node_event, from_node_id);
         match node_event {
-            NodeEvent::Signal(signal_event) => {
+            BacktestNodeEvent::Signal(signal_event) => {
                 match signal_event {
                     SignalEvent::BacktestConditionMatch(backtest_condition_match_event) => {
                         if backtest_condition_match_event.play_index == self.get_play_index().await {
@@ -180,7 +180,7 @@ impl FuturesOrderNodeContext {
             let output_handle = self.get_output_handle(&output_handle_id);
             tracing::debug!("{}: 发送订单状态事件: {:?}", self.get_node_id(), output_handle);
             let order_event = VirtualOrderEvent::VirtualOrderFilled(virtual_order.clone());
-            if let Err(e) = output_handle.send(NodeEvent::VirtualOrder(order_event)) {
+            if let Err(e) = output_handle.send(BacktestNodeEvent::VirtualOrder(order_event)) {
                 tracing::error!("{}: 发送订单状态事件失败: {:?}", self.get_node_id(), e);
             }
 
@@ -383,7 +383,7 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         Ok(())
     }
 
-    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
         tracing::debug!("{}: 接收到节点事件: {:?}", self.get_node_id(), node_event);
         // match node_event {
         //     NodeEvent::Signal(signal_event) => {
@@ -411,7 +411,7 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
                 self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle_id.clone(),

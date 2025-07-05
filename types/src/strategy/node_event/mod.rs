@@ -1,4 +1,5 @@
 pub mod variable_event;
+pub mod backtest_node_event;
 
 
 use crate::market::{Kline, KlineSeries};
@@ -13,19 +14,24 @@ use crate::cache::cache_key::BacktestKlineCacheKey;
 use std::sync::Arc;
 use variable_event::PositionNumberUpdateEvent;
 use crate::order::virtual_order::VirtualOrder;
+use backtest_node_event::kline_event::KlineNodeEvent;
+use crate::cache::cache_key::BacktestIndicatorCacheKey;
+use crate::cache::CacheKeyTrait;
+
+
 
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
-#[serde(tag = "message_type")]
-pub enum NodeEvent {
+#[serde(tag = "node_type")]
+pub enum BacktestNodeEvent {
     #[strum(serialize = "kline_series")]
     #[serde(rename = "kline_series")]
     KlineSeries(KlineSeriesMessage),
 
     #[strum(serialize = "indicator")]
     #[serde(rename = "indicator")]
-    Indicator(IndicatorEvent),
+    IndicatorNode(IndicatorNodeEvent),
 
     #[strum(serialize = "signal")]
     #[serde(rename = "signal")]
@@ -43,9 +49,9 @@ pub enum NodeEvent {
     #[serde(rename = "variable")]
     Variable(VariableMessage),
 
-    #[strum(serialize = "backtest_kline_update")]
-    #[serde(rename = "backtest_kline_update")]
-    BacktestKline(BacktestKlineUpdateEvent), // 回测K线更新(缓存index, K线) 回测k线更新
+    #[strum(serialize = "kline-node")]
+    #[serde(rename = "kline-node")]
+    KlineNode(KlineNodeEvent), // 回测K线更新(缓存index, K线) 回测k线更新
 
     #[strum(serialize = "virtual_order")]
     #[serde(rename = "virtual_order")]
@@ -68,11 +74,11 @@ pub struct KlineSeriesMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
-pub enum IndicatorEvent {
+pub enum IndicatorNodeEvent {
     #[strum(serialize = "indicator_update")]
     #[serde(rename = "indicator_update")]
     LiveIndicatorUpdate(LiveIndicatorUpdateEvent), // 实盘指标更新
-    BacktestIndicatorUpdate(BacktestIndicatorUpdateEvent), // 回测指标更新
+    IndicatorUpdate(IndicatorUpdateEvent), // 回测指标更新
     IndicatorUpdateError,
 }
 
@@ -90,19 +96,68 @@ pub struct LiveIndicatorUpdateEvent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct BacktestIndicatorUpdateEvent {
+pub struct IndicatorUpdateEvent {
+    #[serde(rename = "fromNodeId")]
     pub from_node_id: String,
+
+    #[serde(rename = "fromNodeName")]
     pub from_node_name: String,
+
+    #[serde(rename = "fromNodeHandleId")]
     pub from_handle_id: String,
+
+    #[serde(rename = "exchange")]
     pub exchange: Exchange,
+
+    #[serde(rename = "symbol")]
     pub symbol: String,
+
+    #[serde(rename = "interval")]
     pub interval: KlineInterval,
+
+    #[serde(rename = "indicatorId")]
     pub indicator_id: i32,
+
+    #[serde(rename = "indicatorConfig")]
     pub indicator_config: IndicatorConfig,
+
+    #[serde(rename = "indicatorCacheKey")]
+    #[serde(serialize_with = "serialize_indicator_cache_key")]
+    pub indicator_cache_key: BacktestIndicatorCacheKey,
+
+    #[serde(rename = "indicatorSeries")]
+    #[serde(serialize_with = "serialize_indicator_data")]
     pub indicator_series: Vec<Arc<CacheValue>>,
+
+    #[serde(rename = "klineCacheIndex")]
     pub kline_cache_index: u32,
-    pub message_timestamp: i64,
+
+    #[serde(rename = "timestamp")] 
+    pub timestamp: i64,
 }
+
+fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &BacktestIndicatorCacheKey, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let indicator_cache_key_str = indicator_cache_key.get_key();
+    serializer.serialize_str(&indicator_cache_key_str)
+}
+
+fn serialize_indicator_data<S>(indicator_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeSeq;
+    
+    let mut seq = serializer.serialize_seq(Some(indicator_data.len()))?;
+    indicator_data.iter().map(|indicator_value| {
+        let json_value = indicator_value.to_json();
+        seq.serialize_element(&json_value)
+    }).collect::<Result<(), S::Error>>()?;
+    seq.end()
+}
+
 
 
 
@@ -211,16 +266,7 @@ impl VariableEvent {
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BacktestKlineUpdateEvent {
-    pub from_node_id: String,
-    pub from_node_name: String,
-    pub from_node_handle_id: String,
-    pub kline_cache_index: u32,
-    pub kline_cache_key: BacktestKlineCacheKey,
-    pub kline: Vec<f64>,
-    pub message_timestamp: i64,
-}
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

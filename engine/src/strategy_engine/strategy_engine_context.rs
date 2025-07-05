@@ -238,10 +238,22 @@ impl StrategyEngineContext {
         tracing::info!("策略实例已停止, 从引擎中移除, 策略名称: {}", strategy_id);
     }
 
-    pub async fn get_strategy_cache_keys(&self, strategy_id: i32) -> Vec<CacheKey> {
-        let strategy = self.live_strategy_list.get(&strategy_id).unwrap();
-        let cache_keys = strategy.get_context().read().await.get_cache_keys().await;
-        cache_keys
+    // 获取回测策略的缓存键
+    pub async fn get_strategy_cache_keys(&self, trade_mode: TradeMode, strategy_id: i32) -> Vec<CacheKey> {
+        match trade_mode {
+            TradeMode::Live => {
+                let live_strategy = self.live_strategy_list.get(&strategy_id).unwrap();
+                live_strategy.get_context().read().await.get_cache_keys().await
+            }
+            TradeMode::Backtest => {
+                let backtest_strategy = self.backtest_strategy_list.get(&strategy_id).unwrap();
+                backtest_strategy.get_context().read().await.get_cache_keys().await
+            }
+            _ => {
+                tracing::error!("不支持的策略类型: {}", trade_mode);
+                return vec![];
+            }
+        }
     }
 
 }

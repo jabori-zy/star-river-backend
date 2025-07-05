@@ -1,3 +1,7 @@
+pub mod backtest_strategy;
+
+
+
 use crate::star_river::StarRiver;
 use axum::http::StatusCode;
 use axum::extract::State;
@@ -11,6 +15,7 @@ use types::strategy::Strategy;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
+use types::strategy::TradeMode;
 
 
 
@@ -191,7 +196,9 @@ pub struct UpdateStrategyParams {
     /// 策略边
     pub edges: Option<serde_json::Value>,
     /// 策略图表配置
-    pub chart_config: Option<serde_json::Value>,
+    pub live_chart_config: Option<serde_json::Value>,
+    /// 回测图表配置
+    pub backtest_chart_config: Option<serde_json::Value>,
 }
 
 #[utoipa::path(
@@ -225,7 +232,8 @@ pub async fn update_strategy(
         params.config,
         params.nodes, 
         params.edges,
-        params.chart_config,
+        params.live_chart_config,
+        params.backtest_chart_config,
     ).await {
         Ok(strategy) => (
             StatusCode::OK,
@@ -382,14 +390,38 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 //     }))
 // }
 
+#[derive(Deserialize, Debug, IntoParams, ToSchema)]
+#[schema(
+    title = "获取策略缓存键参数",
+    description = "获取策略缓存键参数",
+    example = json!({
+        "trade_mode": "backtest"
+    })
+)]
+pub struct GetStrategyCacheKeysQuery {
+    #[schema(example = TradeMode::Backtest)]
+    pub trade_mode: TradeMode,
+}
 
-
-pub async fn get_strategy_cache_keys(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/{strategy_id}/cache-keys",
+    tag = "策略管理",
+    summary = "获取策略缓存键",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取缓存键的策略ID"),
+        GetStrategyCacheKeysQuery
+    ),
+    responses(
+        (status = 200, description = "获取策略缓存键成功", content_type = "application/json")
+    )
+)]
+pub async fn get_strategy_cache_keys(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>, Query(params): Query<GetStrategyCacheKeysQuery>) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
+    let cache_keys = strategy_engine.get_strategy_cache_keys(params.trade_mode, strategy_id).await;
     let cache_keys_str = cache_keys.iter().map(|cache_key| cache_key.get_key()).collect();
     (StatusCode::OK, Json(ApiResponse {
         code: 0,
@@ -525,15 +557,25 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
         (status = 400, description = "播放单个K线失败")
     )
 )]
-pub async fn play_one(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn play_one(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    strategy_engine.play_one_kline(strategy_id).await.unwrap();
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    let played_signal_count = strategy_engine.play_one_kline(strategy_id).await;
+    if let Ok(played_signal_count) = played_signal_count {
+        (StatusCode::OK, Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(serde_json::json!({
+                "played_signal_count": played_signal_count
+            })),
+        }))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            code: -1,
+            message: "failed".to_string(),
+            data: None,
+        }))
+    }
 }

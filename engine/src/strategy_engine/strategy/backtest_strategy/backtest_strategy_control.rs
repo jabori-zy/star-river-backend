@@ -47,7 +47,10 @@ impl BacktestStrategyContext {
             played_signal_index: self.played_signal_index.clone(),
             signal_count: self.signal_count.clone(),
             is_playing: self.is_playing.clone(),
-            initial_play_speed: self.initial_play_speed.clone(),
+            // initial_play_speed: self.initial_play_speed.clone(),
+
+            initial_play_speed: Arc::new(RwLock::new(4)),
+
             child_cancel_play_token: self.cancel_play_token.child_token(),
             virtual_trading_system: self.virtual_trading_system.clone(),
             strategy_inner_event_publisher: self.strategy_inner_event_publisher.clone(),
@@ -481,15 +484,15 @@ impl BacktestStrategyContext {
     }
 
     // 播放单根k线
-    pub async fn play_one_kline(&self) {
+    pub async fn play_one_kline(&self) -> Result<u32, String> {
 
         if *self.played_signal_index.read().await == *self.signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
-            return;
+            return Err("已播放完毕，无法继续播放".to_string());
         }
 
         if !self.can_play_one_kline().await {
-            return;
+            return Err("无法播放单根k线".to_string());
         }
 
         let (signal_count, played_signal_count) = self.get_current_signal_counts().await;
@@ -510,8 +513,10 @@ impl BacktestStrategyContext {
             
             tracing::info!("{}: k线播放完毕，正常退出播放任务", self.strategy_name.clone());
             *self.is_playing.write().await = false;
+            return Ok(played_signal_count);
         }
         
+        Ok(played_signal_count)
     }
 
     // 播放单根k线

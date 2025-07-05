@@ -1,7 +1,7 @@
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
 use std::any::Any;
 use event_center::Event;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use async_trait::async_trait;
 use types::strategy::LiveStrategyConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -46,7 +46,7 @@ impl LiveNodeContextTrait for StartNodeContext {
         tracing::info!("{}: 收到事件: {:?}", self.base_context.node_id, event);
         Ok(())
     }
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
         Ok(())
     }

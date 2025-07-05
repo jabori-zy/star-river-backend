@@ -11,7 +11,7 @@ use crate::strategy_engine::node::node_state_machine::BacktestNodeStateTransitio
 use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use event_center::EventPublisher;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
@@ -97,7 +97,7 @@ impl BacktestNodeTrait for VariableNode {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
         self.add_output_handle(strategy_output_handle_id, tx).await;
@@ -110,7 +110,7 @@ impl BacktestNodeTrait for VariableNode {
         };
             
         for variable in variable_configs {
-            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let output_handle_id = format!("{}_output{}", node_id, variable.config_id);
             self.add_output_handle(output_handle_id, tx).await;
         }

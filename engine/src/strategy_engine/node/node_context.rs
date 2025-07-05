@@ -7,7 +7,7 @@ use event_center::Event;
 use std::fmt::Debug;
 use async_trait::async_trait;
 use std::any::Any;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::TradeMode;
 use super::node_types::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
@@ -29,7 +29,7 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String>;
     
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String>;
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String>;
 
     fn get_base_context(&self) -> &LiveBaseNodeContext;
 
@@ -94,10 +94,10 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_all_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
-    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<NodeEvent>> {
+    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<BacktestNodeEvent>> {
         self.get_base_context().output_handle.values().map(|handle| handle.node_event_sender.clone()).collect()
     }
-    fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
+    fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
         self.get_base_context().output_handle.get(&handle_id).unwrap().node_event_sender.clone()
     }
     fn get_message_receivers(&self) -> &Vec<NodeInputHandle> {
@@ -223,7 +223,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String>;
     
-    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String>;
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String>;
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String>;
 
@@ -301,11 +301,11 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &mut self.get_base_context_mut().output_handles
     }
 
-    fn get_all_node_event_senders(&self) -> Vec<broadcast::Sender<NodeEvent>> {
+    fn get_all_node_event_senders(&self) -> Vec<broadcast::Sender<BacktestNodeEvent>> {
         self.get_base_context().output_handles.values().map(|handle| handle.node_event_sender.clone()).collect()
     }
 
-    fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<NodeEvent> {
+    fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
         self.get_base_context().output_handles.get(&handle_id).unwrap().node_event_sender.clone()
     }
 

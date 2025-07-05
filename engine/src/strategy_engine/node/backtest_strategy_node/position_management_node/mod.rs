@@ -25,7 +25,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::node_command::NodeCommandSender;
 use crate::strategy_engine::node::node_state_machine::*;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {
@@ -96,7 +96,7 @@ impl BacktestNodeTrait for PositionManagementNode {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
         self.add_output_handle(strategy_output_handle_id, tx).await;
@@ -111,8 +111,8 @@ impl BacktestNodeTrait for PositionManagementNode {
         for position_operation in position_operations.iter() {
             let success_output_handle_id = format!("{}_{}_success_output{}", node_id,position_operation.position_operation.to_string(), position_operation.position_operation_id);
             let failed_output_handle_id = format!("{}_{}_failed_output{}", node_id,position_operation.position_operation.to_string(), position_operation.position_operation_id);
-            let (success_tx, _) = broadcast::channel::<NodeEvent>(100);
-            let (failed_tx, _) = broadcast::channel::<NodeEvent>(100);
+            let (success_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            let (failed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(success_output_handle_id, success_tx).await;
             self.add_output_handle(failed_output_handle_id, failed_tx).await;
         }

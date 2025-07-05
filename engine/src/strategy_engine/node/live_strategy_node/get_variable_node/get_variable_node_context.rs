@@ -13,7 +13,7 @@ use types::strategy::sys_varibale::SysVariable;
 use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
 use types::strategy::node_event::VariableMessage;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::collections::HashMap;
 use types::strategy::node_event::SignalEvent;
@@ -64,9 +64,9 @@ impl LiveNodeContextTrait for GetVariableNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
-            NodeEvent::Signal(signal_message) => {
+            BacktestNodeEvent::Signal(signal_message) => {
                 tracing::info!("{}: 收到信号: {:?}", self.get_node_name(), signal_message);
                 match signal_message {
                     // 如果信号为True，则执行下单
@@ -182,7 +182,7 @@ impl GetVariableNodeContext {
                     message_timestamp: get_utc8_timestamp_millis(),
                 };
                 let output_handle = output_handle.get(&variable.config_id).unwrap();
-                output_handle.node_event_sender.send(NodeEvent::Variable(variable_message)).unwrap();
+                output_handle.node_event_sender.send(BacktestNodeEvent::Variable(variable_message)).unwrap();
                 Ok(())
             }
             Err(e) => {

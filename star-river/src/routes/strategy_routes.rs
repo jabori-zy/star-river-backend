@@ -7,6 +7,9 @@ use crate::api::strategy_api::{
     enable_strategy_data_push, disable_strategy_data_push,
     play, pause, play_one, reset, create_strategy, update_strategy, delete_strategy, get_strategy_list, get_strategy_by_id
 };
+
+use crate::api::strategy_api::backtest_strategy::{update_backtest_chart_config, get_backtest_chart_config};
+
 use crate::star_river::StarRiver;
 
 pub fn create_strategy_routes() -> Router<StarRiver> {
@@ -41,5 +44,7 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/pause", post(pause))
         .route("/{strategy_id}/play-one", post(play_one))
         .route("/{strategy_id}/reset", post(reset))
+        .route("/{strategy_id}/chart_config", post(update_backtest_chart_config))
+        .route("/{strategy_id}/chart_config", get(get_backtest_chart_config))
                 
 }

@@ -8,7 +8,7 @@ use heartbeat::Heartbeat;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use types::strategy::node_event::{NodeEvent, OrderEvent};
+use types::strategy::node_event::{BacktestNodeEvent, OrderEvent};
 use types::order::Order;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use exchange_client::ExchangeClient;
@@ -71,7 +71,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         self.base_context.output_handles.get(&format!("position_node_update_output")).unwrap().clone()
     }
 
-    async fn handle_node_event(&mut self, node_event: NodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
         tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
 
         // match message {
@@ -100,7 +100,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
                 self.set_play_index(play_index_update_event.played_index).await;
                 // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-                let signal = NodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle_id.clone(),

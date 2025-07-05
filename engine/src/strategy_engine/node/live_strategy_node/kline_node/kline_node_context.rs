@@ -5,7 +5,7 @@ use std::any::Any;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
-use types::strategy::node_event::{KlineSeriesMessage, NodeEvent};
+use types::strategy::node_event::{KlineSeriesMessage, BacktestNodeEvent};
 use uuid::Uuid;
 use event_center::response::Response;
 use crate::strategy_engine::node::node_context::{LiveNodeContextTrait,LiveBaseNodeContext};
@@ -113,7 +113,7 @@ impl LiveNodeContextTrait for KlineNodeContext {
         Ok(())
     }
 
-    async fn handle_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
         Ok(())
     }
@@ -282,7 +282,7 @@ impl KlineNodeContext {
                             kline_series: get_cache_data_response.cache_data,
                             message_timestamp: get_utc8_timestamp_millis(),
                         };
-                        output_handle.send(NodeEvent::KlineSeries(kline_series_message)).unwrap();
+                        output_handle.send(BacktestNodeEvent::KlineSeries(kline_series_message)).unwrap();
                     }
                     _ => {}
                 }

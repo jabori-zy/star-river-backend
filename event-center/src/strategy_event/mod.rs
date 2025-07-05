@@ -1,24 +1,31 @@
+pub mod backtest_strategy_event;
 
-use types::strategy::node_event::NodeEvent;
+
+use types::strategy::node_event::BacktestNodeEvent;
 use serde::{Serialize, Deserialize};
 use strum::Display;
 use std::collections::HashMap;
 use types::cache::{CacheKey, CacheValue};
 use std::sync::Arc;
 use crate::Event;
+use backtest_strategy_event::BacktestStrategyEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
-#[serde(tag = "event_name")]
+#[serde(tag = "eventType")]
 pub enum StrategyEvent {
     #[strum(serialize = "node-message-update")]
     #[serde(rename = "node-message-update")]
-    NodeMessageUpdate(NodeEvent), // 节点消息
+    NodeMessageUpdate(BacktestNodeEvent), // 节点消息
     #[strum(serialize = "live-strategy-data-update")]
     #[serde(rename = "live-strategy-data-update")]
     LiveStrategyDataUpdate(StrategyData), // 实时策略数据更新
     #[strum(serialize = "backtest-strategy-data-update")]
     #[serde(rename = "backtest-strategy-data-update")]
     BacktestStrategyDataUpdate(BacktestStrategyData), // 回测策略数据更新
+
+    #[strum(serialize = "backtest-strategy")]
+    #[serde(rename = "backtest-strategy")]
+    BacktestStrategy(BacktestStrategyEvent), // 回测策略事件
 }
 
 impl From<StrategyEvent> for Event {

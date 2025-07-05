@@ -8,7 +8,7 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::LiveNodeTrait;
 use types::strategy::{TradeMode, LiveStrategyConfig};
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
@@ -128,10 +128,10 @@ impl LiveStrategyContext {
         Ok(())
     }
 
-    pub async fn handle_node_message(&mut self, message: NodeEvent) -> Result<(), String> {
+    pub async fn handle_node_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         // tracing::debug!("策略: {:?} 收到来自节点消息: {:?}", self.get_strategy_name(), message);
         match message {
-            NodeEvent::Position(position_message) => {
+            BacktestNodeEvent::Position(position_message) => {
                 match position_message {
                     // 仓位更新事件
                     PositionEvent::PositionUpdated(position) => {

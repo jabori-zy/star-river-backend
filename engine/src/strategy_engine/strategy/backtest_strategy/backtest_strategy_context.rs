@@ -8,7 +8,8 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
-use types::strategy::node_event::{NodeEvent, SignalEvent};
+use types::strategy::node_event::{BacktestNodeEvent, SignalEvent};
+use types::strategy::node_event::backtest_node_event::kline_event::{KlineNodeEvent, KlineUpdateEvent};
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
@@ -31,6 +32,8 @@ use event_center::command::cache_engine_command::GetCacheLengthMultiParams;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::node_response::NodeResponse;
 use types::strategy::strategy_inner_event::StrategyInnerEventPublisher;
+use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use types::strategy::node_event::IndicatorNodeEvent;
 
 
 #[derive(Debug)]
@@ -71,7 +74,7 @@ impl BacktestStrategyContext {
         self.strategy_name.clone()
     }
 
-    async fn get_cache_keys(&self) -> Vec<CacheKey> {
+    pub async fn get_cache_keys(&self) -> Vec<CacheKey> {
         self.cache_keys.read().await.clone()
     }
 
@@ -127,31 +130,49 @@ impl BacktestStrategyContext {
     }
 
     // 所有节点发送的事件都会汇集到这里
-    pub async fn handle_node_events(&self, node_event: NodeEvent) -> Result<(), String> {
-        tracing::info!("{}: 收到消息: {:?}", self.strategy_name, node_event);
-        match node_event {
-            NodeEvent::Signal(signal_event) => {
-                match signal_event {
-                    SignalEvent::PlayIndexUpdated(play_index_update_event) => {
-                        tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.node_play_index);
-                        // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
-                        let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
-                        if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
-                                    updated_play_index_node_ids.push(play_index_update_event.from_node_id.clone());
-                        }
-                        
-                        // 如果所有节点索引更新完毕，则通知等待的线程
-                        if updated_play_index_node_ids.len() == self.graph.node_count() {
-                            tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
-                            self.updated_play_index_notify.notify_waiters();
-                            // 通知完成后，清空updated_play_index_node_ids
-                            updated_play_index_node_ids.clear();
-                        }
+    pub async fn handle_node_events(&self, node_event: BacktestNodeEvent) -> Result<(), String> {
+        // 播放索引更新事件
+        if let BacktestNodeEvent::Signal(signal_event) = &node_event {
+            match signal_event {
+                SignalEvent::PlayIndexUpdated(play_index_update_event) => {
+                    tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.node_play_index);
+                    // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
+                    let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
+                    if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
+                                updated_play_index_node_ids.push(play_index_update_event.from_node_id.clone());
                     }
-                    _ => {}
+                    
+                    // 如果所有节点索引更新完毕，则通知等待的线程
+                    if updated_play_index_node_ids.len() == self.graph.node_count() {
+                        tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
+                        self.updated_play_index_notify.notify_waiters();
+                        // 通知完成后，清空updated_play_index_node_ids
+                        updated_play_index_node_ids.clear();
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let BacktestNodeEvent::KlineNode(kline_node_event)  = &node_event {
+            match kline_node_event {
+                KlineNodeEvent::KlineUpdate(kline_update_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::KlineUpdate(kline_update_event.clone());
+                    tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
             }
-            _ => {}
+        }
+
+        if let BacktestNodeEvent::IndicatorNode(indicator_node_event) = &node_event {
+            match indicator_node_event {
+                IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::IndicatorUpdate(indicator_update_event.clone());
+                    tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                _ => {}
+            }
         }
         Ok(())
     }

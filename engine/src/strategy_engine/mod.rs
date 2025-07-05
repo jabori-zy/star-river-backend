@@ -17,6 +17,7 @@ use std::any::Any;
 use heartbeat::Heartbeat;
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use types::strategy::TradeMode;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -114,10 +115,10 @@ impl StrategyEngine{
         Ok(())
     }
     
-    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Vec<CacheKey> {
+    pub async fn get_strategy_cache_keys(&mut self, trade_mode: TradeMode, strategy_id: i32) -> Vec<CacheKey> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
-        strategy_context.get_strategy_cache_keys(strategy_id).await
+        strategy_context.get_strategy_cache_keys(trade_mode, strategy_id).await
     }
 
     // 播放策略
@@ -155,14 +156,16 @@ impl StrategyEngine{
 
 
     // 播放单根k线
-    pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<u32, String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
         if let Ok(strategy) = strategy {
-            strategy.play_one_kline().await.unwrap();
+            let played_signal_count = strategy.play_one_kline().await.unwrap();
+            Ok(played_signal_count)
+        } else {
+            Err("播放单根k线失败".to_string())
         }
-        Ok(())
     }
     
 

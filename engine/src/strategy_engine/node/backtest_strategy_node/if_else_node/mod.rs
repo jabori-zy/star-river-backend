@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::strategy::node_event::NodeEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
@@ -153,13 +153,13 @@ impl BacktestNodeTrait for IfElseNode {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
-        let (tx, _) = broadcast::channel::<NodeEvent>(100);
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_else_output", node_id); // else分支作为默认出口
         tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
         self.add_output_handle(default_output_handle_id, tx).await;
@@ -172,7 +172,7 @@ impl BacktestNodeTrait for IfElseNode {
         };
 
         for case in cases {
-            let (tx, _) = broadcast::channel::<NodeEvent>(100);
+            let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let case_id = case.case_id;
             let case_output_handle_id = format!("{}_output{}", node_id, case_id);
             self.add_output_handle(case_output_handle_id, tx).await;
