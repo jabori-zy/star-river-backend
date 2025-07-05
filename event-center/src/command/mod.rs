@@ -3,6 +3,7 @@ pub mod indicator_engine_command;
 pub mod cache_engine_command;
 pub mod exchange_engine_command;
 pub mod market_engine_command;
+pub mod backtest_strategy_command;
 
 
 use std::fmt::Debug;

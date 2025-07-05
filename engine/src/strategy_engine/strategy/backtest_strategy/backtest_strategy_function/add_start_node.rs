@@ -11,6 +11,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use heartbeat::Heartbeat;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use super::super::StrategyCommandPublisher;
+use event_center::command::backtest_strategy_command::StrategyCommand;
+use tokio::sync::mpsc;
 
 impl BacktestStrategyFunction {
     pub async fn add_start_node(
@@ -21,7 +24,8 @@ impl BacktestStrategyFunction {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
 
@@ -37,6 +41,13 @@ impl BacktestStrategyFunction {
         }
         tracing::debug!("回测配置: {:?}", backtest_config_json);
         let backtest_config = serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json).unwrap();
+        
+
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+        
+        
+        
         let mut node = StartNode::new(
             strategy_id as i32, 
             node_id.to_string(), 
@@ -46,7 +57,8 @@ impl BacktestStrategyFunction {
             command_publisher,
             command_receiver,
             heartbeat,
-            strategy_command_sender,
+            node_command_sender,
+            Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,
         );
         // 设置默认输出句柄

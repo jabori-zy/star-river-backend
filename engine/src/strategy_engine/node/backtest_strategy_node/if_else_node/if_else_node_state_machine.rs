@@ -7,6 +7,7 @@ pub enum IfElseNodeStateAction {
     ListenAndHandleStrategySignal,   // 处理策略信号
     ListenAndHandleNodeEvents,
     ListenAndHandleInnerEvents,
+    ListenAndHandleStrategyCommand, // 处理策略命令
     InitReceivedData,
     Evaluate,
     LogNodeState,    // 记录节点状态
@@ -92,7 +93,9 @@ impl BacktestNodeStateMachine for IfElseNodeStateManager {
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleNodeEvents), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleInnerEvents),
+                        Box::new(IfElseNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(IfElseNodeStateAction::InitReceivedData), 
+                        
                         ],
                 }))
             }

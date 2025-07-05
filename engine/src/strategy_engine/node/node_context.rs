@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
 use event_center::EventPublisher;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::node_state_machine::*;
@@ -17,6 +18,7 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use tokio::sync::RwLock;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 
 #[async_trait]
@@ -227,6 +229,8 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String>;
 
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String>;
+
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 
     fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext;
@@ -256,8 +260,12 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         self.get_base_context().command_receiver.clone()
     }
     
-    fn get_strategy_command_sender(&self) -> &NodeCommandSender {
-        &self.get_base_context().strategy_command_sender
+    fn get_node_command_sender(&self) -> &NodeCommandSender {
+        &self.get_base_context().node_command_sender
+    }
+
+    fn get_strategy_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
+        self.get_base_context().strategy_command_receiver.clone()
     }
 
     fn get_cancel_token(&self) -> &CancellationToken {
@@ -373,7 +381,8 @@ pub struct BacktestBaseNodeContext {
     pub is_enable_event_publish: bool, // 是否启用事件发布
     pub state_machine: Box<dyn BacktestNodeStateMachine>, // 状态机
     pub from_node_id: Vec<String>, // 来源节点ID
-    pub strategy_command_sender: NodeCommandSender, // 策略命令发送器
+    pub node_command_sender: NodeCommandSender, // 向策略发送命令
+    pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>
 }
 
 impl Clone for BacktestBaseNodeContext {
@@ -394,8 +403,9 @@ impl Clone for BacktestBaseNodeContext {
             from_node_id: self.from_node_id.clone(),
             command_publisher: self.command_publisher.clone(),
             command_receiver: self.command_receiver.clone(),
-            strategy_command_sender: self.strategy_command_sender.clone(),
+            node_command_sender: self.node_command_sender.clone(),
             strategy_inner_event_receiver: self.strategy_inner_event_receiver.resubscribe(),
+            strategy_command_receiver: self.strategy_command_receiver.clone(),
         }
     }
 }
@@ -411,7 +421,8 @@ impl BacktestBaseNodeContext {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         state_machine: Box<dyn BacktestNodeStateMachine>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
         Self {
@@ -430,7 +441,8 @@ impl BacktestBaseNodeContext {
             command_receiver,
             state_machine,
             from_node_id: Vec::new(),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         }
     }

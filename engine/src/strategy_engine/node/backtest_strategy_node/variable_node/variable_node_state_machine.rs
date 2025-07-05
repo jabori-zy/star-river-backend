@@ -6,6 +6,7 @@ use std::any::Any;
 pub enum VariableNodeStateAction {
     ListenAndHandleNodeEvents,         // 处理消息
     ListenAndHandleStrategyInnerEvents, // 处理策略内部事件
+    ListenAndHandleStrategyCommand, // 处理策略命令
     RegisterTask,                   // 注册任务
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
@@ -83,6 +84,7 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                         Box::new(VariableNodeStateAction::LogTransition),  
                         Box::new(VariableNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(VariableNodeStateAction::ListenAndHandleStrategyInnerEvents),
+                        Box::new(VariableNodeStateAction::ListenAndHandleStrategyCommand),
                     ],
                 }))
             }

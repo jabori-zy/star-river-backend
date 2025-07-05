@@ -29,6 +29,7 @@ use types::indicator::Indicator;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::strategy::node_event::{PlayIndexUpdateEvent, SignalEvent};
 use types::strategy::node_event::backtest_node_event::kline_event::KlineNodeEvent;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
@@ -204,6 +205,11 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 strategy_output_handle.send(signal).unwrap();
             }
         }
+        Ok(())
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 

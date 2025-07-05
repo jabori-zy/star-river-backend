@@ -32,7 +32,7 @@ pub enum BacktestStrategyStateAction { // 当切换到某一个状态时, 需要
     InitNode,             // 初始化节点
     StopNode,             // 停止节点
     ListenAndHandleNodeEvent,  // 监听节点消息
-    ListenAndHandleCommand,  // 监听命令
+    ListenAndHandleNodeCommand,  // 监听命令
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
 }
@@ -84,7 +84,7 @@ impl BacktestStrategyStateMachine {
                     actions: vec![
                         BacktestStrategyStateAction::LogTransition,
                         BacktestStrategyStateAction::ListenAndHandleNodeEvent,
-                        BacktestStrategyStateAction::ListenAndHandleCommand,
+                        BacktestStrategyStateAction::ListenAndHandleNodeCommand,
                         BacktestStrategyStateAction::InitNode, // 初始化节点
                         BacktestStrategyStateAction::InitCacheLength, // 初始化缓存长度
                         BacktestStrategyStateAction::InitSignalCount, // 初始化信号计数

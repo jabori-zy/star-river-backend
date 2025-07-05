@@ -20,7 +20,7 @@ use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
 use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::node_command::NodeCommandSender;
@@ -45,7 +45,8 @@ impl PositionManagementNode {
         response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
@@ -59,7 +60,8 @@ impl PositionManagementNode {
             command_publisher,
             command_receiver,
             Box::new(PositionNodeStateMachine::new(node_id, node_name)),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver
         );
         Self {
@@ -188,6 +190,10 @@ impl BacktestNodeTrait for PositionManagementNode {
                     PositionManagementNodeStateAction::ListenAndHandleInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部事件", node_id);
                         self.listen_strategy_inner_events().await?;
+                    }
+                    PositionManagementNodeStateAction::ListenAndHandleStrategyCommand => {
+                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        self.listen_strategy_command().await?;
                     }
                     PositionManagementNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);

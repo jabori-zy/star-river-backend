@@ -11,6 +11,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use super::super::StrategyCommandPublisher;
+use tokio::sync::mpsc;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 impl BacktestStrategyFunction {
     pub async fn add_if_else_node(
@@ -20,7 +23,8 @@ impl BacktestStrategyFunction {
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
         
@@ -41,6 +45,9 @@ impl BacktestStrategyFunction {
         };
         tracing::debug!("条件分支节点数据: {:?}", if_else_node_backtest_config);
 
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+
         let mut node = IfElseNode::new(
             strategy_id as i32, 
             node_id.to_string(),
@@ -49,7 +56,8 @@ impl BacktestStrategyFunction {
             event_publisher,
             command_publisher,
             command_receiver,
-            strategy_command_sender,
+            node_command_sender,
+            Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,
         );
         node.set_output_handle().await;

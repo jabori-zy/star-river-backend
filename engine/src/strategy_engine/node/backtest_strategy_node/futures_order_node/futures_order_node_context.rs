@@ -45,6 +45,7 @@ use types::strategy::node_event::PlayIndexUpdateEvent;
 use std::collections::HashMap;
 use types::custom_type::OrderId;
 use types::strategy::node_event::VirtualOrderEvent;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 #[derive(Debug, Clone)]
 pub struct FuturesOrderNodeContext {
@@ -269,7 +270,7 @@ impl FuturesOrderNodeContext {
             responder: tx,
         });
 
-        self.get_strategy_command_sender().send(node_command).await.unwrap();
+        self.get_node_command_sender().send(node_command).await.unwrap();
 
         let response = rx.await.unwrap();
         match response {
@@ -422,6 +423,11 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 

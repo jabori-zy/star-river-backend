@@ -23,7 +23,7 @@ use if_else_node_context::IfElseNodeContext;
 use crate::strategy_engine::node::{NodeOutputHandle,BacktestNodeTrait};
 use types::strategy::TradeMode;
 use if_else_node_type::IfElseNodeBacktestConfig;
-use event_center::{CommandPublisher, CommandReceiver};
+use event_center::{CommandPublisher, CommandReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
@@ -45,7 +45,8 @@ impl IfElseNode {
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
@@ -58,7 +59,8 @@ impl IfElseNode {
             command_publisher,
             command_receiver,
             Box::new(IfElseNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         );
         Self {
@@ -252,6 +254,10 @@ impl BacktestNodeTrait for IfElseNode {
                 IfElseNodeStateAction::Evaluate => {
                     tracing::info!("{}: 开始判断条件", node_id);
                     self.evaluate().await;
+                }
+                IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
+                    tracing::info!("{}: 开始监听策略命令", node_id);
+                    self.listen_strategy_command().await?;
                 }
                 _ => {}
                 // 所有动作执行完毕后更新节点最新的状态

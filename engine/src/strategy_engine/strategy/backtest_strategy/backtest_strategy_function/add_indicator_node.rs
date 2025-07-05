@@ -19,6 +19,9 @@ use types::cache::cache_key::BacktestIndicatorCacheKey;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use types::strategy::SelectedAccount;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::SelectedSymbol;
+use super::super::StrategyCommandPublisher;
+use tokio::sync::mpsc;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 impl BacktestStrategyFunction {
     pub async fn add_indicator_node(
@@ -30,7 +33,8 @@ impl BacktestStrategyFunction {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
@@ -91,27 +95,7 @@ impl BacktestStrategyFunction {
             cache_keys.push(indicator_cache_key.into());
         }
         tracing::debug!("selected_indicators: {:?}", selected_indicators);
-        
-        // let exchange_config_json = backtest_config_json["exchangeConfig"].clone();
-        // // 如果交易所配置不为空，则使用交易所配置
-        // let exchange_config = if !exchange_config_json.is_null() {
-        //     let exchange_config = serde_json::from_value::<ExchangeModeConfig>(exchange_config_json).unwrap();
-        //     let kline_cache_key = CacheKey::BacktestKline(BacktestKlineCacheKey::new(
-        //         exchange_config.selected_account.exchange.clone(),
-        //         exchange_config.selected_symbol.symbol.clone(),
-        //         exchange_config.selected_symbol.interval.clone(),
-        //         "".to_string(),
-        //         "".to_string(),
-        //     ));
-        //     let cache_key = BacktestIndicatorCacheKey::new(
-        //         kline_cache_key,
-        //         indicator_config.clone(),
-        //     );
-        //     cache_keys.push(cache_key.into());
-        //     Some(exchange_config)
-        // } else {
-        //     None
-        // };
+
 
         let exchange_mode_config = ExchangeModeConfig {
             selected_account: selected_account,
@@ -128,6 +112,10 @@ impl BacktestStrategyFunction {
         tracing::debug!("backtest_config: {:?}", backtest_config);
 
 
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+
+
         let mut node = IndicatorNode::new(
             strategy_id as i32,
             node_id.to_string(), 
@@ -137,7 +125,8 @@ impl BacktestStrategyFunction {
             command_publisher,
             command_receiver,
             response_event_receiver,
-            strategy_command_sender,
+            node_command_sender,
+            Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,
         );
         // 设置默认输出句柄

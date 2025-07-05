@@ -17,7 +17,7 @@ use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,Backte
 use kline_node_context::{KlineNodeContext};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
@@ -40,7 +40,8 @@ impl KlineNode {
         market_event_receiver: EventReceiver,
         response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
@@ -53,7 +54,8 @@ impl KlineNode {
             command_publisher,
             command_receiver,
             Box::new(KlineNodeStateMachine::new(node_id, node_name, backtest_config.data_source.clone())),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         );
         Self {
@@ -246,7 +248,10 @@ impl BacktestNodeTrait for KlineNode {
                             }
                         }
                     }
-
+                    KlineNodeStateAction::ListenAndHandleStrategyCommand => {
+                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        self.listen_strategy_command().await?;
+                    }
                     _ => {}
                 }
             }

@@ -20,7 +20,7 @@ use tokio::sync::broadcast;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
@@ -45,7 +45,8 @@ impl VariableNode {
         response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
@@ -59,7 +60,8 @@ impl VariableNode {
             command_publisher,
             command_receiver,
             Box::new(VariableNodeStateMachine::new(node_id, node_name)),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         );
         Self {
@@ -188,6 +190,10 @@ impl BacktestNodeTrait for VariableNode {
                     VariableNodeStateAction::ListenAndHandleStrategyInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部消息", node_id);
                         self.listen_strategy_inner_events().await?;
+                    }
+                    VariableNodeStateAction::ListenAndHandleStrategyCommand => {
+                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        self.listen_strategy_command().await?;
                     }
                     VariableNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);

@@ -22,6 +22,7 @@ use types::strategy::node_event::PlayIndexUpdateEvent;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeContext {
@@ -111,6 +112,11 @@ impl BacktestNodeContextTrait for PositionNodeContext {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 

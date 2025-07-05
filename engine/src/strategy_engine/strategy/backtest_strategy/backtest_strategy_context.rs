@@ -34,6 +34,9 @@ use types::strategy::node_response::NodeResponse;
 use types::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
 use types::strategy::node_event::IndicatorNodeEvent;
+use super::super::StrategyCommandPublisher;
+use event_center::command::backtest_strategy_command::{StrategyCommand, GetStartNodeConfigParams};
+use event_center::response::backtest_strategy_response::StrategyResponse;
 
 
 #[derive(Debug)]
@@ -41,22 +44,22 @@ use types::strategy::node_event::IndicatorNodeEvent;
 pub struct BacktestStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
-    pub strategy_config: BacktestStrategyConfig, // 策略配置
     pub cache_keys: Arc<RwLock<Vec<CacheKey>>>, // 缓存键
     pub cache_lengths: HashMap<CacheKey, u32>, // 缓存长度
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
-    pub event_publisher: EventPublisher, // 事件发布器
-    pub event_receivers: Vec<EventReceiver>, // 事件接收器
-    pub command_publisher: CommandPublisher, // 命令发布器
-    pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
+    pub event_publisher: EventPublisher, // 外部事件发布器
+    pub event_receivers: Vec<EventReceiver>, // 外部事件接收器
+    pub command_publisher: CommandPublisher, // 外部命令发布器
+    pub command_receiver: Arc<Mutex<CommandReceiver>>, // 外部命令接收器
     pub cancel_token: CancellationToken, // 取消令牌
     pub state_machine: BacktestStrategyStateMachine, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
     pub database: DatabaseConnection, // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 心跳
     pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
-    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 节点命令接收器
+    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 接收节点的命令
+    pub strategy_command_publisher: StrategyCommandPublisher, // 节点命令发送器
     pub signal_count: Arc<RwLock<u32>>, // 信号计数
     pub played_signal_index: Arc<RwLock<u32>>, // 已发送的信号计数
     pub is_playing: Arc<RwLock<bool>>, // 是否正在播放
@@ -76,6 +79,21 @@ impl BacktestStrategyContext {
 
     pub async fn get_cache_keys(&self) -> Vec<CacheKey> {
         self.cache_keys.read().await.clone()
+    }
+
+    // 获取节点
+    pub fn get_node(&self, node_id: &str) -> Option<Box<dyn BacktestNodeTrait>> {
+        let node_index = self.node_indices.get(node_id);
+        if let Some(node_index) = node_index {
+            let node = self.graph.node_weight(*node_index);
+            if let Some(node) = node {
+                Some(node.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     pub fn set_state_machine(&mut self, state_machine: BacktestStrategyStateMachine) {
@@ -464,6 +482,30 @@ impl BacktestStrategyContext {
         let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
         Ok(min_cache_length)
     }
+
+    // 获取start节点配置
+    pub async fn get_start_node_config(&self) -> Result<BacktestStrategyConfig, String> {
+        let (resp_tx, resp_rx) = oneshot::channel();
+        let get_start_node_config_command = StrategyCommand::GetStartNodeConfig(GetStartNodeConfigParams {
+            node_id: "start_node".to_string(),
+            timestamp: get_utc8_timestamp_millis(),
+            responder: resp_tx,
+        });
+        self.strategy_command_publisher.send(get_start_node_config_command).await.unwrap();
+        let response = resp_rx.await.unwrap();
+        if response.code() == 0 {
+            if let StrategyResponse::GetStartNodeConfig(get_start_node_config_response) = response {
+                Ok(get_start_node_config_response.backtest_strategy_config)
+            } else {
+                Err("get start node config failed".to_string())
+            }
+            
+        } else {
+            Err("get start node config failed".to_string())
+        }
+
+    }
+
 
 
 

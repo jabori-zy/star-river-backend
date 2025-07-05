@@ -17,6 +17,9 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use tokio::sync::mpsc;
+use event_center::command::backtest_strategy_command::StrategyCommand;
+use super::super::StrategyCommandPublisher;
 
 
 impl BacktestStrategyFunction {
@@ -30,7 +33,8 @@ impl BacktestStrategyFunction {
         response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_publisher: &mut StrategyCommandPublisher,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
@@ -45,6 +49,9 @@ impl BacktestStrategyFunction {
 
         let backtest_config = serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json).unwrap();
 
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+
         let mut node = PositionManagementNode::new(
             strategy_id as i32,
             node_id.clone(),
@@ -56,7 +63,8 @@ impl BacktestStrategyFunction {
             response_event_receiver,
             database,
             heartbeat,
-            strategy_command_sender,
+            node_command_sender,
+            Arc::new(Mutex::new(strategy_command_rx)),
             virtual_trading_system,
             strategy_inner_event_receiver,
         );

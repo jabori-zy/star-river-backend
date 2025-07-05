@@ -13,6 +13,8 @@ use tokio::sync::Mutex;
 use utils::get_utc8_timestamp_millis;
 use types::strategy::node_event::{KlineTickEvent, KlinePlayFinishedEvent, SignalEvent, PlayIndexUpdateEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use event_center::command::backtest_strategy_command::StrategyCommand;
+use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
@@ -76,6 +78,27 @@ impl BacktestNodeContextTrait for StartNodeContext {
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 strategy_output_handle.send(signal).unwrap();
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        match strategy_command {
+            StrategyCommand::GetStartNodeConfig(get_start_node_config_params) => {
+                let start_node_config = self.backtest_config.read().await.clone();
+                
+                let response = StrategyResponse::GetStartNodeConfig(GetStartNodeConfigResponse {
+                    code: 0,
+                    message: "success".to_string(),
+                    node_id: self.base_context.node_id.clone(),
+                    backtest_strategy_config: start_node_config,
+                    response_timestamp: get_utc8_timestamp_millis(),
+                });
+
+                get_start_node_config_params.responder.send(response).unwrap();
+                
             }
         }
         Ok(())

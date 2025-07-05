@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use backtest_strategy_function::BacktestStrategyFunction;
-use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
+use crate::strategy_engine::{node::BacktestNodeTrait, strategy::backtest_strategy::backtest_strategy_state_machine::*};
 use types::cache::CacheKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::BacktestStrategyConfig;
@@ -26,6 +26,8 @@ use tokio::sync::{mpsc, broadcast};
 use types::strategy::node_command::NodeCommand;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use super::super::node::backtest_strategy_node::start_node::StartNode;
+use super::StrategyCommandPublisher;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -46,13 +48,13 @@ impl BacktestStrategy {
     ) -> Self {
         let mut graph = Graph::new();
         let mut node_indices = HashMap::new();
-        let mut strategy_backtest_config = BacktestStrategyConfig::default();
         let mut cache_keys: Vec<CacheKey> = vec![];
+        let mut strategy_command_publisher = StrategyCommandPublisher::new();
         let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone())));
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<NodeCommand>(100);
+        let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
         // 创建策略内部事件的广播通道
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
@@ -60,25 +62,6 @@ impl BacktestStrategy {
         // 当策略创建时，状态为 Created
         let cancel_token = CancellationToken::new();
         let cancel_play_token = CancellationToken::new();
-
-
-        match strategy.config {
-            Some(config) => {
-                let backtest_config = config["backtestConfig"].clone();
-                if let Ok(backtest_config) = serde_json::from_value::<BacktestStrategyConfig>(backtest_config) {
-                    strategy_backtest_config = backtest_config;
-                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                    virtual_trading_system_guard.set_initial_balance(strategy_backtest_config.initial_balance);
-                    virtual_trading_system_guard.set_leverage(strategy_backtest_config.leverage as u32);
-
-                } else {
-                    tracing::error!("策略配置解析失败");
-                }
-            }
-            None => {
-                tracing::warn!("策略配置为空");
-            }
-        }
 
         
         if let Some(nodes_str) = strategy.nodes {
@@ -97,7 +80,8 @@ impl BacktestStrategy {
                         response_event_receiver.resubscribe(),
                         database.clone(),
                         heartbeat.clone(),
-                        strategy_command_tx.clone(),
+                        &mut strategy_command_publisher,
+                        node_command_tx.clone(),
                         virtual_trading_system.clone(),
                         strategy_inner_event_rx.resubscribe()
                     ).await.unwrap();
@@ -131,7 +115,6 @@ impl BacktestStrategy {
         let context = BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
-            strategy_config: strategy_backtest_config,
             cache_keys: Arc::new(RwLock::new(cache_keys)),
             cache_lengths: HashMap::new(),
             graph,
@@ -146,7 +129,8 @@ impl BacktestStrategy {
             registered_tasks: Arc::new(RwLock::new(HashMap::new())),
             command_publisher: command_publisher,
             command_receiver: command_receiver,
-            node_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
+            node_command_receiver: Arc::new(Mutex::new(node_command_rx)),
+            strategy_command_publisher,
             signal_count: Arc::new(RwLock::new(0)),
             played_signal_index: Arc::new(RwLock::new(0)),
             is_playing: Arc::new(RwLock::new(false)),
@@ -196,13 +180,22 @@ impl BacktestStrategy {
                 BacktestStrategyStateAction::InitInitialPlaySpeed => {
                     tracing::info!("{}: 初始化初始播放速度", strategy_name);
                     let context_guard = self.context.read().await;
-                    let backtest_config = context_guard.strategy_config.clone();
-                    let initial_play_speed = backtest_config.play_speed as u32;
-                    tracing::info!("{}: 初始化初始播放速度成功。播放速度: {:?}", strategy_name, backtest_config);
+                    let start_node_config = context_guard.get_start_node_config().await;
+                    if let Ok(start_node_config) = start_node_config {
+                        let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
+                        *initial_play_speed_guard = start_node_config.play_speed as u32;
+                    } else {
+                        tracing::error!("{}: 获取start节点配置失败", strategy_name);
+                    }
+                    
 
-                    let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
-                    tracing::info!("{}: 初始化初始播放速度成功。播放速度: {}", strategy_name, initial_play_speed);
-                    *initial_play_speed_guard = initial_play_speed;
+                    // let backtest_config = context_guard.strategy_config.clone();
+                    // let initial_play_speed = backtest_config.play_speed as u32;
+                    // tracing::info!("{}: 初始化初始播放速度成功。播放速度: {:?}", strategy_name, backtest_config);
+
+                    // let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
+                    // tracing::info!("{}: 初始化初始播放速度成功。播放速度: {}", strategy_name, initial_play_speed);
+                    // *initial_play_speed_guard = initial_play_speed;
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
                     tracing::info!("{}: 初始化信号计数", strategy_name);
@@ -290,9 +283,9 @@ impl BacktestStrategy {
                     tracing::info!("{}: 监听节点消息", strategy_name);
                     BacktestStrategyFunction::listen_node_events(self.get_context()).await;
                 }
-                BacktestStrategyStateAction::ListenAndHandleCommand => {
+                BacktestStrategyStateAction::ListenAndHandleNodeCommand => {
                     tracing::info!("{}: 监听命令", strategy_name);
-                    BacktestStrategyFunction::listen_command(self.get_context()).await;
+                    BacktestStrategyFunction::listen_node_command(self.get_context()).await;
                 }
                 BacktestStrategyStateAction::LogError(error) => {
                     tracing::error!("{}: {}", strategy_name, error);

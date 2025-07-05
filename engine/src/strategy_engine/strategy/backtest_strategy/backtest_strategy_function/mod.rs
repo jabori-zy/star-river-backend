@@ -97,7 +97,7 @@ impl BacktestStrategyFunction {
     }
 
 
-    pub async fn listen_command(context: Arc<RwLock<BacktestStrategyContext>>) {
+    pub async fn listen_node_command(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (strategy_name, command_receiver) = {
             let context_guard = context.read().await;
             let strategy_name = context_guard.get_strategy_name();

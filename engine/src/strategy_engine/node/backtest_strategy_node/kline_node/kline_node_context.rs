@@ -29,6 +29,7 @@ use event_center::strategy_event::{StrategyEvent,BacktestStrategyData};
 use types::cache::CacheValue;
 use types::strategy::node_event::PlayIndexUpdateEvent;
 use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -214,6 +215,11 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                 
             }
         }
+        Ok(())
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
     

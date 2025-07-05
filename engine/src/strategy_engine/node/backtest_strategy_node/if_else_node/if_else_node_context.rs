@@ -15,6 +15,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::custom_type::{NodeId, HandleId, VariableId};
 use super::utils::{get_variable_value, get_condition_variable_value};
 use types::strategy::node_event::backtest_node_event::kline_event::KlineNodeEvent;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
@@ -106,6 +107,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 self.get_strategy_output_handle().send(signal).unwrap();
             }
         }
+        Ok(())
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 }

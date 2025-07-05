@@ -17,7 +17,7 @@ use event_center::EventPublisher;
 use event_center::Event;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
@@ -44,7 +44,8 @@ impl IndicatorNode {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
 
@@ -58,7 +59,8 @@ impl IndicatorNode {
             command_publisher,
             command_receiver,
             Box::new(IndicatorNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         );
 
@@ -251,6 +253,10 @@ impl BacktestNodeTrait for IndicatorNode {
                     IndicatorNodeStateAction::ListenAndHandleInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部事件", node_id);
                         self.listen_strategy_inner_events().await?;
+                    }
+                    IndicatorNodeStateAction::ListenAndHandleStrategyCommand => {
+                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        self.listen_strategy_command().await?;
                     }
                     IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
                         tracing::info!("{}: 开始注册指标缓存键", node_id);

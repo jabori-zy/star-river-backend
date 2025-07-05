@@ -296,6 +296,38 @@ impl BacktestNodeFunction {
         });
     }
 
+    pub async fn listen_strategy_command(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
+        let (strategy_command_receiver, cancel_token, node_id) = {
+            let state_guard = context.read().await;
+            let receiver = state_guard.get_strategy_command_receiver();
+            let cancel_token = state_guard.get_cancel_token().clone();
+            let node_id = state_guard.get_node_id().to_string();
+            (receiver, cancel_token, node_id)
+        };
+
+        tracing::debug!("{}: 开始监听策略命令", node_id);
+        
+        // 节点接收数据
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // 如果取消信号被触发，则中止任务
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{} 节点消息监听任务已中止", node_id);
+                        break;
+                    }
+                    
+                    _ = async {
+                        if let Some(received_command) = strategy_command_receiver.lock().await.recv().await {
+                            let mut context_guard = context.write().await;
+                            context_guard.handle_strategy_command(received_command).await.unwrap();
+                        }
+                    } => {}
+                }
+            }
+        });
+    }
+
 
     /// 通用的任务取消实现
     pub async fn cancel_task(state: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) 

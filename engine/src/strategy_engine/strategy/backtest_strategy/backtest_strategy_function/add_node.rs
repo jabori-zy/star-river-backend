@@ -18,6 +18,7 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
+use super::super::StrategyCommandPublisher;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -32,7 +33,8 @@ impl BacktestStrategyFunction {
         response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        strategy_command_publisher: &mut StrategyCommandPublisher,
+        node_command_sender: NodeCommandSender,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
@@ -42,41 +44,126 @@ impl BacktestStrategyFunction {
         // 根据节点类型，添加节点
         match node_type {
             NodeType::StartNode => {
-                Self::add_start_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, heartbeat, strategy_command_sender, strategy_inner_event_receiver).await.unwrap();
+                Self::add_start_node(
+                    graph, 
+                    node_indices, 
+                    node_config, 
+                    event_publisher, 
+                    command_publisher, 
+                    command_receiver, 
+                    heartbeat, 
+                    node_command_sender, 
+                    strategy_command_publisher, 
+                    strategy_inner_event_receiver
+                ).await.unwrap();
                 Ok(())
             }
             // 实时数据节点
             NodeType::KlineNode => {
-                Self::add_kline_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, market_event_receiver, response_event_receiver, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+                Self::add_kline_node(
+                    graph, 
+                    node_indices, 
+                    cache_keys, 
+                    node_config, 
+                    event_publisher, 
+                    command_publisher, 
+                    command_receiver, 
+                    market_event_receiver, 
+                    response_event_receiver, 
+                    heartbeat, 
+                    node_command_sender,
+                    strategy_command_publisher,
+                    virtual_trading_system, 
+                    strategy_inner_event_receiver
+                ).await.unwrap();
                 Ok(())
                 
             }
             // 指标节点
             NodeType::IndicatorNode => {
-                Self::add_indicator_node(graph, node_indices, cache_keys, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, strategy_command_sender, strategy_inner_event_receiver).await.unwrap();
+                Self::add_indicator_node(
+                    graph, 
+                    node_indices, 
+                    cache_keys, 
+                    node_config, 
+                    event_publisher, 
+                    command_publisher, 
+                    command_receiver, 
+                    response_event_receiver, 
+                    node_command_sender, 
+                    strategy_command_publisher,
+                    strategy_inner_event_receiver
+                ).await.unwrap();
                 Ok(())
                 
             }
             
             // 条件分支节点
             NodeType::IfElseNode => {
-                Self::add_if_else_node(graph,node_indices,node_config,event_publisher,command_publisher,command_receiver,strategy_command_sender, strategy_inner_event_receiver).await.unwrap();
+                Self::add_if_else_node(
+                    graph,
+                    node_indices,
+                    node_config,
+                    event_publisher,
+                    command_publisher,
+                    command_receiver,
+                    node_command_sender,
+                    strategy_command_publisher,
+                    strategy_inner_event_receiver
+                ).await.unwrap();
                 Ok(())
             }
             // 订单节点
             NodeType::FuturesOrderNode => {
-                Self::add_futures_order_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, database, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+                Self::add_futures_order_node(
+                    graph, 
+                    node_indices, 
+                    node_config, 
+                    event_publisher, 
+                    command_publisher, 
+                    command_receiver, 
+                    response_event_receiver, 
+                    database, 
+                    heartbeat, 
+                    node_command_sender, 
+                    strategy_command_publisher,
+                    virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
                 Ok(())
             }
             // 持仓节点
             NodeType::PositionManagementNode => {
-                Self::add_position_management_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, database, heartbeat, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+                Self::add_position_management_node(
+                    graph, 
+                    node_indices, 
+                    node_config, 
+                    event_publisher, 
+                    command_publisher, 
+                    command_receiver, 
+                    response_event_receiver, 
+                    database, 
+                    heartbeat, 
+                    node_command_sender, 
+                    strategy_command_publisher, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
                 Ok(())
                 
             }
             // 获取变量节点
             NodeType::VariableNode => {
-                Self::add_variable_node(graph, node_indices, node_config, event_publisher, command_publisher, command_receiver, response_event_receiver, heartbeat, database, strategy_command_sender, virtual_trading_system, strategy_inner_event_receiver).await;
+                Self::add_variable_node(
+                    graph, 
+                    node_indices, 
+                    node_config, 
+                    event_publisher, 
+                    command_publisher, 
+                    command_receiver, 
+                    response_event_receiver, 
+                    heartbeat, 
+                    database, 
+                    node_command_sender, 
+                    strategy_command_publisher,
+                    virtual_trading_system, 
+                    strategy_inner_event_receiver
+                ).await.unwrap();
                 Ok(())
             }
             _ => {

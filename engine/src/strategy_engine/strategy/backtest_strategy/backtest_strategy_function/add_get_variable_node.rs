@@ -17,7 +17,9 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
-
+use super::super::StrategyCommandPublisher;
+use tokio::sync::mpsc;
+use event_center::command::backtest_strategy_command::StrategyCommand;
 
 impl BacktestStrategyFunction {
     pub async fn add_variable_node(
@@ -30,7 +32,8 @@ impl BacktestStrategyFunction {
         response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_publisher: &mut StrategyCommandPublisher,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), String> {
@@ -43,6 +46,11 @@ impl BacktestStrategyFunction {
             return Err("backtestConfig is null".to_string());
         }
         let backtest_config = serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json).unwrap();
+
+
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+
         let mut node = VariableNode::new(
             strategy_id as i32,
             node_id.clone(),
@@ -54,7 +62,8 @@ impl BacktestStrategyFunction {
             response_event_receiver,
             heartbeat,
             database,
-            strategy_command_sender,
+            node_command_sender,
+            Arc::new(Mutex::new(strategy_command_rx)),
             virtual_trading_system,
             strategy_inner_event_receiver,
         );

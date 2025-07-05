@@ -392,6 +392,12 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         Ok(())
     }
 
+    // 监听策略命令
+    async fn listen_strategy_command(&self) -> Result<(), String> {
+        let context = self.get_context();
+        BacktestNodeFunction::listen_strategy_command(context).await;
+        Ok(())
+    }
 
     // 取消所有异步任务
     async fn cancel_task(&self) -> Result<(), String> {

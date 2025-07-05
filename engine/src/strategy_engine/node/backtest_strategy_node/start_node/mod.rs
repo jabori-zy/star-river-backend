@@ -13,7 +13,7 @@ use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
 use types::strategy::{LiveStrategyConfig, BacktestStrategyConfig, SimulatedConfig, TradeMode};
-use event_center::{CommandPublisher, CommandReceiver};
+use event_center::{CommandPublisher, CommandReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
@@ -45,7 +45,8 @@ impl StartNode {
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
@@ -58,7 +59,8 @@ impl StartNode {
             command_publisher,
             command_receiver,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         );
         StartNode {
@@ -171,6 +173,10 @@ impl BacktestNodeTrait for StartNode {
                 StartNodeStateAction::ListenAndHandleInnerEvents => {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy inner events");
                     self.listen_strategy_inner_events().await?;
+                }
+                StartNodeStateAction::ListenAndHandleStrategyCommand => {
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy command");
+                    self.listen_strategy_command().await?;
                 }
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();

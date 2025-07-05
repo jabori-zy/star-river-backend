@@ -20,7 +20,7 @@ use futures_order_node_types::*;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use crate::strategy_engine::node::node_state_machine::*;
 use virtual_trading::VirtualTradingSystem;
@@ -49,7 +49,8 @@ impl FuturesOrderNode {
         response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        strategy_command_sender: NodeCommandSender,
+        node_command_sender: NodeCommandSender,
+        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Self {
@@ -63,7 +64,8 @@ impl FuturesOrderNode {
             command_publisher,
             command_receiver,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
-            strategy_command_sender,
+            node_command_sender,
+            strategy_command_receiver,
             strategy_inner_event_receiver,
         );
         Self {
@@ -295,6 +297,10 @@ impl BacktestNodeTrait for FuturesOrderNode {
                     OrderNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
                         self.listen_node_events().await?;
+                    }
+                    OrderNodeStateAction::ListenAndHandleStrategyCommand => {
+                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        self.listen_strategy_command().await?;
                     }
                     OrderNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);

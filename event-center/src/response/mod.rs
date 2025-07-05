@@ -2,6 +2,7 @@ pub mod cache_engine_response;
 pub mod exchange_engine_response;
 pub mod market_engine_response;
 pub mod indicator_engine_response;
+pub mod backtest_strategy_response;
 
 use cache_engine_response::CacheEngineResponse;
 use exchange_engine_response::ExchangeEngineResponse;
