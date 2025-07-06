@@ -10,6 +10,7 @@ pub enum StartNodeStateAction {
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
+    CancelAsyncTask,        // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for StartNodeStateAction {
@@ -107,7 +108,10 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(StartNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
-                    actions: vec![Box::new(StartNodeStateAction::LogTransition)],
+                    actions: vec![
+                        Box::new(StartNodeStateAction::LogTransition),
+                        Box::new(StartNodeStateAction::CancelAsyncTask),
+                        ],
                 }))
             }
             // 停止完成，进入Stopped状态

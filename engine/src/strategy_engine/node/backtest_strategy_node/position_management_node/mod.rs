@@ -142,7 +142,7 @@ impl BacktestNodeTrait for PositionManagementNode {
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
 
         // 等待所有任务结束
-        self.cancel_task().await.unwrap();
+        self.cancel_task().await;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态

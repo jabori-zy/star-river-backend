@@ -19,16 +19,17 @@ use types::system::system_config::SystemConfigUpdateParams;
         crate::api::strategy_api::delete_strategy,
         crate::api::strategy_api::init_strategy,
         crate::api::strategy_api::get_strategy_cache_keys,
+        crate::api::strategy_api::stop_strategy,
 
         // 实盘策略
         // crate::api::strategy_api::run_strategy,
         // crate::api::strategy_api::stop_strategy,
 
         // 回测策略
-        crate::api::strategy_api::play,
-        crate::api::strategy_api::pause,
-        crate::api::strategy_api::reset,
-        crate::api::strategy_api::play_one,
+        crate::api::strategy_api::backtest_strategy::play,
+        crate::api::strategy_api::backtest_strategy::pause,
+        crate::api::strategy_api::backtest_strategy::reset,
+        crate::api::strategy_api::backtest_strategy::play_one,
         crate::api::strategy_api::backtest_strategy::update_backtest_chart_config,
         crate::api::strategy_api::backtest_strategy::get_backtest_chart_config,
 

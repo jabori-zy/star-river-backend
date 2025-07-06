@@ -202,8 +202,6 @@ impl BacktestNodeTrait for IfElseNode {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
-        // 等待所有任务结束
-        self.cancel_task().await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
@@ -258,6 +256,10 @@ impl BacktestNodeTrait for IfElseNode {
                 IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("{}: 开始监听策略命令", node_id);
                     self.listen_strategy_command().await?;
+                }
+                IfElseNodeStateAction::CancelAsyncTask => {
+                    tracing::info!("{}: 开始取消异步任务", node_id);
+                    self.cancel_task().await;
                 }
                 _ => {}
                 // 所有动作执行完毕后更新节点最新的状态

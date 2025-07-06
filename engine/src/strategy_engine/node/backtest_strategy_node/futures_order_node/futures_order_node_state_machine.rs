@@ -12,6 +12,7 @@ pub enum OrderNodeStateAction {
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
+    CancelAsyncTask,        // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for OrderNodeStateAction {
@@ -86,7 +87,8 @@ impl BacktestNodeStateMachine for OrderNodeStateMachine {
                         Box::new(OrderNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(OrderNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(OrderNodeStateAction::ListenAndHandleStrategyCommand),
-                        Box::new(OrderNodeStateAction::RegisterTask)],
+                        Box::new(OrderNodeStateAction::RegisterTask),
+                    ],
                 }))
             }
             // 初始化完成，进入Ready状态
@@ -104,7 +106,10 @@ impl BacktestNodeStateMachine for OrderNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(OrderNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
-                    actions: vec![Box::new(OrderNodeStateAction::LogTransition)],
+                    actions: vec![
+                        Box::new(OrderNodeStateAction::LogTransition),
+                        Box::new(OrderNodeStateAction::CancelAsyncTask),
+                    ],
                 }))
             }
             // 停止完成，进入Stopped状态

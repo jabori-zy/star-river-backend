@@ -36,7 +36,9 @@ impl StrategyConfigQuery {
         db: &DbConn,
         id: i32
     ) -> Result<Option<Strategy>, DbErr> {
-        let strategy_config = StrategyConfig::find_by_id(id).one(db).await?;
+        let strategy_config = StrategyConfig::find_by_id(id)
+        .filter(strategy_config::Column::IsDeleted.eq(false))
+        .one(db).await?;
         Ok(strategy_config.map(|config| config.into()))
     }
 
@@ -44,7 +46,10 @@ impl StrategyConfigQuery {
         db: &DbConn,
         strategy_id: i32
     ) -> Result<JsonValue, DbErr> {
-        let strategy_config = StrategyConfig::find_by_id(strategy_id).one(db).await?;
+        let strategy_config = StrategyConfig::find_by_id(strategy_id)
+        .filter(strategy_config::Column::IsDeleted.eq(false))
+        .one(db).await?;
+    
         if let Some(config) = strategy_config {
             Ok(config.backtest_chart_config.unwrap_or(JsonValue::Null))
         } else {

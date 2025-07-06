@@ -105,7 +105,15 @@ impl EngineContext for StrategyEngineContext {
 
 impl StrategyEngineContext {
 
-    pub async fn get_live_strategy_mut(&mut self, strategy_id: StrategyId) -> Result<&mut LiveStrategy, String> {
+    pub async fn get_live_strategy_instance(&self, strategy_id: StrategyId) -> Result<&LiveStrategy, String> {
+        if let Some(strategy) = self.live_strategy_list.get(&strategy_id) {
+            Ok(strategy)
+        } else {
+            Err("策略不存在".to_string())
+        }
+    }
+
+    pub async fn get_live_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut LiveStrategy, String> {
         if let Some(strategy) = self.live_strategy_list.get_mut(&strategy_id) {
             Ok(strategy)
         } else {
@@ -113,7 +121,16 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_mut(&mut self, strategy_id: StrategyId) -> Result<&mut BacktestStrategy, String> {
+    pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<&BacktestStrategy, String> {
+        if let Some(strategy) = self.backtest_strategy_list.get(&strategy_id) {
+            Ok(strategy)
+        } else {
+            tracing::error!("策略不存在");
+            Err("策略不存在".to_string())
+        }
+    }
+
+    pub async fn get_backtest_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut BacktestStrategy, String> {
         if let Some(strategy) = self.backtest_strategy_list.get_mut(&strategy_id) {
             Ok(strategy)
         } else {
@@ -123,7 +140,7 @@ impl StrategyEngineContext {
     }
 
     pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<Strategy, String> {
-        let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap();
+        let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap_or(None);
         if let Some(strategy) = strategy {
             Ok(strategy)
         } else {
@@ -132,128 +149,120 @@ impl StrategyEngineContext {
         }
     }
 
-    // 实例化策略
-    pub async fn instantiate_strategy(&mut self, strategy: Strategy) -> Result<i32, String> {
-        match strategy.trade_mode {
+    pub async fn remove_strategy_instance(&mut self, trade_mode: TradeMode, strategy_id: i32) -> Result<(), String> {
+        match trade_mode {
             TradeMode::Live => {
-                let strategy_id = strategy.id;
-                let strategy = LiveStrategy::new(
-                    strategy, 
-                    self.event_publisher.clone(),
-                    self.command_publisher.clone(),
-                    self.command_receiver.clone(),
-                    self.market_event_receiver.resubscribe(), 
-                    self.response_event_receiver.resubscribe(),
-                    self.exchange_engine.clone(),
-                    self.database.clone(),
-                    self.heartbeat.clone()
-                ).await;
-                self.live_strategy_list.insert(strategy_id, strategy);
-                Ok(strategy_id)
+                self.live_strategy_list.remove(&strategy_id);
+                tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
             }
             TradeMode::Backtest => {
-                let strategy_id = strategy.id;
-                let strategy = BacktestStrategy::new(
-                    strategy,
-                    self.event_publisher.clone(),
-                    self.command_publisher.clone(),
-                    self.command_receiver.clone(),
-                    self.market_event_receiver.resubscribe(),
-                    self.response_event_receiver.resubscribe(),
-                    self.database.clone(),
-                    self.heartbeat.clone()
-                ).await;
-                self.backtest_strategy_list.insert(strategy_id, strategy);
-                Ok(strategy_id)
+                self.backtest_strategy_list.remove(&strategy_id);
+                tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);
             }
             _ => {
-                tracing::error!("不支持的策略类型: {}", strategy.trade_mode);
-                Err("不支持的策略类型".to_string())
+                tracing::error!("不支持的策略类型: {}", trade_mode);
+                return Err("不支持的策略类型".to_string());
             }
         }
+        Ok(())
     }
 
+    // 实例化策略
+    // pub async fn instantiate_strategy(&mut self, strategy: Strategy) -> Result<i32, String> {
+    //     match strategy.trade_mode {
+    //         TradeMode::Live => {
+    //             let strategy_id = strategy.id;
+    //             let strategy = LiveStrategy::new(
+    //                 strategy, 
+    //                 self.event_publisher.clone(),
+    //                 self.command_publisher.clone(),
+    //                 self.command_receiver.clone(),
+    //                 self.market_event_receiver.resubscribe(), 
+    //                 self.response_event_receiver.resubscribe(),
+    //                 self.exchange_engine.clone(),
+    //                 self.database.clone(),
+    //                 self.heartbeat.clone()
+    //             ).await;
+    //             self.live_strategy_list.insert(strategy_id, strategy);
+    //             Ok(strategy_id)
+    //         }
+    //         TradeMode::Backtest => {
+    //             let strategy_id = strategy.id;
+    //             let strategy = BacktestStrategy::new(
+    //                 strategy,
+    //                 self.event_publisher.clone(),
+    //                 self.command_publisher.clone(),
+    //                 self.command_receiver.clone(),
+    //                 self.market_event_receiver.resubscribe(),
+    //                 self.response_event_receiver.resubscribe(),
+    //                 self.database.clone(),
+    //                 self.heartbeat.clone()
+    //             ).await;
+    //             self.backtest_strategy_list.insert(strategy_id, strategy);
+    //             Ok(strategy_id)
+    //         }
+    //         _ => {
+    //             tracing::error!("不支持的策略类型: {}", strategy.trade_mode);
+    //             Err("不支持的策略类型".to_string())
+    //         }
+    //     }
+    // }
 
-    // 启动实盘策略
-    pub async fn live_strategy_start(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.get_live_strategy_mut(strategy_id).await;
-        match strategy {
-            Ok(strategy) => {
-                strategy.start_strategy().await.unwrap();
-                Ok(())
-            }
-            Err(e) => {
-                Err(e)
-            }
-        }
-    }
+
+    
 
 
 
     // 初始化策略
-    pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
-        // 判断策略是否在实盘策略列表中,或者回测策略列表中
-        if self.live_strategy_list.contains_key(&strategy_id) || self.backtest_strategy_list.contains_key(&strategy_id) {
-            tracing::warn!("策略已存在, 不进行初始化");
-            return Ok(());
-        }
+    // pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
+    //     // 判断策略是否在实盘策略列表中,或者回测策略列表中
+    //     if self.live_strategy_list.contains_key(&strategy_id) || self.backtest_strategy_list.contains_key(&strategy_id) {
+    //         tracing::warn!("策略已存在, 不进行初始化");
+    //         return Ok(());
+    //     }
 
-        let strategy_info = self.get_strategy_info_by_id(strategy_id).await?;
-        // 加载策略（实例化策略）
-        self.instantiate_strategy(strategy_info.clone()).await?;
+    //     let strategy_info = self.get_strategy_info_by_id(strategy_id).await?;
+    //     // 加载策略（实例化策略）
+    //     self.instantiate_strategy(strategy_info.clone()).await?;
 
-        match strategy_info.trade_mode {
-            TradeMode::Live => {
-                let live_strategy_instance = self.live_strategy_list.get_mut(&strategy_id).unwrap();
-                live_strategy_instance.init_strategy().await.unwrap();
-                return Ok(());
-            }
-            TradeMode::Backtest => {
-                let backtest_strategy_instance = self.backtest_strategy_list.get_mut(&strategy_id).unwrap();
-                backtest_strategy_instance.init_strategy().await.unwrap();
-                return Ok(());
-            }
-            _ => {
-                tracing::error!("不支持的策略类型: {}", strategy_info.trade_mode);
-                Err("不支持的策略类型".to_string())
-            }
-        }
-    }
+    //     match strategy_info.trade_mode {
+    //         TradeMode::Live => {
+    //             let live_strategy_instance = self.live_strategy_list.get_mut(&strategy_id).unwrap();
+    //             live_strategy_instance.init_strategy().await.unwrap();
+    //             return Ok(());
+    //         }
+    //         TradeMode::Backtest => {
+    //             let backtest_strategy_instance = self.backtest_strategy_list.get_mut(&strategy_id).unwrap();
+    //             backtest_strategy_instance.init_strategy().await.unwrap();
+    //             return Ok(());
+    //         }
+    //         _ => {
+    //             tracing::error!("不支持的策略类型: {}", strategy_info.trade_mode);
+    //             Err("不支持的策略类型".to_string())
+    //         }
+    //     }
+    // }
 
-    // 实盘策略停止
-    pub async fn live_strategy_stop(&mut self, strategy_id: i32) -> Result<(), String> {
-
-
-        let strategy = self.live_strategy_list.get_mut(&strategy_id).unwrap();
-        strategy.stop_strategy().await?;
-        self.remove_live_strategy_instance(strategy_id).await;
+    
 
 
-        Ok(())
-    }
-
-    // 移除策略
-    async fn remove_live_strategy_instance(&mut self, strategy_id: i32) {
-        self.live_strategy_list.remove(&strategy_id);
-        tracing::info!("策略实例已停止, 从引擎中移除, 策略名称: {}", strategy_id);
-    }
 
     // 获取回测策略的缓存键
-    pub async fn get_strategy_cache_keys(&self, trade_mode: TradeMode, strategy_id: i32) -> Vec<CacheKey> {
-        match trade_mode {
-            TradeMode::Live => {
-                let live_strategy = self.live_strategy_list.get(&strategy_id).unwrap();
-                live_strategy.get_context().read().await.get_cache_keys().await
-            }
-            TradeMode::Backtest => {
-                let backtest_strategy = self.backtest_strategy_list.get(&strategy_id).unwrap();
-                backtest_strategy.get_context().read().await.get_cache_keys().await
-            }
-            _ => {
-                tracing::error!("不支持的策略类型: {}", trade_mode);
-                return vec![];
-            }
-        }
-    }
+    // pub async fn get_strategy_cache_keys(&self, trade_mode: TradeMode, strategy_id: i32) -> Vec<CacheKey> {
+    //     match trade_mode {
+    //         TradeMode::Live => {
+    //             let live_strategy = self.live_strategy_list.get(&strategy_id).unwrap();
+    //             live_strategy.get_context().read().await.get_cache_keys().await
+    //         }
+    //         TradeMode::Backtest => {
+    //             let backtest_strategy = self.backtest_strategy_list.get(&strategy_id).unwrap();
+    //             backtest_strategy.get_context().read().await.get_cache_keys().await
+    //         }
+    //         _ => {
+    //             tracing::error!("不支持的策略类型: {}", trade_mode);
+    //             return vec![];
+    //         }
+    //     }
+    // }
 
 }

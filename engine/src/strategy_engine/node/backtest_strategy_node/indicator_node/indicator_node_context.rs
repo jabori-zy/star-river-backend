@@ -81,7 +81,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
             BacktestNodeEvent::KlineNode(kline_event) => {
-                tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), kline_event);
+                // tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), kline_event);
 
                 // 提前获取配置信息，统一错误处理
                 let exchange_config = self.backtest_config.exchange_mode_config.as_ref()
@@ -157,14 +157,8 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                         };
                         
                         let event = BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event));
-                        tracing::debug!("indicator-node-event: {:?}", serde_json::to_string(&event).unwrap());
-                        if let Err(e) = output_handle.send(event) {
-                            tracing::error!(
-                                node_id = %self.base_context.node_id, 
-                                node_name = %self.base_context.node_name, 
-                                "send indicator update event failed: {}", e
-                            );
-                        }
+                        // tracing::debug!("indicator-node-event: {:?}", serde_json::to_string(&event).unwrap());
+                        let _ = output_handle.send(event);
                     };
 
                     // 发送到指标特定的输出handle

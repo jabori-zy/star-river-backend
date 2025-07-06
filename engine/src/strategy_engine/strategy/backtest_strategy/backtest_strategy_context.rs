@@ -176,7 +176,7 @@ impl BacktestStrategyContext {
             match kline_node_event {
                 KlineNodeEvent::KlineUpdate(kline_update_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::KlineUpdate(kline_update_event.clone());
-                    tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
+                    // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
                     let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
             }
@@ -186,7 +186,7 @@ impl BacktestStrategyContext {
             match indicator_node_event {
                 IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::IndicatorUpdate(indicator_update_event.clone());
-                    tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
+                    // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
                     let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
                 _ => {}
@@ -379,14 +379,14 @@ impl BacktestStrategyContext {
     
 
     pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
-        // 启动节点
         let mut node_clone = node.clone();
+        let node_name = node_clone.get_node_name().await;
+        let node_id = node_clone.get_node_id().await;
         
         let node_handle = tokio::spawn(async move {
-            let node_name = node_clone.get_node_name().await;
             if let Err(e) = node_clone.stop().await {
-                tracing::error!("{} 节点停止失败: {}", node_name, e);
-                return Err(format!("节点停止失败: {}", e));
+                tracing::error!(node_name = %node_name, node_id = %node_id, error = %e, "节点停止失败。");
+                return Err(format!("节点停止失败。"));
             }
             Ok(())
         });
@@ -395,7 +395,7 @@ impl BacktestStrategyContext {
         let node_id = node.get_node_id().await;
         
         
-        // 等待节点启动完成
+        // 等待节点停止完成
         match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
             Ok(result) => {
                 if let Err(e) = result {
@@ -411,7 +411,7 @@ impl BacktestStrategyContext {
             }
         }
         
-        // 等待节点进入Running状态
+        // 等待节点进入Stopped状态
         let mut retry_count = 0;
         let max_retries = 20;
         

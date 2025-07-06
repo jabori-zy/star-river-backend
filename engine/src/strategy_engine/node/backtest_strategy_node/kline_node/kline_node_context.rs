@@ -156,13 +156,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                                 );
                                 let kline_node_event = BacktestNodeEvent::KlineNode(kline_update_event);
 
-                                if let Err(e) = output_handle.send(kline_node_event) {
-                                    tracing::error!(
-                                        node_id = %self.base_context.node_id, 
-                                        node_name = %self.base_context.node_name, 
-                                        "send kline event failed: {}", e
-                                    );
-                                }
+                                let _ = output_handle.send(kline_node_event);
                             };
 
                             // 发送到交易对特定的输出handle

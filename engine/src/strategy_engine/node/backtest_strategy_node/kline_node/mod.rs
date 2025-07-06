@@ -157,28 +157,7 @@ impl BacktestNodeTrait for KlineNode {
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
 
-
-        // 检查是否应该订阅K线流，判断is_data_loaded=false
-        loop {
-            let is_data_loaded = {
-                let state_guard = state.read().await;  // 使用读锁替代写锁
-                if let Some(kline_node_context) = state_guard.as_any().downcast_ref::<KlineNodeContext>() {
-                    let is_data_loaded = kline_node_context.data_is_loaded.read().await.clone();
-                    is_data_loaded
-                } else {
-                    false
-                }
-            };  // 锁在这里释放
-
-            if !is_data_loaded {
-                break;
-            }
-            
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-
         self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await?;
-        self.cancel_task().await.unwrap();
         Ok(())
     }
 
@@ -251,6 +230,10 @@ impl BacktestNodeTrait for KlineNode {
                     KlineNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
+                    }
+                    KlineNodeStateAction::CancelAsyncTask => {
+                        tracing::debug!(node_id = %node_id, "cancel async task");
+                        self.cancel_task().await;
                     }
                     _ => {}
                 }

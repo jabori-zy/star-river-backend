@@ -47,10 +47,7 @@ impl BacktestStrategyContext {
             played_signal_index: self.played_signal_index.clone(),
             signal_count: self.signal_count.clone(),
             is_playing: self.is_playing.clone(),
-            // initial_play_speed: self.initial_play_speed.clone(),
-
-            initial_play_speed: Arc::new(RwLock::new(4)),
-
+            initial_play_speed: self.initial_play_speed.clone(),
             child_cancel_play_token: self.cancel_play_token.child_token(),
             virtual_trading_system: self.virtual_trading_system.clone(),
             strategy_inner_event_publisher: self.strategy_inner_event_publisher.clone(),
@@ -206,7 +203,7 @@ impl BacktestStrategyContext {
     // false 继续循环
     async fn handle_play_delay(context: &PlayContext, strategy_name: &str, play_speed: u32) -> bool {
         let delay_millis = 1000 / play_speed as u64;
-        tracing::info!("{}: 播放延迟: {}ms", strategy_name, delay_millis);
+        tracing::info!("{}: 播放速度: {}, 播放延迟: {}ms", strategy_name, play_speed, delay_millis);
         tokio::select! {
             
             _ = tokio::time::sleep(tokio::time::Duration::from_millis(delay_millis)) => {

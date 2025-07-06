@@ -1,6 +1,8 @@
 mod strategy_engine_context;
 mod strategy;
 pub mod node;
+pub mod backtest_strategy_control;
+pub mod live_strategy_control;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -77,96 +79,140 @@ impl StrategyEngine{
         }
     }
 
+    // 初始化策略
     pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.init_strategy(strategy_id).await
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
+        match strategy_info.trade_mode {
+            TradeMode::Live => {
+                strategy_context.live_strategy_init(strategy_id).await?;
+                Ok(())
+
+            }
+            TradeMode::Backtest => {
+                strategy_context.backtest_strategy_init(strategy_id).await?;
+                Ok(())
+            }
+            _ => {
+                Err("不支持的策略类型".to_string())
+            }
+        }
     }
 
+    // 启动策略
     pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.live_strategy_start(strategy_id).await
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
+        match strategy_info.trade_mode {
+            TradeMode::Live => {
+                strategy_context.live_strategy_start(strategy_id).await
+            }
+            _ => {
+                Err("不支持的策略类型".to_string())
+            }
+        }
     }
 
+    // 停止策略
     pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.live_strategy_stop(strategy_id).await
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
+        match strategy_info.trade_mode {
+            TradeMode::Live => {
+                strategy_context.live_strategy_stop(strategy_id).await
+            }
+            TradeMode::Backtest => {
+                strategy_context.backtest_strategy_stop(strategy_id).await
+            }
+            _ => {
+                Err("不支持的策略类型".to_string())
+            }
+        }
     }
 
-    pub async fn enable_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_engine_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_engine_context.get_live_strategy_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
-            strategy.enable_strategy_data_push().await.unwrap();
-        }
-        Ok(())
-    }
 
-    pub async fn disable_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_engine_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_engine_context.get_live_strategy_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
-            strategy.disable_strategy_data_push().await.unwrap();
-        }
-        Ok(())
-    }
-    
-    pub async fn get_strategy_cache_keys(&mut self, trade_mode: TradeMode, strategy_id: i32) -> Vec<CacheKey> {
+    // 获取策略缓存键
+    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<Vec<CacheKey>, String> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
-        strategy_context.get_strategy_cache_keys(trade_mode, strategy_id).await
-    }
-
-    // 播放策略
-    pub async fn play(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
-            strategy.play().await.unwrap();
-        }
-        Ok(())
-    }
-
-    // 暂停播放策略
-    pub async fn pause(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
-            strategy.pause().await.unwrap();
-        }
-        Ok(())
-    }
-
-    // 停止播放策略
-    pub async fn reset(&mut self, strategy_id: i32) -> Result<(), String> {
-        let mut context = self.context.write().await;
-        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
-            strategy.reset().await.unwrap();
-        }
-        Ok(())
-    }
-
-
-    // 播放单根k线
-    pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<u32, String> {
-        let mut context = self.context.write().await;
-        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy = strategy_context.get_backtest_strategy_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
-            let played_signal_count = strategy.play_one_kline().await.unwrap();
-            Ok(played_signal_count)
-        } else {
-            Err("播放单根k线失败".to_string())
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
+        match strategy_info.trade_mode {
+            TradeMode::Live => {
+                Ok(strategy_context.get_live_strategy_cache_keys(strategy_id).await)
+            }
+            TradeMode::Backtest => {
+                Ok(strategy_context.get_backtest_strategy_cache_keys(strategy_id).await)
+            }
         }
     }
+
+}
+
+
+
+// 回测策略控制
+impl StrategyEngine {
+        // 播放策略
+        pub async fn play(&mut self, strategy_id: i32) -> Result<(), String> {
+            let mut context = self.context.write().await;
+            let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+            strategy_context.backtest_strategy_play(strategy_id).await?;
+            Ok(())
+        }
     
+        // 暂停播放策略
+        pub async fn pause(&mut self, strategy_id: i32) -> Result<(), String> {
+            let mut context = self.context.write().await;
+            let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+            strategy_context.backtest_strategy_pause(strategy_id).await?;
+            Ok(())
+        }
+    
+        // 停止播放策略
+        pub async fn reset(&mut self, strategy_id: i32) -> Result<(), String> {
+            let mut context = self.context.write().await;
+            let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+            strategy_context.backtest_strategy_reset(strategy_id).await?;
+            Ok(())
+        }
+    
+    
+        // 播放单根k线
+        pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<u32, String> {
+            let mut context = self.context.write().await;
+            let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+            strategy_context.backtest_strategy_play_one_kline(strategy_id).await
+        }
+
+
+}
+
+
+// 实盘策略控制
+impl StrategyEngine {
+    // 开启策略数据推送
+    pub async fn enable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        strategy_context.enable_live_strategy_data_push(strategy_id).await?;
+        Ok(())
+    }
+
+    // 关闭策略数据推送
+    pub async fn disable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
+        let mut context = self.context.write().await;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        strategy_context.disable_live_strategy_data_push(strategy_id).await?;
+        Ok(())
+    }
+
+
+
+
+
+
 
 }

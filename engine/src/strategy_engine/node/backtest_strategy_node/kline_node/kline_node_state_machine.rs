@@ -17,6 +17,7 @@ pub enum KlineNodeStateAction {
     LoadHistoryFromFile, // 从文件加载K线历史
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
+    CancelAsyncTask,        // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for KlineNodeStateAction {
@@ -133,7 +134,10 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(KlineNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
-                    actions: vec![Box::new(KlineNodeStateAction::LogTransition)],
+                    actions: vec![
+                        Box::new(KlineNodeStateAction::LogTransition),
+                        Box::new(KlineNodeStateAction::CancelAsyncTask),
+                    ],
                 }))
             }
             // 停止完成，进入Stopped状态

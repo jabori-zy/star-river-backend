@@ -400,10 +400,9 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 取消所有异步任务
-    async fn cancel_task(&self) -> Result<(), String> {
-        let state = self.get_context();
-        BacktestNodeFunction::cancel_task(state).await;
-        Ok(())
+    async fn cancel_task(&self) {
+        let context = self.get_context();
+        BacktestNodeFunction::cancel_task(context).await;
     }
 
     // 更新节点状态

@@ -139,8 +139,6 @@ impl BacktestNodeTrait for StartNode {
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
         
-        // 等待所有任务结束
-        self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
@@ -181,6 +179,10 @@ impl BacktestNodeTrait for StartNode {
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "current state: {:?}", current_state);
+                }
+                StartNodeStateAction::CancelAsyncTask => {
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "cancel async task");
+                    self.cancel_task().await;
                 }
                 _ => {}
             }

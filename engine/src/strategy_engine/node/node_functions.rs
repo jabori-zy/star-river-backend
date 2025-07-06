@@ -169,7 +169,7 @@ impl BacktestNodeFunction {
             loop {
                 tokio::select! {
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 节点监听外部事件进程已中止", node_id);
+                        tracing::info!("{} 外部事件监听任务已中止", node_id);
                         break;
                     }
                     // 接收消息
@@ -271,7 +271,7 @@ impl BacktestNodeFunction {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 节点消息监听任务已中止", node_id);
+                        tracing::info!("{} 策略内部事件监听任务已中止", node_id);
                         break;
                     }
                     // 接收消息
@@ -313,7 +313,7 @@ impl BacktestNodeFunction {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 节点消息监听任务已中止", node_id);
+                        tracing::info!("{} 策略命令监听任务已中止", node_id);
                         break;
                     }
                     
@@ -330,18 +330,10 @@ impl BacktestNodeFunction {
 
 
     /// 通用的任务取消实现
-    pub async fn cancel_task(state: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) 
+    pub async fn cancel_task(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) 
     {
-        let (cancel_token, node_id, run_state) = {
-            let state_guard = state.read().await;
-            let cancel_token = state_guard.get_cancel_token().clone();
-            let node_id = state_guard.get_node_id().to_string();
-            let run_state = state_guard.get_run_state();
-            (cancel_token, node_id, run_state)
-        };
-        
-        cancel_token.cancel();
-        tracing::info!("{}: 节点已安全停止, 当前节点状态: {:?}", node_id, run_state);
+        let state_guard = context.read().await;
+        state_guard.get_cancel_token().cancel();
     }
     
 }

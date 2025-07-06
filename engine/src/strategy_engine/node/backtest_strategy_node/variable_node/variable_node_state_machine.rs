@@ -11,6 +11,7 @@ pub enum VariableNodeStateAction {
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
+    CancelAsyncTask,        // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for VariableNodeStateAction {
@@ -105,6 +106,7 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                     new_state: BacktestNodeRunState::Stopping,
                     actions: vec![Box::new(VariableNodeStateAction::LogTransition),
                         Box::new(VariableNodeStateAction::RegisterTask),
+                        Box::new(VariableNodeStateAction::CancelAsyncTask),
                     ],
                 }))
             }

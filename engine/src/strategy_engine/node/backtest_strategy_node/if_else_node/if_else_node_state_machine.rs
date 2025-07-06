@@ -13,6 +13,7 @@ pub enum IfElseNodeStateAction {
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
+    CancelAsyncTask,        // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for IfElseNodeStateAction {
@@ -118,7 +119,10 @@ impl BacktestNodeStateMachine for IfElseNodeStateManager {
                 self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
-                    actions: vec![Box::new(IfElseNodeStateAction::LogTransition)]    
+                    actions: vec![
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::CancelAsyncTask),
+                    ],
                 }))
             }
             // 停止完成，进入Stopped状态

@@ -138,9 +138,6 @@ impl BacktestNodeTrait for VariableNode {
     async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
-
-        // 等待所有任务结束
-        self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
@@ -197,6 +194,10 @@ impl BacktestNodeTrait for VariableNode {
                     }
                     VariableNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);
+                    }
+                    VariableNodeStateAction::CancelAsyncTask => {
+                        tracing::debug!(node_id = %node_id, "cancel async task");
+                        self.cancel_task().await;
                     }
                 }
                 // 所有动作执行完毕后更新节点最新的状态

@@ -211,8 +211,6 @@ impl BacktestNodeTrait for IndicatorNode {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
 
-        // 等待所有任务结束
-        self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
@@ -286,6 +284,10 @@ impl BacktestNodeTrait for IndicatorNode {
                         } else {
                             tracing::error!("{}: 计算指标失败", node_id);
                         }
+                    }
+                    IndicatorNodeStateAction::CancelAsyncTask => {
+                        tracing::debug!(node_id = %node_id, "cancel async task");
+                        self.cancel_task().await;
                     }
                     _ => {}
                 }

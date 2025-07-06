@@ -184,6 +184,7 @@ impl BacktestStrategy {
                     if let Ok(start_node_config) = start_node_config {
                         let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
                         *initial_play_speed_guard = start_node_config.play_speed as u32;
+                        tracing::info!("{}: 初始化初始播放速度成功。播放速度: {:?}", strategy_name, *initial_play_speed_guard);
                     } else {
                         tracing::error!("{}: 获取start节点配置失败", strategy_name);
                     }
@@ -320,7 +321,7 @@ impl BacktestStrategy {
         Ok(())
     }
 
-    async fn stop_strategy(&mut self) -> Result<(), String> {
+    pub async fn stop_strategy(&mut self) -> Result<(), String> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
         let current_state = self.get_state_machine().await.current_state();

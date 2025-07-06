@@ -13,6 +13,7 @@ pub enum IndicatorNodeStateAction {
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
+    CancelAsyncTask,        // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for IndicatorNodeStateAction {
@@ -111,7 +112,10 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                 self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
-                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition)],
+                    actions: vec![
+                        Box::new(IndicatorNodeStateAction::LogTransition),
+                        Box::new(IndicatorNodeStateAction::CancelAsyncTask),
+                    ],
                 }))
             }
             // 停止完成，进入Stopped状态
