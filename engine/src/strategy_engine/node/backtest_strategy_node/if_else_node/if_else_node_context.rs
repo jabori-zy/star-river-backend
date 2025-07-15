@@ -14,7 +14,7 @@ use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::custom_type::{NodeId, HandleId, VariableId};
 use super::utils::{get_variable_value, get_condition_variable_value};
-use types::strategy::node_event::backtest_node_event::kline_event::KlineNodeEvent;
+use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 
 #[derive(Debug, Clone)]
@@ -119,7 +119,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
 impl IfElseNodeContext {
 
     fn update_received_event(&mut self, received_event: BacktestNodeEvent) {
-        tracing::debug!("接收到的变量消息: {:?}", received_event);
+        // tracing::debug!("接收到的变量消息: {:?}", received_event);
         let (from_node_id, from_variable_id) = match &received_event {
             BacktestNodeEvent::IndicatorNode(indicator_message) => {
                 if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_message {
@@ -141,7 +141,7 @@ impl IfElseNodeContext {
         self.received_message.entry((from_node_id.clone(), from_variable_id))
         .and_modify(|e| *e = Some(received_event.clone()))
         .or_insert(Some(received_event));
-        tracing::debug!("received_message: {:?}", self.received_message);
+        // tracing::debug!("received_message: {:?}", self.received_message);
         
         self.update_received_flag(from_node_id, from_variable_id, true);
     }

@@ -30,6 +30,7 @@ use types::order::OrderType;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use std::collections::HashMap;
+use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 #[derive(Debug, Clone)]
 pub struct FuturesOrderNode {
@@ -53,6 +54,7 @@ impl FuturesOrderNode {
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -76,10 +78,63 @@ impl FuturesOrderNode {
                 database,
                 heartbeat,
                 virtual_trading_system,
+                virtual_trading_system_event_receiver,
                 unfilled_virtual_order: Arc::new(RwLock::new(HashMap::new())),
+                virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
                 min_kline_interval: None,
             }))),
         }
+    }
+
+    async fn listen_virtual_trading_system_events(&self) -> Result<(), String> {
+        let (virtual_trading_system_event_receiver, cancel_token, node_id) = {
+                let context = self.get_context();
+                let context_guard = context.read().await;
+                let futures_order_node_context = context_guard.as_any().downcast_ref::<FuturesOrderNodeContext>().unwrap();
+
+                let receiver = futures_order_node_context.virtual_trading_system_event_receiver.resubscribe();
+                let cancel_token = futures_order_node_context.get_cancel_token().clone();
+                let node_id = futures_order_node_context.get_node_id().clone();
+                (receiver, cancel_token, node_id)
+            };
+    
+    
+            // 创建一个流，用于接收节点传递过来的message
+            let mut stream = BroadcastStream::new(virtual_trading_system_event_receiver);
+            let context = self.get_context();
+            // 节点接收数据
+            tracing::info!(node_id = %node_id, "开始监听虚拟交易系统事件。");
+            tokio::spawn(async move {
+                loop {
+                    tokio::select! {
+                        // 如果取消信号被触发，则中止任务
+                        _ = cancel_token.cancelled() => {
+                            tracing::info!("{} 虚拟交易系统事件监听任务已中止", node_id);
+                            break;
+                        }
+                        // 接收消息
+                        receive_result = stream.next() => {
+                            match receive_result {
+                                Some(Ok(event)) => {
+                                    // tracing::debug!("{} 收到消息: {:?}", node_id, message);
+                                    let mut context_guard = context.write().await;
+                                    let futures_order_node_context = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap();
+                                    futures_order_node_context.handle_virtual_trading_system_event(event).await.unwrap();
+                                }
+                                Some(Err(e)) => {
+                                    tracing::error!("节点{}接收消息错误: {}", node_id, e);
+                                }
+                                None => {
+                                    tracing::warn!("节点{}所有消息流已关闭", node_id);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        
+        Ok(())
     }
     
 }
@@ -298,6 +353,10 @@ impl BacktestNodeTrait for FuturesOrderNode {
                     OrderNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
+                    }
+                    OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
+                        tracing::info!("{}: 开始监听虚拟交易系统事件", node_id);
+                        self.listen_virtual_trading_system_events().await?;
                     }
                     OrderNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);

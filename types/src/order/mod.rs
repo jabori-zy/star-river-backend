@@ -41,10 +41,18 @@ pub struct GetTransactionDetailParams {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum FuturesOrderSide {
-    #[strum(serialize = "LONG")]
-    Long,
-    #[strum(serialize = "SHORT")]
-    Short,
+    #[strum(serialize = "OPEN_LONG")]
+    #[serde(rename = "OPEN_LONG")]
+    OpenLong,
+    #[strum(serialize = "OPEN_SHORT")]
+    #[serde(rename = "OPEN_SHORT")]
+    OpenShort,
+    #[strum(serialize = "CLOSE_LONG")]
+    #[serde(rename = "CLOSE_LONG")]
+    CloseLong,
+    #[strum(serialize = "CLOSE_SHORT")]
+    #[serde(rename = "CLOSE_SHORT")]
+    CloseShort,
 }
 
 
@@ -65,12 +73,16 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum OrderType {
     #[strum(serialize = "MARKET")]
+    #[serde(rename = "MARKET")]
     Market,
     #[strum(serialize = "LIMIT")]
+    #[serde(rename = "LIMIT")]
     Limit,
     #[strum(serialize = "STOP")]
+    #[serde(rename = "STOP")]
     Stop,
     #[strum(serialize = "STOP_LIMIT")]
+    #[serde(rename = "STOP_LIMIT")]
     StopLimit
 }
 
@@ -94,18 +106,31 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum OrderStatus {
     #[strum(serialize = "created")] // 已创建
+    #[serde(rename = "CREATED")]
     Created,
+
     #[strum(serialize = "placed")] // 已挂单
+    #[serde(rename = "PLACED")]
     Placed,
+
     #[strum(serialize = "filled")] // 已成交
+    #[serde(rename = "FILLED")]
     Filled,
+
     #[strum(serialize = "partial")] // 部分成交
+    #[serde(rename = "PARTIAL")]
     Partial,
+
     #[strum(serialize = "canceled")] // 已取消
+    #[serde(rename = "CANCELED")]
     Canceled,
+
     #[strum(serialize = "expired")] // 已过期
+    #[serde(rename = "EXPIRED")]
     Expired,
+
     #[strum(serialize = "rejected")] // 已拒绝
+    #[serde(rename = "REJECTED")]
     Rejected,
 }
 

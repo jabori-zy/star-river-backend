@@ -7,6 +7,9 @@ pub type OrderId = i32;
 
 pub type HandleId = String;
 
+pub type InputHandleId = String;
+pub type OutputHandleId = String;
+
 pub type VariableId = i32;
 
 pub type PositionId = i32;

@@ -26,6 +26,7 @@ use virtual_trading::VirtualTradingSystem;
 use types::strategy::node_command::NodeCommandSender;
 use crate::strategy_engine::node::node_state_machine::*;
 use types::strategy::node_event::BacktestNodeEvent;
+use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {
@@ -49,6 +50,7 @@ impl PositionManagementNode {
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -71,6 +73,7 @@ impl PositionManagementNode {
                 database,
                 heartbeat,
                 virtual_trading_system,
+                virtual_trading_system_event_receiver,
             }))),
         }
         

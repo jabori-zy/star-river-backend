@@ -19,6 +19,7 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use super::super::StrategyCommandPublisher;
+use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -37,6 +38,7 @@ impl BacktestStrategyFunction {
         node_command_sender: NodeCommandSender,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
     ) -> Result<(), String> {
         // 获取节点类型
         let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
@@ -127,7 +129,10 @@ impl BacktestStrategyFunction {
                     heartbeat, 
                     node_command_sender, 
                     strategy_command_publisher,
-                    virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+                    virtual_trading_system, 
+                    strategy_inner_event_receiver,
+                    virtual_trading_system_event_receiver
+                ).await.unwrap();
                 Ok(())
             }
             // 持仓节点
@@ -143,7 +148,11 @@ impl BacktestStrategyFunction {
                     database, 
                     heartbeat, 
                     node_command_sender, 
-                    strategy_command_publisher, virtual_trading_system, strategy_inner_event_receiver).await.unwrap();
+                    strategy_command_publisher, 
+                    virtual_trading_system, 
+                    strategy_inner_event_receiver,
+                    virtual_trading_system_event_receiver
+                ).await.unwrap();
                 Ok(())
                 
             }

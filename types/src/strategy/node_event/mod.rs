@@ -14,9 +14,10 @@ use crate::cache::cache_key::BacktestKlineCacheKey;
 use std::sync::Arc;
 use variable_event::PositionNumberUpdateEvent;
 use crate::order::virtual_order::VirtualOrder;
-use backtest_node_event::kline_event::KlineNodeEvent;
+use backtest_node_event::kline_node_event::KlineNodeEvent;
 use crate::cache::cache_key::BacktestIndicatorCacheKey;
 use crate::cache::CacheKeyTrait;
+use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 
 
 
@@ -53,9 +54,9 @@ pub enum BacktestNodeEvent {
     #[serde(rename = "kline-node")]
     KlineNode(KlineNodeEvent), // 回测K线更新(缓存index, K线) 回测k线更新
 
-    #[strum(serialize = "virtual_order")]
-    #[serde(rename = "virtual_order")]
-    VirtualOrder(VirtualOrderEvent),
+    #[strum(serialize = "futures_order_node")]
+    #[serde(rename = "futures_order_node")]
+    FuturesOrderNode(FuturesOrderNodeEvent),
 
 
 }
@@ -197,24 +198,6 @@ pub enum OrderEvent {
     #[strum(serialize = "order-filled")]
     #[serde(rename = "order-filled")]
     OrderFilled(Order),
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
-#[serde(tag = "event_type")]
-pub enum VirtualOrderEvent {
-    #[strum(serialize = "virtual-order-created")]
-    #[serde(rename = "virtual-order-created")]
-    VirtualOrderCreated(VirtualOrder),
-    #[strum(serialize = "virtual-order-updated")]
-    #[serde(rename = "virtual-order-updated")]
-    VirtualOrderUpdated(VirtualOrder),
-    #[strum(serialize = "virtual-order-canceled")]
-    #[serde(rename = "virtual-order-canceled")]
-    VirtualOrderCanceled(VirtualOrder),
-    #[strum(serialize = "virtual-order-filled")]
-    #[serde(rename = "virtual-order-filled")]
-    VirtualOrderFilled(VirtualOrder),
 }
 
 

@@ -28,10 +28,13 @@ pub struct VirtualPosition {
 }
 
 impl VirtualPosition {
-    pub fn new(virtual_order: &VirtualOrder, current_price: f64) -> Self {
+    pub fn new(virtual_order: &VirtualOrder, current_price: f64, timestamp: i64) -> Self {
+
         let position_side = match virtual_order.order_side {
-            FuturesOrderSide::Long => PositionSide::Long,
-            FuturesOrderSide::Short => PositionSide::Short,
+            FuturesOrderSide::OpenLong => PositionSide::Long,
+            FuturesOrderSide::OpenShort => PositionSide::Short,
+            FuturesOrderSide::CloseLong => PositionSide::Long,
+            FuturesOrderSide::CloseShort => PositionSide::Short,
         };
 
         Self {
@@ -49,8 +52,8 @@ impl VirtualPosition {
             tp: virtual_order.tp,
             sl: virtual_order.sl,
             unrealized_profit: 0.0,
-            create_time: Utc::now(),
-            update_time: Utc::now(),
+            create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
+            update_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }
     }
 

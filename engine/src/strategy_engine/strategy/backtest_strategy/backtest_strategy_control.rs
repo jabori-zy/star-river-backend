@@ -162,7 +162,7 @@ impl BacktestStrategyContext {
         updated_play_index_notify.notified().await;
         
         let mut virtual_trading_system_guard = virtual_trading_system_clone.lock().await;
-        virtual_trading_system_guard.set_kline_cache_index(played_signal_count).await;
+        virtual_trading_system_guard.set_play_index(played_signal_count).await;
         
         start_node.send_kline_tick_signal(played_signal_count).await;
         tracing::info!("节点索引更新完毕");
@@ -192,7 +192,7 @@ impl BacktestStrategyContext {
         start_node.send_finish_signal(played_signal_count).await;
         
         let mut virtual_trading_system_guard = context.virtual_trading_system.lock().await;
-        virtual_trading_system_guard.set_kline_cache_index(played_signal_count).await;
+        virtual_trading_system_guard.set_play_index(played_signal_count).await;
         
         tracing::info!("{}: k线播放完毕，正常退出播放任务", strategy_name);
         *context.is_playing.write().await = false;
@@ -468,7 +468,7 @@ impl BacktestStrategyContext {
             updated_play_index_notify.notified().await;
             
             let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-            virtual_trading_system_guard.set_kline_cache_index(played_signal_count).await;
+            virtual_trading_system_guard.set_play_index(played_signal_count).await;
             
             start_node.send_kline_tick_signal(played_signal_count).await;
         });
@@ -506,7 +506,7 @@ impl BacktestStrategyContext {
             start_node.send_finish_signal(played_signal_count).await;
             
             let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
-            virtual_trading_system_guard.set_kline_cache_index(played_signal_count).await;
+            virtual_trading_system_guard.set_play_index(played_signal_count).await;
             
             tracing::info!("{}: k线播放完毕，正常退出播放任务", self.strategy_name.clone());
             *self.is_playing.write().await = false;

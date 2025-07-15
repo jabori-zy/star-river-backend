@@ -216,15 +216,15 @@ impl From<Mt5OrderType> for OrderType {
 impl From<Mt5OrderType> for FuturesOrderSide {
     fn from(value: Mt5OrderType) -> Self {
         match value {
-            Mt5OrderType::OrderTypeBuy => FuturesOrderSide::Long,
-            Mt5OrderType::OrderTypeSell => FuturesOrderSide::Short,
-            Mt5OrderType::OrderTypeBuyLimit => FuturesOrderSide::Long,
-            Mt5OrderType::OrderTypeSellLimit => FuturesOrderSide::Short,
-            Mt5OrderType::OrderTypeBuyStop => FuturesOrderSide::Long,
-            Mt5OrderType::OrderTypeSellStop => FuturesOrderSide::Short,
-            Mt5OrderType::OrderTypeBuyStopLimit => FuturesOrderSide::Long,
-            Mt5OrderType::OrderTypeSellStopLimit => FuturesOrderSide::Short,
-            Mt5OrderType::OrderTypeCloseBy => FuturesOrderSide::Long,
+            Mt5OrderType::OrderTypeBuy => FuturesOrderSide::OpenLong,
+            Mt5OrderType::OrderTypeSell => FuturesOrderSide::OpenShort,
+            Mt5OrderType::OrderTypeBuyLimit => FuturesOrderSide::OpenLong,
+            Mt5OrderType::OrderTypeSellLimit => FuturesOrderSide::OpenShort,
+            Mt5OrderType::OrderTypeBuyStop => FuturesOrderSide::OpenLong,
+            Mt5OrderType::OrderTypeSellStop => FuturesOrderSide::OpenShort,
+            Mt5OrderType::OrderTypeBuyStopLimit => FuturesOrderSide::OpenLong,
+            Mt5OrderType::OrderTypeSellStopLimit => FuturesOrderSide::OpenShort,
+            Mt5OrderType::OrderTypeCloseBy => FuturesOrderSide::OpenLong,
         }
     }
 }
@@ -489,8 +489,8 @@ impl OriginalTransaction for Mt5Deal {
     }
     fn get_transaction_side(&self) -> TransactionSide {
         match self.deal_type {
-            Mt5DealType::Buy => TransactionSide::Long,
-            Mt5DealType::Sell => TransactionSide::Short,
+            Mt5DealType::Buy => TransactionSide::OpenLong,
+            Mt5DealType::Sell => TransactionSide::OpenShort,
         }
     }
     fn get_quantity(&self) -> f64 {

@@ -23,15 +23,32 @@ use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PositionNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: PositionNodeBacktestConfig,
     pub database: DatabaseConnection,
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 持仓, 策略id作为key
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    pub virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
 }
+
+impl Clone for PositionNodeContext {
+    fn clone(&self) -> Self {
+        Self {
+            base_context: self.base_context.clone(),
+            backtest_config: self.backtest_config.clone(),
+            database: self.database.clone(),
+            heartbeat: self.heartbeat.clone(),
+            virtual_trading_system: self.virtual_trading_system.clone(),
+            virtual_trading_system_event_receiver: self.virtual_trading_system_event_receiver.resubscribe(),
+        }
+    }
+}
+
+
 
 
 

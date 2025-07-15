@@ -189,7 +189,7 @@ pub trait MarketData: Serialize + Clone + Debug{
 
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct Kline {
-    pub timestamp: i64,
+    pub timestamp: i64, // 时间戳，单位为毫秒
     pub open: f64,
     pub high: f64,
     pub low: f64,

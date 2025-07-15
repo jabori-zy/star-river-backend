@@ -21,10 +21,14 @@ pub enum TransactionType {
 // 交易方向
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 pub enum TransactionSide {
-    #[strum(serialize = "long")]
-    Long, // 多头
-    #[strum(serialize = "short")]
-    Short, // 空头
+    #[strum(serialize = "open_long")]
+    OpenLong, // 多头
+    #[strum(serialize = "open_short")]
+    OpenShort, // 空头
+    #[strum(serialize = "close_long")]
+    CloseLong, // 多头平仓
+    #[strum(serialize = "close_short")]
+    CloseShort, // 空头平仓
 }
 
 

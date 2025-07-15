@@ -19,6 +19,7 @@ use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, Strategy
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use tokio::sync::RwLock;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 
 #[async_trait]
@@ -264,9 +265,11 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &self.get_base_context().node_command_sender
     }
 
+    // 获取策略命令接收器
     fn get_strategy_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
         self.get_base_context().strategy_command_receiver.clone()
     }
+
 
     fn get_cancel_token(&self) -> &CancellationToken {
         &self.get_base_context().cancel_token

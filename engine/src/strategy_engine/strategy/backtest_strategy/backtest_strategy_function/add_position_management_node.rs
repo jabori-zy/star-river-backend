@@ -20,6 +20,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use super::super::StrategyCommandPublisher;
+use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 
 impl BacktestStrategyFunction {
@@ -37,6 +38,7 @@ impl BacktestStrategyFunction {
         strategy_command_publisher: &mut StrategyCommandPublisher,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let node_id = node_config["id"].as_str().unwrap().to_string();
@@ -67,6 +69,7 @@ impl BacktestStrategyFunction {
             Arc::new(Mutex::new(strategy_command_rx)),
             virtual_trading_system,
             strategy_inner_event_receiver,
+            virtual_trading_system_event_receiver,
         );
         node.set_output_handle().await;
 

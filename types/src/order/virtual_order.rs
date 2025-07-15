@@ -3,23 +3,56 @@ use chrono::{DateTime, Utc};
 use crate::order::{FuturesOrderSide,OrderType,OrderStatus};
 use crate::market::Exchange;
 use crate::custom_type::*;
-use crate::position::virtual_position::VirtualPosition;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VirtualOrder {
+    #[serde(rename = "orderId")]
     pub order_id: OrderId, // 订单ID
+
+    #[serde(rename = "positionId")]
+    pub position_id: Option<PositionId>, // 仓位ID
+
+    #[serde(rename = "strategyId")]
     pub strategy_id: StrategyId, // 策略ID
+
+    #[serde(rename = "nodeId")]
     pub node_id: NodeId, // 节点ID
+
+    #[serde(rename = "orderConfigId")]
+    pub order_config_id: i32, // 订单配置ID
+
+    #[serde(rename = "exchange")]
     pub exchange: Exchange, // 交易所
+
+    #[serde(rename = "symbol")]
     pub symbol: String, // 交易对
+
+    #[serde(rename = "orderSide")]
     pub order_side: FuturesOrderSide, // 订单方向
+
+    #[serde(rename = "orderType")]
     pub order_type: OrderType, // 订单类型
+
+    #[serde(rename = "orderStatus")]
     pub order_status: OrderStatus, // 订单状态
+
+    #[serde(rename = "quantity")]
     pub quantity: f64, // 数量
+
+    #[serde(rename = "openPrice")]
     pub open_price: f64, // 开仓价格
+
+    #[serde(rename = "tp")]
     pub tp: Option<f64>, // 止盈价格
+
+    #[serde(rename = "sl")]
     pub sl: Option<f64>, // 止损价格
-    pub created_time: DateTime<Utc>, // 创建时间
-    pub updated_time: DateTime<Utc>, // 更新时间
+
+    #[serde(rename = "createTime")]
+    pub create_time: DateTime<Utc>, // 创建时间
+
+    #[serde(rename = "updateTime")]
+    pub update_time: DateTime<Utc>, // 更新时间
 }
 
 impl VirtualOrder {
@@ -27,6 +60,7 @@ impl VirtualOrder {
         order_id: OrderId,
         strategy_id: StrategyId,
         node_id: NodeId,
+        order_config_id: i32,
         exchange: Exchange,
         symbol: String,
         order_side: FuturesOrderSide,
@@ -35,11 +69,14 @@ impl VirtualOrder {
         open_price: f64,
         tp: Option<f64>,
         sl: Option<f64>,
+        timestamp: i64,
     ) -> Self {
         Self {
             order_id,
+            position_id: None,
             strategy_id,
             node_id,
+            order_config_id,
             exchange,
             symbol,
             order_side,
@@ -49,8 +86,8 @@ impl VirtualOrder {
             tp,
             sl,
             order_status: OrderStatus::Created,
-            created_time: Utc::now(),
-            updated_time: Utc::now(),
+            create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
+            update_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }
     }
 

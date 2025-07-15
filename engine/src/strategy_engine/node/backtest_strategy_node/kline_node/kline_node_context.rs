@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
 use types::strategy::node_event::{KlineSeriesMessage, BacktestNodeEvent};
-use types::strategy::node_event::backtest_node_event::kline_event::{KlineNodeEvent, KlineUpdateEvent};
+use types::strategy::node_event::backtest_node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use event_center::response::Response;
 use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};

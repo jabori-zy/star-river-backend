@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 use crate::cache::{cache_key::BacktestKlineCacheKey, CacheKeyTrait, CacheValue};
 use std::sync::Arc;
+use crate::strategy::node_event::BacktestNodeEvent;
 
 
 
@@ -12,6 +13,12 @@ pub enum KlineNodeEvent {
     #[strum(serialize = "kline-update")]
     #[serde(rename = "kline-update")]
     KlineUpdate(KlineUpdateEvent),
+}
+
+impl From<KlineNodeEvent> for BacktestNodeEvent {
+    fn from(event: KlineNodeEvent) -> Self {
+        BacktestNodeEvent::KlineNode(event)
+    }
 }
 
 

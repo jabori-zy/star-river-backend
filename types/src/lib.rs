@@ -11,3 +11,4 @@ pub mod custom_type;
 pub mod engine;
 pub mod node;
 pub mod system;
+pub mod virtual_trading_system;

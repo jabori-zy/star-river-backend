@@ -45,6 +45,7 @@ pub async fn backtest_strategy_sse_handler(State(star_river): State<StarRiver>,)
                 Ok(EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(_))) => {
                     let json = serde_json::to_string(&result.as_ref().unwrap()).unwrap();
                     // tracing::debug!("backtest-strategy-sse: {:?}", json);
+                    // tracing::debug!("序列化后的 JSON: {}", json); // 添加这行
                     Some(Event::default().data(json))
                 }
                 Ok(_) => None,

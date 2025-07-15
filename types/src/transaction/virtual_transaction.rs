@@ -34,6 +34,7 @@ impl VirtualTransaction {
         transaction_id: TransactionId,
         virtual_order: &VirtualOrder,
         virtual_position: &VirtualPosition,
+        timestamp: i64,
     ) -> Self {
         Self {
             transaction_id,
@@ -45,14 +46,16 @@ impl VirtualTransaction {
             symbol: virtual_order.symbol.clone(),
             transaction_type: TransactionType::Open,
             transaction_side: match virtual_order.order_side {
-                FuturesOrderSide::Long => TransactionSide::Long,
-                FuturesOrderSide::Short => TransactionSide::Short,
+                FuturesOrderSide::OpenLong => TransactionSide::OpenLong,
+                FuturesOrderSide::OpenShort => TransactionSide::OpenShort,
+                FuturesOrderSide::CloseLong => TransactionSide::CloseLong,
+                FuturesOrderSide::CloseShort => TransactionSide::CloseShort,
             },
             quantity: virtual_order.quantity,
             price: virtual_position.open_price,
             tp: virtual_position.tp,
             sl: virtual_position.sl,
-            create_time: Utc::now(),
+            create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }
 
     }

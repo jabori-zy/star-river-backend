@@ -28,6 +28,7 @@ use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use super::super::node::backtest_strategy_node::start_node::StartNode;
 use super::StrategyCommandPublisher;
+use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -50,7 +51,10 @@ impl BacktestStrategy {
         let mut node_indices = HashMap::new();
         let mut cache_keys: Vec<CacheKey> = vec![];
         let mut strategy_command_publisher = StrategyCommandPublisher::new();
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone())));
+
+        // 创建虚拟交易系统
+        let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), virtual_trading_system_event_tx)));
 
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
@@ -83,7 +87,8 @@ impl BacktestStrategy {
                         &mut strategy_command_publisher,
                         node_command_tx.clone(),
                         virtual_trading_system.clone(),
-                        strategy_inner_event_rx.resubscribe()
+                        strategy_inner_event_rx.resubscribe(),
+                        virtual_trading_system_event_rx.resubscribe()
                     ).await.unwrap();
 
                 }
@@ -111,7 +116,7 @@ impl BacktestStrategy {
         
         
         // tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
-        tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_cache_data);
+        tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_price);
         let context = BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),

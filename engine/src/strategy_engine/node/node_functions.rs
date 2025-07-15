@@ -219,6 +219,7 @@ impl BacktestNodeFunction {
         
 
         // 节点接收数据
+        
         tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -295,6 +296,7 @@ impl BacktestNodeFunction {
             }
         });
     }
+
 
     pub async fn listen_strategy_command(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
         let (strategy_command_receiver, cancel_token, node_id) = {

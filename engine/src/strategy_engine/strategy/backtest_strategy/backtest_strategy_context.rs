@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use types::strategy::node_event::{BacktestNodeEvent, SignalEvent};
-use types::strategy::node_event::backtest_node_event::kline_event::{KlineNodeEvent, KlineUpdateEvent};
+use types::strategy::node_event::backtest_node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent};
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
@@ -37,6 +37,7 @@ use types::strategy::node_event::IndicatorNodeEvent;
 use super::super::StrategyCommandPublisher;
 use event_center::command::backtest_strategy_command::{StrategyCommand, GetStartNodeConfigParams};
 use event_center::response::backtest_strategy_response::StrategyResponse;
+use types::strategy::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 
 
 #[derive(Debug)]
@@ -148,7 +149,7 @@ impl BacktestStrategyContext {
     }
 
     // 所有节点发送的事件都会汇集到这里
-    pub async fn handle_node_events(&self, node_event: BacktestNodeEvent) -> Result<(), String> {
+    pub async fn handle_node_event(&self, node_event: BacktestNodeEvent) -> Result<(), String> {
         // 播放索引更新事件
         if let BacktestNodeEvent::Signal(signal_event) = &node_event {
             match signal_event {
@@ -192,6 +193,26 @@ impl BacktestStrategyContext {
                 _ => {}
             }
         }
+
+        // 期货订单节点事件
+        if let BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) = &node_event {
+            match futures_order_node_event {
+                FuturesOrderNodeEvent::FuturesOrderFilled(futures_order_filled_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderFilled(futures_order_filled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::FuturesOrderCreated(futures_order_created_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCreated(futures_order_created_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+
+                _ => {}
+            }
+        }
         Ok(())
     }
     
@@ -209,42 +230,42 @@ impl BacktestStrategyContext {
     }
 
     // 启用策略的数据推送功能
-    pub async fn enable_strategy_data_push(&mut self) {
-        let command_publisher = self.command_publisher.clone();
-        let event_publisher = self.event_publisher.clone();
-        let strategy_id = self.strategy_id;
-        let strategy_name = self.strategy_name.clone();
-        let cache_keys = self.cache_keys.clone();
+    // pub async fn enable_strategy_data_push(&mut self) {
+    //     let command_publisher = self.command_publisher.clone();
+    //     let event_publisher = self.event_publisher.clone();
+    //     let strategy_id = self.strategy_id;
+    //     let strategy_name = self.strategy_name.clone();
+    //     let cache_keys = self.cache_keys.clone();
 
-        let mut heartbeat = self.heartbeat.lock().await;
-        let task_id = heartbeat.register_async_task(
-            "启用策略数据推送".to_string(), 
-            move || {
-                let strategy_id = strategy_id;
-                let strategy_name = strategy_name.clone();
-                let cache_keys = cache_keys.clone();
-                let command_publisher = command_publisher.clone();
-                let event_publisher = event_publisher.clone();
-                async move {
-                    Self::get_strategy_data(strategy_id, strategy_name, cache_keys, command_publisher, event_publisher).await;
-                }
-            },
-            5
-        ).await;
-        self.registered_tasks.write().await.insert("push_strategy_data".to_string(), task_id);
-        tracing::debug!("任务注册成功，当前任务列表：{:?}", self.registered_tasks.read().await);
+    //     let mut heartbeat = self.heartbeat.lock().await;
+    //     let task_id = heartbeat.register_async_task(
+    //         "启用策略数据推送".to_string(), 
+    //         move || {
+    //             let strategy_id = strategy_id;
+    //             let strategy_name = strategy_name.clone();
+    //             let cache_keys = cache_keys.clone();
+    //             let command_publisher = command_publisher.clone();
+    //             let event_publisher = event_publisher.clone();
+    //             async move {
+    //                 Self::get_strategy_data(strategy_id, strategy_name, cache_keys, command_publisher, event_publisher).await;
+    //             }
+    //         },
+    //         5
+    //     ).await;
+    //     self.registered_tasks.write().await.insert("push_strategy_data".to_string(), task_id);
+    //     tracing::debug!("任务注册成功，当前任务列表：{:?}", self.registered_tasks.read().await);
 
-    }
+    // }
 
-    pub async fn disable_strategy_data_push(&mut self) {
-        let task_id = self.registered_tasks.write().await.remove("push_strategy_data");
+    // pub async fn disable_strategy_data_push(&mut self) {
+    //     let task_id = self.registered_tasks.write().await.remove("push_strategy_data");
         
-        if let Some(task_id) = task_id {
-            let mut heartbeat = self.heartbeat.lock().await;
-            heartbeat.unregister_task(task_id).await.unwrap();
-            tracing::debug!("任务取消成功，当前任务列表：{:?}", self.registered_tasks.read().await);
-        }
-    }
+    //     if let Some(task_id) = task_id {
+    //         let mut heartbeat = self.heartbeat.lock().await;
+    //         heartbeat.unregister_task(task_id).await.unwrap();
+    //         tracing::debug!("任务取消成功，当前任务列表：{:?}", self.registered_tasks.read().await);
+    //     }
+    // }
 
     async fn get_strategy_data(
         strategy_id: StrategyId,
