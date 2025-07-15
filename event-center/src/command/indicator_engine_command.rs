@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use types::market::{Exchange, KlineInterval};
 use uuid::Uuid;
 use types::indicator::IndicatorConfig;
-use types::cache::cache_key::BacktestKlineCacheKey;
+use types::cache::key::BacktestKlineKey;
 use crate::command::Command;
 use crate::Responder;
 use super::CommandTrait;
@@ -64,7 +64,7 @@ pub struct RegisterIndicatorParams {
 pub struct CalculateBacktestIndicatorParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
-    pub kline_cache_key: BacktestKlineCacheKey, // 回测K线缓存键
+    pub kline_cache_key: BacktestKlineKey, // 回测K线缓存键
     pub indicator_config: IndicatorConfig,
     pub sender: String,
     pub command_timestamp:i64,

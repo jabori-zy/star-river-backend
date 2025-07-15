@@ -9,8 +9,8 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::KlineNodeBacktestConfig;
 use std::sync::Arc;
 use heartbeat::Heartbeat;
-use types::cache::CacheKey;
-use types::cache::cache_key::BacktestKlineCacheKey;
+use types::cache::Key;
+use types::cache::key::BacktestKlineKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::BacktestDataSource;
@@ -24,7 +24,7 @@ impl BacktestStrategyFunction {
     pub async fn add_kline_node(
         graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
-        strategy_cache_keys: &mut Vec<CacheKey>,
+        strategy_cache_keys: &mut Vec<Key>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
@@ -59,7 +59,7 @@ impl BacktestStrategyFunction {
                     let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
                     for symbol_config in backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.iter() {
-                        let backtest_kline_cache_key = BacktestKlineCacheKey::new(
+                        let backtest_kline_cache_key = BacktestKlineKey::new(
                             exchange.clone(), 
                             symbol_config.symbol.clone(), 
                             symbol_config.interval.clone(), 

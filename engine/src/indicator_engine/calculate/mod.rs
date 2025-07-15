@@ -6,8 +6,8 @@ use crate::cache_engine::CacheEngine;
 use types::indicator::Indicator;
 use std::sync::Arc;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
-use types::cache::cache_key::KlineCacheKey;
-use types::cache::CacheKey;
+use types::cache::key::KlineKey;
+use types::cache::Key;
 use types::indicator::IndicatorConfig;
 use types::cache::CacheValue;
 use types::cache::CacheItem;
@@ -22,7 +22,7 @@ impl CalculateIndicatorFunction {
 
     pub async fn calculate_indicator(
         cache_engine: Arc<Mutex<CacheEngine>>, 
-        kline_cache_key: CacheKey,
+        kline_cache_key: Key,
         indicator_config: IndicatorConfig,
         ignore_config: bool // 是否忽略指标计算配置中所需要的长度，而是使用缓存中的所有数据
     ) -> Result<Vec<Indicator>, String> {

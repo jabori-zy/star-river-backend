@@ -1,6 +1,4 @@
-use crate::cache::CacheKey;
-use crate::market::Kline;
-use crate::indicator::Indicator;
+use crate::cache::Key;
 use std::collections::VecDeque;
 use std::time::Duration;
 use utils::get_utc8_timestamp_millis;
@@ -10,7 +8,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct KlineCacheEntry {
-    pub key: KlineCacheKey, // 缓存键
+    pub key: KlineKey, // 缓存键
     pub data: VecDeque<Arc<CacheValue>>, // 缓存数据
     pub create_time: i64, // 创建时间
     pub update_time: i64, // 更新时间
@@ -52,7 +50,7 @@ impl From<KlineCacheEntry> for CacheEntry {
 }
 
 impl KlineCacheEntry {
-    pub fn new(key: KlineCacheKey, max_size: u32, ttl: Duration) -> Self {
+    pub fn new(key: KlineKey, max_size: u32, ttl: Duration) -> Self {
         Self {
             key,
             data: VecDeque::new(),
@@ -87,8 +85,8 @@ impl CacheEntryTrait for KlineCacheEntry {
         }
     }
 
-    fn get_key(&self) -> CacheKey {
-        CacheKey::Kline(self.key.clone())
+    fn get_key(&self) -> Key {
+        Key::Kline(self.key.clone())
     }
 
     fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>> {
@@ -167,7 +165,7 @@ impl CacheEntryTrait for KlineCacheEntry {
 
 #[derive(Debug, Clone)]
 pub struct IndicatorCacheEntry {
-    pub key: IndicatorCacheKey, // 缓存键
+    pub key: IndicatorKey, // 缓存键
     pub data: VecDeque<Arc<CacheValue>>, // 缓存数据
     pub create_time: i64, // 创建时间
     pub update_time: i64, // 更新时间
@@ -184,7 +182,7 @@ impl From<IndicatorCacheEntry> for CacheEntry {
 
 
 impl IndicatorCacheEntry {
-    pub fn new(key: IndicatorCacheKey, max_size: u32, ttl: Duration) -> Self {
+    pub fn new(key: IndicatorKey, max_size: u32, ttl: Duration) -> Self {
         Self {
             key,
             data: VecDeque::new(),
@@ -221,8 +219,8 @@ impl CacheEntryTrait for IndicatorCacheEntry {
         }
     }
 
-    fn get_key(&self) -> CacheKey {
-        CacheKey::Indicator(self.key.clone())
+    fn get_key(&self) -> Key {
+        Key::Indicator(self.key.clone())
     }
 
     fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>> {
@@ -522,7 +520,7 @@ impl CacheEntryTrait for IndicatorCacheEntry {
 
 
 #[derive(Debug, Clone)]
-pub struct GenericCacheEntry<K: Clone + Debug + Into<CacheKey>> {
+pub struct GenericCacheEntry<K: Clone + Debug + Into<Key>> {
     pub key: K,
     pub data: VecDeque<Arc<CacheValue>>, 
     pub create_time: i64,
@@ -534,7 +532,7 @@ pub struct GenericCacheEntry<K: Clone + Debug + Into<CacheKey>> {
 
 
 
-impl<K: Clone + Debug + Into<CacheKey>> CacheEntryTrait for GenericCacheEntry<K> {
+impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
     fn initialize(&mut self, data: Vec<CacheValue>) {
         self.data = data.into_iter().map(|value| value.into()).collect();
         self.is_fresh = true;
@@ -561,7 +559,7 @@ impl<K: Clone + Debug + Into<CacheKey>> CacheEntryTrait for GenericCacheEntry<K>
         }
     }
 
-    fn get_key(&self) -> CacheKey {
+    fn get_key(&self) -> Key {
         self.key.clone().into()
     }
 
@@ -639,10 +637,10 @@ impl<K: Clone + Debug + Into<CacheKey>> CacheEntryTrait for GenericCacheEntry<K>
 }
 
 
-pub type HistoryKlineCacheEntry = GenericCacheEntry<BacktestKlineCacheKey>;
+pub type HistoryKlineCacheEntry = GenericCacheEntry<BacktestKlineKey>;
 
 impl HistoryKlineCacheEntry {
-    pub fn new(key: BacktestKlineCacheKey, max_size: Option<u32>, ttl: Duration) -> Self {
+    pub fn new(key: BacktestKlineKey, max_size: Option<u32>, ttl: Duration) -> Self {
         Self {
             key,
             data: VecDeque::new(),
@@ -661,7 +659,7 @@ impl From<HistoryKlineCacheEntry> for CacheEntry {
     }
 }
 
-pub type HistoryIndicatorCacheEntry = GenericCacheEntry<BacktestIndicatorCacheKey>;
+pub type HistoryIndicatorCacheEntry = GenericCacheEntry<BacktestIndicatorKey>;
 
 
 impl From<HistoryIndicatorCacheEntry> for CacheEntry {
@@ -671,7 +669,7 @@ impl From<HistoryIndicatorCacheEntry> for CacheEntry {
 }
 
 impl HistoryIndicatorCacheEntry {
-    pub fn new(key: BacktestIndicatorCacheKey, max_size: Option<u32>, ttl: Duration) -> Self {
+    pub fn new(key: BacktestIndicatorKey, max_size: Option<u32>, ttl: Duration) -> Self {
         Self {
             key,
             data: VecDeque::new(),

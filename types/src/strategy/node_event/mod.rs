@@ -10,13 +10,13 @@ use strum::Display;
 use crate::order::Order;
 use crate::position::Position;
 use crate::cache::CacheValue;
-use crate::cache::cache_key::BacktestKlineCacheKey;
+use crate::cache::key::BacktestKlineKey;
 use std::sync::Arc;
 use variable_event::PositionNumberUpdateEvent;
 use crate::order::virtual_order::VirtualOrder;
 use backtest_node_event::kline_node_event::KlineNodeEvent;
-use crate::cache::cache_key::BacktestIndicatorCacheKey;
-use crate::cache::CacheKeyTrait;
+use crate::cache::key::BacktestIndicatorKey;
+use crate::cache::KeyTrait;
 use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 
 
@@ -122,22 +122,22 @@ pub struct IndicatorUpdateEvent {
     #[serde(rename = "indicatorConfig")]
     pub indicator_config: IndicatorConfig,
 
-    #[serde(rename = "indicatorCacheKey")]
+    #[serde(rename = "indicatorKey")]
     #[serde(serialize_with = "serialize_indicator_cache_key")]
-    pub indicator_cache_key: BacktestIndicatorCacheKey,
+    pub indicator_key: BacktestIndicatorKey,
 
     #[serde(rename = "indicatorSeries")]
     #[serde(serialize_with = "serialize_indicator_data")]
     pub indicator_series: Vec<Arc<CacheValue>>,
 
-    #[serde(rename = "klineCacheIndex")]
-    pub kline_cache_index: u32,
+    #[serde(rename = "playIndex")]
+    pub play_index: u32,
 
     #[serde(rename = "timestamp")] 
     pub timestamp: i64,
 }
 
-fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &BacktestIndicatorCacheKey, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &BacktestIndicatorKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

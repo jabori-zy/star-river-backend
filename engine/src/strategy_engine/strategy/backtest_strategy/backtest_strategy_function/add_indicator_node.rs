@@ -8,14 +8,14 @@ use crate::strategy_engine::node::backtest_strategy_node::indicator_node::Indica
 use event_center::EventPublisher;
 use crate::strategy_engine::node::backtest_strategy_node::indicator_node::indicator_node_type::{IndicatorNodeBacktestConfig, ExchangeModeConfig,SelectedIndicator};
 use std::str::FromStr;
-use types::cache::CacheKey;
-use types::cache::cache_key::BacktestKlineCacheKey;
+use types::cache::Key;
+use types::cache::key::BacktestKlineKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::{BacktestDataSource, TimeRange};
-use types::cache::cache_key::BacktestIndicatorCacheKey;
+use types::cache::key::BacktestIndicatorKey;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use types::strategy::SelectedAccount;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::SelectedSymbol;
@@ -27,7 +27,7 @@ impl BacktestStrategyFunction {
     pub async fn add_indicator_node(
         graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
-        cache_keys: &mut Vec<CacheKey>,
+        cache_keys: &mut Vec<Key>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
@@ -80,7 +80,7 @@ impl BacktestStrategyFunction {
             };
             selected_indicators.push(selected_indicator);
 
-            let kline_cache_key = CacheKey::BacktestKline(BacktestKlineCacheKey::new(
+            let kline_cache_key = Key::BacktestKline(BacktestKlineKey::new(
                 selected_account.exchange.clone(),
                 selected_symbol.symbol.clone(),
                 selected_symbol.interval.clone(),
@@ -88,7 +88,7 @@ impl BacktestStrategyFunction {
                 time_range.end_date.to_string(),
             ));
 
-            let indicator_cache_key = CacheKey::BacktestIndicator(BacktestIndicatorCacheKey::new(
+            let indicator_cache_key = Key::BacktestIndicator(BacktestIndicatorKey::new(
                 kline_cache_key,
                 indicator_config,
             ));

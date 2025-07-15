@@ -1,6 +1,6 @@
 use types::custom_type::{NodeId, StrategyId};
 use std::fmt::Debug;
-use types::cache::CacheKey;
+use types::cache::Key;
 use types::market::{Exchange, KlineInterval};
 use tokio::time::Duration;
 use crate::command::Command;
@@ -60,7 +60,7 @@ impl From<CacheEngineCommand> for Command {
 #[derive(Debug)]
 pub struct AddCacheKeyParams {
     pub strategy_id: StrategyId,
-    pub cache_key: CacheKey,
+    pub key: Key,
     pub max_size: Option<u32>,
     pub duration: Duration,
     pub sender: String,
@@ -73,7 +73,7 @@ pub struct AddCacheKeyParams {
 pub struct AddIndicatorCacheKeyParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
-    pub indicator_cache_key: CacheKey,
+    pub indicator_cache_key: Key,
     pub sender: String,
     pub timestamp:i64,
     pub responder: Responder,
@@ -82,7 +82,7 @@ pub struct AddIndicatorCacheKeyParams {
 
 #[derive(Debug)]
 pub struct SubscribeIndicatorParams {
-    pub cache_key: CacheKey,
+    pub cache_key: Key,
     pub sender: String,
     pub timestamp:i64,
     pub responder: Responder,
@@ -103,7 +103,7 @@ pub struct GetSubscribedIndicatorParams {
 pub struct GetCacheParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
-    pub cache_key: CacheKey, // 缓存键
+    pub cache_key: Key, // 缓存键
     pub index: Option<u32>, // 缓存取值索引
     pub limit: Option<u32>, // 获取的缓存数据条数
     pub sender: String,
@@ -114,7 +114,7 @@ pub struct GetCacheParams {
 #[derive(Debug)]
 pub struct GetCacheMultiParams {
     pub strategy_id: StrategyId,
-    pub cache_keys: Vec<CacheKey>,
+    pub cache_keys: Vec<Key>,
     pub index: Option<u32>, // 缓存取值索引
     pub limit: Option<u32>,
     pub sender: String,
@@ -126,7 +126,7 @@ pub struct GetCacheMultiParams {
 #[derive(Debug)]
 pub struct GetCacheLengthParams {
     pub strategy_id: StrategyId,
-    pub cache_key: CacheKey,
+    pub cache_key: Key,
     pub sender: String,
     pub timestamp:i64,
     pub responder: Responder,
@@ -135,7 +135,7 @@ pub struct GetCacheLengthParams {
 #[derive(Debug)]
 pub struct GetCacheLengthMultiParams {
     pub strategy_id: StrategyId,
-    pub cache_keys: Vec<CacheKey>,
+    pub cache_keys: Vec<Key>,
     pub sender: String,
     pub timestamp:i64,
     pub responder: Responder,

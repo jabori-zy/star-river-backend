@@ -19,7 +19,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use backtest_strategy_function::BacktestStrategyFunction;
 use crate::strategy_engine::{node::BacktestNodeTrait, strategy::backtest_strategy::backtest_strategy_state_machine::*};
-use types::cache::CacheKey;
+use types::cache::Key;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::BacktestStrategyConfig;
 use tokio::sync::{mpsc, broadcast};
@@ -49,7 +49,7 @@ impl BacktestStrategy {
     ) -> Self {
         let mut graph = Graph::new();
         let mut node_indices = HashMap::new();
-        let mut cache_keys: Vec<CacheKey> = vec![];
+        let mut cache_keys: Vec<Key> = vec![];
         let mut strategy_command_publisher = StrategyCommandPublisher::new();
 
         // 创建虚拟交易系统

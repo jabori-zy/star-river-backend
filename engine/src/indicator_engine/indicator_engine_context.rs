@@ -12,8 +12,8 @@ use event_center::EventPublisher;
 use types::indicator::IndicatorConfig;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use types::cache::cache_key::{IndicatorCacheKey, BacktestKlineCacheKey, KlineCacheKey};
-use types::cache::CacheKey;
+use types::cache::key::{IndicatorKey, BacktestKlineKey, KlineKey};
+use types::cache::Key;
 use types::custom_type::{StrategyId, NodeId};
 use crate::cache_engine::CacheEngine;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
@@ -195,7 +195,7 @@ impl IndicatorEngineContext {
                 // 注册任务
                 let indicator_sub_key_clone = indicator_sub_key.clone();
                 let futures = async move {
-                    let kline_cache_key = KlineCacheKey::new(
+                    let kline_cache_key = KlineKey::new(
                         indicator_sub_key_clone.exchange.clone(), 
                         indicator_sub_key_clone.symbol.clone(), 
                         indicator_sub_key_clone.interval.clone()
@@ -264,10 +264,10 @@ impl IndicatorEngineContext {
         tracing::info!("已订阅的指标: {:?}", subscribe_indicators);
         
         // 1. 添加缓存键
-        let indicator_cache_key: IndicatorCacheKey = indicator_sub_key.clone().into();
+        let indicator_cache_key: IndicatorKey = indicator_sub_key.clone().into();
         let _ = self.cache_engine.lock().await.add_cache_key(indicator_cache_key.into(), None, Duration::from_millis(10)).await;
         // 3. 计算指标
-        let kline_cache_key = KlineCacheKey::new(
+        let kline_cache_key = KlineKey::new(
             exchange.clone(), 
             symbol.clone(), 
             interval.clone()

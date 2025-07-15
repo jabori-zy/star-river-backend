@@ -25,7 +25,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use live_strategy_function::LiveStrategyFunction;
 use live_strategy_state_machine::LiveStrategyStateMachine;
-use types::cache::CacheKey;
+use types::cache::Key;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::mpsc;
 use types::strategy::node_command::NodeCommand;
@@ -55,7 +55,7 @@ impl LiveStrategy {
             live_accounts: vec![],
             variables: None,
         };
-        let mut cache_keys: Vec<CacheKey> = vec![];
+        let mut cache_keys: Vec<Key> = vec![];
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<NodeCommand>(100);
 
         let strategy_id = strategy.id;

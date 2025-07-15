@@ -1,4 +1,4 @@
-use types::cache::cache_key::BacktestKlineCacheKey;
+use types::cache::key::BacktestKlineKey;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
@@ -17,7 +17,7 @@ use tokio::sync::RwLock;
 use tokio::sync::Mutex;
 use heartbeat::Heartbeat;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use types::cache::CacheKey;
+use types::cache::Key;
 use event_center::CommandPublisher;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -107,7 +107,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         // 循环处理所有选定的交易对
                         for symbol_config in exchange_config.selected_symbols.iter() {
                             // 创建k线缓存键
-                            let backtest_kline_cache_key = BacktestKlineCacheKey::new(
+                            let backtest_kline_key = BacktestKlineKey::new(
                                 exchange.clone(),
                                 symbol_config.symbol.clone(),
                                 symbol_config.interval.clone(),
@@ -116,7 +116,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             );
                             
                             // 获取k线缓存值
-                            let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_cache_key, kline_tick_event.play_index).await {
+                            let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, kline_tick_event.play_index).await {
                                 Ok(value) => value,
                                 Err(e) => {
                                     tracing::error!(
@@ -150,7 +150,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             let send_kline_event = |handle_id: String, output_handle: NodeOutputHandle| {
                                 let kline_update_event = self.get_kline_update_event(
                                     handle_id,
-                                    &backtest_kline_cache_key,
+                                    &backtest_kline_key,
                                     kline_tick_event.play_index,
                                     kline_cache_value.clone(),
                                 );
@@ -281,7 +281,7 @@ impl KlineNodeContext {
 
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(&self,
-        kline_cache_key: &BacktestKlineCacheKey,
+        kline_cache_key: &BacktestKlineKey,
         index: u32, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -317,7 +317,7 @@ impl KlineNodeContext {
     fn get_kline_update_event(
         &self,
         handle_id: String,
-        kline_cache_key: &BacktestKlineCacheKey,
+        kline_key: &BacktestKlineKey,
         index: u32, // 缓存索引
         kline_data: Vec<Arc<CacheValue>>,
     ) -> KlineNodeEvent {
@@ -326,8 +326,8 @@ impl KlineNodeContext {
             from_node_id: self.get_node_id().clone(),
             from_node_name: self.get_node_name().clone(),
             from_handle_id: handle_id,
-            kline_cache_index: index,
-            kline_cache_key: kline_cache_key.clone(),
+            play_index: index,
+            kline_key: kline_key.clone(),
             kline: kline_data,
             timestamp: get_utc8_timestamp_millis(),
         })

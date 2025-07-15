@@ -1,6 +1,6 @@
 use types::market::{Exchange, KlineInterval};
 use types::indicator::IndicatorConfig;
-use types::cache::cache_key::IndicatorCacheKey;
+use types::cache::key::IndicatorKey;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct IndicatorSubKey {
@@ -10,8 +10,8 @@ pub struct IndicatorSubKey {
     pub indicator_config: IndicatorConfig,
 }
 
-impl From<IndicatorSubKey> for IndicatorCacheKey {
+impl From<IndicatorSubKey> for IndicatorKey {
     fn from(indicator_sub_key: IndicatorSubKey) -> Self {
-        IndicatorCacheKey::new(indicator_sub_key.exchange, indicator_sub_key.symbol, indicator_sub_key.interval, indicator_sub_key.indicator_config)
+        IndicatorKey::new(indicator_sub_key.exchange, indicator_sub_key.symbol, indicator_sub_key.interval, indicator_sub_key.indicator_config)
     }
 }

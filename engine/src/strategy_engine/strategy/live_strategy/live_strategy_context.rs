@@ -24,7 +24,7 @@ use types::strategy::node_event::PositionEvent;
 use super::live_strategy_function::sys_variable_function::SysVariableFunction;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::LiveNodeRunState;
-use types::cache::CacheKey;
+use types::cache::Key;
 use uuid::Uuid;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
@@ -42,7 +42,7 @@ pub struct LiveStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
     pub strategy_config: LiveStrategyConfig, // 策略配置
-    pub cache_keys: Arc<RwLock<Vec<CacheKey>>>, // 缓存键
+    pub cache_keys: Arc<RwLock<Vec<Key>>>, // 缓存键
     pub graph: Graph<Box<dyn LiveNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
     pub event_publisher: EventPublisher, // 事件发布器
@@ -82,7 +82,7 @@ impl LiveStrategyContext {
         self.strategy_name.clone()
     }
 
-    pub async fn get_cache_keys(&self) -> Vec<CacheKey> {
+    pub async fn get_cache_keys(&self) -> Vec<Key> {
         self.cache_keys.read().await.clone()
     }
 
@@ -203,7 +203,7 @@ impl LiveStrategyContext {
     async fn get_strategy_data(
         strategy_id: StrategyId,
         strategy_name: String,
-        cache_keys: Arc<RwLock<Vec<CacheKey>>>,
+        cache_keys: Arc<RwLock<Vec<Key>>>,
         command_publisher: CommandPublisher,
         event_publisher: EventPublisher,
     ) {

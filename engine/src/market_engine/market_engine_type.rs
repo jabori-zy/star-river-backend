@@ -1,5 +1,5 @@
 use types::market::{Exchange, KlineInterval};
-use types::cache::cache_key::KlineCacheKey;
+use types::cache::key::KlineKey;
 
 
 
@@ -11,9 +11,9 @@ pub struct KlineSubKey {
 }
 
 
-impl From<KlineSubKey> for KlineCacheKey {
+impl From<KlineSubKey> for KlineKey {
     fn from(kline_sub_key: KlineSubKey) -> Self {
-        KlineCacheKey::new(kline_sub_key.exchange, kline_sub_key.symbol, kline_sub_key.interval)
+        KlineKey::new(kline_sub_key.exchange, kline_sub_key.symbol, kline_sub_key.interval)
     }
 }
 

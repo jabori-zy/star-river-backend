@@ -1,24 +1,24 @@
 use crate::market::{Exchange, KlineInterval};
 use crate::indicator::IndicatorConfig;
 use serde::{Deserialize, Serialize};
-use super::CacheKeyTrait;
-use super::CacheKey;
+use super::KeyTrait;
+use super::Key;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct KlineCacheKey {
+pub struct KlineKey {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
 }
 
-impl From<KlineCacheKey> for CacheKey {
-    fn from(kline_cache_key: KlineCacheKey) -> Self {
-        CacheKey::Kline(kline_cache_key)
+impl From<KlineKey> for Key {
+    fn from(kline_cache_key: KlineKey) -> Self {
+        Key::Kline(kline_cache_key)
     }
 }
 
-impl FromStr for KlineCacheKey {
+impl FromStr for KlineKey {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -30,19 +30,19 @@ impl FromStr for KlineCacheKey {
         let exchange = parts[1].parse::<Exchange>().map_err(|e| e.to_string())?;
         let symbol = parts[2].to_string();
         let interval = parts[3].parse::<KlineInterval>().map_err(|e| e.to_string())?;
-        Ok(KlineCacheKey::new(exchange, symbol, interval))
+        Ok(KlineKey::new(exchange, symbol, interval))
     }
 }
 
 
 
-impl KlineCacheKey {
+impl KlineKey {
     pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
         Self { exchange, symbol, interval }
     }
 }
 
-impl CacheKeyTrait for KlineCacheKey {
+impl KeyTrait for KlineKey {
     fn get_key(&self) -> String {
         format!("kline|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string())
     }
@@ -59,7 +59,7 @@ impl CacheKeyTrait for KlineCacheKey {
 
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct IndicatorCacheKey {
+pub struct IndicatorKey {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -67,7 +67,7 @@ pub struct IndicatorCacheKey {
 }
 
 
-impl FromStr for IndicatorCacheKey {
+impl FromStr for IndicatorKey {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -80,19 +80,19 @@ impl FromStr for IndicatorCacheKey {
         let symbol = parts[2].to_string();
         let interval = parts[3].parse::<KlineInterval>().map_err(|e| e.to_string())?;
         let indicator_config = IndicatorConfig::from_str(parts[4])?;
-        Ok(IndicatorCacheKey::new(exchange, symbol, interval, indicator_config))
+        Ok(IndicatorKey::new(exchange, symbol, interval, indicator_config))
     }
 }
 
 
 
-impl From<IndicatorCacheKey> for CacheKey {
-    fn from(indicator_cache_key: IndicatorCacheKey) -> Self {
-        CacheKey::Indicator(indicator_cache_key)
+impl From<IndicatorKey> for Key {
+    fn from(indicator_cache_key: IndicatorKey) -> Self {
+        Key::Indicator(indicator_cache_key)
     }
 }
 
-impl IndicatorCacheKey {
+impl IndicatorKey {
     pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, indicator_config: IndicatorConfig) -> Self {
         Self { exchange, symbol, interval, indicator_config }
     }
@@ -102,7 +102,7 @@ impl IndicatorCacheKey {
     }
 }
 
-impl CacheKeyTrait for IndicatorCacheKey {
+impl KeyTrait for IndicatorKey {
     fn get_key(&self) -> String {
         format!("indicator|{}|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string(), self.indicator_config.to_string())
     }
@@ -120,7 +120,7 @@ impl CacheKeyTrait for IndicatorCacheKey {
 
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct BacktestKlineCacheKey {
+pub struct BacktestKlineKey {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -129,14 +129,14 @@ pub struct BacktestKlineCacheKey {
 }
 
 
-impl From<BacktestKlineCacheKey> for CacheKey {
-    fn from(history_kline_cache_key: BacktestKlineCacheKey) -> Self {
-        CacheKey::BacktestKline(history_kline_cache_key)
+impl From<BacktestKlineKey> for Key {
+    fn from(history_kline_cache_key: BacktestKlineKey) -> Self {
+        Key::BacktestKline(history_kline_cache_key)
     }
 }
 
 
-impl FromStr for BacktestKlineCacheKey {
+impl FromStr for BacktestKlineKey {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -150,18 +150,18 @@ impl FromStr for BacktestKlineCacheKey {
         let interval = parts[3].parse::<KlineInterval>().map_err(|e| e.to_string())?;
         let start_time = parts[4].to_string();
         let end_time = parts[5].to_string();
-        Ok(BacktestKlineCacheKey::new(exchange, symbol, interval, start_time, end_time))
+        Ok(BacktestKlineKey::new(exchange, symbol, interval, start_time, end_time))
     }
 }
 
 
-impl BacktestKlineCacheKey {
+impl BacktestKlineKey {
     pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, start_time: String, end_time: String) -> Self {
         Self { exchange, symbol, interval, start_time, end_time }
     }
 }
 
-impl CacheKeyTrait for BacktestKlineCacheKey {
+impl KeyTrait for BacktestKlineKey {
     fn get_key(&self) -> String {
         format!("backtest_kline|{}|{}|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string(), self.start_time, self.end_time)
     }
@@ -179,7 +179,7 @@ impl CacheKeyTrait for BacktestKlineCacheKey {
 
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct BacktestIndicatorCacheKey {
+pub struct BacktestIndicatorKey {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -189,15 +189,15 @@ pub struct BacktestIndicatorCacheKey {
 }
 
 
-impl From<BacktestIndicatorCacheKey> for CacheKey {
-    fn from(backtest_indicator_cache_key: BacktestIndicatorCacheKey) -> Self {
-        CacheKey::BacktestIndicator(backtest_indicator_cache_key)
+impl From<BacktestIndicatorKey> for Key {
+    fn from(backtest_indicator_cache_key: BacktestIndicatorKey) -> Self {
+        Key::BacktestIndicator(backtest_indicator_cache_key)
     }
 }
 
 
 
-impl FromStr for BacktestIndicatorCacheKey {
+impl FromStr for BacktestIndicatorKey {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -212,16 +212,16 @@ impl FromStr for BacktestIndicatorCacheKey {
         let indicator_config = IndicatorConfig::from_str(parts[4])?;
         let start_time = parts[5].to_string();
         let end_time = parts[6].to_string();
-        let kline_cache_key = CacheKey::BacktestKline(BacktestKlineCacheKey::new(exchange, symbol, interval, start_time, end_time));
-        Ok(BacktestIndicatorCacheKey::new(kline_cache_key, indicator_config))
+        let kline_cache_key = Key::BacktestKline(BacktestKlineKey::new(exchange, symbol, interval, start_time, end_time));
+        Ok(BacktestIndicatorKey::new(kline_cache_key, indicator_config))
     }
 }
 
 
-impl BacktestIndicatorCacheKey {
-    pub fn new(kline_cache_key: CacheKey, indicator_config: IndicatorConfig) -> Self {
+impl BacktestIndicatorKey {
+    pub fn new(kline_cache_key: Key, indicator_config: IndicatorConfig) -> Self {
         match kline_cache_key {
-            CacheKey::BacktestKline(backtest_kline_cache_key) => Self { 
+            Key::BacktestKline(backtest_kline_cache_key) => Self { 
                 exchange: backtest_kline_cache_key.exchange, 
                 symbol: backtest_kline_cache_key.symbol, 
                 interval: backtest_kline_cache_key.interval, 
@@ -239,7 +239,7 @@ impl BacktestIndicatorCacheKey {
 }
 
 
-impl CacheKeyTrait for BacktestIndicatorCacheKey {
+impl KeyTrait for BacktestIndicatorKey {
     fn get_key(&self) -> String {
         format!("backtest_indicator|{}|{}|{}|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string(), self.indicator_config.to_string(), self.start_time, self.end_time)
     }

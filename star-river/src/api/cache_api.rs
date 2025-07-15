@@ -7,7 +7,7 @@ use crate::api::response::ApiResponse;
 use serde::Deserialize;
 use std::collections::HashMap;
 use engine::cache_engine::CacheEngine;
-use types::cache::CacheKey;
+use types::cache::Key;
 use std::str::FromStr;
 use types::engine::EngineName;
 use utoipa::{IntoParams, ToSchema};
@@ -97,7 +97,7 @@ pub async fn get_cache_value(
     let engine = engine_manager.get_engine(EngineName::CacheEngine).await;
     let mut engine_guard = engine.lock().await;
     let cache_engine = engine_guard.as_any_mut().downcast_mut::<CacheEngine>().unwrap();
-    let cache_key = CacheKey::from_str(&cache_key).unwrap();
+    let cache_key = Key::from_str(&cache_key).unwrap();
     let cache = cache_engine.get_cache_value(&cache_key, None, None).await;
     let cache_values: Vec<Vec<f64>> = cache.iter().map(|cache_value| cache_value.to_list()).collect();
     (StatusCode::OK, Json(ApiResponse {

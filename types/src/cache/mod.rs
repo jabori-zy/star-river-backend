@@ -1,5 +1,5 @@
 pub mod cache_entry;
-pub mod cache_key;
+pub mod key;
 
 use crate::market::Exchange;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use crate::market::KlineInterval;
 use std::hash::Hash;
 use std::fmt::Debug;
 use crate::market::Kline;
-use cache_key::{KlineCacheKey, IndicatorCacheKey, BacktestKlineCacheKey, BacktestIndicatorCacheKey};
+use key::{KlineKey, IndicatorKey, BacktestKlineKey, BacktestIndicatorKey};
 use std::time::Duration;
 use cache_entry::{KlineCacheEntry, IndicatorCacheEntry, HistoryKlineCacheEntry, HistoryIndicatorCacheEntry};
 use crate::indicator::Indicator;
@@ -16,7 +16,7 @@ use deepsize::DeepSizeOf;
 use std::sync::Arc;
 use std::str::FromStr;
 
-pub trait CacheKeyTrait{
+pub trait KeyTrait{
     fn get_key(&self) -> String;
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
@@ -28,63 +28,63 @@ pub trait CacheKeyTrait{
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[serde(tag = "key_type", content = "key_config")]
 #[serde(rename_all = "lowercase")]
-pub enum CacheKey {
-    Kline(KlineCacheKey), // 实时K线缓存键
-    Indicator(IndicatorCacheKey), // 实时指标缓存键
-    BacktestKline(BacktestKlineCacheKey), // 回测K线缓存键
-    BacktestIndicator(BacktestIndicatorCacheKey), // 回测指标缓存键
+pub enum Key {
+    Kline(KlineKey), // 实时K线缓存键
+    Indicator(IndicatorKey), // 实时指标缓存键
+    BacktestKline(BacktestKlineKey), // 回测K线缓存键
+    BacktestIndicator(BacktestIndicatorKey), // 回测指标缓存键
 }
 
-impl FromStr for CacheKey {
+impl FromStr for Key {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();
         let key_type = parts[0];
         match key_type {
-            "kline" => Ok(CacheKey::Kline(KlineCacheKey::from_str(s)?)),
-            "indicator" => Ok(CacheKey::Indicator(IndicatorCacheKey::from_str(s)?)),
-            "backtest_kline" => Ok(CacheKey::BacktestKline(BacktestKlineCacheKey::from_str(s)?)),
-            "backtest_indicator" => Ok(CacheKey::BacktestIndicator(BacktestIndicatorCacheKey::from_str(s)?)),
+            "kline" => Ok(Key::Kline(KlineKey::from_str(s)?)),
+            "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
+            "backtest_kline" => Ok(Key::BacktestKline(BacktestKlineKey::from_str(s)?)),
+            "backtest_indicator" => Ok(Key::BacktestIndicator(BacktestIndicatorKey::from_str(s)?)),
             _ => Err("Invalid cache key type".to_string()),
         }
     }
 }
 
-impl CacheKey {
+impl Key {
     pub fn get_key(&self) -> String {
         match self {
-            CacheKey::Kline(key) => key.get_key(),
-            CacheKey::Indicator(key) => key.get_key(),
-            CacheKey::BacktestKline(key) => key.get_key(),
-            CacheKey::BacktestIndicator(key) => key.get_key(),
+            Key::Kline(key) => key.get_key(),
+            Key::Indicator(key) => key.get_key(),
+            Key::BacktestKline(key) => key.get_key(),
+            Key::BacktestIndicator(key) => key.get_key(),
         }
     }
 
     pub fn get_exchange(&self) -> Exchange {
         match self {
-            CacheKey::Kline(key) => key.exchange.clone(),
-            CacheKey::Indicator(key) => key.exchange.clone(),
-            CacheKey::BacktestKline(key) => key.exchange.clone(),
-            CacheKey::BacktestIndicator(key) => key.exchange.clone(),
+            Key::Kline(key) => key.exchange.clone(),
+            Key::Indicator(key) => key.exchange.clone(),
+            Key::BacktestKline(key) => key.exchange.clone(),
+            Key::BacktestIndicator(key) => key.exchange.clone(),
         }
     }
 
     pub fn get_symbol(&self) -> String {
         match self {
-            CacheKey::Kline(key) => key.symbol.clone(),
-            CacheKey::Indicator(key) => key.symbol.clone(),
-            CacheKey::BacktestKline(key) => key.symbol.clone(),
-            CacheKey::BacktestIndicator(key) => key.symbol.clone(),
+            Key::Kline(key) => key.symbol.clone(),
+            Key::Indicator(key) => key.symbol.clone(),
+            Key::BacktestKline(key) => key.symbol.clone(),
+            Key::BacktestIndicator(key) => key.symbol.clone(),
         }
     }
 
     pub fn get_interval(&self) -> KlineInterval {
         match self {
-            CacheKey::Kline(key) => key.interval.clone(),
-            CacheKey::Indicator(key) => key.interval.clone(),
-            CacheKey::BacktestKline(key) => key.interval.clone(),
-            CacheKey::BacktestIndicator(key) => key.interval.clone(),
+            Key::Kline(key) => key.interval.clone(),
+            Key::Indicator(key) => key.interval.clone(),
+            Key::BacktestKline(key) => key.interval.clone(),
+            Key::BacktestIndicator(key) => key.interval.clone(),
         }
     }
     
@@ -174,7 +174,7 @@ impl CacheValue {
 
 
 pub trait CacheEntryTrait {
-    fn get_key(&self) -> CacheKey;
+    fn get_key(&self) -> Key;
     fn initialize(&mut self, data: Vec<CacheValue>);
     fn update(&mut self, cache_value: CacheValue);
     fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>>;
@@ -198,12 +198,12 @@ pub enum CacheEntry {
 }
 
 impl CacheEntry {
-    pub fn new(key: CacheKey, max_size: u32, ttl: Duration) -> Self {
+    pub fn new(key: Key, max_size: u32, ttl: Duration) -> Self {
         match key {
-            CacheKey::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
-            CacheKey::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
-            CacheKey::BacktestKline(key) => CacheEntry::HistoryKline(HistoryKlineCacheEntry::new(key, Some(max_size), ttl)),
-            CacheKey::BacktestIndicator(key) => CacheEntry::HistoryIndicator(HistoryIndicatorCacheEntry::new(key, Some(max_size), ttl)),
+            Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
+            Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
+            Key::BacktestKline(key) => CacheEntry::HistoryKline(HistoryKlineCacheEntry::new(key, Some(max_size), ttl)),
+            Key::BacktestIndicator(key) => CacheEntry::HistoryIndicator(HistoryIndicatorCacheEntry::new(key, Some(max_size), ttl)),
         }
     }
 
@@ -225,7 +225,7 @@ impl CacheEntry {
         }
     }
 
-    pub fn get_key(&self) -> CacheKey {
+    pub fn get_key(&self) -> Key {
         match self {
             CacheEntry::Kline(entry) => entry.get_key(),
             CacheEntry::Indicator(entry) => entry.get_key(),

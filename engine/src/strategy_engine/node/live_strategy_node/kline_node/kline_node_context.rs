@@ -22,7 +22,7 @@ use tokio::sync::RwLock;
 use tokio::sync::Mutex;
 use heartbeat::Heartbeat;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use types::cache::{CacheKey, cache_key::KlineCacheKey};
+use types::cache::{Key, key::KlineKey};
 use event_center::CommandPublisher;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -205,7 +205,7 @@ impl KlineNodeContext {
     }
 
     pub async fn register_task(&mut self) {
-        let kline_cache_key = CacheKey::Kline(KlineCacheKey {
+        let kline_cache_key = Key::Kline(KlineKey {
             exchange: self.live_config.selected_live_account.exchange.clone(),
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
@@ -247,7 +247,7 @@ impl KlineNodeContext {
         strategy_id: i32, 
         node_id: String,
         node_name: String,
-        kline_cache_key: CacheKey, 
+        kline_cache_key: Key, 
         limit: u32,
         command_publisher: CommandPublisher,
         output_handle: NodeOutputHandle,

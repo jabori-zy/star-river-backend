@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock,Notify};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
-use types::cache::CacheKey;
+use types::cache::Key;
 use uuid::Uuid;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
@@ -45,8 +45,8 @@ use types::strategy::node_event::backtest_node_event::futures_order_node_event::
 pub struct BacktestStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
-    pub cache_keys: Arc<RwLock<Vec<CacheKey>>>, // 缓存键
-    pub cache_lengths: HashMap<CacheKey, u32>, // 缓存长度
+    pub cache_keys: Arc<RwLock<Vec<Key>>>, // 缓存键
+    pub cache_lengths: HashMap<Key, u32>, // 缓存长度
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
     pub event_publisher: EventPublisher, // 外部事件发布器
@@ -78,7 +78,7 @@ impl BacktestStrategyContext {
         self.strategy_name.clone()
     }
 
-    pub async fn get_cache_keys(&self) -> Vec<CacheKey> {
+    pub async fn get_cache_keys(&self) -> Vec<Key> {
         self.cache_keys.read().await.clone()
     }
 
@@ -270,7 +270,7 @@ impl BacktestStrategyContext {
     async fn get_strategy_data(
         strategy_id: StrategyId,
         strategy_name: String,
-        cache_keys: Arc<RwLock<Vec<CacheKey>>>,
+        cache_keys: Arc<RwLock<Vec<Key>>>,
         command_publisher: CommandPublisher,
         event_publisher: EventPublisher,
     ) {
@@ -454,14 +454,14 @@ impl BacktestStrategyContext {
 
     #[instrument(skip(self))]
     // 获取所有k线缓存中的最小长度
-    pub async fn get_cache_length(&self) -> Result<HashMap<CacheKey, u32>, String> {
+    pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
         
         // 过滤出k线缓存key
         let kline_cache_keys = self.cache_keys
             .read()
             .await
             .iter()
-            .filter(|cache_key| matches!(cache_key, CacheKey::BacktestKline(_)))
+            .filter(|cache_key| matches!(cache_key, Key::BacktestKline(_)))
             .map(|cache_key| cache_key.clone())
             .collect();
         let (resp_tx, resp_rx) = oneshot::channel();

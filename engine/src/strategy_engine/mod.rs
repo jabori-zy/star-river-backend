@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
 use std::any::Any;
 use heartbeat::Heartbeat;
-use types::cache::CacheKey;
+use types::cache::Key;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::TradeMode;
 
@@ -135,7 +135,7 @@ impl StrategyEngine{
 
 
     // 获取策略缓存键
-    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<Vec<CacheKey>, String> {
+    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<Vec<Key>, String> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;

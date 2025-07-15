@@ -11,8 +11,8 @@ use event_center::{Event, EventPublisher};
 use types::strategy::TradeMode;
 use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_node_type::IndicatorNodeLiveConfig;
 use std::str::FromStr;
-use types::cache::CacheKey;
-use types::cache::cache_key::IndicatorCacheKey;
+use types::cache::Key;
+use types::cache::key::IndicatorKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -22,7 +22,7 @@ impl LiveStrategyFunction {
     pub async fn add_indicator_node(
         graph: &mut Graph<Box<dyn LiveNodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
-        cache_keys: &mut Vec<CacheKey>,
+        cache_keys: &mut Vec<Key>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
@@ -54,7 +54,7 @@ impl LiveStrategyFunction {
             interval: interval.clone(),
             exchange: exchange.clone(),
         };
-        let cache_key = IndicatorCacheKey::new(exchange, symbol, interval, indicator_config);
+        let cache_key = IndicatorKey::new(exchange, symbol, interval, indicator_config);
         cache_keys.push(cache_key.into());
 
         let mut node = IndicatorNode::new(

@@ -70,14 +70,14 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         match &node_event {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(backtest_indicator_update_event)) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if self.get_play_index().await == backtest_indicator_update_event.kline_cache_index {
+                if self.get_play_index().await == backtest_indicator_update_event.play_index {
                     self.update_received_event(node_event);
                 }
             }
             BacktestNodeEvent::KlineNode(kline_event) => {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    if self.get_play_index().await == kline_update_event.kline_cache_index {
+                    if self.get_play_index().await == kline_update_event.play_index {
                         self.update_received_event(node_event);
                     }
                 }

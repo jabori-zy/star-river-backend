@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use types::cache::cache_key::IndicatorCacheKey;
+use types::cache::key::IndicatorKey;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::cache::CacheValue;
 use tokio::sync::oneshot;
@@ -110,7 +110,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
         match message {
             BacktestNodeEvent::KlineSeries(_) => {
                 // 接收到k线数据， 向缓存引擎请求指标数据
-                let indicator_cache_key = IndicatorCacheKey::new(
+                let indicator_cache_key = IndicatorKey::new(
                     self.live_config.exchange.clone(), 
                     self.live_config.symbol.clone(), 
                     self.live_config.interval.clone(), 
@@ -152,7 +152,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
 
 impl IndicatorNodeContext {
 
-    async fn get_indicator_cache(&self, indicator_cache_key: IndicatorCacheKey) -> Result<Response, String> {
+    async fn get_indicator_cache(&self, indicator_cache_key: IndicatorKey) -> Result<Response, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),

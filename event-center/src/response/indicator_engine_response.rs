@@ -5,7 +5,7 @@ use types::indicator::IndicatorConfig;
 use types::custom_type::{StrategyId, NodeId};
 use types::indicator::Indicator;
 use crate::response::{Response, ResponseTrait};
-use types::cache::CacheKey;
+use types::cache::Key;
 
 #[derive(Debug)]
 pub enum IndicatorEngineResponse {
@@ -47,7 +47,7 @@ impl From<IndicatorEngineResponse> for Response {
 pub struct CalculateBacktestIndicatorResponse {
     pub code: i32,
     pub message: String,
-    pub backtest_indicator_cache_key: CacheKey,
+    pub backtest_indicator_cache_key: Key,
     pub response_timestamp: i64,
 }
 

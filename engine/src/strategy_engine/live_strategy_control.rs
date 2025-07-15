@@ -1,7 +1,7 @@
 use super::StrategyEngineContext;
 use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use types::custom_type::StrategyId;
-use types::cache::CacheKey;
+use types::cache::Key;
 use types::strategy::TradeMode;
 
 
@@ -87,7 +87,7 @@ impl StrategyEngineContext {
     }
 
     // 获取实盘策略的缓存键
-    pub async fn get_live_strategy_cache_keys(&self, strategy_id: i32) -> Vec<CacheKey> {
+    pub async fn get_live_strategy_cache_keys(&self, strategy_id: i32) -> Vec<Key> {
         let strategy = self.get_live_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             strategy.get_context().read().await.get_cache_keys().await

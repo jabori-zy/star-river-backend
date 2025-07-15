@@ -10,13 +10,10 @@ use std::any::Any;
 use std::collections::HashMap;
 use crate::indicator::sma::SMA;
 use crate::indicator::bbands::BBands;
-use crate::cache::CacheItem;
+use crate::cache::{CacheItem, CacheValue};
 use crate::indicator::sma::SMAConfig;
 use deepsize::DeepSizeOf;
-use crate::cache::CacheValue;
 use std::str::FromStr;
-use utils::timestamp_to_utc8;
-use serde_json::json;
 
 pub trait IndicatorConfigTrait {
     fn new(config: &Value) -> Self;

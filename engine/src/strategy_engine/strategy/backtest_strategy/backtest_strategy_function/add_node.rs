@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use types::cache::CacheKey;
+use types::cache::Key;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
@@ -25,7 +25,7 @@ impl BacktestStrategyFunction {
     pub async fn add_node(
         graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
         node_indices: &mut HashMap<String, NodeIndex>,
-        cache_keys: &mut Vec<CacheKey>,
+        cache_keys: &mut Vec<Key>,
         node_config: Value,
         event_publisher: EventPublisher, 
         command_publisher: CommandPublisher,

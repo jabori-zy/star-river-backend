@@ -1,4 +1,4 @@
-use crate::cache::CacheKey;
+use crate::cache::Key;
 
 
 #[derive(Debug)]
@@ -32,7 +32,7 @@ impl NodeResponse {
 pub struct GetStrategyCacheKeysResponse {
     pub code: i32,
     pub message: String,
-    pub cache_keys: Vec<CacheKey>,
+    pub cache_keys: Vec<Key>,
     pub response_timestamp: i64,
 }
 

@@ -26,8 +26,8 @@ use exchange_client::metatrader5::MetaTrader5;
 use tokio::sync::oneshot;
 use event_center::command::cache_engine_command::CacheEngineCommand;
 use event_center::command::cache_engine_command::AddCacheKeyParams;
-use types::cache::CacheKey;
-use types::cache::cache_key::KlineCacheKey;
+use types::cache::Key;
+use types::cache::key::KlineKey;
 
 #[tokio::main]
 async fn main() {
@@ -74,7 +74,7 @@ async fn main() {
         let (resp_tx, resp_rx) = oneshot::channel();
         let add_cache_key_command = CacheEngineCommand::AddCacheKey(AddCacheKeyParams {
             strategy_id: 1,
-            cache_key: CacheKey::Kline(KlineCacheKey::new(Exchange::Metatrader5("Exness-MT5Trial5".to_string()), "BTCUSDT".to_string(), KlineInterval::Minutes1)),
+            key: Key::Kline(KlineKey::new(Exchange::Metatrader5("Exness-MT5Trial5".to_string()), "BTCUSDT".to_string(), KlineInterval::Minutes1)),
             max_size: Some(100),
             duration: Duration::from_secs(1000),
             sender: "test".to_string(),

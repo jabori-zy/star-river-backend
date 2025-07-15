@@ -16,13 +16,13 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use event_center::command::cache_engine_command::{AddCacheKeyParams, CacheEngineCommand, GetCacheParams};
 use event_center::command::indicator_engine_command::CalculateBacktestIndicatorParams;
-use types::cache::cache_key::IndicatorCacheKey;
+use types::cache::key::IndicatorKey;
 use event_center::response::cache_engine_response::CacheEngineResponse;
-use types::cache::{CacheKeyTrait, CacheValue};
+use types::cache::{KeyTrait, CacheValue};
 use tokio::sync::oneshot;
 use event_center::response::ResponseTrait;
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
-use types::cache::cache_key::{BacktestIndicatorCacheKey, BacktestKlineCacheKey};
+use types::cache::key::{BacktestIndicatorKey, BacktestKlineKey};
 use tokio::time::Duration;
 use types::indicator::IndicatorConfig;
 use types::indicator::Indicator;
@@ -36,8 +36,8 @@ pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
-    pub kline_cache_key: BacktestKlineCacheKey, // 回测K线缓存键
-    pub indicator_cache_keys: Vec<BacktestIndicatorCacheKey>, // 指标缓存键
+    pub kline_cache_key: BacktestKlineKey, // 回测K线缓存键
+    pub indicator_cache_keys: Vec<BacktestIndicatorKey>, // 指标缓存键
 }
 
 
@@ -91,11 +91,11 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 
                 // 如果索引不匹配，提前返回错误日志
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    if current_play_index != kline_update_event.kline_cache_index {
+                    if current_play_index != kline_update_event.play_index {
                     tracing::error!(
                         node_id = %self.base_context.node_id, 
                         node_name = %self.base_context.node_name, 
-                        kline_cache_index = %kline_update_event.kline_cache_index,
+                        kline_cache_index = %kline_update_event.play_index,
                         signal_index = %current_play_index, 
                         "kline cache index is not equal to signal index"
                     );
@@ -114,7 +114,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 
                 // 遍历指标缓存键，计算指标
                 for ind_config in exchange_config.selected_indicators.iter() {
-                    let indicator_cache_key = BacktestIndicatorCacheKey { 
+                    let indicator_cache_key = BacktestIndicatorKey { 
                         exchange: exchange.clone(), 
                         symbol: symbol.clone(), 
                         interval: interval.clone(), 
@@ -126,7 +126,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     let from_handle_id = ind_config.handle_id.clone();
                     
                     // 获取指标缓存数据，增加错误处理
-                    let indicator_cache_data = match self.get_backtest_indicator_cache(&indicator_cache_key, kline_update_event.kline_cache_index).await {
+                    let indicator_cache_data = match self.get_backtest_indicator_cache(&indicator_cache_key, kline_update_event.play_index).await {
                         Ok(data) => data,
                         Err(e) => {
                             tracing::error!(
@@ -150,9 +150,9 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                             interval: indicator_cache_key.get_interval(),
                             indicator_id: ind_config.indicator_id,
                             indicator_config: indicator_cache_key.get_indicator_config(),
-                            indicator_cache_key: indicator_cache_key.clone(),
+                            indicator_key: indicator_cache_key.clone(),
                             indicator_series: data,
-                            kline_cache_index: kline_update_event.kline_cache_index,
+                            play_index: kline_update_event.play_index,
                             timestamp: timestamp,
                         };
                         
@@ -222,7 +222,7 @@ impl IndicatorNodeContext {
 
             let register_indicator_params = AddCacheKeyParams {
                 strategy_id: self.base_context.strategy_id.clone(),
-                cache_key: indicator_cache_key.clone().into(),
+                key: indicator_cache_key.clone().into(),
                 max_size: None,
                 duration: Duration::from_secs(30),
                 sender: self.base_context.node_id.to_string(),
@@ -243,7 +243,7 @@ impl IndicatorNodeContext {
 
 
     // 获取已经计算好的回测指标数据
-    async fn get_backtest_indicator_cache(&self, indicator_cache_key: &BacktestIndicatorCacheKey, index: u32) -> Result<Vec<Arc<CacheValue>>, String> {
+    async fn get_backtest_indicator_cache(&self, indicator_cache_key: &BacktestIndicatorKey, index: u32) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),

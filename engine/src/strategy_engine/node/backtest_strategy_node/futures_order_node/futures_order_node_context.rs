@@ -33,11 +33,11 @@ use types::strategy::node_event::SignalEvent;
 use tokio::sync::oneshot;
 use types::strategy::node_command::{NodeCommand, GetKlineIndexParams, GetStrategyCacheKeysParams};
 use types::market::Kline;
-use types::cache::cache_key::BacktestKlineCacheKey;
+use types::cache::key::BacktestKlineKey;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
 use types::market::KlineInterval;
 use types::strategy::node_response::NodeResponse;
-use types::cache::CacheKey;
+use types::cache::Key;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::order::OrderType;
@@ -327,7 +327,7 @@ impl FuturesOrderNodeContext {
 
     }
 
-    async fn get_strategy_cache_keys(&mut self) -> Result<Vec<CacheKey>, String> {
+    async fn get_strategy_cache_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
         let node_command = NodeCommand::GetStrategyCacheKeys(GetStrategyCacheKeysParams {
             node_id: self.get_node_id().clone(),
@@ -354,7 +354,7 @@ impl FuturesOrderNodeContext {
             // 获取成功
             if let Ok(cache_keys) = cache_keys {
                 // 过滤出K线缓存key
-                let kline_cache_keys = cache_keys.iter().filter(|k| matches!(k, CacheKey::BacktestKline(_))).collect::<Vec<&CacheKey>>();
+                let kline_cache_keys = cache_keys.iter().filter(|k| matches!(k, Key::BacktestKline(_))).collect::<Vec<&Key>>();
                 // 获取interval最小的K线缓存数据
                 // 如果列表长度为1，则唯一的key就是最小interval的key
                 if kline_cache_keys.len() == 1 {
@@ -370,7 +370,7 @@ impl FuturesOrderNodeContext {
         }
         // 如果min_kline_interval不为None，则获取K线缓存数据
         if let Some(min_kline_interval) = &self.min_kline_interval {
-            let cache_key = BacktestKlineCacheKey::new(
+            let cache_key = BacktestKlineKey::new(
                 self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone(),
                 self.backtest_config.futures_order_configs[0].symbol.clone(),
                 min_kline_interval.clone(),

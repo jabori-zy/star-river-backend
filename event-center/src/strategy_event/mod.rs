@@ -5,7 +5,7 @@ use types::strategy::node_event::BacktestNodeEvent;
 use serde::{Serialize, Deserialize};
 use strum::Display;
 use std::collections::HashMap;
-use types::cache::{CacheKey, CacheValue};
+use types::cache::{Key, CacheValue};
 use std::sync::Arc;
 use crate::Event;
 use backtest_strategy_event::BacktestStrategyEvent;

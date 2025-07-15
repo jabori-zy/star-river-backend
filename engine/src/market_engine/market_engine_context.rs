@@ -1,5 +1,5 @@
 use tokio::sync::broadcast;
-use types::cache::cache_key::BacktestKlineCacheKey;
+use types::cache::key::BacktestKlineKey;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -14,7 +14,7 @@ use event_center::command::cache_engine_command::CacheEngineCommand;
 use event_center::response::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamResponse, UnsubscribeKlineStreamResponse, GetKlineHistoryResponse};
 use event_center::command::market_engine_command::MarketEngineCommand;
 use event_center::command::cache_engine_command::AddCacheKeyParams;
-use types::cache::{CacheKey, cache_key::KlineCacheKey};
+use types::cache::{Key, key::KlineKey};
 use utils::get_utc8_timestamp_millis;
 use types::market::KlineInterval;
 use tokio::sync::Mutex;
@@ -172,7 +172,7 @@ impl MarketEngineContext {
 
     async fn add_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, max_size: u32) {
         // 调用缓存器的订阅事件
-        let cache_key = CacheKey::Kline(KlineCacheKey {
+        let cache_key = Key::Kline(KlineKey {
             exchange: exchange,
             symbol: symbol.to_string(),
             interval: interval.clone(),
@@ -180,7 +180,7 @@ impl MarketEngineContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = AddCacheKeyParams {
             strategy_id,
-            cache_key,
+            key: cache_key,
             max_size: Some(max_size),
             duration: Duration::from_millis(10),
             sender: format!("strategy_{}", strategy_id),
@@ -200,7 +200,7 @@ impl MarketEngineContext {
 
     async fn add_history_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange) {
         // 调用缓存器的订阅事件
-        let cache_key = CacheKey::BacktestKline(BacktestKlineCacheKey {
+        let cache_key = Key::BacktestKline(BacktestKlineKey {
             exchange: exchange,
             symbol: symbol.to_string(),
             interval: interval.clone(),
@@ -210,7 +210,7 @@ impl MarketEngineContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = AddCacheKeyParams {
             strategy_id,
-            cache_key,
+            key: cache_key,
             max_size: None,
             duration: Duration::from_millis(10),
             sender: format!("strategy_{}", strategy_id),

@@ -10,8 +10,8 @@ use crate::strategy_engine::node::LiveNodeTrait;
 use crate::strategy_engine::node::live_strategy_node::kline_node::kline_node_context::KlineNodeLiveConfig;
 use std::sync::Arc;
 use heartbeat::Heartbeat;
-use types::cache::CacheKey;
-use types::cache::cache_key::KlineCacheKey;
+use types::cache::Key;
+use types::cache::key::KlineKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 
@@ -19,7 +19,7 @@ impl LiveStrategyFunction {
     pub async fn add_kline_node(
         graph: &mut Graph<Box<dyn LiveNodeTrait>, (), Directed>, 
         node_indices: &mut HashMap<String, NodeIndex>,
-        cache_keys: &mut Vec<CacheKey>,
+        cache_keys: &mut Vec<Key>,
         node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
@@ -43,7 +43,7 @@ impl LiveStrategyFunction {
                 return Err("liveConfig is null".to_string());
             }
             let live_config = serde_json::from_value::<KlineNodeLiveConfig>(live_config_json).unwrap();
-            let cache_key = KlineCacheKey::new(live_config.selected_live_account.exchange.clone(), live_config.symbol.clone(), live_config.interval.clone());
+            let cache_key = KlineKey::new(live_config.selected_live_account.exchange.clone(), live_config.symbol.clone(), live_config.interval.clone());
             cache_keys.push(cache_key.into());
             
             let mut node = KlineNode::new(

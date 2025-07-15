@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use types::{cache::cache_key::{IndicatorCacheKey, KlineCacheKey}, custom_type::{StrategyId, NodeId}};
+use types::{cache::key::{IndicatorKey, KlineKey}, custom_type::{StrategyId, NodeId}};
 use strum::Display;
 use uuid::Uuid;
-use types::cache::{CacheValue, CacheKey};
+use types::cache::{CacheValue, Key};
 use std::sync::Arc;
 use std::collections::HashMap;
 use crate::response::{Response, ResponseTrait};
@@ -72,7 +72,7 @@ impl TryFrom<Response> for CacheEngineResponse {
 pub struct AddCacheKeyResponse {
     pub code: i32,
     pub message: String,
-    pub cache_key: CacheKey,
+    pub cache_key: Key,
     pub response_timestamp: i64,
 }
 
@@ -80,7 +80,7 @@ pub struct AddCacheKeyResponse {
 pub struct GetCacheDataResponse {
     pub code: i32,
     pub message: String,
-    pub cache_key: CacheKey,
+    pub cache_key: Key,
     pub cache_data: Vec<Arc<CacheValue>>,
     pub response_timestamp: i64
 }
@@ -99,7 +99,7 @@ pub struct AddIndicatorCacheKeyResponse {
     pub message: String,
     pub requested_strategy_id: StrategyId, // 请求的策略id
     pub requested_node_id: NodeId, // 请求的节点id
-    pub indicator_cache_key: CacheKey,
+    pub indicator_cache_key: Key,
     pub response_timestamp: i64,
 }
 
@@ -107,7 +107,7 @@ pub struct AddIndicatorCacheKeyResponse {
 pub struct GetCacheLengthResponse {
     pub code: i32,
     pub message: String,
-    pub cache_key: CacheKey,
+    pub cache_key: Key,
     pub cache_length: u32,
     pub response_timestamp: i64,
 }
@@ -117,6 +117,6 @@ pub struct GetCacheLengthResponse {
 pub struct GetCacheLengthMultiResponse {
     pub code: i32,
     pub message: String,
-    pub cache_length: HashMap<CacheKey, u32>,
+    pub cache_length: HashMap<Key, u32>,
     pub response_timestamp: i64,
 }
