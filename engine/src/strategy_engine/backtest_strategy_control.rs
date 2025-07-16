@@ -95,6 +95,15 @@ impl StrategyEngineContext {
         }
     }
 
+    pub async fn get_backtest_strategy_played_index(&self, strategy_id: i32) -> Result<u32, String> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            Ok(strategy.get_played_index().await)
+        } else {
+            Err("获取回测策略播放索引失败".to_string())
+        }
+    }
+
 
 
 }

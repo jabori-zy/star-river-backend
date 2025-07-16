@@ -98,6 +98,7 @@ impl CacheEngine {
         }
     }
 
+    // 获取缓存值
     pub async fn get_cache_value(&self, cache_key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();

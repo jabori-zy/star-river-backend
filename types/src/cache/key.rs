@@ -43,7 +43,7 @@ impl KlineKey {
 }
 
 impl KeyTrait for KlineKey {
-    fn get_key(&self) -> String {
+    fn get_key_str(&self) -> String {
         format!("kline|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string())
     }
     fn get_exchange(&self) -> Exchange {
@@ -103,7 +103,7 @@ impl IndicatorKey {
 }
 
 impl KeyTrait for IndicatorKey {
-    fn get_key(&self) -> String {
+    fn get_key_str(&self) -> String {
         format!("indicator|{}|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string(), self.indicator_config.to_string())
     }
     fn get_exchange(&self) -> Exchange {
@@ -162,7 +162,7 @@ impl BacktestKlineKey {
 }
 
 impl KeyTrait for BacktestKlineKey {
-    fn get_key(&self) -> String {
+    fn get_key_str(&self) -> String {
         format!("backtest_kline|{}|{}|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string(), self.start_time, self.end_time)
     }
     fn get_exchange(&self) -> Exchange {
@@ -240,7 +240,7 @@ impl BacktestIndicatorKey {
 
 
 impl KeyTrait for BacktestIndicatorKey {
-    fn get_key(&self) -> String {
+    fn get_key_str(&self) -> String {
         format!("backtest_indicator|{}|{}|{}|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string(), self.indicator_config.to_string(), self.start_time, self.end_time)
     }
     fn get_exchange(&self) -> Exchange {

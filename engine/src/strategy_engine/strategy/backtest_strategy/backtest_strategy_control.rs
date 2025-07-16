@@ -44,7 +44,7 @@ impl BacktestStrategyContext {
 
         PlayContext {
             node,
-            played_signal_index: self.played_signal_index.clone(),
+            played_signal_index: self.played_index.clone(),
             signal_count: self.signal_count.clone(),
             is_playing: self.is_playing.clone(),
             initial_play_speed: self.initial_play_speed.clone(),
@@ -374,7 +374,7 @@ impl BacktestStrategyContext {
     pub async fn play(&self) {
 
         // 判断是否已播放完毕
-        if *self.played_signal_index.read().await == *self.signal_count.read().await {
+        if *self.played_index.read().await == *self.signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return;
         }
@@ -413,7 +413,7 @@ impl BacktestStrategyContext {
         tracing::info!("{}: 重置播放", self.strategy_name.clone());
         self.cancel_play_token.cancel();
         // 重置信号计数
-        *self.played_signal_index.write().await = 0;
+        *self.played_index.write().await = 0;
         // 重置播放状态
         *self.is_playing.write().await = false;
         // 替换已经取消的令牌
@@ -429,7 +429,7 @@ impl BacktestStrategyContext {
             return false;
         }
 
-        if *self.played_signal_index.read().await > *self.signal_count.read().await {
+        if *self.played_index.read().await > *self.signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法播放更多K线", self.strategy_name);
             return false;
         }
@@ -440,7 +440,7 @@ impl BacktestStrategyContext {
     // 获取当前信号计数
     async fn get_current_signal_counts(&self) -> (u32, u32) {
         let signal_count = *self.signal_count.read().await;
-        let played_signal_count = *self.played_signal_index.read().await;
+        let played_signal_count = *self.played_index.read().await;
         (signal_count, played_signal_count)
     }
 
@@ -476,14 +476,14 @@ impl BacktestStrategyContext {
 
     // 增加单次播放计数
     async fn increment_single_play_count(&self) {
-        let mut played_signal_count = self.played_signal_index.write().await;
+        let mut played_signal_count = self.played_index.write().await;
         *played_signal_count += 1;
     }
 
     // 播放单根k线
     pub async fn play_one_kline(&self) -> Result<u32, String> {
 
-        if *self.played_signal_index.read().await == *self.signal_count.read().await {
+        if *self.played_index.read().await == *self.signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return Err("已播放完毕，无法继续播放".to_string());
         }

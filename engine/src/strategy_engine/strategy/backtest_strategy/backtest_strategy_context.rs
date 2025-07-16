@@ -62,7 +62,7 @@ pub struct BacktestStrategyContext {
     pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 接收节点的命令
     pub strategy_command_publisher: StrategyCommandPublisher, // 节点命令发送器
     pub signal_count: Arc<RwLock<u32>>, // 信号计数
-    pub played_signal_index: Arc<RwLock<u32>>, // 已发送的信号计数
+    pub played_index: Arc<RwLock<u32>>, // 已播放的索引
     pub is_playing: Arc<RwLock<bool>>, // 是否正在播放
     pub initial_play_speed: Arc<RwLock<u32>>, // 初始播放速度 （从策略配置中加载）
     pub cancel_play_token: CancellationToken, // 取消播放令牌
@@ -525,6 +525,11 @@ impl BacktestStrategyContext {
             Err("get start node config failed".to_string())
         }
 
+    }
+
+    pub async fn get_played_index(&self) -> u32 {
+        let played_index = self.played_index.read().await;
+        *played_index
     }
 
 

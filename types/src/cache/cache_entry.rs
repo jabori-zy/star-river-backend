@@ -97,7 +97,7 @@ impl CacheEntryTrait for KlineCacheEntry {
     // index: 缓存索引
     // limit: 缓存数量(倒着取)
     fn get_cache_data(&self, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
-        // 如果limit为None，则返回所有数据
+        // 如果limit为None，则返回index之前的所有数据
         if limit.is_none() {
             return self.get_all_cache_data();
         }
@@ -568,12 +568,17 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
     }
 
     fn get_cache_data(&self, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
-        // 如果limit为None，则返回所有数据
-        if limit.is_none() {
+        // 如果limit和index都为None，则返回所有数据
+        if limit.is_none() && index.is_none() {
             return self.get_all_cache_data();
         }
 
-        let limit = limit.unwrap();
+        // 如果limit为None，设置为数据总长度以便后续处理
+        let limit = if let Some(limit) = limit {
+            limit
+        } else {
+            self.data.len() as u32
+        };
         
         // 处理index参数
         if let Some(idx) = index {

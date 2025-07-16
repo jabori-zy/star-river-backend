@@ -75,7 +75,9 @@ pub async fn get_cache_keys(State(star_river): State<StarRiver>, Query(params): 
     description = "获取缓存值"
 )]
 pub struct GetCacheValueParams {
-    pub cache_key: String,
+    pub key: String,
+    pub index: Option<u32>, // 开始索引
+    pub limit: Option<u32>, // 长度
 }
 
 #[utoipa::path(
@@ -85,21 +87,22 @@ pub struct GetCacheValueParams {
     tag = "缓存引擎",
     summary = "获取缓存值",
     responses(
-        (status = 200, body = ApiResponse<Vec<Vec<f64>>>)
+        (status = 200, body = ApiResponse<Vec<utoipa::openapi::Object>>)
     )
 )]
 pub async fn get_cache_value(
     State(star_river): State<StarRiver>, 
     Query(params): Query<GetCacheValueParams>
-) -> (StatusCode, Json<ApiResponse<Vec<Vec<f64>>>>) {
-    let cache_key = params.cache_key;
+) -> (StatusCode, Json<ApiResponse<Vec<serde_json::Value>>>) {
+    let key_str = params.key;
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::CacheEngine).await;
     let mut engine_guard = engine.lock().await;
     let cache_engine = engine_guard.as_any_mut().downcast_mut::<CacheEngine>().unwrap();
-    let cache_key = Key::from_str(&cache_key).unwrap();
-    let cache = cache_engine.get_cache_value(&cache_key, None, None).await;
-    let cache_values: Vec<Vec<f64>> = cache.iter().map(|cache_value| cache_value.to_list()).collect();
+    let key = Key::from_str(&key_str).unwrap();
+    let cache = cache_engine.get_cache_value(&key, params.index, params.limit).await;
+    // let cache_values: Vec<Vec<f64>> = cache.iter().map(|cache_value| cache_value.to_list()).collect();
+    let cache_values: Vec<serde_json::Value> = cache.iter().map(|cache_value| cache_value.to_json()).collect();
     (StatusCode::OK, Json(ApiResponse {
         code: 0,
         message: "success".to_string(),

@@ -48,12 +48,12 @@ pub struct KlineUpdateEvent {
 }
 
 
-fn serialize_kline_cache_key<'de, S>(kline_cache_key: &BacktestKlineKey, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_kline_cache_key<'de, S>(kline_key: &BacktestKlineKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let kline_cache_key_str = kline_cache_key.get_key();
-    serializer.serialize_str(&kline_cache_key_str)
+    let kline_key_str = kline_key.get_key_str();
+    serializer.serialize_str(&kline_key_str)
 }
 
 fn serialize_kline_data<S>(kline_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>

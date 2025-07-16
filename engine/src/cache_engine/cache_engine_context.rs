@@ -203,11 +203,11 @@ impl CacheEngineContext {
     }
 
     // 获取缓存数据
-    pub async fn get_cache(&self, cache_key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
-        let mut cache = self.cache.write().await;
-        let cache_entry = cache.get_mut(&cache_key);
+    pub async fn get_cache(&self, key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+        let cache = self.cache.read().await;
+        let cache_entry = cache.get(key);
         if cache_entry.is_none() {
-            tracing::error!("缓存键不存在: {:?}", cache_key);
+            tracing::error!("缓存键不存在: {:?}", key);
             return vec![];
         }
         cache_entry.unwrap().get_cache_data(index, limit)

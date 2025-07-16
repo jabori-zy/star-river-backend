@@ -141,7 +141,7 @@ fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &BacktestIndicator
 where
     S: serde::Serializer,
 {
-    let indicator_cache_key_str = indicator_cache_key.get_key();
+    let indicator_cache_key_str = indicator_cache_key.get_key_str();
     serializer.serialize_str(&indicator_cache_key_str)
 }
 

@@ -11,7 +11,8 @@ use crate::api::strategy_api::{
 use crate::api::strategy_api::backtest_strategy::{
     update_backtest_chart_config, 
     get_backtest_chart_config,
-    play, pause, play_one, reset
+    play, pause, play_one, reset,
+    get_play_index
 };
 
 use crate::star_river::StarRiver;
@@ -50,5 +51,5 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/reset", post(reset))
         .route("/{strategy_id}/chart_config", post(update_backtest_chart_config))
         .route("/{strategy_id}/chart_config", get(get_backtest_chart_config))
-                
+        .route("/{strategy_id}/play-index", get(get_play_index))
 }

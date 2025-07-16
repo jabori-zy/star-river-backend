@@ -187,6 +187,13 @@ impl StrategyEngine {
             strategy_context.backtest_strategy_play_one_kline(strategy_id).await
         }
 
+        // 获取播放索引
+        pub async fn get_play_index(&mut self, strategy_id: i32) -> Result<u32, String> {
+            let context = self.context.read().await;
+            let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+            strategy_context.get_backtest_strategy_played_index(strategy_id).await
+        }
+
 
 }
 

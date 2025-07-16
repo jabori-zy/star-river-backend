@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 pub trait KeyTrait{
-    fn get_key(&self) -> String;
+    fn get_key_str(&self) -> String;
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
     fn get_interval(&self) -> KlineInterval;
@@ -54,10 +54,10 @@ impl FromStr for Key {
 impl Key {
     pub fn get_key(&self) -> String {
         match self {
-            Key::Kline(key) => key.get_key(),
-            Key::Indicator(key) => key.get_key(),
-            Key::BacktestKline(key) => key.get_key(),
-            Key::BacktestIndicator(key) => key.get_key(),
+            Key::Kline(key) => key.get_key_str(),
+            Key::Indicator(key) => key.get_key_str(),
+            Key::BacktestKline(key) => key.get_key_str(),
+            Key::BacktestIndicator(key) => key.get_key_str(),
         }
     }
 

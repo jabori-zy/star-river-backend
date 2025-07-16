@@ -137,7 +137,7 @@ impl BacktestStrategy {
             node_command_receiver: Arc::new(Mutex::new(node_command_rx)),
             strategy_command_publisher,
             signal_count: Arc::new(RwLock::new(0)),
-            played_signal_index: Arc::new(RwLock::new(0)),
+            played_index: Arc::new(RwLock::new(0)),
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token: cancel_play_token,
@@ -380,6 +380,11 @@ impl BacktestStrategy {
         } else {
             Err("播放单根k线失败".to_string())
         }
+    }
+
+    pub async fn get_played_index(&self) -> u32 {
+        let context_guard = self.context.read().await;
+        context_guard.get_played_index().await
     }
     
 }

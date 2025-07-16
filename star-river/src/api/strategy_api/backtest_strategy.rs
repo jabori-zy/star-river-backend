@@ -239,3 +239,40 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
     }))
 }
 
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/play-index",
+    tag = "回测策略",
+    summary = "获取播放索引",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取播放索引的策略ID")
+    ),
+    responses(
+        (status = 200, description = "获取播放索引成功"),
+        (status = 400, description = "获取播放索引失败")
+    )
+)]
+
+pub async fn get_play_index(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let play_index = strategy_engine.get_play_index(strategy_id).await;
+    if let Ok(play_index) = play_index {
+    (StatusCode::OK, Json(ApiResponse {
+        code: 0,
+        message: "success".to_string(),
+        data: Some(serde_json::json!({
+                "play_index": play_index
+            })),
+        }))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            code: -1,
+            message: "failed".to_string(),
+            data: None,
+        }))
+    }
+}
