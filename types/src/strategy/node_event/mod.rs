@@ -131,7 +131,7 @@ pub struct IndicatorUpdateEvent {
     pub indicator_series: Vec<Arc<CacheValue>>,
 
     #[serde(rename = "playIndex")]
-    pub play_index: u32,
+    pub play_index: i32,
 
     #[serde(rename = "timestamp")] 
     pub timestamp: i64,
@@ -257,7 +257,7 @@ pub enum SignalEvent {
     LiveConditionMatch(LiveConditionMatchEvent), // 实盘条件匹配
     BacktestConditionMatch(BacktestConditionMatchEvent), // 回测条件匹配
     KlinePlayFinished(KlinePlayFinishedEvent), // k线播放完毕
-    KlineTick(KlineTickEvent), // K线跳动(信号计数:根据这个值去请求缓存的下标)
+    KlinePlay(KlinePlayEvent), // K线跳动(信号计数:根据这个值去请求缓存的下标)
     PlayIndexUpdated(PlayIndexUpdateEvent), // 节点播放索引更新
 }
 
@@ -276,17 +276,17 @@ pub struct BacktestConditionMatchEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub play_index: u32,
+    pub play_index: i32,
     pub message_timestamp: i64,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineTickEvent {
+pub struct KlinePlayEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub play_index: u32,
+    pub play_index: i32,
     pub message_timestamp: i64,
 }
 
@@ -296,7 +296,7 @@ pub struct KlinePlayFinishedEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub signal_index: u32,
+    pub play_index: i32,
     pub message_timestamp: i64,
 }
 
@@ -305,6 +305,6 @@ pub struct PlayIndexUpdateEvent {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub node_play_index: u32,
+    pub play_index: i32,
     pub message_timestamp: i64,
 }

@@ -346,11 +346,11 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &self.get_base_context().is_enable_event_publish
     }
 
-    async fn get_play_index(&self) -> u32 {
+    async fn get_play_index(&self) -> i32 {
         *self.get_base_context().play_index.read().await
     }
 
-    async fn set_play_index(&mut self, play_index: u32) {
+    async fn set_play_index(&mut self, play_index: i32) {
         *self.get_base_context_mut().play_index.write().await = play_index;
     }
 
@@ -372,7 +372,7 @@ pub struct BacktestBaseNodeContext {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
-    pub play_index: Arc<RwLock<u32>>, // 回测播放索引
+    pub play_index: Arc<RwLock<i32>>, // 回测播放索引
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub event_receivers:Vec<EventReceiver>, // 事件接收器

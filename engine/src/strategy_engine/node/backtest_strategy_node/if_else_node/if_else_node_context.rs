@@ -94,14 +94,13 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新播放索引
-                self.set_play_index(play_index_update_event.played_index).await;
-                // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                self.set_play_index(play_index_update_event.play_index).await;
                 let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
                 let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle_id.clone(),
-                    node_play_index: self.get_play_index().await,
+                    play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 self.get_strategy_output_handle().send(signal).unwrap();

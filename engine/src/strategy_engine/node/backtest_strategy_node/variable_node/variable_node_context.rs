@@ -91,14 +91,13 @@ impl BacktestNodeContextTrait for VariableNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
-                self.set_play_index(play_index_update_event.played_index).await;
+                self.set_play_index(play_index_update_event.play_index).await;
                 let strategy_output_handle = self.get_strategy_output_handle();
-                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
                 let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-                    node_play_index: self.get_play_index().await,
+                    play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 strategy_output_handle.send(signal).unwrap();

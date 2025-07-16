@@ -23,7 +23,7 @@ use types::virtual_trading_system::event::VirtualTradingSystemEventSender;
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
     pub kline_price: HashMap<BacktestKlineKey, (f64, i64)>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
-    play_index: u32, // k线缓存key的索引
+    play_index: i32, // k线缓存key的索引
     pub initial_balance: Balance, // 初始资金
     pub leverage: Leverage, // 杠杆
     pub current_balance: Balance, // 当前资金
@@ -88,13 +88,13 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn get_play_index(&self) -> u32 {
+    pub fn get_play_index(&self) -> i32 {
         self.play_index
     }
 
     // 设置k线缓存索引
-    pub async fn set_play_index(&mut self, kline_cache_index: u32) {
-        self.play_index = kline_cache_index;
+    pub async fn set_play_index(&mut self, play_index: i32) {
+        self.play_index = play_index;
         // 当k线索引更新后，更新k线缓存key的最新收盘价
         let keys: Vec<BacktestKlineKey> = self.kline_price.keys().cloned().collect();
         for kline_cache_key in keys {
@@ -182,7 +182,7 @@ impl VirtualTradingSystem {
             strategy_id: -1,
             node_id: "virtual_trading_system".to_string(),
             cache_key: kline_cache_key.clone(),
-            index: Some(self.play_index),
+            index: Some(self.play_index as u32),
             limit: Some(1),
             sender: "virtual_trading_system".to_string(),
             timestamp: get_utc8_timestamp_millis(),

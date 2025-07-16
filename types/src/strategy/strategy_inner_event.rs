@@ -21,8 +21,8 @@ pub enum StrategyInnerEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayIndexUpdateEvent {
-    pub total_signal_count: u32, // 总信号数量
-    pub played_index: u32, // 播放索引
+    pub total_signal_count: i32, // 总信号数量
+    pub play_index: i32, // 播放索引
     pub timestamp: i64, // 时间戳
 }
 

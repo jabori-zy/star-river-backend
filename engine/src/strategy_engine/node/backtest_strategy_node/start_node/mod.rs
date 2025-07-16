@@ -68,7 +68,6 @@ impl StartNode {
                 base_context,
                 backtest_config: Arc::new(RwLock::new(backtest_config)),
                 heartbeat,
-                played_index: Arc::new(RwLock::new(0)),
             }))),
         }
     }
@@ -199,15 +198,15 @@ impl BacktestNodeTrait for StartNode {
 
 
 impl StartNode {
-    pub async fn send_kline_tick_signal(&self, signal_count : u32) {
+    pub async fn send_play_signal(&self, play_index : i32) {
         let context = self.get_context();
         let mut state_guard = context.write().await;
         if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-            start_node_context.send_kline_tick_signal(signal_count).await;
+            start_node_context.send_play_signal(play_index).await;
         }
     }
 
-    pub async fn send_finish_signal(&self, signal_index : u32) {
+    pub async fn send_finish_signal(&self, signal_index : i32) {
         let context = self.get_context();
         let mut state_guard = context.write().await;
         if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {

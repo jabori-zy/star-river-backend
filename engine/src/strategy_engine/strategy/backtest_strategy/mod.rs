@@ -136,8 +136,8 @@ impl BacktestStrategy {
             command_receiver: command_receiver,
             node_command_receiver: Arc::new(Mutex::new(node_command_rx)),
             strategy_command_publisher,
-            signal_count: Arc::new(RwLock::new(0)),
-            played_index: Arc::new(RwLock::new(0)),
+            total_signal_count: Arc::new(RwLock::new(0)),
+            play_index: Arc::new(RwLock::new(-1)), // 播放索引初始值为-1，表示未开始播放
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token: cancel_play_token,
@@ -208,7 +208,7 @@ impl BacktestStrategy {
                     let mut context_guard = self.context.write().await;
                     let signal_count = context_guard.get_signal_count().await;
                     if let Ok(signal_count) = signal_count {
-                        let mut signal_count_guard = context_guard.signal_count.write().await;
+                        let mut signal_count_guard = context_guard.total_signal_count.write().await;
                         *signal_count_guard = signal_count;
                         tracing::info!("{}: 初始化信号计数成功", strategy_name);
                     } else {
@@ -371,20 +371,20 @@ impl BacktestStrategy {
         Ok(())
     }
 
-    pub async fn play_one_kline(&mut self) -> Result<u32, String> {
+    pub async fn play_one_kline(&mut self) -> Result<i32, String> {
         
         let context_guard = self.context.read().await;
-        let played_signal_count = context_guard.play_one_kline().await;
-        if let Ok(played_signal_count) = played_signal_count {
-            Ok(played_signal_count)
+        let play_index = context_guard.play_one_kline().await;
+        if let Ok(play_index) = play_index {
+            Ok(play_index)
         } else {
             Err("播放单根k线失败".to_string())
         }
     }
 
-    pub async fn get_played_index(&self) -> u32 {
+    pub async fn get_play_index(&self) -> i32 {
         let context_guard = self.context.read().await;
-        context_guard.get_played_index().await
+        context_guard.get_play_index().await
     }
     
 }

@@ -12,8 +12,8 @@ use tokio::sync::{RwLock, Notify, Mutex};
 #[derive(Debug)]
 struct PlayContext {
     node: Box<dyn BacktestNodeTrait + 'static>,
-    played_signal_index: Arc<RwLock<u32>>,
-    signal_count: Arc<RwLock<u32>>,
+    play_index: Arc<RwLock<i32>>,
+    signal_count: Arc<RwLock<i32>>,
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     child_cancel_play_token: CancellationToken,
@@ -44,8 +44,8 @@ impl BacktestStrategyContext {
 
         PlayContext {
             node,
-            played_signal_index: self.played_index.clone(),
-            signal_count: self.signal_count.clone(),
+            play_index: self.play_index.clone(),
+            signal_count: self.total_signal_count.clone(),
             is_playing: self.is_playing.clone(),
             initial_play_speed: self.initial_play_speed.clone(),
             child_cancel_play_token: self.cancel_play_token.child_token(),
@@ -76,17 +76,19 @@ impl BacktestStrategyContext {
 
             // 获取播放速度
             let play_speed = Self::get_play_speed(&context).await;
-            let (signal_count, played_signal_count) = Self::get_signal_counts(&context).await;
+            let (total_signal_count, play_index) = Self::get_context_play_index(&context).await;
 
             // 处理信号发送
-            if played_signal_count < signal_count {
-                Self::send_signal(&context, played_signal_count, signal_count).await;
-                Self::increment_played_signal_count(&context).await;
+            if play_index < total_signal_count {
+                // 因为从-1开始，所以先+1，再发送信号
+                let new_play_index = Self::increment_played_signal_count(&context).await;
+                Self::send_play_signal(&context, new_play_index, total_signal_count).await;
+                
             }
 
             // 检查播放完毕
-            if played_signal_count == signal_count - 1 {
-                Self::handle_play_finished(&context, &strategy_name, played_signal_count).await;
+            if play_index == total_signal_count - 1 {
+                Self::handle_play_finished(&context, &strategy_name, play_index).await;
                 break;
             }
 
@@ -105,7 +107,7 @@ impl BacktestStrategyContext {
             tracing::info!("{}: 暂停播放, signal_count: {}, played_signal_count: {}", 
                 context.node.get_node_id().await, 
                 *context.signal_count.read().await, 
-                *context.played_signal_index.read().await);
+                *context.play_index.read().await);
             
             tokio::select! {
                 _ = tokio::time::sleep(tokio::time::Duration::from_millis(500)) => {
@@ -138,19 +140,19 @@ impl BacktestStrategyContext {
     }
 
     // 获取信号计数
-    async fn get_signal_counts(context: &PlayContext) -> (u32, u32) {
-        let signal_count = *context.signal_count.read().await;
-        let played_signal_count = *context.played_signal_index.read().await;
-        (signal_count, played_signal_count)
+    async fn get_context_play_index(context: &PlayContext) -> (i32, i32) {
+        let total_signal_count = *context.signal_count.read().await;
+        let play_index = *context.play_index.read().await;
+        (total_signal_count, play_index)
     }
 
-    // 发送信号
-    async fn send_signal(context: &PlayContext, played_signal_count: u32, signal_count: u32) {
+    // 发送播放信号
+    async fn send_play_signal(context: &PlayContext, play_index: i32, total_signal_count: i32) {
         tracing::info!("=========== 发送信号 ===========");
 
         Self::send_play_index_update_event(
-            played_signal_count, 
-            signal_count, 
+            play_index, 
+            total_signal_count, 
             context.strategy_inner_event_publisher.clone()
         ).await;
 
@@ -162,9 +164,9 @@ impl BacktestStrategyContext {
         updated_play_index_notify.notified().await;
         
         let mut virtual_trading_system_guard = virtual_trading_system_clone.lock().await;
-        virtual_trading_system_guard.set_play_index(played_signal_count).await;
+        virtual_trading_system_guard.set_play_index(play_index).await;
         
-        start_node.send_kline_tick_signal(played_signal_count).await;
+        start_node.send_play_signal(play_index).await;
         tracing::info!("节点索引更新完毕");
         
         // tokio::spawn(async move {
@@ -181,18 +183,20 @@ impl BacktestStrategyContext {
     }
 
     // 增加已播放信号计数
-    async fn increment_played_signal_count(context: &PlayContext) {
-        let mut played_signal_count = context.played_signal_index.write().await;
-        *played_signal_count += 1;
+    async fn increment_played_signal_count(context: &PlayContext) -> i32 {
+        let mut play_index = context.play_index.write().await;
+        *play_index += 1;
+        tracing::debug!("{}: 增加已播放信号计数, play_index: {}", context.node.get_node_id().await, *play_index);
+        *play_index
     }
 
     // 处理播放完毕
-    async fn handle_play_finished(context: &PlayContext, strategy_name: &str, played_signal_count: u32) {
+    async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: i32) {
         let start_node = context.node.as_any().downcast_ref::<StartNode>().unwrap();
-        start_node.send_finish_signal(played_signal_count).await;
+        start_node.send_finish_signal(play_index).await;
         
         let mut virtual_trading_system_guard = context.virtual_trading_system.lock().await;
-        virtual_trading_system_guard.set_play_index(played_signal_count).await;
+        virtual_trading_system_guard.set_play_index(play_index).await;
         
         tracing::info!("{}: k线播放完毕，正常退出播放任务", strategy_name);
         *context.is_playing.write().await = false;
@@ -374,7 +378,7 @@ impl BacktestStrategyContext {
     pub async fn play(&self) {
 
         // 判断是否已播放完毕
-        if *self.played_index.read().await == *self.signal_count.read().await {
+        if *self.play_index.read().await == *self.total_signal_count.read().await as i32 {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return;
         }
@@ -387,7 +391,7 @@ impl BacktestStrategyContext {
         
 
         let play_context = self.create_play_context().await;
-        tracing::info!("创建播放上下文完毕: played_signal_index: {}, signal_count: {}",play_context.played_signal_index.read().await, play_context.signal_count.read().await);
+        tracing::info!("创建播放上下文完毕: played_signal_index: {}, signal_count: {}",play_context.play_index.read().await, play_context.signal_count.read().await);
         let strategy_name = self.strategy_name.clone();
         
         tokio::spawn(async move {
@@ -413,7 +417,7 @@ impl BacktestStrategyContext {
         tracing::info!("{}: 重置播放", self.strategy_name.clone());
         self.cancel_play_token.cancel();
         // 重置信号计数
-        *self.played_index.write().await = 0;
+        *self.play_index.write().await = 0;
         // 重置播放状态
         *self.is_playing.write().await = false;
         // 替换已经取消的令牌
@@ -429,7 +433,7 @@ impl BacktestStrategyContext {
             return false;
         }
 
-        if *self.played_index.read().await > *self.signal_count.read().await {
+        if *self.play_index.read().await > *self.total_signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法播放更多K线", self.strategy_name);
             return false;
         }
@@ -438,21 +442,21 @@ impl BacktestStrategyContext {
     }
 
     // 获取当前信号计数
-    async fn get_current_signal_counts(&self) -> (u32, u32) {
-        let signal_count = *self.signal_count.read().await;
-        let played_signal_count = *self.played_index.read().await;
-        (signal_count, played_signal_count)
+    async fn get_current_play_index(&self) -> (i32, i32) {
+        let total_signal_count = *self.total_signal_count.read().await;
+        let play_index = *self.play_index.read().await;
+        (total_signal_count, play_index)
     }
 
 
 
     // 执行单根K线播放
-    async fn execute_single_kline_play(&self, played_signal_count: u32, signal_count: u32) {
+    async fn execute_single_kline_play(&self, play_index: i32, signal_count: i32) {
         tracing::info!("{}: 播放单根k线，signal_count: {}, played_signal_count: {}", 
-            self.strategy_name, signal_count, played_signal_count);
+            self.strategy_name, signal_count, play_index);
 
         Self::send_play_index_update_event(
-            played_signal_count, 
+            play_index, 
             signal_count, 
             self.strategy_inner_event_publisher.clone()
         ).await;
@@ -468,22 +472,23 @@ impl BacktestStrategyContext {
             updated_play_index_notify.notified().await;
             
             let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-            virtual_trading_system_guard.set_play_index(played_signal_count).await;
+            virtual_trading_system_guard.set_play_index(play_index).await;
             
-            start_node.send_kline_tick_signal(played_signal_count).await;
+            start_node.send_play_signal(play_index).await;
         });
     }
 
     // 增加单次播放计数
-    async fn increment_single_play_count(&self) {
-        let mut played_signal_count = self.played_index.write().await;
-        *played_signal_count += 1;
+    async fn increment_single_play_count(&self) -> i32 {
+        let mut play_index = self.play_index.write().await;
+        *play_index += 1;
+        *play_index
     }
 
     // 播放单根k线
-    pub async fn play_one_kline(&self) -> Result<u32, String> {
+    pub async fn play_one_kline(&self) -> Result<i32, String> {
 
-        if *self.played_index.read().await == *self.signal_count.read().await {
+        if *self.play_index.read().await == *self.total_signal_count.read().await{
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return Err("已播放完毕，无法继续播放".to_string());
         }
@@ -492,28 +497,30 @@ impl BacktestStrategyContext {
             return Err("无法播放单根k线".to_string());
         }
 
-        let (signal_count, played_signal_count) = self.get_current_signal_counts().await;
+        let (total_signal_count, play_index) = self.get_current_play_index().await;
         
-        if played_signal_count < signal_count {
-            self.execute_single_kline_play(played_signal_count, signal_count).await;
-            self.increment_single_play_count().await;
+        if play_index < total_signal_count {
+            // 先增加单次播放计数
+            let play_index = self.increment_single_play_count().await;
+            // 再执行单根k线播放
+            self.execute_single_kline_play(play_index, total_signal_count).await;
         }
 
-        if played_signal_count == signal_count - 1 {
+        if play_index == total_signal_count - 1 {
             let start_node_index = self.node_indices.get("start_node").unwrap();
             let node = self.graph.node_weight(*start_node_index).unwrap().clone();
             let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
-            start_node.send_finish_signal(played_signal_count).await;
+            start_node.send_finish_signal(play_index).await;
             
             let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
-            virtual_trading_system_guard.set_play_index(played_signal_count).await;
+            virtual_trading_system_guard.set_play_index(play_index).await;
             
             tracing::info!("{}: k线播放完毕，正常退出播放任务", self.strategy_name.clone());
             *self.is_playing.write().await = false;
-            return Ok(played_signal_count);
+            return Ok(play_index);
         }
         
-        Ok(played_signal_count)
+        Ok(play_index)
     }
 
     // 播放单根k线
@@ -584,12 +591,12 @@ impl BacktestStrategyContext {
     // }
 
     async fn send_play_index_update_event(
-        played_index: u32, 
-        total_signal_count: u32, 
+        play_index: i32, 
+        total_signal_count: i32, 
         strategy_inner_event_publisher: StrategyInnerEventPublisher,
     ){
         let event = StrategyInnerEvent::PlayIndexUpdate(PlayIndexUpdateEvent {
-            played_index,
+            play_index,
             total_signal_count,
             timestamp: get_utc8_timestamp_millis(),
         });

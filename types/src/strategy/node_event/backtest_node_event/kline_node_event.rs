@@ -35,7 +35,7 @@ pub struct KlineUpdateEvent {
     pub from_handle_id: String,
 
     #[serde(rename = "playIndex")]
-    pub play_index: u32,
+    pub play_index: i32,
 
     #[serde(serialize_with = "serialize_kline_cache_key")]
     #[serde(rename = "klineKey")]

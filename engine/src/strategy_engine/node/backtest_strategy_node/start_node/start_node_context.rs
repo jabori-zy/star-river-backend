@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::{KlineTickEvent, KlinePlayFinishedEvent, SignalEvent, PlayIndexUpdateEvent};
+use types::strategy::node_event::{KlinePlayEvent, KlinePlayFinishedEvent, SignalEvent, PlayIndexUpdateEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
@@ -21,7 +21,6 @@ pub struct StartNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: Arc<RwLock<BacktestStrategyConfig>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub played_index: Arc<RwLock<u32>>,
     
 }
 
@@ -65,16 +64,14 @@ impl BacktestNodeContextTrait for StartNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新播放索引
-                // *self.played_index.write().await = play_index_update_event.played_index;
-                self.set_play_index(play_index_update_event.played_index).await;
-                // tracing::debug!("{}: 更新播放索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                self.set_play_index(play_index_update_event.play_index).await;
                 let strategy_output_handle = self.get_strategy_output_handle();
                 // 更新完成后，发送索引已更新事件
                 let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-                    node_play_index: self.get_play_index().await,
+                    play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 strategy_output_handle.send(signal).unwrap();
@@ -108,29 +105,29 @@ impl BacktestNodeContextTrait for StartNodeContext {
 
 impl StartNodeContext {
     // 发送k线跳动信号
-    pub async fn send_kline_tick_signal(&self, signal_index : u32) {
-        let kline_tick_event = KlineTickEvent {
+    pub async fn send_play_signal(&self, play_index : i32) {
+        let kline_tick_event = KlinePlayEvent {
             from_node_id: self.base_context.node_id.clone(),
             from_node_name: self.base_context.node_name.clone(),
             from_node_handle_id: "start_node_default_output".to_string(),
-            play_index: signal_index,
+            play_index: play_index,
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
         
-        let signal = BacktestNodeEvent::Signal(SignalEvent::KlineTick(kline_tick_event.clone()));
+        let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlay(kline_tick_event.clone()));
         // 通过default出口，给节点发送信号
         self.get_default_output_handle().send(signal.clone()).unwrap();
 
     }
 
     // 发送k线播放完毕信号
-    pub async fn send_finish_signal(&self, signal_index : u32) {
+    pub async fn send_finish_signal(&self, play_index : i32) {
         let default_output_handle = self.get_default_output_handle();
         let finish_signal = KlinePlayFinishedEvent {
             from_node_id: self.get_node_id().clone(),
             from_node_name: self.get_node_name().clone(),
             from_node_handle_id: default_output_handle.output_handle_id.clone(),
-            signal_index,
+            play_index,
             message_timestamp: get_utc8_timestamp_millis(),
         };
 

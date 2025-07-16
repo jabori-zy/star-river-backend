@@ -80,7 +80,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         match node_event {
             BacktestNodeEvent::Signal(signal_event) => {
                 match signal_event {
-                    SignalEvent::KlineTick(kline_tick_event) => {
+                    SignalEvent::KlinePlay(play_event) => {
                         // 提前获取配置信息，统一错误处理
                         let exchange_config = self.backtest_config.exchange_mode_config.as_ref()
                             .ok_or("Exchange mode config is not set")?;
@@ -88,11 +88,11 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         let current_play_index = self.get_play_index().await;
                         
                         // 如果索引不匹配，提前返回错误日志
-                        if current_play_index != kline_tick_event.play_index {
+                        if current_play_index != play_event.play_index {
                             tracing::error!(
                                 node_id = %self.base_context.node_id, 
                                 node_name = %self.base_context.node_name, 
-                                kline_cache_index = %kline_tick_event.play_index,
+                                kline_cache_index = %play_event.play_index,
                                 signal_index = %current_play_index, 
                                 "kline cache index is not equal to signal index"
                             );
@@ -116,7 +116,8 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             );
                             
                             // 获取k线缓存值
-                            let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, kline_tick_event.play_index).await {
+                            tracing::debug!("play_index: {}", play_event.play_index);
+                            let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, play_event.play_index).await {
                                 Ok(value) => value,
                                 Err(e) => {
                                     tracing::error!(
@@ -128,30 +129,13 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                                     continue;
                                 }
                             };
-                            
-                            // let cache_data: Vec<Vec<f64>> = kline_cache_value
-                            //     .into_iter()
-                            //     .map(|cache_value| cache_value.to_list())
-                            //     .collect();
-                                
-                            // if cache_data.is_empty() {
-                            //     tracing::warn!(
-                            //         node_id = %self.base_context.node_id, 
-                            //         node_name = %self.base_context.node_name,
-                            //         symbol = %symbol_config.symbol,
-                            //         "Cache data is empty"
-                            //     );
-                            //     continue;
-                            // }
-                            
-                            // let kline_data = &cache_data[0];
 
                             // 发送K线更新事件的通用函数
                             let send_kline_event = |handle_id: String, output_handle: NodeOutputHandle| {
                                 let kline_update_event = self.get_kline_update_event(
                                     handle_id,
                                     &backtest_kline_key,
-                                    kline_tick_event.play_index,
+                                    play_event.play_index,
                                     kline_cache_value.clone(),
                                 );
                                 let kline_node_event = BacktestNodeEvent::KlineNode(kline_update_event);
@@ -192,15 +176,13 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
-                // *self.kline_cache_index.write().await = play_index_update_event.played_index;
-                self.set_play_index(play_index_update_event.played_index).await;
-                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                self.set_play_index(play_index_update_event.play_index).await;
                 let strategy_output_handle = self.get_strategy_output_handle();
                 let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-                    node_play_index: self.get_play_index().await,
+                    play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 if let Err(e) = strategy_output_handle.send(signal) {
@@ -282,14 +264,14 @@ impl KlineNodeContext {
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(&self,
         kline_cache_key: &BacktestKlineKey,
-        index: u32, // 缓存索引
+        play_index: i32, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.get_strategy_id().clone(),
             node_id: self.get_node_id().clone(),
             cache_key: kline_cache_key.clone().into(),
-            index: Some(index),
+            index: Some(play_index as u32),
             limit: Some(1),
             sender: self.get_node_id().clone(),
             timestamp: get_utc8_timestamp_millis(),
@@ -318,7 +300,7 @@ impl KlineNodeContext {
         &self,
         handle_id: String,
         kline_key: &BacktestKlineKey,
-        index: u32, // 缓存索引
+        index: i32, // 缓存索引
         kline_data: Vec<Arc<CacheValue>>,
     ) -> KlineNodeEvent {
 

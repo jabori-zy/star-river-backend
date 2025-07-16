@@ -75,11 +75,11 @@ impl StrategyEngineContext {
     }
 
     // 播放单根k线
-    pub async fn backtest_strategy_play_one_kline(&mut self, strategy_id: i32) -> Result<u32, String> {
+    pub async fn backtest_strategy_play_one_kline(&mut self, strategy_id: i32) -> Result<i32, String> {
         let strategy = self.get_backtest_strategy_instance_mut(strategy_id).await;
         if let Ok(strategy) = strategy {
-            let played_signal_count = strategy.play_one_kline().await.unwrap();
-            Ok(played_signal_count)
+            let play_index = strategy.play_one_kline().await.unwrap();
+            Ok(play_index)
         } else {
             Err("播放单根k线失败".to_string())
         }
@@ -95,10 +95,10 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_played_index(&self, strategy_id: i32) -> Result<u32, String> {
+    pub async fn get_backtest_strategy_play_index(&self, strategy_id: i32) -> Result<i32, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
-            Ok(strategy.get_played_index().await)
+            Ok(strategy.get_play_index().await)
         } else {
             Err("获取回测策略播放索引失败".to_string())
         }

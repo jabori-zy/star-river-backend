@@ -185,14 +185,13 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
-                self.set_play_index(play_index_update_event.played_index).await;
-                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                self.set_play_index(play_index_update_event.play_index).await;
                 let strategy_output_handle = self.get_strategy_output_handle();
                 let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-                    node_play_index: self.get_play_index().await,
+                    play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 // 发送到strategy
@@ -243,13 +242,13 @@ impl IndicatorNodeContext {
 
 
     // 获取已经计算好的回测指标数据
-    async fn get_backtest_indicator_cache(&self, indicator_cache_key: &BacktestIndicatorKey, index: u32) -> Result<Vec<Arc<CacheValue>>, String> {
+    async fn get_backtest_indicator_cache(&self, indicator_cache_key: &BacktestIndicatorKey, play_index: i32) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),
             cache_key: indicator_cache_key.clone().into(),
-            index: Some(index),
+            index: Some(play_index as u32),
             limit: Some(1),
             sender: self.base_context.node_id.clone(),
             timestamp: get_utc8_timestamp_millis(),

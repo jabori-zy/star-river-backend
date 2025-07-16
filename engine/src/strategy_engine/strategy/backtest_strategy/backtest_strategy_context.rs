@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use types::strategy::node_event::{BacktestNodeEvent, SignalEvent};
-use types::strategy::node_event::backtest_node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent};
+use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::sync::Arc;
@@ -61,8 +61,8 @@ pub struct BacktestStrategyContext {
     pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
     pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 接收节点的命令
     pub strategy_command_publisher: StrategyCommandPublisher, // 节点命令发送器
-    pub signal_count: Arc<RwLock<u32>>, // 信号计数
-    pub played_index: Arc<RwLock<u32>>, // 已播放的索引
+    pub total_signal_count: Arc<RwLock<i32>>, // 信号计数
+    pub play_index: Arc<RwLock<i32>>, // 播放索引
     pub is_playing: Arc<RwLock<bool>>, // 是否正在播放
     pub initial_play_speed: Arc<RwLock<u32>>, // 初始播放速度 （从策略配置中加载）
     pub cancel_play_token: CancellationToken, // 取消播放令牌
@@ -154,7 +154,7 @@ impl BacktestStrategyContext {
         if let BacktestNodeEvent::Signal(signal_event) = &node_event {
             match signal_event {
                 SignalEvent::PlayIndexUpdated(play_index_update_event) => {
-                    tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.node_play_index);
+                    tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.play_index);
                     // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
                     let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
                     if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
@@ -209,8 +209,6 @@ impl BacktestStrategyContext {
                     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
                     let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
-
-                _ => {}
             }
         }
         Ok(())
@@ -229,43 +227,6 @@ impl BacktestStrategyContext {
         .collect()
     }
 
-    // 启用策略的数据推送功能
-    // pub async fn enable_strategy_data_push(&mut self) {
-    //     let command_publisher = self.command_publisher.clone();
-    //     let event_publisher = self.event_publisher.clone();
-    //     let strategy_id = self.strategy_id;
-    //     let strategy_name = self.strategy_name.clone();
-    //     let cache_keys = self.cache_keys.clone();
-
-    //     let mut heartbeat = self.heartbeat.lock().await;
-    //     let task_id = heartbeat.register_async_task(
-    //         "启用策略数据推送".to_string(), 
-    //         move || {
-    //             let strategy_id = strategy_id;
-    //             let strategy_name = strategy_name.clone();
-    //             let cache_keys = cache_keys.clone();
-    //             let command_publisher = command_publisher.clone();
-    //             let event_publisher = event_publisher.clone();
-    //             async move {
-    //                 Self::get_strategy_data(strategy_id, strategy_name, cache_keys, command_publisher, event_publisher).await;
-    //             }
-    //         },
-    //         5
-    //     ).await;
-    //     self.registered_tasks.write().await.insert("push_strategy_data".to_string(), task_id);
-    //     tracing::debug!("任务注册成功，当前任务列表：{:?}", self.registered_tasks.read().await);
-
-    // }
-
-    // pub async fn disable_strategy_data_push(&mut self) {
-    //     let task_id = self.registered_tasks.write().await.remove("push_strategy_data");
-        
-    //     if let Some(task_id) = task_id {
-    //         let mut heartbeat = self.heartbeat.lock().await;
-    //         heartbeat.unregister_task(task_id).await.unwrap();
-    //         tracing::debug!("任务取消成功，当前任务列表：{:?}", self.registered_tasks.read().await);
-    //     }
-    // }
 
     async fn get_strategy_data(
         strategy_id: StrategyId,
@@ -498,10 +459,10 @@ impl BacktestStrategyContext {
 
     // 初始化信号计数
     #[instrument(skip(self))]
-    pub async fn get_signal_count(&mut self) -> Result<u32, String> {
+    pub async fn get_signal_count(&mut self) -> Result<i32, String> {
         // 初始化信号计数
         let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
-        Ok(min_cache_length)
+        Ok(min_cache_length as i32)
     }
 
     // 获取start节点配置
@@ -527,9 +488,9 @@ impl BacktestStrategyContext {
 
     }
 
-    pub async fn get_played_index(&self) -> u32 {
-        let played_index = self.played_index.read().await;
-        *played_index
+    pub async fn get_play_index(&self) -> i32 {
+        let play_index = self.play_index.read().await;
+        *play_index
     }
 
 

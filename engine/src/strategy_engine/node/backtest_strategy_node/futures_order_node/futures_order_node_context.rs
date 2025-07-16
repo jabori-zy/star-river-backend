@@ -47,8 +47,6 @@ use types::custom_type::OrderId;
 use types::strategy::node_event::backtest_node_event::futures_order_node_event::{FuturesOrderNodeEvent, FuturesOrderCreatedEvent, FuturesOrderCanceledEvent, FuturesOrderFilledEvent};
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
-use tokio_stream::wrappers::BroadcastStream;
-use futures::StreamExt;
 use types::custom_type::{InputHandleId, NodeId};
 
 #[derive(Debug)]
@@ -379,14 +377,14 @@ impl FuturesOrderNodeContext {
             );
 
 
-            let kline_cache_index = self.get_play_index().await;
+            let play_index = self.get_play_index().await as u32;
 
             let (tx, rx) = oneshot::channel();
             let get_cache_params = GetCacheParams {
                 strategy_id: self.base_context.strategy_id.clone(),
                 node_id: self.base_context.node_id.clone(),
                 cache_key: cache_key.clone().into(),
-                index: Some(kline_cache_index),
+                index: Some(play_index),
                 limit: Some(1),
                 sender: self.base_context.node_id.clone(),
                 timestamp: get_utc8_timestamp_millis(),
@@ -511,14 +509,13 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         match strategy_inner_event {
             StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
                 // 更新k线缓存索引
-                self.set_play_index(play_index_update_event.played_index).await;
-                // tracing::debug!("{}: 更新k线缓存索引: {}", self.get_node_id(), play_index_update_event.played_index);
+                self.set_play_index(play_index_update_event.play_index).await;
                 let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
                 let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: strategy_output_handle_id.clone(),
-                    node_play_index: self.get_play_index().await,
+                    play_index: self.get_play_index().await,
                     message_timestamp: get_utc8_timestamp_millis(),
                 }));
                 self.get_strategy_output_handle().send(signal).unwrap();
