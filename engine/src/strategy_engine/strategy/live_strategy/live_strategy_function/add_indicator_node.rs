@@ -44,7 +44,8 @@ impl LiveStrategyFunction {
         let indicator_type = node_data["indicatorType"].as_str().unwrap_or_default();
         // 解析指标配置
         let indicator_config_json = live_config_json["indicatorConfig"].clone();
-        let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json);
+        let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json).map_err(|e| e.to_string())?;
+
         let symbol = live_config_json["symbol"].as_str().unwrap_or_default().to_string();
         let interval = KlineInterval::from_str(live_config_json["interval"].as_str().unwrap_or_default()).unwrap();
         let exchange = Exchange::from_str(live_config_json["exchange"].as_str().unwrap_or_default()).unwrap();

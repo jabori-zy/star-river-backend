@@ -263,14 +263,14 @@ impl KlineNodeContext {
 
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(&self,
-        kline_cache_key: &BacktestKlineKey,
+        kline_key: &BacktestKlineKey,
         play_index: i32, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.get_strategy_id().clone(),
             node_id: self.get_node_id().clone(),
-            cache_key: kline_cache_key.clone().into(),
+            key: kline_key.clone().into(),
             index: Some(play_index as u32),
             limit: Some(1),
             sender: self.get_node_id().clone(),

@@ -181,7 +181,7 @@ impl VirtualTradingSystem {
         let params = GetCacheParams {
             strategy_id: -1,
             node_id: "virtual_trading_system".to_string(),
-            cache_key: kline_cache_key.clone(),
+            key: kline_cache_key.clone(),
             index: Some(self.play_index as u32),
             limit: Some(1),
             sender: "virtual_trading_system".to_string(),

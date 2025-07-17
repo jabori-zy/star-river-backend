@@ -1,4 +1,3 @@
-use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use crate::cache::CacheItem;
@@ -7,8 +6,8 @@ use serde_json::Value;
 use crate::indicator::IndicatorConfigTrait;
 use deepsize::DeepSizeOf;
 use std::str::FromStr;
-use utils::timestamp_to_utc8;
 use serde_json::json;
+use crate::indicator::IndicatorTrait;
 
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -50,11 +49,11 @@ impl FromStr for SMAConfig {
 }
 
 impl IndicatorConfigTrait for SMAConfig {
-    fn new(config: &Value) -> Self {
+    fn new(config: &Value) -> Result<Self, String> {
         if let Some(period) = config.get("period").and_then(|v| v.as_i64()) {
-            Self { period: period as i32 }
+            Ok(Self { period: period as i32 })
         } else {
-            Self { period: 9 }
+            Err("SMA配置格式错误".to_string())
         }
     }
 }
@@ -66,16 +65,35 @@ pub struct SMA {
     pub timestamp: i64,
     pub sma: f64,
 }
-
 impl From<SMA> for Indicator {
     fn from(sma: SMA) -> Self {
         Indicator::SMA(sma)
     }
 }
 
-impl SMA {
-    pub fn sma(&self) -> f64 {
-        self.sma
+
+impl IndicatorTrait for SMA {
+    fn to_json(&self) -> Value {
+        json!(
+            {
+                "timestamp": self.timestamp,
+                "sma": self.sma
+            }
+        )
+        
+    }
+
+    fn to_list(&self) -> Vec<f64> {
+        vec![self.timestamp as f64, self.sma]
+    }
+
+    fn to_json_with_time(&self) -> serde_json::Value {
+        json!(
+            {
+                "timestamp": utils::timestamp_to_utc8(self.timestamp),
+                "sma": self.sma
+            }
+        )
     }
 }
 

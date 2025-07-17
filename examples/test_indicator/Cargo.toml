@@ -25,3 +25,4 @@ event-center = {path = "../../event-center"}
 database = { path = "../../database" }
 migration = { path = "../../migration" }
 engine = { path = "../../engine" }
+ordered-float = {version = "5.0.0", features=["serde"]}

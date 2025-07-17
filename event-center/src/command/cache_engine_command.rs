@@ -103,7 +103,7 @@ pub struct GetSubscribedIndicatorParams {
 pub struct GetCacheParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
-    pub cache_key: Key, // 缓存键
+    pub key: Key, // 缓存键
     pub index: Option<u32>, // 缓存取值索引
     pub limit: Option<u32>, // 获取的缓存数据条数
     pub sender: String,

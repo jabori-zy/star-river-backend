@@ -64,7 +64,7 @@ pub struct RegisterIndicatorParams {
 pub struct CalculateBacktestIndicatorParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
-    pub kline_cache_key: BacktestKlineKey, // 回测K线缓存键
+    pub kline_key: BacktestKlineKey, // 回测K线缓存键
     pub indicator_config: IndicatorConfig,
     pub sender: String,
     pub command_timestamp:i64,

@@ -256,7 +256,7 @@ impl KlineNodeContext {
         let params = GetCacheParams {
             strategy_id: strategy_id,
             node_id: node_id.clone(),
-            cache_key: kline_cache_key.clone(),
+            key: kline_cache_key.clone(),
             index: None,
             limit: Some(limit),
             sender: node_id.clone(),

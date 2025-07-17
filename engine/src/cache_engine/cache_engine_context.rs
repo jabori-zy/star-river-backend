@@ -117,11 +117,11 @@ impl EngineContext for CacheEngineContext {
                     
                     // 处理获取缓存数据命令
                     CacheEngineCommand::GetCache(params) => {
-                        let data = self.get_cache(&params.cache_key, params.index, params.limit).await;
+                        let data = self.get_cache(&params.key, params.index, params.limit).await;
                         let response = GetCacheDataResponse {
                             code: 0,
                             message: "success".to_string(),
-                            cache_key: params.cache_key,
+                            cache_key: params.key,
                             cache_data: data,
                             response_timestamp: Utc::now().timestamp(),
                         };

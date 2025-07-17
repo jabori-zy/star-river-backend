@@ -137,13 +137,13 @@ impl EngineContext for IndicatorEngineContext {
                     IndicatorEngineCommand::CalculateBacktestIndicator(calculate_backtest_indicator_params) => {
                         let backtest_indicators = CalculateIndicatorFunction::calculate_indicator(
                             self.cache_engine.clone(), 
-                            calculate_backtest_indicator_params.kline_cache_key.clone().into(),
+                            calculate_backtest_indicator_params.kline_key.clone().into(),
                             calculate_backtest_indicator_params.indicator_config.clone(),
                             true //一次性将历史数据计算出来
                         ).await.unwrap();
                         // 将指标数据添加到缓存中
                         let backtest_indicator_cache_key = self.cache_engine.lock().await.initialize_backtest_indicator_cache(
-                            calculate_backtest_indicator_params.kline_cache_key.clone().into(),
+                            calculate_backtest_indicator_params.kline_key.clone().into(),
                             calculate_backtest_indicator_params.indicator_config.clone(),
                             backtest_indicators
                         ).await;
@@ -195,7 +195,7 @@ impl IndicatorEngineContext {
                 // 注册任务
                 let indicator_sub_key_clone = indicator_sub_key.clone();
                 let futures = async move {
-                    let kline_cache_key = KlineKey::new(
+                    let kline_key = KlineKey::new(
                         indicator_sub_key_clone.exchange.clone(), 
                         indicator_sub_key_clone.symbol.clone(), 
                         indicator_sub_key_clone.interval.clone()
@@ -203,7 +203,7 @@ impl IndicatorEngineContext {
 
                     let indicators = CalculateIndicatorFunction::calculate_indicator(
                         cache_engine.clone(), 
-                        kline_cache_key.into(),
+                        kline_key.into(),
                         indicator_sub_key_clone.indicator_config.clone(), 
                         false
                     ).await.unwrap();

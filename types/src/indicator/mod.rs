@@ -1,5 +1,6 @@
 pub mod sma; // 简单移动平均线
 pub mod bbands; // 布林带
+pub mod macd; // 指数平滑异同移动平均线
 
 
 use crate::market::{Exchange, KlineInterval};
@@ -10,27 +11,74 @@ use std::any::Any;
 use std::collections::HashMap;
 use crate::indicator::sma::SMA;
 use crate::indicator::bbands::BBands;
+use crate::indicator::macd::MACD;
 use crate::cache::{CacheItem, CacheValue};
 use crate::indicator::sma::SMAConfig;
+use crate::indicator::macd::MACDConfig;
+use crate::indicator::bbands::BBandsConfig;
 use deepsize::DeepSizeOf;
 use std::str::FromStr;
+use strum::{EnumString, Display};
 
-pub trait IndicatorConfigTrait {
-    fn new(config: &Value) -> Self;
+// 价格来源
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display)]
+pub enum PriceSource {
+    #[strum(serialize = "close")]
+    Close,
+    #[strum(serialize = "open")]
+    Open,
+    #[strum(serialize = "high")]
+    High,
+    #[strum(serialize = "low")]
+    Low,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq,PartialEq, Serialize, Deserialize, EnumString, Display)]
+pub enum MAType {
+    #[strum(serialize = "sma")]
+    SMA,
+    #[strum(serialize = "ema")]
+    EMA,
+    #[strum(serialize = "wma")]
+    WMA,
+    #[strum(serialize = "dema")]
+    DEMA,
+    #[strum(serialize = "tema")]
+    TEMA,
+    #[strum(serialize = "trima")]
+    TRIMA,
+    #[strum(serialize = "kama")]
+    KAMA,
+    #[strum(serialize = "mama")]
+    MAMA,
+    #[strum(serialize = "t3")]
+    T3,
+}
+
+pub trait IndicatorConfigTrait {
+    fn new(config: &Value) -> Result<Self, String> where Self: Sized; // 创建指标配置,有可能失败
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(tag = "indicator_type", content = "indicator_config")]
 pub enum IndicatorConfig {
     // 简单移动平均线
     #[serde(rename = "sma")]
     SMA(SMAConfig),
+
+    #[serde(rename = "macd")]
+    MACD(MACDConfig),
+    
+    #[serde(rename = "bbands")]
+    BBands(BBandsConfig),
 }
 
 impl ToString for IndicatorConfig {
     fn to_string(&self) -> String {
         match self {
             IndicatorConfig::SMA(sma_config) => sma_config.to_string(),
+            IndicatorConfig::MACD(macd_config) => macd_config.to_string(),
+            IndicatorConfig::BBands(bbands_config) => bbands_config.to_string(),
         }
     }
 }
@@ -49,20 +97,30 @@ impl FromStr for IndicatorConfig {
         // 根据指标类型创建相应的配置
         match indicator_type {
             "sma" => Ok(IndicatorConfig::SMA(SMAConfig::from_str(s)?)),
+            "macd" => Ok(IndicatorConfig::MACD(MACDConfig::from_str(s)?)),
+            "bbands" => Ok(IndicatorConfig::BBands(BBandsConfig::from_str(s)?)),
             _ => Err(format!("不支持的指标类型: {}", indicator_type)),
         }
     }
 }
 
 impl IndicatorConfig {
-    pub fn new(indicator_type: &str, config: &Value) -> Self {
+    pub fn new(indicator_type: &str, config: &Value) -> Result<Self, String> {
         match indicator_type {
-            "sma" => IndicatorConfig::SMA(SMAConfig::new(config)),
-            _ => panic!("Invalid indicator type"),
+            "sma" => Ok(IndicatorConfig::SMA(SMAConfig::new(config)?)),
+            "macd" => Ok(IndicatorConfig::MACD(MACDConfig::new(config)?)),
+            "bbands" => Ok(IndicatorConfig::BBands(BBandsConfig::new(config)?)),
+            _ => Err(format!("不支持的指标类型: {}", indicator_type)),
         }
     }
 }
 
+
+pub trait IndicatorTrait {
+    fn to_json(&self) -> serde_json::Value;
+    fn to_list(&self) -> Vec<f64>;
+    fn to_json_with_time(&self) -> serde_json::Value;
+}
 
 
 
@@ -70,17 +128,36 @@ impl IndicatorConfig {
 pub enum Indicator {
     SMA(SMA),
     BBands(BBands),
+    MACD(MACD),
 }
 
-impl Indicator {
-    pub fn as_sma(&self) -> Option<&SMA> {
+
+impl IndicatorTrait for Indicator {
+    fn to_json(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => Some(sma),
-            _ => None,
+            Indicator::SMA(sma) => IndicatorTrait::to_json(sma),
+            Indicator::BBands(bbands) => IndicatorTrait::to_json(bbands),
+            Indicator::MACD(macd) => IndicatorTrait::to_json(macd),
         }
     }
-    
+
+    fn to_list(&self) -> Vec<f64> {
+        match self {
+            Indicator::SMA(sma) => IndicatorTrait::to_list(sma),
+            Indicator::BBands(bbands) => IndicatorTrait::to_list(bbands),
+            Indicator::MACD(macd) => IndicatorTrait::to_list(macd),
+        }
+    }
+
+    fn to_json_with_time(&self) -> serde_json::Value {
+        match self {
+            Indicator::SMA(sma) => IndicatorTrait::to_json_with_time(sma),
+            Indicator::BBands(bbands) => IndicatorTrait::to_json_with_time(bbands),
+            Indicator::MACD(macd) => IndicatorTrait::to_json_with_time(macd),
+        }
+    }
 }
+
 
 impl From<Indicator> for CacheValue {
     fn from(indicator: Indicator) -> Self {
@@ -94,27 +171,31 @@ impl CacheItem for Indicator {
         match self {
             Indicator::SMA(sma) => sma.timestamp,
             Indicator::BBands(bbands) => bbands.timestamp,
+            Indicator::MACD(macd) => macd.timestamp,
         }
     }
 
     fn to_json(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => sma.to_json(),
-            Indicator::BBands(bbands) => bbands.to_json(),
+            Indicator::SMA(sma) => CacheItem::to_json(sma),
+            Indicator::BBands(bbands) => CacheItem::to_json(bbands),
+            Indicator::MACD(macd) => CacheItem::to_json(macd),
         }
     }
 
     fn to_list(&self) -> Vec<f64> {
         match self {
-            Indicator::SMA(sma) => sma.to_list(),
-            Indicator::BBands(bbands) => bbands.to_list(),
+            Indicator::SMA(sma) => CacheItem::to_list(sma),
+            Indicator::BBands(bbands) => CacheItem::to_list(bbands),
+            Indicator::MACD(macd) => CacheItem::to_list(macd),
         }
     }
 
     fn to_json_with_time(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => sma.to_json_with_time(),
-            Indicator::BBands(bbands) => bbands.to_json_with_time(),
+            Indicator::SMA(sma) => CacheItem::to_json_with_time(sma),
+            Indicator::BBands(bbands) => CacheItem::to_json_with_time(bbands),
+            Indicator::MACD(macd) => CacheItem::to_json_with_time(macd),
         }
     }
 }

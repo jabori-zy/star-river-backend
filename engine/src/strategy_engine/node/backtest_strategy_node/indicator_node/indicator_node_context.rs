@@ -247,7 +247,7 @@ impl IndicatorNodeContext {
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),
-            cache_key: indicator_cache_key.clone().into(),
+            key: indicator_cache_key.clone().into(),
             index: Some(play_index as u32),
             limit: Some(1),
             sender: self.base_context.node_id.clone(),
@@ -283,7 +283,7 @@ impl IndicatorNodeContext {
             let params = CalculateBacktestIndicatorParams {
                 strategy_id: self.base_context.strategy_id.clone(),
                 node_id: self.base_context.node_id.clone(),
-                kline_cache_key: self.kline_cache_key.clone().into(),
+                kline_key: self.kline_cache_key.clone().into(),
                 indicator_config: ind.indicator_config.clone(),
                 sender: self.base_context.node_id.clone(),
                 command_timestamp: get_utc8_timestamp_millis(),

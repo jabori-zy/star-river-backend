@@ -72,7 +72,7 @@ impl BacktestStrategyFunction {
             // 指标配置json
             let indicator_config_json = ind_config["indicatorConfig"].clone();
             let indicator_type = indicator_config_json["type"].as_str().unwrap_or_default();
-            let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json);
+            let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json).map_err(|e| e.to_string())?;
             let selected_indicator = SelectedIndicator {
                 indicator_id: ind_config["indicatorId"].as_i64().unwrap() as i32,
                 handle_id: ind_config["handleId"].as_str().unwrap_or_default().to_string(),

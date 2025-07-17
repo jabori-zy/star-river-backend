@@ -157,7 +157,7 @@ impl IndicatorNodeContext {
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),
             node_id: self.base_context.node_id.clone(),
-            cache_key: indicator_cache_key.into(),
+            key: indicator_cache_key.into(),
             index: None,
             limit: Some(2),
             sender: self.base_context.node_id.clone(),

@@ -383,7 +383,7 @@ impl FuturesOrderNodeContext {
             let get_cache_params = GetCacheParams {
                 strategy_id: self.base_context.strategy_id.clone(),
                 node_id: self.base_context.node_id.clone(),
-                cache_key: cache_key.clone().into(),
+                key: cache_key.clone().into(),
                 index: Some(play_index),
                 limit: Some(1),
                 sender: self.base_context.node_id.clone(),

@@ -5,7 +5,7 @@ use super::KeyTrait;
 use super::Key;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct KlineKey {
     pub exchange: Exchange,
     pub symbol: String,
@@ -58,7 +58,7 @@ impl KeyTrait for KlineKey {
 }
 
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IndicatorKey {
     pub exchange: Exchange,
     pub symbol: String,
@@ -119,7 +119,7 @@ impl KeyTrait for IndicatorKey {
 
 
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BacktestKlineKey {
     pub exchange: Exchange,
     pub symbol: String,
@@ -178,7 +178,7 @@ impl KeyTrait for BacktestKlineKey {
 
 
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BacktestIndicatorKey {
     pub exchange: Exchange,
     pub symbol: String,
