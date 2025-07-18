@@ -28,54 +28,22 @@ impl FromStr for BBandsConfig {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('(').collect();
-        if parts.len() != 2 {
-            return Err("BBands配置格式无效".to_string());
-        }
-
-        let content = parts[1].split(')').next().unwrap_or_default();
-        tracing::debug!("BBandsConfig content: {}", content);
+        use crate::indicator::utils::*;
         
-        let param_parts: Vec<&str> = content.split_whitespace().collect();
-        tracing::debug!("BBandsConfig param_parts: {:?}", param_parts);
-
-        if param_parts.len() != 3 {
-            return Err("BBands参数数量无效，应为3个参数".to_string());
-        }
-
-        let mut period = 0i32;
-        let mut dev_up = OrderedFloat::from(0.0f64);
-        let mut dev_down = OrderedFloat::from(0.0f64);
-        let mut price_source: Option<PriceSource> = None;
-        let mut ma_type: Option<MAType> = None;
-
-        for param in param_parts {
-            let kv: Vec<&str> = param.split('=').collect();
-            if kv.len() != 2 {
-                return Err(format!("BBands参数格式无效: {}", param));
-            }
-            
-            let key = kv[0].trim();
-            let value = kv[1].trim();
-
-            match key {
-                "period" => period = value.parse::<i32>().map_err(|e| format!("period参数解析失败: {}", e))?,
-                "dev_up" => dev_up = OrderedFloat::from(value.parse::<f64>().map_err(|e| format!("dev_up参数解析失败: {}", e))?),
-                "dev_down" => dev_down = OrderedFloat::from(value.parse::<f64>().map_err(|e| format!("dev_down参数解析失败: {}", e))?),
-                "ma_type" => ma_type = Some(value.parse::<MAType>().map_err(|e| format!("matype参数解析失败: {}", e))?),
-                "source" => price_source = Some(value.parse::<PriceSource>().map_err(|e| format!("source参数解析失败: {}", e))?),
-                _ => return Err(format!("BBands参数格式无效: {}", param)),
-            }
-        }
-
-        let price_source = price_source.ok_or("缺少source参数".to_string())?;
-
+        let (_name, params) = parse_indicator_config_from_str(s)?;
+        
+        let period = get_required_i32_param(&params, "period")?;
+        let dev_up = OrderedFloat::from(get_required_f64_param(&params, "dev_up")?);
+        let dev_down = OrderedFloat::from(get_required_f64_param(&params, "dev_down")?);
+        let price_source = get_required_parsed_param::<PriceSource>(&params, "source")?;
+        let ma_type = get_required_parsed_param::<MAType>(&params, "ma_type")?;
+        
         Ok(BBandsConfig {
             period,
             dev_up,
             dev_down,
             price_source,
-            ma_type: ma_type.ok_or("缺少ma_type参数".to_string())?,
+            ma_type,
         })
     }
 }

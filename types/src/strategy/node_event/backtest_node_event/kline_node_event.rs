@@ -43,6 +43,7 @@ pub struct KlineUpdateEvent {
 
     // pub kline: Vec<f64>,
     #[serde(serialize_with = "serialize_kline_data")]
+    #[serde(deserialize_with = "deserialize_cache_value_vec")]
     pub kline: Vec<Arc<CacheValue>>,
     pub timestamp: i64,
 }
@@ -70,5 +71,16 @@ where
     seq.end()
 }
 
+// 反序列化函数
+fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Arc<CacheValue>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+    use serde::Deserialize;
     
-    
+    // 这里我们简单地跳过反序列化，返回空向量
+    // 在实际应用中，你可能需要根据具体需求来实现反序列化逻辑
+    let _: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
+    Ok(Vec::new())
+}

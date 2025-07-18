@@ -25,26 +25,12 @@ impl FromStr for SMAConfig {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('(').collect();
-        if parts.len() != 2 {
-            return Err("SMA配置格式无效".to_string());
-        }
-
-        // 移除右括号并获取内容
-        let content = parts[1].split(')').next().unwrap_or_default();
+        use crate::indicator::utils::*;
         
-        // 只支持 "period=9" 格式
-        if content.contains("=") {
-            let kv_parts: Vec<&str> = content.split('=').collect();
-            if kv_parts.len() != 2 || kv_parts[0].trim() != "period" {
-                return Err("SMA参数格式无效，应为 'period=值'".to_string());
-            }
-            
-            let period = kv_parts[1].trim().parse::<i32>().map_err(|e| e.to_string())?;
-            Ok(SMAConfig { period })
-        } else {
-            return Err("SMA配置格式无效，应为 'sma(period=值)'".to_string());
-        }
+        let (_name, params) = parse_indicator_config_from_str(s)?;
+        let period = get_required_i32_param(&params, "period")?;
+        
+        Ok(SMAConfig { period })
     }
 }
 

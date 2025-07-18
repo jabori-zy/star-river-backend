@@ -1,6 +1,9 @@
+
 pub mod sma; // 简单移动平均线
 pub mod bbands; // 布林带
 pub mod macd; // 指数平滑异同移动平均线
+pub mod rsi; // 相对强弱指数
+pub mod utils; // 指标配置解析工具
 
 
 use crate::market::{Exchange, KlineInterval};

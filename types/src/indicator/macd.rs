@@ -26,65 +26,25 @@ impl FromStr for MACDConfig {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('(').collect();
-        tracing::debug!("MACDConfig parts: {:?}", parts);
-        if parts.len() != 2 {
-            return Err("MACD配置格式无效".to_string());
+        use crate::indicator::utils::*;
+        
+        let (_name, params) = parse_indicator_config_from_str(s)?;
+        
+        let fast_period = get_required_i32_param(&params, "fast")?;
+        let slow_period = get_required_i32_param(&params, "slow")?;
+        let signal_period = get_required_i32_param(&params, "signal")?;
+        let price_source = get_required_parsed_param::<PriceSource>(&params, "source")?;
+        
+        // 参数验证
+        if fast_period <= 0 {
+            return Err("fast参数必须大于0".to_string());
         }
-
-        let content = parts[1].split(')').next().unwrap_or_default();
-        tracing::debug!("MACDConfig content: {}", content);
-        
-        // 按空格分割参数
-        let param_parts: Vec<&str> = content.split_whitespace().collect();
-        tracing::debug!("MACDConfig param_parts: {:?}", param_parts);
-        
-        if param_parts.len() != 4 {
-            return Err("MACD参数数量无效，应为4个参数".to_string());
+        if slow_period <= 0 {
+            return Err("slow参数必须大于0".to_string());
         }
-        
-        let mut fast_period = 0i32;
-        let mut slow_period = 0i32;
-        let mut signal_period = 0i32;
-        let mut price_source: Option<PriceSource> = None;
-        
-        // 解析每个键值对
-        for param in param_parts {
-            let kv: Vec<&str> = param.split('=').collect();
-            if kv.len() != 2 {
-                return Err(format!("MACD参数格式无效: {}", param));
-            }
-            
-            let key = kv[0].trim();
-            let value = kv[1].trim();
-            
-            match key {
-                "fast" => {
-                    fast_period = value.parse::<i32>().map_err(|e| format!("fast参数解析失败: {}", e))?;
-                    if fast_period <= 0 {
-                        return Err("fast参数必须大于0".to_string());
-                    }
-                },
-                "slow" => {
-                    slow_period = value.parse::<i32>().map_err(|e| format!("slow参数解析失败: {}", e))?;
-                    if slow_period <= 0 {
-                        return Err("slow参数必须大于0".to_string());
-                    }
-                },
-                "signal" => {
-                    signal_period = value.parse::<i32>().map_err(|e| format!("signal参数解析失败: {}", e))?;
-                    if signal_period <= 0 {
-                        return Err("signal参数必须大于0".to_string());
-                    }
-                },
-                "source" => {
-                    price_source = Some(value.parse::<PriceSource>().map_err(|e| format!("source参数解析失败: {}", e))?);
-                },
-                _ => return Err(format!("未知的MACD参数: {}", key)),
-            }
+        if signal_period <= 0 {
+            return Err("signal参数必须大于0".to_string());
         }
-        
-        let price_source = price_source.ok_or("缺少source参数".to_string())?;
         
         Ok(Self { fast_period, slow_period, signal_period, price_source })
     }
