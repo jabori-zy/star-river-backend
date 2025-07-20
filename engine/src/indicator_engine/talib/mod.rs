@@ -1,7 +1,7 @@
-pub mod rsi;
-pub mod ma;
-pub mod macd;
-pub mod bbands;
+// pub mod rsi;
+// pub mod ma;
+// pub mod macd;
+// pub mod bbands;
 pub mod talib_macros;
 
 use crate::indicator_engine::talib_bindings::*;

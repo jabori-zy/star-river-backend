@@ -142,7 +142,7 @@ macro_rules! define_indicator_config {
                 fn to_string(&self) -> String {
                     let mut params = Vec::new();
                     $(
-                        params.push(format!("{}={}", stringify!($param), self.$param));
+                        params.push(format!("{}={:?}", stringify!($param), self.$param));
                     )*
                     format!("{}({})", stringify!($indicator_name).to_lowercase(), params.join(", "))
                 }
@@ -172,14 +172,6 @@ macro_rules! define_indicator_config {
                     Ok(Self {
                         $($param),*
                     })
-                }
-
-                fn to_tablib_params(&self) -> Vec<crate::indicator::talib_types::IndicatorParam> {
-                    vec![
-                        $(
-                            $crate::convert_to_talib_param!($param, self.$param),
-                        )*
-                    ]
                 }
             }
         }
@@ -233,123 +225,6 @@ macro_rules! format_field_with_time {
     };
 }
 
-// 辅助宏：根据参数名转换为对应的IndicatorParam枚举变体
-#[macro_export]
-macro_rules! convert_to_talib_param {
-    // 时间周期参数
-    (period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::TimePeriod($field)
-    };
-    (time_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::TimePeriod($field)
-    };
-    (fast_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::FastPeriod($field)
-    };
-    (slow_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowPeriod($field)
-    };
-    (signal_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SignalPeriod($field)
-    };
-    (time_period1, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::TimePeriod1($field)
-    };
-    (time_period2, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::TimePeriod2($field)
-    };
-    (time_period3, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::TimePeriod3($field)
-    };
-
-    // 数值参数
-    (dev_up, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::DevUp($field.into())
-    };
-    (dev_down, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::DevDown($field.into())
-    };
-    (nb_dev, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::NbDev($field.into())
-    };
-    (deviation, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Deviation($field.into())
-    };
-    (acceleration, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Acceleration($field.into())
-    };
-    (maximum, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Maximum($field.into())
-    };
-    (minimum, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Minimum($field.into())
-    };
-
-    // MA类型参数
-    (ma_type, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::MAType($field.clone())
-    };
-    (fast_ma_type, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::FastMAType($field.clone())
-    };
-    (slow_ma_type, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowMAType($field.clone())
-    };
-
-    // 特殊参数
-    (penetration, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Penetration($field.into())
-    };
-    (v_factor, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::VFactor($field.into())
-    };
-    (fast_limit, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::FastLimit($field.into())
-    };
-    (slow_limit, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowLimit($field.into())
-    };
-
-    // K和D参数（用于随机指标）
-    (fast_k_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::FastKPeriod($field)
-    };
-    (slow_k_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowKPeriod($field)
-    };
-    (slow_k_ma_type, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowKMAType($field.to_talib_value())
-    };
-    (slow_d_period, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowDPeriod($field)
-    };
-    (slow_d_ma_type, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::SlowDMAType($field.to_talib_value())
-    };
-
-    // 其他常用参数
-    (multiplier, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Multiplier($field.into())
-    };
-    (offset, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::Offset($field.into())
-    };
-    (start_value, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::StartValue($field.into())
-    };
-    (end_value, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::EndValue($field.into())
-    };
-
-    // 特殊类型：价格源和MA类型（保留原有逻辑）
-    (price_source, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::PriceSource($field.clone())
-    };
-    (source, $field:expr) => {
-        crate::indicator::talib_types::IndicatorParam::PriceSource($field.clone())
-    };
-}
-
 // 辅助宏：根据类型选择合适的字符串解析方法
 #[macro_export]
 macro_rules! parse_param_by_type {
@@ -371,6 +246,7 @@ macro_rules! parse_param_by_type {
     ($params:expr, $key:expr, $other_type:ty) => {
         get_required_special_param::<$other_type>(&$params, $key)?
     };
+    
 }
 
 // 辅助宏：根据类型选择合适的JSON解析方法
@@ -440,5 +316,137 @@ macro_rules! define_indicator {
             $indicator_name,
             output => [$(($output_field: $output_type)),*]
         );
+    };
+}
+
+
+
+#[macro_export]
+// 为Indicator枚举创建所有trait方法的宏
+macro_rules! impl_indicator {
+    ($enum_name:ident, $($variant:ident),+) => {
+        impl IndicatorTrait for $enum_name {
+            fn to_json(&self) -> serde_json::Value {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => IndicatorTrait::to_json(inner),
+                    )+
+                }
+            }
+
+            fn to_list(&self) -> Vec<f64> {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => IndicatorTrait::to_list(inner),
+                    )+
+                }
+            }
+
+            fn to_json_with_time(&self) -> serde_json::Value {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => IndicatorTrait::to_json_with_time(inner),
+                    )+
+                }
+            }
+        }
+
+        impl CacheItem for $enum_name {
+            fn get_timestamp(&self) -> i64 {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => inner.timestamp,
+                    )+
+                }
+            }
+
+            fn to_json(&self) -> serde_json::Value {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => CacheItem::to_json(inner),
+                    )+
+                }
+            }
+
+            fn to_list(&self) -> Vec<f64> {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => CacheItem::to_list(inner),
+                    )+
+                }
+            }
+
+            fn to_json_with_time(&self) -> serde_json::Value {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => CacheItem::to_json_with_time(inner),
+                    )+
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+/// 为IndicatorConfig枚举创建所有重复trait方法的宏
+/// 
+/// 使用方式：
+/// ```rust
+/// impl_indicator_config!(IndicatorConfig,
+///     (MA, "ma"),
+///     (MACD, "macd"),
+///     (BBands, "bbands"),
+///     (RSI, "rsi"),
+///     (ADX, "adx")
+/// );
+/// ```
+macro_rules! impl_indicator_config {
+    ($enum_name:ident, ($($indicator_name:ident),+ $(,)?)) => {
+        paste::paste! {
+            // 实现 ToString trait
+            impl ToString for $enum_name {
+                fn to_string(&self) -> String {
+                    match self {
+                        $(
+                            $enum_name::$indicator_name(config) => config.to_string(),
+                        )+
+                    }
+                }
+            }
+
+            // 实现 FromStr trait
+            impl std::str::FromStr for $enum_name {
+                type Err = String;
+
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                    // 提取指标类型（如"sma"）
+                    let indicator_type = if s.contains("(") {
+                        s.split("(").next().unwrap_or("").trim()
+                    } else {
+                        s
+                    };
+
+                    // 根据指标类型创建相应的配置
+                    match indicator_type {
+                        $(
+                            stringify!([<$indicator_name:lower>]) => Ok($enum_name::$indicator_name([<$indicator_name Config>]::from_str(s)?)),
+                        )+
+                        _ => Err(format!("不支持的指标类型: {}", indicator_type)),
+                    }
+                }
+            }
+
+            // 实现 new 方法
+            impl $enum_name {
+                pub fn new(indicator_type: &str, config: &serde_json::Value) -> Result<Self, String> {
+                    match indicator_type {
+                        $(
+                            stringify!([<$indicator_name:lower>]) => Ok($enum_name::$indicator_name([<$indicator_name Config>]::new(config)?)),
+                        )+
+                        _ => Err(format!("不支持的指标类型: {}", indicator_type)),
+                    }
+                }
+            }
+        }
     };
 }
