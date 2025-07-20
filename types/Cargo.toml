@@ -24,3 +24,4 @@ petgraph = "0.8.1"
 deepsize = "0.2.0"
 utoipa.workspace = true
 ordered-float = {version = "5.0.0", features=["serde"]}
+paste = "1.0.15"

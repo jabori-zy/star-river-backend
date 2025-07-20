@@ -1,6 +1,10 @@
 use crate::indicator_engine::talib_bindings::*;
 use super::TALib;
 use crate::indicator_engine::talib_error::TalibError;
+use types::indicator::indicator::{MACD, MACDConfig};
+use std::sync::Arc;
+use types::cache::CacheValue;
+use types::indicator::talib_types::IndicatorParam;
 
 impl TALib {
     //Moving Average Convergence/Divergence  指数平滑异同移动平均线
@@ -74,3 +78,4 @@ impl TALib {
         }
     }
 }
+

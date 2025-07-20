@@ -8,6 +8,7 @@ use crate::indicator::{PriceSource, IndicatorConfigTrait, Indicator, IndicatorTr
 use std::str::FromStr;
 use serde_json::Value;
 use ordered_float::OrderedFloat;
+use crate::indicator::talib_types::IndicatorParam;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BBandsConfig {
@@ -35,8 +36,8 @@ impl FromStr for BBandsConfig {
         let period = get_required_i32_param(&params, "period")?;
         let dev_up = OrderedFloat::from(get_required_f64_param(&params, "dev_up")?);
         let dev_down = OrderedFloat::from(get_required_f64_param(&params, "dev_down")?);
-        let price_source = get_required_parsed_param::<PriceSource>(&params, "source")?;
-        let ma_type = get_required_parsed_param::<MAType>(&params, "ma_type")?;
+        let price_source = get_required_special_param::<PriceSource>(&params, "source")?;
+        let ma_type = get_required_special_param::<MAType>(&params, "ma_type")?;
         
         Ok(BBandsConfig {
             period,
@@ -56,6 +57,16 @@ impl IndicatorConfigTrait for BBandsConfig {
         let ma_type = config.get("maType").and_then(|v| v.as_str()).ok_or("BBands配置格式错误: maType 不存在".to_string())?.parse::<MAType>().map_err(|e| e.to_string())?;
         let price_source = config.get("priceSource").and_then(|v| v.as_str()).ok_or("BBands配置格式错误: priceSource 不存在".to_string())?.parse::<PriceSource>().map_err(|e| e.to_string())?;
         Ok(Self { period: period as i32, dev_up: OrderedFloat::from(dev_up), dev_down: OrderedFloat::from(dev_down), price_source, ma_type })
+    }
+
+    fn to_tablib_params(&self) -> Vec<IndicatorParam> {
+        vec![
+            IndicatorParam::TimePeriod(self.period), 
+            IndicatorParam::Deviation(self.dev_up.into_inner()), 
+            IndicatorParam::Deviation(self.dev_down.into_inner()), 
+            IndicatorParam::PriceSource(self.price_source.clone()), 
+            IndicatorParam::MAType(self.ma_type.clone())
+        ]
     }
 }
 

@@ -8,11 +8,14 @@ use deepsize::DeepSizeOf;
 use std::str::FromStr;
 use serde_json::json;
 use crate::indicator::IndicatorTrait;
+use crate::indicator::talib_types::IndicatorParam;
+use crate::indicator::PriceSource;
 
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SMAConfig {
     pub period: i32,
+    pub price_source: PriceSource,
 }
 
 impl ToString for SMAConfig {
@@ -29,18 +32,25 @@ impl FromStr for SMAConfig {
         
         let (_name, params) = parse_indicator_config_from_str(s)?;
         let period = get_required_i32_param(&params, "period")?;
+        let price_source = get_required_special_param::<PriceSource>(&params, "source")?;
         
-        Ok(SMAConfig { period })
+        Ok(SMAConfig { period, price_source })
     }
 }
 
 impl IndicatorConfigTrait for SMAConfig {
     fn new(config: &Value) -> Result<Self, String> {
-        if let Some(period) = config.get("period").and_then(|v| v.as_i64()) {
-            Ok(Self { period: period as i32 })
-        } else {
-            Err("SMA配置格式错误".to_string())
-        }
+        let period = config.get("period").and_then(|v| v.as_i64()).ok_or("SMA配置格式错误: period 不存在".to_string())?;
+        let price_source = config.get("priceSource").and_then(|v| v.as_str()).ok_or("SMA配置格式错误: priceSource 不存在".to_string())?.parse::<PriceSource>().map_err(|e| e.to_string())?;
+        Ok(Self { period: period as i32, price_source })
+    }
+    
+
+    fn to_tablib_params(&self) -> Vec<IndicatorParam> {
+        vec![
+            IndicatorParam::TimePeriod(self.period), 
+            IndicatorParam::PriceSource(self.price_source.clone())
+        ]
     }
 }
 

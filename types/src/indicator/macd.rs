@@ -6,6 +6,7 @@ use deepsize::DeepSizeOf;
 use crate::cache::CacheItem;
 use utils::timestamp_to_utc8;
 use crate::indicator::IndicatorTrait;
+use crate::indicator::talib_types::IndicatorParam;
 
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -33,7 +34,7 @@ impl FromStr for MACDConfig {
         let fast_period = get_required_i32_param(&params, "fast")?;
         let slow_period = get_required_i32_param(&params, "slow")?;
         let signal_period = get_required_i32_param(&params, "signal")?;
-        let price_source = get_required_parsed_param::<PriceSource>(&params, "source")?;
+        let price_source = get_required_special_param::<PriceSource>(&params, "source")?;
         
         // 参数验证
         if fast_period <= 0 {
@@ -59,6 +60,17 @@ impl IndicatorConfigTrait for MACDConfig {
         let price_source = config.get("priceSource").and_then(|v| v.as_str()).ok_or("MACD配置格式错误: priceSource 不存在".to_string())?.parse::<PriceSource>().map_err(|e| e.to_string())?;
         Ok(Self { fast_period: fast_period as i32, slow_period: slow_period as i32, signal_period: signal_period as i32, price_source })
     }
+
+    fn to_tablib_params(&self) -> Vec<IndicatorParam> {
+        vec![
+            IndicatorParam::Integer(self.fast_period), 
+            IndicatorParam::Integer(self.slow_period), 
+            IndicatorParam::Integer(self.signal_period), 
+            IndicatorParam::PriceSource(self.price_source.clone())
+        ]
+    }
+
+
 }
 
 

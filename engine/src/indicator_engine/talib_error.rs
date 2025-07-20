@@ -14,4 +14,8 @@ pub enum TalibError {
     UnsupportedIndicator { name: String },
     #[error("Generic indicator calculation error: {error}")]
     GenericCalculationError { error: String },
+    #[error("Failed to calculate indicator: indicator_name= {indicator_name}, params= {params}, error= {error}")]
+    CalculateIndicatorError {indicator_name: String, params: String, error: String},
+    #[error("Data length is less than lookback: indicator_name= {indicator_name}, lookback= {lookback}, data_length= {data_length}")]
+    DataLessThenLookbackError {indicator_name: String, lookback: usize, data_length: usize},
 }

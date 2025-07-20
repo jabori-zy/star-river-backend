@@ -6,7 +6,6 @@ impl TALib {
         //Simple Moving Average
         pub fn simple_moving_average(data: &[f64], period: i32) -> Result<Vec<f64>, TalibError> {
             unsafe {
-                
                 // 计算lookback期
                 let lookback = TA_SMA_Lookback(period);
                 let valid_len = data.len();

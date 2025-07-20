@@ -24,9 +24,7 @@ use engine::indicator_engine::indicator_engine_context::IndicatorEngineContext;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
 use types::cache::Key;
 use types::indicator::{IndicatorConfig, MAType, PriceSource, IndicatorTrait};
-use types::indicator::sma::SMAConfig;
-use types::indicator::macd::MACDConfig;
-use types::indicator::bbands::BBandsConfig;
+use types::indicator::indicator::{MACDConfig, BBandsConfig, MAConfig};
 use ordered_float::OrderedFloat;
 
 
@@ -140,8 +138,10 @@ async fn main() {
         
         tracing::info!("缓存键: {:?}", cache_keys);
 
-        let sma_config = IndicatorConfig::SMA(SMAConfig {
-            period: 9
+        let ma_config = IndicatorConfig::MA(MAConfig {
+            time_period: 9,
+            ma_type: MAType::SMA,
+            price_source: PriceSource::Close,
         });
 
         let macd_config = IndicatorConfig::MACD(MACDConfig {
@@ -152,7 +152,7 @@ async fn main() {
         });
 
         let bbands_config = IndicatorConfig::BBands(BBandsConfig {
-            period: 20,
+            time_period: 20,
             dev_up: OrderedFloat(2.0),
             dev_down: OrderedFloat(2.0),
             ma_type: MAType::SMA,

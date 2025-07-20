@@ -1,9 +1,13 @@
 
-pub mod sma; // 简单移动平均线
-pub mod bbands; // 布林带
-pub mod macd; // 指数平滑异同移动平均线
-pub mod rsi; // 相对强弱指数
+// pub mod sma; // 简单移动平均线
+// pub mod bbands; // 布林带
+// pub mod macd; // 指数平滑异同移动平均线
+// pub mod rsi; // 相对强弱指数
 pub mod utils; // 指标配置解析工具
+pub mod talib_types; // TA-Lib 类型定义
+pub mod registry; // 指标注册表
+pub mod indicator_macros;
+pub mod indicator;
 
 
 use crate::market::{Exchange, KlineInterval};
@@ -12,13 +16,25 @@ use serde_json::Value;
 use std::fmt::Debug;
 use std::any::Any;
 use std::collections::HashMap;
-use crate::indicator::sma::SMA;
-use crate::indicator::bbands::BBands;
-use crate::indicator::macd::MACD;
+// use crate::indicator::sma::SMA;
+// use crate::indicator::bbands::BBands;
+// use crate::indicator::macd::MACD;
+// use crate::indicator::rsi::RSI;
 use crate::cache::{CacheItem, CacheValue};
-use crate::indicator::sma::SMAConfig;
-use crate::indicator::macd::MACDConfig;
-use crate::indicator::bbands::BBandsConfig;
+// use crate::indicator::sma::SMAConfig;
+// use crate::indicator::macd::MACDConfig;
+// use crate::indicator::bbands::BBandsConfig;
+// use crate::indicator::rsi::RSIConfig;
+use crate::indicator::indicator::*;
+pub use crate::indicator::talib_types::{
+    IndicatorParam, IndicatorInput, IndicatorOutput,
+    InputType, OutputFormat, IndicatorGroup,
+    ParamType, ParamValue, ParamMeta, IndicatorInfo, IndicatorMetaData
+};
+pub use crate::indicator::registry::{
+    IndicatorRegistry, get_indicator_registry, get_indicator_registry_mut,
+    IndicatorRegistryInit, IndicatorCalculator, IndicatorMeta
+};
 use deepsize::DeepSizeOf;
 use std::str::FromStr;
 use strum::{EnumString, Display};
@@ -60,6 +76,7 @@ pub enum MAType {
 
 pub trait IndicatorConfigTrait {
     fn new(config: &Value) -> Result<Self, String> where Self: Sized; // 创建指标配置,有可能失败
+    fn to_tablib_params(&self) -> Vec<IndicatorParam>; // 转换为tablib参数（顺序与talib的方法参数顺序一致）
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -67,21 +84,25 @@ pub trait IndicatorConfigTrait {
 pub enum IndicatorConfig {
     // 简单移动平均线
     #[serde(rename = "sma")]
-    SMA(SMAConfig),
+    MA(MAConfig),
 
     #[serde(rename = "macd")]
     MACD(MACDConfig),
-    
+
     #[serde(rename = "bbands")]
     BBands(BBandsConfig),
+
+    #[serde(rename = "rsi")]
+    RSI(RSIConfig),
 }
 
 impl ToString for IndicatorConfig {
     fn to_string(&self) -> String {
         match self {
-            IndicatorConfig::SMA(sma_config) => sma_config.to_string(),
+            IndicatorConfig::MA(ma_config) => ma_config.to_string(),
             IndicatorConfig::MACD(macd_config) => macd_config.to_string(),
             IndicatorConfig::BBands(bbands_config) => bbands_config.to_string(),
+            IndicatorConfig::RSI(rsi_config) => rsi_config.to_string(),
         }
     }
 }
@@ -99,9 +120,10 @@ impl FromStr for IndicatorConfig {
 
         // 根据指标类型创建相应的配置
         match indicator_type {
-            "sma" => Ok(IndicatorConfig::SMA(SMAConfig::from_str(s)?)),
+            "ma" => Ok(IndicatorConfig::MA(MAConfig::from_str(s)?)),
             "macd" => Ok(IndicatorConfig::MACD(MACDConfig::from_str(s)?)),
             "bbands" => Ok(IndicatorConfig::BBands(BBandsConfig::from_str(s)?)),
+            "rsi" => Ok(IndicatorConfig::RSI(RSIConfig::from_str(s)?)),
             _ => Err(format!("不支持的指标类型: {}", indicator_type)),
         }
     }
@@ -110,9 +132,10 @@ impl FromStr for IndicatorConfig {
 impl IndicatorConfig {
     pub fn new(indicator_type: &str, config: &Value) -> Result<Self, String> {
         match indicator_type {
-            "sma" => Ok(IndicatorConfig::SMA(SMAConfig::new(config)?)),
+            "ma" => Ok(IndicatorConfig::MA(MAConfig::new(config)?)),
             "macd" => Ok(IndicatorConfig::MACD(MACDConfig::new(config)?)),
             "bbands" => Ok(IndicatorConfig::BBands(BBandsConfig::new(config)?)),
+            "rsi" => Ok(IndicatorConfig::RSI(RSIConfig::new(config)?)),
             _ => Err(format!("不支持的指标类型: {}", indicator_type)),
         }
     }
@@ -129,40 +152,44 @@ pub trait IndicatorTrait {
 
 #[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub enum Indicator {
-    SMA(SMA),
+    MA(MA),
     BBands(BBands),
     MACD(MACD),
+    RSI(RSI),
 }
 
 
 impl IndicatorTrait for Indicator {
     fn to_json(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => IndicatorTrait::to_json(sma),
+            Indicator::MA(ma) => IndicatorTrait::to_json(ma),
             Indicator::BBands(bbands) => IndicatorTrait::to_json(bbands),
             Indicator::MACD(macd) => IndicatorTrait::to_json(macd),
+            Indicator::RSI(rsi) => IndicatorTrait::to_json(rsi),
         }
     }
 
     fn to_list(&self) -> Vec<f64> {
         match self {
-            Indicator::SMA(sma) => IndicatorTrait::to_list(sma),
+            Indicator::MA(ma) => IndicatorTrait::to_list(ma),
             Indicator::BBands(bbands) => IndicatorTrait::to_list(bbands),
             Indicator::MACD(macd) => IndicatorTrait::to_list(macd),
+            Indicator::RSI(rsi) => IndicatorTrait::to_list(rsi),
         }
     }
 
     fn to_json_with_time(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => IndicatorTrait::to_json_with_time(sma),
+            Indicator::MA(ma) => IndicatorTrait::to_json_with_time(ma),
             Indicator::BBands(bbands) => IndicatorTrait::to_json_with_time(bbands),
             Indicator::MACD(macd) => IndicatorTrait::to_json_with_time(macd),
+            Indicator::RSI(rsi) => IndicatorTrait::to_json_with_time(rsi),
         }
     }
 }
 
 
-impl From<Indicator> for CacheValue {
+impl From<Indicator> for CacheValue {   
     fn from(indicator: Indicator) -> Self {
         CacheValue::Indicator(indicator)
     }
@@ -172,33 +199,37 @@ impl From<Indicator> for CacheValue {
 impl CacheItem for Indicator {
     fn get_timestamp(&self) -> i64 {
         match self {
-            Indicator::SMA(sma) => sma.timestamp,
+            Indicator::MA(ma) => ma.timestamp,
             Indicator::BBands(bbands) => bbands.timestamp,
             Indicator::MACD(macd) => macd.timestamp,
+            Indicator::RSI(rsi) => rsi.timestamp,
         }
     }
 
     fn to_json(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => CacheItem::to_json(sma),
+            Indicator::MA(ma) => CacheItem::to_json(ma),
             Indicator::BBands(bbands) => CacheItem::to_json(bbands),
             Indicator::MACD(macd) => CacheItem::to_json(macd),
+            Indicator::RSI(rsi) => CacheItem::to_json(rsi),
         }
     }
 
     fn to_list(&self) -> Vec<f64> {
         match self {
-            Indicator::SMA(sma) => CacheItem::to_list(sma),
+            Indicator::MA(ma) => CacheItem::to_list(ma),
             Indicator::BBands(bbands) => CacheItem::to_list(bbands),
             Indicator::MACD(macd) => CacheItem::to_list(macd),
+            Indicator::RSI(rsi) => CacheItem::to_list(rsi),
         }
     }
 
     fn to_json_with_time(&self) -> serde_json::Value {
         match self {
-            Indicator::SMA(sma) => CacheItem::to_json_with_time(sma),
+            Indicator::MA(ma) => CacheItem::to_json_with_time(ma),
             Indicator::BBands(bbands) => CacheItem::to_json_with_time(bbands),
             Indicator::MACD(macd) => CacheItem::to_json_with_time(macd),
+            Indicator::RSI(rsi) => CacheItem::to_json_with_time(rsi),
         }
     }
 }
@@ -231,7 +262,7 @@ pub struct SMAIndicator {
     pub exchange: Exchange,
     pub symbol: String,
     pub kline_interval: KlineInterval,
-    pub indicator_config: SMAConfig,
+    pub indicator_config: MAConfig,
     pub indicator_value: HashMap<String, Vec<IndicatorValue>>,
 }
 
@@ -253,4 +284,5 @@ impl IndicatorData for SMAIndicator {
         }).collect()
     }
 }
+
 

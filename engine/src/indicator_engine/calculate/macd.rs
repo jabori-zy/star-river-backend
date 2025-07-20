@@ -1,5 +1,5 @@
 use super::CalculateIndicatorFunction;
-use types::indicator::macd::{MACD, MACDConfig};
+use types::indicator::indicator::*;
 use types::cache::CacheValue;
 use std::sync::Arc;
 use crate::indicator_engine::talib::TALib;
@@ -11,20 +11,40 @@ use types::indicator::PriceSource;
 
 impl CalculateIndicatorFunction {
     pub async fn calculate_macd(macd_config: &MACDConfig, kline_series: Vec<Arc<CacheValue>>) -> Result<Vec<MACD>, String> {
-        let timestamp_list: Vec<i64> = kline_series.iter().map(|v| v.as_kline().unwrap().timestamp).collect();
+        let timestamp_list: Vec<i64> = kline_series
+            .iter()
+            .enumerate()
+            .map(|(i, v)| v.as_kline().ok_or_else(|| format!("Invalid kline data at index {}", i)).map(|kline| kline.timestamp))
+            .collect::<Result<Vec<_>, _>>()?;
 
         let price_source = match macd_config.price_source {
             PriceSource::Close => {
-                kline_series.iter().map(|v| v.as_kline().unwrap().close).collect::<Vec<f64>>()
+                kline_series
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| v.as_kline().ok_or_else(|| format!("Invalid kline data at index {} for close price", i)).map(|kline| kline.close))
+                    .collect::<Result<Vec<_>, _>>()?
             },
             PriceSource::Open => {
-                kline_series.iter().map(|v| v.as_kline().unwrap().open).collect::<Vec<f64>>()
+                kline_series
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| v.as_kline().ok_or_else(|| format!("Invalid kline data at index {} for open price", i)).map(|kline| kline.open))
+                    .collect::<Result<Vec<_>, _>>()?
             },
             PriceSource::High => {
-                kline_series.iter().map(|v| v.as_kline().unwrap().high).collect::<Vec<f64>>()
+                kline_series
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| v.as_kline().ok_or_else(|| format!("Invalid kline data at index {} for high price", i)).map(|kline| kline.high))
+                    .collect::<Result<Vec<_>, _>>()?
             },
             PriceSource::Low => {
-                kline_series.iter().map(|v| v.as_kline().unwrap().low).collect::<Vec<f64>>()
+                kline_series
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| v.as_kline().ok_or_else(|| format!("Invalid kline data at index {} for low price", i)).map(|kline| kline.low))
+                    .collect::<Result<Vec<_>, _>>()?
             },
         };
 

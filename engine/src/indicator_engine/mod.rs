@@ -1,7 +1,7 @@
 pub mod indicator_engine_context;
 pub mod calculate;
-mod talib_bindings;
-mod talib;
+pub mod talib_bindings;
+pub mod talib;
 pub mod indicator_engine_type;
 pub mod talib_error;
 

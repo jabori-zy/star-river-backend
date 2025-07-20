@@ -1,5 +1,5 @@
 use super::CalculateIndicatorFunction;
-use types::indicator::bbands::{BBands, BBandsConfig};
+use types::indicator::indicator::*;
 use types::cache::CacheValue;
 use std::sync::Arc;
 use crate::indicator_engine::talib::TALib;
@@ -12,7 +12,7 @@ impl CalculateIndicatorFunction {
     pub async fn calculate_bbands(bbands_config: &BBandsConfig, kline_series: Vec<Arc<CacheValue>>, lookback: u32) -> Result<Vec<BBands>, String> {
         let timestamp_list: Vec<i64> = kline_series.iter().map(|v| v.as_kline().unwrap().timestamp).collect();
         
-        let price_source = CalculateIndicatorFunction::get_price_source(&bbands_config.price_source, kline_series);
+        let price_source = CalculateIndicatorFunction::get_price_source_and_timestamp(&bbands_config.price_source, kline_series);
 
         let bbands_result = match TALib::bollinger_bands(
             &price_source, 

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::indicator::indicator::*;
 
 /// 解析指标配置字符串的通用工具函数
 /// 
@@ -64,8 +65,14 @@ pub fn get_required_f64_param(params: &HashMap<String, String>, key: &str) -> Re
     value.parse::<f64>().map_err(|e| format!("{}参数解析失败: {}", key, e))
 }
 
+/// 从参数HashMap中获取必需的f32浮点数参数
+pub fn get_required_f32_param(params: &HashMap<String, String>, key: &str) -> Result<f32, String> {
+    let value = params.get(key).ok_or(format!("缺少必需参数: {}", key))?;
+    value.parse::<f32>().map_err(|e| format!("{}参数解析失败: {}", key, e))
+}
+
 /// 从参数HashMap中获取必需的字符串参数并解析为指定类型
-pub fn get_required_parsed_param<T>(params: &HashMap<String, String>, key: &str) -> Result<T, String> 
+pub fn get_required_special_param<T>(params: &HashMap<String, String>, key: &str) -> Result<T, String> 
 where 
     T: std::str::FromStr,
     T::Err: std::fmt::Display,
@@ -131,14 +138,14 @@ mod tests {
 
     #[test]
     fn test_indicator_parsing_integration() {
-        use crate::indicator::{sma::SMAConfig, macd::MACDConfig, bbands::BBandsConfig, rsi::RSIConfig};
+        use crate::indicator::indicator::*;
         use std::str::FromStr;
 
         // 测试 SMA 解析
-        let sma_result = SMAConfig::from_str("sma(period=14)");
+        let sma_result = MAConfig::from_str("sma(period=14)");
         assert!(sma_result.is_ok());
         let sma_config = sma_result.unwrap();
-        assert_eq!(sma_config.period, 14);
+        assert_eq!(sma_config.time_period, 14);
 
         // 测试 MACD 解析
         let macd_result = MACDConfig::from_str("macd(fast=12 slow=26 signal=9 source=close)");
@@ -152,19 +159,19 @@ mod tests {
         let bbands_result = BBandsConfig::from_str("bbands(period=20 dev_up=2.0 dev_down=2.0 source=close ma_type=sma)");
         assert!(bbands_result.is_ok());
         let bbands_config = bbands_result.unwrap();
-        assert_eq!(bbands_config.period, 20);
+        assert_eq!(bbands_config.time_period, 20);
 
         // 测试 RSI 解析
         let rsi_result = RSIConfig::from_str("rsi(period=14 source=close)");
         assert!(rsi_result.is_ok());
         let rsi_config = rsi_result.unwrap();
-        assert_eq!(rsi_config.period, 14);
+        assert_eq!(rsi_config.time_period, 14);
 
         // 测试错误情况
-        let invalid_result = SMAConfig::from_str("invalid_format");
+        let invalid_result = MAConfig::from_str("invalid_format");
         assert!(invalid_result.is_err());
 
-        let missing_param_result = SMAConfig::from_str("sma()");
+        let missing_param_result = MAConfig::from_str("sma()");
         assert!(missing_param_result.is_err());
     }
 }
