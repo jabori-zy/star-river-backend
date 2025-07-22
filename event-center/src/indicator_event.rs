@@ -1,4 +1,4 @@
-// use types::indicator::SMAIndicator;
+use types::indicator::SMAIndicator;
 use strum::Display;
 use serde::{Deserialize, Serialize};
 use crate::Event;
@@ -11,6 +11,6 @@ pub enum IndicatorEvent {
 
 impl From<IndicatorEvent> for Event {
     fn from(event: IndicatorEvent) -> Self {
-        // Event::Indicator(event)
+        Event::Indicator(event)
     }
 }

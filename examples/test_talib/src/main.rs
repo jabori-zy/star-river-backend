@@ -49,7 +49,10 @@ fn main() {
             ma_type: MAType::SMA,
             price_source: PriceSource::Close,
         };
-        let result = CalculateIndicatorFunction::calculate_bbands(kline_series, &bbands_config);
+
+
+        // let result = CalculateIndicatorFunction::calculate_bbands(kline_series, &bbands_config);
+        let result = CalculateIndicatorFunction::calculate_cdl2crows(kline_series);
         match result {
             Ok(result) => {
                 // let result_list = result.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();

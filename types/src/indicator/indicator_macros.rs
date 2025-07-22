@@ -127,6 +127,40 @@ macro_rules! define_indicator_output {
 macro_rules! define_indicator_config {
     (
         $indicator_name:ident,// 传入字符串
+        params => []
+    ) => {
+        paste::paste! {
+            // 生成配置结构体
+            #[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            pub struct [<$indicator_name Config>];
+
+            impl ToString for [<$indicator_name Config>] {
+                fn to_string(&self) -> String {
+                    format!("{}()", stringify!($indicator_name).to_lowercase())
+                }
+            }
+
+            impl std::str::FromStr for [<$indicator_name Config>] {
+                type Err = String;
+                #[allow(unused_variables)]
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                    // use crate::indicator::utils::*;
+                    // let (_name, params) = parse_indicator_config_from_str(s)?;
+                    Ok(Self {})
+                }
+            }
+
+            impl crate::indicator::IndicatorConfigTrait for [<$indicator_name Config>] {
+                #[allow(unused_variables)]
+                fn new(config: &serde_json::Value) -> Result<Self, String> {
+                    Ok(Self {})
+                }
+            }
+        }
+    };
+
+    (
+        $indicator_name:ident,// 传入字符串
         params => [$(($param:ident: $param_type:ty)),* $(,)?] $(,)?
     ) => {
         paste::paste! {
@@ -140,7 +174,7 @@ macro_rules! define_indicator_config {
 
             impl ToString for [<$indicator_name Config>] {
                 fn to_string(&self) -> String {
-                    let mut params = Vec::new();
+                    let mut params: Vec<String> = Vec::new();
                     $(
                         params.push(format!("{}={:?}", stringify!($param), self.$param));
                     )*

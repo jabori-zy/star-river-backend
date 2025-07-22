@@ -18,4 +18,6 @@ pub enum TalibError {
     CalculateIndicatorError {indicator_name: String, params: String, error: String},
     #[error("Data length is less than lookback: indicator_name= {indicator_name}, lookback= {lookback}, data_length= {data_length}")]
     DataLessThenLookbackError {indicator_name: String, lookback: usize, data_length: usize},
+    #[error("Data length is not equal: indicator_name= {indicator_name}, data_length= {data_length:?}")]
+    DataLengthNotEqualError {indicator_name: String, data_length: Vec<usize>},
 }

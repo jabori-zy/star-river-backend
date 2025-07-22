@@ -21,6 +21,7 @@
       <sourceFolder url="file://$MODULE_DIR$/types/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utils/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/virtual-trading/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/test_talib/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
