@@ -1,45 +1,3 @@
-/*!
-# 指标宏使用指南
-
-本模块提供了三个独立的宏来定义技术指标：
-
-## 1. `define_indicator_config!` - 定义配置结构体
-只生成指标的配置结构体及相关实现。
-
-```rust
-use crate::define_indicator_config;
-
-define_indicator_config!(SMA,
-    params => [(period: i32)]
-);
-```
-
-## 2. `define_indicator_output!` - 定义输出结构体  
-只生成指标的输出结构体及相关实现。
-
-```rust
-use crate::define_indicator_output;
-
-define_indicator_output!(SMA,
-    output => [(timestamp: i64), (value: f64)]
-);
-```
-
-## 3. `define_indicator!` - 组合宏
-同时生成配置和输出结构体，相当于调用上面两个宏。
-
-```rust
-use crate::define_indicator;
-
-define_indicator!(SMA,
-    params => [(period: i32)],
-    output => [(timestamp: i64), (value: f64)]
-);
-```
-
-这三个宏现在完全独立，可以根据需要单独使用。
-*/
-
 // 辅助函数：将下划线命名转换为驼峰命名
 pub fn snake_to_camel(snake_str: &str) -> String {
     let mut result = String::new();
@@ -57,6 +15,8 @@ pub fn snake_to_camel(snake_str: &str) -> String {
     }
     result
 }
+
+
 
 #[macro_export]
 macro_rules! define_indicator_output {
@@ -152,7 +112,7 @@ macro_rules! define_indicator_config {
 
             impl crate::indicator::IndicatorConfigTrait for [<$indicator_name Config>] {
                 #[allow(unused_variables)]
-                fn new(config: &serde_json::Value) -> Result<Self, String> {
+                fn new(config: &serde_json::Value) -> Result<Self, serde_json::Error> {
                     Ok(Self {})
                 }
             }
@@ -166,6 +126,7 @@ macro_rules! define_indicator_config {
         paste::paste! {
             // 生成配置结构体
             #[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
             pub struct [<$indicator_name Config>] {
                 $(
                     pub $param: $crate::wrap_float_type!($param_type),
@@ -176,7 +137,7 @@ macro_rules! define_indicator_config {
                 fn to_string(&self) -> String {
                     let mut params: Vec<String> = Vec::new();
                     $(
-                        params.push(format!("{}={:?}", stringify!($param), self.$param));
+                        params.push(format!("{}={}", stringify!($param), self.$param.to_string()));
                     )*
                     format!("{}({})", stringify!($indicator_name).to_lowercase(), params.join(", "))
                 }
@@ -198,14 +159,9 @@ macro_rules! define_indicator_config {
             }
 
             impl crate::indicator::IndicatorConfigTrait for [<$indicator_name Config>] {
-                fn new(config: &serde_json::Value) -> Result<Self, String> {
-                    $(
-                        let camel_field = crate::indicator::indicator_macros::snake_to_camel(stringify!($param));
-                        let $param = $crate::parse_json_param_by_type!(config, &camel_field, $param_type);
-                    )*
-                    Ok(Self {
-                        $($param),*
-                    })
+                fn new(config: &serde_json::Value) -> Result<Self, serde_json::Error> {
+                    // 直接使用 serde_json 反序列化，它会自动处理驼峰命名转换
+                    serde_json::from_value(config.clone())
                 }
             }
         }
@@ -422,34 +378,22 @@ macro_rules! impl_indicator {
 }
 
 #[macro_export]
-/// 为IndicatorConfig枚举创建所有重复trait方法的宏
-/// 
-/// 使用方式：
-/// ```rust
-/// impl_indicator_config!(IndicatorConfig,
-///     (MA, "ma"),
-///     (MACD, "macd"),
-///     (BBands, "bbands"),
-///     (RSI, "rsi"),
-///     (ADX, "adx")
-/// );
-/// ```
 macro_rules! impl_indicator_config {
-    ($enum_name:ident, ($($indicator_name:ident),+ $(,)?)) => {
+    ($indicator_config_enum:ident, ($($indicator_name:ident),+ $(,)?)) => {
         paste::paste! {
             // 实现 ToString trait
-            impl ToString for $enum_name {
+            impl ToString for $indicator_config_enum {
                 fn to_string(&self) -> String {
                     match self {
                         $(
-                            $enum_name::$indicator_name(config) => config.to_string(),
+                            $indicator_config_enum::$indicator_name(config) => config.to_string(),
                         )+
                     }
                 }
             }
 
             // 实现 FromStr trait
-            impl std::str::FromStr for $enum_name {
+            impl std::str::FromStr for $indicator_config_enum {
                 type Err = String;
 
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -463,7 +407,7 @@ macro_rules! impl_indicator_config {
                     // 根据指标类型创建相应的配置
                     match indicator_type {
                         $(
-                            stringify!([<$indicator_name:lower>]) => Ok($enum_name::$indicator_name([<$indicator_name Config>]::from_str(s)?)),
+                            stringify!([<$indicator_name:lower>]) => Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::from_str(s)?)),
                         )+
                         _ => Err(format!("不支持的指标类型: {}", indicator_type)),
                     }
@@ -471,13 +415,16 @@ macro_rules! impl_indicator_config {
             }
 
             // 实现 new 方法
-            impl $enum_name {
-                pub fn new(indicator_type: &str, config: &serde_json::Value) -> Result<Self, String> {
+            impl $indicator_config_enum {
+                pub fn new(indicator_type: &str, config: &serde_json::Value) -> Result<Self, serde_json::Error> {
                     match indicator_type {
                         $(
-                            stringify!([<$indicator_name:lower>]) => Ok($enum_name::$indicator_name([<$indicator_name Config>]::new(config)?)),
+                            stringify!([<$indicator_name:lower>]) => Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::new(config)?)),
                         )+
-                        _ => Err(format!("不支持的指标类型: {}", indicator_type)),
+                        _ => {
+                            use serde::de::Error as _;
+                            Err(serde_json::Error::custom(format!("创建指标配置失败: {}", indicator_type)))
+                        },
                     }
                 }
             }

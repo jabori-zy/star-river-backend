@@ -1,11 +1,6 @@
 
-// pub mod sma; // 简单移动平均线
-// pub mod bbands; // 布林带
-// pub mod macd; // 指数平滑异同移动平均线
-// pub mod rsi; // 相对强弱指数
-pub mod utils; // 指标配置解析工具
-// pub mod talib_types; // TA-Lib 类型定义
-// pub mod registry; // 指标注册表
+
+pub mod utils;
 pub mod indicator_macros;
 pub mod indicator;
 
@@ -25,41 +20,54 @@ use crate::{impl_indicator, impl_indicator_config};
 // 价格来源
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display)]
 pub enum PriceSource {
-    #[strum(serialize = "close")]
+    #[strum(serialize = "CLOSE")]
+    #[serde(rename = "CLOSE")]
     Close,
-    #[strum(serialize = "open")]
+    #[strum(serialize = "OPEN")]
+    #[serde(rename = "OPEN")]
     Open,
-    #[strum(serialize = "high")]
+    #[strum(serialize = "HIGH")]
+    #[serde(rename = "HIGH")]
     High,
-    #[strum(serialize = "low")]
+    #[strum(serialize = "LOW")]
+    #[serde(rename = "LOW")]
     Low,
 }
 
 #[derive(Debug, Clone, Hash, Eq,PartialEq, Serialize, Deserialize, EnumString, Display)]
 pub enum MAType {
-    #[strum(serialize = "sma")]
+    #[strum(serialize = "SMA")]
+    #[serde(rename = "SMA")]
     SMA, // 简单移动平均线
-    #[strum(serialize = "ema")]
+    #[strum(serialize = "EMA")]
+    #[serde(rename = "EMA")]
     EMA, // Exponential Moving Average (EMA) 指数移动平均线
-    #[strum(serialize = "wma")]
+    #[strum(serialize = "WMA")]
+    #[serde(rename = "WMA")]
     WMA, // Weighted Moving Average (WMA) 加权移动平均线
-    #[strum(serialize = "dema")]
+    #[strum(serialize = "DEMA")]
+    #[serde(rename = "DEMA")]
     DEMA, // Double Exponential Moving Average (DEMA) 双指数移动平均线
-    #[strum(serialize = "tema")]
+    #[strum(serialize = "TEMA")]
+    #[serde(rename = "TEMA")]
     TEMA, // Triple Exponential Moving Average (TEMA) 三指数移动平均线
-    #[strum(serialize = "trima")]
+    #[strum(serialize = "TRIMA")]
+    #[serde(rename = "TRIMA")]
     TRIMA, // Triangular Moving Average (TRIMA) 三角形移动平均线
-    #[strum(serialize = "kama")]
+    #[strum(serialize = "KAMA")]
+    #[serde(rename = "KAMA")]
     KAMA, // Kaufman Adaptive Moving Average (KAMA) 卡夫曼自适应移动平均线
-    #[strum(serialize = "mama")]
+    #[strum(serialize = "MAMA")]
+    #[serde(rename = "MAMA")]
     MAMA, // MESA Adaptive Moving Average (MAMA) 梅萨自适应移动平均线
-    #[strum(serialize = "t3")]
+    #[strum(serialize = "T3")]
+    #[serde(rename = "T3")]
     T3, // Triple Exponential Moving Average (T3) 三重指数移动平均线
 }
 
 
 pub trait IndicatorConfigTrait {
-    fn new(config: &Value) -> Result<Self, String> where Self: Sized; // 创建指标配置,有可能失败
+    fn new(config: &Value) -> Result<Self, serde_json::Error> where Self: Sized; // 创建指标配置,有可能失败
 }
 
 pub trait IndicatorTrait {

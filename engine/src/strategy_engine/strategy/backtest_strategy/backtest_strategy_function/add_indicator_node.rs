@@ -68,11 +68,12 @@ impl BacktestStrategyFunction {
         // 解析指标配置
         let mut selected_indicators = Vec::new();
         for ind_config in selected_indicators_array {
-            tracing::debug!("ind_config: {:?}", ind_config);
             // 指标配置json
+            let indicator_type = ind_config["indicatorType"].as_str().unwrap();
             let indicator_config_json = ind_config["indicatorConfig"].clone();
-            let indicator_type = indicator_config_json["type"].as_str().unwrap_or_default();
-            let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json).map_err(|e| e.to_string())?;
+            // let indicator_type = indicator_config_json["indicatorType"].as_str().unwrap_or_default();
+            let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json)
+                .map_err(|e| format!("创建指标配置失败: {}", e))?;
             let selected_indicator = SelectedIndicator {
                 indicator_id: ind_config["indicatorId"].as_i64().unwrap() as i32,
                 handle_id: ind_config["handleId"].as_str().unwrap_or_default().to_string(),
@@ -98,10 +99,10 @@ impl BacktestStrategyFunction {
 
 
         let exchange_mode_config = ExchangeModeConfig {
-            selected_account: selected_account,
-            selected_symbol: selected_symbol,
-            selected_indicators: selected_indicators,
-            time_range: time_range,
+            selected_account,
+            selected_symbol,
+            selected_indicators,
+            time_range,
         };
 
         let backtest_config = IndicatorNodeBacktestConfig {

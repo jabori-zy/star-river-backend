@@ -55,35 +55,34 @@ impl VirtualTradingSystem {
     }
 
     // 添加k线缓存key，只保留interval最小的那一个
-    pub fn add_kline_cache_key(&mut self, kline_cache_key: BacktestKlineKey) {
+    pub fn add_kline_cache_key(&mut self, kline_key: BacktestKlineKey) {
         // 判断CacheKey是否存在
-        if !self.kline_price.contains_key(&kline_cache_key) {
+        if !self.kline_price.contains_key(&kline_key) {
             // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_cache_key
             let filtered_kline_cache_keys = self.kline_price
             .keys()
-            .filter(|kline_cache_key| 
-                kline_cache_key.exchange == kline_cache_key.exchange 
-                && kline_cache_key.symbol == kline_cache_key.symbol
-                 && kline_cache_key.start_time == kline_cache_key.start_time 
-                 && kline_cache_key.end_time == 
-                 kline_cache_key.end_time
+            .filter(|key|
+                key.exchange == kline_key.exchange
+                && key.symbol == kline_key.symbol
+                 && key.start_time == kline_key.start_time
+                 && key.end_time == kline_key.end_time
                 ).collect::<Vec<&BacktestKlineKey>>();
             //比较interval，保留interval最小的那一个
             // 过滤出的列表长度一定为1，因为除了interval不同，其他都相同
             if filtered_kline_cache_keys.len() == 1 {
                 // 比较要插入的key的interval和过滤出的key的interval
                 // 如果要插入的key的interval小于过滤出的key的interval，则插入
-                if kline_cache_key.interval < filtered_kline_cache_keys[0].interval {
-                    self.kline_price.insert(kline_cache_key, (0.0, 0));
+                if kline_key.interval < filtered_kline_cache_keys[0].interval {
+                    self.kline_price.insert(kline_key, (0.0, 0));
                 } 
                 // 如果要插入的key的interval大于过滤出的key的interval，则不插入
                 else {
-                    tracing::warn!("{}: 要插入的k线缓存key的interval大于过滤出的k线缓存key的interval，不插入", kline_cache_key.symbol);
+                    tracing::warn!("{}: 要插入的k线缓存key的interval大于过滤出的k线缓存key的interval，不插入", kline_key.symbol);
                 }
             } 
             // 如果过滤出的列表长度为0，则直接插入
             else {
-                self.kline_price.insert(kline_cache_key, (0.0, 0));
+                self.kline_price.insert(kline_key, (0.0, 0));
             }
         }
     }
@@ -195,18 +194,13 @@ impl VirtualTradingSystem {
             // 等待响应
             let response = resp_rx.await.unwrap();
             if response.code() == 0 {
-                if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
-                    match cache_reponse {
-                        CacheEngineResponse::GetCacheData(get_cache_data_response) => {
-                            let close = get_cache_data_response.cache_data[0].as_kline().unwrap().close;
-                            let timestamp = get_cache_data_response.cache_data[0].as_kline().unwrap().timestamp;
-                            return Ok((close, timestamp));
-                        }
-                        _ => {}
-                    }
+                if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) = CacheEngineResponse::try_from(response) {
+                    let close = get_cache_data_response.cache_data[0].as_kline().unwrap().close;
+                    let timestamp = get_cache_data_response.cache_data[0].as_kline().unwrap().timestamp;
+                    return Ok((close, timestamp));
                 }
             }
-            Err(format!("get history kline cache failed"))
+            Err("get history kline cache failed".to_string())
         }
 
 

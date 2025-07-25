@@ -4,6 +4,8 @@ backup/
 db/
 logs/
 .env
+.idea
+.vscode
 /resource
 /build
 /exchange-client/src/metatrader5/bin/

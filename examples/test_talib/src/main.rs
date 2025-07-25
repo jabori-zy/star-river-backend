@@ -52,16 +52,23 @@ fn main() {
 
 
         // let result = CalculateIndicatorFunction::calculate_bbands(kline_series, &bbands_config);
-        let result = CalculateIndicatorFunction::calculate_cdl2crows(kline_series);
-        match result {
-            Ok(result) => {
-                // let result_list = result.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
-                println!("result: {:#?}", result);
-            }
-            Err(e) => {
-                println!("error: {:?}", e);
-            }
-        }
+        // let result = CalculateIndicatorFunction::calculate_cdl2crows(kline_series);
+        // match result {
+        //     Ok(result) => {
+        //         // let result_list = result.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
+        //         println!("result: {:#?}", result);
+        //     }
+        //     Err(e) => {
+        //         println!("error: {:?}", e);
+        //     }
+        // }
+        let ma_config = MAConfig {
+            time_period: 9,
+            ma_type: MAType::SMA,
+            price_source: PriceSource::Close,
+        };
+
+        println!("ma_config: {:#?}", ma_config.to_string());
     }
 }
 

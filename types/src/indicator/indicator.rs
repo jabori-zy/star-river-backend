@@ -1,5 +1,6 @@
 use crate::define_indicator;
 use crate::indicator::{PriceSource, MAType};
+use serde_json::Error;
 
 
 // Acceleration Bands #加速带
@@ -180,13 +181,6 @@ define_indicator!(CDLDOJI,
 );
 
 
-
-
-
-
-
-
-
 // Moving Average Convergence Divergence #移动平均收敛发散
 define_indicator!(MACD,
     params => [(fast_period: i32), (slow_period: i32), (signal_period: i32), (price_source: PriceSource)],
@@ -198,7 +192,6 @@ define_indicator!(MA,
     params => [(time_period: i32), (ma_type: MAType), (price_source: PriceSource)],
     output => [(timestamp: i64), (ma: f64)],
 );
-
 
 
 // Relative Strength Index #相对强弱指数
