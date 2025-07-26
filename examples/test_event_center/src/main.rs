@@ -74,7 +74,7 @@ async fn main() {
         let (resp_tx, resp_rx) = oneshot::channel();
         let add_cache_key_command = CacheEngineCommand::AddCacheKey(AddCacheKeyParams {
             strategy_id: 1,
-            key: Key::Kline(KlineKey::new(Exchange::Metatrader5("Exness-MT5Trial5".to_string()), "BTCUSDT".to_string(), KlineInterval::Minutes1)),
+            key: Key::Kline(KlineKey::new(Exchange::Metatrader5("Exness-MT5Trial5".to_string()), "BTCUSDT".to_string(), KlineInterval::Minutes1, None, None)),
             max_size: Some(100),
             duration: Duration::from_secs(1000),
             sender: "test".to_string(),

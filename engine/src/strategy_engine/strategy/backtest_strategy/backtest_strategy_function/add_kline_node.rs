@@ -10,7 +10,7 @@ use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node
 use std::sync::Arc;
 use heartbeat::Heartbeat;
 use types::cache::Key;
-use types::cache::key::BacktestKlineKey;
+use types::cache::key::KlineKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::BacktestDataSource;
@@ -59,12 +59,12 @@ impl BacktestStrategyFunction {
                     let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
                     for symbol_config in backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.iter() {
-                        let backtest_kline_cache_key = BacktestKlineKey::new(
+                        let backtest_kline_cache_key = KlineKey::new(
                             exchange.clone(), 
                             symbol_config.symbol.clone(), 
                             symbol_config.interval.clone(), 
-                            time_range.start_date.to_string(), 
-                            time_range.end_date.to_string()
+                            Some(time_range.start_date.to_string()),
+                            Some(time_range.end_date.to_string())
                         );
                         // 添加到策略缓存key列表中
                         strategy_cache_keys.push(backtest_kline_cache_key.clone().into());

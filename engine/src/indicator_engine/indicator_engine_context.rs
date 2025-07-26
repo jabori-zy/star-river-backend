@@ -12,7 +12,7 @@ use event_center::EventPublisher;
 use types::indicator::IndicatorConfig;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use types::cache::key::{IndicatorKey, BacktestKlineKey, KlineKey};
+use types::cache::key::{IndicatorKey, KlineKey};
 use types::cache::Key;
 use types::custom_type::{StrategyId, NodeId};
 use crate::cache_engine::CacheEngine;
@@ -142,7 +142,7 @@ impl EngineContext for IndicatorEngineContext {
                             true //一次性将历史数据计算出来
                         ).await.unwrap();
                         // 将指标数据添加到缓存中
-                        let backtest_indicator_cache_key = self.cache_engine.lock().await.initialize_backtest_indicator_cache(
+                        let backtest_indicator_cache_key = self.cache_engine.lock().await.initialize_indicator_cache(
                             calculate_backtest_indicator_params.kline_key.clone().into(),
                             calculate_backtest_indicator_params.indicator_config.clone(),
                             backtest_indicators
@@ -198,12 +198,14 @@ impl IndicatorEngineContext {
                     let kline_key = KlineKey::new(
                         indicator_sub_key_clone.exchange.clone(), 
                         indicator_sub_key_clone.symbol.clone(), 
-                        indicator_sub_key_clone.interval.clone()
+                        indicator_sub_key_clone.interval.clone(),
+                        None,
+                        None,
                     );
 
                     let indicators = CalculateIndicatorFunction::calculate_indicator(
                         cache_engine.clone(), 
-                        kline_key.into(),
+                        kline_key.clone().into(),
                         indicator_sub_key_clone.indicator_config.clone(), 
                         false
                     ).await.unwrap();
@@ -211,9 +213,7 @@ impl IndicatorEngineContext {
                     // 将指标添加到缓存中
                     let cache_engine_guard = cache_engine.lock().await;
                     cache_engine_guard.update_indicator_cache(
-                        indicator_sub_key_clone.exchange, 
-                        indicator_sub_key_clone.symbol, 
-                        indicator_sub_key_clone.interval, 
+                        kline_key, 
                         indicator_sub_key_clone.indicator_config,
                         last_indicator.clone()).await;
                 };
@@ -267,20 +267,22 @@ impl IndicatorEngineContext {
         let indicator_cache_key: IndicatorKey = indicator_sub_key.clone().into();
         let _ = self.cache_engine.lock().await.add_cache_key(indicator_cache_key.into(), None, Duration::from_millis(10)).await;
         // 3. 计算指标
-        let kline_cache_key = KlineKey::new(
+        let kline_key = KlineKey::new(
             exchange.clone(), 
             symbol.clone(), 
-            interval.clone()
+            interval.clone(),
+            None,
+            None,
         );
         let indicators = CalculateIndicatorFunction::calculate_indicator(
-            self.cache_engine.clone(), 
-            kline_cache_key.into(),
-            indicator_sub_key.indicator_config.clone(), 
+            self.cache_engine.clone(),
+            kline_key.clone().into(),
+            indicator_sub_key.indicator_config.clone(),
             true
         ).await.unwrap();
         // tracing::info!("计算得到的指标: {:?}", indicators);
         // 4. 将指标添加到缓存中
-        self.cache_engine.lock().await.initialize_indicator_cache(exchange.clone(), symbol.clone(), interval.clone(), indicator_config.clone(), indicators).await;
+        self.cache_engine.lock().await.initialize_indicator_cache(kline_key, indicator_config.clone(), indicators).await;
     }
 
 

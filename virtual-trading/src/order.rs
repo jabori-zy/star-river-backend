@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use types::order::virtual_order::VirtualOrder;
 use types::custom_type::*;
 use types::market::Exchange;
-use types::cache::key::BacktestKlineKey;
+use types::cache::key::KlineKey;
 use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 
 impl VirtualTradingSystem {

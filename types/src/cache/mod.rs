@@ -8,9 +8,9 @@ use crate::market::KlineInterval;
 use std::hash::Hash;
 use std::fmt::Debug;
 use crate::market::Kline;
-use key::{KlineKey, IndicatorKey, BacktestKlineKey, BacktestIndicatorKey};
+use key::{KlineKey, IndicatorKey};
 use std::time::Duration;
-use cache_entry::{KlineCacheEntry, IndicatorCacheEntry, HistoryKlineCacheEntry, HistoryIndicatorCacheEntry};
+use cache_entry::{KlineCacheEntry, IndicatorCacheEntry};
 use crate::indicator::Indicator;
 use deepsize::DeepSizeOf;
 use std::sync::Arc;
@@ -29,10 +29,10 @@ pub trait KeyTrait{
 #[serde(tag = "key_type", content = "key_config")]
 #[serde(rename_all = "lowercase")]
 pub enum Key {
-    Kline(KlineKey), // 实时K线缓存键
-    Indicator(IndicatorKey), // 实时指标缓存键
-    BacktestKline(BacktestKlineKey), // 回测K线缓存键
-    BacktestIndicator(BacktestIndicatorKey), // 回测指标缓存键
+    // Kline(KlineKey), // 实时K线缓存键
+    // Indicator(IndicatorKey), // 实时指标缓存键
+    Kline(KlineKey), // 回测K线缓存键
+    Indicator(IndicatorKey), // 回测指标缓存键
 }
 
 impl FromStr for Key {
@@ -42,10 +42,10 @@ impl FromStr for Key {
         let parts: Vec<&str> = s.split('|').collect();
         let key_type = parts[0];
         match key_type {
+            // "kline" => Ok(Key::Kline(KlineKey::from_str(s)?)),
+            // "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
             "kline" => Ok(Key::Kline(KlineKey::from_str(s)?)),
             "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
-            "backtest_kline" => Ok(Key::BacktestKline(BacktestKlineKey::from_str(s)?)),
-            "backtest_indicator" => Ok(Key::BacktestIndicator(BacktestIndicatorKey::from_str(s)?)),
             _ => Err("Invalid cache key type".to_string()),
         }
     }
@@ -54,37 +54,37 @@ impl FromStr for Key {
 impl Key {
     pub fn get_key(&self) -> String {
         match self {
+            // Key::Kline(key) => key.get_key_str(),
+            // Key::Indicator(key) => key.get_key_str(),
             Key::Kline(key) => key.get_key_str(),
             Key::Indicator(key) => key.get_key_str(),
-            Key::BacktestKline(key) => key.get_key_str(),
-            Key::BacktestIndicator(key) => key.get_key_str(),
         }
     }
 
     pub fn get_exchange(&self) -> Exchange {
         match self {
+            // Key::Kline(key) => key.exchange.clone(),
+            // Key::Indicator(key) => key.exchange.clone(),
             Key::Kline(key) => key.exchange.clone(),
             Key::Indicator(key) => key.exchange.clone(),
-            Key::BacktestKline(key) => key.exchange.clone(),
-            Key::BacktestIndicator(key) => key.exchange.clone(),
         }
     }
 
     pub fn get_symbol(&self) -> String {
         match self {
+            // Key::Kline(key) => key.symbol.clone(),
+            // Key::Indicator(key) => key.symbol.clone(),
             Key::Kline(key) => key.symbol.clone(),
             Key::Indicator(key) => key.symbol.clone(),
-            Key::BacktestKline(key) => key.symbol.clone(),
-            Key::BacktestIndicator(key) => key.symbol.clone(),
         }
     }
 
     pub fn get_interval(&self) -> KlineInterval {
         match self {
+            // Key::Kline(key) => key.interval.clone(),
+            // Key::Indicator(key) => key.interval.clone(),
             Key::Kline(key) => key.interval.clone(),
             Key::Indicator(key) => key.interval.clone(),
-            Key::BacktestKline(key) => key.interval.clone(),
-            Key::BacktestIndicator(key) => key.interval.clone(),
         }
     }
     
@@ -191,26 +191,26 @@ pub trait CacheEntryTrait {
 
 #[derive(Debug, Clone)]
 pub enum CacheEntry {
-    Kline(KlineCacheEntry),
-    Indicator(IndicatorCacheEntry),
-    HistoryKline(HistoryKlineCacheEntry),
-    HistoryIndicator(HistoryIndicatorCacheEntry),
+    // Kline(KlineCacheEntry),
+    // Indicator(IndicatorCacheEntry),
+    HistoryKline(KlineCacheEntry),
+    HistoryIndicator(IndicatorCacheEntry),
 }
 
 impl CacheEntry {
     pub fn new(key: Key, max_size: u32, ttl: Duration) -> Self {
         match key {
-            Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
-            Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
-            Key::BacktestKline(key) => CacheEntry::HistoryKline(HistoryKlineCacheEntry::new(key, Some(max_size), ttl)),
-            Key::BacktestIndicator(key) => CacheEntry::HistoryIndicator(HistoryIndicatorCacheEntry::new(key, Some(max_size), ttl)),
+            // Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
+            // Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
+            Key::Kline(key) => CacheEntry::HistoryKline(KlineCacheEntry::new(key, Some(max_size), ttl)),
+            Key::Indicator(key) => CacheEntry::HistoryIndicator(IndicatorCacheEntry::new(key, Some(max_size), ttl)),
         }
     }
 
     pub fn initialize(&mut self, data: Vec<CacheValue>) {
         match self {
-            CacheEntry::Kline(entry) => entry.initialize(data),
-            CacheEntry::Indicator(entry) => entry.initialize(data),
+            // CacheEntry::Kline(entry) => entry.initialize(data),
+            // CacheEntry::Indicator(entry) => entry.initialize(data),
             CacheEntry::HistoryKline(entry) => entry.initialize(data),
             CacheEntry::HistoryIndicator(entry) => entry.initialize(data),
         }
@@ -218,8 +218,8 @@ impl CacheEntry {
 
     pub fn update(&mut self, cache_value: CacheValue) {
         match self {
-            CacheEntry::Kline(entry) => entry.update(cache_value),
-            CacheEntry::Indicator(entry) => entry.update(cache_value),
+            // CacheEntry::Kline(entry) => entry.update(cache_value),
+            // CacheEntry::Indicator(entry) => entry.update(cache_value),
             CacheEntry::HistoryKline(entry) => entry.update(cache_value),
             CacheEntry::HistoryIndicator(entry) => entry.update(cache_value),
         }
@@ -227,16 +227,16 @@ impl CacheEntry {
 
     pub fn get_key(&self) -> Key {
         match self {
-            CacheEntry::Kline(entry) => entry.get_key(),
-            CacheEntry::Indicator(entry) => entry.get_key(),
+            // CacheEntry::Kline(entry) => entry.get_key(),
+            // CacheEntry::Indicator(entry) => entry.get_key(),
             CacheEntry::HistoryKline(entry) => entry.get_key(),
             CacheEntry::HistoryIndicator(entry) => entry.get_key(),
         }
     }
     pub fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>> {
         match self {
-            CacheEntry::Kline(entry) => entry.get_all_cache_data(),
-            CacheEntry::Indicator(entry) => entry.get_all_cache_data(),
+            // CacheEntry::Kline(entry) => entry.get_all_cache_data(),
+            // CacheEntry::Indicator(entry) => entry.get_all_cache_data(),
             CacheEntry::HistoryKline(entry) => entry.get_all_cache_data(),
             CacheEntry::HistoryIndicator(entry) => entry.get_all_cache_data(),
         }
@@ -244,8 +244,8 @@ impl CacheEntry {
 
     pub fn get_cache_data(&self, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
         match self {
-            CacheEntry::Kline(entry) => entry.get_cache_data(index, limit),
-            CacheEntry::Indicator(entry) => entry.get_cache_data(index, limit),
+            // CacheEntry::Kline(entry) => entry.get_cache_data(index, limit),
+            // CacheEntry::Indicator(entry) => entry.get_cache_data(index, limit),
             CacheEntry::HistoryKline(entry) => entry.get_cache_data(index, limit),
             CacheEntry::HistoryIndicator(entry) => entry.get_cache_data(index, limit),
         }
@@ -253,8 +253,8 @@ impl CacheEntry {
 
     pub fn get_create_time(&self) -> i64 {
         match self {
-            CacheEntry::Kline(entry) => entry.get_create_time(),
-            CacheEntry::Indicator(entry) => entry.get_create_time(),
+            // CacheEntry::Kline(entry) => entry.get_create_time(),
+            // CacheEntry::Indicator(entry) => entry.get_create_time(),
             CacheEntry::HistoryKline(entry) => entry.get_create_time(),
             CacheEntry::HistoryIndicator(entry) => entry.get_create_time(),
         }
@@ -262,8 +262,8 @@ impl CacheEntry {
 
     pub fn get_update_time(&self) -> i64 {
         match self {
-            CacheEntry::Kline(entry) => entry.get_update_time(),
-            CacheEntry::Indicator(entry) => entry.get_update_time(),
+            // CacheEntry::Kline(entry) => entry.get_update_time(),
+            // CacheEntry::Indicator(entry) => entry.get_update_time(),
             CacheEntry::HistoryKline(entry) => entry.get_update_time(),
             CacheEntry::HistoryIndicator(entry) => entry.get_update_time(),
         }
@@ -271,8 +271,8 @@ impl CacheEntry {
 
     pub fn get_max_size(&self) -> u32 {
         match self {
-            CacheEntry::Kline(entry) => entry.get_max_size(),
-            CacheEntry::Indicator(entry) => entry.get_max_size(),
+            // CacheEntry::Kline(entry) => entry.get_max_size(),
+            // CacheEntry::Indicator(entry) => entry.get_max_size(),
             CacheEntry::HistoryKline(entry) => entry.get_max_size(),
             CacheEntry::HistoryIndicator(entry) => entry.get_max_size(),
         }
@@ -280,8 +280,8 @@ impl CacheEntry {
 
     pub fn get_is_fresh(&self) -> bool {
         match self {
-            CacheEntry::Kline(entry) => entry.get_is_fresh(),
-            CacheEntry::Indicator(entry) => entry.get_is_fresh(),
+            // CacheEntry::Kline(entry) => entry.get_is_fresh(),
+            // CacheEntry::Indicator(entry) => entry.get_is_fresh(),
             CacheEntry::HistoryKline(entry) => entry.get_is_fresh(),
             CacheEntry::HistoryIndicator(entry) => entry.get_is_fresh(),
         }
@@ -289,45 +289,45 @@ impl CacheEntry {
 
     pub fn get_ttl(&self) -> Duration {
         match self {
-            CacheEntry::Kline(entry) => entry.get_ttl(),
-            CacheEntry::Indicator(entry) => entry.get_ttl(),
+            // CacheEntry::Kline(entry) => entry.get_ttl(),
+            // CacheEntry::Indicator(entry) => entry.get_ttl(),
             CacheEntry::HistoryKline(entry) => entry.get_ttl(),
             CacheEntry::HistoryIndicator(entry) => entry.get_ttl(),
         }
     }
 
-    pub fn as_kline_cache_entry_ref(&self) -> Option<&KlineCacheEntry> {
-        match self {
-            CacheEntry::Kline(entry) => Some(entry),
-            _ => None,
-        }
-    }
-
-    pub fn as_kline_cache_entry_mut(&mut self) -> Option<&mut KlineCacheEntry> {
-        match self {
-            CacheEntry::Kline(entry) => Some(entry),
-            _ => None,
-        }
-    }
-
-    pub fn as_indicator_cache_entry_ref(&self) -> Option<&IndicatorCacheEntry> {
-        match self {
-            CacheEntry::Indicator(entry) => Some(entry),
-            _ => None,
-        }
-    }
-
-    pub fn as_indicator_cache_entry_mut(&mut self) -> Option<&mut IndicatorCacheEntry> {
-        match self {
-            CacheEntry::Indicator(entry) => Some(entry),
-            _ => None,
-        }
-    }
+    // pub fn as_kline_cache_entry_ref(&self) -> Option<&KlineCacheEntry> {
+    //     match self {
+    //         CacheEntry::Kline(entry) => Some(entry),
+    //         _ => None,
+    //     }
+    // }
+    //
+    // pub fn as_kline_cache_entry_mut(&mut self) -> Option<&mut KlineCacheEntry> {
+    //     match self {
+    //         CacheEntry::Kline(entry) => Some(entry),
+    //         _ => None,
+    //     }
+    // }
+    //
+    // pub fn as_indicator_cache_entry_ref(&self) -> Option<&IndicatorCacheEntry> {
+    //     match self {
+    //         CacheEntry::Indicator(entry) => Some(entry),
+    //         _ => None,
+    //     }
+    // }
+    //
+    // pub fn as_indicator_cache_entry_mut(&mut self) -> Option<&mut IndicatorCacheEntry> {
+    //     match self {
+    //         CacheEntry::Indicator(entry) => Some(entry),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn get_length(&self) -> u32 {
         match self {
-            CacheEntry::Kline(entry) => entry.get_length(),
-            CacheEntry::Indicator(entry) => entry.get_length(),
+            // CacheEntry::Kline(entry) => entry.get_length(),
+            // CacheEntry::Indicator(entry) => entry.get_length(),
             CacheEntry::HistoryKline(entry) => entry.get_length(),
             CacheEntry::HistoryIndicator(entry) => entry.get_length(),
         }
@@ -335,21 +335,12 @@ impl CacheEntry {
 
     pub fn get_memory_size(&self) -> u32 {
         match self {
-            CacheEntry::Kline(entry) => entry.get_memory_size(),
-            CacheEntry::Indicator(entry) => entry.get_memory_size(),
+            // CacheEntry::Kline(entry) => entry.get_memory_size(),
+            // CacheEntry::Indicator(entry) => entry.get_memory_size(),
             CacheEntry::HistoryKline(entry) => entry.get_memory_size(),
             CacheEntry::HistoryIndicator(entry) => entry.get_memory_size(),
         }
     }
-    
-
-
-    
-    
-    
-    
-    
-    
 }
 
 

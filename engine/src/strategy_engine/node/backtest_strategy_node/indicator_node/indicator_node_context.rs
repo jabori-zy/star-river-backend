@@ -16,13 +16,12 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use event_center::command::cache_engine_command::{AddCacheKeyParams, CacheEngineCommand, GetCacheParams};
 use event_center::command::indicator_engine_command::CalculateBacktestIndicatorParams;
-use types::cache::key::IndicatorKey;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::cache::{KeyTrait, CacheValue};
 use tokio::sync::oneshot;
 use event_center::response::ResponseTrait;
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
-use types::cache::key::{BacktestIndicatorKey, BacktestKlineKey};
+use types::cache::key::{IndicatorKey, KlineKey};
 use tokio::time::Duration;
 use types::indicator::IndicatorConfig;
 use types::indicator::Indicator;
@@ -36,8 +35,8 @@ pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
-    pub kline_cache_key: BacktestKlineKey, // 回测K线缓存键
-    pub indicator_cache_keys: Vec<BacktestIndicatorKey>, // 指标缓存键
+    pub kline_cache_key: KlineKey, // 回测K线缓存键
+    pub indicator_cache_keys: Vec<IndicatorKey>, // 指标缓存键
 }
 
 
@@ -114,13 +113,13 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 
                 // 遍历指标缓存键，计算指标
                 for ind_config in exchange_config.selected_indicators.iter() {
-                    let indicator_cache_key = BacktestIndicatorKey { 
+                    let indicator_cache_key = IndicatorKey { 
                         exchange: exchange.clone(), 
                         symbol: symbol.clone(), 
                         interval: interval.clone(), 
                         indicator_config: ind_config.indicator_config.clone(), 
-                        start_time: time_range.start_date.to_string(),
-                        end_time: time_range.end_date.to_string() 
+                        start_time: Some(time_range.start_date.to_string()),
+                        end_time: Some(time_range.end_date.to_string()) 
                     };
 
                     let from_handle_id = ind_config.handle_id.clone();
@@ -242,7 +241,7 @@ impl IndicatorNodeContext {
 
 
     // 获取已经计算好的回测指标数据
-    async fn get_backtest_indicator_cache(&self, indicator_cache_key: &BacktestIndicatorKey, play_index: i32) -> Result<Vec<Arc<CacheValue>>, String> {
+    async fn get_backtest_indicator_cache(&self, indicator_cache_key: &IndicatorKey, play_index: i32) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),

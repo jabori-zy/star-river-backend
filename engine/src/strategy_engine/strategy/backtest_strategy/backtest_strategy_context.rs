@@ -422,7 +422,7 @@ impl BacktestStrategyContext {
             .read()
             .await
             .iter()
-            .filter(|cache_key| matches!(cache_key, Key::BacktestKline(_)))
+            .filter(|cache_key| matches!(cache_key, Key::Kline(_)))
             .map(|cache_key| cache_key.clone())
             .collect();
         let (resp_tx, resp_rx) = oneshot::channel();

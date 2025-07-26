@@ -2,7 +2,7 @@ pub mod order;
 pub mod position;
 pub mod transaction;
 
-use types::cache::key::BacktestKlineKey;
+use types::cache::key::KlineKey;
 use types::cache::{Key, CacheValue};
 use types::custom_type::*;
 use types::position::virtual_position::VirtualPosition;
@@ -22,7 +22,7 @@ use types::virtual_trading_system::event::VirtualTradingSystemEventSender;
 /// 
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
-    pub kline_price: HashMap<BacktestKlineKey, (f64, i64)>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
+    pub kline_price: HashMap<KlineKey, (f64, i64)>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
     play_index: i32, // k线缓存key的索引
     pub initial_balance: Balance, // 初始资金
     pub leverage: Leverage, // 杠杆
@@ -55,7 +55,7 @@ impl VirtualTradingSystem {
     }
 
     // 添加k线缓存key，只保留interval最小的那一个
-    pub fn add_kline_cache_key(&mut self, kline_key: BacktestKlineKey) {
+    pub fn add_kline_cache_key(&mut self, kline_key: KlineKey) {
         // 判断CacheKey是否存在
         if !self.kline_price.contains_key(&kline_key) {
             // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_cache_key
@@ -66,7 +66,7 @@ impl VirtualTradingSystem {
                 && key.symbol == kline_key.symbol
                  && key.start_time == kline_key.start_time
                  && key.end_time == kline_key.end_time
-                ).collect::<Vec<&BacktestKlineKey>>();
+                ).collect::<Vec<&KlineKey>>();
             //比较interval，保留interval最小的那一个
             // 过滤出的列表长度一定为1，因为除了interval不同，其他都相同
             if filtered_kline_cache_keys.len() == 1 {
@@ -95,7 +95,7 @@ impl VirtualTradingSystem {
     pub async fn set_play_index(&mut self, play_index: i32) {
         self.play_index = play_index;
         // 当k线索引更新后，更新k线缓存key的最新收盘价
-        let keys: Vec<BacktestKlineKey> = self.kline_price.keys().cloned().collect();
+        let keys: Vec<KlineKey> = self.kline_price.keys().cloned().collect();
         for kline_cache_key in keys {
             let (close_price, timestamp) = self.get_close_price(kline_cache_key.clone().into()).await.unwrap();
             self.kline_price.entry(kline_cache_key).and_modify(|e| *e = (close_price, timestamp));
@@ -205,7 +205,7 @@ impl VirtualTradingSystem {
 
 
     // 根据交易所和symbol获取k线缓存key
-    fn get_kline_cache_key(&self, exchange: &Exchange, symbol: &String) -> Option<BacktestKlineKey> {
+    fn get_kline_cache_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
         tracing::debug!("get_kline_cache_key: {:?}", self.kline_price);
         for kline_cache_key in self.kline_price.keys() {
             if &kline_cache_key.exchange == exchange && &kline_cache_key.symbol == symbol {

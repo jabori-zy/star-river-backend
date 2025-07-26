@@ -12,7 +12,7 @@ use types::strategy::TradeMode;
 use crate::strategy_engine::node::live_strategy_node::indicator_node::indicator_node_type::IndicatorNodeLiveConfig;
 use std::str::FromStr;
 use types::cache::Key;
-use types::cache::key::IndicatorKey;
+use types::cache::key::{IndicatorKey, KlineKey};
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -55,7 +55,10 @@ impl LiveStrategyFunction {
             interval: interval.clone(),
             exchange: exchange.clone(),
         };
-        let cache_key = IndicatorKey::new(exchange, symbol, interval, indicator_config);
+        let cache_key = IndicatorKey::new(
+            KlineKey::new(exchange, symbol, interval,None,None), 
+            indicator_config
+        );
         cache_keys.push(cache_key.into());
 
         let mut node = IndicatorNode::new(

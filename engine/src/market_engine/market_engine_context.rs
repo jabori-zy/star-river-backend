@@ -1,5 +1,4 @@
 use tokio::sync::broadcast;
-use types::cache::key::BacktestKlineKey;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -170,12 +169,14 @@ impl EngineContext for MarketEngineContext {
 
 impl MarketEngineContext {
 
-    async fn add_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, max_size: u32) {
+    async fn add_kline_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, start_time: Option<String>, end_time: Option<String>, max_size: u32) {
         // 调用缓存器的订阅事件
         let cache_key = Key::Kline(KlineKey {
-            exchange: exchange,
-            symbol: symbol.to_string(),
-            interval: interval.clone(),
+            exchange,
+            symbol,
+            interval,
+            start_time,
+            end_time,
         });
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = AddCacheKeyParams {
@@ -200,12 +201,12 @@ impl MarketEngineContext {
 
     async fn add_history_kline_cache_key(&self, strategy_id: i32, exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange) {
         // 调用缓存器的订阅事件
-        let cache_key = Key::BacktestKline(BacktestKlineKey {
+        let cache_key = Key::Kline(KlineKey {
             exchange: exchange,
             symbol: symbol.to_string(),
             interval: interval.clone(),
-            start_time: time_range.start_date.to_string(),
-            end_time: time_range.end_date.to_string(),
+            start_time: Some(time_range.start_date.to_string()),
+            end_time: Some(time_range.end_date.to_string()),
         });
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = AddCacheKeyParams {
@@ -245,7 +246,7 @@ impl MarketEngineContext {
     ) -> Result<(), String> {
         // tracing::debug!("市场数据引擎订阅K线流: {:?}", params);
         // 添加缓存key
-        self.add_kline_cache_key(strategy_id, exchange.clone(), symbol.clone(), interval.clone(), cache_size).await;
+        self.add_kline_key(strategy_id, exchange.clone(), symbol.clone(), interval.clone(), None, None, cache_size).await;
 
         // 1. 先检查注册状态
         let is_registered = self.exchange_is_registered(account_id).await;

@@ -9,13 +9,13 @@ use event_center::EventPublisher;
 use crate::strategy_engine::node::backtest_strategy_node::indicator_node::indicator_node_type::{IndicatorNodeBacktestConfig, ExchangeModeConfig,SelectedIndicator};
 use std::str::FromStr;
 use types::cache::Key;
-use types::cache::key::BacktestKlineKey;
+use types::cache::key::KlineKey;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::{BacktestDataSource, TimeRange};
-use types::cache::key::BacktestIndicatorKey;
+use types::cache::key::IndicatorKey;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use types::strategy::SelectedAccount;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::SelectedSymbol;
@@ -81,16 +81,16 @@ impl BacktestStrategyFunction {
             };
             selected_indicators.push(selected_indicator);
 
-            let kline_cache_key = Key::BacktestKline(BacktestKlineKey::new(
+            let kline_key = KlineKey::new(
                 selected_account.exchange.clone(),
                 selected_symbol.symbol.clone(),
                 selected_symbol.interval.clone(),
-                time_range.start_date.to_string(),
-                time_range.end_date.to_string(),
-            ));
+                Some(time_range.start_date.to_string()),
+                Some(time_range.end_date.to_string()),
+            );
 
-            let indicator_cache_key = Key::BacktestIndicator(BacktestIndicatorKey::new(
-                kline_cache_key,
+            let indicator_cache_key = Key::Indicator(IndicatorKey::new(
+                kline_key,
                 indicator_config,
             ));
             cache_keys.push(indicator_cache_key.into());

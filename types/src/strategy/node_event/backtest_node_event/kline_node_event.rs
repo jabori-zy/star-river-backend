@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use crate::cache::{key::BacktestKlineKey, KeyTrait, CacheValue};
+use crate::cache::{key::KlineKey, KeyTrait, CacheValue};
 use std::sync::Arc;
 use crate::strategy::node_event::BacktestNodeEvent;
 
@@ -39,7 +39,7 @@ pub struct KlineUpdateEvent {
 
     #[serde(serialize_with = "serialize_kline_cache_key")]
     #[serde(rename = "klineKey")]
-    pub kline_key: BacktestKlineKey,
+    pub kline_key: KlineKey,
 
     // pub kline: Vec<f64>,
     #[serde(serialize_with = "serialize_kline_data")]
@@ -49,7 +49,7 @@ pub struct KlineUpdateEvent {
 }
 
 
-fn serialize_kline_cache_key<'de, S>(kline_key: &BacktestKlineKey, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_kline_cache_key<'de, S>(kline_key: &KlineKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

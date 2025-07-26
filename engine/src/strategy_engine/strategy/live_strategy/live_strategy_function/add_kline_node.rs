@@ -43,7 +43,7 @@ impl LiveStrategyFunction {
                 return Err("liveConfig is null".to_string());
             }
             let live_config = serde_json::from_value::<KlineNodeLiveConfig>(live_config_json).unwrap();
-            let cache_key = KlineKey::new(live_config.selected_live_account.exchange.clone(), live_config.symbol.clone(), live_config.interval.clone());
+            let cache_key = KlineKey::new(live_config.selected_live_account.exchange.clone(), live_config.symbol.clone(), live_config.interval.clone(), None, None);
             cache_keys.push(cache_key.into());
             
             let mut node = KlineNode::new(

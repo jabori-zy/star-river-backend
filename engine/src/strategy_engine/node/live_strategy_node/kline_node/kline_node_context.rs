@@ -209,6 +209,8 @@ impl KlineNodeContext {
             exchange: self.live_config.selected_live_account.exchange.clone(),
             symbol: self.live_config.symbol.clone(),
             interval: self.live_config.interval.clone(),
+            start_time:None,
+            end_time:None
         });
         let command_publisher = self.get_command_publisher().clone();
         let strategy_id = self.base_context.strategy_id.clone();

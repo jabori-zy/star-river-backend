@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use types::cache::key::IndicatorKey;
+use types::cache::key::{IndicatorKey, KlineKey};
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::cache::CacheValue;
 use tokio::sync::oneshot;
@@ -111,10 +111,9 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
             BacktestNodeEvent::KlineSeries(_) => {
                 // 接收到k线数据， 向缓存引擎请求指标数据
                 let indicator_cache_key = IndicatorKey::new(
-                    self.live_config.exchange.clone(), 
-                    self.live_config.symbol.clone(), 
-                    self.live_config.interval.clone(), 
-                    self.live_config.indicator_config.clone());
+                    KlineKey::new(self.live_config.exchange.clone(),self.live_config.symbol.clone(),self.live_config.interval.clone(),None, None),
+                    self.live_config.indicator_config.clone()
+                );
                 let response = self.get_indicator_cache(indicator_cache_key).await;
                 if let Ok(response) = response {
                     if response.code() == 0 {
@@ -130,7 +129,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                                     symbol: self.live_config.symbol.clone(),
                                     interval: self.live_config.interval.clone(),
                                     indicator_config: self.live_config.indicator_config.clone(),
-                                    indicator_series: indicator_series,
+                                    indicator_series,
                                     message_timestamp: get_utc8_timestamp_millis(),
                                 };
                                 tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, indicator_message);

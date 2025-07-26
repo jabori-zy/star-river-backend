@@ -10,12 +10,12 @@ use strum::Display;
 use crate::order::Order;
 use crate::position::Position;
 use crate::cache::CacheValue;
-use crate::cache::key::BacktestKlineKey;
+use crate::cache::key::KlineKey;
 use std::sync::Arc;
 use variable_event::PositionNumberUpdateEvent;
 use crate::order::virtual_order::VirtualOrder;
 use backtest_node_event::kline_node_event::KlineNodeEvent;
-use crate::cache::key::BacktestIndicatorKey;
+use crate::cache::key::IndicatorKey;
 use crate::cache::KeyTrait;
 use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 
@@ -128,7 +128,7 @@ pub struct IndicatorUpdateEvent {
 
     #[serde(rename = "indicatorKey")]
     #[serde(serialize_with = "serialize_indicator_cache_key")]
-    pub indicator_key: BacktestIndicatorKey,
+    pub indicator_key: IndicatorKey,
 
     #[serde(rename = "indicatorSeries")]
     #[serde(serialize_with = "serialize_indicator_data")]
@@ -142,7 +142,7 @@ pub struct IndicatorUpdateEvent {
     pub timestamp: i64,
 }
 
-fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &BacktestIndicatorKey, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &IndicatorKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

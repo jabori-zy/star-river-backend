@@ -15,10 +15,9 @@ use std::any::Any;
 use std::collections::HashMap;
 use types::cache::{Key, CacheValue};
 use std::time::Duration;
-use types::market::{Exchange, KlineInterval,Kline};
+use types::market::{Exchange, KlineInterval, Kline};
 use types::cache::key::KlineKey;
 use types::cache::key::IndicatorKey;
-use types::cache::key::BacktestIndicatorKey;
 use types::indicator::Indicator;
 use types::indicator::IndicatorConfig;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
@@ -75,12 +74,12 @@ impl CacheEngine {
         cache_engine_context.add_cache_key(cache_key, max_size, ttl).await
     }
 
-    pub async fn get_cache_key(&self, cache_key_type : Option<&str>) -> Result<Vec<String>, String> {
+    pub async fn get_cache_key(&self, key_type: Option<&str>) -> Result<Vec<String>, String> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();
         // 获取hashmap所有的key
-        let cache: tokio::sync::RwLockReadGuard<'_, HashMap<Key, types::cache::CacheEntry>> = cache_engine_context.cache.read().await;
-        if let Some(cache_key_type) = cache_key_type {
+        let cache = cache_engine_context.cache.read().await;
+        if let Some(cache_key_type) = key_type {
             match cache_key_type {
                 "kline" => {
                     let keys = cache.keys().filter(|key| matches!(key, Key::Kline(_))).map(|key: &Key| key.get_key()).collect();
@@ -118,44 +117,60 @@ impl CacheEngine {
     }
 
 
-    pub async fn initialize_kline_cache(&self, exchange: Exchange, symbol: String, interval: KlineInterval, kline_series: Vec<Kline>) {
+    pub async fn initialize_kline_cache(
+        &self, 
+        exchange: Exchange, 
+        symbol: String, 
+        interval: KlineInterval, 
+        start_time: Option<String>,
+        end_time: Option<String>,
+        kline_series: Vec<Kline>) {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Kline(KlineKey::new(exchange, symbol, interval));
+        let cache_key = Key::Kline(KlineKey::new(exchange, symbol, interval, start_time, end_time));
         let cache_series = kline_series.into_iter().map(|kline| kline.into()).collect();
         cache_engine_context.initialize_cache(cache_key, cache_series).await;
     }
 
-    pub async fn update_kline_cache(&self, exchange: Exchange, symbol: String, interval: KlineInterval, kline: Kline) {
-        let mut context = self.context.write().await;
-        let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Kline(KlineKey::new(exchange, symbol, interval));
-        cache_engine_context.update_cache(cache_key, kline.into()).await;
-    }
-
-    pub async fn initialize_indicator_cache(
+    pub async fn update_kline_cache(
         &self, 
         exchange: Exchange, 
         symbol: String, 
-        interval: KlineInterval,
-        indicator_config: IndicatorConfig,
-        indicator_series: Vec<Indicator>) {
+        interval: KlineInterval, 
+        start_time: Option<String>,
+        end_time: Option<String>,
+        kline: Kline
+    ) {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Indicator(IndicatorKey::new(exchange, symbol, interval, indicator_config));
-        let cache_series = indicator_series.into_iter().map(|indicator| indicator.into()).collect();
-        cache_engine_context.initialize_cache(cache_key, cache_series).await;
+        let cache_key = Key::Kline(KlineKey::new(exchange, symbol, interval, start_time, end_time));
+        cache_engine_context.update_cache(cache_key, kline.into()).await;
     }
 
+    // pub async fn initialize_indicator_cache(
+    //     &self, 
+    //     exchange: Exchange, 
+    //     symbol: String, 
+    //     interval: KlineInterval,
+    //     indicator_config: IndicatorConfig,
+    //     indicator_series: Vec<Indicator>) {
+    //     let mut context = self.context.write().await;
+    //     let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
+    //     let cache_key = Key::BacktestIndicator(BacktestIndicatorKey::new(exchange, symbol, interval, indicator_config));
+    //     let cache_series = indicator_series.into_iter().map(|indicator| indicator.into()).collect();
+    //     cache_engine_context.initialize_cache(cache_key, cache_series).await;
+    // }
+
     // 初始化回测指标缓存
-    pub async fn initialize_backtest_indicator_cache(
-        &self, 
-        kline_cache_key: Key,
+    pub async fn initialize_indicator_cache(
+        &self,
+        kline_key: KlineKey,
         indicator_config: IndicatorConfig,
-        indicator_series: Vec<Indicator>) -> Key {
+        indicator_series: Vec<Indicator>
+    ) -> Key {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::BacktestIndicator(BacktestIndicatorKey::new(kline_cache_key,indicator_config));
+        let cache_key = Key::Indicator(IndicatorKey::new(kline_key, indicator_config));
         let cache_series = indicator_series.into_iter().map(|indicator| indicator.into()).collect();
         cache_engine_context.initialize_cache(cache_key.clone(), cache_series).await;
         cache_key
@@ -163,14 +178,13 @@ impl CacheEngine {
 
     pub async fn update_indicator_cache(
         &self, 
-        exchange: Exchange, 
-        symbol: String, 
-        interval: KlineInterval, 
+        kline_key: KlineKey,
         indicator_config: IndicatorConfig,
-        indicator: Indicator) {
+        indicator: Indicator
+    ) {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Indicator(IndicatorKey::new(exchange, symbol, interval, indicator_config));
+        let cache_key = Key::Indicator(IndicatorKey::new(kline_key, indicator_config));
         cache_engine_context.update_cache(cache_key.clone(), indicator.into()).await;
     }
 }

@@ -1,4 +1,4 @@
-use types::cache::key::BacktestKlineKey;
+use types::cache::key::KlineKey;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
@@ -107,12 +107,12 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         // 循环处理所有选定的交易对
                         for symbol_config in exchange_config.selected_symbols.iter() {
                             // 创建k线缓存键
-                            let backtest_kline_key = BacktestKlineKey::new(
+                            let backtest_kline_key = KlineKey::new(
                                 exchange.clone(),
                                 symbol_config.symbol.clone(),
                                 symbol_config.interval.clone(),
-                                start_time.clone(),
-                                end_time.clone(),
+                                Some(start_time.clone()),
+                                Some(end_time.clone()),
                             );
                             
                             // 获取k线缓存值
@@ -263,8 +263,8 @@ impl KlineNodeContext {
 
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(&self,
-        kline_key: &BacktestKlineKey,
-        play_index: i32, // 缓存索引
+                                         kline_key: &KlineKey,
+                                         play_index: i32, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
@@ -299,7 +299,7 @@ impl KlineNodeContext {
     fn get_kline_update_event(
         &self,
         handle_id: String,
-        kline_key: &BacktestKlineKey,
+        kline_key: &KlineKey,
         index: i32, // 缓存索引
         kline_data: Vec<Arc<CacheValue>>,
     ) -> KlineNodeEvent {

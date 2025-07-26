@@ -21,7 +21,7 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::ba
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
-use types::cache::key::{BacktestIndicatorKey, BacktestKlineKey};
+use types::cache::key::{IndicatorKey, KlineKey};
 use types::strategy::node_event::BacktestNodeEvent;
 
 // 指标节点
@@ -82,39 +82,39 @@ impl IndicatorNode {
         }
     }
 
-    fn get_indicator_cache_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<BacktestIndicatorKey> {
+    fn get_indicator_cache_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<IndicatorKey> {
         let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
         let symbol = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.symbol.clone();
         let interval = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.interval.clone();
         let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
-        let mut indicator_cache_keys = vec![];
+        let mut indicator_keys = vec![];
         for indicator in backtest_config.exchange_mode_config.as_ref().unwrap().selected_indicators.iter() {
-            let indicator_cache_key = BacktestIndicatorKey {
+            let indicator_cache_key = IndicatorKey {
                 exchange: exchange.clone(), 
                 symbol: symbol.clone(), 
                 interval: interval.clone(), 
                 indicator_config: indicator.indicator_config.clone(),
-                start_time: time_range.start_date.to_string(),
-                end_time: time_range.end_date.to_string(),
+                start_time: Some(time_range.start_date.to_string()),
+                end_time: Some(time_range.end_date.to_string()),
             };
-            indicator_cache_keys.push(indicator_cache_key);
+            indicator_keys.push(indicator_cache_key);
         }
-        indicator_cache_keys
+        indicator_keys
     }
 
-    fn get_kline_cache_key(backtest_config: &IndicatorNodeBacktestConfig) -> BacktestKlineKey {
+    fn get_kline_cache_key(backtest_config: &IndicatorNodeBacktestConfig) -> KlineKey {
         let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
         let symbol = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.symbol.clone();
         let interval = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.interval.clone();
         let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
-        let kline_cache_key = BacktestKlineKey {
+        let kline_cache_key = KlineKey {
             exchange: exchange.clone(), 
             symbol: symbol.clone(), 
             interval: interval.clone(), 
-            start_time: time_range.start_date.to_string(),
-            end_time: time_range.end_date.to_string(),
+            start_time: Some(time_range.start_date.to_string()),
+            end_time: Some(time_range.end_date.to_string()),
         };
         kline_cache_key
     }
