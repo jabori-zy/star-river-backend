@@ -17,14 +17,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建目录
     fs::create_dir_all(&target_dir).unwrap();
 
-    // 打包 Python 脚本
-    println!("cargo:rerun-if-changed=src/metatrader5/script");
+    // 打包 Python 脚本 - 只监控关键源代码文件
+    println!("cargo:rerun-if-changed=src/metatrader5/script/main.py");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/pyproject.toml");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/api");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/mt5_terminal");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/parse.py");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/util.py");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/start_terminals.py");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/mt5_terminal.py");
+    println!("cargo:rerun-if-changed=src/metatrader5/script/terminals_config.json");
 
     #[cfg(target_os = "windows")]
     {
-        // Windows 平台打包
-        let status = Command::new("pyinstaller")
+        // 设置script目录路径
+        let script_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
+        
+        // 打包前清理可能影响构建检测的临时文件和目录
+        let pycache_dir = script_dir.join("__pycache__");
+        let build_dir = script_dir.join("build");
+        let dist_dir = script_dir.join("dist");
+        
+        if pycache_dir.exists() {
+            let _ = fs::remove_dir_all(&pycache_dir);
+        }
+        if build_dir.exists() {
+            let _ = fs::remove_dir_all(&build_dir);
+        }
+        if dist_dir.exists() {
+            let _ = fs::remove_dir_all(&dist_dir);
+        }
+        
+        // 使用uv运行pyinstaller进行打包
+        // 完整命令: uv run pyinstaller -c -F --clean --name MetaTrader5-x86_64-pc-windows-msvc --distpath <target_dir> main.py
+        let status = Command::new("uv")
             .args(&[
+                "run",
+                "pyinstaller",
                 "-c",
                 "-F",
                 "--clean",
@@ -32,22 +61,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "MetaTrader5-x86_64-pc-windows-msvc",
                 "--distpath",
                 target_dir.to_str().unwrap(),
-                "src/metatrader5/script/main.py"
+                "main.py"
             ])
+            .current_dir(&script_dir)  // 设置工作目录为script目录
             .status()
-            .expect("Failed to execute pyinstaller");
+            .expect("Failed to execute uv run pyinstaller");
 
         if status.success() {
             println!("打包成功");
-            // 清理.spec文件
-            let spec_file = Path::new(&project_root).join("MetaTrader5-x86_64-pc-windows-msvc.spec");
+            // 清理pyinstaller生成的临时文件
+            let spec_file = script_dir.join("MetaTrader5-x86_64-pc-windows-msvc.spec");
+            let build_dir = script_dir.join("build");
+            let dist_dir = script_dir.join("dist");
+            
             if spec_file.exists() {
-                fs::remove_file(spec_file).unwrap();
+                let _ = fs::remove_file(spec_file);
             }
-        }
-
-        if !status.success() {
-            panic!("Failed to build Python executable");
+            if build_dir.exists() {
+                let _ = fs::remove_dir_all(build_dir);
+            }
+            if dist_dir.exists() {
+                let _ = fs::remove_dir_all(dist_dir);
+            }
+        } else {
+            panic!("Failed to build Python executable with uv");
         }
     }
 

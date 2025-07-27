@@ -27,6 +27,7 @@ impl Mt5WsClient {
 
     pub async fn connect_default(port: u16) -> Result<(WebSocketState, Response), Error> {
         let url = format!("ws://localhost:{}/ws", port);
+        tracing::debug!("ws url: {:?}", url);
         Mt5WsClient::connect(&url).await
     }
 }

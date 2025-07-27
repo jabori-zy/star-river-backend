@@ -221,6 +221,7 @@ impl MetaTrader5 {
             {
                 tracing::info!("正在终止旧的MT5-{}进程，PID: {}", self.terminal_id, pid);
                 // 仅终止特定PID的进程，不再通过进程名终止
+                // 完整命令: taskkill /F /PID <pid>
                 let _ = StdCommand::new("taskkill")
                     .args(&["/F", "/PID", &pid.to_string()])
                     .output();
@@ -240,6 +241,7 @@ impl MetaTrader5 {
                 #[cfg(windows)]
                 {
                     // 检查进程是否仍在运行
+                    // 完整命令: tasklist /FI "PID eq <pid>" /FO CSV
                     let output = StdCommand::new("tasklist")
                         .args(&["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
                         .output()
@@ -277,6 +279,7 @@ impl MetaTrader5 {
             tracing::info!(process_name = %self.process_name, "check if there is a process with the same name");
             
             // 使用tasklist命令查找特定名称的进程
+            // 完整命令: tasklist /FI "IMAGENAME eq <process_name>" /FO CSV
             let output = StdCommand::new("tasklist")
                 .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
                 .output()
@@ -294,6 +297,7 @@ impl MetaTrader5 {
                 tracing::warn!(process_name = %self.process_name, "found a process with the same name, cleaning...");
                 
                 // 使用进程名精确匹配终止进程，不使用通配符
+                // 完整命令: taskkill /F /IM <process_name>
                 let kill_result = StdCommand::new("taskkill")
                     .args(&["/F", "/IM", &self.process_name])
                     .output();
@@ -499,6 +503,7 @@ impl MetaTrader5 {
                 {
                     // 仅通过PID结束进程
                     if let Some(pid) = child.id() {
+                        // 完整命令: taskkill /F /T /PID <pid>
                         match StdCommand::new("taskkill")
                             .args(&["/F", "/T", "/PID", &pid.to_string()])
                             .output() {
@@ -545,6 +550,7 @@ impl MetaTrader5 {
                         // 如果仍然存在进程，再次尝试终止
                         if attempt < 3 {
                             tracing::warn!("MT5-{}进程仍在运行，尝试再次终止 (尝试 {}/3)", self.terminal_id, attempt);
+                            // 完整命令: taskkill /F /IM <process_name>
                             let _ = StdCommand::new("taskkill")
                                 .args(&["/F", "/IM", &self.process_name])
                                 .output();
@@ -587,6 +593,7 @@ impl MetaTrader5 {
                 if output_str.contains(&self.process_name) {
                     // 发现同名进程，尝试终止
                     tracing::warn!("发现同名的MT5-{}进程，尝试终止", self.terminal_id);
+                    // 完整命令: taskkill /F /IM <process_name>
                     match StdCommand::new("taskkill")
                         .args(&["/F", "/IM", &self.process_name])
                         .output() {
@@ -595,6 +602,7 @@ impl MetaTrader5 {
                                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                 
                                 // 再次检查
+                                // 完整命令: tasklist /FI "IMAGENAME eq <process_name>" /FO CSV
                                 let check_output = StdCommand::new("tasklist")
                                     .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
                                     .output()

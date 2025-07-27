@@ -22,6 +22,7 @@ impl DatabaseManager {
 
     pub async fn new() -> Self {
         let path = Self::get_database_path().unwrap();
+        tracing::info!("get_database_path数据库路径: {}", path.display());
         // 初始化数据库
         let conn = Self::create_database(&path).await.unwrap();
         Self { path, conn }
@@ -73,7 +74,8 @@ impl DatabaseManager {
         // 创建数据库文件
         // let db_path = path.join("db.sqlite");
         // let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
-        let path = PathBuf::from("D:/project/star-river-backend/db/db.sqlite");
+        let path = PathBuf::from("E:/project/star-river-backend/db/db.sqlite");
+        tracing::info!("path: {}", path.display());
         let database_url = format!("sqlite:{}?mode=rwc", path.display());
         tracing::info!("数据库路径: {}", database_url);
         

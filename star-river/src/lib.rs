@@ -29,6 +29,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, Registry};
 use tracing_subscriber::fmt::format;
+use types::account::ExchangeStatus::Error;
 use crate::routes::create_app_routes;
 
 #[tokio::main]
@@ -113,6 +114,12 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     // run it
     // let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let listener = bind_with_retry(addr, 3).await?;
+
+    #[cfg(windows)]
+    {
+        clean_mt5_server()?
+    }
+
     clean_mei_temp_dirs(); // 清理MetaTrader5的_MEI临时文件夹
     tracing::info!("listening on {}", listener.local_addr().unwrap());
     print_startup_info(addr);
@@ -129,6 +136,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
                 #[cfg(windows)]
                 {
                     tracing::info!("正在清理 MetaTrader5 进程...");
+                    // 完整命令: taskkill /F /IM MetaTrader5.exe
                     let _ = std::process::Command::new("taskkill")
                         .args(&["/F", "/IM", "MetaTrader5.exe"])
                         .output();
@@ -166,77 +174,78 @@ async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::ne
                 if retries >= max_retries {
                     return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
                 }
-                tracing::warn!("端口 {} 被占用，尝试清理所有 MetaTrader5 相关进程...", addr.port());
-                
-                #[cfg(windows)]
-                {
-                    // 1. 首先检查并清理原始的 MetaTrader5.exe 进程
-                    let output = std::process::Command::new("tasklist")
-                        .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
-                        .output()?;
-                    
-                    let output_str = String::from_utf8_lossy(&output.stdout);
-                    if output_str.contains("MetaTrader5.exe") {
-                        tracing::warn!("发现旧的MetaTrader5.exe进程, 正在清理...");
-                        
-                        let kill_result = std::process::Command::new("taskkill")
-                            .args(&["/F", "/IM", "MetaTrader5.exe"])
-                            .output();
-                            
-                        match kill_result {
-                            Ok(_) => tracing::info!("成功清理 MetaTrader5.exe 进程"),
-                            Err(e) => tracing::warn!("清理 MetaTrader5.exe 进程失败: {}", e),
-                        }
-                    }
-                    
-                    // 2. 检查并清理带有数字后缀的 Metatrader5-*.exe 进程
-                    // 使用通配符查找所有Metatrader5-*.exe进程
-                    let output = std::process::Command::new("wmic")
-                        .args(&["process", "where", "name like 'Metatrader5-%.exe'", "get", "name"])
-                        .output()?;
-                        
-                    let output_str = String::from_utf8_lossy(&output.stdout);
-                    if output_str.contains("Metatrader5-") {
-                        tracing::warn!("发现Metatrader5-*.exe进程, 正在清理...");
-                        
-                        // 使用任务管理器的筛选功能清理所有匹配的进程
-                        let kill_result = std::process::Command::new("taskkill")
-                            .args(&["/F", "/IM", "Metatrader5-*.exe"])
-                            .output();
-                            
-                        match kill_result {
-                            Ok(_) => tracing::info!("成功清理 Metatrader5-*.exe 进程"),
-                            Err(e) => tracing::warn!("清理 Metatrader5-*.exe 进程失败: {}", e),
-                        }
-                    }
-                    
-                    // 3. 如果上面的通配符方法不起作用，可以尝试列出所有进程并逐一匹配
-                    let output = std::process::Command::new("tasklist")
-                        .args(&["/FO", "CSV"])
-                        .output()?;
-                        
-                    let output_str = String::from_utf8_lossy(&output.stdout);
-                    let lines: Vec<&str> = output_str.lines().collect();
-                    
-                    for line in lines {
-                        if line.contains("Metatrader5-") {
-                            // 从行中提取进程名称
-                            if let Some(process_name) = line.split(',').nth(0) {
-                                let process_name = process_name.trim_matches('"');
-                                tracing::warn!("发现MetaTrader5相关进程: {}, 正在清理...", process_name);
-                                
-                                let kill_result = std::process::Command::new("taskkill")
-                                    .args(&["/F", "/IM", process_name])
-                                    .output();
-                                    
-                                match kill_result {
-                                    Ok(_) => tracing::info!("成功清理进程: {}", process_name),
-                                    Err(e) => tracing::warn!("清理进程 {} 失败: {}", process_name, e),
-                                }
-                            }
-                        }
-                    }
-                }
+                tracing::warn!("端口 {} 被占用，尝试清理所有 StarRiver 相关进程...", addr.port());
+
+                //windows系统下，需要检查残留的metatrader5服务
+                // #[cfg(windows)]
+                // {
+                //     // 1. 首先检查并清理原始的 MetaTrader5.exe 进程
+                //     let output = std::process::Command::new("tasklist")
+                //         .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+                //         .output()?;
+                //
+                //     let output_str = String::from_utf8_lossy(&output.stdout);
+                //     if output_str.contains("MetaTrader5.exe") {
+                //         tracing::warn!("发现旧的MetaTrader5.exe进程, 正在清理...");
+                //
+                //         let kill_result = std::process::Command::new("taskkill")
+                //             .args(&["/F", "/IM", "MetaTrader5.exe"])
+                //             .output();
+                //
+                //         match kill_result {
+                //             Ok(_) => tracing::info!("成功清理 MetaTrader5.exe 进程"),
+                //             Err(e) => tracing::warn!("清理 MetaTrader5.exe 进程失败: {}", e),
+                //         }
+                //     }
+                //
+                //     // 2. 检查并清理带有数字后缀的 Metatrader5-*.exe 进程
+                //     // 使用通配符查找所有Metatrader5-*.exe进程
+                //     let output = std::process::Command::new("wmic")
+                //         .args(&["process", "where", "name like 'Metatrader5-%.exe'", "get", "name"])
+                //         .output()?;
+                //
+                //     let output_str = String::from_utf8_lossy(&output.stdout);
+                //     if output_str.contains("Metatrader5-") {
+                //         tracing::warn!("发现Metatrader5-*.exe进程, 正在清理...");
+                //
+                //         // 使用任务管理器的筛选功能清理所有匹配的进程
+                //         let kill_result = std::process::Command::new("taskkill")
+                //             .args(&["/F", "/IM", "Metatrader5-*.exe"])
+                //             .output();
+                //
+                //         match kill_result {
+                //             Ok(_) => tracing::info!("成功清理 Metatrader5-*.exe 进程"),
+                //             Err(e) => tracing::warn!("清理 Metatrader5-*.exe 进程失败: {}", e),
+                //         }
+                //     }
+                //
+                //     // 3. 如果上面的通配符方法不起作用，可以尝试列出所有进程并逐一匹配
+                //     let output = std::process::Command::new("tasklist")
+                //         .args(&["/FO", "CSV"])
+                //         .output()?;
+                //
+                //     let output_str = String::from_utf8_lossy(&output.stdout);
+                //     let lines: Vec<&str> = output_str.lines().collect();
+                //
+                //     for line in lines {
+                //         if line.contains("Metatrader5-") {
+                //             // 从行中提取进程名称
+                //             if let Some(process_name) = line.split(',').nth(0) {
+                //                 let process_name = process_name.trim_matches('"');
+                //                 tracing::warn!("发现MetaTrader5相关进程: {}, 正在清理...", process_name);
+                //
+                //                 let kill_result = std::process::Command::new("taskkill")
+                //                     .args(&["/F", "/IM", process_name])
+                //                     .output();
+                //
+                //                 match kill_result {
+                //                     Ok(_) => tracing::info!("成功清理进程: {}", process_name),
+                //                     Err(e) => tracing::warn!("清理进程 {} 失败: {}", process_name, e),
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
                 
                 // 等待进程完全退出
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -245,6 +254,113 @@ async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::ne
             Err(e) => return Err(e.into()),
         }
     }
+}
+
+
+fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
+    tracing::debug!("start cleaning MT5 server");
+    // 1. 首先检查并清理原始的 MetaTrader5.exe 进程
+    // 完整命令: tasklist /FI "IMAGENAME eq MetaTrader5.exe" /FO CSV
+    let output = std::process::Command::new("tasklist")
+        .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
+        .output()?;
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    if output_str.contains("MetaTrader5.exe") {
+        tracing::warn!("发现旧的MetaTrader5.exe进程, 正在清理...");
+
+        // 完整命令: taskkill /F /IM MetaTrader5.exe
+        let kill_result = std::process::Command::new("taskkill")
+            .args(&["/F", "/IM", "MetaTrader5.exe"])
+            .output();
+
+        match kill_result {
+            Ok(_) => tracing::info!("成功清理 MetaTrader5.exe 进程"),
+            Err(e) => tracing::warn!("清理 MetaTrader5.exe 进程失败: {}", e),
+        }
+    }
+
+    // 2. 检查并清理带有数字后缀的 Metatrader5-*.exe 进程
+    // 使用tasklist命令查找所有进程，然后筛选Metatrader5-*进程（兼容老旧机型）
+    // 完整命令: tasklist /FO CSV
+    let output = std::process::Command::new("tasklist")
+        .args(&["/FO", "CSV"])
+        .output();
+
+    match output {
+        Ok(output) => {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            let lines: Vec<&str> = output_str.lines().collect();
+            let mut found_processes = Vec::new();
+
+            // 查找所有Metatrader5-*进程
+            for line in lines {
+                if line.contains("Metatrader5-") && line.contains(".exe") {
+                    if let Some(process_name) = line.split(',').nth(0) {
+                        let process_name = process_name.trim_matches('"');
+                        if process_name.starts_with("Metatrader5-") && process_name.ends_with(".exe") {
+                            found_processes.push(process_name.to_string());
+                        }
+                    }
+                }
+            }
+
+            if !found_processes.is_empty() {
+                tracing::warn!("发现Metatrader5-*.exe进程: {:?}, 正在清理...", found_processes);
+
+                // 逐个清理找到的进程
+                for process_name in found_processes {
+                    // 完整命令: taskkill /F /IM <process_name>
+                    let kill_result = std::process::Command::new("taskkill")
+                        .args(&["/F", "/IM", &process_name])
+                        .output();
+
+                    match kill_result {
+                        Ok(_) => tracing::info!("成功清理进程: {}", process_name),
+                        Err(e) => tracing::warn!("清理进程 {} 失败: {}", process_name, e),
+                    }
+                }
+            }
+        },
+        Err(e) => tracing::warn!("检查 Metatrader5-*.exe 进程失败: {}", e),
+    }
+
+    // 3. 如果上面的通配符方法不起作用，可以尝试列出所有进程并逐一匹配
+    // 完整命令: tasklist /FO CSV
+    let output = std::process::Command::new("tasklist")
+        .args(&["/FO", "CSV"])
+        .output()?;
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = output_str.lines().collect();
+
+    for line in lines {
+        if line.contains("Metatrader5-") {
+            // 从行中提取进程名称
+            if let Some(process_name) = line.split(',').nth(0) {
+                let process_name = process_name.trim_matches('"');
+                tracing::warn!("发现MetaTrader5相关进程: {}, 正在清理...", process_name);
+
+                // 完整命令: taskkill /F /IM <process_name>
+                let kill_result = std::process::Command::new("taskkill")
+                    .args(&["/F", "/IM", process_name])
+                    .output();
+
+                match kill_result {
+                    Ok(_) => {
+                        tracing::info!("成功清理进程: {}", process_name)
+                    },
+                    Err(e) => {
+                        tracing::warn!("清理进程 {} 失败: {}", process_name, e);
+                    }
+
+                }
+            }
+        }
+    }
+
+    Ok(())
+
 }
 
 

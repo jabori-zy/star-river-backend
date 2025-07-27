@@ -47,7 +47,7 @@ zip = "4.0.0"
 sysinfo = {version="0.36.0", features = [] }
 async-trait = {version = "0.1.86"}
 # 数据库
-sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio"] }
+sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio"] }
 sea-orm = { version = "1.1.11", features = [ "sqlx-sqlite","runtime-tokio", "macros", "chrono","with-chrono","with-json","serde_json" ] }
 reqwest = { version = "0.12.12", features = ["json"] }
 futures-util = "0.3.31"

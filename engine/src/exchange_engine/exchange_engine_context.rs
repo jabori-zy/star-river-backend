@@ -194,7 +194,7 @@ impl ExchangeEngineContext {
                         account_config.id, server_retry_count, max_server_retries);
                     tracing::error!("{}", error_msg);
                     if server_retry_count >= max_server_retries {
-                        return Err(format!("MT5-{} 服务启动超时，已重试{}次", 
+                        return Err(format!("MT5-{} 服务启动超时，已重试{}次",
                             account_config.id, max_server_retries));
                     }
                     // 等待一段时间后重试
