@@ -23,7 +23,6 @@ pub fn parse_indicator_config_from_str(s: &str) -> Result<(String, HashMap<Strin
 
     let indicator_name = parts[0].trim().to_lowercase();
     let content = parts[1].split(')').next().unwrap_or_default();
-    
     if content.trim().is_empty() {
         return Err("指标配置参数不能为空".to_string());
     }
@@ -32,7 +31,6 @@ pub fn parse_indicator_config_from_str(s: &str) -> Result<(String, HashMap<Strin
 
     // 按空格分割参数
     let param_parts: Vec<&str> = content.split_whitespace().collect();
-    
     // 解析每个键值对
     for param in param_parts {
         let kv: Vec<&str> = param.split('=').collect();

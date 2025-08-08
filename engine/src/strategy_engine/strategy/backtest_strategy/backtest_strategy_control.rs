@@ -417,7 +417,7 @@ impl BacktestStrategyContext {
         tracing::info!("{}: 重置播放", self.strategy_name.clone());
         self.cancel_play_token.cancel();
         // 重置信号计数
-        *self.play_index.write().await = 0;
+        *self.play_index.write().await = -1; // 重置为-1，表示未播放
         // 重置播放状态
         *self.is_playing.write().await = false;
         // 替换已经取消的令牌

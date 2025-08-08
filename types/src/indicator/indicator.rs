@@ -9,7 +9,7 @@ define_indicator!(ACCBANDS,
     output => [(timestamp: i64), (upper: f64), (middle: f64), (lower: f64)],
 );
 
-// Accumulation/Distribution Line #累积/派发线
+// Chaikin A/D Line #钱德动量线
 define_indicator!(AD,
     params => [],
     output => [(timestamp: i64), (ad: f64)],
@@ -30,7 +30,7 @@ define_indicator!(ADX,
 
 // Average Directional Movement Index Rating #平均方向性指数评级
 define_indicator!(ADXR,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [(time_period: i32)],
     output => [(timestamp: i64), (adxr: f64)],
 );
 
@@ -208,7 +208,7 @@ define_indicator!(RSI,
 
 //Chande Momentum Oscillator #钱德动量摆动指标
 define_indicator!(CMO,
-    params => [(time_period: i32)],
+    params => [(time_period: i32), (price_source: PriceSource)],
     output => [(timestamp: i64), (cmo: f64)],
 );
 

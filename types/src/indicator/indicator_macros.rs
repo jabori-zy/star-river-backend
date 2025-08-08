@@ -139,7 +139,7 @@ macro_rules! define_indicator_config {
                     $(
                         params.push(format!("{}={}", stringify!($param), self.$param.to_string()));
                     )*
-                    format!("{}({})", stringify!($indicator_name).to_lowercase(), params.join(", "))
+                    format!("{}({})", stringify!($indicator_name).to_lowercase(), params.join(" "))
                 }
             }
 
