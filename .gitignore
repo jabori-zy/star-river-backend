@@ -21,3 +21,4 @@ logs/
 **/_pycache_/
 *.pyc
 *.pyo
+CLAUDE.md
