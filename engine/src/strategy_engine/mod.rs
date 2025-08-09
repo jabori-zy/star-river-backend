@@ -20,6 +20,7 @@ use heartbeat::Heartbeat;
 use types::cache::Key;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::TradeMode;
+use types::order::virtual_order::VirtualOrder;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -153,7 +154,7 @@ impl StrategyEngine{
 
 
 
-// 回测策略控制
+// 回测策略
 impl StrategyEngine {
         // 播放策略
         pub async fn play(&mut self, strategy_id: i32) -> Result<(), String> {
@@ -192,6 +193,12 @@ impl StrategyEngine {
             let context = self.context.read().await;
             let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
             strategy_context.get_backtest_strategy_play_index(strategy_id).await
+        }
+
+        pub async fn get_virtual_orders(&mut self, strategy_id: i32) -> Result<Vec<VirtualOrder>, String> {
+            let context = self.context.read().await;
+            let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+            strategy_context.get_backtest_strategy_virtual_orders(strategy_id).await
         }
 
 

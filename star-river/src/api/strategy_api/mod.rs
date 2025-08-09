@@ -15,7 +15,6 @@ use types::strategy::Strategy;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use types::strategy::TradeMode;
 
 
 

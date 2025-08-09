@@ -5,6 +5,7 @@ use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::custom_type::StrategyId;
 use types::cache::Key;
 use types::strategy::TradeMode;
+use types::order::virtual_order::VirtualOrder;
 
 /* 
     回测策略控制
@@ -101,6 +102,15 @@ impl StrategyEngineContext {
             Ok(strategy.get_play_index().await)
         } else {
             Err("获取回测策略播放索引失败".to_string())
+        }
+    }
+
+    pub async fn get_backtest_strategy_virtual_orders(&self, strategy_id: i32) -> Result<Vec<VirtualOrder>, String> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            Ok(strategy.get_virtual_orders().await)
+        } else {
+            Err("获取回测策略虚拟订单失败".to_string())
         }
     }
 

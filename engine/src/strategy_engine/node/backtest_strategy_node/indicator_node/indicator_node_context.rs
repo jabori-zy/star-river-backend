@@ -196,6 +196,9 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 // 发送到strategy
                 strategy_output_handle.send(signal).unwrap();
             }
+            StrategyInnerEvent::NodeReset => {
+                tracing::info!("收到策略重置事件，清空指标缓存键");
+            }
         }
         Ok(())
     }

@@ -14,6 +14,7 @@ pub type StrategyInnerEventReceiver = Receiver<StrategyInnerEvent>;
 // 策略内部事件
 pub enum StrategyInnerEvent {
     PlayIndexUpdate(PlayIndexUpdateEvent), // 播放索引更新事件
+    NodeReset, // 节点重置事件
 }
 
 

@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use std::any::Any;
 use std::fmt::Debug;
 use std::str::FromStr;
-
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {
@@ -39,7 +39,7 @@ pub struct GetTransactionDetailParams {
 
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum FuturesOrderSide {
     #[strum(serialize = "OPEN_LONG")]
     #[serde(rename = "OPEN_LONG")]
@@ -70,7 +70,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum OrderType {
     #[strum(serialize = "MARKET")]
     #[serde(rename = "MARKET")]
@@ -103,7 +103,7 @@ where
 
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum OrderStatus {
     #[strum(serialize = "created")] // 已创建
     #[serde(rename = "CREATED")]

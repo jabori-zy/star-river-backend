@@ -190,6 +190,9 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                 }
                 
             }
+            StrategyInnerEvent::NodeReset => {
+                tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
+            }
         }
         Ok(())
     }

@@ -103,5 +103,9 @@ impl VirtualTradingSystem {
             Err(format!("订单不存在: {:?}", order_id))
         }
     }
+
+    pub fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
+        self.orders.clone()
+    }
     
 }

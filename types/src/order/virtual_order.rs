@@ -3,8 +3,10 @@ use chrono::{DateTime, Utc};
 use crate::order::{FuturesOrderSide,OrderType,OrderStatus};
 use crate::market::Exchange;
 use crate::custom_type::*;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+/// 虚拟订单
 pub struct VirtualOrder {
     #[serde(rename = "orderId")]
     pub order_id: OrderId, // 订单ID

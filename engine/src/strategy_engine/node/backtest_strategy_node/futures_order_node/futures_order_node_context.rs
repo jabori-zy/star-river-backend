@@ -88,7 +88,7 @@ impl FuturesOrderNodeContext {
     // 添加未成交的虚拟订单
     async fn add_unfilled_virtual_order(&mut self, input_handle_id: &InputHandleId, virtual_order: VirtualOrder) {
         let mut unfilled_virtual_order_guard = self.unfilled_virtual_order.write().await;
-        tracing::info!("{}: 订单已添加到未成交的虚拟订单列表: {:?}", self.get_node_id(), virtual_order);
+        // tracing::info!("{}: 订单已添加到未成交的虚拟订单列表: {:?}", self.get_node_id(), virtual_order);
         unfilled_virtual_order_guard.entry(input_handle_id.to_string()).or_insert(vec![]).push(virtual_order);
         
     }
@@ -115,17 +115,21 @@ impl FuturesOrderNodeContext {
     // 判断是否可以创建订单
     async fn can_create_order(&mut self, input_handle_id: &InputHandleId) -> bool {
         let is_processing_order_guard = self.is_processing_order.read().await;
+        tracing::info!("is_processing_order_guard: {:?}", is_processing_order_guard);
         let is_processing_order = *is_processing_order_guard.get(input_handle_id).unwrap_or(&false);
+        tracing::info!("是否正在处理订单: {:?}", is_processing_order);
         
         let unfilled_virtual_order_guard = self.unfilled_virtual_order.read().await;
         let unfilled_virtual_order_len = unfilled_virtual_order_guard
             .get(input_handle_id)
             .map_or(0, |v| v.len());
+        tracing::info!("未成交的虚拟订单数量: {:?}", unfilled_virtual_order_len);
 
         !(is_processing_order || unfilled_virtual_order_len > 0)
     }
 
     async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), String> {
+        tracing::info!("{:?}: 开始创建订单", self.is_processing_order.read().await);
         // 如果当前是正在处理订单的状态，或者未成交的订单列表不为空，则不创建订单
         if !self.can_create_order(&order_config.input_handle_id).await {
             tracing::warn!("{}: 当前正在处理订单, 跳过", self.get_node_name());
@@ -157,7 +161,7 @@ impl FuturesOrderNodeContext {
         // drop(virtual_trading_system_guard);
         
         // 重置is_processing_order
-        // self.set_is_processing_order(order_config.input_handle_id.as_str(), false).await;
+        // self.set_is_processing_order(&order_config.input_handle_id, false).await;
         Ok(())
     }
 
@@ -520,7 +524,23 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
                 }));
                 self.get_strategy_output_handle().send(signal).unwrap();
             }
-            _ => {}
+            StrategyInnerEvent::NodeReset => {
+                // 重置节点状态
+                // 重置is_processing_order
+               
+                let mut is_processing_order = self.is_processing_order.write().await;
+                tracing::info!("重置is_processing_order: {:?}", is_processing_order);
+                is_processing_order.clear();
+                tracing::info!("重置is_processing_order: {:?}", is_processing_order);
+                // 重置unfilled_virtual_order
+                let mut unfilled_virtual_order = self.unfilled_virtual_order.write().await;
+                unfilled_virtual_order.clear();
+                tracing::info!("重置unfilled_virtual_order: {:?}", unfilled_virtual_order);
+                // 重置virtual_order_history
+                let mut virtual_order_history = self.virtual_order_history.write().await;
+                virtual_order_history.clear();
+                tracing::info!("重置virtual_order_history: {:?}", virtual_order_history);
+            }
         }
         Ok(())
     }

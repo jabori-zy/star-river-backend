@@ -38,6 +38,7 @@ use super::super::StrategyCommandPublisher;
 use event_center::command::backtest_strategy_command::{StrategyCommand, GetStartNodeConfigParams};
 use event_center::response::backtest_strategy_response::StrategyResponse;
 use types::strategy::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
+use types::order::virtual_order::VirtualOrder;
 
 
 #[derive(Debug)]
@@ -491,6 +492,19 @@ impl BacktestStrategyContext {
     pub async fn get_play_index(&self) -> i32 {
         let play_index = self.play_index.read().await;
         *play_index
+    }
+
+    
+    // 获取所有的virtual order
+    pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let virtual_orders = virtual_trading_system.get_virtual_orders();
+        virtual_orders
+    }
+    
+    pub async fn virtual_trading_system_reset(&self) {
+        let mut virtual_trading_system = self.virtual_trading_system.lock().await;
+        virtual_trading_system.reset();
     }
 
 

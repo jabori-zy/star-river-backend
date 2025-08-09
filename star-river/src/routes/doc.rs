@@ -33,6 +33,7 @@ use types::system::system_config::SystemConfigUpdateParams;
         crate::api::strategy_api::backtest_strategy::update_backtest_chart_config,
         crate::api::strategy_api::backtest_strategy::get_backtest_chart_config,
         crate::api::strategy_api::backtest_strategy::get_play_index,
+        crate::api::strategy_api::backtest_strategy::get_virtual_orders,
         
         // 账户相关路径
         crate::api::account_api::get_account_configs,

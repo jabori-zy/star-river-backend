@@ -29,6 +29,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use super::super::node::backtest_strategy_node::start_node::StartNode;
 use super::StrategyCommandPublisher;
 use types::virtual_trading_system::event::VirtualTradingSystemEvent;
+use types::order::virtual_order::VirtualOrder;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -368,6 +369,10 @@ impl BacktestStrategy {
         tracing::info!("{}: 重置播放", self.get_strategy_name().await);
         let mut context_guard = self.context.write().await;
         context_guard.reset().await;
+        // 重置虚拟交易系统
+        context_guard.virtual_trading_system_reset().await;
+        context_guard.send_reset_node_event().await;
+        
         Ok(())
     }
 
@@ -385,6 +390,11 @@ impl BacktestStrategy {
     pub async fn get_play_index(&self) -> i32 {
         let context_guard = self.context.read().await;
         context_guard.get_play_index().await
+    }
+
+    pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
+        let context_guard = self.context.read().await;
+        context_guard.get_virtual_orders().await
     }
     
 }

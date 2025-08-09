@@ -214,6 +214,17 @@ impl VirtualTradingSystem {
         }
         None
     }
+    
+    // 重置系统
+    // 清空所有仓位和订单
+    pub fn reset(&mut self) {
+        self.current_positions.clear();
+        self.orders.clear();
+        self.transactions.clear();
+        self.play_index = 0;
+        self.current_balance = self.initial_balance;
+        self.margin = 0.0;
+    }
 }
 
 

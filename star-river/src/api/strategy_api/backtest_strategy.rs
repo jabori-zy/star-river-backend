@@ -11,8 +11,7 @@ use database::query::strategy_config_query::StrategyConfigQuery;
 use tracing::instrument;
 use types::engine::EngineName;
 use engine::strategy_engine::StrategyEngine;
-
-
+use types::order::virtual_order::VirtualOrder;
 
 #[derive(Debug, Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -214,6 +213,44 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 
 
 #[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/play-index",
+    tag = "回测策略",
+    summary = "获取播放索引",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取播放索引的策略ID")
+    ),
+    responses(
+        (status = 200, description = "获取播放索引成功"),
+        (status = 400, description = "获取播放索引失败")
+    )
+)]
+
+pub async fn get_play_index(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let play_index = strategy_engine.get_play_index(strategy_id).await;
+    if let Ok(play_index) = play_index {
+        (StatusCode::OK, Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(serde_json::json!({
+                "play_index": play_index
+            })),
+        }))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            code: -1,
+            message: "failed".to_string(),
+            data: None,
+        }))
+    }
+}
+
+
+#[utoipa::path(
     post,
     path = "/api/v1/strategy/backtest/{strategy_id}/reset",
     tag = "回测策略",
@@ -240,33 +277,31 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 }
 
 
+
 #[utoipa::path(
     get,
-    path = "/api/v1/strategy/backtest/{strategy_id}/play-index",
+    path = "/api/v1/strategy/backtest/{strategy_id}/virtual-orders",
     tag = "回测策略",
-    summary = "获取播放索引",
+    summary = "获取虚拟订单",
     params(
-        ("strategy_id" = i32, Path, description = "要获取播放索引的策略ID")
+        ("strategy_id" = i32, Path, description = "要获取虚拟订单的策略ID")
     ),
     responses(
-        (status = 200, description = "获取播放索引成功"),
-        (status = 400, description = "获取播放索引失败")
-    )
-)]
+        (status = 200, description = "获取虚拟订单成功", body = ApiResponse<Vec<VirtualOrder>>),
+        (status = 400, description = "获取虚拟订单失败", body = ApiResponse<Vec<VirtualOrder>>)
+    ))]
 
-pub async fn get_play_index(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
+pub async fn get_virtual_orders(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<Vec<VirtualOrder>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    let play_index = strategy_engine.get_play_index(strategy_id).await;
-    if let Ok(play_index) = play_index {
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: Some(serde_json::json!({
-                "play_index": play_index
-            })),
+    let virtual_orders = strategy_engine.get_virtual_orders(strategy_id).await;
+    if let Ok(virtual_orders) = virtual_orders {
+        (StatusCode::OK, Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(virtual_orders),
         }))
     } else {
         (StatusCode::BAD_REQUEST, Json(ApiResponse {

@@ -2,6 +2,7 @@ use types::order::{OrderType, FuturesOrderSide};
 use serde::{Serialize, Deserialize};
 use types::order::{deserialize_order_type, deserialize_futures_order_side};
 use types::strategy::{BacktestDataSource, DataSourceExchange, TimeRange, SelectedAccount};
+use types::custom_type::InputHandleId;
 
 // 合约订单配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,7 +11,7 @@ pub struct FuturesOrderConfig {
     pub order_config_id: i32,
 
     #[serde(rename = "inputHandleId")]
-    pub input_handle_id: String,
+    pub input_handle_id: InputHandleId,
 
     pub symbol: String,
 
