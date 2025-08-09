@@ -1,0 +1,55 @@
+use crate::talib_snake_fn;
+use types::indicator::indicator_define::cycle::*;
+use crate::indicator_engine::talib::TALib;
+use types::indicator::Indicator;
+use crate::indicator_engine::talib_bindings::*;
+use crate::indicator_engine::talib_error::TalibError;
+
+impl TALib {
+
+    // HT_DCPERIOD          Hilbert Transform - Dominant Cycle Period #希尔伯特变换 - 主导周期
+    talib_snake_fn!(
+        HtDcperiod,
+        timestamp => (timestamp_list: &[i64]),
+        input => [(data: &[f64])],
+        talib_params => [],
+        output => [(ht_dcperiod: f64)],
+    );
+
+    // HT_DCPHASE           Hilbert Transform - Dominant Cycle Phase #希尔伯特变换 - 主导周期相位
+    talib_snake_fn!(
+        HtDcphase,
+        timestamp => (timestamp_list: &[i64]),
+        input => [(data: &[f64])],
+        talib_params => [],
+        output => [(ht_dcphase: f64)],
+    );
+
+    // HT_PHASOR            Hilbert Transform - Phasor Components #希尔伯特变换 - 相量分量
+    talib_snake_fn!(
+        HtPhasor,
+        timestamp => (timestamp_list: &[i64]),
+        input => [(data: &[f64])],
+        talib_params => [],
+        output => [(in_phase: f64), (quadrature: f64)],
+    );
+
+    // HT_SINE              Hilbert Transform - SineWave #希尔伯特变换 - 正弦波
+    talib_snake_fn!(
+        HtSine,
+        timestamp => (timestamp_list: &[i64]),
+        input => [(data: &[f64])],
+        talib_params => [],
+        output => [(sine: f64), (lead_sine: f64)],
+    );
+
+    // HT_TRENDMODE         Hilbert Transform - Trend vs Cycle Mode #希尔伯特变换 - 趋势与周期模式
+    talib_snake_fn!(
+        HtTrendmode,
+        timestamp => (timestamp_list: &[i64]),
+        input => [(data: &[f64])],
+        talib_params => [],
+        output => [(ht_trendmode: i32)],
+    );
+
+}

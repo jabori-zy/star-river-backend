@@ -22,7 +22,7 @@ define_indicator!(EMA,
 
 //Hilbert Transform - Instantaneous Trendline #希尔伯特瞬时趋势线
 define_indicator!(HtTrendline,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [(price_source: PriceSource)],
     output => [(timestamp: i64), (ht_trendline: f64)],
 );
 
@@ -34,22 +34,22 @@ define_indicator!(KAMA,
 
 //MA
 define_indicator!(MA,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [(time_period: i32), (ma_type: MAType), (price_source: PriceSource)],
     output => [(timestamp: i64), (ma: f64)],
 );
 
 
 //MAMA                 MESA Adaptive Moving Average #梅萨自适应移动平均线 
 define_indicator!(MAMA,
-    params => [(time_period: i32), (price_source: PriceSource)],
-    output => [(timestamp: i64), (mama: f64)],
+    params => [(fast_limit: f64), (slow_limit: f64), (price_source: PriceSource)],
+    output => [(timestamp: i64), (mama: f64), (fama: f64)],
 );
 
 //MAVP                 Moving average with variable period #移动平均变周期
-define_indicator!(MAVP,
-    params => [(time_period: i32), (price_source: PriceSource)],
-    output => [(timestamp: i64), (mavp: f64)],
-);
+// define_indicator!(MAVP,
+//     params => [(min_period: i32), (max_period: i32), (ma_type: MAType), (price_source: PriceSource)],
+//     output => [(timestamp: i64), (mavp: f64)],
+// );
 
 //MIDPOINT             MidPoint over period #周期中点
 define_indicator!(MIDPOINT,
@@ -59,19 +59,27 @@ define_indicator!(MIDPOINT,
 
 //MIDPRICE             Midpoint Price over period #周期中点价格
 define_indicator!(MIDPRICE,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [(time_period: i32)],
     output => [(timestamp: i64), (midprice: f64)],
 );
 
 //SAR                  Parabolic SAR #抛物线转向
 define_indicator!(SAR,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [(acceleration: f64), (maximum: f64)],
     output => [(timestamp: i64), (sar: f64)],
 );
 
 //SAREXT               Parabolic SAR - Extended #抛物线转向扩展
 define_indicator!(SAREXT,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [
+        (start_value: f64), 
+        (offset_on_reverse: f64), 
+        (acceleration_init_long: f64), 
+        (acceleration_long: f64), 
+        (acceleration_max_long: f64), 
+        (acceleration_init_short: f64), 
+        (acceleration_short: f64), 
+        (acceleration_max_short: f64)],
     output => [(timestamp: i64), (sarext: f64)],
 );
 
@@ -83,7 +91,7 @@ define_indicator!(SMA,
 
 //T3                   Triple Exponential Moving Average (T3) #三重指数移动平均线
 define_indicator!(T3,
-    params => [(time_period: i32), (price_source: PriceSource)],
+    params => [(time_period: i32), (v_factor: f64), (price_source: PriceSource)],
     output => [(timestamp: i64), (t3: f64)],
 );
 

@@ -24,7 +24,12 @@ use engine::indicator_engine::indicator_engine_context::IndicatorEngineContext;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
 use types::cache::Key;
 use types::indicator::{IndicatorConfig, MAType, PriceSource, IndicatorTrait};
-use types::indicator::indicator::{MACDConfig, BBandsConfig, MAConfig};
+use types::indicator::indicator_define::momentum::*;
+use types::indicator::indicator_define::overlap::*;
+use types::indicator::indicator_define::cycle::*;
+use types::indicator::indicator_define::price_transform::*;
+use types::indicator::indicator_define::volatility::*;
+use types::indicator::indicator_define::volume::*;
 use ordered_float::OrderedFloat;
 
 

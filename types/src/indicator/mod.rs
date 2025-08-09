@@ -110,8 +110,8 @@ pub enum IndicatorConfig {
     #[serde(rename = "mama")]
     MAMA(MAMAConfig),
 
-    #[serde(rename = "mavp")]
-    MAVP(MAVPConfig),
+    // #[serde(rename = "mavp")]
+    // MAVP(MAVPConfig),
 
     #[serde(rename = "midpoint")]
     MIDPOINT(MIDPOINTConfig),
@@ -212,24 +212,24 @@ pub enum IndicatorConfig {
 
     // Cycle
     #[serde(rename = "ht_dcperiod")]
-    HtDcPeriod(HtDcPeriodConfig),
+    HtDcperiod(HtDcperiodConfig),
     #[serde(rename = "ht_dcphase")]
-    HtDcPhase(HtDcPhaseConfig),
+    HtDcphase(HtDcphaseConfig),
     #[serde(rename = "ht_phasor")]
     HtPhasor(HtPhasorConfig),
     #[serde(rename = "ht_sine")]
     HtSine(HtSineConfig),
     #[serde(rename = "ht_trendmode")]
-    HtTrendMode(HtTrendModeConfig),
+    HtTrendmode(HtTrendmodeConfig),
 
     // Price Transform
-    #[serde(rename = "avgprice")]
+    #[serde(rename = "avg_price")]
     AVGPRICE(AVGPRICEConfig),
-    #[serde(rename = "medprice")]
+    #[serde(rename = "med_price")]
     MEDPRICE(MEDPRICEConfig),
-    #[serde(rename = "typprice")]
+    #[serde(rename = "typ_price")]
     TYPPRICE(TYPPRICEConfig),
-    #[serde(rename = "wclprice")]
+    #[serde(rename = "wcl_price")]
     WCLPRICE(WCLPRICEConfig),
 
     // Volatility
@@ -380,7 +380,7 @@ impl_indicator_config!(IndicatorConfig,
         KAMA,
         MA,
         MAMA,
-        MAVP,
+        // MAVP,
         MIDPOINT,
         MIDPRICE,
         SAR,
@@ -429,11 +429,11 @@ impl_indicator_config!(IndicatorConfig,
         OBV,
 
         // Cycle
-        HtDcPeriod,
-        HtDcPhase,
+        HtDcperiod,
+        HtDcphase,
         HtPhasor,
         HtSine,
-        HtTrendMode,
+        HtTrendmode,
 
         // Price Transform
         AVGPRICE,
@@ -529,7 +529,7 @@ pub enum Indicator {
     KAMA(KAMA),
     MA(MA),
     MAMA(MAMA),
-    MAVP(MAVP),
+    // MAVP(MAVP),
     MIDPOINT(MIDPOINT),
     MIDPRICE(MIDPRICE),
     SAR(SAR),
@@ -578,11 +578,11 @@ pub enum Indicator {
     OBV(OBV),
 
     // Cycle
-    HtDcPeriod(HtDcPeriod),
-    HtDcPhase(HtDcPhase),
+    HtDcperiod(HtDcperiod),
+    HtDcphase(HtDcphase),
     HtPhasor(HtPhasor),
     HtSine(HtSine),
-    HtTrendMode(HtTrendMode),
+    HtTrendmode(HtTrendmode),
 
     // Price Transform
     AVGPRICE(AVGPRICE),
@@ -671,7 +671,7 @@ impl_indicator!(
     KAMA,
     MA,
     MAMA,
-    MAVP,
+    // MAVP,
     MIDPOINT,
     MIDPRICE,
     SAR,
@@ -720,11 +720,11 @@ impl_indicator!(
     OBV,
 
     // Cycle
-    HtDcPeriod,
-    HtDcPhase,
+    HtDcperiod,
+    HtDcphase,
     HtPhasor,
     HtSine,
-    HtTrendMode,
+    HtTrendmode,
 
     // Price Transform
     AVGPRICE,
