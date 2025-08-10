@@ -96,7 +96,22 @@ macro_rules! define_indicator_config {
 
             impl ToString for [<$indicator_name Config>] {
                 fn to_string(&self) -> String {
-                    format!("{}()", stringify!($indicator_name).to_lowercase())
+                    {
+                        const NAME_STR: &str = stringify!($indicator_name);
+                        let snake_name = if NAME_STR.chars().all(|c| c.is_uppercase() || c.is_numeric()) {
+                            NAME_STR.to_lowercase()
+                        } else {
+                            let mut result = String::new();
+                            for (i, ch) in NAME_STR.char_indices() {
+                                if ch.is_uppercase() && i > 0 {
+                                    result.push('_');
+                                }
+                                result.push(ch.to_ascii_lowercase());
+                            }
+                            result
+                        };
+                        format!("{}()", snake_name)
+                    }
                 }
             }
 
@@ -139,7 +154,22 @@ macro_rules! define_indicator_config {
                     $(
                         params.push(format!("{}={}", stringify!($param), self.$param.to_string()));
                     )*
-                    format!("{}({})", stringify!($indicator_name).to_lowercase(), params.join(" "))
+                    {
+                        const NAME_STR: &str = stringify!($indicator_name);
+                        let snake_name = if NAME_STR.chars().all(|c| c.is_uppercase() || c.is_numeric()) {
+                            NAME_STR.to_lowercase()
+                        } else {
+                            let mut result = String::new();
+                            for (i, ch) in NAME_STR.char_indices() {
+                                if ch.is_uppercase() && i > 0 {
+                                    result.push('_');
+                                }
+                                result.push(ch.to_ascii_lowercase());
+                            }
+                            result
+                        };
+                        format!("{}({})", snake_name, params.join(" "))
+                    }
                 }
             }
 
@@ -161,9 +191,7 @@ macro_rules! define_indicator_config {
             impl crate::indicator::IndicatorConfigTrait for [<$indicator_name Config>] {
                 fn new(config: &serde_json::Value) -> Result<Self, serde_json::Error> {
                     // 直接使用 serde_json 反序列化，它会自动处理驼峰命名转换
-                    tracing::debug!("config1: {:?}", config);
                     let config = serde_json::from_value(config.clone())?;
-                    tracing::debug!("config2: {:?}", config);
                     Ok(config)
                 }
             }
@@ -380,6 +408,7 @@ macro_rules! impl_indicator {
     };
 }
 
+
 #[macro_export]
 macro_rules! impl_indicator_config {
     ($indicator_config_enum:ident, ($($indicator_name:ident),+ $(,)?)) => {
@@ -410,7 +439,7 @@ macro_rules! impl_indicator_config {
                     // 根据指标类型创建相应的配置
                     match indicator_type {
                         $(
-                            stringify!([<$indicator_name:lower>]) => Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::from_str(s)?)),
+                            stringify!([<$indicator_name:lower>]) | stringify!([<$indicator_name:snake>]) => Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::from_str(s)?)),
                         )+
                         _ => Err(format!("不支持的指标类型: {}", indicator_type)),
                     }
