@@ -48,20 +48,17 @@ impl BacktestStrategyFunction {
             return Err("backtestConfig is null".to_string());
         };
 
-        tracing::debug!("backtest_config_json: {:?}", backtest_config_json);
-
         // 解析已配置的账户
         let selected_account_json = backtest_config_json["exchangeModeConfig"]["selectedAccount"].clone();
         let selected_account = serde_json::from_value::<SelectedAccount>(selected_account_json).unwrap();
-        tracing::debug!("selected_account: {:?}", selected_account);
 
         // 解析已配置的symbol
         let selected_symbol_json = backtest_config_json["exchangeModeConfig"]["selectedSymbol"].clone();
         let selected_symbol = serde_json::from_value::<SelectedSymbol>(selected_symbol_json).unwrap();
-        tracing::debug!("selected_symbol: {:?}", selected_symbol);
         
         // 已配置的指标列表
         let selected_indicators_array = backtest_config_json["exchangeModeConfig"]["selectedIndicators"].as_array().unwrap();
+        tracing::debug!("selected_indicators_array: {:?}", selected_indicators_array);
         let time_range_json = backtest_config_json["exchangeModeConfig"]["timeRange"].clone();
         let time_range = serde_json::from_value::<TimeRange>(time_range_json).unwrap();
 
@@ -71,6 +68,7 @@ impl BacktestStrategyFunction {
             // 指标配置json
             let indicator_type = ind_config["indicatorType"].as_str().unwrap();
             let indicator_config_json = ind_config["indicatorConfig"].clone();
+            tracing::debug!("indicator_config_json: {:?}", indicator_config_json);
             // let indicator_type = indicator_config_json["indicatorType"].as_str().unwrap_or_default();
             let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json)
                 .map_err(|e| format!("创建指标配置失败: {}", e))?;

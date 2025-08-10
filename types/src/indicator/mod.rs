@@ -90,7 +90,7 @@ pub trait IndicatorTrait {
 pub enum IndicatorConfig {
     // Overlap
     #[serde(rename = "bbands")]
-    BBands(BBandsConfig),
+    BBANDS(BBANDSConfig),
 
     #[serde(rename = "dema")]
     DEMA(DEMAConfig),
@@ -373,7 +373,7 @@ pub enum IndicatorConfig {
 impl_indicator_config!(IndicatorConfig,
     (
         // Overlap
-        BBands,
+        BBANDS,
         DEMA,
         EMA,
         HtTrendline,
@@ -522,7 +522,7 @@ impl_indicator_config!(IndicatorConfig,
 pub enum Indicator {
 
     // Overlap
-    BBands(BBands),
+    BBANDS(BBANDS),
     DEMA(DEMA),
     EMA(EMA),
     HtTrendline(HtTrendline),
@@ -664,7 +664,7 @@ impl_indicator!(
     Indicator, 
 
     // Overlap
-    BBands,
+    BBANDS,
     DEMA,
     EMA,
     HtTrendline,

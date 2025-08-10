@@ -36,7 +36,7 @@ pub fn test_overlap_indicators() {
 
 /// 测试BBands指标
 fn test_bbands(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
-    let config = BBandsConfig {
+    let config = BBANDSConfig {
         time_period: 20,
         dev_up: OrderedFloat(2.0),
         dev_down: OrderedFloat(2.0),

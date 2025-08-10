@@ -9,7 +9,7 @@ use crate::indicator_engine::talib_error::TalibError;
 impl TALib {
     //Bollinger Bands #布林带
     talib_fn!(
-        BBands,
+        BBANDS,
         timestamp => (timestamp_list: &[i64]),
         input => [(data: &[f64])],
         talib_params => [

@@ -156,7 +156,7 @@ async fn main() {
             price_source: PriceSource::Close,
         });
 
-        let bbands_config = IndicatorConfig::BBands(BBandsConfig {
+        let bbands_config = IndicatorConfig::BBANDS(BBANDSConfig {
             time_period: 20,
             dev_up: OrderedFloat(2.0),
             dev_down: OrderedFloat(2.0),

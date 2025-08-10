@@ -3508,6 +3508,7 @@ dependencies = [
  "engine",
  "ordered-float 5.0.0",
  "paste",
+ "serde_json",
  "types",
 ]
 

@@ -8,7 +8,7 @@ impl TALib {
         unsafe {
             match config {
                 // Overlap
-                IndicatorConfig::BBands(bbands_config) => {
+                IndicatorConfig::BBANDS(bbands_config) => {
                     let lookback = TA_BBANDS_Lookback(
                         bbands_config.time_period, 
                         bbands_config.dev_up.into(), 

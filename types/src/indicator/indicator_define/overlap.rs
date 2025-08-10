@@ -1,7 +1,7 @@
 use crate::{define_indicator, indicator::{MAType, PriceSource}};
 
 //Bollinger Bands #布林带
-define_indicator!(BBands,
+define_indicator!(BBANDS,
     params => [(time_period: i32), (dev_up: f64), (dev_down: f64), (ma_type: MAType), (price_source: PriceSource)],
     output => [(timestamp: i64), (upper: f64), (middle: f64), (lower: f64)],
 );

@@ -9,7 +9,7 @@ use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 
 impl CalculateIndicatorFunction {
     // Bollinger Bands #�&
-    calculate_fn!(BBands,
+    calculate_fn!(BBANDS,
         talib_params => [
             (time_period: i32),
             (dev_up: f64),

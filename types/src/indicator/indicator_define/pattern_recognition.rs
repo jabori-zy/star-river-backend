@@ -1,5 +1,68 @@
 use crate::{define_indicator};
 
+// K线形态识别指标 (Pattern Recognition Indicators)
+// 1. CDL2CROWS            Two Crows #两只乌鸦
+// 2. CDL3BLACKCROWS       Three Black Crows #三只乌鸦
+// 3. CDL3INSIDE           Three Inside Up/Down #三内部上涨/下跌
+// 4. CDL3LINESTRIKE       Three-Line Strike #三线打击
+// 5. CDL3OUTSIDE          Three Outside Up/Down #三外部上涨/下跌
+// 6. CDL3STARSINSOUTH     Three Stars In The South #三颗星在南方
+// 7. CDL3WHITESOLDIERS    Three Advancing White Soldiers #三只白兵
+// 8. CDLABANDONEDBABY     Abandoned Baby #弃婴
+// 9. CDLADVANCEBLOCK      Advance Block #前进阻挡
+// 10. CDLBELTHOLD         Belt-hold #带柄
+// 11. CDLBREAKAWAY        Breakaway #突破
+// 12. CDLCLOSINGMARUBOZU  Closing Marubozu #收盘十字星
+// 13. CDLCONCEALBABYSWALL Concealing Baby Swallow #隐藏婴儿吞噬
+// 14. CDLCOUNTERATTACK    Counterattack #反击
+// 15. CDLDARKCLOUDCOVER   Dark Cloud Cover #乌云盖顶
+// 16. CDLDOJI             Doji #十字星
+// 17. CDLDOJISTAR         Doji Star #十字星
+// 18. CDLDRAGONFLYDOJI    Dragonfly Doji #蜻蜓十字星
+// 19. CDLENGULFING        Engulfing Pattern #吞噬模式
+// 20. CDLEVENINGDOJISTAR  Evening Doji Star #黄昏十字星
+// 21. CDLEVENINGSTAR      Evening Star #黄昏星
+// 22. CDLGAPSIDESIDEWHITE Up/Down-gap side-by-side white lines #上/下缺口侧边白线
+// 23. CDLGRAVESTONEDOJI   Gravestone Doji #墓碑十字星
+// 24. CDLHAMMER           Hammer #锤子
+// 25. CDLHANGINGMAN       Hanging Man #吊人
+// 26. CDLHARAMI           Harami Pattern #孕线模式
+// 27. CDLHARAMICROSS      Harami Cross Pattern #孕线交叉模式
+// 28. CDLHIGHWAVE         High-Wave Candle #高浪烛
+// 29. CDLHIKKAKE          Hikkake Pattern #跳空模式
+// 30. CDLHIKKAKEMOD       Modified Hikkake Pattern #修改跳空模式
+// 31. CDLHOMINGPIGEON     Homing Pigeon #归巢鸽
+// 32. CDLIDENTICAL3CROWS  Identical Three Crows #相同三只乌鸦
+// 33. CDLINNECK           In-Neck Pattern #颈线模式
+// 34. CDLINVERTEDHAMMER   Inverted Hammer #倒锤子
+// 35. CDLKICKING          Kicking #踢腿
+// 36. CDLKICKINGBYLENGTH  Kicking - bull/bear determined by the longer marubozu #踢腿 - 牛/熊由更长的十字星决定
+// 37. CDLLADDERBOTTOM     Ladder Bottom #梯底
+// 38. CDLLONGLEGGEDDOJI   Long Legged Doji #长脚十字星
+// 39. CDLLONGLINE         Long Line Candle #长蜡烛
+// 40. CDLMARUBOZU         Marubozu #实体蜡烛
+// 41. CDLMATCHINGLOW      Matching Low #匹配低点
+// 42. CDLMATHOLD          Mat Hold #支撑
+// 43. CDLMORNINGDOJISTAR  Morning Doji Star #早晨十字星
+// 44. CDLMORNINGSTAR      Morning Star #早晨之星
+// 45. CDLONNECK           On-Neck Pattern #颈线模式
+// 46. CDLPIERCING         Piercing Pattern #刺透模式
+// 47. CDLRICKSHAWMAN      Rickshaw Man #人力车夫
+// 48. CDLRISEFALL3METHODS Rising/Falling Three Methods #上升/下降三法
+// 49. CDLSEPARATINGLINES  Separating Lines #分离线
+// 50. CDLSHOOTINGSTAR     Shooting Star #射击之星
+// 51. CDLSHORTLINE        Short Line Candle #短蜡烛
+// 52. CDLSPINNINGTOP      Spinning Top #旋转顶部
+// 53. CDLSTALLEDPATTERN   Stalled Pattern #停滞模式
+// 54. CDLSTICKSANDWICH    Stick Sandwich #针刺三明治
+// 55. CDLTAKURI           Takuri (Dragonfly Doji with very long lower shadow) #蜻蜓十字星
+// 56. CDLTASUKIGAP        Tasuki Gap #田中缺口
+// 57. CDLTHRUSTING        Thrusting Pattern #刺穿模式
+// 58. CDLTRISTAR          Tristar Pattern #三星模式
+// 59. CDLUNIQUE3RIVER     Unique 3 River #唯一三河
+// 60. CDLUPSIDEGAP2CROWS  Upside Gap Two Crows #上缺口两只乌鸦
+// 61. CDLXSIDEGAP3METHODS Upside/Downside Gap Three Methods #上/下缺口三法
+
 // CDL2CROWS            Two Crows #两只乌鸦
 define_indicator!(CDL2CROWS,
     params => [],

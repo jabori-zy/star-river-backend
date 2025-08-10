@@ -10,3 +10,4 @@ engine = { path = "../../engine" }
 paste = "1.0.15"
 types = { path = "../../types" }
 ordered-float.workspace = true
+serde_json.workspace = true

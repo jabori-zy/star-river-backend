@@ -161,7 +161,10 @@ macro_rules! define_indicator_config {
             impl crate::indicator::IndicatorConfigTrait for [<$indicator_name Config>] {
                 fn new(config: &serde_json::Value) -> Result<Self, serde_json::Error> {
                     // 直接使用 serde_json 反序列化，它会自动处理驼峰命名转换
-                    serde_json::from_value(config.clone())
+                    tracing::debug!("config1: {:?}", config);
+                    let config = serde_json::from_value(config.clone())?;
+                    tracing::debug!("config2: {:?}", config);
+                    Ok(config)
                 }
             }
         }
@@ -417,13 +420,16 @@ macro_rules! impl_indicator_config {
             // 实现 new 方法
             impl $indicator_config_enum {
                 pub fn new(indicator_type: &str, config: &serde_json::Value) -> Result<Self, serde_json::Error> {
+                    tracing::debug!("indicator_type: {:?}, config: {:?}", indicator_type, config);
                     match indicator_type {
                         $(
-                            stringify!([<$indicator_name:lower>]) => Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::new(config)?)),
+                            stringify!([<$indicator_name:lower>]) | stringify!([<$indicator_name:snake>]) => {
+                                Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::new(config)?))
+                            }
                         )+
                         _ => {
                             use serde::de::Error as _;
-                            Err(serde_json::Error::custom(format!("创建指标配置失败: {}", indicator_type)))
+                            Err(serde_json::Error::custom(format!("匹配指标类型失败: {}", indicator_type)))
                         },
                     }
                 }

@@ -45,7 +45,7 @@ impl CalculateIndicatorFunction {
 
         match &indicator_config {
             // Overlap
-            IndicatorConfig::BBands(bbands_config) => {
+            IndicatorConfig::BBANDS(bbands_config) => {
                 CalculateIndicatorFunction::calculate_bbands(kline_series, bbands_config)
             }
             IndicatorConfig::DEMA(dema_config) => {
