@@ -104,6 +104,12 @@ impl BacktestNodeTrait for VariableNode {
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
+        // 添加默认出口
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+        let default_output_handle_id = format!("{}_default_output", node_id);
+        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        self.add_output_handle(default_output_handle_id, tx).await;
+
         let variable_configs = {
             let context = self.get_context();
             let context_guard = context.read().await;

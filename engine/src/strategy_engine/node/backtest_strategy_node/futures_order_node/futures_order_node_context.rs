@@ -136,6 +136,12 @@ impl FuturesOrderNodeContext {
             return Err("当前正在处理订单, 跳过".to_string());
         }
 
+        // 仓位数量
+        let position_number = self.virtual_trading_system.lock().await.get_position_number();
+        if position_number >= 1 {
+            return Ok(());
+        }
+
         // 将input_handle_id的is_processing_order设置为true
         self.set_is_processing_order(&order_config.input_handle_id, true).await;
         tracing::info!("{}: 开始创建订单", self.get_node_id());
