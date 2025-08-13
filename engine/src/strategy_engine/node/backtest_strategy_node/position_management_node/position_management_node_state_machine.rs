@@ -8,6 +8,7 @@ pub enum PositionManagementNodeStateAction {
     ListenAndHandleNodeEvents,         // 处理消息
     ListenAndHandleInnerEvents,         // 处理内部事件
     ListenAndHandleStrategyCommand, // 处理策略命令
+    ListenAndHandleVirtualTradingSystemEvent, // 处理虚拟交易系统事件
     RegisterTask,        // 注册任务
     LogNodeState,    // 记录节点状态
     LogTransition,          // 记录状态转换
@@ -87,6 +88,7 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleStrategyCommand),
+                        Box::new(PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent),
                         Box::new(PositionManagementNodeStateAction::RegisterTask)],
                 }))
             }

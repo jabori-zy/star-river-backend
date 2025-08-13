@@ -39,6 +39,8 @@ use event_center::command::backtest_strategy_command::{StrategyCommand, GetStart
 use event_center::response::backtest_strategy_response::StrategyResponse;
 use types::strategy::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 use types::order::virtual_order::VirtualOrder;
+use types::strategy::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
+use types::position::virtual_position::VirtualPosition;
 
 
 #[derive(Debug)]
@@ -208,6 +210,23 @@ impl BacktestStrategyContext {
                 }
                 FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+            }
+        }
+
+        if let BacktestNodeEvent::PositionManagementNode(position_management_node_event) = &node_event {
+            match position_management_node_event {
+                PositionManagementNodeEvent::PositionCreated(position_created_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::PositionCreated(position_created_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                PositionManagementNodeEvent::PositionUpdated(position_updated_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::PositionUpdated(position_updated_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                PositionManagementNodeEvent::PositionClosed(position_closed_event) => { 
+                    let backtest_strategy_event = BacktestStrategyEvent::PositionClosed(position_closed_event.clone());
                     let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
             }
@@ -500,6 +519,12 @@ impl BacktestStrategyContext {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
         let virtual_orders = virtual_trading_system.get_virtual_orders();
         virtual_orders
+    }
+
+    pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let current_positions = virtual_trading_system.get_current_positions();
+        current_positions
     }
     
     pub async fn virtual_trading_system_reset(&self) {

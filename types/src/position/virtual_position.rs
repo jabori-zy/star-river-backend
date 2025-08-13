@@ -5,25 +5,57 @@ use crate::market::Exchange;
 use crate::position::{PositionSide, PositionState};
 use crate::order::virtual_order::VirtualOrder;
 use crate::order::FuturesOrderSide;
+use utoipa::ToSchema;
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VirtualPosition {
+    #[serde(rename = "positionId")]
     pub position_id: PositionId,
+
+    #[serde(rename = "orderId")]
     pub order_id: OrderId,
+
+    #[serde(rename = "strategyId")]
     pub strategy_id: StrategyId,
+
+    #[serde(rename = "nodeId")]
     pub node_id: NodeId,
+
+    #[serde(rename = "exchange")]
     pub exchange: Exchange,
+
+    #[serde(rename = "symbol")]
     pub symbol: String,
+
+    #[serde(rename = "positionSide")]
     pub position_side: PositionSide,
+
+    #[serde(rename = "positionState")]
     pub position_state: PositionState, // 持仓状态
+
+    #[serde(rename = "quantity")]
     pub quantity: f64,
+
+    #[serde(rename = "openPrice")]
     pub open_price: f64,
+
+    #[serde(rename = "currentPrice")]
     pub current_price: f64,
+
+    #[serde(rename = "tp")]
     pub tp: Option<f64>,
+
+    #[serde(rename = "sl")]
     pub sl: Option<f64>,
+
+    #[serde(rename = "unrealizedProfit")]
     pub unrealized_profit: f64, // 未实现盈亏
+
+    #[serde(rename = "createTime")]
     pub create_time: DateTime<Utc>,
+
+    #[serde(rename = "updateTime")]
     pub update_time: DateTime<Utc>,
 }
 

@@ -58,9 +58,16 @@ impl VirtualTradingSystem {
             if let Some(kline_cache_key) = kline_cache_key {
                 if let Some((current_price, _)) = self.kline_price.get(&kline_cache_key) {
                     self.current_positions[i].update_position(*current_price);
+                    let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(self.current_positions[i].clone());
+                    let _ = self.event_publisher.send(position_updated_event);
                 }
             }
         }
+    }
+
+
+    pub fn get_current_positions(&self) -> Vec<VirtualPosition> {
+        self.current_positions.clone()
     }
 
 }

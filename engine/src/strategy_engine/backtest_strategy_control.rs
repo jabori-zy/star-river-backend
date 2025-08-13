@@ -6,6 +6,7 @@ use types::custom_type::StrategyId;
 use types::cache::Key;
 use types::strategy::TradeMode;
 use types::order::virtual_order::VirtualOrder;
+use types::position::virtual_position::VirtualPosition;
 
 /* 
     回测策略控制
@@ -111,6 +112,15 @@ impl StrategyEngineContext {
             Ok(strategy.get_virtual_orders().await)
         } else {
             Err("获取回测策略虚拟订单失败".to_string())
+        }
+    }
+
+    pub async fn get_backtest_strategy_current_positions(&self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            Ok(strategy.get_current_positions().await)
+        } else {
+            Err("获取回测策略当前持仓失败".to_string())
         }
     }
 

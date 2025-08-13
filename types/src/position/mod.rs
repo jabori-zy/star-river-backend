@@ -7,6 +7,7 @@ use serde::{Serialize, Deserialize};
 use std::any::Any;
 use std::fmt::Debug;
 use chrono::{DateTime, Utc};
+use utoipa::ToSchema;
 
 
 
@@ -27,7 +28,7 @@ pub struct GetPositionParam {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 // 订单方向
 pub enum PositionSide {
     #[strum(serialize = "long")]
@@ -37,7 +38,7 @@ pub enum PositionSide {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum PositionState {
     #[strum(serialize = "open")]
     Open, // 持仓中

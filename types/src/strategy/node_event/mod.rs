@@ -18,6 +18,7 @@ use backtest_node_event::kline_node_event::KlineNodeEvent;
 use crate::cache::key::IndicatorKey;
 use crate::cache::KeyTrait;
 use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
+use backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 
 
 
@@ -57,6 +58,10 @@ pub enum BacktestNodeEvent {
     #[strum(serialize = "futures_order_node")]
     #[serde(rename = "futures_order_node")]
     FuturesOrderNode(FuturesOrderNodeEvent),
+
+    #[strum(serialize = "position_management_node")]
+    #[serde(rename = "position_management_node")]
+    PositionManagementNode(PositionManagementNodeEvent),
 
 
 }

@@ -177,7 +177,7 @@ impl FuturesOrderNodeContext {
         from_node_id: &NodeId, 
         input_handle_id: &InputHandleId
     ) -> Result<(), String> {
-        tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?} 来自节点: {}", self.get_node_id(), input_handle_id, node_event, from_node_id);
+        // tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?} 来自节点: {}", self.get_node_id(), input_handle_id, node_event, from_node_id);
         match node_event {
             BacktestNodeEvent::Signal(signal_event) => {
                 match signal_event {
@@ -495,7 +495,7 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
-        tracing::debug!("{}: 接收到节点事件: {:?}", self.get_node_id(), node_event);
+        // tracing::debug!("{}: 接收到节点事件: {:?}", self.get_node_id(), node_event);
         // match node_event {
         //     NodeEvent::Signal(signal_event) => {
         //         match signal_event {

@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use backtest_strategy_context::BacktestStrategyContext;
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
+use types::position::virtual_position::VirtualPosition;
 use types::strategy::Strategy;
 use event_center::EventPublisher;
 use tokio::sync::{Mutex, Notify};
@@ -395,6 +396,11 @@ impl BacktestStrategy {
     pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
         let context_guard = self.context.read().await;
         context_guard.get_virtual_orders().await
+    }
+
+    pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
+        let context_guard = self.context.read().await;
+        context_guard.get_current_positions().await
     }
     
 }

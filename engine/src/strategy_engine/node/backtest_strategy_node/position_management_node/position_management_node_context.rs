@@ -23,7 +23,8 @@ use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
+use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
+use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent, PositionManagementNodeEvent};
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -90,7 +91,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
-        tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
+        // tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
 
         // match message {
         //     NodeEvent::Order(order_message) => {
@@ -140,6 +141,34 @@ impl BacktestNodeContextTrait for PositionNodeContext {
 
 
 impl PositionNodeContext {
+    pub async fn handle_virtual_trading_system_event(&mut self, virtual_trading_system_event: VirtualTradingSystemEvent) -> Result<(), String> {
+        match virtual_trading_system_event {
+            VirtualTradingSystemEvent::PositionCreated(position) => {
+                let position_created_event = PositionManagementNodeEvent::PositionCreated(PositionCreatedEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_handle_id: self.get_node_id().clone(),
+                    virtual_position: position,
+                    timestamp: get_utc8_timestamp_millis(),
+                });
+                let strategy_output_handle = self.get_strategy_output_handle();
+                strategy_output_handle.send(BacktestNodeEvent::PositionManagementNode(position_created_event)).unwrap();
+            }
+            VirtualTradingSystemEvent::PositionUpdated(position) => {
+                let position_updated_event = PositionManagementNodeEvent::PositionUpdated(PositionUpdatedEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_handle_id: self.get_node_id().clone(),
+                    virtual_position: position,
+                    timestamp: get_utc8_timestamp_millis(),
+                });
+                let strategy_output_handle = self.get_strategy_output_handle();
+                strategy_output_handle.send(BacktestNodeEvent::PositionManagementNode(position_updated_event)).unwrap();
+            }
+            _ => {}
+        }
+        Ok(())
+    }
     // async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
     //     // 1. 先检查交易所注册状态
     //     let is_registered = {

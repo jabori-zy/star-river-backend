@@ -65,7 +65,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
-        tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
+        // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
         //如果事件类型是回测指标更新或者k线更新
         match &node_event {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(backtest_indicator_update_event)) => {

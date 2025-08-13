@@ -100,7 +100,7 @@ impl VirtualTradingSystem {
             let (close_price, timestamp) = self.get_close_price(kline_cache_key.clone().into()).await.unwrap();
             self.kline_price.entry(kline_cache_key).and_modify(|e| *e = (close_price, timestamp));
         }
-        // 更新仓位
+        // 价格更新后，更新仓位
         self.update_position();
         tracing::debug!("持仓: {:?}", self.current_positions);
     }

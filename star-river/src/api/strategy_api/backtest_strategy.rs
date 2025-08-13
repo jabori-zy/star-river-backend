@@ -12,6 +12,7 @@ use tracing::instrument;
 use types::engine::EngineName;
 use engine::strategy_engine::StrategyEngine;
 use types::order::virtual_order::VirtualOrder;
+use types::position::virtual_position::VirtualPosition;
 
 #[derive(Debug, Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -302,6 +303,43 @@ pub async fn get_virtual_orders(State(star_river): State<StarRiver>, Path(strate
             code: 0,
             message: "success".to_string(),
             data: Some(virtual_orders),
+        }))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            code: -1,
+            message: "failed".to_string(),
+            data: None,
+        }))
+    }
+}
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/current-positions",
+    tag = "回测策略",
+    summary = "获取当前虚拟持仓",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取当前虚拟持仓的策略ID")
+    ),
+    responses(
+        (status = 200, description = "获取当前虚拟持仓成功", body = ApiResponse<Vec<VirtualPosition>>),
+        (status = 400, description = "获取当前虚拟持仓失败", body = ApiResponse<Vec<VirtualPosition>>)
+    )
+)]
+
+
+pub async fn get_current_positions(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<Vec<VirtualPosition>>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let current_positions = strategy_engine.get_current_virtual_positions(strategy_id).await;
+    if let Ok(current_positions) = current_positions {
+        (StatusCode::OK, Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(current_positions),
         }))
     } else {
         (StatusCode::BAD_REQUEST, Json(ApiResponse {
