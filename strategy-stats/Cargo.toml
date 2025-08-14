@@ -1,0 +1,17 @@
+[package]
+name = "strategy-stats"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+types = { path = "../types" }
+utils = { path = "../utils" }
+event-center = {path = "../event-center" }
+virtual-trading = { path = "../virtual-trading"}
+tokio.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio-util.workspace = true

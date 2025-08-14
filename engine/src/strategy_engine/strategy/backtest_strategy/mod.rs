@@ -31,6 +31,8 @@ use super::super::node::backtest_strategy_node::start_node::StartNode;
 use super::StrategyCommandPublisher;
 use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 use types::order::virtual_order::VirtualOrder;
+use types::strategy_stats::event::StrategyStatsEvent;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -53,13 +55,18 @@ impl BacktestStrategy {
         let mut node_indices = HashMap::new();
         let mut cache_keys: Vec<Key> = vec![];
         let mut strategy_command_publisher = StrategyCommandPublisher::new();
+        let strategy_id = strategy.id;
+        let strategy_name = strategy.name;
 
         // 创建虚拟交易系统
         let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
         let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), virtual_trading_system_event_tx)));
 
-        let strategy_id = strategy.id;
-        let strategy_name = strategy.name;
+        // 创建策略统计模块
+        let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
+        let strategy_stats = Arc::new(RwLock::new(BacktestStrategyStats::new(virtual_trading_system.clone(), virtual_trading_system_event_rx.resubscribe(), strategy_stats_event_tx)));
+
+        
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
         // 创建策略内部事件的广播通道
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
@@ -90,7 +97,8 @@ impl BacktestStrategy {
                         node_command_tx.clone(),
                         virtual_trading_system.clone(),
                         strategy_inner_event_rx.resubscribe(),
-                        virtual_trading_system_event_rx.resubscribe()
+                        virtual_trading_system_event_rx.resubscribe(),
+                        strategy_stats.clone()
                     ).await.unwrap();
 
                 }
@@ -147,6 +155,8 @@ impl BacktestStrategy {
             strategy_inner_event_publisher: strategy_inner_event_tx,
             updated_play_index_node_ids: Arc::new(RwLock::new(vec![])),
             updated_play_index_notify: Arc::new(Notify::new()),
+            strategy_stats: strategy_stats,
+            strategy_stats_event_receiver: strategy_stats_event_rx,
         };
         Self { context: Arc::new(RwLock::new(context)) }
     }
@@ -226,6 +236,19 @@ impl BacktestStrategy {
                     } else {
                         tracing::error!("{}: 获取缓存长度失败", strategy_name);
                     }
+                }
+                BacktestStrategyStateAction::InitStrategyStats => {
+                    tracing::info!("{}: 初始化策略统计", strategy_name);
+                    let context_guard = self.context.read().await;
+                    let strategy_stats = context_guard.strategy_stats.clone();
+                    drop(context_guard); // 释放锁
+                    
+                    if let Err(e) = BacktestStrategyStats::start_listening(strategy_stats).await {
+                        tracing::error!("{}: 初始化策略统计失败: {}", strategy_name, e);
+                    } else {
+                        tracing::info!("{}: 初始化策略统计成功", strategy_name);
+                    }
+                    
                 }
 
                 BacktestStrategyStateAction::InitNode => {

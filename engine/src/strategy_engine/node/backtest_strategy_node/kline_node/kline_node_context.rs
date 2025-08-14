@@ -74,7 +74,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
-        tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, node_event);
+        // tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, node_event);
         // 收到消息之后，获取对应index的k线数据
         
         match node_event {
@@ -116,7 +116,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             );
                             
                             // 获取k线缓存值
-                            tracing::debug!("play_index: {}", play_event.play_index);
+                            // tracing::debug!("play_index: {}", play_event.play_index);
                             let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, play_event.play_index).await {
                                 Ok(value) => value,
                                 Err(e) => {
@@ -198,7 +198,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
-        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
     

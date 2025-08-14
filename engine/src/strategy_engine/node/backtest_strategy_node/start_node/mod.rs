@@ -21,6 +21,8 @@ use std::collections::HashMap;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
 use types::strategy::node_event::BacktestNodeEvent;
 use tokio::sync::broadcast;
+use virtual_trading::VirtualTradingSystem;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -48,6 +50,8 @@ impl StartNode {
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
+        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -66,8 +70,10 @@ impl StartNode {
         StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
                 base_context,
-                backtest_config: Arc::new(RwLock::new(backtest_config)),
+                node_config: Arc::new(RwLock::new(backtest_config)),
                 heartbeat,
+                virtual_trading_system,
+                strategy_stats,
             }))),
         }
     }

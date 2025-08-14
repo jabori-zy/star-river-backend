@@ -41,6 +41,8 @@ use types::strategy::node_event::backtest_node_event::futures_order_node_event::
 use types::order::virtual_order::VirtualOrder;
 use types::strategy::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use types::position::virtual_position::VirtualPosition;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+use types::strategy_stats::event::StrategyStatsEventReceiver;
 
 
 #[derive(Debug)]
@@ -73,6 +75,8 @@ pub struct BacktestStrategyContext {
     pub strategy_inner_event_publisher: StrategyInnerEventPublisher, // 策略内部事件发布器
     pub updated_play_index_node_ids: Arc<RwLock<Vec<NodeId>>>, // 已经更新播放索引的节点id
     pub updated_play_index_notify: Arc<Notify>, // 已经更新播放索引的节点id通知
+    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,   // 策略统计模块
+    pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
 }
 
 
@@ -157,7 +161,7 @@ impl BacktestStrategyContext {
         if let BacktestNodeEvent::Signal(signal_event) = &node_event {
             match signal_event {
                 SignalEvent::PlayIndexUpdated(play_index_update_event) => {
-                    tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.play_index);
+                    // tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.play_index);
                     // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
                     let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
                     if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
@@ -166,7 +170,7 @@ impl BacktestStrategyContext {
                     
                     // 如果所有节点索引更新完毕，则通知等待的线程
                     if updated_play_index_node_ids.len() == self.graph.node_count() {
-                        tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
+                        // tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
                         self.updated_play_index_notify.notify_waiters();
                         // 通知完成后，清空updated_play_index_node_ids
                         updated_play_index_node_ids.clear();

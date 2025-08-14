@@ -2,7 +2,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, Backte
 use std::any::Any;
 use event_center::{command::cache_engine_command::{GetCacheLengthMultiParams, GetCacheLengthParams, CacheEngineCommand}, Event};
 use tracing::instrument;
-use types::strategy::{node_command::{GetStrategyCacheKeysParams}, node_event::{BacktestNodeEvent}};
+use types::{strategy::{node_command::GetStrategyCacheKeysParams, node_event::BacktestNodeEvent}, virtual_trading_system};
 use async_trait::async_trait;
 use types::strategy::BacktestStrategyConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -15,12 +15,16 @@ use types::strategy::node_event::{KlinePlayEvent, KlinePlayFinishedEvent, Signal
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
+use virtual_trading::VirtualTradingSystem;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub backtest_config: Arc<RwLock<BacktestStrategyConfig>>,
+    pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
+    pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     
 }
 
@@ -84,10 +88,10 @@ impl BacktestNodeContextTrait for StartNodeContext {
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
-        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         match strategy_command {
             StrategyCommand::GetStartNodeConfig(get_start_node_config_params) => {
-                let start_node_config = self.backtest_config.read().await.clone();
+                let start_node_config = self.node_config.read().await.clone();
                 
                 let response = StrategyResponse::GetStartNodeConfig(GetStartNodeConfigResponse {
                     code: 0,
@@ -137,5 +141,21 @@ impl StartNodeContext {
         let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlayFinished(finish_signal));
         default_output_handle.send(signal.clone()).unwrap();
 
+    }
+
+    pub async fn init_virtual_trading_system(&self) {
+        let mut virtual_trading_system = self.virtual_trading_system.lock().await;
+        let node_config = self.node_config.read().await;
+        virtual_trading_system.set_initial_balance(node_config.initial_balance);
+        virtual_trading_system.set_leverage(node_config.leverage as u32);
+
+    }
+
+
+    pub async fn init_strategy_stats(&self) {
+        let mut strategy_stats = self.strategy_stats.write().await;
+        let node_config = self.node_config.read().await;
+        strategy_stats.set_initial_balance(node_config.initial_balance);
+        strategy_stats.set_leverage(node_config.leverage as u32);
     }
 }

@@ -20,6 +20,8 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use super::super::StrategyCommandPublisher;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
+use tokio::sync::RwLock;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -39,6 +41,7 @@ impl BacktestStrategyFunction {
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
+        strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     ) -> Result<(), String> {
         // 获取节点类型
         let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
@@ -56,7 +59,9 @@ impl BacktestStrategyFunction {
                     heartbeat, 
                     node_command_sender, 
                     strategy_command_publisher, 
-                    strategy_inner_event_receiver
+                    strategy_inner_event_receiver,
+                    virtual_trading_system,
+                    strategy_stats
                 ).await.unwrap();
                 Ok(())
             }

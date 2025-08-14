@@ -14,6 +14,9 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use super::super::StrategyCommandPublisher;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use tokio::sync::mpsc;
+use tokio::sync::RwLock;
+use virtual_trading::VirtualTradingSystem;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 impl BacktestStrategyFunction {
     pub async fn add_start_node(
@@ -27,6 +30,8 @@ impl BacktestStrategyFunction {
         node_command_sender: NodeCommandSender,
         strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -60,6 +65,8 @@ impl BacktestStrategyFunction {
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,
+            virtual_trading_system,
+            strategy_stats,
         );
         // 设置默认输出句柄
         node.set_output_handle().await;

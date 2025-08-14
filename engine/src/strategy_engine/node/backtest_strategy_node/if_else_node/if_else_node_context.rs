@@ -113,7 +113,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
-        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 }
@@ -222,9 +222,9 @@ impl IfElseNodeContext {
                 // tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
 
                 // 获取case的handle
-                tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
+                // tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
                 if let Err(e) = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
-                    tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
+                    // tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
                 }
 
                 case_matched = true;
@@ -244,9 +244,9 @@ impl IfElseNodeContext {
             });
             
 
-            tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
+            // tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
             if let Err(e) = default_ouput_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
-                tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
+                // tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
             }
         }
                         
@@ -289,13 +289,13 @@ impl IfElseNodeContext {
                 ComparisonSymbol::NotEqual => (left_value - right_value).abs() >= f64::EPSILON,
             };
             
-            tracing::debug!(
-                "条件评估: 左值={:.6}, 比较符号={}, 右值={:.6}, 结果={}",
-                left_value,
-                condition.comparison_symbol.to_string(),
-                right_value,
-                condition_result
-            );
+            // tracing::debug!(
+            //     "条件评估: 左值={:.6}, 比较符号={}, 右值={:.6}, 结果={}",
+            //     left_value,
+            //     condition.comparison_symbol.to_string(),
+            //     right_value,
+            //     condition_result
+            // );
             
             condition_result
         } else {

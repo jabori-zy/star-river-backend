@@ -16,14 +16,15 @@ use event_center::response::cache_engine_response::CacheEngineResponse;
 use utils::get_utc8_timestamp_millis;
 use std::collections::HashMap;
 use types::market::Exchange;
-use types::virtual_trading_system::event::VirtualTradingSystemEventSender;
+use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventSender};
 
 /// 虚拟交易系统
 /// 
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
+    pub timestamp: i64, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     pub kline_price: HashMap<KlineKey, (f64, i64)>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
-    play_index: i32, // k线缓存key的索引
+    play_index: i32, // 播放索引
     pub initial_balance: Balance, // 初始资金
     pub leverage: Leverage, // 杠杆
     pub current_balance: Balance, // 当前资金
@@ -40,6 +41,7 @@ pub struct VirtualTradingSystem {
 impl VirtualTradingSystem {
     pub fn new(command_publisher: CommandPublisher, event_publisher: VirtualTradingSystemEventSender) -> Self {
         Self {
+            timestamp: 0,
             kline_price: HashMap::new(),
             play_index: 0,
             initial_balance: 0.0, 
@@ -95,14 +97,51 @@ impl VirtualTradingSystem {
     pub async fn set_play_index(&mut self, play_index: i32) {
         self.play_index = play_index;
         // 当k线索引更新后，更新k线缓存key的最新收盘价
-        let keys: Vec<KlineKey> = self.kline_price.keys().cloned().collect();
-        for kline_cache_key in keys {
-            let (close_price, timestamp) = self.get_close_price(kline_cache_key.clone().into()).await.unwrap();
-            self.kline_price.entry(kline_cache_key).and_modify(|e| *e = (close_price, timestamp));
-        }
+        self.update_kline_price().await;
+        // 更新时间戳
+        // self.update_timestamp();
         // 价格更新后，更新仓位
         self.update_position();
         tracing::debug!("持仓: {:?}", self.current_positions);
+        
+    }
+
+
+    async fn update_kline_price(&mut self) {
+        let keys: Vec<KlineKey> = self.kline_price.keys().cloned().collect();
+
+        let mut timestamp_list = vec![];
+        for kline_cache_key in keys {
+            let (close_price, timestamp) = self.get_close_price(kline_cache_key.clone().into()).await.unwrap();
+            timestamp_list.push(timestamp);
+            self.kline_price.entry(kline_cache_key).and_modify(|e| *e = (close_price, timestamp));
+        }
+
+        // 检查完成后，需要检查所有k线的时间戳是否相同
+        if timestamp_list.len() > 0 {
+            let first_timestamp = timestamp_list[0];
+            for timestamp in timestamp_list {
+                if timestamp != first_timestamp {
+                    tracing::warn!("k线时间戳不一致");
+                }
+            }
+        }
+    }
+
+    fn update_timestamp(&mut self) {
+        // 获取所有k线的时间戳
+        let mut timestamp_list = vec![];
+        self.kline_price.iter().for_each(|(_, (_, timestamp))| {
+            timestamp_list.push(timestamp.clone());
+        });
+        
+        let min_timestamp = timestamp_list.iter().min();
+        if let Some(min_timestamp) = min_timestamp {
+            self.timestamp = *min_timestamp;
+        }
+
+        // 发送事件
+        self.event_publisher.send(VirtualTradingSystemEvent::PlayIndexUpdated((self.play_index, self.timestamp))).unwrap();
     }
 
     // 设置初始资金
@@ -180,7 +219,7 @@ impl VirtualTradingSystem {
         let params = GetCacheParams {
             strategy_id: -1,
             node_id: "virtual_trading_system".to_string(),
-            key: kline_cache_key.clone(),
+            key: kline_cache_key,
             index: Some(self.play_index as u32),
             limit: Some(1),
             sender: "virtual_trading_system".to_string(),

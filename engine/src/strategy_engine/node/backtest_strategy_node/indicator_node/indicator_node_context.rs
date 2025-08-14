@@ -204,7 +204,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
-        tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 

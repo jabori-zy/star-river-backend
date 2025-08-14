@@ -159,7 +159,7 @@ impl BacktestStrategyContext {
         let node_clone = context.node.clone();
         let virtual_trading_system_clone = context.virtual_trading_system.clone();
         let updated_play_index_notify = context.updated_play_index_notify.clone();
-        tracing::info!("等待节点索引更新完毕");
+        // tracing::info!("等待节点索引更新完毕");
         let start_node = node_clone.as_any().downcast_ref::<StartNode>().unwrap();
         updated_play_index_notify.notified().await;
         
@@ -303,7 +303,7 @@ impl BacktestStrategyContext {
         let updated_play_index_notify = self.updated_play_index_notify.clone();
 
         tokio::spawn(async move {
-            tracing::info!("等待节点索引更新完毕");
+            // tracing::info!("等待节点索引更新完毕");
             let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
             updated_play_index_notify.notified().await;
             

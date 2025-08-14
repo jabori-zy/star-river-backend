@@ -29,12 +29,12 @@ pub fn get_variable_value(
 ) -> Option<f64> {
     
     let node_event = received_value.get(&(node_id, variable_id))?.as_ref()?;
-    tracing::debug!("node_event: {:?}", node_event);
+    // tracing::debug!("node_event: {:?}", node_event);
     
     match node_event {
         BacktestNodeEvent::IndicatorNode(indicator_event) => {
             if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_event {
-                tracing::debug!("indicator_update_event: {:?}", indicator_update_event);
+                // tracing::debug!("indicator_update_event: {:?}", indicator_update_event);
                 indicator_update_event
                     .indicator_series
                     .last()
