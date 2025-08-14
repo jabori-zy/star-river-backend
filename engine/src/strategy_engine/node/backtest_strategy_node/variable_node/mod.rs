@@ -25,6 +25,7 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use crate::strategy_engine::node::node_types::DefaultOutputHandleId;
+use types::custom_type::PlayIndex;
 
 
 #[derive(Debug, Clone)]
@@ -49,6 +50,7 @@ impl VariableNode {
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -63,6 +65,7 @@ impl VariableNode {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx,
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(VariableNodeContext {

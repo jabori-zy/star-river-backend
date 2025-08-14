@@ -264,8 +264,6 @@ impl BacktestNodeFunction {
         let mut stream = BroadcastStream::new(inner_event_receiver);
         let state = context.clone();
 
-        
-
         // 节点接收数据
         tokio::spawn(async move {
             loop {
@@ -329,6 +327,47 @@ impl BacktestNodeFunction {
             }
         });
     }
+
+    pub async fn listen_play_index(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
+        let (mut play_index_watch_rx, cancel_token, node_id) = {
+            let state_guard = context.read().await;
+            let play_index_watch_rx = state_guard.get_play_index_watch_rx();
+            let cancel_token = state_guard.get_cancel_token().clone();
+            let node_id = state_guard.get_node_id().to_string();
+            (play_index_watch_rx, cancel_token, node_id)
+        };
+
+
+        // 节点接收播放索引变化
+      tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // 如果取消信号被触发，则中止任务
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{} 播放索引监听任务已中止", node_id);
+                        break;
+                    }
+                    // 监听播放索引变化
+                    receive_result = play_index_watch_rx.changed() => {
+                        match receive_result {
+                            Ok(_) => {
+                                // 获取最新的播放索引
+                                let play_index = *play_index_watch_rx.borrow_and_update();
+
+                                let mut state_guard = context.write().await;
+                                state_guard.handle_play_index(play_index).await.unwrap();
+                            }
+                            Err(e) => {
+                                tracing::error!("节点{}监听播放索引错误: {}", node_id, e);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
 
 
     /// 通用的任务取消实现

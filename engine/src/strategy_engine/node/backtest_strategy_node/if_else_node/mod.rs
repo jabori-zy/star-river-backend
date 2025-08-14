@@ -27,6 +27,7 @@ use event_center::{CommandPublisher, CommandReceiver, command::backtest_strategy
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
+use types::custom_type::PlayIndex;
 
 
 // 条件分支节点
@@ -48,6 +49,7 @@ impl IfElseNode {
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -62,6 +64,7 @@ impl IfElseNode {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(IfElseNodeContext {
@@ -256,6 +259,10 @@ impl BacktestNodeTrait for IfElseNode {
                 IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("{}: 开始监听策略命令", node_id);
                     self.listen_strategy_command().await?;
+                }
+                IfElseNodeStateAction::ListenAndHandlePlayIndex => {
+                    tracing::info!("{}: 开始监听播放索引", node_id);
+                    self.listen_play_index().await?;
                 }
                 IfElseNodeStateAction::CancelAsyncTask => {
                     tracing::info!("{}: 开始取消异步任务", node_id);

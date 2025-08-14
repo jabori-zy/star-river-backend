@@ -19,6 +19,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use types::custom_type::PlayIndex;
 
 impl BacktestStrategyFunction {
     pub async fn add_kline_node(
@@ -36,6 +37,7 @@ impl BacktestStrategyFunction {
         strategy_command_publisher: &mut StrategyCommandPublisher,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         ) -> Result<(), String> {
             let node_data = node_config["data"].clone();
             let strategy_id = node_data["strategyId"].as_i64().unwrap(); // 策略id
@@ -96,6 +98,7 @@ impl BacktestStrategyFunction {
                 node_command_sender,
                 Arc::new(Mutex::new(strategy_command_rx)),
                 strategy_inner_event_receiver,
+                play_index_watch_rx,
             );
             // 设置默认输出句柄
             node.set_output_handle().await;

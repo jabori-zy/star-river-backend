@@ -8,6 +8,7 @@ pub enum IndicatorNodeStateAction {
     ListenAndHandleNodeEvents, // 处理消息
     ListenAndHandleStrategyCommand, // 处理策略命令
     ListenAndHandleInnerEvents, // 处理内部事件
+    ListenAndHandlePlayIndex, // 处理播放索引
     RegisterIndicatorCacheKey, // 注册指标缓存键
     CalculateIndicator, // 计算指标
     LogNodeState,    // 记录节点状态
@@ -92,6 +93,7 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                         Box::new(IndicatorNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleInnerEvents),
+                        Box::new(IndicatorNodeStateAction::ListenAndHandlePlayIndex),
                         Box::new(IndicatorNodeStateAction::RegisterIndicatorCacheKey),
                         Box::new(IndicatorNodeStateAction::CalculateIndicator),
                         ],

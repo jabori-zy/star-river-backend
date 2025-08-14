@@ -31,6 +31,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use std::collections::HashMap;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
+use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct FuturesOrderNode {
@@ -55,6 +56,7 @@ impl FuturesOrderNode {
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -69,6 +71,7 @@ impl FuturesOrderNode {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx,
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(FuturesOrderNodeContext {
@@ -353,6 +356,10 @@ impl BacktestNodeTrait for FuturesOrderNode {
                     OrderNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
+                    }
+                    OrderNodeStateAction::ListenAndHandlePlayIndex => {
+                        tracing::info!("{}: 开始监听播放索引", node_id);
+                        self.listen_play_index().await?;
                     }
                     OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
                         tracing::info!("{}: 开始监听虚拟交易系统事件", node_id);

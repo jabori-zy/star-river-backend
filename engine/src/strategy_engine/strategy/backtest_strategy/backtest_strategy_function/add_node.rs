@@ -22,6 +22,7 @@ use super::super::StrategyCommandPublisher;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 use tokio::sync::RwLock;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+use types::custom_type::PlayIndex;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -42,6 +43,7 @@ impl BacktestStrategyFunction {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         // 获取节点类型
         let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
@@ -61,7 +63,8 @@ impl BacktestStrategyFunction {
                     strategy_command_publisher, 
                     strategy_inner_event_receiver,
                     virtual_trading_system,
-                    strategy_stats
+                    strategy_stats,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
             }
@@ -81,7 +84,8 @@ impl BacktestStrategyFunction {
                     node_command_sender,
                     strategy_command_publisher,
                     virtual_trading_system, 
-                    strategy_inner_event_receiver
+                    strategy_inner_event_receiver,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
                 
@@ -99,7 +103,8 @@ impl BacktestStrategyFunction {
                     response_event_receiver, 
                     node_command_sender, 
                     strategy_command_publisher,
-                    strategy_inner_event_receiver
+                    strategy_inner_event_receiver,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
                 
@@ -116,7 +121,8 @@ impl BacktestStrategyFunction {
                     command_receiver,
                     node_command_sender,
                     strategy_command_publisher,
-                    strategy_inner_event_receiver
+                    strategy_inner_event_receiver,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
             }
@@ -136,7 +142,8 @@ impl BacktestStrategyFunction {
                     strategy_command_publisher,
                     virtual_trading_system, 
                     strategy_inner_event_receiver,
-                    virtual_trading_system_event_receiver
+                    virtual_trading_system_event_receiver,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
             }
@@ -156,7 +163,8 @@ impl BacktestStrategyFunction {
                     strategy_command_publisher, 
                     virtual_trading_system, 
                     strategy_inner_event_receiver,
-                    virtual_trading_system_event_receiver
+                    virtual_trading_system_event_receiver,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
                 
@@ -176,7 +184,8 @@ impl BacktestStrategyFunction {
                     node_command_sender, 
                     strategy_command_publisher,
                     virtual_trading_system, 
-                    strategy_inner_event_receiver
+                    strategy_inner_event_receiver,
+                    play_index_watch_rx
                 ).await.unwrap();
                 Ok(())
             }

@@ -353,20 +353,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     // async fn start(&mut self) -> Result<(), String>;
     // 停止节点
     async fn stop(&mut self) -> Result<(), String>;
-    // 启用节点事件推送
-    // async fn enable_node_event_push(&mut self) -> Result<(), String> {
-    //     let context = self.get_context();
-    //     let mut context_guard = context.write().await;
-    //     context_guard.set_enable_event_publish(true);
-    //     Ok(())
-    // } 
-    // // 禁用节点事件推送
-    // async fn disable_node_event_push(&mut self) -> Result<(), String> {
-    //     let context = self.get_context();
-    //     let mut context_guard = context.write().await;
-    //     context_guard.set_enable_event_publish(false);
-    //     Ok(())
-    // }
+    
 
 
     // 监听外部事件
@@ -396,6 +383,13 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     async fn listen_strategy_command(&self) -> Result<(), String> {
         let context = self.get_context();
         BacktestNodeFunction::listen_strategy_command(context).await;
+        Ok(())
+    }
+
+    // 监听播放索引
+    async fn listen_play_index(&self) -> Result<(), String> {
+        let context = self.get_context();
+        BacktestNodeFunction::listen_play_index(context).await;
         Ok(())
     }
 

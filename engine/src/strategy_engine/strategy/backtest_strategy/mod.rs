@@ -71,6 +71,9 @@ impl BacktestStrategy {
         // 创建策略内部事件的广播通道
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
+        // 创建播放索引监听器
+        let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<i32>(-1);
+
 
         // 当策略创建时，状态为 Created
         let cancel_token = CancellationToken::new();
@@ -98,7 +101,8 @@ impl BacktestStrategy {
                         virtual_trading_system.clone(),
                         strategy_inner_event_rx.resubscribe(),
                         virtual_trading_system_event_rx.resubscribe(),
-                        strategy_stats.clone()
+                        strategy_stats.clone(),
+                        play_index_watch_rx.clone()
                     ).await.unwrap();
 
                 }
@@ -157,6 +161,7 @@ impl BacktestStrategy {
             updated_play_index_notify: Arc::new(Notify::new()),
             strategy_stats: strategy_stats,
             strategy_stats_event_receiver: strategy_stats_event_rx,
+            play_index_watch_tx,
         };
         Self { context: Arc::new(RwLock::new(context)) }
     }

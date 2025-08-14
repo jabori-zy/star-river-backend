@@ -77,6 +77,7 @@ pub struct BacktestStrategyContext {
     pub updated_play_index_notify: Arc<Notify>, // 已经更新播放索引的节点id通知
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,   // 策略统计模块
     pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
+    pub play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
 }
 
 
@@ -158,27 +159,27 @@ impl BacktestStrategyContext {
     // 所有节点发送的事件都会汇集到这里
     pub async fn handle_node_event(&self, node_event: BacktestNodeEvent) -> Result<(), String> {
         // 播放索引更新事件
-        if let BacktestNodeEvent::Signal(signal_event) = &node_event {
-            match signal_event {
-                SignalEvent::PlayIndexUpdated(play_index_update_event) => {
-                    // tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.play_index);
-                    // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
-                    let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
-                    if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
-                                updated_play_index_node_ids.push(play_index_update_event.from_node_id.clone());
-                    }
+        // if let BacktestNodeEvent::Signal(signal_event) = &node_event {
+        //     match signal_event {
+        //         SignalEvent::PlayIndexUpdated(play_index_update_event) => {
+        //             // tracing::debug!("{}: play index 已更新: {:?}", play_index_update_event.from_node_id, play_index_update_event.play_index);
+        //             // 如果节点id不在updated_play_index_node_ids中，则添加到updated_play_index_node_ids中
+        //             let mut updated_play_index_node_ids = self.updated_play_index_node_ids.write().await;
+        //             if !updated_play_index_node_ids.contains(&play_index_update_event.from_node_id) {
+        //                         updated_play_index_node_ids.push(play_index_update_event.from_node_id.clone());
+        //             }
                     
-                    // 如果所有节点索引更新完毕，则通知等待的线程
-                    if updated_play_index_node_ids.len() == self.graph.node_count() {
-                        // tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
-                        self.updated_play_index_notify.notify_waiters();
-                        // 通知完成后，清空updated_play_index_node_ids
-                        updated_play_index_node_ids.clear();
-                    }
-                }
-                _ => {}
-            }
-        }
+        //             // 如果所有节点索引更新完毕，则通知等待的线程
+        //             if updated_play_index_node_ids.len() == self.graph.node_count() {
+        //                 // tracing::debug!("{}: 所有节点索引更新完毕, 通知等待的线程", self.strategy_name.clone());
+        //                 self.updated_play_index_notify.notify_waiters();
+        //                 // 通知完成后，清空updated_play_index_node_ids
+        //                 updated_play_index_node_ids.clear();
+        //             }
+        //         }
+        //         _ => {}
+        //     }
+        // }
 
         if let BacktestNodeEvent::KlineNode(kline_node_event)  = &node_event {
             match kline_node_event {

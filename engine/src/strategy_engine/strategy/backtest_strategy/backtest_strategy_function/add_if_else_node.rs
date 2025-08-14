@@ -14,6 +14,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use types::custom_type::PlayIndex;
 
 impl BacktestStrategyFunction {
     pub async fn add_if_else_node(
@@ -26,6 +27,7 @@ impl BacktestStrategyFunction {
         node_command_sender: NodeCommandSender,
         strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         
         let node_data = node_config["data"].clone();
@@ -59,6 +61,7 @@ impl BacktestStrategyFunction {
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,
+            play_index_watch_rx,
         );
         node.set_output_handle().await;
         let node = Box::new(node);

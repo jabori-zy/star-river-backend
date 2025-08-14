@@ -29,6 +29,7 @@ use types::strategy::node_event::BacktestNodeEvent;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
+use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {
@@ -53,6 +54,7 @@ impl PositionManagementNode {
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -66,7 +68,8 @@ impl PositionManagementNode {
             Box::new(PositionNodeStateMachine::new(node_id, node_name)),
             node_command_sender,
             strategy_command_receiver,
-            strategy_inner_event_receiver
+            strategy_inner_event_receiver,
+            play_index_watch_rx
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(PositionNodeContext {
@@ -254,6 +257,10 @@ impl BacktestNodeTrait for PositionManagementNode {
                     PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
                         tracing::info!("{}: 开始监听虚拟交易系统事件", node_id);
                         self.listen_virtual_trading_system_events().await?;
+                    }
+                    PositionManagementNodeStateAction::ListenAndHandlePlayIndex => {
+                        tracing::info!("{}: 开始监听播放索引", node_id);
+                        self.listen_play_index().await?;
                     }
                     PositionManagementNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);

@@ -24,3 +24,5 @@ pub type Equity = f64; // 权益
 
 pub type Margin = f64;
 
+pub type PlayIndex = i32;
+

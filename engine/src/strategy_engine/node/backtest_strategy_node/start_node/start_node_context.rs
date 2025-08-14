@@ -17,6 +17,7 @@ use event_center::command::backtest_strategy_command::StrategyCommand;
 use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
 use virtual_trading::VirtualTradingSystem;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
@@ -24,7 +25,7 @@ pub struct StartNodeContext {
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
+    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>
     
 }
 
@@ -65,27 +66,29 @@ impl BacktestNodeContextTrait for StartNodeContext {
     }
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
-        match strategy_inner_event {
-            StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-                // 更新播放索引
-                self.set_play_index(play_index_update_event.play_index).await;
-                let strategy_output_handle = self.get_strategy_output_handle();
-                // 更新完成后，发送索引已更新事件
-                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-                    play_index: self.get_play_index().await,
-                    message_timestamp: get_utc8_timestamp_millis(),
-                }));
-                strategy_output_handle.send(signal).unwrap();
-            },
-            StrategyInnerEvent::NodeReset => {
-                tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
-            }
-        }
+        // match strategy_inner_event {
+        //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
+        //         // 更新播放索引
+        //         self.set_play_index(play_index_update_event.play_index).await;
+        //         let strategy_output_handle = self.get_strategy_output_handle();
+        //         // 更新完成后，发送索引已更新事件
+        //         let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+        //             from_node_id: self.get_node_id().clone(),
+        //             from_node_name: self.get_node_name().clone(),
+        //             from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
+        //             play_index: self.get_play_index().await,
+        //             message_timestamp: get_utc8_timestamp_millis(),
+        //         }));
+        //         strategy_output_handle.send(signal).unwrap();
+        //     },
+        //     StrategyInnerEvent::NodeReset => {
+        //         tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
+        //     }
+        // }
         Ok(())
     }
+
+    
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
@@ -105,6 +108,12 @@ impl BacktestNodeContextTrait for StartNodeContext {
                 
             }
         }
+        Ok(())
+    }
+
+    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
+        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
+        self.set_play_index(play_index).await;
         Ok(())
     }
     
@@ -158,4 +167,6 @@ impl StartNodeContext {
         strategy_stats.set_initial_balance(node_config.initial_balance);
         strategy_stats.set_leverage(node_config.leverage as u32);
     }
+
+    
 }

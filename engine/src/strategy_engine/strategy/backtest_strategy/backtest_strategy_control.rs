@@ -7,12 +7,13 @@ use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Notify, Mutex};
+use types::custom_type::PlayIndex;
 
 
 #[derive(Debug)]
 struct PlayContext {
     node: Box<dyn BacktestNodeTrait + 'static>,
-    play_index: Arc<RwLock<i32>>,
+    play_index: Arc<RwLock<PlayIndex>>, 
     signal_count: Arc<RwLock<i32>>,
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
@@ -20,6 +21,7 @@ struct PlayContext {
     virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     strategy_inner_event_publisher: StrategyInnerEventPublisher,
     updated_play_index_notify: Arc<Notify>,
+    play_index_watch_tx: tokio::sync::watch::Sender<PlayIndex>,
 }
 
 
@@ -52,6 +54,7 @@ impl BacktestStrategyContext {
             virtual_trading_system: self.virtual_trading_system.clone(),
             strategy_inner_event_publisher: self.strategy_inner_event_publisher.clone(),
             updated_play_index_notify: self.updated_play_index_notify.clone(),
+            play_index_watch_tx: self.play_index_watch_tx.clone(),
         }
 
     }
@@ -131,37 +134,36 @@ impl BacktestStrategyContext {
         if speed < 1 {
             tracing::warn!("播放速度小于1，已调整为1");
             1
-        } else if speed > 100 {
-            tracing::warn!("播放速度大于100，已调整为100");
-            100
         } else {
             speed
         }
     }
 
     // 获取信号计数
-    async fn get_context_play_index(context: &PlayContext) -> (i32, i32) {
+    async fn get_context_play_index(context: &PlayContext) -> (i32, PlayIndex) {
         let total_signal_count = *context.signal_count.read().await;
         let play_index = *context.play_index.read().await;
         (total_signal_count, play_index)
     }
 
     // 发送播放信号
-    async fn send_play_signal(context: &PlayContext, play_index: i32, total_signal_count: i32) {
+    async fn send_play_signal(context: &PlayContext, play_index: PlayIndex, total_signal_count: i32) {
         tracing::info!("=========== 发送信号 ===========");
 
-        Self::send_play_index_update_event(
-            play_index, 
-            total_signal_count, 
-            context.strategy_inner_event_publisher.clone()
-        ).await;
+        // Self::send_play_index_update_event(
+        //     play_index, 
+        //     total_signal_count, 
+        //     context.strategy_inner_event_publisher.clone()
+        // ).await;
+        // 通过watch发送play_index
+        context.play_index_watch_tx.send(play_index).unwrap();
 
         let node_clone = context.node.clone();
         let virtual_trading_system_clone = context.virtual_trading_system.clone();
         let updated_play_index_notify = context.updated_play_index_notify.clone();
         // tracing::info!("等待节点索引更新完毕");
         let start_node = node_clone.as_any().downcast_ref::<StartNode>().unwrap();
-        updated_play_index_notify.notified().await;
+        // updated_play_index_notify.notified().await;
         
         let mut virtual_trading_system_guard = virtual_trading_system_clone.lock().await;
         virtual_trading_system_guard.set_play_index(play_index).await;
@@ -179,7 +181,7 @@ impl BacktestStrategyContext {
     }
 
     // 处理播放完毕
-    async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: i32) {
+    async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: PlayIndex) {
         let start_node = context.node.as_any().downcast_ref::<StartNode>().unwrap();
         start_node.send_finish_signal(play_index).await;
         
@@ -194,6 +196,8 @@ impl BacktestStrategyContext {
     // true 退出循环
     // false 继续循环
     async fn handle_play_delay(context: &PlayContext, strategy_name: &str, play_speed: u32) -> bool {
+        // play_speed代表1秒播放多少根k线， 100代表1秒播放100根k线
+        // 1000 / 100 = 10ms
         let delay_millis = 1000 / play_speed as u64;
         tracing::info!("{}: 播放速度: {}, 播放延迟: {}ms", strategy_name, play_speed, delay_millis);
         tokio::select! {
@@ -291,21 +295,24 @@ impl BacktestStrategyContext {
         tracing::info!("{}: 播放单根k线，signal_count: {}, played_signal_count: {}", 
             self.strategy_name, signal_count, play_index);
 
-        Self::send_play_index_update_event(
-            play_index, 
-            signal_count, 
-            self.strategy_inner_event_publisher.clone()
-        ).await;
+        // Self::send_play_index_update_event(
+        //     play_index, 
+        //     signal_count, 
+        //     self.strategy_inner_event_publisher.clone()
+        // ).await;
+
+        // 通过watch发送play_index
+        self.play_index_watch_tx.send(play_index).unwrap();
 
         let start_node_index = self.node_indices.get("start_node").unwrap();
         let node = self.graph.node_weight(*start_node_index).unwrap().clone();
         let virtual_trading_system = self.virtual_trading_system.clone();
-        let updated_play_index_notify = self.updated_play_index_notify.clone();
+        // let updated_play_index_notify = self.updated_play_index_notify.clone();
 
         tokio::spawn(async move {
             // tracing::info!("等待节点索引更新完毕");
             let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
-            updated_play_index_notify.notified().await;
+            // updated_play_index_notify.notified().await;
             
             let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
             virtual_trading_system_guard.set_play_index(play_index).await;
@@ -359,18 +366,20 @@ impl BacktestStrategyContext {
         Ok(play_index)
     }
 
-    async fn send_play_index_update_event(
-        play_index: i32, 
-        total_signal_count: i32, 
-        strategy_inner_event_publisher: StrategyInnerEventPublisher,
-    ){
-        let event = StrategyInnerEvent::PlayIndexUpdate(PlayIndexUpdateEvent {
-            play_index,
-            total_signal_count,
-            timestamp: get_utc8_timestamp_millis(),
-        });
-        strategy_inner_event_publisher.send(event).unwrap();
-    }
+
+    // 发送播放索引更新事件
+    // async fn send_play_index_update_event(
+    //     play_index: i32, 
+    //     total_signal_count: i32, 
+    //     strategy_inner_event_publisher: StrategyInnerEventPublisher,
+    // ){
+    //     let event = StrategyInnerEvent::PlayIndexUpdate(PlayIndexUpdateEvent {
+    //         play_index,
+    //         total_signal_count,
+    //         timestamp: get_utc8_timestamp_millis(),
+    //     });
+    //     strategy_inner_event_publisher.send(event).unwrap();
+    // }
 
     pub(crate) async fn send_reset_node_event(&self) {
         let event = StrategyInnerEvent::NodeReset;

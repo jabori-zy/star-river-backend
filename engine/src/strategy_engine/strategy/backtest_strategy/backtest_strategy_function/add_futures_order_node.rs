@@ -18,6 +18,7 @@ use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
+use types::custom_type::PlayIndex;
 
 impl BacktestStrategyFunction {
     pub async fn add_futures_order_node(
@@ -35,6 +36,7 @@ impl BacktestStrategyFunction {
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone(); // 节点数据
 
@@ -67,6 +69,7 @@ impl BacktestStrategyFunction {
             virtual_trading_system,
             strategy_inner_event_receiver,
             virtual_trading_system_event_receiver,
+            play_index_watch_rx,
         );
         node.set_output_handle().await;
 

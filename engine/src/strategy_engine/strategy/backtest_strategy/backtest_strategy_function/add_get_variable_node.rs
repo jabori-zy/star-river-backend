@@ -20,6 +20,7 @@ use virtual_trading::VirtualTradingSystem;
 use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use types::custom_type::PlayIndex;
 
 impl BacktestStrategyFunction {
     pub async fn add_variable_node(
@@ -36,6 +37,7 @@ impl BacktestStrategyFunction {
         strategy_command_publisher: &mut StrategyCommandPublisher,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let node_id = node_config["id"].as_str().unwrap().to_string();
@@ -66,6 +68,7 @@ impl BacktestStrategyFunction {
             Arc::new(Mutex::new(strategy_command_rx)),
             virtual_trading_system,
             strategy_inner_event_receiver,
+            play_index_watch_rx,
         );
         node.set_output_handle().await;
 

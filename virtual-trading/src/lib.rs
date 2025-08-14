@@ -102,7 +102,7 @@ impl VirtualTradingSystem {
         // self.update_timestamp();
         // 价格更新后，更新仓位
         self.update_position();
-        tracing::debug!("持仓: {:?}", self.current_positions);
+        // tracing::debug!("持仓: {:?}", self.current_positions);
         
     }
 

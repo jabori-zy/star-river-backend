@@ -6,7 +6,6 @@ use tokio::sync::broadcast;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use event_center::Event;
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use event_center::EventPublisher;
@@ -22,6 +21,7 @@ use kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
 use types::strategy::node_event::BacktestNodeEvent;
+use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -43,6 +43,7 @@ impl KlineNode {
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -57,6 +58,7 @@ impl KlineNode {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx
         );
         Self {
             context: Arc::new(RwLock::new(Box::new(KlineNodeContext {
@@ -230,6 +232,10 @@ impl BacktestNodeTrait for KlineNode {
                     KlineNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
+                    }
+                    KlineNodeStateAction::ListenAndHandlePlayIndex => {
+                        tracing::info!("{}: 开始监听播放索引", node_id);
+                        self.listen_play_index().await?;
                     }
                     KlineNodeStateAction::CancelAsyncTask => {
                         tracing::debug!(node_id = %node_id, "cancel async task");

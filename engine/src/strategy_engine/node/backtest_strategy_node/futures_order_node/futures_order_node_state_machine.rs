@@ -8,6 +8,7 @@ pub enum OrderNodeStateAction {
     ListenAndHandleNodeEvents,         // 处理消息
     ListenAndHandleInnerEvents,         // 处理内部事件
     ListenAndHandleStrategyCommand, // 处理策略命令
+    ListenAndHandlePlayIndex, // 处理播放索引
     ListenAndHandleVirtualTradingSystemEvent, // 处理虚拟交易系统事件
     RegisterTask,          // 注册任务
     LogNodeState,    // 记录节点状态
@@ -89,6 +90,7 @@ impl BacktestNodeStateMachine for OrderNodeStateMachine {
                         Box::new(OrderNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(OrderNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent),
+                        Box::new(OrderNodeStateAction::ListenAndHandlePlayIndex),
                         Box::new(OrderNodeStateAction::RegisterTask),
                     ],
                 }))

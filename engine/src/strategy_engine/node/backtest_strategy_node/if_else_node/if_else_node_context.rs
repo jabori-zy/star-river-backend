@@ -4,7 +4,6 @@ use std::any::Any;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp;
 use utils::get_utc8_timestamp_millis;
-use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
 use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, PlayIndexUpdateEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
@@ -16,6 +15,7 @@ use types::custom_type::{NodeId, HandleId, VariableId};
 use super::utils::{get_variable_value, get_condition_variable_value};
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
@@ -92,19 +92,19 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
         match strategy_inner_event {
-            StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-                // 更新播放索引
-                self.set_play_index(play_index_update_event.play_index).await;
-                let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: strategy_output_handle_id.clone(),
-                    play_index: self.get_play_index().await,
-                    message_timestamp: get_utc8_timestamp_millis(),
-                }));
-                self.get_strategy_output_handle().send(signal).unwrap();
-            }
+            // StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
+            //     // 更新播放索引
+            //     self.set_play_index(play_index_update_event.play_index).await;
+            //     let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
+            //     let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+            //         from_node_id: self.get_node_id().clone(),
+            //         from_node_name: self.get_node_name().clone(),
+            //         from_node_handle_id: strategy_output_handle_id.clone(),
+            //         play_index: self.get_play_index().await,
+            //         message_timestamp: get_utc8_timestamp_millis(),
+            //     }));
+            //     self.get_strategy_output_handle().send(signal).unwrap();
+            // }
             StrategyInnerEvent::NodeReset => {
                 tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
             }
@@ -114,6 +114,12 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        Ok(())
+    }
+
+    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
+        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
+        self.set_play_index(play_index).await;
         Ok(())
     }
 }

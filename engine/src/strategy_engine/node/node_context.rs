@@ -20,6 +20,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use tokio::sync::RwLock;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
+use types::custom_type::PlayIndex;
 
 
 #[async_trait]
@@ -232,6 +233,8 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String>;
 
+    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String>;
+
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 
     fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext;
@@ -288,6 +291,10 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     }
     fn get_run_state(&self) -> BacktestNodeRunState {
         self.get_base_context().state_machine.current_state()
+    }
+
+    fn get_play_index_watch_rx(&self) -> tokio::sync::watch::Receiver<PlayIndex> {
+        self.get_base_context().play_index_watch_rx.clone()
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle;
@@ -350,7 +357,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         *self.get_base_context().play_index.read().await
     }
 
-    async fn set_play_index(&mut self, play_index: i32) {
+    async fn set_play_index(&mut self, play_index: PlayIndex) {
         *self.get_base_context_mut().play_index.write().await = play_index;
     }
 
@@ -372,7 +379,7 @@ pub struct BacktestBaseNodeContext {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
-    pub play_index: Arc<RwLock<i32>>, // 回测播放索引
+    pub play_index: Arc<RwLock<PlayIndex>>, // 回测播放索引
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub event_receivers:Vec<EventReceiver>, // 事件接收器
@@ -385,7 +392,8 @@ pub struct BacktestBaseNodeContext {
     pub state_machine: Box<dyn BacktestNodeStateMachine>, // 状态机
     pub from_node_id: Vec<String>, // 来源节点ID
     pub node_command_sender: NodeCommandSender, // 向策略发送命令
-    pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>
+    pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+    pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }
 
 impl Clone for BacktestBaseNodeContext {
@@ -409,6 +417,7 @@ impl Clone for BacktestBaseNodeContext {
             node_command_sender: self.node_command_sender.clone(),
             strategy_inner_event_receiver: self.strategy_inner_event_receiver.resubscribe(),
             strategy_command_receiver: self.strategy_command_receiver.clone(),
+            play_index_watch_rx: self.play_index_watch_rx.clone(),
         }
     }
 }
@@ -427,6 +436,7 @@ impl BacktestBaseNodeContext {
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         Self {
             strategy_id,
@@ -447,6 +457,7 @@ impl BacktestBaseNodeContext {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx,
         }
     }
 }

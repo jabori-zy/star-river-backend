@@ -7,6 +7,7 @@ pub enum StartNodeStateAction {
     ListenAndHandleExternalEvents,   // 处理外部事件
     ListenAndHandleInnerEvents,      // 处理内部事件
     ListenAndHandleStrategyCommand,  // 处理策略命令
+    ListenAndHandlePlayIndex,        // 处理播放索引
     InitVirtualTradingSystem,        // 初始化虚拟交易系统
     InitStrategyStats,               // 初始化策略统计
     LogNodeState,    // 记录节点状态
@@ -92,6 +93,7 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                         Box::new(StartNodeStateAction::LogTransition), 
                         Box::new(StartNodeStateAction::ListenAndHandleInnerEvents), // 处理内部事件
                         Box::new(StartNodeStateAction::ListenAndHandleStrategyCommand), // 处理策略命令
+                        Box::new(StartNodeStateAction::ListenAndHandlePlayIndex), // 处理播放索引
                         Box::new(StartNodeStateAction::InitVirtualTradingSystem), // 初始化虚拟交易系统
                         Box::new(StartNodeStateAction::InitStrategyStats), // 初始化策略统计
                         ],

@@ -25,6 +25,7 @@ use virtual_trading::VirtualTradingSystem;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent, PositionManagementNodeEvent};
+use types::custom_type::PlayIndex;
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -113,27 +114,33 @@ impl BacktestNodeContextTrait for PositionNodeContext {
     }
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
-        match strategy_inner_event {
-            StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-                // 更新k线缓存索引
-                self.set_play_index(play_index_update_event.play_index).await;
-                let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-                let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: strategy_output_handle_id.clone(),
-                    play_index: self.get_play_index().await,
-                    message_timestamp: get_utc8_timestamp_millis(),
-                }));
-                self.get_strategy_output_handle().send(signal).unwrap();
-            }
-            _ => {}
-        }
+        // match strategy_inner_event {
+        //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
+        //         // 更新k线缓存索引
+        //         self.set_play_index(play_index_update_event.play_index).await;
+        //         let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
+        //         let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
+        //             from_node_id: self.get_node_id().clone(),
+        //             from_node_name: self.get_node_name().clone(),
+        //             from_node_handle_id: strategy_output_handle_id.clone(),
+        //             play_index: self.get_play_index().await,
+        //             message_timestamp: get_utc8_timestamp_millis(),
+        //         }));
+        //         self.get_strategy_output_handle().send(signal).unwrap();
+        //     }
+        //     _ => {}  
+        // }
         Ok(())
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        Ok(())
+    }
+
+    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
+        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
+        self.set_play_index(play_index).await;
         Ok(())
     }
 

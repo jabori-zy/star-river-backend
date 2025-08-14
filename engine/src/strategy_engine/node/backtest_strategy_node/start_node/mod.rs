@@ -52,6 +52,7 @@ impl StartNode {
         strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
+        play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
     ) -> Self {
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -66,6 +67,7 @@ impl StartNode {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx
         );
         StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
@@ -77,6 +79,8 @@ impl StartNode {
             }))),
         }
     }
+
+    
 
 }
 
@@ -180,6 +184,10 @@ impl BacktestNodeTrait for StartNode {
                 StartNodeStateAction::ListenAndHandleStrategyCommand => {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy command");
                     self.listen_strategy_command().await?;
+                }
+                StartNodeStateAction::ListenAndHandlePlayIndex => {
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen play index");
+                    self.listen_play_index().await;
                 }
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();

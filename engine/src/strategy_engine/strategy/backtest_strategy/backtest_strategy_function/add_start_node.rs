@@ -32,6 +32,7 @@ impl BacktestStrategyFunction {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
+        play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
     ) -> Result<(), String> {
 
         let node_data = node_config["data"].clone();
@@ -67,6 +68,7 @@ impl BacktestStrategyFunction {
             strategy_inner_event_receiver,
             virtual_trading_system,
             strategy_stats,
+            play_index_watch_rx,
         );
         // 设置默认输出句柄
         node.set_output_handle().await;

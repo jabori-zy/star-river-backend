@@ -22,6 +22,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
 use types::cache::key::{IndicatorKey, KlineKey};
 use types::strategy::node_event::BacktestNodeEvent;
+use types::custom_type::PlayIndex;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -46,6 +47,7 @@ impl IndicatorNode {
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
 
         let base_context = BacktestBaseNodeContext::new(
@@ -61,6 +63,7 @@ impl IndicatorNode {
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
+            play_index_watch_rx
         );
 
         // 通过配置，获取指标缓存键
@@ -254,6 +257,10 @@ impl BacktestNodeTrait for IndicatorNode {
                     IndicatorNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
+                    }
+                    IndicatorNodeStateAction::ListenAndHandlePlayIndex => {
+                        tracing::info!("{}: 开始监听播放索引", node_id);
+                        self.listen_play_index().await?;
                     }
                     IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
                         tracing::info!("{}: 开始注册指标缓存键", node_id);
