@@ -29,6 +29,7 @@ pub enum BacktestStrategyStateAction { // 当切换到某一个状态时, 需要
     InitCacheLength,      // 初始化缓存长度
     InitSignalCount,      // 初始化信号计数
     InitInitialPlaySpeed, // 初始化初始播放速度
+    InitVirtualTradingSystem, // 初始化虚拟交易系统
     InitStrategyStats,    // 初始化策略统计
     InitNode,             // 初始化节点
     StopNode,             // 停止节点
@@ -90,6 +91,7 @@ impl BacktestStrategyStateMachine {
                         BacktestStrategyStateAction::InitCacheLength, // 初始化缓存长度
                         BacktestStrategyStateAction::InitSignalCount, // 初始化信号计数
                         BacktestStrategyStateAction::InitInitialPlaySpeed, // 初始化初始播放速度
+                        BacktestStrategyStateAction::InitVirtualTradingSystem, // 初始化虚拟交易系统
                         BacktestStrategyStateAction::InitStrategyStats, // 初始化策略统计
                         // BacktestStrategyStateAction::LoadPositions, // 加载持仓
                     ],

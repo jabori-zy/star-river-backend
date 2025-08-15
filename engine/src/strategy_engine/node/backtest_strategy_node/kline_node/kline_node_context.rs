@@ -86,7 +86,11 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         let exchange_config = self.backtest_config.exchange_mode_config.as_ref()
                             .ok_or("Exchange mode config is not set")?;
                         
-                        let current_play_index = self.get_play_index().await;
+                        // let current_play_index = self.get_play_index().await;
+                        // tracing::debug!("current_play_index: {}", current_play_index);
+
+                        let current_play_index = self.base_context.play_index_watch_rx.borrow().clone();
+                        tracing::debug!("watch_play_index: {}", current_play_index);
                         
                         // 如果索引不匹配，提前返回错误日志
                         if current_play_index != play_event.play_index {
@@ -101,6 +105,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         }
 
                         // 提取公共数据
+
                         let exchange = exchange_config.selected_account.exchange.clone();
                         let start_time = exchange_config.time_range.start_date.to_string();
                         let end_time = exchange_config.time_range.end_date.to_string();
@@ -118,7 +123,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             
                             // 获取k线缓存值
                             // tracing::debug!("play_index: {}", play_event.play_index);
-                            let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, play_event.play_index).await {
+                            let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, current_play_index).await {
                                 Ok(value) => value,
                                 Err(e) => {
                                     tracing::error!(
@@ -132,13 +137,15 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             };
 
                             // 发送K线更新事件的通用函数
+                            
                             let send_kline_event = |handle_id: String, output_handle: NodeOutputHandle| {
                                 let kline_update_event = self.get_kline_update_event(
                                     handle_id,
                                     &backtest_kline_key,
-                                    play_event.play_index,
+                                    current_play_index,
                                     kline_cache_value.clone(),
                                 );
+                                tracing::debug!("send_kline_event: {:?}", kline_update_event);
                                 let kline_node_event = BacktestNodeEvent::KlineNode(kline_update_event);
 
                                 let _ = output_handle.send(kline_node_event);
@@ -203,11 +210,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         Ok(())
     }
 
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
-        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
-        self.set_play_index(play_index).await;
-        Ok(())
-    }
+
     
 }
 

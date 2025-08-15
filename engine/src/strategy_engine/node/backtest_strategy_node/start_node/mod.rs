@@ -187,7 +187,7 @@ impl BacktestNodeTrait for StartNode {
                 }
                 StartNodeStateAction::ListenAndHandlePlayIndex => {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen play index");
-                    self.listen_play_index().await;
+                    self.listen_play_index_change().await;
                 }
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();
@@ -212,13 +212,13 @@ impl BacktestNodeTrait for StartNode {
 
 
 impl StartNode {
-    pub async fn send_play_signal(&self, play_index : i32) {
-        let context = self.get_context();
-        let mut state_guard = context.write().await;
-        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-            start_node_context.send_play_signal(play_index).await;
-        }
-    }
+    // pub async fn send_play_signal(&self) {
+    //     let context = self.get_context();
+    //     let mut state_guard = context.write().await;
+    //     if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+    //         start_node_context.send_play_signal().await;
+    //     }
+    // }
 
     pub async fn send_finish_signal(&self, signal_index : i32) {
         let context = self.get_context();
@@ -227,4 +227,47 @@ impl StartNode {
             start_node_context.send_finish_signal(signal_index).await;
         }
     }
+
+
+    pub async fn listen_play_index_change(&self) {
+        let (mut play_index_watch_rx, cancel_token, node_id) = {
+            let context = self.get_context();
+            let state_guard = context.read().await;
+            let play_index_watch_rx = state_guard.get_play_index_watch_rx();
+            let cancel_token = state_guard.get_cancel_token().clone();
+            let node_id = state_guard.get_node_id().to_string();
+            (play_index_watch_rx, cancel_token, node_id)
+        };
+
+        let context = self.get_context();
+
+        // 节点接收播放索引变化
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // 如果取消信号被触发，则中止任务
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{} 播放索引监听任务已中止", node_id);
+                        break;
+                    }
+                    // 监听播放索引变化
+                    receive_result = play_index_watch_rx.changed() => {
+                        match receive_result {
+                            Ok(_) => {
+                                let state_guard = context.read().await;
+                                let start_node_context = state_guard.as_ref().as_any().downcast_ref::<StartNodeContext>().unwrap();
+                                start_node_context.handle_play_index().await;
+                            }
+                            Err(e) => {
+                                tracing::error!("节点{}监听播放索引错误: {}", node_id, e);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+
 }

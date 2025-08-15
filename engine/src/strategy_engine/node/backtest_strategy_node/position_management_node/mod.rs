@@ -258,10 +258,6 @@ impl BacktestNodeTrait for PositionManagementNode {
                         tracing::info!("{}: 开始监听虚拟交易系统事件", node_id);
                         self.listen_virtual_trading_system_events().await?;
                     }
-                    PositionManagementNodeStateAction::ListenAndHandlePlayIndex => {
-                        tracing::info!("{}: 开始监听播放索引", node_id);
-                        self.listen_play_index().await?;
-                    }
                     PositionManagementNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);
                     }

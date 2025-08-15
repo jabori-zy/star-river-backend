@@ -58,21 +58,23 @@ impl BacktestStrategy {
         let strategy_id = strategy.id;
         let strategy_name = strategy.name;
 
+        // 创建播放索引监听器
+        let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<i32>(-1);
+
         // 创建虚拟交易系统
         let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), virtual_trading_system_event_tx)));
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), virtual_trading_system_event_tx, play_index_watch_rx.clone())));
 
         // 创建策略统计模块
         let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
-        let strategy_stats = Arc::new(RwLock::new(BacktestStrategyStats::new(virtual_trading_system.clone(), virtual_trading_system_event_rx.resubscribe(), strategy_stats_event_tx)));
+        let strategy_stats = Arc::new(RwLock::new(BacktestStrategyStats::new(virtual_trading_system.clone(), virtual_trading_system_event_rx.resubscribe(), strategy_stats_event_tx, play_index_watch_rx.clone())));
 
         
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
         // 创建策略内部事件的广播通道
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
-        // 创建播放索引监听器
-        let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<i32>(-1);
+        
 
 
         // 当策略创建时，状态为 Created
@@ -130,7 +132,7 @@ impl BacktestStrategy {
         
         
         // tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
-        tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_price);
+        // tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_price);
         let context = BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
@@ -242,17 +244,32 @@ impl BacktestStrategy {
                         tracing::error!("{}: 获取缓存长度失败", strategy_name);
                     }
                 }
+                BacktestStrategyStateAction::InitVirtualTradingSystem => {
+                    tracing::info!("{}: 初始化虚拟交易系统", strategy_name);
+                    let context_guard = self.context.read().await;
+                    let virtual_trading_system = context_guard.virtual_trading_system.clone();
+                    drop(context_guard); // 释放锁
+                    if let Err(e) = VirtualTradingSystem::listen_play_index(virtual_trading_system).await {
+                        tracing::error!("{}: 初始化虚拟交易系统失败: {}", strategy_name, e);
+                    } else {
+                        tracing::info!("{}: 初始化虚拟交易系统成功", strategy_name);
+                    }
+                }
                 BacktestStrategyStateAction::InitStrategyStats => {
                     tracing::info!("{}: 初始化策略统计", strategy_name);
                     let context_guard = self.context.read().await;
-                    let strategy_stats = context_guard.strategy_stats.clone();
+                    let strategy_stats1 = context_guard.strategy_stats.clone();
+                    let strategy_stats2 = context_guard.strategy_stats.clone();
                     drop(context_guard); // 释放锁
                     
-                    if let Err(e) = BacktestStrategyStats::start_listening(strategy_stats).await {
+                    if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(strategy_stats1).await {
                         tracing::error!("{}: 初始化策略统计失败: {}", strategy_name, e);
                     } else {
                         tracing::info!("{}: 初始化策略统计成功", strategy_name);
                     }
+
+                    // 监听播放索引
+                    BacktestStrategyStats::listen_play_index(strategy_stats2).await;
                     
                 }
 

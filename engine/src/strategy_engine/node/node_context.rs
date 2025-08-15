@@ -233,8 +233,6 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String>;
 
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String>;
-
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 
     fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext;
@@ -297,6 +295,10 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         self.get_base_context().play_index_watch_rx.clone()
     }
 
+    fn get_play_index_watch_rx_ref(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
+        &self.get_base_context().play_index_watch_rx
+    }
+
     fn get_default_output_handle(&self) -> NodeOutputHandle;
 
     // 获取所有输出句柄
@@ -353,13 +355,13 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &self.get_base_context().is_enable_event_publish
     }
 
-    async fn get_play_index(&self) -> i32 {
-        *self.get_base_context().play_index.read().await
+    fn get_play_index(&self) -> PlayIndex {
+        *self.get_play_index_watch_rx_ref().borrow()
     }
 
-    async fn set_play_index(&mut self, play_index: PlayIndex) {
-        *self.get_base_context_mut().play_index.write().await = play_index;
-    }
+    // async fn set_play_index(&mut self, play_index: PlayIndex) {
+    //     *self.get_base_context_mut().play_index_watch_rx.write().await = play_index;
+    // }
 
 
 
@@ -379,7 +381,7 @@ pub struct BacktestBaseNodeContext {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
-    pub play_index: Arc<RwLock<PlayIndex>>, // 回测播放索引
+    // pub play_index: Arc<RwLock<PlayIndex>>, // 回测播放索引
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub event_receivers:Vec<EventReceiver>, // 事件接收器
@@ -403,7 +405,7 @@ impl Clone for BacktestBaseNodeContext {
             strategy_id: self.strategy_id.clone(),
             node_id: self.node_id.clone(),
             node_name: self.node_name.clone(),
-            play_index: self.play_index.clone(),
+            // play_index: self.play_index.clone(),
             cancel_token: self.cancel_token.clone(),
             event_publisher: self.event_publisher.clone(),
             input_handles: self.input_handles.clone(),
@@ -443,7 +445,7 @@ impl BacktestBaseNodeContext {
             node_id, 
             node_name,
             node_type,
-            play_index: Arc::new(RwLock::new(0)),
+            // play_index: Arc::new(RwLock::new(0)),
             output_handles: HashMap::new(), 
             event_publisher,
             is_enable_event_publish: false, 

@@ -183,7 +183,7 @@ impl FuturesOrderNodeContext {
             BacktestNodeEvent::Signal(signal_event) => {
                 match signal_event {
                     SignalEvent::BacktestConditionMatch(backtest_condition_match_event) => {
-                        if backtest_condition_match_event.play_index == self.get_play_index().await {
+                        if backtest_condition_match_event.play_index == self.get_play_index() {
                             // 根据input_handle_id获取订单配置
                             let order_config = {
                                 self.backtest_config.futures_order_configs
@@ -253,7 +253,7 @@ impl FuturesOrderNodeContext {
             _ => return,
         };
         if let Err(e) = output_handle.send(order_event.clone().into()) {
-            tracing::error!("{}: 发送订单状态事件失败: {:?}", self.get_node_id(), e);
+            // tracing::error!("{}: 发送订单状态事件失败: {:?}", self.get_node_id(), e);
         }
 
         // 给策略发订单事件
@@ -388,7 +388,7 @@ impl FuturesOrderNodeContext {
             );
 
 
-            let play_index = self.get_play_index().await as u32;
+            let play_index = self.get_play_index() as u32;
 
             let (tx, rx) = oneshot::channel();
             let get_cache_params = GetCacheParams {
@@ -557,13 +557,8 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         Ok(())
     }
 
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
-        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
-        self.set_play_index(play_index).await;
-        Ok(())
-    }
 
-    
+
 
 }
 

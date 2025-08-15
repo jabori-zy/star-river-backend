@@ -14,8 +14,8 @@ pub type VirtualTradingSystemEventReceiver = broadcast::Receiver<VirtualTradingS
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
 pub enum VirtualTradingSystemEvent {
-    // 时间戳更新
-    PlayIndexUpdated((i32, i64)), // 播放索引已更新(播放索引, 时间戳)
+    // 所有数据已更新
+    UpdateFinished, 
 
     // 订单事件
     FuturesOrderCreated(VirtualOrder), // 订单已创建

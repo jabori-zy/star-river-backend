@@ -20,6 +20,8 @@ pub type Leverage = u32;
 
 pub type Balance = f64; // 资金
 
+pub type UnrealizedPnl = f64;
+
 pub type Equity = f64; // 权益
 
 pub type Margin = f64;

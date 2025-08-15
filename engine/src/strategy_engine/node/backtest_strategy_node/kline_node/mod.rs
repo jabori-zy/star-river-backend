@@ -233,10 +233,7 @@ impl BacktestNodeTrait for KlineNode {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
                     }
-                    KlineNodeStateAction::ListenAndHandlePlayIndex => {
-                        tracing::info!("{}: 开始监听播放索引", node_id);
-                        self.listen_play_index().await?;
-                    }
+                    
                     KlineNodeStateAction::CancelAsyncTask => {
                         tracing::debug!(node_id = %node_id, "cancel async task");
                         self.cancel_task().await;

@@ -258,10 +258,7 @@ impl BacktestNodeTrait for IndicatorNode {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
                     }
-                    IndicatorNodeStateAction::ListenAndHandlePlayIndex => {
-                        tracing::info!("{}: 开始监听播放索引", node_id);
-                        self.listen_play_index().await?;
-                    }
+                    
                     IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
                         tracing::info!("{}: 开始注册指标缓存键", node_id);
                         let mut context = self.context.write().await;

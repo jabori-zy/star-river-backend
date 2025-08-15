@@ -70,14 +70,14 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         match &node_event {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(backtest_indicator_update_event)) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if self.get_play_index().await == backtest_indicator_update_event.play_index {
+                if self.get_play_index() == backtest_indicator_update_event.play_index {
                     self.update_received_event(node_event);
                 }
             }
             BacktestNodeEvent::KlineNode(kline_event) => {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    if self.get_play_index().await == kline_update_event.play_index {
+                    if self.get_play_index() == kline_update_event.play_index {
                         self.update_received_event(node_event);
                     }
                 }
@@ -117,11 +117,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
-        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
-        self.set_play_index(play_index).await;
-        Ok(())
-    }
+
 }
 
 impl IfElseNodeContext {
@@ -222,7 +218,7 @@ impl IfElseNodeContext {
                     from_node_id: self.get_node_id().clone(),
                     from_node_name: self.get_node_name().clone(),
                     from_node_handle_id: case_output_handle_id.clone(),
-                    play_index: self.get_play_index().await,
+                    play_index: self.get_play_index(),
                     message_timestamp: get_utc8_timestamp()
                 });
                 // tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
@@ -245,7 +241,7 @@ impl IfElseNodeContext {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
                 from_node_handle_id: default_ouput_handle.output_handle_id.clone(),
-                play_index: self.get_play_index().await,
+                play_index: self.get_play_index(),
                 message_timestamp: get_utc8_timestamp()
             });
             

@@ -114,12 +114,6 @@ impl BacktestNodeContextTrait for VariableNodeContext {
         Ok(())
     }
 
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
-        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
-        // self.set_play_index(play_index).await;
-        Ok(())
-    }
-
 }
 
 impl VariableNodeContext {

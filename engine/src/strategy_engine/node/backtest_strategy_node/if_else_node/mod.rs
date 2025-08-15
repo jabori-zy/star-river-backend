@@ -260,10 +260,7 @@ impl BacktestNodeTrait for IfElseNode {
                     tracing::info!("{}: 开始监听策略命令", node_id);
                     self.listen_strategy_command().await?;
                 }
-                IfElseNodeStateAction::ListenAndHandlePlayIndex => {
-                    tracing::info!("{}: 开始监听播放索引", node_id);
-                    self.listen_play_index().await?;
-                }
+                
                 IfElseNodeStateAction::CancelAsyncTask => {
                     tracing::info!("{}: 开始取消异步任务", node_id);
                     self.cancel_task().await;

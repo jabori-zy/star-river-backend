@@ -11,7 +11,6 @@ pub enum KlineNodeStateAction {
     ListenAndHandleNodeEvents,    // 监听节点消息
     ListenAndHandleInnerEvents,    // 监听内部事件
     ListenAndHandleStrategyCommand, // 处理策略命令
-    ListenAndHandlePlayIndex, // 处理播放索引
     LogNodeState,    // 记录节点状态
     RegisterExchange, // 注册交易所
     LoadHistoryFromExchange, // 从交易所加载K线历史
@@ -101,7 +100,6 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                                 Box::new(KlineNodeStateAction::ListenAndHandleNodeEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleInnerEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleStrategyCommand),
-                                Box::new(KlineNodeStateAction::ListenAndHandlePlayIndex),
                                 Box::new(KlineNodeStateAction::RegisterExchange), // 注册交易所
                                 Box::new(KlineNodeStateAction::LoadHistoryFromExchange), // 从交易所加载K线历史
                             ],

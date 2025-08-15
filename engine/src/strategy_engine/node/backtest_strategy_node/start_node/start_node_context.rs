@@ -110,23 +110,19 @@ impl BacktestNodeContextTrait for StartNodeContext {
         }
         Ok(())
     }
-
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
-        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
-        self.set_play_index(play_index).await;
-        Ok(())
-    }
     
 }
 
 impl StartNodeContext {
     // 发送k线跳动信号
-    pub async fn send_play_signal(&self, play_index : i32) {
+    pub async fn send_play_signal(&self) {
+
+        
         let kline_tick_event = KlinePlayEvent {
             from_node_id: self.base_context.node_id.clone(),
             from_node_name: self.base_context.node_name.clone(),
             from_node_handle_id: "start_node_default_output".to_string(),
-            play_index: play_index,
+            play_index: self.get_play_index(),
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
         
@@ -166,6 +162,10 @@ impl StartNodeContext {
         let node_config = self.node_config.read().await;
         strategy_stats.set_initial_balance(node_config.initial_balance);
         strategy_stats.set_leverage(node_config.leverage as u32);
+    }
+
+    pub async fn handle_play_index(&self) {
+        self.send_play_signal().await;
     }
 
     

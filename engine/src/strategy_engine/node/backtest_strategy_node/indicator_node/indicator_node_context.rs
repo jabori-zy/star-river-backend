@@ -87,18 +87,23 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 let exchange_config = self.backtest_config.exchange_mode_config.as_ref()
                     .ok_or("Exchange mode config is not set")?;
                 
-                let current_play_index = self.get_play_index().await;
+                // let current_play_index = self.get_play_index().await;
+                // tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
+
+                let current_play_index = self.base_context.play_index_watch_rx.borrow().clone();
+                tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
                 
                 // 如果索引不匹配，提前返回错误日志
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
+                    tracing::debug!("indicator_node_context kline_update_event: {:?}", kline_update_event);
                     if current_play_index != kline_update_event.play_index {
-                    tracing::error!(
-                        node_id = %self.base_context.node_id, 
-                        node_name = %self.base_context.node_name, 
-                        kline_cache_index = %kline_update_event.play_index,
-                        signal_index = %current_play_index, 
-                        "kline cache index is not equal to signal index"
-                    );
+                        tracing::error!(
+                            node_id = %self.base_context.node_id, 
+                            node_name = %self.base_context.node_name, 
+                            kline_cache_index = %kline_update_event.play_index,
+                            signal_index = %current_play_index, 
+                            "kline cache index is not equal to signal index"
+                        );
                     return Ok(());
                 }
 
@@ -204,16 +209,12 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
         Ok(())
     }
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+    async fn handle_strategy_command(&mut self, _strategy_command: StrategyCommand) -> Result<(), String> {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         Ok(())
     }
 
-    async fn handle_play_index(&mut self, play_index: PlayIndex) -> Result<(), String> {
-        tracing::info!("{}: 收到播放索引事件watch: {:?}", self.base_context.node_id, play_index);
-        self.set_play_index(play_index).await;
-        Ok(())
-    }
+
 
 }
 

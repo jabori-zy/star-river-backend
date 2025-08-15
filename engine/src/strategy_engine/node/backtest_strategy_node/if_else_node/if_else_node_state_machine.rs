@@ -8,7 +8,6 @@ pub enum IfElseNodeStateAction {
     ListenAndHandleNodeEvents,
     ListenAndHandleInnerEvents,
     ListenAndHandleStrategyCommand, // 处理策略命令
-    ListenAndHandlePlayIndex, // 处理播放索引
     InitReceivedData,
     Evaluate,
     LogNodeState,    // 记录节点状态
@@ -96,7 +95,6 @@ impl BacktestNodeStateMachine for IfElseNodeStateManager {
                         Box::new(IfElseNodeStateAction::ListenAndHandleNodeEvents), 
                         Box::new(IfElseNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategyCommand),
-                        Box::new(IfElseNodeStateAction::ListenAndHandlePlayIndex),
                         Box::new(IfElseNodeStateAction::InitReceivedData), 
                         
                         ],

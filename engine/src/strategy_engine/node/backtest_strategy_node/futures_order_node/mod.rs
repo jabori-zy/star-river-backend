@@ -357,10 +357,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         tracing::info!("{}: 开始监听策略命令", node_id);
                         self.listen_strategy_command().await?;
                     }
-                    OrderNodeStateAction::ListenAndHandlePlayIndex => {
-                        tracing::info!("{}: 开始监听播放索引", node_id);
-                        self.listen_play_index().await?;
-                    }
+                    
                     OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
                         tracing::info!("{}: 开始监听虚拟交易系统事件", node_id);
                         self.listen_virtual_trading_system_events().await?;
