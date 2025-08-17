@@ -27,7 +27,7 @@ impl VirtualTradingSystem {
         sl: Option<f64>,
     ) -> Result<(), String> {
         let order_id = self.generate_order_id();
-        let kline_cache_key = self.get_kline_cache_key(&exchange, &symbol);
+        let kline_cache_key = self.get_kline_key(&exchange, &symbol);
         if let Some(kline_cache_key) = kline_cache_key {
             // 根据订单类型判断是否需要立即成交
             match &order_type {
@@ -60,7 +60,7 @@ impl VirtualTradingSystem {
                     self.orders.push(market_order.clone());
                     
                     // 创建完成后，直接成交订单
-                    self.execute_order(order_id, current_price.clone(), *current_timestamp);
+                    self.execute_order(order_id, current_price.clone(), *current_timestamp).unwrap();
                     
                     
 

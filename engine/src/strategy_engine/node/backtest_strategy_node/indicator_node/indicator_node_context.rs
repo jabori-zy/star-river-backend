@@ -91,11 +91,9 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 // tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
 
                 let current_play_index = self.base_context.play_index_watch_rx.borrow().clone();
-                tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
                 
                 // 如果索引不匹配，提前返回错误日志
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    tracing::debug!("indicator_node_context kline_update_event: {:?}", kline_update_event);
                     if current_play_index != kline_update_event.play_index {
                         tracing::error!(
                             node_id = %self.base_context.node_id, 

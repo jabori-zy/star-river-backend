@@ -35,6 +35,7 @@ pub enum BacktestStrategyStateAction { // 当切换到某一个状态时, 需要
     StopNode,             // 停止节点
     ListenAndHandleNodeEvent,  // 监听节点消息
     ListenAndHandleNodeCommand,  // 监听命令
+    ListenAndHandleStrategyStatsEvent,  // 监听策略统计事件
     LogTransition,          // 记录状态转换
     LogError(String),       // 记录错误
 }
@@ -87,6 +88,7 @@ impl BacktestStrategyStateMachine {
                         BacktestStrategyStateAction::LogTransition,
                         BacktestStrategyStateAction::ListenAndHandleNodeEvent,
                         BacktestStrategyStateAction::ListenAndHandleNodeCommand,
+                        BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent,
                         BacktestStrategyStateAction::InitNode, // 初始化节点
                         BacktestStrategyStateAction::InitCacheLength, // 初始化缓存长度
                         BacktestStrategyStateAction::InitSignalCount, // 初始化信号计数
@@ -103,7 +105,7 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Ready,
                     actions: vec![
-                        BacktestStrategyStateAction::LogTransition
+                        BacktestStrategyStateAction::LogTransition,
                     ],
                 })
             }

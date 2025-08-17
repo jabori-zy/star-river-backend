@@ -1,6 +1,8 @@
 pub mod order;
 pub mod position;
 pub mod transaction;
+pub mod statistics;
+pub mod utils;
 
 use types::cache::key::KlineKey;
 use types::cache::Key;
@@ -13,7 +15,8 @@ use event_center::CommandPublisher;
 use tokio::sync::oneshot;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
-use utils::get_utc8_timestamp_millis;
+// 外部的utils，不是当前crate的utils
+use ::utils::get_utc8_timestamp_millis;
 use std::collections::HashMap;
 use types::market::Exchange;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventSender};
@@ -27,18 +30,31 @@ use std::sync::Arc;
 pub struct VirtualTradingSystem {
     timestamp: i64, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, (f64, i64)>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
-    play_index: PlayIndex, // 播放索引
-    pub initial_balance: Balance, // 初始资金
-    pub leverage: Leverage, // 杠杆
-    pub current_balance: Balance, // 当前资金
-    pub unrealized_pnl: UnrealizedPnl, // 未实现盈亏
-    pub margin: Margin, // 保证金
-    pub current_positions: Vec<VirtualPosition>, // 当前持仓
-    pub orders: Vec<VirtualOrder>, // 所有订单(已成交订单 + 未成交订单)
-    pub transactions: Vec<VirtualTransaction>, // 交易历史
     pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
+
+
+    pub initial_balance: Balance, // 初始资金
+    pub leverage: Leverage, // 杠杆
+    pub current_balance: Balance, // 当前可用资金(当前可用资金 = 当前资金 - 冻结资金)
+    pub unrealized_pnl: UnrealizedPnl, // 未实现盈亏
+    pub pnl: Pnl, //已实现盈亏
+
+    // 保证金相关
+    pub margin: Margin, // 保证金
+    pub frozen_margin: FrozenMargin, // 冻结保证金
+    pub margin_ratio: MarginRatio, // 保证金率
+
+    // 手续费相关
+    pub fee_rate: FeeRate, // 手续费率
+
+
+    // 持仓相关
+    pub current_positions: Vec<VirtualPosition>, // 当前持仓
+    pub orders: Vec<VirtualOrder>, // 所有订单(已成交订单 + 未成交订单)
+    pub transactions: Vec<VirtualTransaction>, // 交易历史
+    
 }
 
 
@@ -52,12 +68,15 @@ impl VirtualTradingSystem {
         Self {
             timestamp: 0,
             kline_price: HashMap::new(),
-            play_index: 0,
-            initial_balance: 0.0, 
+            initial_balance: 0.0,
             leverage: 0, 
             current_balance: 0.0,
             unrealized_pnl: 0.0,
-            margin: 0.0, 
+            pnl: 0.0,
+            margin: 0.0,
+            frozen_margin: 0.0,
+            margin_ratio: 0.0,
+            fee_rate: 0.0,
             current_positions: vec![],
             orders: vec![],
             transactions: vec![],
@@ -100,10 +119,6 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn get_play_index(&self) -> PlayIndex {
-        self.play_index
-    }
-
     pub fn get_timestamp(&self) -> i64 {
         self.timestamp
     }
@@ -112,15 +127,19 @@ impl VirtualTradingSystem {
         self.unrealized_pnl
     }
 
+    pub fn get_play_index(&self) -> PlayIndex {
+        *self.play_index_watch_rx.borrow()
+    }
+
     // 设置k线缓存索引, 并更新所有数据
-    pub async fn set_play_index(&mut self, play_index: PlayIndex) {
-        self.play_index = play_index;
+    pub async fn update_system(&mut self) {
         // 当k线索引更新后，更新k线缓存key的最新收盘价
         self.update_kline_price().await;
         // 更新时间戳
         self.update_timestamp();
         // 价格更新后，更新仓位
         self.update_position();
+        
         // 更新未实现盈亏
         self.update_unrealized_pnl();
         // 发送事件
@@ -164,19 +183,23 @@ impl VirtualTradingSystem {
         }
     }
 
-    fn update_unrealized_pnl(&mut self) {
-        self.unrealized_pnl = self.current_positions.iter().map(|position| position.unrealized_profit).sum();
-    }
+    
 
     // 设置初始资金
     pub fn set_initial_balance(&mut self, initial_balance: Balance) {
         self.initial_balance = initial_balance;
         self.current_balance = initial_balance;
+        tracing::debug!("set_initial_balance: {}", initial_balance);
     }
 
     // 设置杠杆
     pub fn set_leverage(&mut self, leverage: Leverage) {
         self.leverage = leverage;
+    }
+
+    // 设置手续费率
+    pub fn set_fee_rate(&mut self, fee_rate: FeeRate) {
+        self.fee_rate = fee_rate;
     }
 
     // 获取初始资金
@@ -244,7 +267,7 @@ impl VirtualTradingSystem {
             strategy_id: -1,
             node_id: "virtual_trading_system".to_string(),
             key: kline_cache_key,
-            index: Some(self.play_index as u32),
+            index: Some(self.get_play_index() as u32),
             limit: Some(1),
             sender: "virtual_trading_system".to_string(),
             timestamp: get_utc8_timestamp_millis(),
@@ -268,11 +291,11 @@ impl VirtualTradingSystem {
 
 
     // 根据交易所和symbol获取k线缓存key
-    fn get_kline_cache_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
-        tracing::debug!("get_kline_cache_key: {:?}", self.kline_price);
-        for kline_cache_key in self.kline_price.keys() {
-            if &kline_cache_key.exchange == exchange && &kline_cache_key.symbol == symbol {
-                return Some(kline_cache_key.clone());
+    fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
+        tracing::debug!("get_kline_key: {:?}", self.kline_price);
+        for kline_key in self.kline_price.keys() {
+            if &kline_key.exchange == exchange && &kline_key.symbol == symbol {
+                return Some(kline_key.clone());
             }
         }
         None
@@ -284,7 +307,6 @@ impl VirtualTradingSystem {
         self.current_positions.clear();
         self.orders.clear();
         self.transactions.clear();
-        self.play_index = 0;
         self.current_balance = self.initial_balance;
         self.margin = 0.0;
     }
@@ -303,12 +325,9 @@ impl VirtualTradingSystem {
                 // 监听播放索引变化
                 match play_index_watch_rx.changed().await {
                     Ok(_) => {
-                        // 使用 borrow_and_update 获取最新的播放索引
-                        let play_index = *play_index_watch_rx.borrow_and_update();
-                        
                         // 更新虚拟交易系统的播放索引
                         let mut vts_guard = virtual_trading_system.lock().await;
-                        vts_guard.set_play_index(play_index).await;
+                        vts_guard.update_system().await;
                     }
                     Err(e) => {
                         tracing::error!("VirtualTradingSystem 监听播放索引错误: {}", e);
@@ -319,12 +338,3 @@ impl VirtualTradingSystem {
         Ok(())
     }
 }
-
-
-
-
-
-
-
-
-

@@ -12,3 +12,15 @@ event-center = {path = "../event-center" }
 chrono.workspace = true
 tracing.workspace = true
 tokio.workspace = true
+
+[[test]]
+name = "order_calculation_test"
+path = "test/order_calculation_test.rs"
+
+[[test]]
+name = "position_calculation_test"
+path = "test/position_calculation_test.rs"
+
+[[test]]
+name = "comprehensive_test"
+path = "test/comprehensive_test.rs"

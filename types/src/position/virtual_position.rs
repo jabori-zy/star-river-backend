@@ -38,19 +38,28 @@ pub struct VirtualPosition {
     pub quantity: f64,
 
     #[serde(rename = "openPrice")]
-    pub open_price: f64,
+    pub open_price: Price,
 
     #[serde(rename = "currentPrice")]
-    pub current_price: f64,
+    pub current_price: Price,
 
     #[serde(rename = "tp")]
-    pub tp: Option<f64>,
+    pub tp: Option<Tp>,
 
     #[serde(rename = "sl")]
-    pub sl: Option<f64>,
+    pub sl: Option<Sl>,
 
     #[serde(rename = "unrealizedProfit")]
-    pub unrealized_profit: f64, // 未实现盈亏
+    pub unrealized_profit: UnrealizedPnl, // 未实现盈亏
+
+    #[serde(rename = "forcePrice")]
+    pub force_price: f64, // 强平价格
+
+    #[serde(rename = "margin")]
+    pub margin: Margin, // 仓位占用的保证金
+
+    #[serde(rename = "marginRatio")]
+    pub margin_ratio: MarginRatio, // 保证金率
 
     #[serde(rename = "createTime")]
     pub create_time: DateTime<Utc>,
@@ -60,7 +69,13 @@ pub struct VirtualPosition {
 }
 
 impl VirtualPosition {
-    pub fn new(virtual_order: &VirtualOrder, current_price: f64, timestamp: i64) -> Self {
+    pub fn new(
+        virtual_order: &VirtualOrder, 
+        current_price: Price, 
+        force_price: Price,
+        margin: Margin,
+        margin_ratio: MarginRatio,
+        timestamp: i64) -> Self {
 
         let position_side = match virtual_order.order_side {
             FuturesOrderSide::OpenLong => PositionSide::Long,
@@ -84,14 +99,27 @@ impl VirtualPosition {
             tp: virtual_order.tp,
             sl: virtual_order.sl,
             unrealized_profit: 0.0,
+            force_price: force_price,
+            margin: margin,
+            margin_ratio: margin_ratio,
             create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
             update_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }
     }
 
-    pub fn update_position(&mut self, current_price: f64) {
+    pub fn update_position(
+        &mut self, 
+        current_price: Price,
+        timestamp: i64,
+        margin: Margin,
+        margin_ratio: MarginRatio,
+        force_price: Price
+    ) {
         self.current_price = current_price;
-        self.update_time = Utc::now();
+        self.update_time = DateTime::from_timestamp_millis(timestamp).unwrap();
         self.unrealized_profit = self.quantity * (current_price - self.open_price);
+        self.margin = margin;
+        self.margin_ratio = margin_ratio;
+        self.force_price = force_price;
     }
 }

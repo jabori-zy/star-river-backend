@@ -10,12 +10,27 @@ use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 impl VirtualTradingSystem {
     /// 执行订单, 返回持仓id
     /// 生成仓位和交易明细
-    pub fn execute_order(&mut self, order_id: OrderId, current_price: f64, timestamp: i64) -> PositionId {
+    pub fn execute_order(&mut self, order_id: OrderId, current_price: f64, timestamp: i64) -> Result<PositionId, String> {
         // tracing::info!("执行订单: {:?}, 成交价格: {:?}", virtual_order, current_price);
 
         let order = self.get_order(order_id).unwrap().clone();
+
+        // 判断保证金是否充足
+        let margin = self.calculate_margin(current_price, order.quantity);
+        if margin > self.current_balance {
+            return Err(format!("保证金不足，需要{}，当前余额{}", margin, self.current_balance));
+        }
+
+
+        // 计算强平价格
+        let force_price = self.calculate_force_price(current_price, order.quantity);
+
+        // 计算保证金率
+        let margin_ratio = self.calculate_margin_ratio(current_price, order.quantity);
+        tracing::debug!("margin: {}, margin_ratio: {}, force_price: {}", margin, margin_ratio, force_price);
+
         // 执行订单，生成模拟仓位
-        let virtual_position = VirtualPosition::new(&order, current_price, timestamp);
+        let virtual_position = VirtualPosition::new(&order, current_price, force_price, margin, margin_ratio, timestamp);
         let position_id = virtual_position.position_id;
 
         // 更新订单的仓位id
@@ -44,20 +59,24 @@ impl VirtualTradingSystem {
         let order_filled_event = VirtualTradingSystemEvent::FuturesOrderFilled(filled_order.clone());
         let _ = self.event_publisher.send(order_filled_event);
         
-        position_id
+        Ok(position_id)
     }
 
     // 更新仓位
     pub fn update_position(&mut self) {
         for i in 0..self.current_positions.len() {
-            let kline_cache_key = self.get_kline_cache_key(
+            let kline_key = self.get_kline_key(
                 &self.current_positions[i].exchange, 
                 &self.current_positions[i].symbol
             );
             
-            if let Some(kline_cache_key) = kline_cache_key {
-                if let Some((current_price, _)) = self.kline_price.get(&kline_cache_key) {
-                    self.current_positions[i].update_position(*current_price);
+            if let Some(kline_key) = kline_key {
+                if let Some((current_price, _)) = self.kline_price.get(&kline_key) {
+                    let margin = self.calculate_margin(*current_price, self.current_positions[i].quantity);
+                    let margin_ratio = self.calculate_margin_ratio(*current_price, self.current_positions[i].quantity);
+                    let force_price = self.calculate_force_price(*current_price, self.current_positions[i].quantity);
+                    // 更新仓位
+                    self.current_positions[i].update_position(*current_price, self.timestamp, margin, margin_ratio, force_price);
                     let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(self.current_positions[i].clone());
                     let _ = self.event_publisher.send(position_updated_event);
                 }

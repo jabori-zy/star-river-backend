@@ -14,6 +14,7 @@ use chrono::{DateTime, Utc};
 use std::fmt;
 use utoipa::ToSchema;
 use crate::market::deserialize_exchange;
+use crate::custom_type::FeeRate;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -191,7 +192,7 @@ pub struct BacktestStrategyConfig {
     pub leverage: i32, // 杠杆
 
     #[serde(rename = "feeRate")]
-    pub fee_rate: f64, // 手续费率
+    pub fee_rate: FeeRate, // 手续费率
 
     #[serde(rename = "playSpeed")]
     pub play_speed: i32, // 回放速度

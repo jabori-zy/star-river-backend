@@ -1,28 +1,26 @@
-use types::custom_type::{Balance, Leverage};
+use types::custom_type::{Balance, Leverage, StrategyId};
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
-use types::strategy_stats::event::StrategyStatsEventSender;
-use types::strategy_stats::{AssetSnapshot, AssetSnapshotHistory};
+use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventSender, StrategyStatsUpdatedEvent};
+use types::strategy_stats::{StatsSnapshot, StatsSnapshotHistory};
 use virtual_trading::VirtualTradingSystem;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
-use utils;
 use types::custom_type::PlayIndex;
 
 
 #[derive(Debug)]
 pub struct BacktestStrategyStats {
-    pub initial_balance: Balance,
-    pub leverage: Leverage,
+    pub strategy_id: StrategyId,
+    initial_balance: Balance,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     pub virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
     pub strategy_stats_event_sender: StrategyStatsEventSender,
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     cancel_token: CancellationToken,
-    asset_snapshot_history: Arc<RwLock<AssetSnapshotHistory>>, // 资产快照历史
-    play_index: PlayIndex,
+    asset_snapshot_history: Arc<RwLock<StatsSnapshotHistory>>, // 资产快照历史
     timestamp: i64,
 
     
@@ -31,20 +29,20 @@ pub struct BacktestStrategyStats {
 
 impl BacktestStrategyStats {
     pub fn new(
+        strategy_id: StrategyId,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver, 
         strategy_stats_event_sender: StrategyStatsEventSender,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         Self {
+            strategy_id,
             initial_balance: 0.0,
-            leverage: 0,
             virtual_trading_system,
             virtual_trading_system_event_receiver,
             strategy_stats_event_sender,
             cancel_token: CancellationToken::new(),
-            asset_snapshot_history: Arc::new(RwLock::new(AssetSnapshotHistory::new(None))),
-            play_index: 0,
+            asset_snapshot_history: Arc::new(RwLock::new(StatsSnapshotHistory::new(None))),
             timestamp: 0,
             play_index_watch_rx,
         }
@@ -52,14 +50,6 @@ impl BacktestStrategyStats {
 
     pub fn set_initial_balance(&mut self, initial_balance: Balance) {
         self.initial_balance = initial_balance;
-    }
-
-    pub fn set_leverage(&mut self, leverage: Leverage) {
-        self.leverage = leverage;
-    }
-
-    pub fn set_play_index(&mut self, play_index: PlayIndex) {
-        self.play_index = play_index;
     }
 
     pub fn set_timestamp(&mut self, timestamp: i64) {
@@ -111,40 +101,12 @@ impl BacktestStrategyStats {
         Ok(())
     }
 
-    pub async fn listen_play_index(stats: Arc<RwLock<Self>>) {
-        let mut play_index_watch_rx = {
-            let vts_guard = stats.read().await;
-            vts_guard.play_index_watch_rx.clone()
-        };
-
-        // 监听播放索引变化
-        tokio::spawn(async move {
-            loop {
-                // 监听播放索引变化
-                match play_index_watch_rx.changed().await {
-                    Ok(_) => {
-                        // 使用 borrow_and_update 获取最新的播放索引
-                        let play_index = *play_index_watch_rx.borrow_and_update();
-                        
-                        // 更新虚拟交易系统的播放索引
-                        let mut stats_guard = stats.write().await;
-                        stats_guard.set_play_index(play_index);
-                    }
-                    Err(e) => {
-                        tracing::error!("VirtualTradingSystem 监听播放索引错误: {}", e);
-                        break;
-                    }
-                }
-            }
-        });
-    }
-
     async fn handle_virtual_trading_system_event(&mut self, event: VirtualTradingSystemEvent) -> Result<(), String> {
         
         // 处理事件并更新资产快照
         match event {
             VirtualTradingSystemEvent::UpdateFinished => {
-                self.update_asset_snapshot().await?;
+                self.create_asset_snapshot().await?;
             }
             _ => {}
         }
@@ -159,6 +121,7 @@ impl BacktestStrategyStats {
         let timestamp = trading_system.get_timestamp();
         let current_balance = trading_system.get_current_balance();
         let positions = trading_system.get_positions();
+        let play_index = trading_system.get_play_index();
         
         // 计算未实现盈亏
         let unrealized_pnl = trading_system.get_unrealized_pnl();
@@ -168,9 +131,9 @@ impl BacktestStrategyStats {
         drop(trading_system);
         
         // 创建资产快照
-        let snapshot = AssetSnapshot::new(
+        let snapshot = StatsSnapshot::new(
             timestamp,
-            self.play_index,
+            play_index,
             self.initial_balance,
             current_balance,
             unrealized_pnl,
@@ -185,60 +148,59 @@ impl BacktestStrategyStats {
     /// 手动创建资产快照
     pub async fn create_asset_snapshot(&mut self) -> Result<(), String> {
         let trading_system = self.virtual_trading_system.lock().await;
+
+        let play_index = *self.play_index_watch_rx.borrow_and_update();
+        let trading_system_play_index = trading_system.get_play_index();
         
-        let timestamp = utils::get_utc8_timestamp_millis();
-        let play_index = trading_system.get_play_index();
-        let current_balance = trading_system.get_current_balance();
-        let positions = trading_system.get_positions();
-        
-        // 计算未实现盈亏
-        let unrealized_pnl: f64 = positions.iter()
-            .map(|pos| pos.unrealized_profit)
-            .sum();
+        if play_index == trading_system_play_index {
+            let timestamp = trading_system.get_timestamp(); // 时间戳
+            let current_balance = trading_system.get_current_balance(); // 当前资金
+            let positions = trading_system.get_positions(); // 当前持仓
+            let unrealized_pnl = trading_system.get_unrealized_pnl(); // 未实现盈亏
+            let position_count = positions.len() as u32; // 持仓数量
             
-        let position_count = positions.len() as u32;
-        
-        drop(trading_system);
-        
-        // 创建资产快照
-        let snapshot = types::strategy_stats::AssetSnapshot::new(
-            timestamp,
-            play_index,
-            self.initial_balance,
-            current_balance,
-            unrealized_pnl,
-            position_count,
-        );
-        
-        // 添加到历史记录
-        let mut asset_snapshot_history_guard = self.asset_snapshot_history.write().await;
-        asset_snapshot_history_guard.add_snapshot(snapshot);
-        
-        tracing::debug!("策略统计模块创建资产快照: 总资产={:.2}, 收益率={:.2}%, 仓位数={}", 
-            asset_snapshot_history_guard.get_latest_snapshot().unwrap().total_equity,
-            asset_snapshot_history_guard.get_latest_snapshot().unwrap().cumulative_return,
-            asset_snapshot_history_guard.get_latest_snapshot().unwrap().position_count);
-        
+            drop(trading_system);
+            
+            // 创建资产快照
+            let snapshot = StatsSnapshot::new(
+                timestamp,
+                play_index,
+                self.initial_balance,
+                current_balance,
+                unrealized_pnl,
+                position_count,
+            );
+
+            let strategy_stats_updated_event = StrategyStatsUpdatedEvent {
+                strategy_id: self.strategy_id,
+                stats_snapshot: snapshot.clone(),
+                timestamp: timestamp,
+            };
+
+            let _ = self.strategy_stats_event_sender.send(StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event));
+            
+            // 添加到历史记录
+            let mut asset_snapshot_history_guard = self.asset_snapshot_history.write().await;
+            asset_snapshot_history_guard.add_snapshot(snapshot);
+            
+            // tracing::debug!("策略统计模块创建资产快照: 总资产={:.2}, 收益率={:.2}%, 仓位数={}", 
+            //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().total_equity,
+            //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().cumulative_return,
+            //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().position_count);
+                
+            }
+        else {
+            tracing::warn!("策略统计模块创建资产快照失败: play_index: {} != trading_system_play_index: {}", play_index, trading_system_play_index);
+        }
         Ok(())
     }
 
     /// 获取资产快照历史记录
-    pub async fn get_asset_snapshot_history(&self) -> Arc<RwLock<AssetSnapshotHistory>> {
+    pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
         let asset_snapshot_history_guard = self.asset_snapshot_history.read().await;
-        Arc::new(RwLock::new(asset_snapshot_history_guard.clone()))
+        asset_snapshot_history_guard.get_snapshots_before_play_index(play_index)
     }
 
-    /// 获取用于画图的数据
-    pub async fn get_chart_data(&self) -> (Vec<i64>, Vec<f64>, Vec<f64>) {
-        let asset_snapshot_history_guard = self.asset_snapshot_history.read().await;
-        asset_snapshot_history_guard.get_chart_data()
-    }
-
-    /// 获取净值曲线数据
-    pub async fn get_net_value_curve(&self) -> (Vec<i64>, Vec<f64>) {
-        let asset_snapshot_history_guard = self.asset_snapshot_history.read().await;
-        asset_snapshot_history_guard.get_net_value_curve()
-    }
 
     /// 计算最大回撤
     pub async fn calculate_max_drawdown(&self) -> f64 {

@@ -32,6 +32,7 @@ use super::StrategyCommandPublisher;
 use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 use types::order::virtual_order::VirtualOrder;
 use types::strategy_stats::event::StrategyStatsEvent;
+use types::strategy_stats::StatsSnapshot;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 #[derive(Debug, Clone)]
@@ -67,7 +68,7 @@ impl BacktestStrategy {
 
         // 创建策略统计模块
         let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
-        let strategy_stats = Arc::new(RwLock::new(BacktestStrategyStats::new(virtual_trading_system.clone(), virtual_trading_system_event_rx.resubscribe(), strategy_stats_event_tx, play_index_watch_rx.clone())));
+        let strategy_stats = Arc::new(RwLock::new(BacktestStrategyStats::new(strategy_id, virtual_trading_system.clone(), virtual_trading_system_event_rx.resubscribe(), strategy_stats_event_tx, play_index_watch_rx.clone())));
 
         
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
@@ -269,7 +270,7 @@ impl BacktestStrategy {
                     }
 
                     // 监听播放索引
-                    BacktestStrategyStats::listen_play_index(strategy_stats2).await;
+                    // BacktestStrategyStats::listen_play_index(strategy_stats2).await;
                     
                 }
 
@@ -339,6 +340,10 @@ impl BacktestStrategy {
                 BacktestStrategyStateAction::ListenAndHandleNodeCommand => {
                     tracing::info!("{}: 监听命令", strategy_name);
                     BacktestStrategyFunction::listen_node_command(self.get_context()).await;
+                }
+                BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent => {
+                    tracing::info!("{}: 监听策略统计事件", strategy_name);
+                    BacktestStrategyFunction::listen_strategy_stats_event(self.get_context()).await;
                 }
                 BacktestStrategyStateAction::LogError(error) => {
                     tracing::error!("{}: {}", strategy_name, error);
@@ -417,6 +422,8 @@ impl BacktestStrategy {
         context_guard.reset().await;
         // 重置虚拟交易系统
         context_guard.virtual_trading_system_reset().await;
+        // 重置策略统计
+        context_guard.strategy_stats_reset().await;
         context_guard.send_reset_node_event().await;
         
         Ok(())
@@ -446,6 +453,11 @@ impl BacktestStrategy {
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
         let context_guard = self.context.read().await;
         context_guard.get_current_positions().await
+    }
+
+    pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
+        let context_guard = self.context.read().await;
+        context_guard.get_stats_history(play_index).await
     }
     
 }

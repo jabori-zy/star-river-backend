@@ -153,6 +153,7 @@ impl StartNodeContext {
         let node_config = self.node_config.read().await;
         virtual_trading_system.set_initial_balance(node_config.initial_balance);
         virtual_trading_system.set_leverage(node_config.leverage as u32);
+        virtual_trading_system.set_fee_rate(node_config.fee_rate);
 
     }
 
@@ -161,7 +162,6 @@ impl StartNodeContext {
         let mut strategy_stats = self.strategy_stats.write().await;
         let node_config = self.node_config.read().await;
         strategy_stats.set_initial_balance(node_config.initial_balance);
-        strategy_stats.set_leverage(node_config.leverage as u32);
     }
 
     pub async fn handle_play_index(&self) {

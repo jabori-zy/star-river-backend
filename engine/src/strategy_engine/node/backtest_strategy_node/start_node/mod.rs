@@ -189,6 +189,22 @@ impl BacktestNodeTrait for StartNode {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen play index");
                     self.listen_play_index_change().await;
                 }
+                StartNodeStateAction::InitVirtualTradingSystem => {
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start init virtual trading system");
+                    let context = self.get_context();
+                    let mut state_guard = context.write().await;
+                    if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                        start_node_context.init_virtual_trading_system().await;
+                    }
+                }
+                StartNodeStateAction::InitStrategyStats => {
+                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start init strategy stats");
+                    let context = self.get_context();
+                    let mut state_guard = context.write().await;
+                    if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                        start_node_context.init_strategy_stats().await;
+                    }
+                }
                 StartNodeStateAction::LogNodeState => {
                     let current_state = self.context.read().await.get_state_machine().current_state();
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "current state: {:?}", current_state);

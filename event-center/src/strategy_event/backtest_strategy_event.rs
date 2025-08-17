@@ -6,6 +6,7 @@ use crate::{StrategyEvent, Event};
 use types::order::virtual_order::VirtualOrder;
 use types::strategy::node_event::backtest_node_event::futures_order_node_event::{FuturesOrderCreatedEvent, FuturesOrderCanceledEvent, FuturesOrderFilledEvent};
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent};
+use types::strategy_stats::event::StrategyStatsUpdatedEvent;
 
 
 
@@ -44,6 +45,11 @@ pub enum BacktestStrategyEvent {
     #[strum(serialize = "position-closed")]
     #[serde(rename = "position-closed")]
     PositionClosed(PositionClosedEvent), // 仓位关闭事件
+
+
+    #[strum(serialize = "strategy-stats-updated")]
+    #[serde(rename = "strategy-stats-updated")]
+    StrategyStatsUpdated(StrategyStatsUpdatedEvent), // 策略统计更新事件
 }
 
 impl From<BacktestStrategyEvent> for Event {

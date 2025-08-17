@@ -18,13 +18,28 @@ pub type TransactionId = i32;
 
 pub type Leverage = u32;
 
-pub type Balance = f64; // 资金
+pub type Balance = f64; // 余额
 
-pub type UnrealizedPnl = f64;
+pub type UnrealizedPnl = f64; //未实现盈亏
+
+pub type Pnl = f64; // 已实现盈亏
 
 pub type Equity = f64; // 权益
 
-pub type Margin = f64;
+pub type Tp = f64; // 止盈价格
 
-pub type PlayIndex = i32;
+pub type Sl = f64; // 止损价格
 
+pub type Price = f64; // 价格
+
+
+// 保证金相关
+pub type Margin = f64; // 保证金
+
+pub type MarginRatio = f64; // 保证金率
+
+pub type FrozenMargin = f64; // 冻结保证金
+
+pub type PlayIndex = i32; // 播放索引
+
+pub type FeeRate = f64; // 手续费率

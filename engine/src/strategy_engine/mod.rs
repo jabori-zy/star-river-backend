@@ -22,6 +22,7 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use types::strategy::TradeMode;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy_stats::StatsSnapshot;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -206,6 +207,12 @@ impl StrategyEngine {
             let context = self.context.read().await;
             let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
             strategy_context.get_backtest_strategy_current_positions(strategy_id).await
+        }
+
+        pub async fn get_stats_history(&mut self, strategy_id: i32, play_index: i32) -> Result<Vec<StatsSnapshot>, String> {
+            let context = self.context.read().await;
+            let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+            strategy_context.get_backtest_strategy_stats_history(strategy_id, play_index).await
         }
 
 

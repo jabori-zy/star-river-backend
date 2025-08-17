@@ -125,4 +125,43 @@ impl BacktestStrategyFunction {
             }
         });
     }
+
+
+    pub async fn listen_strategy_stats_event(context: Arc<RwLock<BacktestStrategyContext>>) {
+        let (strategy_name, cancel_token, strategy_stats_event_receiver) = {
+            let context_guard = context.read().await;
+            let strategy_name = context_guard.get_strategy_name();
+            let cancel_token = context_guard.get_cancel_token();
+            let strategy_stats_event_receiver = context_guard.strategy_stats_event_receiver.resubscribe();
+            (strategy_name, cancel_token, strategy_stats_event_receiver)
+        };
+
+        let mut stream = BroadcastStream::new(strategy_stats_event_receiver);
+
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{}: 策略统计事件监听任务已中止", strategy_name);
+                        break;
+                    }
+                    event = stream.next() => {
+                        match event {
+                            Some(Ok(event)) => {
+                                let mut context_guard = context.write().await;
+                                context_guard.handle_strategy_stats_event(event).await.unwrap();
+                            }
+                        Some(Err(e)) => {
+                            tracing::error!("{}: 策略统计事件接收错误: {}", strategy_name, e);
+                        }
+                        None => {
+                            tracing::warn!("{}: 策略统计事件流已关闭", strategy_name);
+                            break;
+                        }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }

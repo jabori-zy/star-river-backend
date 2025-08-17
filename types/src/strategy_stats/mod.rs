@@ -1,39 +1,48 @@
 pub mod event;
 
-use crate::custom_type::{Balance, Equity, StrategyId};
+use crate::custom_type::{Balance, Equity};
 use serde::{Serialize, Deserialize};
+use utoipa::ToSchema;
 
 
 
 /// 资产快照 - 用于保存历史资产数据并生成图表
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AssetSnapshot {
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct StatsSnapshot {
     /// 时间戳（毫秒）
+    #[serde(rename = "timestamp")]
     pub timestamp: i64,
     
     /// 播放索引（回测进度）
+    #[serde(rename = "playIndex")]
     pub play_index: i32,
 
     /// 当前可用余额
+    #[serde(rename = "balance")]
     pub balance: Balance,
     
     /// 未实现盈亏
+    #[serde(rename = "unrealizedPnl")]
     pub unrealized_pnl: f64,
     
     /// 总资产价值（余额 + 未实现盈亏）
+    #[serde(rename = "totalEquity")]
     pub total_equity: Equity,
     
     /// 累计收益率（百分比）
+    #[serde(rename = "cumulativeReturn")]
     pub cumulative_return: f64,
     
     /// 已实现盈亏
+    #[serde(rename = "realizedPnl")]
     pub realized_pnl: f64,
     
     /// 当前持仓数量
+    #[serde(rename = "positionCount")]
     pub position_count: u32,
 }
 
-impl AssetSnapshot {
+impl StatsSnapshot {
     /// 创建新的资产快照
     pub fn new(
         timestamp: i64,
@@ -79,17 +88,17 @@ impl AssetSnapshot {
 }
 
 /// 资产快照历史记录 - 用于存储时间序列数据并生成图表
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AssetSnapshotHistory {
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct StatsSnapshotHistory {
     
     /// 快照列表，按时间顺序排列
-    pub snapshots: Vec<AssetSnapshot>,
+    pub snapshots: Vec<StatsSnapshot>,
     
     /// 最大保存数量（避免内存无限增长） 如果为None，则不限制保存数量
     pub max_snapshots: Option<usize>,
 }
 
-impl AssetSnapshotHistory {
+impl StatsSnapshotHistory {
     /// 创建新的资产快照历史记录
     pub fn new(max_snapshots: Option<usize>) -> Self {
         Self {
@@ -99,7 +108,7 @@ impl AssetSnapshotHistory {
     }
     
     /// 添加新的快照
-    pub fn add_snapshot(&mut self, snapshot: AssetSnapshot) {
+    pub fn add_snapshot(&mut self, snapshot: StatsSnapshot) {
         // 按时间戳顺序插入
         let insert_pos = self.snapshots
             .binary_search_by_key(&snapshot.timestamp, |s| s.timestamp)
@@ -117,7 +126,7 @@ impl AssetSnapshotHistory {
     }
     
     /// 获取最新快照
-    pub fn get_latest_snapshot(&self) -> Option<&AssetSnapshot> {
+    pub fn get_latest_snapshot(&self) -> Option<&StatsSnapshot> {
         self.snapshots.last()
     }
     
@@ -132,28 +141,13 @@ impl AssetSnapshotHistory {
     }
     
     /// 获取时间范围内的快照
-    pub fn get_snapshots_in_range(&self, start_time: i64, end_time: i64) -> Vec<&AssetSnapshot> {
+    pub fn get_snapshots_in_range(&self, start_time: i64, end_time: i64) -> Vec<&StatsSnapshot> {
         self.snapshots.iter()
             .filter(|snapshot| snapshot.timestamp >= start_time && snapshot.timestamp <= end_time)
             .collect()
     }
     
-    /// 获取用于画图的时间序列数据
-    pub fn get_chart_data(&self) -> (Vec<i64>, Vec<f64>, Vec<f64>) {
-        let timestamps: Vec<i64> = self.snapshots.iter().map(|s| s.timestamp).collect();
-        let total_equity: Vec<f64> = self.snapshots.iter().map(|s| s.total_equity).collect();
-        let cumulative_return: Vec<f64> = self.snapshots.iter().map(|s| s.cumulative_return).collect();
-        
-        (timestamps, total_equity, cumulative_return)
-    }
     
-    /// 获取净值曲线数据
-    pub fn get_net_value_curve(&self) -> (Vec<i64>, Vec<f64>) {
-        let timestamps: Vec<i64> = self.snapshots.iter().map(|s| s.timestamp).collect();
-        let net_values: Vec<f64> = self.snapshots.iter().map(|s| s.get_net_value()).collect();
-        
-        (timestamps, net_values)
-    }
     
     /// 计算最大回撤
     pub fn calculate_max_drawdown(&self) -> f64 {
@@ -188,9 +182,11 @@ impl AssetSnapshotHistory {
         self.snapshots.clear();
     }
     
-    /// 获取指定播放索引的快照
-    pub fn get_snapshot_by_play_index(&self, play_index: i32) -> Option<&AssetSnapshot> {
+    /// 获取指定播放索引之前的所有快照
+    pub fn get_snapshots_before_play_index(&self, play_index: i32) -> Vec<StatsSnapshot> {
         self.snapshots.iter()
-            .find(|snapshot| snapshot.play_index == play_index)
+            .filter(|snapshot| snapshot.play_index <= play_index)
+            .cloned()
+            .collect()
     }
 }

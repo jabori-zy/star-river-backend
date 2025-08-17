@@ -39,10 +39,11 @@ use event_center::command::backtest_strategy_command::{StrategyCommand, GetStart
 use event_center::response::backtest_strategy_response::StrategyResponse;
 use types::strategy::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 use types::order::virtual_order::VirtualOrder;
+use types::strategy_stats::StatsSnapshot;
 use types::strategy::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use types::position::virtual_position::VirtualPosition;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
-use types::strategy_stats::event::StrategyStatsEventReceiver;
+use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 
 
 #[derive(Debug)]
@@ -238,7 +239,18 @@ impl BacktestStrategyContext {
         }
         Ok(())
     }
-    
+
+
+    pub async fn handle_strategy_stats_event(&mut self, event: StrategyStatsEvent) -> Result<(), String> {
+        match event {
+            StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event) => {
+                // tracing::debug!("{}: 收到策略统计更新事件: {:?}", self.strategy_name, strategy_stats_updated_event);
+                let backtest_strategy_event = BacktestStrategyEvent::StrategyStatsUpdated(strategy_stats_updated_event);
+                let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl BacktestStrategyContext {
@@ -372,7 +384,7 @@ impl BacktestStrategyContext {
             if run_state == BacktestNodeRunState::Ready {
                 tracing::debug!("节点 {} 已进入Ready状态", node_id);
                 // 节点初始化间隔
-                tokio::time::sleep(Duration::from_millis(1000)).await;
+                tokio::time::sleep(Duration::from_millis(1)).await;
                 return Ok(());
             }
             retry_count += 1;
@@ -531,10 +543,20 @@ impl BacktestStrategyContext {
         let current_positions = virtual_trading_system.get_current_positions();
         current_positions
     }
+
+    pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
+        let strategy_stats = self.strategy_stats.read().await;
+        strategy_stats.get_stats_history(play_index).await
+    }
     
     pub async fn virtual_trading_system_reset(&self) {
         let mut virtual_trading_system = self.virtual_trading_system.lock().await;
         virtual_trading_system.reset();
+    }
+
+    pub async fn strategy_stats_reset(&self) {
+        let mut strategy_stats = self.strategy_stats.write().await;
+        strategy_stats.clear_asset_snapshots().await;
     }
 
 

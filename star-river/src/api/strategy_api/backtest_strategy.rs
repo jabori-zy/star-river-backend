@@ -2,7 +2,7 @@ use crate::star_river::StarRiver;
 use axum::http::StatusCode;
 use axum::extract::State;
 use serde::{Serialize, Deserialize};
-use axum::extract::{Json,Path};
+use axum::extract::{Json,Path,Query};
 use crate::api::response::ApiResponse;
 use utoipa::{IntoParams, ToSchema};
 use types::strategy::Strategy;
@@ -13,6 +13,7 @@ use types::engine::EngineName;
 use engine::strategy_engine::StrategyEngine;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy_stats::StatsSnapshot;
 
 #[derive(Debug, Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -340,6 +341,56 @@ pub async fn get_current_positions(State(star_river): State<StarRiver>, Path(str
             code: 0,
             message: "success".to_string(),
             data: Some(current_positions),
+        }))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            code: -1,
+            message: "failed".to_string(),
+            data: None,
+        }))
+    }
+}
+
+#[derive(Serialize, Deserialize, IntoParams, ToSchema)]
+#[schema(
+    title = "获取播放索引之前的策略统计历史",
+    description = "获取播放索引之前的策略统计历史",
+    example = json!({
+        "play_index": 1
+    })
+)]
+pub struct GetStatsHistoryQuery {
+    pub play_index: i32,
+}
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/stats-history",
+    tag = "回测策略",
+    summary = "获取策略统计历史",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取策略统计历史的策略ID"),
+        ("play_index" = i32, Query, description = "要获取策略统计历史的播放索引"),
+    ),
+    responses(
+        (status = 200, description = "获取策略统计历史成功", body = ApiResponse<Vec<StatsSnapshot>>),
+        (status = 400, description = "获取策略统计历史失败", body = ApiResponse<Vec<StatsSnapshot>>)
+    )
+)]
+
+#[axum::debug_handler]
+pub async fn get_stats_history(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>, Query(params): Query<GetStatsHistoryQuery>) -> (StatusCode, Json<ApiResponse<Vec<StatsSnapshot>>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let stats_history = strategy_engine.get_stats_history(strategy_id, params.play_index).await;
+    if let Ok(stats_history) = stats_history {
+        (StatusCode::OK, Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(stats_history),
         }))
     } else {
         (StatusCode::BAD_REQUEST, Json(ApiResponse {
