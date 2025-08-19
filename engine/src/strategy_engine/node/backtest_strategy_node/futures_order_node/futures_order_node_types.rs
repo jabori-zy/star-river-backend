@@ -1,4 +1,4 @@
-use types::order::{OrderType, FuturesOrderSide};
+use types::order::{OrderType, FuturesOrderSide, TpslType};
 use serde::{Serialize, Deserialize};
 use types::order::{deserialize_order_type, deserialize_futures_order_side};
 use types::strategy::{BacktestDataSource, DataSourceExchange, TimeRange, SelectedAccount};
@@ -29,6 +29,12 @@ pub struct FuturesOrderConfig {
     
     pub tp: Option<f64>,
     pub sl: Option<f64>,
+
+    #[serde(rename = "tpType")]
+    pub tp_type: Option<TpslType>,
+
+    #[serde(rename = "slType")]
+    pub sl_type: Option<TpslType>,
 }
 
 

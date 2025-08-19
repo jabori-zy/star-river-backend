@@ -84,6 +84,7 @@ impl FuturesOrderNode {
                 virtual_trading_system_event_receiver,
                 unfilled_virtual_order: Arc::new(RwLock::new(HashMap::new())),
                 virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
+                virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
                 min_kline_interval: None,
             }))),
         }

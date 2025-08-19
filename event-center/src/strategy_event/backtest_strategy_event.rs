@@ -3,8 +3,18 @@ use strum::Display;
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;
 use types::strategy::node_event::IndicatorUpdateEvent;
 use crate::{StrategyEvent, Event};
-use types::order::virtual_order::VirtualOrder;
-use types::strategy::node_event::backtest_node_event::futures_order_node_event::{FuturesOrderCreatedEvent, FuturesOrderCanceledEvent, FuturesOrderFilledEvent};
+use types::strategy::node_event::backtest_node_event::futures_order_node_event::{
+    FuturesOrderCreatedEvent, 
+    FuturesOrderCanceledEvent, 
+    FuturesOrderFilledEvent, 
+    TakeProfitOrderCreatedEvent, 
+    TakeProfitOrderFilledEvent, 
+    TakeProfitOrderCanceledEvent, 
+    StopLossOrderCreatedEvent, 
+    StopLossOrderFilledEvent, 
+    StopLossOrderCanceledEvent,
+    TransactionCreatedEvent
+};
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent};
 use types::strategy_stats::event::StrategyStatsUpdatedEvent;
 
@@ -34,6 +44,30 @@ pub enum BacktestStrategyEvent {
     #[serde(rename = "futures-order-canceled")]
     FuturesOrderCanceled(FuturesOrderCanceledEvent), // 期货订单取消事件
 
+    #[strum(serialize = "take-profit-order-created")]
+    #[serde(rename = "take-profit-order-created")]
+    TakeProfitOrderCreated(TakeProfitOrderCreatedEvent), // 止盈订单创建事件
+
+    #[strum(serialize = "take-profit-order-filled")]
+    #[serde(rename = "take-profit-order-filled")]
+    TakeProfitOrderFilled(TakeProfitOrderFilledEvent), // 止盈订单成交事件
+
+    #[strum(serialize = "take-profit-order-canceled")]
+    #[serde(rename = "take-profit-order-canceled")]
+    TakeProfitOrderCanceled(TakeProfitOrderCanceledEvent), // 止盈订单取消事件
+
+    #[strum(serialize = "stop-loss-order-created")]
+    #[serde(rename = "stop-loss-order-created")]
+    StopLossOrderCreated(StopLossOrderCreatedEvent), // 止损订单创建事件
+
+    #[strum(serialize = "stop-loss-order-filled")]
+    #[serde(rename = "stop-loss-order-filled")]
+    StopLossOrderFilled(StopLossOrderFilledEvent), // 止损订单成交事件
+
+    #[strum(serialize = "stop-loss-order-canceled")]
+    #[serde(rename = "stop-loss-order-canceled")]
+    StopLossOrderCanceled(StopLossOrderCanceledEvent), // 止损订单取消事件
+
     #[strum(serialize = "position-created")]
     #[serde(rename = "position-created")]
     PositionCreated(PositionCreatedEvent), // 仓位创建事件
@@ -50,6 +84,10 @@ pub enum BacktestStrategyEvent {
     #[strum(serialize = "strategy-stats-updated")]
     #[serde(rename = "strategy-stats-updated")]
     StrategyStatsUpdated(StrategyStatsUpdatedEvent), // 策略统计更新事件
+
+    #[strum(serialize = "transaction-created")]
+    #[serde(rename = "transaction-created")]
+    TransactionCreated(TransactionCreatedEvent), // 交易明细创建事件
 }
 
 impl From<BacktestStrategyEvent> for Event {

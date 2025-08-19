@@ -44,6 +44,7 @@ use types::strategy::node_event::backtest_node_event::position_management_node_e
 use types::position::virtual_position::VirtualPosition;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
+use types::transaction::virtual_transaction::VirtualTransaction;
 
 
 #[derive(Debug)]
@@ -216,6 +217,34 @@ impl BacktestStrategyContext {
                 }
                 FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::TakeProfitOrderCreated(take_profit_order_created_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCreated(take_profit_order_created_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::StopLossOrderCreated(stop_loss_order_created_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCreated(stop_loss_order_created_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::TakeProfitOrderFilled(take_profit_order_filled_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderFilled(take_profit_order_filled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::StopLossOrderFilled(stop_loss_order_filled_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderFilled(stop_loss_order_filled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::StopLossOrderCanceled(stop_loss_order_canceled_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCanceled(stop_loss_order_canceled_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                FuturesOrderNodeEvent::TransactionCreated(transaction_created_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::TransactionCreated(transaction_created_event.clone());
                     let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
             }
@@ -542,6 +571,12 @@ impl BacktestStrategyContext {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
         let current_positions = virtual_trading_system.get_current_positions();
         current_positions
+    }
+
+    pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let transactions = virtual_trading_system.get_transactions();
+        transactions
     }
 
     pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {

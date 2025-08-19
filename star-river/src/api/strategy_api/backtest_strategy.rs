@@ -14,6 +14,7 @@ use engine::strategy_engine::StrategyEngine;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
+use types::transaction::virtual_transaction::VirtualTransaction;
 
 #[derive(Debug, Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -351,6 +352,53 @@ pub async fn get_current_positions(State(star_river): State<StarRiver>, Path(str
     }
 }
 
+
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/virtual-transactions",
+    tag = "回测策略",
+    summary = "获取虚拟交易明细",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取虚拟交易明细的策略ID")
+    ),
+    responses(
+        (status = 200, description = "获取虚拟交易明细成功", body = ApiResponse<Vec<VirtualTransaction>>),
+        (status = 400, description = "获取虚拟交易明细失败", body = ApiResponse<Vec<VirtualTransaction>>)
+    )
+)]
+
+
+pub async fn get_virtual_transactions(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<Vec<VirtualTransaction>>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let virtual_transactions = strategy_engine.get_virtual_transactions(strategy_id).await;
+    if let Ok(virtual_transactions) = virtual_transactions {
+        (StatusCode::OK, Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: Some(virtual_transactions),
+        }))
+    }
+     else {
+        (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            code: -1,
+            message: "failed".to_string(),
+            data: None,
+        }))
+    }
+}
+
+
+
+
+
+
+
+
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
     title = "获取播放索引之前的策略统计历史",
@@ -400,3 +448,6 @@ pub async fn get_stats_history(State(star_river): State<StarRiver>, Path(strateg
         }))
     }
 }
+
+
+

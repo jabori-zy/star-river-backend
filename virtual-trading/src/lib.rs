@@ -4,6 +4,7 @@ pub mod transaction;
 pub mod statistics;
 pub mod utils;
 
+use types::order::OrderType;
 use types::cache::key::KlineKey;
 use types::cache::Key;
 use types::custom_type::*;
@@ -52,6 +53,7 @@ pub struct VirtualTradingSystem {
 
     // 持仓相关
     pub current_positions: Vec<VirtualPosition>, // 当前持仓
+    pub history_positions: Vec<VirtualPosition>, // 历史持仓
     pub orders: Vec<VirtualOrder>, // 所有订单(已成交订单 + 未成交订单)
     pub transactions: Vec<VirtualTransaction>, // 交易历史
     
@@ -78,6 +80,7 @@ impl VirtualTradingSystem {
             margin_ratio: 0.0,
             fee_rate: 0.0,
             current_positions: vec![],
+            history_positions: vec![],
             orders: vec![],
             transactions: vec![],
             command_publisher,
@@ -254,11 +257,16 @@ impl VirtualTradingSystem {
     pub fn get_order(&self, order_id: OrderId) -> Option<&VirtualOrder> {
         self.orders.iter().find(|order| order.order_id == order_id)
     }
-
-    // 获取交易历史
-    pub fn get_transactions(&self) -> &Vec<VirtualTransaction> {
-        &self.transactions
+    
+    pub fn get_take_profit_order(&self, position_id: PositionId) -> Option<&VirtualOrder> {
+        self.orders.iter().find(|order| order.position_id == Some(position_id) && order.order_type == OrderType::TakeProfitMarket)
     }
+    
+    pub fn get_stop_loss_order(&self, position_id: PositionId) -> Option<&VirtualOrder> {
+        self.orders.iter().find(|order| order.position_id == Some(position_id) && order.order_type == OrderType::StopMarket)
+    }
+
+    
 
     // 从缓存引擎获取k线数据
     async fn get_close_price(&self,kline_cache_key: Key) -> Result<(f64, i64), String> {

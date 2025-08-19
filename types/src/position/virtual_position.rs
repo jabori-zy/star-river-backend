@@ -70,6 +70,7 @@ pub struct VirtualPosition {
 
 impl VirtualPosition {
     pub fn new(
+        position_id: PositionId,
         virtual_order: &VirtualOrder, 
         current_price: Price, 
         force_price: Price,
@@ -85,7 +86,7 @@ impl VirtualPosition {
         };
 
         Self {
-            position_id: virtual_order.order_id,
+            position_id,
             order_id: virtual_order.order_id,
             strategy_id: virtual_order.strategy_id,
             node_id: virtual_order.node_id.clone(),
@@ -95,13 +96,13 @@ impl VirtualPosition {
             position_state: PositionState::Open,
             quantity: virtual_order.quantity,
             open_price: current_price,
-            current_price: current_price,
+            current_price,
             tp: virtual_order.tp,
             sl: virtual_order.sl,
             unrealized_profit: 0.0,
-            force_price: force_price,
-            margin: margin,
-            margin_ratio: margin_ratio,
+            force_price,
+            margin,
+            margin_ratio,
             create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
             update_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }

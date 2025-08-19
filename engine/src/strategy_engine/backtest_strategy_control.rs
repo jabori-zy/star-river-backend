@@ -8,6 +8,7 @@ use types::strategy::TradeMode;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
+use types::transaction::virtual_transaction::VirtualTransaction;
 
 /* 
     回测策略控制
@@ -134,6 +135,13 @@ impl StrategyEngineContext {
         }
     }
 
-
+    pub async fn get_backtest_strategy_transactions(&self, strategy_id: i32) -> Result<Vec<VirtualTransaction>, String> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            Ok(strategy.get_transactions().await)
+        } else {
+            Err("获取回测策略交易明细失败".to_string())
+        }
+    }
 
 }

@@ -201,10 +201,10 @@ impl From<Mt5OrderType> for OrderType {
             Mt5OrderType::OrderTypeSell => OrderType::Market,
             Mt5OrderType::OrderTypeBuyLimit => OrderType::Limit,
             Mt5OrderType::OrderTypeSellLimit => OrderType::Limit,
-            Mt5OrderType::OrderTypeBuyStop => OrderType::Stop,
-            Mt5OrderType::OrderTypeSellStop => OrderType::Stop,
-            Mt5OrderType::OrderTypeBuyStopLimit => OrderType::StopLimit,
-            Mt5OrderType::OrderTypeSellStopLimit => OrderType::StopLimit,
+            Mt5OrderType::OrderTypeBuyStop => OrderType::StopMarket,
+            Mt5OrderType::OrderTypeSellStop => OrderType::StopMarket,
+            Mt5OrderType::OrderTypeBuyStopLimit => OrderType::TakeProfitMarket,
+            Mt5OrderType::OrderTypeSellStopLimit => OrderType::TakeProfitMarket,
             Mt5OrderType::OrderTypeCloseBy => {
                 tracing::warn!("遇到不支持的订单类型 OrderTypeCloseBy, 将转换为默认市价单类型");
                 OrderType::Market  // 设置默认转换为市价单

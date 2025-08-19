@@ -1,5 +1,5 @@
 use super::VirtualTradingSystem;
-use types::order::{FuturesOrderSide, OrderType, OrderStatus};
+use types::order::{FuturesOrderSide, OrderType, OrderStatus, TpslType};
 use chrono::{DateTime, Utc};
 use types::order::virtual_order::VirtualOrder;
 use types::custom_type::*;
@@ -12,6 +12,8 @@ impl VirtualTradingSystem {
     fn generate_order_id(&self) -> i32 {
         self.orders.len() as i32
     }
+
+    
     // 创建订单
     pub fn create_order(&mut self,
         strategy_id: i32,
@@ -25,6 +27,8 @@ impl VirtualTradingSystem {
         quantity: f64,
         tp: Option<f64>,
         sl: Option<f64>,
+        tp_type: Option<TpslType>,
+        sl_type: Option<TpslType>,
     ) -> Result<(), String> {
         let order_id = self.generate_order_id();
         let kline_cache_key = self.get_kline_key(&exchange, &symbol);
@@ -45,12 +49,15 @@ impl VirtualTradingSystem {
                         exchange.clone(), 
                         symbol.clone(), 
                         order_side, 
-                        order_type, 
+                        order_type,
                         quantity, 
-                        current_price.clone(), 
+                        current_price.clone(),
                         tp, 
                         sl,
-                        *current_timestamp);
+                        tp_type,
+                        sl_type,
+                        *current_timestamp
+                    );
                     
                     let order_id = market_order.order_id;
                     let order_create_event = VirtualTradingSystemEvent::FuturesOrderCreated(market_order.clone());
@@ -61,9 +68,6 @@ impl VirtualTradingSystem {
                     
                     // 创建完成后，直接成交订单
                     self.execute_order(order_id, current_price.clone(), *current_timestamp).unwrap();
-                    
-                    
-
                     
                 }
                 // 限价单
@@ -106,6 +110,84 @@ impl VirtualTradingSystem {
 
     pub fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
         self.orders.clone()
+    }
+
+
+    pub fn create_take_profit_order(&mut self, order: &VirtualOrder, position_id: PositionId, timestamp: i64) -> Option<VirtualOrder> {
+        
+        // 生成止盈止损订单
+        if let Some(tp) = order.tp {
+            
+            let order_id = self.generate_order_id();
+
+            let order_side = match order.order_side {
+                FuturesOrderSide::OpenLong => FuturesOrderSide::CloseLong,
+                FuturesOrderSide::OpenShort => FuturesOrderSide::CloseShort,
+                _ => return None,
+            };
+
+            let mut tp_order = VirtualOrder::new(
+                order_id, 
+                order.strategy_id, 
+                order.node_id.clone(), 
+                order.order_config_id, 
+                order.exchange.clone(), 
+                order.symbol.clone(),
+                order_side,
+                OrderType::TakeProfitMarket, // 虚拟交易系统，只使用市价止盈
+                order.quantity, // 全部止盈
+                tp, // 止盈订单的开仓价格，就是主订单中的止盈价格
+                None,
+                None,
+                None,
+                None,
+                timestamp
+            );
+            tp_order.position_id = Some(position_id);
+            return Some(tp_order);
+                
+            
+        }
+        None
+    }
+
+
+    pub fn create_stop_loss_order(&mut self, order: &VirtualOrder, position_id: PositionId, timestamp: i64) -> Option<VirtualOrder> {
+        
+        // 生成止盈止损订单
+        if let Some(sl) = order.sl {
+            
+            let order_id = self.generate_order_id();
+
+            let order_side = match order.order_side {
+                FuturesOrderSide::OpenLong => FuturesOrderSide::CloseLong,
+                FuturesOrderSide::OpenShort => FuturesOrderSide::CloseShort,
+                _ => return None,
+            };
+
+            let mut sl_order = VirtualOrder::new(
+                order_id, 
+                order.strategy_id, 
+                order.node_id.clone(), 
+                order.order_config_id, 
+                order.exchange.clone(), 
+                order.symbol.clone(),
+                order_side,
+                OrderType::StopMarket, // 虚拟交易系统，只使用市价止损
+                order.quantity, // 全部止盈
+                sl, // 止损订单的开仓价格，就是主订单中的止损价格
+                None,
+                None,
+                None,
+                None,
+                timestamp
+            );
+            sl_order.position_id = Some(position_id);
+            return Some(sl_order);
+                
+            
+        }
+        None
     }
     
 }

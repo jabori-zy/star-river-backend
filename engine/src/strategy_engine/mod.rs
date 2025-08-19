@@ -23,6 +23,7 @@ use types::strategy::TradeMode;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
+use types::transaction::virtual_transaction::VirtualTransaction;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -213,6 +214,12 @@ impl StrategyEngine {
             let context = self.context.read().await;
             let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
             strategy_context.get_backtest_strategy_stats_history(strategy_id, play_index).await
+        }
+
+        pub async fn get_virtual_transactions(&mut self, strategy_id: i32) -> Result<Vec<VirtualTransaction>, String> {
+            let context = self.context.read().await;
+            let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+            strategy_context.get_backtest_strategy_transactions(strategy_id).await
         }
 
 

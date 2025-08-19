@@ -7,27 +7,28 @@ use chrono::{DateTime, Utc};
 use std::any::Any;
 use std::fmt::Debug;
 use strum::{EnumString, Display};
+use utoipa::ToSchema;
 
 // 交易明细类型
-#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum TransactionType {
-    #[strum(serialize = "open")]
+    #[strum(serialize = "OPEN")]
     Open, // 开仓
-    #[strum(serialize = "close")]
+    #[strum(serialize = "CLOSE")]
     Close, // 平仓
 }
 
 
 // 交易方向
-#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum TransactionSide {
-    #[strum(serialize = "open_long")]
+    #[strum(serialize = "OPEN_LONG")]
     OpenLong, // 多头
-    #[strum(serialize = "open_short")]
+    #[strum(serialize = "OPEN_SHORT")]
     OpenShort, // 空头
-    #[strum(serialize = "close_long")]
+    #[strum(serialize = "CLOSE_LONG")]
     CloseLong, // 多头平仓
-    #[strum(serialize = "close_short")]
+    #[strum(serialize = "CLOSE_SHORT")]
     CloseShort, // 空头平仓
 }
 

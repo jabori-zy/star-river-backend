@@ -55,6 +55,17 @@ pub enum FuturesOrderSide {
     CloseShort,
 }
 
+// 止盈止损类型
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
+pub enum TpslType {
+    #[strum(serialize = "price")]
+    #[serde(rename = "price")]
+    Price,
+    #[strum(serialize = "percentage")]
+    #[serde(rename = "percentage")]
+    Percentage,
+}
+
 
 pub fn deserialize_futures_order_side<'de, D>(deserializer: D) -> Result<FuturesOrderSide, D::Error>
 where
@@ -78,12 +89,18 @@ pub enum OrderType {
     #[strum(serialize = "LIMIT")]
     #[serde(rename = "LIMIT")]
     Limit,
-    #[strum(serialize = "STOP")]
-    #[serde(rename = "STOP")]
-    Stop,
+    #[strum(serialize = "STOP_MARKET")]
+    #[serde(rename = "STOP_MARKET")]
+    StopMarket,
     #[strum(serialize = "STOP_LIMIT")]
     #[serde(rename = "STOP_LIMIT")]
-    StopLimit
+    StopLimit,
+    #[strum(serialize = "TAKE_PROFIT_LIMIT")]
+    #[serde(rename = "TAKE_PROFIT_LIMIT")]
+    TakeProfitLimit,
+    #[strum(serialize = "TAKE_PROFIT_MARKET")]
+    #[serde(rename = "TAKE_PROFIT_MARKET")]
+    TakeProfitMarket,
 }
 
 pub fn deserialize_order_type<'de, D>(deserializer: D) -> Result<OrderType, D::Error>

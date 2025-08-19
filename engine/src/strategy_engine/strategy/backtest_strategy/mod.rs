@@ -27,13 +27,13 @@ use tokio::sync::{mpsc, broadcast};
 use types::strategy::node_command::NodeCommand;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use super::super::node::backtest_strategy_node::start_node::StartNode;
 use super::StrategyCommandPublisher;
 use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 use types::order::virtual_order::VirtualOrder;
 use types::strategy_stats::event::StrategyStatsEvent;
 use types::strategy_stats::StatsSnapshot;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+use types::transaction::virtual_transaction::VirtualTransaction;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -453,6 +453,11 @@ impl BacktestStrategy {
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
         let context_guard = self.context.read().await;
         context_guard.get_current_positions().await
+    }
+
+    pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
+        let context_guard = self.context.read().await;
+        context_guard.get_transactions().await
     }
 
     pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
