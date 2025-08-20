@@ -95,8 +95,6 @@ impl VirtualTradingSystem {
         self.transactions.push(virtual_transaction);
 
         let position_id = virtual_position.position_id;
-        // 将仓位添加到当前持仓列表中
-        self.current_positions.push(virtual_position);
         
         // 在这里发送订单成交事件
         let filled_order = self.get_order(order.order_id).unwrap();
@@ -145,6 +143,10 @@ impl VirtualTradingSystem {
         self.current_positions.clone()
     }
 
+    pub fn get_history_positions(&self) -> Vec<VirtualPosition> {
+        self.history_positions.clone()
+    }
+
     pub fn get_current_position(&self, position_id: PositionId) -> Option<VirtualPosition> {
         self.current_positions.iter().find(|p| p.position_id == position_id).cloned()
     }
@@ -179,6 +181,11 @@ impl VirtualTradingSystem {
                 position.force_price = 0.0;
                 position.margin = 0.0;
                 position.margin_ratio = 0.0;
+
+                // 发送最后一次仓位更新事件
+                let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
+                let _ = self.event_publisher.send(position_updated_event);
+
                 // 发送仓位平仓事件
                 let position_closed_event = VirtualTradingSystemEvent::PositionClosed(position.clone());
                 let _ = self.event_publisher.send(position_closed_event);
@@ -194,11 +201,18 @@ impl VirtualTradingSystem {
                 let _ = self.event_publisher.send(transaction_created_event);
 
                 // 修改止盈订单状态
-                self.update_order_status(tp_order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
+                let updated_tp_order = self.update_order_status(tp_order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
+                // 发送止盈订单成交事件
+                let tp_order_filled_event = VirtualTradingSystemEvent::TakeProfitOrderFilled(updated_tp_order);
+                let _ = self.event_publisher.send(tp_order_filled_event);
+
                 // 取消同仓位止损订单
                 let sl_order = self.get_stop_loss_order(position_id);
                 if let Some(sl_order) = sl_order {
-                    self.update_order_status(sl_order.order_id, OrderStatus::Canceled, self.timestamp).unwrap();
+                    let updated_sl_order = self.update_order_status(sl_order.order_id, OrderStatus::Canceled, self.timestamp).unwrap();
+                    // 发送止损订单取消事件
+                    let sl_order_canceled_event = VirtualTradingSystemEvent::StopLossOrderCanceled(updated_sl_order);
+                    let _ = self.event_publisher.send(sl_order_canceled_event);
                 }
 
             }
@@ -233,6 +247,11 @@ impl VirtualTradingSystem {
                 position.force_price = 0.0;
                 position.margin = 0.0;
                 position.margin_ratio = 0.0;
+
+                // 发送最后一次仓位更新事件
+                let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
+                let _ = self.event_publisher.send(position_updated_event);
+
                 // 发送仓位平仓事件
                 let position_closed_event = VirtualTradingSystemEvent::PositionClosed(position.clone());
                 let _ = self.event_publisher.send(position_closed_event);
@@ -248,17 +267,17 @@ impl VirtualTradingSystem {
                 let _ = self.event_publisher.send(transaction_created_event);
 
                 // 修改止损订单状态
-                let sl_order = self.update_order_status(sl_order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
+                let updated_sl_order = self.update_order_status(sl_order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
                 // 发送止损订单成交事件
-                let sl_order_filled_event = VirtualTradingSystemEvent::StopLossOrderFilled(sl_order.clone());
+                let sl_order_filled_event = VirtualTradingSystemEvent::StopLossOrderFilled(updated_sl_order);
                 let _ = self.event_publisher.send(sl_order_filled_event);
 
                 // 取消同仓位止盈订单
                 let tp_order = self.get_take_profit_order(position_id);
                 if let Some(tp_order) = tp_order {
-                    let tp_order = self.update_order_status(tp_order.order_id, OrderStatus::Canceled, self.timestamp).unwrap();
+                    let updated_tp_order = self.update_order_status(tp_order.order_id, OrderStatus::Canceled, self.timestamp).unwrap();
                     // 发送止盈订单取消事件
-                    let tp_order_canceled_event = VirtualTradingSystemEvent::TakeProfitOrderCanceled(tp_order.clone());
+                    let tp_order_canceled_event = VirtualTradingSystemEvent::TakeProfitOrderCanceled(updated_tp_order);
                     let _ = self.event_publisher.send(tp_order_canceled_event);
                 }
 

@@ -210,6 +210,12 @@ impl StrategyEngine {
             strategy_context.get_backtest_strategy_current_positions(strategy_id).await
         }
 
+        pub async fn get_history_virtual_positions(&mut self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
+            let context = self.context.read().await;
+            let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+            strategy_context.get_backtest_strategy_history_positions(strategy_id).await
+        }
+
         pub async fn get_stats_history(&mut self, strategy_id: i32, play_index: i32) -> Result<Vec<StatsSnapshot>, String> {
             let context = self.context.read().await;
             let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();

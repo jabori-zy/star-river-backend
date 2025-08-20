@@ -177,7 +177,6 @@ impl BacktestStrategyContext {
     async fn increment_played_signal_count(context: &PlayContext) -> i32 {
         let mut play_index = context.play_index.write().await;
         *play_index += 1;
-        tracing::debug!("{}: 增加已播放信号计数, play_index: {}", context.node.get_node_id().await, *play_index);
         *play_index
     }
 
@@ -200,7 +199,7 @@ impl BacktestStrategyContext {
         // play_speed代表1秒播放多少根k线， 100代表1秒播放100根k线
         // 1000 / 100 = 10ms
         let delay_millis = 1000 / play_speed as u64;
-        tracing::info!("{}: 播放速度: {}, 播放延迟: {}ms", strategy_name, play_speed, delay_millis);
+        // tracing::info!("{}: 播放速度: {}, 播放延迟: {}ms", strategy_name, play_speed, delay_millis);
         tokio::select! {
             
             _ = tokio::time::sleep(tokio::time::Duration::from_millis(delay_millis)) => {

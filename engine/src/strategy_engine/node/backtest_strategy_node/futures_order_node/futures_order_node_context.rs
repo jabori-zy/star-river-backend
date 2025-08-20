@@ -55,7 +55,6 @@ pub struct FuturesOrderNodeContext {
     pub virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     pub virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
     pub min_kline_interval: Option<KlineInterval>, // 最小K线间隔(最新价格只需要获取最小间隔的价格即可)
-    pub order_count: i32,
 }
 
 impl Clone for FuturesOrderNodeContext {
@@ -72,7 +71,6 @@ impl Clone for FuturesOrderNodeContext {
             virtual_order_history: self.virtual_order_history.clone(),
             virtual_transaction_history: self.virtual_transaction_history.clone(),
             min_kline_interval: self.min_kline_interval.clone(),
-            order_count: self.order_count,
         }
     }
 }
@@ -134,17 +132,6 @@ impl FuturesOrderNodeContext {
             return Err("当前正在处理订单, 跳过".to_string());
         }
 
-        // 仓位数量
-        let position_number = self.virtual_trading_system.lock().await.get_position_number();
-        if position_number >= 1 {
-            return Ok(());
-        }
-
-        // 只能创建一个订单
-        if self.order_count >= 1 {
-            return Ok(());
-        }
-
         // 将input_handle_id的is_processing_order设置为true
         self.set_is_processing_order(&order_config.input_handle_id, true).await;
 
@@ -167,7 +154,6 @@ impl FuturesOrderNodeContext {
             order_config.sl_type.clone(),
         )?;
 
-        self.order_count += 1;
 
         // // 释放virtual_trading_system_guard
         // drop(virtual_trading_system_guard);
@@ -648,20 +634,13 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
                 // 重置is_processing_order
                
                 let mut is_processing_order = self.is_processing_order.write().await;
-                tracing::info!("重置is_processing_order: {:?}", is_processing_order);
                 is_processing_order.clear();
-                tracing::info!("重置is_processing_order: {:?}", is_processing_order);
                 // 重置unfilled_virtual_order
                 let mut unfilled_virtual_order = self.unfilled_virtual_order.write().await;
                 unfilled_virtual_order.clear();
-                tracing::info!("重置unfilled_virtual_order: {:?}", unfilled_virtual_order);
                 // 重置virtual_order_history
                 let mut virtual_order_history = self.virtual_order_history.write().await;
                 virtual_order_history.clear();
-                tracing::info!("重置virtual_order_history: {:?}", virtual_order_history);
-                // 重置order_count
-                self.order_count = 0;
-                tracing::info!("重置order_count: {:?}", self.order_count);
             }
         }
         Ok(())

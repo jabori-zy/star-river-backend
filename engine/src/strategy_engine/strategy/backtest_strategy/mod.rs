@@ -410,7 +410,6 @@ impl BacktestStrategy {
     }
 
     pub async fn pause(&mut self) -> Result<(), String> {
-        tracing::info!("{}: 开始暂停策略", self.get_strategy_name().await);
         let mut context_guard = self.context.write().await;
         context_guard.pause().await;
         Ok(())
@@ -453,6 +452,11 @@ impl BacktestStrategy {
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
         let context_guard = self.context.read().await;
         context_guard.get_current_positions().await
+    }
+
+    pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {
+        let context_guard = self.context.read().await;
+        context_guard.get_history_positions().await
     }
 
     pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {

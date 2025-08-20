@@ -308,6 +308,7 @@ impl VirtualTradingSystem {
     // 清空所有仓位和订单
     pub fn reset(&mut self) {
         self.current_positions.clear();
+        self.history_positions.clear();
         self.orders.clear();
         self.transactions.clear();
         self.current_balance = self.initial_balance;

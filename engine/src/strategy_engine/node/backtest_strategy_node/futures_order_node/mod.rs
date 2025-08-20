@@ -86,7 +86,6 @@ impl FuturesOrderNode {
                 virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
                 virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
                 min_kline_interval: None,
-                order_count: 0,
             }))),
         }
     }

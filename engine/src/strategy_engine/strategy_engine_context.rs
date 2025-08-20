@@ -15,7 +15,6 @@ use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::strategy::{Strategy, TradeMode};
 use types::custom_type::StrategyId;
-use types::cache::Key;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use event_center::command::Command;
 

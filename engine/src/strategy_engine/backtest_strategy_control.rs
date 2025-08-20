@@ -126,6 +126,15 @@ impl StrategyEngineContext {
         }
     }
 
+    pub async fn get_backtest_strategy_history_positions(&self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(strategy) = strategy {
+            Ok(strategy.get_history_positions().await)
+        } else {
+            Err("获取回测策略历史持仓失败".to_string())
+        }
+    }
+
     pub async fn get_backtest_strategy_stats_history(&self, strategy_id: i32, play_index: i32) -> Result<Vec<StatsSnapshot>, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {

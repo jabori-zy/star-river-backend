@@ -197,6 +197,7 @@ impl VirtualTradingSystem {
     }
 
 
+
     pub fn create_take_profit_order(&mut self, position: &VirtualPosition) -> Option<VirtualOrder> {
         
         // 生成止盈订单
