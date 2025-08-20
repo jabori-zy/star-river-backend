@@ -128,38 +128,80 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>());
     let graceful = server.with_graceful_shutdown(async {
         rx.await.ok();
+        tracing::info!("开始执行优雅关闭流程...");
         
-        // 使用 timeout 包装关闭流程
-        if let Err(_) = tokio::time::timeout(
-            tokio::time::Duration::from_secs(5),
-            async {
-                #[cfg(windows)]
-                {
-                    tracing::info!("正在清理 MetaTrader5 进程...");
-                    // 完整命令: taskkill /F /IM MetaTrader5.exe
-                    let _ = std::process::Command::new("taskkill")
-                        .args(&["/F", "/IM", "MetaTrader5.exe"])
-                        .output();
+        // 使用更短的超时时间包装清理流程
+        // let cleanup_result = tokio::time::timeout(
+        //     tokio::time::Duration::from_secs(3),
+        //     async {
+                // #[cfg(windows)]
+                // {
+                //     tracing::info!("正在清理 MetaTrader5 进程...");
                     
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                    tracing::info!("清理完成，继续关闭服务器...");
-                }
-            }
-        ).await {
-            tracing::warn!("关闭流程超时，强制退出");
-            std::process::exit(0);
-        }
+                //     // 使用异步方式执行 taskkill 命令
+                //     let result = tokio::process::Command::new("taskkill")
+                //         .args(&["/F", "/IM", "MetaTrader5.exe"])
+                //         .output()
+                //         .await;
+                    
+                //     match result {
+                //         Ok(output) => {
+                //             tracing::info!("清理 MetaTrader5 进程结果: 退出码={}, stdout={}, stderr={}", 
+                //                 output.status.code().unwrap_or(-1),
+                //                 String::from_utf8_lossy(&output.stdout),
+                //                 String::from_utf8_lossy(&output.stderr)
+                //             );
+                //         }
+                //         Err(e) => {
+                //             tracing::error!("执行 taskkill 命令失败: {}", e);
+                //         }
+                //     }
+                    
+                //     // 等待进程完全清理
+                //     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                //     tracing::info!("MetaTrader5 进程清理完成");
+                // }
+                
+        //         #[cfg(not(windows))]
+        //         {
+        //             tracing::info!("非 Windows 系统，跳过 MetaTrader5 清理");
+        //         }
+        //     }
+        // ).await;
+        
+        // match cleanup_result {
+        //     Ok(_) => {
+        //         tracing::info!("清理完成，继续关闭服务器...");
+        //     }
+        //     Err(_) => {
+        //         tracing::warn!("清理流程超时，但继续关闭服务器...");
+        //     }
+        // }
+        
+        
+        tracing::info!("优雅关闭流程完成，等待服务器停止...");
     });
 
     tokio::spawn(async move {
         if let Ok(()) = tokio::signal::ctrl_c().await {
             tracing::info!("接收到关闭信号，正在优雅关闭...");
+            
+            // 启动强制退出保护机制，只有在接收到关闭信号后才开始计时
+            tokio::spawn(async {
+                tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+                tracing::error!("服务器关闭流程超时（15秒），强制退出...");
+                std::process::exit(1);
+            });
+            
             let _ = tx.send(());
         }
     });
 
+    // 直接等待服务器关闭，不设置外层超时
     if let Err(e) = graceful.await {
         tracing::error!("服务器错误: {}", e);
+    } else {
+        tracing::info!("服务器已成功关闭");
     }
 
     Ok(())
@@ -175,77 +217,6 @@ async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::ne
                     return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
                 }
                 tracing::warn!("端口 {} 被占用，尝试清理所有 StarRiver 相关进程...", addr.port());
-
-                //windows系统下，需要检查残留的metatrader5服务
-                // #[cfg(windows)]
-                // {
-                //     // 1. 首先检查并清理原始的 MetaTrader5.exe 进程
-                //     let output = std::process::Command::new("tasklist")
-                //         .args(&["/FI", "IMAGENAME eq MetaTrader5.exe", "/FO", "CSV"])
-                //         .output()?;
-                //
-                //     let output_str = String::from_utf8_lossy(&output.stdout);
-                //     if output_str.contains("MetaTrader5.exe") {
-                //         tracing::warn!("发现旧的MetaTrader5.exe进程, 正在清理...");
-                //
-                //         let kill_result = std::process::Command::new("taskkill")
-                //             .args(&["/F", "/IM", "MetaTrader5.exe"])
-                //             .output();
-                //
-                //         match kill_result {
-                //             Ok(_) => tracing::info!("成功清理 MetaTrader5.exe 进程"),
-                //             Err(e) => tracing::warn!("清理 MetaTrader5.exe 进程失败: {}", e),
-                //         }
-                //     }
-                //
-                //     // 2. 检查并清理带有数字后缀的 Metatrader5-*.exe 进程
-                //     // 使用通配符查找所有Metatrader5-*.exe进程
-                //     let output = std::process::Command::new("wmic")
-                //         .args(&["process", "where", "name like 'Metatrader5-%.exe'", "get", "name"])
-                //         .output()?;
-                //
-                //     let output_str = String::from_utf8_lossy(&output.stdout);
-                //     if output_str.contains("Metatrader5-") {
-                //         tracing::warn!("发现Metatrader5-*.exe进程, 正在清理...");
-                //
-                //         // 使用任务管理器的筛选功能清理所有匹配的进程
-                //         let kill_result = std::process::Command::new("taskkill")
-                //             .args(&["/F", "/IM", "Metatrader5-*.exe"])
-                //             .output();
-                //
-                //         match kill_result {
-                //             Ok(_) => tracing::info!("成功清理 Metatrader5-*.exe 进程"),
-                //             Err(e) => tracing::warn!("清理 Metatrader5-*.exe 进程失败: {}", e),
-                //         }
-                //     }
-                //
-                //     // 3. 如果上面的通配符方法不起作用，可以尝试列出所有进程并逐一匹配
-                //     let output = std::process::Command::new("tasklist")
-                //         .args(&["/FO", "CSV"])
-                //         .output()?;
-                //
-                //     let output_str = String::from_utf8_lossy(&output.stdout);
-                //     let lines: Vec<&str> = output_str.lines().collect();
-                //
-                //     for line in lines {
-                //         if line.contains("Metatrader5-") {
-                //             // 从行中提取进程名称
-                //             if let Some(process_name) = line.split(',').nth(0) {
-                //                 let process_name = process_name.trim_matches('"');
-                //                 tracing::warn!("发现MetaTrader5相关进程: {}, 正在清理...", process_name);
-                //
-                //                 let kill_result = std::process::Command::new("taskkill")
-                //                     .args(&["/F", "/IM", process_name])
-                //                     .output();
-                //
-                //                 match kill_result {
-                //                     Ok(_) => tracing::info!("成功清理进程: {}", process_name),
-                //                     Err(e) => tracing::warn!("清理进程 {} 失败: {}", process_name, e),
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
                 
                 // 等待进程完全退出
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;

@@ -86,6 +86,7 @@ impl FuturesOrderNode {
                 virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
                 virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
                 min_kline_interval: None,
+                order_count: 0,
             }))),
         }
     }
@@ -202,9 +203,9 @@ impl BacktestNodeTrait for FuturesOrderNode {
             let (filled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(filled_output_handle_id, filled_tx).await;
 
-            let cancelled_output_handle_id = format!("{}_cancelled_output{}", node_id, order_config.order_config_id);
-            let (cancelled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            self.add_output_handle(cancelled_output_handle_id, cancelled_tx).await;
+            let canceled_output_handle_id = format!("{}_canceled_output{}", node_id, order_config.order_config_id);
+            let (canceled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            self.add_output_handle(canceled_output_handle_id, canceled_tx).await;
 
             let expired_output_handle_id = format!("{}_expired_output{}", node_id, order_config.order_config_id);
             let (expired_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);

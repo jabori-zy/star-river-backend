@@ -2,7 +2,7 @@ pub mod order;
 pub mod position;
 pub mod transaction;
 pub mod statistics;
-pub mod utils;
+pub(crate) mod utils;
 
 use types::order::OrderType;
 use types::cache::key::KlineKey;
@@ -140,6 +140,8 @@ impl VirtualTradingSystem {
         self.update_kline_price().await;
         // 更新时间戳
         self.update_timestamp();
+
+        self.check_unfilled_orders();
         // 价格更新后，更新仓位
         self.update_position();
         
@@ -246,13 +248,7 @@ impl VirtualTradingSystem {
         &self.orders
     }
 
-    // 获取未成交订单
-    pub fn get_unfilled_orders(&self) -> Vec<&VirtualOrder> {
-        self.orders
-            .iter()
-            .filter(|order| order.order_status == OrderStatus::Created || order.order_status == OrderStatus::Placed)
-            .collect::<Vec<&VirtualOrder>>()
-    }
+    
 
     pub fn get_order(&self, order_id: OrderId) -> Option<&VirtualOrder> {
         self.orders.iter().find(|order| order.order_id == order_id)
@@ -300,7 +296,6 @@ impl VirtualTradingSystem {
 
     // 根据交易所和symbol获取k线缓存key
     fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
-        tracing::debug!("get_kline_key: {:?}", self.kline_price);
         for kline_key in self.kline_price.keys() {
             if &kline_key.exchange == exchange && &kline_key.symbol == symbol {
                 return Some(kline_key.clone());

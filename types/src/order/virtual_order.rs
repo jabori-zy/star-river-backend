@@ -59,6 +59,7 @@ pub struct VirtualOrder {
 
 impl VirtualOrder {
     pub fn new(
+        position_id: Option<PositionId>,
         order_id: OrderId,
         strategy_id: StrategyId,
         node_id: NodeId,
@@ -76,8 +77,8 @@ impl VirtualOrder {
         timestamp: i64,
     ) -> Self {
         Self {
+            position_id,
             order_id,
-            position_id: None,
             strategy_id,
             node_id,
             order_config_id,

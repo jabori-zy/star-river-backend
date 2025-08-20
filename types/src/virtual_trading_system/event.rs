@@ -36,6 +36,7 @@ pub enum VirtualTradingSystemEvent {
     // 仓位事件
     PositionCreated(VirtualPosition), // 仓位已创建
     PositionUpdated(VirtualPosition), // 仓位已更新(价格变化, 止盈止损变化, 未实现盈亏变化)
+    PositionClosed(VirtualPosition), // 仓位已平仓
 
     // 交易明细事件
     TransactionCreated(VirtualTransaction), // 交易明细已创建

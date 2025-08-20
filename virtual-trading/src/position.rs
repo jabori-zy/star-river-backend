@@ -9,6 +9,7 @@ use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 use types::order::{TpslType, OrderType, FuturesOrderSide};
 use types::position::{PositionSide, PositionState};
 use chrono::DateTime;
+use crate::utils::Statistics;
 
 
 impl VirtualTradingSystem {
@@ -19,52 +20,59 @@ impl VirtualTradingSystem {
     }
 
 
-
-
-    /// 执行订单, 返回持仓id
-    /// 生成仓位和交易明细
-    pub fn execute_order(&mut self, order_id: OrderId, current_price: f64, execute_timestamp: i64) -> Result<PositionId, String> {
-        // tracing::info!("执行订单: {:?}, 成交价格: {:?}", virtual_order, current_price);
-
-        let order = self.get_order(order_id).unwrap().clone();
+    pub fn create_position(&mut self, order: &VirtualOrder, current_price: f64) -> Result<VirtualPosition, String> {
 
         // 判断保证金是否充足
-        let margin = self.calculate_margin(current_price, order.quantity);
+        let margin = Statistics::calculate_margin(self.leverage, current_price, order.quantity);
         if margin > self.current_balance {
             return Err(format!("保证金不足，需要{}，当前余额{}", margin, self.current_balance));
         }
 
 
-        // 计算强平价格
-        let force_price = self.calculate_force_price(current_price, order.quantity);
-
-        // 计算保证金率
-        let margin_ratio = self.calculate_margin_ratio(current_price, order.quantity);
-        tracing::debug!("margin: {}, margin_ratio: {}, force_price: {}", margin, margin_ratio, force_price);
-
-
         let position_id = self.generate_position_id();
+        let position_side = match order.order_side {
+            FuturesOrderSide::OpenLong => PositionSide::Long,
+            FuturesOrderSide::OpenShort => PositionSide::Short,
+            FuturesOrderSide::CloseLong => PositionSide::Long,
+            FuturesOrderSide::CloseShort => PositionSide::Short,
+        };
+        let force_price = Statistics::calculate_force_price(&position_side, self.leverage, current_price, order.quantity);
+        let margin_ratio = Statistics::calculate_margin_ratio(self.current_balance, self.leverage, current_price, order.quantity);
+        let virtual_position = VirtualPosition::new(position_id, position_side, &order, current_price, force_price, margin, margin_ratio, self.timestamp);
+        tracing::info!("仓位创建成功: 仓位id: {:?}, 开仓价格: {:?}, 开仓数量: {:?}, 止盈: {:?}, 止损: {:?}", position_id, virtual_position.open_price, virtual_position.quantity, virtual_position.tp, virtual_position.sl);
+        self.current_positions.push(virtual_position.clone());
+        Ok(virtual_position)
+    }
 
-        // 执行订单，生成模拟仓位
-        let virtual_position = VirtualPosition::new(position_id, &order, current_price, force_price, margin, margin_ratio, execute_timestamp);
+
+
+
+    /// 执行开仓订单, 返回持仓id
+    /// 生成仓位和交易明细
+    pub fn execute_order(&mut self, order: &VirtualOrder, current_price: f64, execute_timestamp: i64) -> Result<PositionId, String> {
+        tracing::info!("执行开仓订单: {:?}, 成交价格: {:?}", order, current_price);
+
+        let virtual_position = self.create_position(order, current_price).unwrap();
 
         // 更新订单的仓位id
-        self.update_order_position_id(order_id, position_id, execute_timestamp).unwrap();
+        self.update_order_position_id(order.order_id, virtual_position.position_id, execute_timestamp).unwrap();
 
         // 发送仓位创建事件
         let position_created_event = VirtualTradingSystemEvent::PositionCreated(virtual_position.clone());
         let _ = self.event_publisher.send(position_created_event);
 
         // 创建止盈止损订单
-        let tp_order = self.create_take_profit_order(&order, position_id, execute_timestamp);
+        let tp_order = self.create_take_profit_order(&virtual_position);
         if let Some(tp_order) = tp_order {
+            tracing::info!("创建止盈订单: {:?}", tp_order);
             self.orders.push(tp_order.clone());
             let order_create_event = VirtualTradingSystemEvent::TakeProfitOrderCreated(tp_order.clone());
             let _ = self.event_publisher.send(order_create_event);
         }
         
-        let sl_order = self.create_stop_loss_order(&order, position_id, execute_timestamp);
+        let sl_order = self.create_stop_loss_order(&virtual_position);
         if let Some(sl_order) = sl_order {
+            tracing::info!("创建止损订单: {:?}", sl_order);
             self.orders.push(sl_order.clone());
             let order_create_event = VirtualTradingSystemEvent::StopLossOrderCreated(sl_order.clone());
             let _ = self.event_publisher.send(order_create_event);
@@ -81,7 +89,7 @@ impl VirtualTradingSystem {
         let _ = self.event_publisher.send(transaction_created_event);
 
         // 修改订单的状态
-        self.update_order_status(order_id, OrderStatus::Filled, execute_timestamp).unwrap();
+        self.update_order_status(order.order_id, OrderStatus::Filled, execute_timestamp).unwrap();
 
         // 将交易明细添加到交易明细列表中
         self.transactions.push(virtual_transaction);
@@ -91,7 +99,7 @@ impl VirtualTradingSystem {
         self.current_positions.push(virtual_position);
         
         // 在这里发送订单成交事件
-        let filled_order = self.get_order(order_id).unwrap();
+        let filled_order = self.get_order(order.order_id).unwrap();
         let order_filled_event = VirtualTradingSystemEvent::FuturesOrderFilled(filled_order.clone());
         let _ = self.event_publisher.send(order_filled_event);
         
@@ -100,9 +108,6 @@ impl VirtualTradingSystem {
 
     // 更新仓位
     pub fn update_position(&mut self) {
-
-        let mut execute_tp_order = Vec::new();
-        let mut execute_sl_order = Vec::new();
 
         for i in 0..self.current_positions.len() {
             let kline_key = {
@@ -113,70 +118,26 @@ impl VirtualTradingSystem {
             if let Some(kline_key) = kline_key {
                 if let Some((current_price, _)) = self.kline_price.get(&kline_key) {
                     let current_price_val = *current_price;
+                    let quantity = self.current_positions[i].quantity;
+
+
+                    // 计算新的保证金信息
+                    let margin = Statistics::calculate_margin(self.leverage, current_price_val, quantity);
+                    let margin_ratio = Statistics::calculate_margin_ratio(self.current_balance, self.leverage, current_price_val, quantity);
+                    let force_price = Statistics::calculate_force_price(&self.current_positions[i].position_side, self.leverage, current_price_val, quantity);
                     
-                    // 获取仓位信息进行止盈止损检查
-                    let (position_id,tp, sl, position_side) = {
-                        let position = &self.current_positions[i];
-                        (position.position_id, position.tp, position.sl, position.position_side.clone())
-                    };
+                    // 更新仓位
+                    let position = &mut self.current_positions[i];
+                    position.update(current_price_val, self.timestamp, margin, margin_ratio, force_price);
+                    let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
+                    let _ = self.event_publisher.send(position_updated_event);
                     
-                    // 先判断是否触发了仓位的止盈
-                    if let Some(tp) = tp {
-
-                        let should_execute_tp_order = match position_side {
-                            PositionSide::Long => current_price_val >= tp,
-                            PositionSide::Short => current_price_val <= tp
-                        };
-
-                        if should_execute_tp_order {
-                            // 处理止盈订单
-                            if let Some(take_profit_order) = self.get_take_profit_order(position_id) {
-                                // 将止盈订单克隆后添加到待执行的订单列表中
-                                execute_tp_order.push(take_profit_order.clone());
-                            }
-                        }
-
-                    }
-                    
-                    // 再判断是否触发了仓位的止损
-                    if let Some(sl) = sl {
-                        let should_execute_sl_order = match position_side {
-                            PositionSide::Long => current_price_val < sl,
-                            PositionSide::Short => current_price_val > sl
-                        };
-
-                        if should_execute_sl_order {
-                            // 处理止损订单
-                            if let Some(stop_loss_order) = self.get_stop_loss_order(position_id) {
-                                // 将止损订单克隆后添加到待执行的订单列表中
-                                execute_sl_order.push(stop_loss_order.clone());
-                            }
-                        }
-                    }
                 }
             }
         }
 
-        // 先执行止盈止损订单
-        for order in execute_tp_order {
-            self.execute_tp_order(&order);
-        }
 
-        for order in execute_sl_order {
-            self.execute_sl_order(&order);
-        }
-
-
-        // 计算新的保证金信息
-        // let margin = self.calculate_margin(current_price_val, quantity);
-        // let margin_ratio = self.calculate_margin_ratio(current_price_val, quantity);
-        // let force_price = self.calculate_force_price(current_price_val, quantity);
         
-        // // 更新仓位
-        // let position = &mut self.current_positions[i];
-        // position.update_position(current_price_val, self.timestamp, margin, margin_ratio, force_price);
-        // let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
-        // let _ = self.event_publisher.send(position_updated_event);
     }
 
 
@@ -195,16 +156,16 @@ impl VirtualTradingSystem {
 
 
     // 执行止盈订单
-    fn execute_tp_order(&mut self, order: &VirtualOrder) {
+    pub fn execute_tp_order(&mut self, tp_order: &VirtualOrder) {
+        tracing::info!("执行止盈订单: ID: {:?}, 方向: {:?}, 执行价格: {:?}", tp_order.order_id, tp_order.order_side, tp_order.open_price);
 
-        let execute_price = order.open_price;
-        if let Some(position_id) = order.position_id {
+        let execute_price = tp_order.open_price;
+        if let Some(position_id) = tp_order.position_id {
             let position = self.get_current_position(position_id);
             self.remove_position(position_id);
             if let Some(mut position) = position {
                 // 更新仓位的收益
-
-                let unrealized_profit = match order.order_side {
+                let unrealized_profit = match tp_order.order_side {
                     FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
                     FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
                     _ => 0.0,
@@ -218,16 +179,22 @@ impl VirtualTradingSystem {
                 position.force_price = 0.0;
                 position.margin = 0.0;
                 position.margin_ratio = 0.0;
+                // 发送仓位平仓事件
+                let position_closed_event = VirtualTradingSystemEvent::PositionClosed(position.clone());
+                let _ = self.event_publisher.send(position_closed_event);
                 // 将仓位添加到历史持仓列表中
                 self.history_positions.push(position.clone());
 
                 // 生成交易明细
                 let transaction_id = self.get_transaction_id();
-                let virtual_transaction = VirtualTransaction::new(transaction_id, order, &position, self.timestamp);
-                self.transactions.push(virtual_transaction);
+                let virtual_transaction = VirtualTransaction::new(transaction_id, tp_order, &position, self.timestamp);
+                self.transactions.push(virtual_transaction.clone());
+                // 发送交易明细创建事件
+                let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
+                let _ = self.event_publisher.send(transaction_created_event);
 
                 // 修改止盈订单状态
-                self.update_order_status(order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
+                self.update_order_status(tp_order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
                 // 取消同仓位止损订单
                 let sl_order = self.get_stop_loss_order(position_id);
                 if let Some(sl_order) = sl_order {
@@ -242,18 +209,19 @@ impl VirtualTradingSystem {
 
     }
 
-    fn execute_sl_order(&mut self, order: &VirtualOrder) {
+    pub fn execute_sl_order(&mut self, sl_order: &VirtualOrder) {
+        tracing::info!("执行止损订单: ID: {:?}, 方向: {:?}, 执行价格: {:?}，执行数量: {:?}", sl_order.order_id, sl_order.order_side, sl_order.open_price, sl_order.quantity);
 
-        let execute_price = order.open_price;
-        if let Some(position_id) = order.position_id {
+        let execute_price = sl_order.open_price;
+        if let Some(position_id) = sl_order.position_id {
             let position = self.get_current_position(position_id);
             self.remove_position(position_id);
             if let Some(mut position) = position {
                 // 更新仓位的收益
 
-                let unrealized_profit = match order.order_side {
-                    FuturesOrderSide::CloseLong => position.quantity * (position.open_price - execute_price), // 多仓的亏损状态： 平仓价 < 开仓价
-                    FuturesOrderSide::CloseShort => position.quantity * (execute_price - position.open_price), // 空仓的亏损状态： 平仓价 > 开仓价
+                let unrealized_profit = match sl_order.order_side {
+                    FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
+                    FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
                     _ => 0.0,
                 };
 
@@ -265,28 +233,40 @@ impl VirtualTradingSystem {
                 position.force_price = 0.0;
                 position.margin = 0.0;
                 position.margin_ratio = 0.0;
+                // 发送仓位平仓事件
+                let position_closed_event = VirtualTradingSystemEvent::PositionClosed(position.clone());
+                let _ = self.event_publisher.send(position_closed_event);
                 // 将仓位添加到历史持仓列表中
                 self.history_positions.push(position.clone());
 
                 // 生成交易明细
                 let transaction_id = self.get_transaction_id();
-                let virtual_transaction = VirtualTransaction::new(transaction_id, order, &position, self.timestamp);
-                self.transactions.push(virtual_transaction);
+                let virtual_transaction = VirtualTransaction::new(transaction_id, sl_order, &position, self.timestamp);
+                self.transactions.push(virtual_transaction.clone());
+                // 发送交易明细创建事件
+                let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
+                let _ = self.event_publisher.send(transaction_created_event);
 
-                // 修改止盈订单状态
-                self.update_order_status(order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
-                // 取消同仓位止损订单
-                let sl_order = self.get_stop_loss_order(position_id);
-                if let Some(sl_order) = sl_order {
-                    self.update_order_status(sl_order.order_id, OrderStatus::Canceled, self.timestamp).unwrap();
+                // 修改止损订单状态
+                let sl_order = self.update_order_status(sl_order.order_id, OrderStatus::Filled, self.timestamp).unwrap();
+                // 发送止损订单成交事件
+                let sl_order_filled_event = VirtualTradingSystemEvent::StopLossOrderFilled(sl_order.clone());
+                let _ = self.event_publisher.send(sl_order_filled_event);
+
+                // 取消同仓位止盈订单
+                let tp_order = self.get_take_profit_order(position_id);
+                if let Some(tp_order) = tp_order {
+                    let tp_order = self.update_order_status(tp_order.order_id, OrderStatus::Canceled, self.timestamp).unwrap();
+                    // 发送止盈订单取消事件
+                    let tp_order_canceled_event = VirtualTradingSystemEvent::TakeProfitOrderCanceled(tp_order.clone());
+                    let _ = self.event_publisher.send(tp_order_canceled_event);
                 }
 
             }
         }
-        
-
-        
-
     }
+
+
+    
 
 }

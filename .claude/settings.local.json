@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": []
   }

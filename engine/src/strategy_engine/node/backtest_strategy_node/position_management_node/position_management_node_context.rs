@@ -26,6 +26,7 @@ use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent, PositionManagementNodeEvent};
 use types::custom_type::PlayIndex;
+use types::position::virtual_position::VirtualPosition;
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -145,31 +146,50 @@ impl BacktestNodeContextTrait for PositionNodeContext {
 
 impl PositionNodeContext {
     pub async fn handle_virtual_trading_system_event(&mut self, virtual_trading_system_event: VirtualTradingSystemEvent) -> Result<(), String> {
-        match virtual_trading_system_event {
+
+        let from_node_id = self.get_node_id().clone();
+        let from_node_name = self.get_node_name().clone();
+        let from_handle_id = self.get_node_id().clone();
+
+        let position_event: Option<PositionManagementNodeEvent> = match virtual_trading_system_event {
             VirtualTradingSystemEvent::PositionCreated(position) => {
                 let position_created_event = PositionManagementNodeEvent::PositionCreated(PositionCreatedEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_handle_id: self.get_node_id().clone(),
+                    from_node_id: from_node_id.clone(),
+                    from_node_name: from_node_name.clone(),
+                    from_handle_id: from_handle_id.clone(),
                     virtual_position: position,
                     timestamp: get_utc8_timestamp_millis(),
                 });
-                let strategy_output_handle = self.get_strategy_output_handle();
-                strategy_output_handle.send(BacktestNodeEvent::PositionManagementNode(position_created_event)).unwrap();
+                Some(position_created_event)
             }
             VirtualTradingSystemEvent::PositionUpdated(position) => {
                 let position_updated_event = PositionManagementNodeEvent::PositionUpdated(PositionUpdatedEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_handle_id: self.get_node_id().clone(),
+                    from_node_id: from_node_id.clone(),
+                    from_node_name: from_node_name.clone(),
+                    from_handle_id: from_handle_id.clone(),
                     virtual_position: position,
                     timestamp: get_utc8_timestamp_millis(),
                 });
-                let strategy_output_handle = self.get_strategy_output_handle();
-                strategy_output_handle.send(BacktestNodeEvent::PositionManagementNode(position_updated_event)).unwrap();
+                Some(position_updated_event)
             }
-            _ => {}
+            VirtualTradingSystemEvent::PositionClosed(position) => {
+                let position_closed_event = PositionManagementNodeEvent::PositionClosed(PositionClosedEvent {
+                    from_node_id: from_node_id.clone(),
+                    from_node_name: from_node_name.clone(),
+                    from_handle_id: from_handle_id.clone(),
+                    virtual_position: position,
+                    timestamp: get_utc8_timestamp_millis(),
+                });
+                Some(position_closed_event)
+            }
+            _ => None,
+        };
+
+        if let Some(position_event) = position_event {
+            let strategy_output_handle = self.get_strategy_output_handle();
+            strategy_output_handle.send(BacktestNodeEvent::PositionManagementNode(position_event)).unwrap();
         }
+
         Ok(())
     }
     // async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {

@@ -99,7 +99,7 @@ impl VirtualTransaction {
             transaction_type,
             transaction_side,
             quantity: virtual_order.quantity,
-            price: virtual_position.open_price,
+            price: virtual_order.open_price,
             profit,
             create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }

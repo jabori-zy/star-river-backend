@@ -55,6 +55,7 @@ pub struct FuturesOrderNodeContext {
     pub virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     pub virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
     pub min_kline_interval: Option<KlineInterval>, // 最小K线间隔(最新价格只需要获取最小间隔的价格即可)
+    pub order_count: i32,
 }
 
 impl Clone for FuturesOrderNodeContext {
@@ -71,6 +72,7 @@ impl Clone for FuturesOrderNodeContext {
             virtual_order_history: self.virtual_order_history.clone(),
             virtual_transaction_history: self.virtual_transaction_history.clone(),
             min_kline_interval: self.min_kline_interval.clone(),
+            order_count: self.order_count,
         }
     }
 }
@@ -115,21 +117,17 @@ impl FuturesOrderNodeContext {
     // 判断是否可以创建订单
     async fn can_create_order(&mut self, input_handle_id: &InputHandleId) -> bool {
         let is_processing_order_guard = self.is_processing_order.read().await;
-        tracing::info!("is_processing_order_guard: {:?}", is_processing_order_guard);
         let is_processing_order = *is_processing_order_guard.get(input_handle_id).unwrap_or(&false);
-        tracing::info!("是否正在处理订单: {:?}", is_processing_order);
         
         let unfilled_virtual_order_guard = self.unfilled_virtual_order.read().await;
         let unfilled_virtual_order_len = unfilled_virtual_order_guard
             .get(input_handle_id)
             .map_or(0, |v| v.len());
-        tracing::info!("未成交的虚拟订单数量: {:?}", unfilled_virtual_order_len);
 
         !(is_processing_order || unfilled_virtual_order_len > 0)
     }
 
     async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), String> {
-        tracing::info!("{:?}: 开始创建订单", self.is_processing_order.read().await);
         // 如果当前是正在处理订单的状态，或者未成交的订单列表不为空，则不创建订单
         if !self.can_create_order(&order_config.input_handle_id).await {
             tracing::warn!("{}: 当前正在处理订单, 跳过", self.get_node_name());
@@ -142,9 +140,13 @@ impl FuturesOrderNodeContext {
             return Ok(());
         }
 
+        // 只能创建一个订单
+        if self.order_count >= 1 {
+            return Ok(());
+        }
+
         // 将input_handle_id的is_processing_order设置为true
         self.set_is_processing_order(&order_config.input_handle_id, true).await;
-        tracing::info!("{}: 开始创建订单", self.get_node_id());
 
         let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
         let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
@@ -164,6 +166,8 @@ impl FuturesOrderNodeContext {
             order_config.tp_type.clone(),
             order_config.sl_type.clone(),
         )?;
+
+        self.order_count += 1;
 
         // // 释放virtual_trading_system_guard
         // drop(virtual_trading_system_guard);
@@ -223,8 +227,6 @@ impl FuturesOrderNodeContext {
     async fn send_order_status_event(&mut self, virtual_order: VirtualOrder, event_type: &VirtualTradingSystemEvent) {
         let order_status = &virtual_order.order_status;
         let output_handle_id = format!("{}_{}_output{}", self.get_node_id(), order_status.to_string(), virtual_order.order_config_id);
-        
-        tracing::debug!("{}: 获取输出句柄: {:?}", self.get_node_id(), output_handle_id);
         let output_handle = self.get_output_handle(&output_handle_id);
 
 
@@ -502,43 +504,51 @@ impl FuturesOrderNodeContext {
             _ => None,
         };
 
-        let transaction: Option<&VirtualTransaction> = match &virtual_trading_system_event {
-            VirtualTradingSystemEvent::TransactionCreated(transaction) => Some(transaction),
-            _ => None,
-        };
-
         if let Some(order) = order {
             if order.node_id == self.get_node_id().clone() {
                 let input_handle_id = format!("{}_input{}", self.get_node_id(), order.order_config_id);
                 match virtual_trading_system_event {
-                    VirtualTradingSystemEvent::FuturesOrderCreated(_) |
-                    VirtualTradingSystemEvent::TakeProfitOrderCreated(_) |
-                    VirtualTradingSystemEvent::StopLossOrderCreated(_) => {
+                    VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
                         self.add_unfilled_virtual_order(&input_handle_id, order.clone()).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                     }
-                    
-                    VirtualTradingSystemEvent::FuturesOrderFilled(_) |
+
+
+                    VirtualTradingSystemEvent::FuturesOrderFilled(_) => {
+                        self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
+                        self.add_virtual_order_history(&input_handle_id, order.clone()).await;
+                        self.set_is_processing_order(&input_handle_id, false).await;
+                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
+                        
+                    }
+
+                    VirtualTradingSystemEvent::FuturesOrderCanceled(_) => {
+                        self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
+                        self.add_virtual_order_history(&input_handle_id, order.clone()).await;
+                        self.set_is_processing_order(&input_handle_id, false).await;
+                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
+                    }
+
+
+                    // 只是发送事件
+                    VirtualTradingSystemEvent::TakeProfitOrderCreated(_) |
                     VirtualTradingSystemEvent::TakeProfitOrderFilled(_) |
-                    VirtualTradingSystemEvent::StopLossOrderFilled(_) => {
-                        self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
-                        self.add_virtual_order_history(&input_handle_id, order.clone()).await;
-                        self.set_is_processing_order(&input_handle_id, false).await;
-                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
-                    }
-                    
-                    VirtualTradingSystemEvent::FuturesOrderCanceled(_) |
                     VirtualTradingSystemEvent::TakeProfitOrderCanceled(_) |
+                    VirtualTradingSystemEvent::StopLossOrderCreated(_) |
+                    VirtualTradingSystemEvent::StopLossOrderFilled(_) |
                     VirtualTradingSystemEvent::StopLossOrderCanceled(_) => {
-                        self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
-                        self.add_virtual_order_history(&input_handle_id, order.clone()).await;
-                        self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                     }
+
                     _ => {}
                 }
             }
         }
+
+        let transaction: Option<&VirtualTransaction> = match &virtual_trading_system_event {
+            VirtualTradingSystemEvent::TransactionCreated(transaction) => Some(transaction),
+            _ => None,
+        };
 
         if let Some(transaction) = transaction {
             if transaction.node_id == self.get_node_id().clone() {
@@ -649,6 +659,9 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
                 let mut virtual_order_history = self.virtual_order_history.write().await;
                 virtual_order_history.clear();
                 tracing::info!("重置virtual_order_history: {:?}", virtual_order_history);
+                // 重置order_count
+                self.order_count = 0;
+                tracing::info!("重置order_count: {:?}", self.order_count);
             }
         }
         Ok(())

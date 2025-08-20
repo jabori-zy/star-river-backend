@@ -16,6 +16,9 @@ pub struct VirtualPosition {
     #[serde(rename = "orderId")]
     pub order_id: OrderId,
 
+    #[serde(rename = "orderConfigId")]
+    pub order_config_id: i32,
+
     #[serde(rename = "strategyId")]
     pub strategy_id: StrategyId,
 
@@ -71,23 +74,17 @@ pub struct VirtualPosition {
 impl VirtualPosition {
     pub fn new(
         position_id: PositionId,
-        virtual_order: &VirtualOrder, 
+        position_side: PositionSide,
+        virtual_order: &VirtualOrder,
         current_price: Price, 
         force_price: Price,
         margin: Margin,
         margin_ratio: MarginRatio,
         timestamp: i64) -> Self {
-
-        let position_side = match virtual_order.order_side {
-            FuturesOrderSide::OpenLong => PositionSide::Long,
-            FuturesOrderSide::OpenShort => PositionSide::Short,
-            FuturesOrderSide::CloseLong => PositionSide::Long,
-            FuturesOrderSide::CloseShort => PositionSide::Short,
-        };
-
         Self {
             position_id,
             order_id: virtual_order.order_id,
+            order_config_id: virtual_order.order_config_id,
             strategy_id: virtual_order.strategy_id,
             node_id: virtual_order.node_id.clone(),
             exchange: virtual_order.exchange.clone(),
@@ -108,7 +105,7 @@ impl VirtualPosition {
         }
     }
 
-    pub fn update_position(
+    pub fn update(
         &mut self, 
         current_price: Price,
         timestamp: i64,
@@ -118,7 +115,10 @@ impl VirtualPosition {
     ) {
         self.current_price = current_price;
         self.update_time = DateTime::from_timestamp_millis(timestamp).unwrap();
-        self.unrealized_profit = self.quantity * (current_price - self.open_price);
+        self.unrealized_profit = match self.position_side {
+            PositionSide::Long => self.quantity * (current_price - self.open_price),
+            PositionSide::Short => self.quantity * (self.open_price - current_price),
+        };
         self.margin = margin;
         self.margin_ratio = margin_ratio;
         self.force_price = force_price;
