@@ -114,37 +114,6 @@ impl BacktestStrategyStats {
         Ok(())
     }
 
-    /// 更新资产快照
-    async fn update_asset_snapshot(&self) -> Result<(), String> {
-        let trading_system = self.virtual_trading_system.lock().await;
-        
-        let timestamp = trading_system.get_timestamp();
-        let current_balance = trading_system.get_current_balance();
-        let positions = trading_system.get_current_positions_ref();
-        let play_index = trading_system.get_play_index();
-        
-        // 计算未实现盈亏
-        let unrealized_pnl = trading_system.get_unrealized_pnl();
-            
-        let position_count = positions.len() as u32;
-        
-        drop(trading_system);
-        
-        // 创建资产快照
-        let snapshot = StatsSnapshot::new(
-            timestamp,
-            play_index,
-            self.initial_balance,
-            current_balance,
-            unrealized_pnl,
-            position_count,
-        );
-        
-        // tracing::debug!("策略统计模块资产快照: {:#?}", snapshot);
-        
-        Ok(())
-    }
-
     /// 手动创建资产快照
     pub async fn create_asset_snapshot(&mut self) -> Result<(), String> {
         let trading_system = self.virtual_trading_system.lock().await;
@@ -154,9 +123,12 @@ impl BacktestStrategyStats {
         
         if play_index == trading_system_play_index {
             let timestamp = trading_system.get_timestamp(); // 时间戳
-            let current_balance = trading_system.get_current_balance(); // 当前资金
+            let balance = trading_system.get_balance(); // 账户余额
+            let available_balance = trading_system.get_available_balance(); // 可用余额
             let positions = trading_system.get_current_positions_ref(); // 当前持仓
             let unrealized_pnl = trading_system.get_unrealized_pnl(); // 未实现盈亏
+            let equity = trading_system.get_equity(); // 净值
+            let realized_pnl = trading_system.get_realized_pnl(); // 已实现盈亏
             let position_count = positions.len() as u32; // 持仓数量
             
             drop(trading_system);
@@ -166,8 +138,11 @@ impl BacktestStrategyStats {
                 timestamp,
                 play_index,
                 self.initial_balance,
-                current_balance,
+                balance,
+                available_balance,
                 unrealized_pnl,
+                equity,
+                realized_pnl,
                 position_count,
             );
 
@@ -183,8 +158,8 @@ impl BacktestStrategyStats {
             let mut asset_snapshot_history_guard = self.asset_snapshot_history.write().await;
             asset_snapshot_history_guard.add_snapshot(snapshot);
             
-            // tracing::debug!("策略统计模块创建资产快照: 总资产={:.2}, 收益率={:.2}%, 仓位数={}", 
-            //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().total_equity,
+            // tracing::debug!("策略统计模块创建资产快照: 净值={:.2}, 收益率={:.2}%, 仓位数={}", 
+            //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().equity,
             //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().cumulative_return,
             //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().position_count);
                 

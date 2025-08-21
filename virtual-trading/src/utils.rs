@@ -6,9 +6,9 @@ use types::position::virtual_position::VirtualPosition;
 
 
 
-pub struct Statistics;
+pub struct Formula;
 
-impl Statistics {
+impl Formula {
     // 计算保证金
     pub fn calculate_margin(leverage: Leverage, price: Price, quantity: f64) -> Margin {
         // 计算需要的初始保证金

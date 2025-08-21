@@ -20,8 +20,6 @@ pub type Leverage = u32;
 
 pub type Balance = f64; // 余额
 
-pub type UnrealizedPnl = f64; //未实现盈亏
-
 pub type Pnl = f64; // 已实现盈亏
 
 pub type Equity = f64; // 权益
@@ -37,8 +35,6 @@ pub type Price = f64; // 价格
 pub type Margin = f64; // 保证金
 
 pub type MarginRatio = f64; // 保证金率
-
-pub type FrozenMargin = f64; // 冻结保证金
 
 pub type PlayIndex = i32; // 播放索引
 

@@ -10,7 +10,7 @@ use strum::{EnumString, Display};
 use utoipa::ToSchema;
 
 // 交易明细类型
-#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema, PartialEq, Eq)]
 pub enum TransactionType {
     #[strum(serialize = "OPEN")]
     Open, // 开仓

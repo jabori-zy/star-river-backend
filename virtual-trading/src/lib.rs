@@ -11,7 +11,6 @@ use types::custom_type::*;
 use types::position::virtual_position::VirtualPosition;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::order::virtual_order::VirtualOrder;
-use types::order::OrderStatus;
 use event_center::CommandPublisher;
 use tokio::sync::oneshot;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
@@ -35,17 +34,24 @@ pub struct VirtualTradingSystem {
     pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
-
-
-    pub initial_balance: Balance, // 初始资金
     pub leverage: Leverage, // 杠杆
-    pub current_balance: Balance, // 当前可用资金(当前可用资金 = 当前资金 - 冻结资金)
-    pub unrealized_pnl: UnrealizedPnl, // 未实现盈亏
-    pub pnl: Pnl, //已实现盈亏
+
+    // 资金相关
+    pub initial_balance: Balance, // 初始资金
+    pub balance: Balance, // 账户余额(账户余额 = 初始资金 + 已实现盈亏)
+    pub available_balance: Balance, // 可用余额(可用余额 = 净值 - 已用保证金 - 冻结保证金)
+    pub equity: Equity, // 净值(净值 = 账户余额 + 未实现盈亏)
+    
+    
+    // 盈亏相关
+    pub realized_pnl: Pnl, // 已实现盈亏
+    pub unrealized_pnl: Pnl, // 未实现盈亏
+
+    
 
     // 保证金相关
-    pub margin: Margin, // 保证金
-    pub frozen_margin: FrozenMargin, // 冻结保证金
+    pub used_margin: Margin, // 已用保证金
+    pub frozen_margin: Margin, // 冻结保证金（挂单的订单占用的保证金）
     pub margin_ratio: MarginRatio, // 保证金率
 
     // 手续费相关
@@ -57,7 +63,6 @@ pub struct VirtualTradingSystem {
     pub history_positions: Vec<VirtualPosition>, // 历史持仓
     pub orders: Vec<VirtualOrder>, // 所有订单(已成交订单 + 未成交订单)
     pub transactions: Vec<VirtualTransaction>, // 交易历史
-    
 }
 
 
@@ -72,11 +77,13 @@ impl VirtualTradingSystem {
             timestamp: 0,
             kline_price: HashMap::new(),
             initial_balance: 0.0,
+            balance: 0.0,
+            available_balance: 0.0,
+            equity: 0.0,
             leverage: 0, 
-            current_balance: 0.0,
+            realized_pnl: 0.0,
             unrealized_pnl: 0.0,
-            pnl: 0.0,
-            margin: 0.0,
+            used_margin: 0.0,
             frozen_margin: 0.0,
             margin_ratio: 0.0,
             fee_rate: 0.0,
@@ -141,8 +148,24 @@ impl VirtualTradingSystem {
         self.timestamp
     }
 
-    pub fn get_unrealized_pnl(&self) -> UnrealizedPnl {
+    pub fn get_balance(&self) -> Balance {
+        self.balance
+    }
+
+    pub fn get_equity(&self) -> Equity {
+        self.equity
+    }
+
+    pub fn get_available_balance(&self) -> Balance {
+        self.available_balance
+    }
+
+    pub fn get_unrealized_pnl(&self) -> Pnl {
         self.unrealized_pnl
+    }
+
+    pub fn get_realized_pnl(&self) -> Pnl {
+        self.realized_pnl
     }
 
     pub fn get_play_index(&self) -> PlayIndex {
@@ -160,8 +183,24 @@ impl VirtualTradingSystem {
         // 价格更新后，更新仓位
         self.update_position();
         
-        // 更新未实现盈亏
+        // 按正确顺序更新余额相关数据
+        // 1. 更新已实现盈亏
+        self.update_realized_pnl();
+        // 2. 更新未实现盈亏
         self.update_unrealized_pnl();
+        // 3. 更新已用保证金
+        self.update_used_margin();
+        // 4. 更新冻结保证金
+        self.update_frozen_margin();
+        // 5. 更新账户余额
+        self.update_balance();
+        // 6. 更新净值
+        self.update_equity();
+        // 7. 更新可用余额
+        self.update_available_balance();
+        // 8. 更新保证金率
+        self.update_margin_ratio();
+
         // 发送事件
         self.event_publisher.send(VirtualTradingSystemEvent::UpdateFinished).unwrap();
         
@@ -208,7 +247,7 @@ impl VirtualTradingSystem {
     // 设置初始资金
     pub fn set_initial_balance(&mut self, initial_balance: Balance) {
         self.initial_balance = initial_balance;
-        self.current_balance = initial_balance;
+        self.available_balance = initial_balance;
         tracing::debug!("set_initial_balance: {}", initial_balance);
     }
 
@@ -230,12 +269,12 @@ impl VirtualTradingSystem {
 
     // 获取当前资金
     pub fn get_current_balance(&self) -> Balance {
-        self.current_balance
+        self.available_balance
     }
 
     // 获取保证金
     pub fn get_margin(&self) -> Margin {
-        self.margin
+        self.used_margin
     }
 
     // 获取杠杆
@@ -316,8 +355,8 @@ impl VirtualTradingSystem {
         self.history_positions.clear();
         self.orders.clear();
         self.transactions.clear();
-        self.current_balance = self.initial_balance;
-        self.margin = 0.0;
+        self.available_balance = self.initial_balance;
+        self.used_margin = 0.0;
     }
 
 

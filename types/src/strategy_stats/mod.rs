@@ -17,17 +17,21 @@ pub struct StatsSnapshot {
     #[serde(rename = "playIndex")]
     pub play_index: i32,
 
-    /// 当前可用余额
+    /// 账户余额（初始资金 + 已实现盈亏）
     #[serde(rename = "balance")]
     pub balance: Balance,
+    
+    /// 可用余额（净值 - 已用保证金 - 冻结保证金）
+    #[serde(rename = "availableBalance")]
+    pub available_balance: Balance,
     
     /// 未实现盈亏
     #[serde(rename = "unrealizedPnl")]
     pub unrealized_pnl: f64,
     
-    /// 总资产价值（余额 + 未实现盈亏）
-    #[serde(rename = "totalEquity")]
-    pub total_equity: Equity,
+    /// 净值（账户余额 + 未实现盈亏）
+    #[serde(rename = "equity")]
+    pub equity: Equity,
     
     /// 累计收益率（百分比）
     #[serde(rename = "cumulativeReturn")]
@@ -48,19 +52,16 @@ impl StatsSnapshot {
         timestamp: i64,
         play_index: i32,
         initial_balance: Balance,
-        current_balance: Balance,
+        balance: Balance,
+        available_balance: Balance,
         unrealized_pnl: f64,
+        equity: Equity,
+        realized_pnl: f64,
         position_count: u32,
     ) -> Self {
-        // 总权益 = 当前余额 + 未实现盈亏
-        let total_equity = current_balance + unrealized_pnl;
-
-        // 已实现盈亏 = 当前余额 - 初始余额
-        let realized_pnl = current_balance - initial_balance;
-
-        // 累计收益率 = (总权益 - 初始资金) / 初始资金 * 100%
+        // 累计收益率 = (净值 - 初始资金) / 初始资金 * 100%
         let cumulative_return = if initial_balance != 0.0 {
-            (total_equity - initial_balance) / initial_balance
+            (equity - initial_balance) / initial_balance
         } else {
             0.0
         };
@@ -68,9 +69,10 @@ impl StatsSnapshot {
         Self {
             timestamp,
             play_index,
-            balance: current_balance,
+            balance,
+            available_balance,
             unrealized_pnl,
-            total_equity,
+            equity,
             cumulative_return,
             realized_pnl,
             position_count,
@@ -80,7 +82,7 @@ impl StatsSnapshot {
     /// 获取净值（相对于初始资金的比例）
     pub fn get_net_value(&self) -> f64 {
         if self.balance != 0.0 {
-            self.total_equity / self.balance
+            self.equity / self.balance
         } else {
             1.0
         }
@@ -155,16 +157,16 @@ impl StatsSnapshotHistory {
             return 0.0;
         }
         
-        let mut max_equity = self.snapshots[0].total_equity;
+        let mut max_equity = self.snapshots[0].equity;
         let mut max_drawdown = 0.0;
         
         for snapshot in &self.snapshots {
-            if snapshot.total_equity > max_equity {
-                max_equity = snapshot.total_equity;
+            if snapshot.equity > max_equity {
+                max_equity = snapshot.equity;
             }
             
             let drawdown = if max_equity != 0.0 {
-                (max_equity - snapshot.total_equity) / max_equity * 100.0
+                (max_equity - snapshot.equity) / max_equity * 100.0
             } else {
                 0.0
             };

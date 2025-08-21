@@ -53,7 +53,7 @@ pub struct VirtualPosition {
     pub sl: Option<Sl>,
 
     #[serde(rename = "unrealizedProfit")]
-    pub unrealized_profit: UnrealizedPnl, // 未实现盈亏
+    pub unrealized_profit: Pnl, // 未实现盈亏
 
     #[serde(rename = "forcePrice")]
     pub force_price: f64, // 强平价格

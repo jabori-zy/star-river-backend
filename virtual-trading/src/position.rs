@@ -9,7 +9,7 @@ use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 use types::order::{TpslType, OrderType, FuturesOrderSide};
 use types::position::{PositionSide, PositionState};
 use chrono::DateTime;
-use crate::utils::Statistics;
+use crate::utils::Formula;
 
 
 impl VirtualTradingSystem {
@@ -23,9 +23,9 @@ impl VirtualTradingSystem {
     pub fn create_position(&mut self, order: &VirtualOrder, current_price: f64) -> Result<VirtualPosition, String> {
 
         // 判断保证金是否充足
-        let margin = Statistics::calculate_margin(self.leverage, current_price, order.quantity);
-        if margin > self.current_balance {
-            return Err(format!("保证金不足，需要{}，当前余额{}", margin, self.current_balance));
+        let margin = Formula::calculate_margin(self.leverage, current_price, order.quantity);
+        if margin > self.available_balance {
+            return Err(format!("保证金不足，需要{}，当前余额{}", margin, self.available_balance));
         }
 
 
@@ -36,8 +36,8 @@ impl VirtualTradingSystem {
             FuturesOrderSide::CloseLong => PositionSide::Long,
             FuturesOrderSide::CloseShort => PositionSide::Short,
         };
-        let force_price = Statistics::calculate_force_price(&position_side, self.leverage, current_price, order.quantity);
-        let margin_ratio = Statistics::calculate_margin_ratio(self.current_balance, self.leverage, current_price, order.quantity);
+        let force_price = Formula::calculate_force_price(&position_side, self.leverage, current_price, order.quantity);
+        let margin_ratio = Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price, order.quantity);
         let virtual_position = VirtualPosition::new(position_id, position_side, &order, current_price, force_price, margin, margin_ratio, self.timestamp);
         tracing::info!("仓位创建成功: 仓位id: {:?}, 开仓价格: {:?}, 开仓数量: {:?}, 止盈: {:?}, 止损: {:?}", position_id, virtual_position.open_price, virtual_position.quantity, virtual_position.tp, virtual_position.sl);
         self.current_positions.push(virtual_position.clone());
@@ -120,9 +120,9 @@ impl VirtualTradingSystem {
 
 
                     // 计算新的保证金信息
-                    let margin = Statistics::calculate_margin(self.leverage, current_price_val, quantity);
-                    let margin_ratio = Statistics::calculate_margin_ratio(self.current_balance, self.leverage, current_price_val, quantity);
-                    let force_price = Statistics::calculate_force_price(&self.current_positions[i].position_side, self.leverage, current_price_val, quantity);
+                    let margin = Formula::calculate_margin(self.leverage, current_price_val, quantity);
+                    let margin_ratio = Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price_val, quantity);
+                    let force_price = Formula::calculate_force_price(&self.current_positions[i].position_side, self.leverage, current_price_val, quantity);
                     
                     // 更新仓位
                     let position = &mut self.current_positions[i];
