@@ -25,17 +25,17 @@ pub fn get_variable_value(
     node_id: NodeId,
     variable_id: VariableId,
     variable_name: &str,
-    received_value: &HashMap<(NodeId, VariableId), Option<BacktestNodeEvent>>
+    received_event: &HashMap<(NodeId, VariableId), Option<BacktestNodeEvent>>
 ) -> Option<f64> {
     
-    let node_event = received_value.get(&(node_id, variable_id))?.as_ref()?;
+    let node_event = received_event.get(&(node_id, variable_id))?.as_ref()?;
     // tracing::debug!("node_event: {:?}", node_event);
     
     match node_event {
         BacktestNodeEvent::IndicatorNode(indicator_event) => {
             if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_event {
                 // tracing::debug!("indicator_update_event: {:?}", indicator_update_event);
-                indicator_update_event
+                let indicator_value = indicator_update_event
                     .indicator_series
                     .last()
                     .and_then(|last_indicator| {
@@ -47,7 +47,14 @@ pub fn get_variable_value(
                             tracing::warn!("variable '{}'s value '{}' is not a number", variable_name, indicator_value);
                             None
                         })
-                    })
+                    });
+                if let Some(indicator_value) = indicator_value {
+                    // 如果indicator_value为0，则返回None
+                    if indicator_value == 0.0 {
+                        return None;
+                    }
+                }
+                indicator_value
             } else {
                 None
             }

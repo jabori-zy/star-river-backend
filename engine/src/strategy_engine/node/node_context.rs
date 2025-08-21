@@ -307,6 +307,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     }
 
     fn get_output_handle(&self, handle_id: &String) -> &NodeOutputHandle {
+        // tracing::info!("get_output_handle: {:?}", handle_id);
         self.get_base_context().output_handles.get(handle_id).unwrap()
     }
 

@@ -221,7 +221,6 @@ impl IfElseNodeContext {
                     play_index: self.get_play_index(),
                     message_timestamp: get_utc8_timestamp()
                 });
-                // tracing::debug!("{}: 信号消息: {:?}", self.get_node_name(), signal_event);
 
                 // 获取case的handle
                 // tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
@@ -291,13 +290,13 @@ impl IfElseNodeContext {
                 ComparisonSymbol::NotEqual => (left_value - right_value).abs() >= f64::EPSILON,
             };
             
-            // tracing::debug!(
-            //     "条件评估: 左值={:.6}, 比较符号={}, 右值={:.6}, 结果={}",
-            //     left_value,
-            //     condition.comparison_symbol.to_string(),
-            //     right_value,
-            //     condition_result
-            // );
+            tracing::info!(
+                "条件评估: 左值={:.6}, 比较符号={}, 右值={:.6}, 结果={}",
+                left_value,
+                condition.comparison_symbol.to_string(),
+                right_value,
+                condition_result
+            );
             
             condition_result
         } else {
