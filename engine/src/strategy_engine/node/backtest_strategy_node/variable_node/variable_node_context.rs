@@ -20,6 +20,7 @@ use types::node::variable_node::GetVariableType;
 use virtual_trading::VirtualTradingSystem;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::custom_type::PlayIndex;
+use types::strategy::node_event::backtest_node_event::variable_node_event::{SysVariableUpdatedEvent, VariableNodeEvent};
 
 
 #[derive(Debug, Clone)]
@@ -55,7 +56,8 @@ impl BacktestNodeContextTrait for VariableNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handles.get(&format!("get_variable_node_output")).unwrap().clone()
+        let node_id = self.base_context.node_id.clone();
+        self.base_context.output_handles.get(&format!("{}_default_output", node_id)).unwrap().clone()
     }
     
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
@@ -70,41 +72,25 @@ impl BacktestNodeContextTrait for VariableNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
-        // match node_event {
-        //     NodeEvent::Signal(SignalEvent::BacktestConditionMatch(condition_match_event)) => {
-        //         // 判断当前节点的模式
-        //         // 如果是条件触发模式，则获取变量
-        //         if self.backtest_config.variable_configs.iter().any(|v| v.get_variable_type == GetVariableType::Condition) {
-        //             tracing::info!("{}: 条件触发模式，获取变量", self.get_node_name());
-        //             self.get_variable().await;
+        match node_event {
+            BacktestNodeEvent::Signal(SignalEvent::BacktestConditionMatch(_)) => {
+                // 判断当前节点的模式
+                // 如果是条件触发模式，则获取变量
+                if self.backtest_config.variable_configs.iter().any(|v| v.get_variable_type == GetVariableType::Condition) {
+                    tracing::info!("{}: 条件触发模式，获取变量", self.get_node_name());
+                    self.get_variable().await;
 
-        //         }
+                }
 
-        //     }
+            }
 
-        //     _ => {}
+            _ => {}
 
-        // }
+        }
         Ok(())
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
-        // match strategy_inner_event {
-        //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-        //         // 更新k线缓存索引
-        //         self.set_play_index(play_index_update_event.play_index).await;
-        //         let strategy_output_handle = self.get_strategy_output_handle();
-        //         let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-        //             from_node_id: self.get_node_id().clone(),
-        //             from_node_name: self.get_node_name().clone(),
-        //             from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-        //             play_index: self.get_play_index().await,
-        //             message_timestamp: get_utc8_timestamp_millis(),
-        //         }));
-        //         strategy_output_handle.send(signal).unwrap();
-        //     }
-        //     _ => {}
-        // }
+    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
         
         Ok(())
     }
@@ -152,28 +138,35 @@ impl VariableNodeContext {
 
     
     pub async fn get_variable(&mut self) {
-        // let variables = self.backtest_config.variables.clone();
+        let variable_configs = self.backtest_config.variable_configs.clone();
 
-        // for var in variables {
-        //     let variable_type = var.variable.clone();
-        //     match variable_type {
-        //         SysVariable::PositionNumber => {
-        //             let position_number = self.get_position_number().await;
-        //             let variable_message = VariableMessage {
-        //                 from_node_id: self.get_node_id().clone(),
-        //                 from_node_name: self.get_node_name().clone(),
-        //                 from_node_handle_id: var.config_id.clone(),
-        //                 variable: var.variable.to_string(),
-        //                 variable_value: position_number as f64,
-        //                 message_timestamp: get_utc8_timestamp_millis(),
-        //             };
-        //             let output_handle = self.get_all_output_handle().get(&var.config_id).unwrap();
-        //             tracing::debug!("{}: 发送仓位数量更新事件: {:?}", self.get_node_id(), variable_message);
-        //             output_handle.send(NodeEvent::Variable(variable_message)).unwrap();
-        //         }
-        //         _ => {}
-        //     }
-        // }
+        for var_config in variable_configs {
+            let variable_type = var_config.variable.clone();
+            match variable_type {
+                SysVariable::PositionNumber => {
+                    let position_number = self.get_position_number(&var_config).await;
+                    let sys_variable_updated_event = SysVariableUpdatedEvent {
+                        from_node_id: self.get_node_id().clone(),
+                        from_node_name: self.get_node_name().clone(),
+                        from_handle_id: var_config.output_handle_id.clone(),
+                        variable_config_id: var_config.config_id,
+                        variable: var_config.variable.clone(),
+                        variable_value: position_number as f64,
+                        timestamp: get_utc8_timestamp_millis(),
+                    };
+                    let output_handle = self.get_output_handle(&var_config.output_handle_id);
+                    tracing::debug!("{}: 发送仓位数量更新事件: {:?}", self.get_node_id(), sys_variable_updated_event);
+                    let _ = output_handle.send(BacktestNodeEvent::Variable(VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone())));
+
+                    let default_output_handle = self.get_default_output_handle();
+                    let _ = default_output_handle.send(BacktestNodeEvent::Variable(VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone())));
+
+                    let strategy_output_handle = self.get_strategy_output_handle();
+                    let _ = strategy_output_handle.send(BacktestNodeEvent::Variable(VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone())));
+                }
+                _ => {}
+            }
+        }
     }
     
     async fn process_variable(
@@ -198,13 +191,25 @@ impl VariableNodeContext {
         
     }
 
-    async fn get_position_number(&self) -> u32 {
-        // let virtual_trading_system = self.virtual_trading_system.lock().await;
-        // let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_data_source.exchange.clone();
-        // let symbol = self.backtest_config.exchange_mode_config.as_ref().unwrap().symbol.clone();
-        // let position_number = virtual_trading_system.get_symbol_position_number(&symbol, &exchange);
-        // position_number
-        0
+    async fn get_position_number(&self, variable_config: &VariableConfig) -> u32 {
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+        let symbol = variable_config.symbol.clone();
+
+        let current_positions = virtual_trading_system.get_current_positions_ref();
+        let position_number = match symbol {
+            // 如果symbol不为空，则获取symbol的持仓数量
+            Some(symbol) => {
+                let position_number = current_positions.iter().filter(|position| position.symbol == symbol && position.exchange == exchange).count() as u32;
+                position_number
+            }
+            // 如果symbol为空，则获取所有持仓数量
+            None => {
+                let position_number = current_positions.len() as u32;
+                position_number
+            }
+        };
+        position_number
     }
 }
 

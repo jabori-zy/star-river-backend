@@ -173,16 +173,17 @@ impl GetVariableNodeContext {
         let position_numeber = StrategySysVariableQuery::get_strategy_position_number(database, strategy_id).await;
         match position_numeber {
             Ok(position_number) => {
-                let variable_message = VariableMessage {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_node_handle_id: variable.config_id.clone(), // 使用config_id作为handle_id
-                    variable: variable.variable.to_string(),
-                    variable_value: position_number as f64,
-                    message_timestamp: get_utc8_timestamp_millis(),
-                };
-                let output_handle = output_handle.get(&variable.config_id).unwrap();
-                output_handle.node_event_sender.send(BacktestNodeEvent::Variable(variable_message)).unwrap();
+                // let variable_message = VariableMessage {
+                //     from_node_id: node_id.clone(),
+                //     from_node_name: node_name.clone(),
+                //     from_node_handle_id: variable.config_id.clone(), // 使用config_id作为handle_id
+                //     variable_config_id: variable.config_id,
+                //     variable: variable.variable.clone(),
+                //     variable_value: position_number as f64,
+                //     message_timestamp: get_utc8_timestamp_millis(),
+                // };
+                // let output_handle = output_handle.get(&variable.config_id).unwrap();
+                // output_handle.node_event_sender.send(BacktestNodeEvent::Variable(variable_message)).unwrap();
                 Ok(())
             }
             Err(e) => {

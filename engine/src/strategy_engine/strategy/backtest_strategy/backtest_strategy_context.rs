@@ -569,8 +569,8 @@ impl BacktestStrategyContext {
 
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let current_positions = virtual_trading_system.get_current_positions();
-        current_positions
+        let current_positions = virtual_trading_system.get_current_positions_ref();
+        current_positions.clone()
     }
 
     pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {

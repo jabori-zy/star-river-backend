@@ -229,19 +229,10 @@ impl VirtualTradingSystem {
     }
 
     // 获取当前持仓
-    pub fn get_positions(&self) -> &Vec<VirtualPosition> {
+    pub fn get_current_positions_ref(&self) -> &Vec<VirtualPosition> {
         &self.current_positions
     }
 
-    // 获取当前持仓数量
-    pub fn get_position_number(&self) -> u32 {
-        self.current_positions.len() as u32
-    }
-
-    // 获取某个symbol的持仓数量
-    pub fn get_symbol_position_number(&self, symbol: &String, exchange: &Exchange) -> u32 {
-        self.current_positions.iter().filter(|position| &position.symbol == symbol && &position.exchange == exchange).count() as u32
-    }
 
     // 获取所有订单
     pub fn get_orders(&self) -> &Vec<VirtualOrder> {

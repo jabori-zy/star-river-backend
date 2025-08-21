@@ -13,6 +13,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,Backtes
 use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::custom_type::{NodeId, HandleId, VariableId};
+use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 
 
 
@@ -59,8 +60,12 @@ pub fn get_variable_value(
                 None
             }
         }
-        BacktestNodeEvent::Variable(variable_message) => {
-            Some(variable_message.variable_value)
+        BacktestNodeEvent::Variable(variable_node_event) => {
+            if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_node_event {
+                Some(sys_variable_updated_event.variable_value)
+            } else {
+                None
+            }
         }
         _ => None
     }

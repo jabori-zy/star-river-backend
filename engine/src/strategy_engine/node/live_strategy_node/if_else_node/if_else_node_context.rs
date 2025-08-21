@@ -10,6 +10,7 @@ use super::condition::*;
 use types::strategy::node_event::{BacktestNodeEvent, SignalEvent, LiveConditionMatchEvent, IndicatorNodeEvent};
 use super::if_else_node_type::*;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 
 
 
@@ -82,7 +83,11 @@ impl IfElseNodeContext {
                 }
             }
             BacktestNodeEvent::Variable(variable_message) => {
-                variable_message.from_node_id.clone()
+                if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_message {
+                    sys_variable_updated_event.from_node_id.clone()
+                } else {
+                    return;
+                }
             }
             _ => {
                 return;
@@ -259,7 +264,11 @@ impl IfElseNodeContext {
             //     // .map(|v| v.value)
             // }
             BacktestNodeEvent::Variable(variable_message) => {
-                Some(variable_message.variable_value)
+                if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_message {
+                    Some(sys_variable_updated_event.variable_value)
+                } else {
+                    None
+                }
             }
             _ => None
         }

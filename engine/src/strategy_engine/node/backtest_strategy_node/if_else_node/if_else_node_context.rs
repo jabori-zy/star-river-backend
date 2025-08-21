@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
+use types::strategy::node_event::variable_event;
 use utils::get_utc8_timestamp;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
@@ -16,6 +17,7 @@ use super::utils::{get_variable_value, get_condition_variable_value};
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::custom_type::PlayIndex;
+use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
@@ -68,21 +70,22 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
         //如果事件类型是回测指标更新或者k线更新
         match &node_event {
-            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(backtest_indicator_update_event)) => {
+            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if self.get_play_index() == backtest_indicator_update_event.play_index {
+                if self.get_play_index() == indicator_update_event.play_index {
                     self.update_received_event(node_event);
                 }
             }
             BacktestNodeEvent::KlineNode(kline_event) => {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    if self.get_play_index() == kline_update_event.play_index {
-                        self.update_received_event(node_event);
-                    }
+                let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event;
+                if self.get_play_index() == kline_update_event.play_index {
+                    self.update_received_event(node_event);
                 }
             }
-            BacktestNodeEvent::Variable(variable_message) => {
+            BacktestNodeEvent::Variable(variable_event) => {
+                let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_event;
+                tracing::info!("{}: 收到变量更新事件: {:?}", self.get_node_id(), sys_variable_updated_event);
                 self.update_received_event(node_event);
             }
             _ => {}
@@ -135,9 +138,10 @@ impl IfElseNodeContext {
                     return;
                 }
             }
-            // NodeEvent::Variable(variable_message) => {
-            //     variable_message.from_node_id.clone()
-            // }
+            BacktestNodeEvent::Variable(variable_event) => {
+                let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_event;
+                (sys_variable_updated_event.from_node_id.clone(), sys_variable_updated_event.variable_config_id)
+            }
             _ => {
                 return;
             }
@@ -145,7 +149,7 @@ impl IfElseNodeContext {
         self.received_message.entry((from_node_id.clone(), from_variable_id))
         .and_modify(|e| *e = Some(received_event.clone()))
         .or_insert(Some(received_event));
-        // tracing::debug!("received_message: {:?}", self.received_message);
+        tracing::debug!("received_message: {:?}", self.received_message);
         
         self.update_received_flag(from_node_id, from_variable_id, true);
     }
@@ -154,6 +158,7 @@ impl IfElseNodeContext {
         self.received_flag.entry((from_node_id, from_variable_id))
         .and_modify(|e| *e = flag)
         .or_insert(flag);
+        tracing::debug!("received_flag: {:?}", self.received_flag);
     }
 
     // 初始化接收标记
@@ -255,6 +260,7 @@ impl IfElseNodeContext {
     }
 
     pub async fn evaluate_case(&self, case: &Case) -> bool {
+        tracing::info!("{}: 开始评估case: {:?}", self.get_node_id(), case);
         match case.logical_symbol {
             LogicalSymbol::And => {
                 self.evaluate_and_conditions(&case.conditions).await

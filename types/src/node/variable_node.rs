@@ -51,6 +51,9 @@ pub struct VariableConfig {
     #[serde(rename = "inputHandleId")]
     pub input_handle_id: String,
 
+    #[serde(rename = "outputHandleId")]
+    pub output_handle_id: String,
+
     #[serde(rename = "symbol")]
     pub symbol: Option<String>,
 

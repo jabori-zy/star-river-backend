@@ -120,7 +120,7 @@ impl BacktestStrategyStats {
         
         let timestamp = trading_system.get_timestamp();
         let current_balance = trading_system.get_current_balance();
-        let positions = trading_system.get_positions();
+        let positions = trading_system.get_current_positions_ref();
         let play_index = trading_system.get_play_index();
         
         // 计算未实现盈亏
@@ -155,7 +155,7 @@ impl BacktestStrategyStats {
         if play_index == trading_system_play_index {
             let timestamp = trading_system.get_timestamp(); // 时间戳
             let current_balance = trading_system.get_current_balance(); // 当前资金
-            let positions = trading_system.get_positions(); // 当前持仓
+            let positions = trading_system.get_current_positions_ref(); // 当前持仓
             let unrealized_pnl = trading_system.get_unrealized_pnl(); // 未实现盈亏
             let position_count = positions.len() as u32; // 持仓数量
             

@@ -19,6 +19,8 @@ use crate::cache::key::IndicatorKey;
 use crate::cache::KeyTrait;
 use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
 use backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
+use crate::strategy::sys_varibale::SysVariable;
+use backtest_node_event::variable_node_event::VariableNodeEvent;
 
 
 
@@ -49,7 +51,7 @@ pub enum BacktestNodeEvent {
 
     #[strum(serialize = "variable")]
     #[serde(rename = "variable")]
-    Variable(VariableMessage),
+    Variable(VariableNodeEvent),
 
     #[strum(serialize = "kline-node")]
     #[serde(rename = "kline-node")]
@@ -229,11 +231,10 @@ pub struct VariableMessage {
     pub from_node_id: String,
     pub from_node_name: String,
     pub from_node_handle_id: String,
-    pub variable: String,
+    pub variable_config_id: i32, // 变量配置id
+    pub variable: SysVariable,
     pub variable_value: f64,
     pub message_timestamp: i64,
-
-    
 }
 
 
