@@ -70,7 +70,7 @@ impl IndicatorNode {
         let indicator_cache_keys = Self::get_indicator_cache_keys(&backtest_config);
         tracing::debug!("indicator_cache_keys: {:?}", indicator_cache_keys);
         // 通过配置，获取回测K线缓存键
-        let kline_cache_key = Self::get_kline_cache_key(&backtest_config);
+        let kline_cache_key = Self::get_kline_key(&backtest_config);
 
         Self {
             context: Arc::new(RwLock::new(Box::new(IndicatorNodeContext {
@@ -78,7 +78,7 @@ impl IndicatorNode {
                 backtest_config,
                 is_registered: Arc::new(RwLock::new(false)),
                 indicator_cache_keys,
-                kline_cache_key,
+                kline_key: kline_cache_key,
             }))),
             
         }
@@ -105,20 +105,20 @@ impl IndicatorNode {
         indicator_keys
     }
 
-    fn get_kline_cache_key(backtest_config: &IndicatorNodeBacktestConfig) -> KlineKey {
+    fn get_kline_key(backtest_config: &IndicatorNodeBacktestConfig) -> KlineKey {
         let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
         let symbol = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.symbol.clone();
         let interval = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.interval.clone();
         let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
-        let kline_cache_key = KlineKey {
+        let kline_key = KlineKey {
             exchange: exchange.clone(), 
             symbol: symbol.clone(), 
             interval: interval.clone(), 
             start_time: Some(time_range.start_date.to_string()),
             end_time: Some(time_range.end_date.to_string()),
         };
-        kline_cache_key
+        kline_key
     }
     
     

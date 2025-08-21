@@ -114,8 +114,8 @@ impl VirtualTradingSystem {
             };
             
             if let Some(kline_key) = kline_key {
-                if let Some((current_price, _)) = self.kline_price.get(&kline_key) {
-                    let current_price_val = *current_price;
+                if let Some(kline) = self.kline_price.get(&kline_key) {
+                    let current_price_val = kline.close;
                     let quantity = self.current_positions[i].quantity;
 
 

@@ -24,13 +24,14 @@ use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTra
 use types::custom_type::PlayIndex;
 use tokio::sync::Mutex;
 use std::sync::Arc;
+use types::market::Kline;
 
 /// 虚拟交易系统
 /// 
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
     timestamp: i64, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
-    kline_price: HashMap<KlineKey, (f64, i64)>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
+    kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
     pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
@@ -90,7 +91,7 @@ impl VirtualTradingSystem {
     }
 
     // 添加k线缓存key，只保留interval最小的那一个
-    pub fn add_kline_cache_key(&mut self, kline_key: KlineKey) {
+    pub fn add_kline_key(&mut self, kline_key: KlineKey) {
         // 判断CacheKey是否存在
         if !self.kline_price.contains_key(&kline_key) {
             // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_cache_key
@@ -108,7 +109,14 @@ impl VirtualTradingSystem {
                 // 比较要插入的key的interval和过滤出的key的interval
                 // 如果要插入的key的interval小于过滤出的key的interval，则插入
                 if kline_key.interval < filtered_kline_cache_keys[0].interval {
-                    self.kline_price.insert(kline_key, (0.0, 0));
+                    self.kline_price.insert(kline_key, Kline {
+                        timestamp: 0,
+                        open: 0.0,
+                        high: 0.0,
+                        low: 0.0,
+                        close: 0.0,
+                        volume: 0.0,
+                    });
                 } 
                 // 如果要插入的key的interval大于过滤出的key的interval，则不插入
                 else {
@@ -117,7 +125,14 @@ impl VirtualTradingSystem {
             } 
             // 如果过滤出的列表长度为0，则直接插入
             else {
-                self.kline_price.insert(kline_key, (0.0, 0));
+                self.kline_price.insert(kline_key, Kline {
+                    timestamp: 0,
+                    open: 0.0,
+                    high: 0.0,
+                    low: 0.0,
+                    close: 0.0,
+                    volume: 0.0,
+                });
             }
         }
     }
@@ -158,10 +173,10 @@ impl VirtualTradingSystem {
         let keys: Vec<KlineKey> = self.kline_price.keys().cloned().collect();
 
         let mut timestamp_list = vec![];
-        for kline_cache_key in keys {
-            let (close_price, timestamp) = self.get_close_price(kline_cache_key.clone().into()).await.unwrap();
-            timestamp_list.push(timestamp);
-            self.kline_price.entry(kline_cache_key).and_modify(|e| *e = (close_price, timestamp));
+        for kline_key in keys {
+            let kline = self.get_close_price(kline_key.clone().into()).await.unwrap();
+            timestamp_list.push(kline.timestamp);
+            self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
         }
 
         // 检查完成后，需要检查所有k线的时间戳是否相同
@@ -178,8 +193,8 @@ impl VirtualTradingSystem {
     fn update_timestamp(&mut self) {
         // 获取所有k线的时间戳
         let mut timestamp_list = vec![];
-        self.kline_price.iter().for_each(|(_, (_, timestamp))| {
-            timestamp_list.push(timestamp.clone());
+        self.kline_price.iter().for_each(|(_, kline)| {
+            timestamp_list.push(kline.timestamp);
         });
         
         let min_timestamp = timestamp_list.iter().min();
@@ -256,7 +271,7 @@ impl VirtualTradingSystem {
     
 
     // 从缓存引擎获取k线数据
-    async fn get_close_price(&self,kline_cache_key: Key) -> Result<(f64, i64), String> {
+    async fn get_close_price(&self,kline_cache_key: Key) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: -1,
@@ -276,9 +291,8 @@ impl VirtualTradingSystem {
             let response = resp_rx.await.unwrap();
             if response.code() == 0 {
                 if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) = CacheEngineResponse::try_from(response) {
-                    let close = get_cache_data_response.cache_data[0].as_kline().unwrap().close;
-                    let timestamp = get_cache_data_response.cache_data[0].as_kline().unwrap().timestamp;
-                    return Ok((close, timestamp));
+                    let kline = get_cache_data_response.cache_data[0].as_kline().unwrap();
+                    return Ok(kline);
                 }
             }
             Err("get history kline cache failed".to_string())

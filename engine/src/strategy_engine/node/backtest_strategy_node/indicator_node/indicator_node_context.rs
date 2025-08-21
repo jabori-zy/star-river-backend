@@ -36,7 +36,7 @@ pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
-    pub kline_cache_key: KlineKey, // 回测K线缓存键
+    pub kline_key: KlineKey, // 回测K线缓存键
     pub indicator_cache_keys: Vec<IndicatorKey>, // 指标缓存键
 }
 
@@ -291,7 +291,7 @@ impl IndicatorNodeContext {
             let params = CalculateBacktestIndicatorParams {
                 strategy_id: self.base_context.strategy_id.clone(),
                 node_id: self.base_context.node_id.clone(),
-                kline_key: self.kline_cache_key.clone().into(),
+                kline_key: self.kline_key.clone().into(),
                 indicator_config: ind.indicator_config.clone(),
                 sender: self.base_context.node_id.clone(),
                 command_timestamp: get_utc8_timestamp_millis(),

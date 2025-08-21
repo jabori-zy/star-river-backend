@@ -72,7 +72,7 @@ impl BacktestStrategyFunction {
                         strategy_cache_keys.push(backtest_kline_cache_key.clone().into());
                         // 添加到虚拟交易系统中
                         let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                        virtual_trading_system_guard.add_kline_cache_key(backtest_kline_cache_key);
+                        virtual_trading_system_guard.add_kline_key(backtest_kline_cache_key);
                     }
                     
                 }

@@ -418,14 +418,14 @@ impl FuturesOrderNodeContext {
             // 获取成功
             if let Ok(cache_keys) = cache_keys {
                 // 过滤出K线缓存key
-                let kline_cache_keys = cache_keys.iter().filter(|k| matches!(k, Key::Kline(_))).collect::<Vec<&Key>>();
+                let kline_keys = cache_keys.iter().filter(|k| matches!(k, Key::Kline(_))).collect::<Vec<&Key>>();
                 // 获取interval最小的K线缓存数据
                 // 如果列表长度为1，则唯一的key就是最小interval的key
-                if kline_cache_keys.len() == 1 {
-                    self.min_kline_interval = Some(kline_cache_keys[0].get_interval());
-                } else if !kline_cache_keys.is_empty() {
+                if kline_keys.len() == 1 {
+                    self.min_kline_interval = Some(kline_keys[0].get_interval());
+                } else if !kline_keys.is_empty() {
                     // 如果列表长度大于1，则需要根据interval排序，获取最小的interval的key
-                    let min_interval_key = kline_cache_keys.iter()
+                    let min_interval_key = kline_keys.iter()
                         .min_by_key(|k| k.get_interval())
                         .unwrap(); // 这里可以安全unwrap，因为我们已经检查了不为空
                     self.min_kline_interval = Some(min_interval_key.get_interval());

@@ -33,15 +33,17 @@ impl VirtualTradingSystem {
         sl_type: Option<TpslType>,
     ) -> Result<(), String> {
         let order_id = self.generate_order_id();
-        let kline_cache_key = self.get_kline_key(&exchange, &symbol);
-        if let Some(kline_cache_key) = kline_cache_key {
+        let kline_key = self.get_kline_key(&exchange, &symbol);
+        if let Some(kline_key) = kline_key {
             // 根据订单类型判断是否需要立即成交
             match &order_type {
                 // 市价单
                 OrderType::Market => {
                     // 市价单立即成交
                     // 获取当前价格
-                    let (current_price, current_timestamp) = self.kline_price.get(&kline_cache_key).unwrap();
+                    let current_kline = self.kline_price.get(&kline_key).unwrap();
+                    let current_price = current_kline.close;
+                    let current_timestamp = current_kline.timestamp;
                     // 市价单忽略创建订单时的价格，而是使用最新的价格
                     let market_order = VirtualOrder::new(
                         None,
@@ -54,12 +56,12 @@ impl VirtualTradingSystem {
                         order_side, 
                         order_type,
                         quantity, 
-                        current_price.clone(),
+                        current_price,
                         tp, 
                         sl,
                         tp_type,
                         sl_type,
-                        *current_timestamp
+                        current_timestamp
                     );
                     tracing::debug!("市价订单创建成功: {:?}", market_order);
                     
@@ -70,7 +72,7 @@ impl VirtualTradingSystem {
                     self.orders.push(market_order.clone());
                     
                     // 创建完成后，直接成交订单
-                    self.execute_order(&market_order, *current_price, *current_timestamp).unwrap();
+                    self.execute_order(&market_order, current_price, current_timestamp).unwrap();
                     
                 }
                 // 限价单
@@ -84,7 +86,7 @@ impl VirtualTradingSystem {
             }
         } else {
             // 如果k线缓存key不存在，则不成交
-            return Err(format!("k线缓存key不存在: {:?}", kline_cache_key));
+            return Err(format!("k线缓存key不存在: {:?}", kline_key));
         }
         Ok(())
     }
@@ -131,21 +133,25 @@ impl VirtualTradingSystem {
         let unfilled_orders = self.get_unfilled_orders();
         for order in unfilled_orders {
             
-            if let Some(kline_cache_key) = self.get_kline_key(&order.exchange, &order.symbol) {
-                if let Some((current_price, _)) = self.kline_price.get(&kline_cache_key) {
+            if let Some(kline_key) = self.get_kline_key(&order.exchange, &order.symbol) {
+                if let Some(current_kline) = self.kline_price.get(&kline_key) {
+                    let current_timestamp = current_kline.timestamp;
+                    let high_price = current_kline.high;
+                    let low_price = current_kline.low;
+                    
                     match order.order_type {
                         OrderType::Limit => {
                             match order.order_side {
                                 FuturesOrderSide::OpenLong => {
-                                    // 限价开多：当前价格 <= 订单价格时执行
-                                    if *current_price <= order.open_price {
-                                        self.execute_order(&order, *current_price, self.timestamp).unwrap();
+                                    // 限价开多：最低价格 <= 订单价格时执行
+                                    if low_price <= order.open_price {
+                                        self.execute_order(&order, low_price, self.timestamp).unwrap();
                                     }
                                 }
                                 FuturesOrderSide::OpenShort => {
-                                    // 限价开空：当前价格 >= 订单价格时执行
-                                    if *current_price >= order.open_price {
-                                        self.execute_order(&order, *current_price, self.timestamp).unwrap();
+                                    // 限价开空：最高价格 >= 订单价格时执行
+                                    if high_price >= order.open_price {
+                                        self.execute_order(&order, high_price, self.timestamp).unwrap();
                                     }
                                 }
                                 _ => {}
@@ -154,15 +160,15 @@ impl VirtualTradingSystem {
                         OrderType::StopMarket => {
                             match order.order_side {
                                 FuturesOrderSide::CloseLong => {
-                                    // 平多止损：当前价格 <= 止损价格时执行
-                                    if *current_price <= order.open_price {
+                                    // 平多止损：最低价格 <= 止损价格时执行
+                                    if low_price <= order.open_price {
                                         self.execute_sl_order(&order);
                                     }
                                     
                                 }
                                 FuturesOrderSide::CloseShort => {
-                                    // 平空止损：当前价格 >= 止损价格时执行
-                                    if *current_price >= order.open_price {
+                                    // 平空止损：最高价格 >= 止损价格时执行
+                                    if high_price >= order.open_price {
                                         self.execute_sl_order(&order);
                                     }
                                     
@@ -173,15 +179,15 @@ impl VirtualTradingSystem {
                         OrderType::TakeProfitMarket => {
                             match order.order_side {
                                 FuturesOrderSide::CloseLong => {
-                                    // 平多止盈：当前价格 >= 止盈价格时执行
-                                    if *current_price >= order.open_price {
+                                    // 平多止盈：最高价格 >= 止盈价格时执行
+                                    if high_price >= order.open_price {
                                         self.execute_tp_order(&order);
                                     }
                                     
                                 }
                                 FuturesOrderSide::CloseShort => {
-                                    // 平空止盈：当前价格 <= 止盈价格时执行
-                                    if *current_price <= order.open_price {
+                                    // 平空止盈：最低价格 <= 止盈价格时执行
+                                    if low_price <= order.open_price {
                                         self.execute_tp_order(&order);
                                     }
                                     
