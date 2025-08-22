@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::{KlinePlayEvent, KlinePlayFinishedEvent, SignalEvent, PlayIndexUpdateEvent};
+use types::strategy::node_event::{KlinePlayEvent, KlinePlayFinishedEvent, SignalEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
@@ -116,8 +116,6 @@ impl BacktestNodeContextTrait for StartNodeContext {
 impl StartNodeContext {
     // 发送k线跳动信号
     pub async fn send_play_signal(&self) {
-
-        
         let kline_tick_event = KlinePlayEvent {
             from_node_id: self.base_context.node_id.clone(),
             from_node_name: self.base_context.node_name.clone(),
@@ -128,6 +126,8 @@ impl StartNodeContext {
         
         let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlay(kline_tick_event.clone()));
         // 通过default出口，给节点发送信号
+        tracing::debug!("=============={}==================", self.get_play_index());
+        tracing::debug!("{}: 发送k线播放信号。play_index: {}", self.base_context.node_id, self.get_play_index());
         self.get_default_output_handle().send(signal.clone()).unwrap();
 
     }

@@ -6,7 +6,7 @@ use utils::get_utc8_timestamp;
 use utils::get_utc8_timestamp_millis;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event;
-use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, PlayIndexUpdateEvent};
+use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};

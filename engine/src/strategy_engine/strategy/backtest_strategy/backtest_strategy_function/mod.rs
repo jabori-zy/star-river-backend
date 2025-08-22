@@ -10,13 +10,14 @@ mod add_position_management_node;
 // pub mod sys_variable_function;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use petgraph::{Graph, Directed};
+use petgraph::{Graph, Directed, Direction, graph::NodeIndex};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use futures::stream::select_all;
 use futures::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
+use types::custom_type::NodeId;
 
 pub struct BacktestStrategyFunction;
 
@@ -163,5 +164,17 @@ impl BacktestStrategyFunction {
                 }
             }
         });
+    }
+
+
+    pub async fn set_leaf_nodes(graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>) -> Vec<NodeId> {
+        let leaf_nodes: Vec<NodeIndex> = graph.externals(Direction::Outgoing).collect();
+        let mut leaf_node_ids = Vec::new();
+        for node_index in leaf_nodes {
+            let node = graph.node_weight_mut(node_index).unwrap();
+            leaf_node_ids.push(node.get_node_id().await);
+            node.set_is_leaf_node(true).await;
+        }
+        leaf_node_ids
     }
 }

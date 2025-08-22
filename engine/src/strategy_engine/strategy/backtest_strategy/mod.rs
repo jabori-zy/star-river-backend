@@ -127,6 +127,10 @@ impl BacktestStrategy {
             }
         }
 
+        // 设置叶子节点
+        let leaf_node_ids = BacktestStrategyFunction::set_leaf_nodes(&mut graph).await;
+        tracing::debug!("leaf_node_ids: {:?}", leaf_node_ids);
+
         // 将所有节点的输出控制器添加到 strategy_output_handles 中
         let strategy_output_handles = BacktestStrategyFunction::add_strategy_output_handle(&mut graph).await;
         tracing::debug!("all node's strategy output handles: {:?}", strategy_output_handles);
@@ -160,11 +164,12 @@ impl BacktestStrategy {
             cancel_play_token: cancel_play_token,
             virtual_trading_system: virtual_trading_system,
             strategy_inner_event_publisher: strategy_inner_event_tx,
-            updated_play_index_node_ids: Arc::new(RwLock::new(vec![])),
-            updated_play_index_notify: Arc::new(Notify::new()),
+            execute_over_notify: Arc::new(Notify::new()),
             strategy_stats: strategy_stats,
             strategy_stats_event_receiver: strategy_stats_event_rx,
             play_index_watch_tx,
+            leaf_node_ids,
+            execute_over_node_ids: Arc::new(RwLock::new(vec![])),
         };
         Self { context: Arc::new(RwLock::new(context)) }
     }

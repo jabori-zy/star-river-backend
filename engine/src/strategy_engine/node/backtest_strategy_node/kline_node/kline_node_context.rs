@@ -27,7 +27,6 @@ use super::kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_event::SignalEvent;
 use event_center::strategy_event::{StrategyEvent,BacktestStrategyData};
 use types::cache::CacheValue;
-use types::strategy::node_event::PlayIndexUpdateEvent;
 use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::custom_type::PlayIndex;
@@ -89,8 +88,8 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         // let current_play_index = self.get_play_index().await;
                         // tracing::debug!("current_play_index: {}", current_play_index);
 
-                        let current_play_index = self.base_context.play_index_watch_rx.borrow().clone();
-                        // tracing::debug!("watch_play_index: {}", current_play_index);
+                        let current_play_index = self.get_play_index();
+                        tracing::debug!("{}: 接受到k线播放信号。信号的play_index: {}，节点的play_index: {}", self.base_context.node_id, play_event.play_index, current_play_index);
                         
                         // 如果索引不匹配，提前返回错误日志
                         if current_play_index != play_event.play_index {
@@ -122,7 +121,6 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             );
                             
                             // 获取k线缓存值
-                            // tracing::debug!("play_index: {}", play_event.play_index);
                             let kline_cache_value = match self.get_history_kline_cache(&backtest_kline_key, current_play_index).await {
                                 Ok(value) => value,
                                 Err(e) => {

@@ -249,7 +249,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     async fn get_all_output_handles(&self) -> Vec<NodeOutputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_all_output_handle().values().cloned().collect()
+        context_guard.get_all_output_handles().values().cloned().collect()
     }
 
     async fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
@@ -270,6 +270,18 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_node_type().clone()
+    }
+
+    async fn set_is_leaf_node(&mut self, is_leaf_node: bool) {
+        let context = self.get_context();
+        let mut context_guard = context.write().await;
+        context_guard.set_is_leaf_node(is_leaf_node);
+    }
+
+    async fn is_leaf_node(&self) -> bool {
+        let context = self.get_context();
+        let context_guard = context.read().await;
+        context_guard.is_leaf_node()
     }
 
     // 获取节点输出句柄

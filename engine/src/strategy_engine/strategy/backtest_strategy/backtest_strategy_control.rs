@@ -20,7 +20,7 @@ struct PlayContext {
     child_cancel_play_token: CancellationToken,
     virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     strategy_inner_event_publisher: StrategyInnerEventPublisher,
-    updated_play_index_notify: Arc<Notify>,
+    execute_over_notify: Arc<Notify>,
     play_index_watch_tx: tokio::sync::watch::Sender<PlayIndex>,
 }
 
@@ -53,7 +53,7 @@ impl BacktestStrategyContext {
             child_cancel_play_token: self.cancel_play_token.child_token(),
             virtual_trading_system: self.virtual_trading_system.clone(),
             strategy_inner_event_publisher: self.strategy_inner_event_publisher.clone(),
-            updated_play_index_notify: self.updated_play_index_notify.clone(),
+            execute_over_notify: self.execute_over_notify.clone(),
             play_index_watch_tx: self.play_index_watch_tx.clone(),
         }
 
@@ -86,8 +86,10 @@ impl BacktestStrategyContext {
                 // 因为从-1开始，所以先+1，再发送信号
                 let new_play_index = Self::increment_played_signal_count(&context).await;
                 context.play_index_watch_tx.send(new_play_index).unwrap();
-                // Self::send_play_signal(&context, new_play_index).await;
+                // 发送后，等待所有叶子节点执行完毕
+                context.execute_over_notify.notified().await;
                 
+                // Self::send_play_signal(&context, new_play_index).await;  
             }
 
             // 检查播放完毕
@@ -100,6 +102,8 @@ impl BacktestStrategyContext {
             if Self::handle_play_delay(&context, &strategy_name, play_speed).await {
                 break;
             }
+
+            
 
             
         }
@@ -288,37 +292,6 @@ impl BacktestStrategyContext {
         (total_signal_count, play_index)
     }
 
-
-
-    // 执行单根K线播放
-    // async fn execute_single_kline_play(&self, play_index: i32, signal_count: i32) {
-        // tracing::info!("{}: 播放单根k线，signal_count: {}, played_signal_count: {}", 
-        //     self.strategy_name, signal_count, play_index);
-
-        // Self::send_play_index_update_event(
-        //     play_index, 
-        //     signal_count, 
-        //     self.strategy_inner_event_publisher.clone()
-        // ).await;
-
-        // 通过watch发送play_index
-        // self.play_index_watch_tx.send(play_index).unwrap();
-
-        // let start_node_index = self.node_indices.get("start_node").unwrap();
-        // let node = self.graph.node_weight(*start_node_index).unwrap().clone();
-        // let virtual_trading_system = self.virtual_trading_system.clone();
-        // let updated_play_index_notify = self.updated_play_index_notify.clone();
-            // tracing::info!("等待节点索引更新完毕");
-        // let start_node = node.as_any().downcast_ref::<StartNode>().unwrap();
-            // updated_play_index_notify.notified().await;
-            
-            // let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-            // virtual_trading_system_guard.set_play_index(play_index).await;
-            
-        // start_node.send_play_signal().await;
-        
-    // }
-
     // 增加单次播放计数
     async fn increment_single_play_count(&self) -> i32 {
         let mut play_index = self.play_index.write().await;
@@ -328,7 +301,6 @@ impl BacktestStrategyContext {
 
     // 播放单根k线
     pub async fn play_one_kline(&self) -> Result<i32, String> {
-
         if *self.play_index.read().await == *self.total_signal_count.read().await{
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return Err("已播放完毕，无法继续播放".to_string());

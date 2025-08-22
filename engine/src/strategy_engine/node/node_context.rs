@@ -248,6 +248,14 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &self.get_base_context().node_type
     }
 
+    fn set_is_leaf_node(&mut self, is_leaf_node: bool) {
+        self.get_base_context_mut().is_leaf_node = is_leaf_node;
+    }
+
+    fn is_leaf_node(&self) -> bool {
+        self.get_base_context().is_leaf_node
+    }
+
     fn get_event_publisher(&self) -> &EventPublisher {
         &self.get_base_context().event_publisher
     }
@@ -255,6 +263,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_event_receivers(&self) -> &Vec<EventReceiver> {
         &self.get_base_context().event_receivers
     }
+
     fn get_command_publisher(&self) -> &CommandPublisher {
         &self.get_base_context().command_publisher
     }
@@ -302,7 +311,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_default_output_handle(&self) -> NodeOutputHandle;
 
     // 获取所有输出句柄
-    fn get_all_output_handle(&self) -> &HashMap<String, NodeOutputHandle> {
+    fn get_all_output_handles(&self) -> &HashMap<String, NodeOutputHandle> {
         &self.get_base_context().output_handles
     }
 
@@ -382,7 +391,7 @@ pub struct BacktestBaseNodeContext {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
-    // pub play_index: Arc<RwLock<PlayIndex>>, // 回测播放索引
+    is_leaf_node: bool, // 是否是叶子节点
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub event_receivers:Vec<EventReceiver>, // 事件接收器
@@ -406,7 +415,7 @@ impl Clone for BacktestBaseNodeContext {
             strategy_id: self.strategy_id.clone(),
             node_id: self.node_id.clone(),
             node_name: self.node_name.clone(),
-            // play_index: self.play_index.clone(),
+            is_leaf_node: self.is_leaf_node.clone(),
             cancel_token: self.cancel_token.clone(),
             event_publisher: self.event_publisher.clone(),
             input_handles: self.input_handles.clone(),
@@ -446,7 +455,7 @@ impl BacktestBaseNodeContext {
             node_id, 
             node_name,
             node_type,
-            // play_index: Arc::new(RwLock::new(0)),
+            is_leaf_node: false,
             output_handles: HashMap::new(), 
             event_publisher,
             is_enable_event_publish: false, 

@@ -288,7 +288,6 @@ impl BacktestNodeTrait for FuturesOrderNode {
                                     let mut context_guard = context.write().await;
                                     if let Err(e) = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap().handle_node_event_for_specific_order(
                                         node_event, 
-                                        &from_node_id, 
                                         &input_handle_id
                                     ).await {
                                         tracing::error!("节点{}处理特定订单事件错误: {}", node_id, e);

@@ -32,6 +32,9 @@ pub struct SysVariableUpdatedEvent {
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
 
+    #[serde(rename = "playIndex")]
+    pub play_index: i32,
+
     #[serde(rename = "variableConfigId")]
     pub variable_config_id: i32, // 变量配置id
 

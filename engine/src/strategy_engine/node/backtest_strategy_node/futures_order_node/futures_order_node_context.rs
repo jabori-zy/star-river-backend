@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
 use types::cache::CacheValue;
-use utils::get_utc8_timestamp_millis;
+use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 use chrono::Utc;
 use event_center::Event;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
@@ -36,6 +36,7 @@ use types::strategy::node_event::backtest_node_event::futures_order_node_event::
     StopLossOrderCreatedEvent, StopLossOrderFilledEvent, StopLossOrderCanceledEvent,
     TransactionCreatedEvent
 };
+use types::strategy::node_event::BacktestConditionNotMatchEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
 use types::custom_type::{InputHandleId, NodeId};
@@ -164,9 +165,8 @@ impl FuturesOrderNodeContext {
     }
 
     pub async fn handle_node_event_for_specific_order(
-        &mut self, 
-        node_event: BacktestNodeEvent, 
-        from_node_id: &NodeId, 
+        &mut self,
+        node_event: BacktestNodeEvent,
         input_handle_id: &InputHandleId
     ) -> Result<(), String> {
         // tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?} 来自节点: {}", self.get_node_id(), input_handle_id, node_event, from_node_id);
@@ -188,6 +188,29 @@ impl FuturesOrderNodeContext {
                         }
                         else {
                             tracing::warn!("{}: 当前k线缓存索引不匹配, 跳过", self.get_node_id());
+                        }
+                    }
+                    SignalEvent::BacktestConditionNotMatch(backtest_condition_not_match_event) => {
+                        if backtest_condition_not_match_event.play_index == self.get_play_index() {
+                            tracing::debug!("{}: 条件不匹配，不创建订单", self.get_node_name());
+                            let all_output_handles = self.get_all_output_handles();
+                            for (handle_id, handle) in all_output_handles.iter() {
+                                if handle_id == &format!("{}_strategy_output", self.get_node_id()) {
+                                    continue;
+                                }
+
+                                if handle.connect_count > 0 {
+                                    let condition_not_match_event = SignalEvent::BacktestConditionNotMatch(BacktestConditionNotMatchEvent {
+                                        from_node_id: self.get_node_id().clone(),
+                                        from_node_name: self.get_node_name().clone(),
+                                        from_node_handle_id: handle_id.clone(),
+                                        play_index: self.get_play_index(),
+                                        timestamp: get_utc8_timestamp()
+                                    });
+                                    tracing::debug!("{}: 发送条件不匹配事件: {:?}", self.get_node_id(), handle_id);
+                                    let _ = handle.send(BacktestNodeEvent::Signal(condition_not_match_event));
+                                }
+                            }
                         }
                     }
                     _ => {}

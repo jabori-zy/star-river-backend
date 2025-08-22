@@ -26,7 +26,7 @@ tracing-subscriber.workspace = true
 tokio-stream.workspace = true
 futures.workspace = true
 sea-orm.workspace = true
-petgraph = { version = "0.8.1" }
+petgraph = { version = "0.8.2" }
 tokio-util.workspace = true
 windows = { version = "0.61.1", features = ["Win32_System_Console","Win32_System_Threading"] }
 rust-embed = "8.7.2"

@@ -40,12 +40,10 @@ impl BacktestStrategyFunction {
         }
 
         let cases_json = backtest_config_json["cases"].clone();
-        tracing::debug!("cases_json: {:?}", cases_json);
         let cases: Vec<Case> = serde_json::from_value(cases_json).unwrap();
         let if_else_node_backtest_config = IfElseNodeBacktestConfig {
             cases: cases.clone(),
         };
-        tracing::debug!("条件分支节点数据: {:?}", if_else_node_backtest_config);
 
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
         strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;

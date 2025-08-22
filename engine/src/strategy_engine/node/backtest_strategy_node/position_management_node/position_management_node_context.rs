@@ -18,7 +18,6 @@ use types::position::GetPositionParam;
 use types::strategy::node_event::PositionEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use types::strategy::node_event::SignalEvent;
-use types::strategy::node_event::PlayIndexUpdateEvent;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
@@ -27,6 +26,7 @@ use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTra
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent, PositionManagementNodeEvent};
 use types::custom_type::PlayIndex;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy::node_event::ExecuteOverEvent;
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -95,22 +95,46 @@ impl BacktestNodeContextTrait for PositionNodeContext {
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
         // tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
 
-        // match message {
-        //     NodeEvent::Order(order_message) => {
-        //         match order_message {
-        //             OrderEvent::OrderFilled(order) => {
-        //                 tracing::debug!("{}: 收到订单已完成信息: {:?}", self.get_node_name(), order);
-        //                 if let Err(e) = self.get_position(order).await {
-        //                     tracing::error!("{}: 获取仓位信息失败: {:?}", self.get_node_name(), e);
-        //                 }
-        //             }
-        //             _ => {}
+        match node_event {
+            BacktestNodeEvent::Signal(signal_event) => {
+                match signal_event {
+                    SignalEvent::BacktestConditionNotMatch(_) => {
+                        tracing::debug!("{}: 条件不匹配，不获取仓位信息。节点是否是叶子节点: {}", self.get_node_name(), self.is_leaf_node());
+                        if self.is_leaf_node() {
+                            let execute_over_event = ExecuteOverEvent {
+                                from_node_id: self.get_node_id().clone(),
+                                from_node_name: self.get_node_name().clone(),
+                                from_node_handle_id: self.get_node_id().clone(),
+                                play_index: self.get_play_index(),
+                                timestamp: get_utc8_timestamp_millis(),
+                            };
+                            let strategy_output_handle = self.get_strategy_output_handle();
+                            strategy_output_handle.send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(execute_over_event))).unwrap();
+                        }
+                    }
+                    _ => {}
                     
                     
-        //         }
-        //     }
-        //     _ => {}
-        // }
+                }
+            }
+
+            BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
+                tracing::debug!("{}: 收到订单事件: {:?}", self.get_node_name(), futures_order_node_event);
+                if self.is_leaf_node() {
+                    let execute_over_event = ExecuteOverEvent {
+                        from_node_id: self.get_node_id().clone(),
+                        from_node_name: self.get_node_name().clone(),
+                        from_node_handle_id: self.get_node_id().clone(),
+                        play_index: self.get_play_index(),
+                        timestamp: get_utc8_timestamp_millis(),
+                    };
+                    let strategy_output_handle = self.get_strategy_output_handle();
+                    strategy_output_handle.send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(execute_over_event))).unwrap();
+                }
+            }
+
+            _ => {}
+        }
         Ok(())
     }
 

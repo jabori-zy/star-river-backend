@@ -10,7 +10,7 @@ use event_center::Event;
 use types::node::variable_node::*;
 use types::strategy::sys_varibale::SysVariable;
 use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
-use types::strategy::node_event::{SignalEvent, VariableMessage, PlayIndexUpdateEvent};
+use types::strategy::node_event::{SignalEvent, VariableMessage, BacktestConditionNotMatchEvent};
 use utils::get_utc8_timestamp_millis;
 use types::strategy::node_event::BacktestNodeEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -83,6 +83,18 @@ impl BacktestNodeContextTrait for VariableNodeContext {
                 }
 
             }
+            BacktestNodeEvent::Signal(SignalEvent::BacktestConditionNotMatch(_)) => {
+                tracing::debug!("{}: 条件不触发模式，不获取变量", self.get_node_name());
+                // 获取默认output_handle
+                let default_output_handle = self.get_default_output_handle();
+                let _ = default_output_handle.send(BacktestNodeEvent::Signal(SignalEvent::BacktestConditionNotMatch(BacktestConditionNotMatchEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: default_output_handle.output_handle_id.clone(),
+                    play_index: self.get_play_index(),
+                    timestamp: get_utc8_timestamp_millis()
+                })));
+            }
 
             _ => {}
 
@@ -149,6 +161,7 @@ impl VariableNodeContext {
                         from_node_id: self.get_node_id().clone(),
                         from_node_name: self.get_node_name().clone(),
                         from_handle_id: var_config.output_handle_id.clone(),
+                        play_index: self.get_play_index(),
                         variable_config_id: var_config.config_id,
                         variable: var_config.variable.clone(),
                         variable_value: position_number as f64,

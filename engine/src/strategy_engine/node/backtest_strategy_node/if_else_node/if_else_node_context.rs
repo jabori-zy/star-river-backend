@@ -6,7 +6,7 @@ use types::strategy::node_event::variable_event;
 use utils::get_utc8_timestamp;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
-use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, PlayIndexUpdateEvent};
+use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, BacktestConditionNotMatchEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
@@ -56,8 +56,8 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        let default_output_handle_id = format!("{}_else_output", self.get_node_id());
-        self.base_context.output_handles.get(&default_output_handle_id).unwrap().clone()
+        let else_output_handle_id = format!("{}_else_output", self.get_node_id());
+        self.base_context.output_handles.get(&else_output_handle_id).unwrap().clone()
     }
 
 
@@ -73,6 +73,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if self.get_play_index() == indicator_update_event.play_index {
+                    tracing::debug!("{}: 接收到回测指标更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, indicator_update_event.play_index, self.get_play_index());
                     self.update_received_event(node_event);
                 }
             }
@@ -80,13 +81,41 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event;
                 if self.get_play_index() == kline_update_event.play_index {
+                    tracing::debug!("{}: 接收到回测k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, self.get_play_index());
                     self.update_received_event(node_event);
                 }
             }
             BacktestNodeEvent::Variable(variable_event) => {
                 let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_event;
-                tracing::info!("{}: 收到变量更新事件: {:?}", self.get_node_id(), sys_variable_updated_event);
+                tracing::debug!("{}: 收到变量更新事件。 事件的play_index: {}，节点的play_index: {}", self.get_node_id(), sys_variable_updated_event.play_index, self.get_play_index());
                 self.update_received_event(node_event);
+            }
+            BacktestNodeEvent::Signal(signal_event) => {
+                match signal_event {
+                    SignalEvent::BacktestConditionNotMatch(_) => {
+                        tracing::debug!("{}: 接收到条件不匹配事件。 不需要逻辑判断", self.get_node_id());
+
+                        let all_output_handles = self.get_all_output_handles();
+                        for (handle_id, handle) in all_output_handles.iter() {
+                            if handle_id == &format!("{}_strategy_output", self.get_node_id()) {
+                                continue;
+                            }
+
+                            if handle.connect_count > 0 {
+                                let condition_not_match_event = SignalEvent::BacktestConditionNotMatch(BacktestConditionNotMatchEvent {
+                                    from_node_id: self.get_node_id().clone(),
+                                    from_node_name: self.get_node_name().clone(),
+                                    from_node_handle_id: handle_id.clone(),
+                                    play_index: self.get_play_index(),
+                                    timestamp: get_utc8_timestamp()
+                                });
+                                
+                                let _ = handle.send(BacktestNodeEvent::Signal(condition_not_match_event));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }
@@ -149,7 +178,7 @@ impl IfElseNodeContext {
         self.received_message.entry((from_node_id.clone(), from_variable_id))
         .and_modify(|e| *e = Some(received_event.clone()))
         .or_insert(Some(received_event));
-        tracing::debug!("received_message: {:?}", self.received_message);
+        // tracing::debug!("received_message: {:?}", self.received_message);
         
         self.update_received_flag(from_node_id, from_variable_id, true);
     }
@@ -158,7 +187,6 @@ impl IfElseNodeContext {
         self.received_flag.entry((from_node_id, from_variable_id))
         .and_modify(|e| *e = flag)
         .or_insert(flag);
-        tracing::debug!("received_flag: {:?}", self.received_flag);
     }
 
     // 初始化接收标记
@@ -213,45 +241,53 @@ impl IfElseNodeContext {
         for case in self.backtest_config.cases.iter() {
             let case_result = self.evaluate_case(case).await;
             // tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
+            let case_output_handle_id = format!("{}_output{}", self.get_node_id(), case.case_id);
+            let case_output_handle = self.get_output_handle(&case_output_handle_id);
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
-            if case_result {
-                // 节点信息
-                let case_output_handle_id = format!("{}_output{}", self.get_node_id(), case.case_id);
-                let case_output_handle = self.get_output_handle(&case_output_handle_id);
-                let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: case_output_handle_id.clone(),
-                    play_index: self.get_play_index(),
-                    message_timestamp: get_utc8_timestamp()
-                });
-
-                // 获取case的handle
-                // tracing::debug!("{}：节点发送信号事件: {:?}", self.get_node_id(), signal_event);
-                if let Err(e) = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
-                    // tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
+            let signal_event = {
+                let from_node_id = self.get_node_id().clone();
+                let from_node_name = self.get_node_name().clone();
+                let play_index = self.get_play_index();
+                let timestamp = get_utc8_timestamp();
+                if case_result {
+                    SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
+                        from_node_id,
+                        from_node_name,
+                        from_node_handle_id: case_output_handle_id.clone(),
+                        play_index,
+                        timestamp
+                    })
+                } else {
+                    SignalEvent::BacktestConditionNotMatch(BacktestConditionNotMatchEvent {
+                        from_node_id,
+                        from_node_name,
+                        from_node_handle_id: case_output_handle_id.clone(),
+                        play_index,
+                        timestamp
+                    })
                 }
-
-                case_matched = true;
-                break;
-            }
+            };
+            
+            let _ = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
+            case_matched = true;
+            break;
         }
 
         // 只有当所有case都为false时才执行else
-        let default_ouput_handle = self.get_default_output_handle(); // 获取else的输出句柄,else是默认出口
+        let else_output_handle = self.get_default_output_handle(); // 获取else的输出句柄
         if !case_matched {
             let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
                 from_node_id: self.get_node_id().clone(),
                 from_node_name: self.get_node_name().clone(),
-                from_node_handle_id: default_ouput_handle.output_handle_id.clone(),
+                from_node_handle_id: else_output_handle.output_handle_id.clone(),
                 play_index: self.get_play_index(),
-                message_timestamp: get_utc8_timestamp()
+                timestamp: get_utc8_timestamp()
             });
             
 
             // tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
-            if let Err(e) = default_ouput_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
+            if let Err(e) = else_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone())) {
                 // tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
             }
         }
@@ -260,7 +296,6 @@ impl IfElseNodeContext {
     }
 
     pub async fn evaluate_case(&self, case: &Case) -> bool {
-        tracing::info!("{}: 开始评估case: {:?}", self.get_node_id(), case);
         match case.logical_symbol {
             LogicalSymbol::And => {
                 self.evaluate_and_conditions(&case.conditions).await
@@ -278,6 +313,7 @@ impl IfElseNodeContext {
 
     // 评估单个条件
     fn evaluate_single_condition(&self, condition: &Condition) -> bool {
+        tracing::debug!("{}: 开始评估case: 左变量名：{:?}, 右变量名：{:?}, 符号:{:?}, 当前的play_index: {}", self.get_node_id(), condition.left_variable.variable, condition.right_variable.variable, condition.comparison_symbol, self.get_play_index());
         let received_value = &self.received_message;
 
         // 获取左值
@@ -296,20 +332,24 @@ impl IfElseNodeContext {
                 ComparisonSymbol::NotEqual => (left_value - right_value).abs() >= f64::EPSILON,
             };
             
-            tracing::info!(
-                "条件评估: 左值={:.6}, 比较符号={}, 右值={:.6}, 结果={}",
+            tracing::debug!(
+                "当前play_index: {}, 左变量名：{:#?}, 左值={:.6}, 比较符号:{:?}, 右变量名：{:#?}, 右值={:.6}, 结果={}",
+                self.get_play_index(),
+                condition.left_variable.variable,
                 left_value,
                 condition.comparison_symbol.to_string(),
+                condition.right_variable.variable,
                 right_value,
                 condition_result
             );
             
             condition_result
         } else {
-            tracing::debug!(
-                "条件评估失败: 左值={:?}, 右值={:?}, 存在空值",
+            tracing::error!(
+                "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前play_index: {}",
                 left_value,
-                right_value
+                right_value,
+                self.get_play_index()
             );
             false
         }
@@ -317,6 +357,7 @@ impl IfElseNodeContext {
 
     // 评估and条件组
     async fn evaluate_and_conditions(&self, conditions: &Vec<Condition>) -> bool {
+        // tracing::debug!("{}: 开始评估and条件组: {:#?}", self.get_node_id(), conditions);
         if conditions.is_empty() {
             return true; // 空条件组默认为true
         }

@@ -26,7 +26,7 @@ use tokio::time::Duration;
 use types::indicator::IndicatorConfig;
 use types::indicator::Indicator;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::strategy::node_event::{PlayIndexUpdateEvent, SignalEvent};
+use types::strategy::node_event::SignalEvent;
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::custom_type::PlayIndex;
@@ -90,10 +90,12 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 // let current_play_index = self.get_play_index().await;
                 // tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
 
-                let current_play_index = self.base_context.play_index_watch_rx.borrow().clone();
+                let current_play_index = self.get_play_index();
+               
                 
                 // 如果索引不匹配，提前返回错误日志
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
+                    tracing::debug!("{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, current_play_index);
                     if current_play_index != kline_update_event.play_index {
                         tracing::error!(
                             node_id = %self.base_context.node_id, 

@@ -117,6 +117,7 @@ impl IfElseNode {
                             
                             // 双重检查，防止竞态条件
                             if if_else_node_context.is_all_value_received() {
+                                tracing::debug!("{}: 所有值已接收，开始评估", node_id);
                                 if_else_node_context.evaluate().await;
                                 if_else_node_context.reset_received_flag();
                             }
@@ -155,7 +156,6 @@ impl BacktestNodeTrait for IfElseNode {
     }
 
     async fn set_output_handle(&mut self) {
-        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
@@ -164,10 +164,16 @@ impl BacktestNodeTrait for IfElseNode {
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
+        // let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+        // let default_output_handle_id = format!("{}_default_output", node_id); 
+        // tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        // self.add_output_handle(default_output_handle_id, tx).await;
+
+        // 添加else出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-        let default_output_handle_id = format!("{}_else_output", node_id); // else分支作为默认出口
-        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
-        self.add_output_handle(default_output_handle_id, tx).await;
+        let else_output_handle_id = format!("{}_else_output", node_id); // else分支作为默认出口
+        tracing::debug!(node_id = %node_id, node_name = %node_name, else_output_handle_id = %else_output_handle_id, "setting ELSE output handle");
+        self.add_output_handle(else_output_handle_id, tx).await;
 
         let cases = {
             let context = self.get_context();
