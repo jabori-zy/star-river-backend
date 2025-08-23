@@ -179,13 +179,13 @@ impl BacktestNodeTrait for FuturesOrderNode {
         };
         // 为每一个订单添加出口
         for order_config in futures_order_configs.iter() {
-            let created_output_handle_id = format!("{}_created_output{}", node_id, order_config.order_config_id);
+            let created_output_handle_id = format!("{}_created_output_{}", node_id, order_config.order_config_id);
             let (created_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(created_output_handle_id, created_tx).await;
 
             match order_config.order_type {
                 OrderType::Limit => {
-                    let placed_output_handle_id = format!("{}_placed_output{}", node_id, order_config.order_config_id);
+                    let placed_output_handle_id = format!("{}_placed_output_{}", node_id, order_config.order_config_id);
                     let (placed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
                     self.add_output_handle(placed_output_handle_id, placed_tx).await;
 
@@ -194,27 +194,27 @@ impl BacktestNodeTrait for FuturesOrderNode {
             }
             
 
-            let partial_output_handle_id = format!("{}_partial_output{}", node_id, order_config.order_config_id);
+            let partial_output_handle_id = format!("{}_partial_output_{}", node_id, order_config.order_config_id);
             let (partial_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(partial_output_handle_id, partial_tx).await;
 
-            let filled_output_handle_id = format!("{}_filled_output{}", node_id, order_config.order_config_id);
+            let filled_output_handle_id = format!("{}_filled_output_{}", node_id, order_config.order_config_id);
             let (filled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(filled_output_handle_id, filled_tx).await;
 
-            let canceled_output_handle_id = format!("{}_canceled_output{}", node_id, order_config.order_config_id);
+            let canceled_output_handle_id = format!("{}_canceled_output_{}", node_id, order_config.order_config_id);
             let (canceled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(canceled_output_handle_id, canceled_tx).await;
 
-            let expired_output_handle_id = format!("{}_expired_output{}", node_id, order_config.order_config_id);
+            let expired_output_handle_id = format!("{}_expired_output_{}", node_id, order_config.order_config_id);
             let (expired_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(expired_output_handle_id, expired_tx).await;
 
-            let rejected_output_handle_id = format!("{}_rejected_output{}", node_id, order_config.order_config_id);
+            let rejected_output_handle_id = format!("{}_rejected_output_{}", node_id, order_config.order_config_id);
             let (rejected_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(rejected_output_handle_id, rejected_tx).await;
 
-            let error_output_handle_id = format!("{}_error_output{}", node_id, order_config.order_config_id);
+            let error_output_handle_id = format!("{}_error_output_{}", node_id, order_config.order_config_id);
             let (error_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(error_output_handle_id, error_tx).await;
         }

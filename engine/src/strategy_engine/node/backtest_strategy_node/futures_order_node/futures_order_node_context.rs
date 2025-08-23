@@ -235,7 +235,7 @@ impl FuturesOrderNodeContext {
 
     async fn send_order_status_event(&mut self, virtual_order: VirtualOrder, event_type: &VirtualTradingSystemEvent) {
         let order_status = &virtual_order.order_status;
-        let output_handle_id = format!("{}_{}_output{}", self.get_node_id(), order_status.to_string(), virtual_order.order_config_id);
+        let output_handle_id = format!("{}_{}_output_{}", self.get_node_id(), order_status.to_string(), virtual_order.order_config_id);
         let output_handle = self.get_output_handle(&output_handle_id);
 
 
@@ -515,7 +515,7 @@ impl FuturesOrderNodeContext {
 
         if let Some(order) = order {
             if order.node_id == self.get_node_id().clone() {
-                let input_handle_id = format!("{}_input{}", self.get_node_id(), order.order_config_id);
+                let input_handle_id = format!("{}_input_{}", self.get_node_id(), order.order_config_id);
                 match virtual_trading_system_event {
                     VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
                         self.add_unfilled_virtual_order(&input_handle_id, order.clone()).await;
@@ -561,7 +561,7 @@ impl FuturesOrderNodeContext {
 
         if let Some(transaction) = transaction {
             if transaction.node_id == self.get_node_id().clone() {
-                let input_handle_id = format!("{}_input{}", self.get_node_id(), transaction.order_config_id);
+                let input_handle_id = format!("{}_input_{}", self.get_node_id(), transaction.order_config_id);
                 self.add_virtual_transaction_history(&input_handle_id, transaction.clone()).await;
                 let transaction_event = FuturesOrderNodeEvent::TransactionCreated(TransactionCreatedEvent {
                     from_node_id: self.get_node_id().clone(),

@@ -128,8 +128,8 @@ pub struct IndicatorUpdateEvent {
     #[serde(rename = "interval")]
     pub interval: KlineInterval,
 
-    #[serde(rename = "indicatorId")]
-    pub indicator_id: i32,
+    #[serde(rename = "configId")]
+    pub config_id: i32,
 
     #[serde(rename = "indicatorConfig")]
     pub indicator_config: IndicatorConfig,

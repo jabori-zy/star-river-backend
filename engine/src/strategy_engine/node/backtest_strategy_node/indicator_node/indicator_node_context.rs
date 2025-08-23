@@ -128,7 +128,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                         end_time: Some(time_range.end_date.to_string()) 
                     };
 
-                    let from_handle_id = ind_config.handle_id.clone();
+                    let from_handle_id = ind_config.output_handle_id.clone();
                     
                     // 获取指标缓存数据，增加错误处理
                     let indicator_cache_data = match self.get_backtest_indicator_cache(&indicator_cache_key, kline_update_event.play_index).await {
@@ -153,7 +153,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                             exchange: indicator_cache_key.get_exchange(),
                             symbol: indicator_cache_key.get_symbol(),
                             interval: indicator_cache_key.get_interval(),
-                            indicator_id: ind_config.indicator_id,
+                            config_id: ind_config.config_id,
                             indicator_config: indicator_cache_key.get_indicator_config(),
                             indicator_key: indicator_cache_key.clone(),
                             indicator_series: data,

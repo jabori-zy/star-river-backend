@@ -34,6 +34,9 @@ pub struct KlineUpdateEvent {
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
 
+    #[serde(rename = "configId")]
+    pub config_id: i32,
+
     #[serde(rename = "playIndex")]
     pub play_index: i32,
 

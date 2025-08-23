@@ -37,11 +37,15 @@ pub struct KlineNodeExchangeModeConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectedSymbol {
-    #[serde(rename="symbolId")]
-    pub symbol_id: i32,
+    #[serde(rename="configId")]
+    pub config_id: i32,
 
-    #[serde(rename="handleId")]
-    pub handle_id: String,
+    #[serde(rename="outputHandleId")]
+    pub output_handle_id: String,
+
+    #[serde(rename="symbol")]
     pub symbol: String,
+
+    #[serde(rename="interval")]
     pub interval: KlineInterval,
 }

@@ -75,8 +75,8 @@ impl BacktestStrategyFunction {
             let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json)
                 .map_err(|e| format!("创建指标配置失败: {}", e))?;
             let selected_indicator = SelectedIndicator {
-                indicator_id: ind_config["indicatorId"].as_i64().unwrap() as i32,
-                handle_id: ind_config["handleId"].as_str().unwrap_or_default().to_string(),
+                config_id: ind_config["configId"].as_i64().unwrap() as i32,
+                output_handle_id: ind_config["outputHandleId"].as_str().unwrap_or_default().to_string(),
                 indicator_config: indicator_config.clone(),
             };
             selected_indicators.push(selected_indicator);

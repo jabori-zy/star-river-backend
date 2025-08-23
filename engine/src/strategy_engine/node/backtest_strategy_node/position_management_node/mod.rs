@@ -170,8 +170,8 @@ impl BacktestNodeTrait for PositionManagementNode {
         };
         // 为每一个订单添加出口
         for position_operation in position_operations.iter() {
-            let success_output_handle_id = format!("{}_{}_success_output{}", node_id,position_operation.position_operation.to_string(), position_operation.position_operation_id);
-            let failed_output_handle_id = format!("{}_{}_failed_output{}", node_id,position_operation.position_operation.to_string(), position_operation.position_operation_id);
+            let success_output_handle_id = format!("{}_{}_success_output_{}", node_id,position_operation.position_operation.to_string(), position_operation.position_operation_id);
+            let failed_output_handle_id = format!("{}_{}_failed_output_{}", node_id,position_operation.position_operation.to_string(), position_operation.position_operation_id);
             let (success_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let (failed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(success_output_handle_id, success_tx).await;

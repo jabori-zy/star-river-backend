@@ -43,11 +43,11 @@ pub struct FileModeConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectedIndicator {
-    #[serde(rename="indicatorId")]
-    pub indicator_id: i32,
+    #[serde(rename="configId")]
+    pub config_id: i32,
 
-    #[serde(rename="handleId")]
-    pub handle_id: String,
+    #[serde(rename="outputHandleId")]
+    pub output_handle_id: String,
 
     #[serde(rename = "indicatorConfig")]
     pub indicator_config: IndicatorConfig,

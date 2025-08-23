@@ -1,19 +1,13 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
-use std::any::Any;
-use async_trait::async_trait;
-use utils::get_utc8_timestamp;
-use utils::get_utc8_timestamp_millis;
-use event_center::strategy_event::StrategyEvent;
-use event_center::Event;
-use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent};
-use super::if_else_node_type::IfElseNodeBacktestConfig;
-use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
-use super::condition::*;
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::custom_type::{NodeId, HandleId, VariableId};
+use types::strategy::node_event::{BacktestNodeEvent, IndicatorNodeEvent};
+use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use types::custom_type::NodeId;
 use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
+use super::if_else_node_context::ConfigId;
+use super::condition::*;
+
+
+
 
 
 
@@ -24,9 +18,9 @@ use types::strategy::node_event::backtest_node_event::variable_node_event::Varia
 // 获取变量值
 pub fn get_variable_value(
     node_id: NodeId,
-    variable_id: VariableId,
+    variable_id: ConfigId,
     variable_name: &str,
-    received_event: &HashMap<(NodeId, VariableId), Option<BacktestNodeEvent>>
+    received_event: &HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>
 ) -> Option<f64> {
     
     let node_event = received_event.get(&(node_id, variable_id))?.as_ref()?;
@@ -60,6 +54,18 @@ pub fn get_variable_value(
                 None
             }
         }
+
+        BacktestNodeEvent::KlineNode(kline_node_event) => {
+            if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_node_event {
+                let kline_value = kline_update_event.kline.last().and_then(|last_kline| last_kline.to_json().get(variable_name).and_then(|value| value.as_f64())).unwrap_or(0.0);
+                if kline_value == 0.0 {
+                    return None;
+                }
+                Some(kline_value)
+            } else {
+                None
+            }
+        }
         BacktestNodeEvent::Variable(variable_node_event) => {
             if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_node_event {
                 Some(sys_variable_updated_event.variable_value)
@@ -76,12 +82,12 @@ pub fn get_variable_value(
 // 获取条件中变量的值（从Variable结构体中提取）
 pub fn get_condition_variable_value(
     variable: &Variable,
-    received_value: &HashMap<(NodeId, VariableId), Option<BacktestNodeEvent>>
+    received_value: &HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>
 ) -> Option<f64> {
     match variable.var_type {
         VarType::Variable => {
             let node_id = variable.node_id.as_ref()?;
-            let variable_id = variable.variable_id?;
+            let variable_id = variable.variable_config_id?;
             let variable_name = &variable.variable;
             get_variable_value(node_id.clone(), variable_id, variable_name, received_value)
         },

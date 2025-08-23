@@ -139,6 +139,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             let send_kline_event = |handle_id: String, output_handle: NodeOutputHandle| {
                                 let kline_update_event = self.get_kline_update_event(
                                     handle_id,
+                                    symbol_config.config_id,
                                     &backtest_kline_key,
                                     current_play_index,
                                     kline_cache_value.clone(),
@@ -150,7 +151,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             };
 
                             // 发送到交易对特定的输出handle
-                            let symbol_handle_id = symbol_config.handle_id.clone();
+                            let symbol_handle_id = symbol_config.output_handle_id.clone();
                             if let Some(symbol_output_handle) = self.base_context.output_handles.get(&symbol_handle_id) {
                                 send_kline_event(symbol_handle_id, symbol_output_handle.clone());
                             }
@@ -310,6 +311,7 @@ impl KlineNodeContext {
     fn get_kline_update_event(
         &self,
         handle_id: String,
+        config_id: i32,
         kline_key: &KlineKey,
         index: i32, // 缓存索引
         kline_data: Vec<Arc<CacheValue>>,
@@ -319,6 +321,7 @@ impl KlineNodeContext {
             from_node_id: self.get_node_id().clone(),
             from_node_name: self.get_node_name().clone(),
             from_handle_id: handle_id,
+            config_id: config_id,
             play_index: index,
             kline_key: kline_key.clone(),
             kline: kline_data,

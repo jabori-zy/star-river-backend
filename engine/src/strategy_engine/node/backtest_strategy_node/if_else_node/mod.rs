@@ -184,8 +184,7 @@ impl BacktestNodeTrait for IfElseNode {
 
         for case in cases {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            let case_id = case.case_id;
-            let case_output_handle_id = format!("{}_output{}", node_id, case_id);
+            let case_output_handle_id = case.output_handle_id.clone();
             self.add_output_handle(case_output_handle_id, tx).await;
         }
         tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");

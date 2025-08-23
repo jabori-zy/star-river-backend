@@ -172,7 +172,7 @@ impl BacktestNodeTrait for IndicatorNode {
         };
         
         for indicator in selected_indicator.iter() {
-            let indicator_output_handle_id = indicator.handle_id.clone();
+            let indicator_output_handle_id = indicator.output_handle_id.clone();
             tracing::debug!(node_id = %node_id, node_name = %node_name, indicator_output_handle_id = %indicator_output_handle_id, "setting indicator output handle");
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(indicator_output_handle_id, tx).await;

@@ -122,7 +122,7 @@ impl BacktestNodeTrait for VariableNode {
             
         for variable in variable_configs {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            let output_handle_id = format!("{}_output{}", node_id, variable.config_id);
+            let output_handle_id = format!("{}_output_{}", node_id, variable.config_id);
             self.add_output_handle(output_handle_id, tx).await;
         }
 

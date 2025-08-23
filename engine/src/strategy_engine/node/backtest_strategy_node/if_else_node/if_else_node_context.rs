@@ -12,19 +12,22 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::custom_type::{NodeId, HandleId, VariableId};
+use types::custom_type::{NodeId, HandleId};
 use super::utils::{get_variable_value, get_condition_variable_value};
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::custom_type::PlayIndex;
 use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 
+pub type ConfigId = i32;
+
+
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub is_processing: bool,
-    pub received_flag: HashMap<(NodeId, VariableId), bool>, // 用于记录每个variable的数据是否接收
-    pub received_message: HashMap<(NodeId, VariableId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
+    pub received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
+    pub received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     pub backtest_config: IfElseNodeBacktestConfig,
     
 
@@ -73,7 +76,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if self.get_play_index() == indicator_update_event.play_index {
-                    tracing::debug!("{}: 接收到回测指标更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, indicator_update_event.play_index, self.get_play_index());
+                    tracing::debug!("{}: 接收到指标更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, indicator_update_event.play_index, self.get_play_index());
                     self.update_received_event(node_event);
                 }
             }
@@ -81,7 +84,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event;
                 if self.get_play_index() == kline_update_event.play_index {
-                    tracing::debug!("{}: 接收到回测k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, self.get_play_index());
+                    tracing::debug!("{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, self.get_play_index());
                     self.update_received_event(node_event);
                 }
             }
@@ -161,7 +164,7 @@ impl IfElseNodeContext {
                 if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_message {
                     let from_node_id = indicator_update_event.from_node_id.clone();
                     // let from_handle_id = indicator_update_event.from_handle_id.clone();
-                    let from_variable_id = indicator_update_event.indicator_id;
+                    let from_variable_id = indicator_update_event.config_id;
                     (from_node_id, from_variable_id)
                 } else {
                     return;
@@ -170,6 +173,10 @@ impl IfElseNodeContext {
             BacktestNodeEvent::Variable(variable_event) => {
                 let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_event;
                 (sys_variable_updated_event.from_node_id.clone(), sys_variable_updated_event.variable_config_id)
+            }
+            BacktestNodeEvent::KlineNode(kline_event) => {
+                let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event;
+                (kline_update_event.from_node_id.clone(), kline_update_event.config_id)
             }
             _ => {
                 return;
@@ -183,7 +190,7 @@ impl IfElseNodeContext {
         self.update_received_flag(from_node_id, from_variable_id, true);
     }
 
-    fn update_received_flag(&mut self, from_node_id: NodeId, from_variable_id: VariableId, flag: bool) {
+    fn update_received_flag(&mut self, from_node_id: NodeId, from_variable_id: ConfigId, flag: bool) {
         self.received_flag.entry((from_node_id, from_variable_id))
         .and_modify(|e| *e = flag)
         .or_insert(flag);
@@ -196,7 +203,7 @@ impl IfElseNodeContext {
                 // 处理左值
                 if let (Some(left_node_id), Some(left_variable_id)) = (
                     condition.left_variable.node_id.clone(),
-                    condition.left_variable.variable_id,
+                    condition.left_variable.variable_config_id,
                 ) {
                     let key = (left_node_id, left_variable_id);
                     self.received_flag.insert(key.clone(), false);
@@ -207,7 +214,7 @@ impl IfElseNodeContext {
                 if matches!(condition.right_variable.var_type, VarType::Variable) {
                     if let (Some(right_node_id), Some(right_variable_id)) = (
                         condition.right_variable.node_id.clone(),
-                        condition.right_variable.variable_id,
+                        condition.right_variable.variable_config_id,
                     ) {
                         let key = (right_node_id, right_variable_id);
                         self.received_flag.insert(key.clone(), false);
@@ -241,7 +248,7 @@ impl IfElseNodeContext {
         for case in self.backtest_config.cases.iter() {
             let case_result = self.evaluate_case(case).await;
             // tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
-            let case_output_handle_id = format!("{}_output{}", self.get_node_id(), case.case_id);
+            let case_output_handle_id = format!("{}_output_{}", self.get_node_id(), case.case_id);
             let case_output_handle = self.get_output_handle(&case_output_handle_id);
 
             // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估

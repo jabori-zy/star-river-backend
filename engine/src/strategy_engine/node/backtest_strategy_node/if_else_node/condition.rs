@@ -51,11 +51,11 @@ pub struct Variable {
     #[serde(rename = "varType")]
     pub var_type: VarType,
 
-    #[serde(rename = "handleId")]
-    pub handle_id: Option<String>,
+    #[serde(rename = "outputHandleId")]
+    pub output_handle_id: Option<String>,
 
-    #[serde(rename = "variableId")]
-    pub variable_id: Option<i32>,
+    #[serde(rename = "variableConfigId")]
+    pub variable_config_id: Option<i32>,
 
     #[serde(rename = "variable")]  // 注意：保持与 JSON 中的拼写一致
     pub variable: String,
@@ -87,7 +87,12 @@ pub enum LogicalSymbol {
 pub struct Case {
     #[serde(rename = "caseId")]
     pub case_id: i32,
+    #[serde(rename = "outputHandleId")]
+    pub output_handle_id: String,
+
+    #[serde(rename = "conditions")]
     pub conditions: Vec<Condition>,
+    
     #[serde(rename = "logicalSymbol")]
     pub logical_symbol: LogicalSymbol,
 }

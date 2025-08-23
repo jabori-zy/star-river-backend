@@ -118,7 +118,7 @@ impl BacktestNodeTrait for KlineNode {
         };
         
         for symbol in selected_symbols.iter() {
-            let symbol_output_handle_id = symbol.handle_id.clone();
+            let symbol_output_handle_id = symbol.output_handle_id.clone();
             tracing::debug!(node_id = %node_id, node_name = %node_name, symbol_output_handle_id = %symbol_output_handle_id, "setting symbol output handle");
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(symbol_output_handle_id, tx).await;
