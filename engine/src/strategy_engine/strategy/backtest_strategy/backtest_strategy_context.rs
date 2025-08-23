@@ -467,7 +467,7 @@ impl BacktestStrategyContext {
             let run_state = node.get_run_state().await;
             if run_state == BacktestNodeRunState::Stopped {
                 tracing::debug!("节点 {} 已进入Stopped状态", node_id);
-                tokio::time::sleep(Duration::from_millis(1000)).await;
+                tokio::time::sleep(Duration::from_millis(10)).await;
                 return Ok(());
             }
             retry_count += 1;

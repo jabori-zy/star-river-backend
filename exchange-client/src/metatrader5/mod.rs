@@ -155,6 +155,8 @@ pub enum MetaTrader5Error {
     Mt5HttpClientError(#[from] Mt5HttpClientError),
     #[error("Start Server Error: {0}")]
     StartServerError(String),
+    #[error("Connect Server Error: {0}")]
+    ConnectServerError(String),
 }
 
 
@@ -162,7 +164,6 @@ pub enum MetaTrader5Error {
 pub struct MetaTrader5 {
     pub process_name: String, // 进程名称
     pub server_port: u16, // 服务器端口
-
     pub terminal_id: i32, // 终端id
     pub login: i64,
     pub password: String,
@@ -438,6 +439,37 @@ impl MetaTrader5 {
 
         tracing::info!(terminal_id = %self.terminal_id, port = %self.server_port, "metatrader5 server started successfully");
         Ok(self.server_port)
+    }
+
+    // 直接连接mt5服务器
+    pub async fn connect_mt5_server(&mut self, port: u16) -> Result<(), MetaTrader5Error> {
+        self.server_port = port;
+        
+        // 添加超时和错误处理，而不是unwrap
+        match tokio::time::timeout(
+            tokio::time::Duration::from_secs(30), 
+            self.create_mt5_http_client(self.server_port)
+        ).await {
+            Ok(result) => {
+                if let Err(e) = result {
+                    return Err(MetaTrader5Error::ConnectServerError(
+                        format!("创建HTTP客户端失败，端口: {}, 错误: {}", self.server_port, e)
+                    ));
+                }
+            },
+            Err(_) => {
+                return Err(MetaTrader5Error::ConnectServerError(
+                    format!("创建HTTP客户端超时，端口: {}", self.server_port)
+                ));
+            }
+        }
+
+        let is_start_success = self.check_server_start_success().await;
+        if !is_start_success {
+            return Err(MetaTrader5Error::ConnectServerError(format!("连接MT5-{}服务失败，端口: {}", self.terminal_id, self.server_port)));
+        }
+        
+        Ok(())
     }
 
     async fn check_server_start_success(&mut self) -> bool {
