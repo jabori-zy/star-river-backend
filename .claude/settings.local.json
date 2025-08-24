@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(cargo run:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo check:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
