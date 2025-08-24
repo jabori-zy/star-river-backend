@@ -6,6 +6,7 @@ logs/
 .env
 .idea
 .vscode
+.claude
 /resource
 /build
 /exchange-client/src/metatrader5/bin/

@@ -272,7 +272,7 @@ impl MarketEngineContext {
 
         // 先获取历史k线
         // 初始的k线
-        let initail_kline_series = exchange_client.get_kline_series(&symbol, interval.clone(), cache_size).await?;
+        let initail_kline_series = exchange_client.get_kline_series(&symbol, interval.clone(), cache_size).await.map_err(|e| e.to_string())?;
         let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent {
             exchange: exchange,
             event_timestamp: get_utc8_timestamp_millis(),
