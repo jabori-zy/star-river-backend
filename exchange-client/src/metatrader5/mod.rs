@@ -1,8 +1,13 @@
 mod mt5_http_client;
+mod mt5_http_client_error;
+pub mod mt5_error;
 mod mt5_ws_client;
 mod url;
 mod mt5_data_processor;
 mod mt5_types;
+
+#[cfg(test)]
+mod test;
 
 use mt5_types::Mt5GetPositionNumberParams;
 use types::position::PositionNumber;
@@ -40,7 +45,9 @@ use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use once_cell::sync::Lazy;
 use types::market::{Exchange, Kline};
 use thiserror::Error;
-use crate::metatrader5::mt5_http_client::Mt5HttpClientError;
+use crate::metatrader5::mt5_http_client_error::Mt5HttpClientError;
+use crate::metatrader5::mt5_error::Mt5Error;
+use crate::exchange_client_error::ExchangeClientError;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use tracing::instrument;
 use types::strategy::TimeRange;
@@ -476,6 +483,7 @@ impl MetaTrader5 {
         let mut retry_count = 0;
         let max_retries = 10;
         let mut ping_success = false;
+        tracing::info!(terminal_id = %self.terminal_id, "check if MT5-{} server is ready", self.terminal_id);
         while retry_count < max_retries {
             let mt5_http_client = self.mt5_http_client.lock().await;
             if let Some(mt5_http_client) = mt5_http_client.as_ref() {
@@ -493,6 +501,10 @@ impl MetaTrader5 {
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     }
                 }
+            } else {
+                // HTTP client is None, no point in retrying
+                tracing::warn!(terminal_id = %self.terminal_id, "MT5 HTTP client is not initialized, cannot check server status");
+                break;
             }
         }
         ping_success
@@ -673,19 +685,19 @@ impl MetaTrader5 {
         Ok(success)
     }
 
-    async fn create_mt5_http_client(&mut self, port: u16) -> Result<(), String> {
+    async fn create_mt5_http_client(&mut self, port: u16) -> Result<(), ExchangeClientError> {
         let mt5_http_client = Mt5HttpClient::new(port);
         self.mt5_http_client.lock().await.replace(mt5_http_client);
         Ok(())
     }
 
 
-    // pub async fn ping(&mut self) -> Result<(), String> {
+    // pub async fn ping(&mut self) -> Result<(), ExchangeClientError> {
     //     let mt5_http_client = self.mt5_http_client.lock().await;
     //     if let Some(mt5_http_client) = mt5_http_client.as_ref() {
     //         mt5_http_client.ping().await
     //     } else {
-    //         Err("MT5 HTTP客户端未初始化".to_string())
+    //         Err(ExchangeClientError::from("MT5 HTTP客户端未初始化"))
     //     }
     // }
 
@@ -713,9 +725,9 @@ impl MetaTrader5 {
             }
             
             // 如果多次重试后仍然失败，则返回错误
-            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminalError(format!("MT5-{} 终端初始化超时，请检查终端是否正常启动", self.terminal_id))))
+            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminal(format!("MT5-{} 终端初始化超时，请检查终端是否正常启动", self.terminal_id))))
         } else {
-            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminalError("MT5 HTTP客户端未初始化".to_string())))
+            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminal("MT5 HTTP客户端未初始化".to_string())))
         }
     }
 
@@ -740,31 +752,34 @@ impl ExchangeClient for MetaTrader5 {
         Exchange::Metatrader5(self.server.clone())
     }
 
-    async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
+    async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, ExchangeClientError> {
         Ok(serde_json::Value::Null)
     }
 
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, String> {
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, ExchangeClientError> {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await.expect("获取k线系列失败");
+            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
             let data_processor = self.data_processor.lock().await;
-            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await;
+            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await
+                .map_err(ExchangeClientError::from)?;
             Ok(kline_series)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn connect_websocket(&mut self) -> Result<(), String> {
+    async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
         tracing::debug!("Metatrader5连接websocket");
         let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.unwrap();
         self.websocket_state.lock().await.replace(websocket_state);
         Ok(())
     }
 
-    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
         tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
@@ -780,7 +795,7 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
+    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
         tracing::info!("取消订阅k线流: {:?}", symbol);
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
@@ -795,7 +810,7 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn get_socket_stream(&self) -> Result<(), String> {
+    async fn get_socket_stream(&self) -> Result<(), ExchangeClientError> {
         // 判断当前是否正在处理流
         if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
@@ -839,7 +854,10 @@ impl ExchangeClient for MetaTrader5 {
                             let stream_json = serde_json::from_str::<serde_json::Value>(&text.to_string()).expect("解析WebSocket消息JSON失败");
                             // tracing::debug!("收到消息: {:?}", stream_json);
                             let data_processor = data_processor.lock().await;
-                            data_processor.process_stream(stream_json).await;
+                            if let Err(e) = data_processor.process_stream(stream_json).await {
+                                tracing::error!("Failed to process stream data: {}", e);
+                                // Consider reconnection logic
+                            }
   
                         },
                         _ => {
@@ -854,120 +872,151 @@ impl ExchangeClient for MetaTrader5 {
     }
 
     // 获取k线历史
-    async fn get_kline_history(&self, symbol: &str, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, String> {
+    async fn get_kline_history(&self, symbol: &str, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, ExchangeClientError> {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await.expect("获取k线历史失败");
+            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
             let data_processor = self.data_processor.lock().await;
-            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await;
+            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await
+                .map_err(ExchangeClientError::from)?;
             Ok(klines)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String> {
+    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         let mt5_order_request = Mt5CreateOrderParams::from(params);
-        // 创建订单
+        
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let create_order_result = mt5_http_client.create_order(mt5_order_request).await.expect("创建订单失败");
-            // 根据创建的订单，获取订单的信息
-            let retcode = create_order_result["data"]["retcode"].as_i64().expect("获取retcode失败");
-            if retcode != 10009 {
-                return Err(format!("创建订单失败, retcode: {}", retcode));
-            }
-            let order_id = create_order_result["data"]["order_id"].as_i64().expect("获取order_id失败");
-            let order_info = mt5_http_client.get_order(&order_id).await.expect("获取订单失败");
-
-            let data_processor = self.data_processor.lock().await;
-            let order = data_processor.process_order(order_info).await.expect("处理订单失败");
-
-            // 入库
+            // 创建订单
+            let create_order_result = mt5_http_client.create_order(mt5_order_request).await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
             
+            // 获取返回码
+            let retcode = create_order_result["data"]["retcode"].as_i64()
+                .ok_or_else(|| ExchangeClientError::order_management("获取retcode失败"))?;
+            
+            if retcode != 10009 {
+                return Err(ExchangeClientError::order_management(
+                    format!("创建订单失败, retcode: {}", retcode)
+                ));
+            }
+            
+            // 获取订单ID
+            let order_id = create_order_result["data"]["order_id"].as_i64()
+                .ok_or_else(|| ExchangeClientError::order_management("获取order_id失败"))?;
+            
+            // 获取订单详情
+            let order_info = mt5_http_client.get_order(&order_id).await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
+
+            // 处理订单数据
+            let data_processor = self.data_processor.lock().await;
+            let order = data_processor.process_order(order_info).await
+                .map_err(|e| ExchangeClientError::internal(format!("处理订单失败: {}", e)))?;
+
             Ok(order)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn update_order(&self, order: Order) -> Result<Order, String> {
+    async fn update_order(&self, order: Order) -> Result<Order, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let order_info = mt5_http_client.get_order(&order.exchange_order_id).await.expect("更新订单失败");
+            let order_info = mt5_http_client.get_order(&order.exchange_order_id).await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
 
             let data_processor = self.data_processor.lock().await;
-            let order = data_processor.update_order(order_info, order).await.expect("处理订单失败");
-            Ok(order)
+            let updated_order = data_processor.update_order(order_info, order).await
+                .map_err(|e| ExchangeClientError::order_management(format!("处理订单失败: {}", e)))?;
+            Ok(updated_order)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
 
-    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn OriginalTransaction>, String> {
+    async fn get_transaction_detail(&self, params: GetTransactionDetailParams) -> Result<Box<dyn OriginalTransaction>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-        // 如果transaction_id不为None，则按照deal_id获取交易明细
+            let data_processor = self.data_processor.lock().await;
+            
             if let Some(transaction_id) = params.transaction_id {
-                let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await.expect("获取交易明细失败");
-                let data_processor = self.data_processor.lock().await;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await.expect("处理交易明细失败");
+                let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await
+                    .map_err(Mt5Error::from)
+                    .map_err(ExchangeClientError::from)?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await
+                    .map_err(|e| ExchangeClientError::internal(format!("处理交易明细失败: {}", e)))?;
                 return Ok(transaction_detail);
             } else if let Some(position_id) = params.position_id {
-                let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await.expect("获取交易明细失败");
-                let data_processor = self.data_processor.lock().await;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await.expect("处理交易明细失败");
+                let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await
+                    .map_err(Mt5Error::from)
+                    .map_err(ExchangeClientError::from)?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await
+                    .map_err(|e| ExchangeClientError::internal(format!("处理交易明细失败: {}", e)))?;
                 return Ok(transaction_detail);
             } else if let Some(order_id) = params.order_id {
-                let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await.expect("获取交易明细失败");
-                let data_processor = self.data_processor.lock().await;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await.expect("处理交易明细失败");
+                let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await
+                    .map_err(Mt5Error::from)
+                    .map_err(ExchangeClientError::from)?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await
+                    .map_err(|e| ExchangeClientError::internal(format!("处理交易明细失败: {}", e)))?;
                 return Ok(transaction_detail);
             } else {
-                return Err("交易明细id不能为None".to_string());
+                return Err(ExchangeClientError::invalid_parameters("交易明细id不能为None"));
             }
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, String> {
+    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let position_info = mt5_http_client.get_position(&params.position_id).await.expect("获取仓位失败");
+            let position_info = mt5_http_client.get_position(&params.position_id).await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
             let position_list = position_info["data"].clone();
             // 如果仓位列表为空，则说明仓位已平仓
             if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return Err("仓位已平仓".to_string());
+                return Err(ExchangeClientError::from("仓位已平仓"));
             }
             let data_processor = self.data_processor.lock().await;
-            let position = data_processor.process_position(position_list[0].clone()).await.expect("处理仓位失败");
+            let position = data_processor.process_position(position_list[0].clone()).await
+                .map_err(|e| ExchangeClientError::internal(format!("处理仓位失败: {}", e)))?;
             Ok(position)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn get_latest_position(&self, position: &Position) -> Result<Position, String> {
+    async fn get_latest_position(&self, position: &Position) -> Result<Position, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let original_position_json = mt5_http_client.get_position(&position.exchange_position_id).await.expect("更新仓位失败");
             let position_list = original_position_json["data"].clone();
             // 如果仓位列表为空，则说明仓位已平仓
             if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return Err("仓位已平仓".to_string());
+                return Err(ExchangeClientError::from("仓位已平仓"));
             }
             let data_processor = self.data_processor.lock().await;
             let position = data_processor.process_latest_position(position_list[0].clone(), position).await.expect("处理仓位失败");
             Ok(position)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, String> {
+    async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let mt5_position_number_request = Mt5GetPositionNumberParams::from(position_number_request);
@@ -976,11 +1025,11 @@ impl ExchangeClient for MetaTrader5 {
             let position_number = mt5_data_processor.process_position_number(position_number_info).await.expect("解析position_number数据失败");
             Ok(position_number)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 
-    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, String> {
+    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let account_info = mt5_http_client.get_account_info().await.expect("获取账户信息失败");
@@ -988,7 +1037,7 @@ impl ExchangeClient for MetaTrader5 {
             let account_info = data_processor.process_account_info(self.terminal_id, account_info).await.expect("处理账户信息失败");
             Ok(account_info)
         } else {
-            Err("MT5 HTTP客户端未初始化".to_string())
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
         }
     }
 

@@ -28,3 +28,6 @@ tempfile = "3.19.1"
 once_cell = "1.21.3"
 windows = { version = "0.61.1", features = ["Win32_System_Console","Win32_System_Threading"] }
 thiserror.workspace = true
+
+[dev-dependencies]
+tokio-test = "0.4.4"
