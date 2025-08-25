@@ -7,7 +7,7 @@ mod tests {
     use std::sync::Arc;
     use std::collections::HashMap;
     use tracing_subscriber;
-    use types::market::{Exchange, KlineInterval};
+    use types::market::{Exchange, KlineInterval, Symbol};
     use types::order::{CreateOrderParams, FuturesOrderSide, OrderType, GetTransactionDetailParams};
     use types::position::{GetPositionParam, GetPositionNumberParams, PositionSide};
     use types::strategy::TimeRange;
@@ -279,6 +279,20 @@ mod tests {
         assert!(matches!(error, ExchangeClientError::MetaTrader5(Mt5Error::HttpClient(_))));
     }
 
+
+    #[tokio::test]
+    async fn test_get_symbols() {
+        init_tracing();
+        let mut mt5 = create_test_metatrader5();
+        let _ = mt5.create_mt5_http_client(TEST_PORT).await;
+        let result = mt5.get_symbol_list().await;
+        let symbols = result.unwrap();
+        assert!(!symbols.is_empty());
+        assert!(symbols.contains(&Symbol::new(TEST_SYMBOL, None, None, Exchange::Metatrader5(SERVER.to_string()))));
+        
+
+    }
+
     #[tokio::test]
     async fn test_create_order_no_client() {
         let mt5 = create_test_metatrader5();
@@ -360,6 +374,8 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(result, Err(ExchangeClientError::MetaTrader5(Mt5Error::Initialization(_)))));
     }
+
+    
 
     #[tokio::test]
     async fn test_get_position_number_no_client() {

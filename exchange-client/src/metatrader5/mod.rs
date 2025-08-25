@@ -5,7 +5,6 @@ mod mt5_ws_client;
 mod url;
 mod mt5_data_processor;
 mod mt5_types;
-
 #[cfg(test)]
 mod test;
 
@@ -51,6 +50,10 @@ use crate::exchange_client_error::ExchangeClientError;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use tracing::instrument;
 use types::strategy::TimeRange;
+use types::market::Symbol;
+use types::market::MT5Server;
+
+
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
@@ -174,7 +177,7 @@ pub struct MetaTrader5 {
     pub terminal_id: i32, // 终端id
     pub login: i64,
     pub password: String,
-    pub server: String,
+    pub server: MT5Server,
     pub terminal_path: String,
     mt5_http_client: Arc<Mutex<Option<Mt5HttpClient>>>,
     websocket_state: Arc<Mutex<Option<WebSocketState>>>,
@@ -750,6 +753,25 @@ impl ExchangeClient for MetaTrader5 {
 
     fn exchange_type(&self) -> Exchange {
         Exchange::Metatrader5(self.server.clone())
+    }
+
+    async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+            let symbols = mt5_http_client.get_symbol_list().await
+                .map_err(Mt5Error::from)
+                .map_err(ExchangeClientError::from)?;
+            let data_processor = self.data_processor.lock().await;
+            let symbols = data_processor.process_symbol_list(symbols).await
+                .map_err(ExchangeClientError::from)?;
+            Ok(symbols)
+        } else {
+            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+        }
+    }
+
+    fn get_support_kline_intervals(&self) -> Vec<KlineInterval> {
+        Mt5KlineInterval::to_list().iter().map(|interval| KlineInterval::from(interval.clone())).collect()
     }
 
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, ExchangeClientError> {

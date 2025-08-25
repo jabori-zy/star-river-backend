@@ -1,5 +1,8 @@
 // 定义与与市场相关的类型
 
+pub mod symbol;
+pub use symbol::{Symbol, SymbolError};
+
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
@@ -10,6 +13,7 @@ use serde::ser::Serializer;
 use crate::cache::{CacheValue, CacheItem};
 use deepsize::DeepSizeOf;
 use utoipa::ToSchema;
+
 pub type MT5Server = String;
 
 
@@ -115,17 +119,38 @@ where
 
 
 // k线间隔
-#[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, ToSchema)]
 pub enum KlineInterval {
     #[strum(serialize = "1m")]
     #[serde(rename = "1m")]
     Minutes1,
+    #[strum(serialize = "2m")]
+    #[serde(rename = "2m")]
+    Minutes2,
+    #[strum(serialize = "3m")]
+    #[serde(rename = "3m")]
+    Minutes3,
+    #[strum(serialize = "4m")]
+    #[serde(rename = "4m")]
+    Minutes4,
     #[strum(serialize = "5m")]
     #[serde(rename = "5m")]
     Minutes5,
+    #[strum(serialize = "6m")]
+    #[serde(rename = "6m")]
+    Minutes6,
+    #[strum(serialize = "10m")]
+    #[serde(rename = "10m")]
+    Minutes10,
+    #[strum(serialize = "12m")]
+    #[serde(rename = "12m")]
+    Minutes12,
     #[strum(serialize = "15m")]
     #[serde(rename = "15m")]
     Minutes15,
+    #[strum(serialize = "20m")]
+    #[serde(rename = "20m")]
+    Minutes20,
     #[strum(serialize = "30m")]
     #[serde(rename = "30m")]
     Minutes30,
@@ -135,6 +160,9 @@ pub enum KlineInterval {
     #[strum(serialize = "2h")]
     #[serde(rename = "2h")]
     Hours2,
+    #[strum(serialize = "3h")]
+    #[serde(rename = "3h")]
+    Hours3,
     #[strum(serialize = "4h")]
     #[serde(rename = "4h")]
     Hours4,
@@ -156,30 +184,6 @@ pub enum KlineInterval {
     #[strum(serialize = "1M")]
     #[serde(rename = "1M")]
     Months1,
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display, Eq, PartialEq, Hash)]
-pub enum Symbol {
-    Spot(SpotSymbol),
-    Futures(FuturesSymbol),
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
-pub enum SpotSymbol {
-    #[strum(serialize = "btc-usdt-spot")]
-    BTCUSDT,
-    #[strum(serialize = "eth-usdt-spot")]
-    ETHUSDT,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
-pub enum FuturesSymbol {
-    #[strum(serialize = "btc-usdt")]
-    BTCUSDT,
-    #[strum(serialize = "eth-usdt")]
-    ETHUSDT,
 }
 
 pub trait MarketData: Serialize + Clone + Debug{

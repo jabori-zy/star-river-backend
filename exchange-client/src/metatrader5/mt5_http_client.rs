@@ -172,6 +172,50 @@ impl Mt5HttpClient {
         }
     }
 
+
+    #[instrument(skip(self))]
+    pub async fn get_symbol_list(&self) -> Result<serde_json::Value, Mt5HttpClientError> {
+        let url = self.get_url(Mt5HttpUrl::GetSymbolList);
+        tracing::debug!(url = %url, "Getting symbol list");
+        
+        
+        let response = self.client.get(&url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(Mt5HttpClientError::Http)?;
+        
+        if response.status().is_success() {
+            let response_data = response.json::<serde_json::Value>().await
+                .map_err(Mt5HttpClientError::Http)?;
+            tracing::debug!("response_data: {:?}", response_data);
+            if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
+                if is_success {
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
+                    tracing::debug!("symbol list data: {:?}", data);
+                    Ok(data.clone())
+                } else {
+                    let error_message = response_data.get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("unknown error")
+                    .to_string();
+                    Err(Mt5HttpClientError::get_symbol_list(error_message))
+                }
+            } else {
+                let error_message = "No success field in the response".to_string();
+                Err(Mt5HttpClientError::get_symbol_list(error_message))
+            }
+        } else {
+            let status_code = response.status().as_u16();
+            let error_text = response.text().await
+                .map_err(Mt5HttpClientError::Http)?;
+            tracing::error!(status = %status_code, error = %error_text, "Failed to get symbol list - HTTP error");
+            Err(Mt5HttpClientError::get_symbol_list(format!("status code: {}, error text: {}", status_code, error_text)))
+        }
+    }
+
+
+
     // 获取K线系列
     #[instrument(skip(self))]
     pub async fn get_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, limit: u32) -> Result<serde_json::Value, Mt5HttpClientError> {

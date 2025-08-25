@@ -52,7 +52,10 @@ use types::system::system_config::SystemConfigUpdateParams;
         crate::api::cache_api::get_cache_keys,
         crate::api::cache_api::get_cache_value,
         crate::api::cache_api::get_memory_size,
-        
+
+        // 市场相关路径
+        crate::api::market_api::get_symbol_list,
+        crate::api::market_api::get_support_kline_intervals,
         // // 其他路径
         // crate::api::strategy_api::enable_strategy_data_push,
         // crate::api::strategy_api::disable_strategy_data_push,
@@ -92,6 +95,7 @@ use types::system::system_config::SystemConfigUpdateParams;
         (name = "账户管理", description = "账户配置管理和MT5账户操作"),
         (name = "缓存管理", description = "缓存数据查询和内存管理"),
         (name = "实时数据", description = "SSE实时数据推送"),
+        (name = "市场", description = "市场数据"),
     ),
     info(
         title = "Star River API",

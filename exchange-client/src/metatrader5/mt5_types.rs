@@ -19,16 +19,32 @@ use types::order::CreateOrderParams;
 pub enum Mt5KlineInterval {
     #[strum(serialize = "M1")]
     Minutes1,
+    #[strum(serialize = "M2")]
+    Minutes2,
+    #[strum(serialize = "M3")]
+    Minutes3,
+    #[strum(serialize = "M4")]
+    Minutes4,
     #[strum(serialize = "M5")]
     Minutes5,
+    #[strum(serialize = "M6")]
+    Minutes6,
+    #[strum(serialize = "M10")]
+    Minutes10,
+    #[strum(serialize = "M12")]
+    Minutes12,
     #[strum(serialize = "M15")]
     Minutes15,
+    #[strum(serialize = "M20")]
+    Minutes20,
     #[strum(serialize = "M30")]
     Minutes30,
     #[strum(serialize = "H1")]
     Hours1,
     #[strum(serialize = "H2")]
     Hours2,
+    #[strum(serialize = "H3")]
+    Hours3,
     #[strum(serialize = "H4")]
     Hours4,
     #[strum(serialize = "H6")]
@@ -50,11 +66,19 @@ impl From<KlineInterval> for Mt5KlineInterval {
     fn from(interval: KlineInterval) -> Self {
         match interval {
             KlineInterval::Minutes1 => Mt5KlineInterval::Minutes1,
+            KlineInterval::Minutes2 => Mt5KlineInterval::Minutes2,
+            KlineInterval::Minutes3 => Mt5KlineInterval::Minutes3,
+            KlineInterval::Minutes4 => Mt5KlineInterval::Minutes4,
             KlineInterval::Minutes5 => Mt5KlineInterval::Minutes5,
+            KlineInterval::Minutes6 => Mt5KlineInterval::Minutes6,
+            KlineInterval::Minutes10 => Mt5KlineInterval::Minutes10,
+            KlineInterval::Minutes12 => Mt5KlineInterval::Minutes12,
             KlineInterval::Minutes15 => Mt5KlineInterval::Minutes15,
+            KlineInterval::Minutes20 => Mt5KlineInterval::Minutes20,
             KlineInterval::Minutes30 => Mt5KlineInterval::Minutes30,
             KlineInterval::Hours1 => Mt5KlineInterval::Hours1,
             KlineInterval::Hours2 => Mt5KlineInterval::Hours2,
+            KlineInterval::Hours3 => Mt5KlineInterval::Hours3,
             KlineInterval::Hours4 => Mt5KlineInterval::Hours4,
             KlineInterval::Hours6 => Mt5KlineInterval::Hours6,
             KlineInterval::Hours8 => Mt5KlineInterval::Hours8,
@@ -72,11 +96,19 @@ impl From<Mt5KlineInterval> for KlineInterval {
     fn from(value: Mt5KlineInterval) -> Self {
         match value {
             Mt5KlineInterval::Minutes1 => KlineInterval::Minutes1,
+            Mt5KlineInterval::Minutes2 => KlineInterval::Minutes2,
+            Mt5KlineInterval::Minutes3 => KlineInterval::Minutes3,
+            Mt5KlineInterval::Minutes4 => KlineInterval::Minutes4,
             Mt5KlineInterval::Minutes5 => KlineInterval::Minutes5,
+            Mt5KlineInterval::Minutes6 => KlineInterval::Minutes6,
+            Mt5KlineInterval::Minutes10 => KlineInterval::Minutes10,
+            Mt5KlineInterval::Minutes12 => KlineInterval::Minutes12,
             Mt5KlineInterval::Minutes15 => KlineInterval::Minutes15,
+            Mt5KlineInterval::Minutes20 => KlineInterval::Minutes20,
             Mt5KlineInterval::Minutes30 => KlineInterval::Minutes30,
             Mt5KlineInterval::Hours1 => KlineInterval::Hours1,
             Mt5KlineInterval::Hours2 => KlineInterval::Hours2,
+            Mt5KlineInterval::Hours3 => KlineInterval::Hours3,
             Mt5KlineInterval::Hours4 => KlineInterval::Hours4,
             Mt5KlineInterval::Hours6 => KlineInterval::Hours6,
             Mt5KlineInterval::Hours8 => KlineInterval::Hours8,
@@ -85,6 +117,36 @@ impl From<Mt5KlineInterval> for KlineInterval {
             Mt5KlineInterval::Weeks1 => KlineInterval::Weeks1,
             Mt5KlineInterval::Months1 => KlineInterval::Months1,
         }
+    }
+}
+
+impl Mt5KlineInterval {
+    pub const ALL: &'static [Mt5KlineInterval] = &[
+        Mt5KlineInterval::Minutes1,
+        Mt5KlineInterval::Minutes2,
+        Mt5KlineInterval::Minutes3,
+        Mt5KlineInterval::Minutes4,
+        Mt5KlineInterval::Minutes5,
+        Mt5KlineInterval::Minutes6,
+        Mt5KlineInterval::Minutes10,
+        Mt5KlineInterval::Minutes12,
+        Mt5KlineInterval::Minutes15,
+        Mt5KlineInterval::Minutes20,
+        Mt5KlineInterval::Minutes30,
+        Mt5KlineInterval::Hours1,
+        Mt5KlineInterval::Hours2,
+        Mt5KlineInterval::Hours3,
+        Mt5KlineInterval::Hours4,
+        Mt5KlineInterval::Hours6,
+        Mt5KlineInterval::Hours8,
+        Mt5KlineInterval::Hours12,
+        Mt5KlineInterval::Days1,
+        Mt5KlineInterval::Weeks1,
+        Mt5KlineInterval::Months1,
+    ];
+
+    pub fn to_list() -> &'static [Mt5KlineInterval] {
+        Self::ALL
     }
 }
 

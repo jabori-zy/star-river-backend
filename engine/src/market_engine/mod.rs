@@ -13,6 +13,8 @@ use tokio::sync::Mutex;
 use std::any::Any;
 use std::collections::HashMap;
 use event_center::{CommandReceiver, CommandPublisher, EventReceiver};
+use types::custom_type::AccountId;
+use types::market::{Symbol, KlineInterval};
 
 #[derive(Clone, Debug)]
 pub struct MarketEngine {
@@ -59,6 +61,26 @@ impl MarketEngine{
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))
         }
+    }
+
+    pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, String> {
+        let context_read = self.context.read().await;
+        let market_engine_context_guard = context_read
+            .as_any()
+            .downcast_ref::<MarketEngineContext>()
+            .unwrap();
+        let symbol_list = market_engine_context_guard.get_symbol_list(account_id).await.unwrap();
+        Ok(symbol_list)
+    }
+
+    pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Vec<KlineInterval> {
+        let context_read = self.context.read().await;
+        let market_engine_context_guard = context_read
+            .as_any()
+            .downcast_ref::<MarketEngineContext>()
+            .unwrap();
+        let support_kline_intervals = market_engine_context_guard.get_support_kline_intervals(account_id).await;
+        support_kline_intervals
     }
 }
 

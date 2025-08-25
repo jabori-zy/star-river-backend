@@ -16,6 +16,7 @@ use types::account::OriginalAccountInfo;
 use types::market::{Exchange, Kline};
 use types::strategy::TimeRange;
 use crate::exchange_client_error::ExchangeClientError;
+use types::market::Symbol;
 
 #[async_trait]
 pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
@@ -24,6 +25,10 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
     fn clone_box(&self) -> Box<dyn ExchangeClient>;
     fn exchange_type(&self) -> Exchange;
     async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError>;
+
+    // 交易对
+    async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError>;
+    fn get_support_kline_intervals(&self) -> Vec<KlineInterval>;
 
     // 市场相关
     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, ExchangeClientError>;

@@ -15,6 +15,9 @@ pub enum Mt5HttpClientError {
     
     #[error("Failed to get terminal info: {0}")]
     GetTerminalInfo(String),
+
+    #[error("Failed to get symbol list: {0}")]
+    GetSymbolList(String),
     
     #[error("Failed to get kline data for symbol '{symbol}': {message}")]
     GetKlineData { 
@@ -64,6 +67,10 @@ pub enum Mt5HttpClientError {
 }
 
 impl Mt5HttpClientError {
+    pub fn get_symbol_list(message: impl Into<String>) -> Self {
+        Self::GetSymbolList(message.into())
+    }
+
     pub fn get_kline_data(symbol: impl Into<String>, message: impl Into<String>, code: Option<MT5ErrorCode>) -> Self {
         Self::GetKlineData {
             symbol: symbol.into(),

@@ -5,6 +5,7 @@ pub mod cache_routes;
 pub mod sse_routes;
 pub mod doc;
 pub mod system_routes;
+pub mod market_routes;
 // pub mod websocket_routes;
 
 use axum::Router;
@@ -22,6 +23,8 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
         .nest("/api/v1/strategy/backtest", strategy_routes::create_backtest_strategy_routes())
         // 嵌套账户相关路由
         .nest("/api/v1/account", account_routes::create_account_routes())
+        // 嵌套市场相关路由
+        .nest("/api/v1/market", market_routes::create_market_routes())
         // 嵌套缓存相关路由
         .nest("/api/v1/cache", cache_routes::create_cache_routes())
         // 嵌套实时数据流路由

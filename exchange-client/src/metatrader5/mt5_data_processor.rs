@@ -16,6 +16,7 @@ use types::account::OriginalAccountInfo;
 use types::account::mt5_account::OriginalMt5AccountInfo;
 use chrono::{Utc, TimeZone};
 use crate::data_processor_error::DataProcessorError;
+use types::market::Symbol;
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -151,6 +152,30 @@ impl Mt5DataProcessor {
             }
         }
         Ok(())
+    }
+
+    pub async fn process_symbol_list(&self, symbols: serde_json::Value) -> Result<Vec<Symbol>, DataProcessorError> {
+        let symbols = symbols.as_array()
+            .ok_or_else(|| DataProcessorError::array_parsing(
+                "non-array",
+                "symbol list"
+            ))?;
+        let mut symbol_list = Vec::new();
+        for (_, symbol) in symbols.iter().enumerate() {
+            let symbol_name = symbol.get("name")
+                .ok_or_else(|| DataProcessorError::missing_field("name", Some("symbol".to_string())))?
+                .as_str()
+                .ok_or_else(|| DataProcessorError::invalid_field_type(
+                    "name",
+                    "string",
+                    "non-string",
+                    Some("symbol".to_string())
+                ))?;
+            let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()));
+            symbol_list.push(symbol);
+        };
+        // println!("symbol_list: {:?}", symbol_list);
+        Ok(symbol_list)
     }
 
     pub async fn process_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, raw_data: serde_json::Value) -> Result<Vec<Kline>, DataProcessorError> {
