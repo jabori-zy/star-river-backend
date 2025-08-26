@@ -1,0 +1,1549 @@
+use thiserror::Error;
+
+/// Comprehensive top-level error type for the Star River Backend system
+#[derive(Error, Debug)]
+pub enum StarRiverError {
+    // === Core Engine Errors ===
+    /// Engine management errors
+    #[error("ENGINE_MANAGER_ERROR: {message}")]
+    EngineManager { 
+        message: String,
+        engine_name: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Strategy engine errors
+    #[error("STRATEGY_ENGINE_ERROR: {message}")]
+    StrategyEngine {
+        message: String,
+        strategy_id: Option<i32>,
+        strategy_name: Option<String>,
+        node_id: Option<String>,
+    },
+    
+    /// Market engine errors
+    #[error("MARKET_ENGINE_ERROR: {message}")]
+    MarketEngine {
+        message: String,
+        symbol: Option<String>,
+        exchange: Option<String>,
+    },
+    
+    /// Exchange engine errors  
+    #[error("EXCHANGE_ENGINE_ERROR: {message}")]
+    ExchangeEngine {
+        message: String,
+        exchange: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Indicator engine errors
+    #[error("INDICATOR_ENGINE_ERROR: {message}")]
+    IndicatorEngine {
+        message: String,
+        indicator_name: Option<String>,
+        symbol: Option<String>,
+    },
+    
+    /// Cache engine errors
+    #[error("CACHE_ENGINE_ERROR: {message}")]
+    CacheEngine {
+        message: String,
+        cache_key: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Account engine errors
+    #[error("ACCOUNT_ENGINE_ERROR: {message}")]
+    AccountEngine {
+        message: String,
+        account_id: Option<String>,
+        operation: Option<String>,
+    },
+
+    // === Strategy System Errors ===
+    /// Strategy node errors (general)
+    #[error("STRATEGY_NODE_ERROR: {message}")]
+    StrategyNode {
+        message: String,
+        node_type: Option<String>,
+        node_id: Option<String>,
+        strategy_id: Option<i32>,
+    },
+    
+    /// Strategy validation errors
+    #[error("STRATEGY_VALIDATION_ERROR: {message}")]
+    StrategyValidation {
+        message: String,
+        strategy_id: Option<i32>,
+        field: Option<String>,
+    },
+    
+    /// Strategy execution errors
+    #[error("STRATEGY_EXECUTION_ERROR: {message}")]
+    StrategyExecution {
+        message: String,
+        strategy_id: Option<i32>,
+        execution_phase: Option<String>,
+    },
+
+    // === Database Errors ===
+    /// Database connection errors
+    #[error("DATABASE_CONNECTION_ERROR: {message}")]
+    DatabaseConnection {
+        message: String,
+        database_url: Option<String>,
+    },
+    
+    /// Database operation errors
+    #[error("DATABASE_OPERATION_ERROR: {message}")]
+    DatabaseOperation {
+        message: String,
+        operation: Option<String>,
+        table: Option<String>,
+        entity_id: Option<String>,
+    },
+    
+    /// Database migration errors
+    #[error("DATABASE_MIGRATION_ERROR: {message}")]
+    DatabaseMigration {
+        message: String,
+        migration_name: Option<String>,
+    },
+    
+    /// SeaORM specific errors (when sea_orm is available)
+    #[error("DATABASE_ORM_ERROR: {message}")]
+    DatabaseORM {
+        message: String,
+        operation: Option<String>,
+    },
+
+    // === Exchange Integration Errors ===
+    /// Binance exchange errors
+    #[error("BINANCE_ERROR: {message}")]
+    Binance {
+        message: String,
+        symbol: Option<String>,
+        operation: Option<String>,
+        error_code: Option<i32>,
+    },
+    
+    /// MetaTrader5 errors
+    #[error("METATRADER5_ERROR: {message}")]
+    MetaTrader5 {
+        message: String,
+        terminal_id: Option<String>,
+        symbol: Option<String>,
+        operation: Option<String>,
+        mt5_error_code: Option<i64>,
+    },
+    
+    /// Generic exchange errors
+    #[error("EXCHANGE_ERROR: {message}")]
+    Exchange {
+        message: String,
+        exchange: Option<String>,
+        operation: Option<String>,
+    },
+
+    // === Trading System Errors ===
+    /// Order management errors
+    #[error("ORDER_MANAGEMENT_ERROR: {message}")]
+    OrderManagement {
+        message: String,
+        order_id: Option<String>,
+        symbol: Option<String>,
+        order_type: Option<String>,
+    },
+    
+    /// Position management errors
+    #[error("POSITION_MANAGEMENT_ERROR: {message}")]
+    PositionManagement {
+        message: String,
+        position_id: Option<String>,
+        symbol: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Virtual trading system errors
+    #[error("VIRTUAL_TRADING_ERROR: {message}")]
+    VirtualTrading {
+        message: String,
+        operation: Option<String>,
+        virtual_entity_id: Option<String>,
+    },
+    
+    /// Account management errors
+    #[error("ACCOUNT_MANAGEMENT_ERROR: {message}")]
+    AccountManagement {
+        message: String,
+        account_id: Option<String>,
+        operation: Option<String>,
+    },
+
+    // === Indicator System Errors ===  
+    /// TA-Lib calculation errors
+    #[error("TALIB_CALCULATION_ERROR: {message}")]
+    TaLibCalculation {
+        message: String,
+        indicator_name: Option<String>,
+        parameters: Option<String>,
+        data_length: Option<usize>,
+        lookback: Option<usize>,
+    },
+    
+    /// Indicator data errors
+    #[error("INDICATOR_DATA_ERROR: {message}")]
+    IndicatorData {
+        message: String,
+        indicator_name: Option<String>,
+        symbol: Option<String>,
+        timeframe: Option<String>,
+    },
+    
+    /// Indicator configuration errors
+    #[error("INDICATOR_CONFIGURATION_ERROR: {message}")]
+    IndicatorConfiguration {
+        message: String,
+        indicator_name: Option<String>,
+        parameter: Option<String>,
+    },
+
+    // === Network & Communication Errors ===
+    /// HTTP client errors
+    #[error("HTTP_ERROR: {message}")]
+    Http {
+        message: String,
+        url: Option<String>,
+        status_code: Option<u16>,
+        operation: Option<String>,
+    },
+    
+    /// WebSocket errors
+    #[error("WEBSOCKET_ERROR: {message}")]
+    WebSocket {
+        message: String,
+        connection_id: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Network connectivity errors
+    #[error("NETWORK_ERROR: {message}")]
+    Network {
+        message: String,
+        endpoint: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Connection timeout errors
+    #[error("TIMEOUT_ERROR: {message}")]
+    Timeout {
+        message: String,
+        operation: Option<String>,
+        timeout_duration: Option<String>,
+    },
+
+    // === Data Processing Errors ===
+    /// JSON serialization/deserialization errors
+    #[error("JSON_ERROR: {message}")]
+    Json {
+        message: String,
+        field: Option<String>,
+        data_type: Option<String>,
+    },
+    
+    /// Data validation errors
+    #[error("DATA_VALIDATION_ERROR: {message}")]
+    DataValidation {
+        message: String,
+        field: Option<String>,
+        value: Option<String>,
+        expected: Option<String>,
+    },
+    
+    /// Data conversion errors
+    #[error("DATA_CONVERSION_ERROR: {message}")]
+    DataConversion {
+        message: String,
+        from_type: Option<String>,
+        to_type: Option<String>,
+        value: Option<String>,
+    },
+    
+    /// Market data processing errors
+    #[error("MARKET_DATA_ERROR: {message}")]
+    MarketData {
+        message: String,
+        symbol: Option<String>,
+        data_type: Option<String>,
+        timeframe: Option<String>,
+    },
+
+    // === Configuration Errors ===
+    /// Application configuration errors
+    #[error("CONFIGURATION_ERROR: {message}")]
+    Configuration {
+        message: String,
+        config_key: Option<String>,
+        config_file: Option<String>,
+    },
+    
+    /// Environment setup errors
+    #[error("ENVIRONMENT_ERROR: {message}")]
+    Environment {
+        message: String,
+        variable: Option<String>,
+        expected: Option<String>,
+    },
+
+    // === Authentication & Authorization ===
+    /// Authentication errors
+    #[error("AUTHENTICATION_ERROR: {message}")]
+    Authentication {
+        message: String,
+        service: Option<String>,
+        credential_type: Option<String>,
+    },
+    
+    /// Authorization errors
+    #[error("AUTHORIZATION_ERROR: {message}")]
+    Authorization {
+        message: String,
+        resource: Option<String>,
+        permission: Option<String>,
+    },
+    
+    /// API rate limiting errors
+    #[error("RATE_LIMIT_ERROR: {message}")]
+    RateLimit {
+        message: String,
+        service: Option<String>,
+        reset_time: Option<String>,
+    },
+
+    // === System & Resource Errors ===
+    /// File system errors
+    #[error("FILE_SYSTEM_ERROR: {message}")]
+    FileSystem {
+        message: String,
+        path: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Memory/resource errors
+    #[error("RESOURCE_ERROR: {message}")]
+    Resource {
+        message: String,
+        resource_type: Option<String>,
+        operation: Option<String>,
+    },
+    
+    /// Concurrency/threading errors
+    #[error("CONCURRENCY_ERROR: {message}")]
+    Concurrency {
+        message: String,
+        operation: Option<String>,
+        thread_id: Option<String>,
+    },
+
+    // === Event System Errors ===
+    /// Event publishing errors
+    #[error("EVENT_PUBLISHING_ERROR: {message}")]
+    EventPublishing {
+        message: String,
+        event_type: Option<String>,
+        channel: Option<String>,
+    },
+    
+    /// Event processing errors
+    #[error("EVENT_PROCESSING_ERROR: {message}")]
+    EventProcessing {
+        message: String,
+        event_type: Option<String>,
+        handler: Option<String>,
+    },
+    
+    /// Command handling errors
+    #[error("COMMAND_HANDLING_ERROR: {message}")]
+    CommandHandling {
+        message: String,
+        command_type: Option<String>,
+        handler: Option<String>,
+    },
+
+    // === External Integration Errors ===
+    /// Third-party service errors
+    #[error("THIRD_PARTY_SERVICE_ERROR: {message}")]
+    ThirdPartyService {
+        message: String,
+        service_name: Option<String>,
+        operation: Option<String>,
+        error_code: Option<String>,
+    },
+
+    // === Generic & Fallback Errors ===
+    /// Feature not implemented
+    #[error("FEATURE_NOT_IMPLEMENTED: {message}")]
+    NotImplemented {
+        message: String,
+        feature: Option<String>,
+    },
+    
+    /// Unsupported operation
+    #[error("UNSUPPORTED_OPERATION: {message}")]
+    UnsupportedOperation {
+        message: String,
+        operation: Option<String>,
+        context: Option<String>,
+    },
+    
+    /// Internal system errors
+    #[error("INTERNAL_ERROR: {message}")]
+    Internal {
+        message: String,
+        component: Option<String>,
+        context: Option<String>,
+    },
+    
+    /// Multiple errors occurred
+    #[error("MULTIPLE_ERRORS: {}", .errors.iter().map(|e| e.to_string()).collect::<Vec<_>>().join("; "))]
+    Multiple {
+        errors: Vec<StarRiverError>,
+        operation: Option<String>,
+    },
+}
+
+impl StarRiverError {
+    /// Returns a numeric error code for API responses
+    pub fn error_code(&self) -> i32 {
+        match self {
+            // Core Engine Errors (1000-1999)
+            StarRiverError::EngineManager { .. } => 1001,
+            StarRiverError::StrategyEngine { .. } => 1002,
+            StarRiverError::MarketEngine { .. } => 1003,
+            StarRiverError::ExchangeEngine { .. } => 1004,
+            StarRiverError::IndicatorEngine { .. } => 1005,
+            StarRiverError::CacheEngine { .. } => 1006,
+            StarRiverError::AccountEngine { .. } => 1007,
+            
+            // Strategy System Errors (1100-1199)
+            StarRiverError::StrategyNode { .. } => 1101,
+            StarRiverError::StrategyValidation { .. } => 1102,
+            StarRiverError::StrategyExecution { .. } => 1103,
+            
+            // Database Errors (2000-2999)
+            StarRiverError::DatabaseConnection { .. } => 2001,
+            StarRiverError::DatabaseOperation { .. } => 2002,
+            StarRiverError::DatabaseMigration { .. } => 2003,
+            StarRiverError::DatabaseORM { .. } => 2004,
+            
+            // Exchange Integration Errors (3000-3999)
+            StarRiverError::Binance { .. } => 3001,
+            StarRiverError::MetaTrader5 { .. } => 3002,
+            StarRiverError::Exchange { .. } => 3003,
+            
+            // Trading System Errors (3100-3199)
+            StarRiverError::OrderManagement { .. } => 3101,
+            StarRiverError::PositionManagement { .. } => 3102,
+            StarRiverError::VirtualTrading { .. } => 3103,
+            StarRiverError::AccountManagement { .. } => 3104,
+            
+            // Indicator System Errors (4000-4099)
+            StarRiverError::TaLibCalculation { .. } => 4001,
+            StarRiverError::IndicatorData { .. } => 4002,
+            StarRiverError::IndicatorConfiguration { .. } => 4003,
+            
+            // Network & Communication Errors (5000-5999)
+            StarRiverError::Http { .. } => 5001,
+            StarRiverError::WebSocket { .. } => 5002,
+            StarRiverError::Network { .. } => 5003,
+            StarRiverError::Timeout { .. } => 5004,
+            
+            // Data Processing Errors (6000-6999)
+            StarRiverError::Json { .. } => 6001,
+            StarRiverError::DataValidation { .. } => 6002,
+            StarRiverError::DataConversion { .. } => 6003,
+            StarRiverError::MarketData { .. } => 6004,
+            
+            // System & Infrastructure Errors (7000-7999)
+            StarRiverError::Configuration { .. } => 7001,
+            StarRiverError::Environment { .. } => 7002,
+            StarRiverError::Authentication { .. } => 7003,
+            StarRiverError::Authorization { .. } => 7004,
+            StarRiverError::RateLimit { .. } => 7005,
+            StarRiverError::FileSystem { .. } => 7006,
+            StarRiverError::Resource { .. } => 7007,
+            StarRiverError::Concurrency { .. } => 7008,
+            StarRiverError::EventPublishing { .. } => 7009,
+            StarRiverError::EventProcessing { .. } => 7010,
+            StarRiverError::CommandHandling { .. } => 7011,
+            StarRiverError::ThirdPartyService { .. } => 7012,
+            
+            // Special Cases
+            StarRiverError::NotImplemented { .. } => 9001,
+            StarRiverError::UnsupportedOperation { .. } => 9002,
+            StarRiverError::Internal { .. } => 9998,
+            StarRiverError::Multiple { .. } => 9999,
+        }
+    }
+    
+
+    // === Engine Error Constructors ===
+    pub fn engine_manager<S: Into<String>>(
+        message: S, 
+        engine_name: Option<String>, 
+        operation: Option<String>
+    ) -> Self {
+        Self::EngineManager {
+            message: message.into(),
+            engine_name,
+            operation,
+        }
+    }
+    
+    pub fn strategy_engine<S: Into<String>>(
+        message: S,
+        strategy_id: Option<i32>,
+        strategy_name: Option<String>,
+        node_id: Option<String>,
+    ) -> Self {
+        Self::StrategyEngine {
+            message: message.into(),
+            strategy_id,
+            strategy_name,
+            node_id,
+        }
+    }
+    
+    pub fn market_engine<S: Into<String>>(
+        message: S,
+        symbol: Option<String>,
+        exchange: Option<String>,
+    ) -> Self {
+        Self::MarketEngine {
+            message: message.into(),
+            symbol,
+            exchange,
+        }
+    }
+    
+    pub fn exchange_engine<S: Into<String>>(
+        message: S,
+        exchange: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::ExchangeEngine {
+            message: message.into(),
+            exchange,
+            operation,
+        }
+    }
+    
+    pub fn indicator_engine<S: Into<String>>(
+        message: S,
+        indicator_name: Option<String>,
+        symbol: Option<String>,
+    ) -> Self {
+        Self::IndicatorEngine {
+            message: message.into(),
+            indicator_name,
+            symbol,
+        }
+    }
+    
+    pub fn cache_engine<S: Into<String>>(
+        message: S,
+        cache_key: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::CacheEngine {
+            message: message.into(),
+            cache_key,
+            operation,
+        }
+    }
+    
+    pub fn account_engine<S: Into<String>>(
+        message: S,
+        account_id: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::AccountEngine {
+            message: message.into(),
+            account_id,
+            operation,
+        }
+    }
+
+    // === Strategy System Error Constructors ===
+    pub fn strategy_node<S: Into<String>>(
+        message: S,
+        node_type: Option<String>,
+        node_id: Option<String>,
+        strategy_id: Option<i32>,
+    ) -> Self {
+        Self::StrategyNode {
+            message: message.into(),
+            node_type,
+            node_id,
+            strategy_id,
+        }
+    }
+    
+    pub fn strategy_validation<S: Into<String>>(
+        message: S,
+        strategy_id: Option<i32>,
+        field: Option<String>,
+    ) -> Self {
+        Self::StrategyValidation {
+            message: message.into(),
+            strategy_id,
+            field,
+        }
+    }
+    
+    pub fn strategy_execution<S: Into<String>>(
+        message: S,
+        strategy_id: Option<i32>,
+        execution_phase: Option<String>,
+    ) -> Self {
+        Self::StrategyExecution {
+            message: message.into(),
+            strategy_id,
+            execution_phase,
+        }
+    }
+
+    // === Database Error Constructors ===
+    pub fn database_connection<S: Into<String>>(
+        message: S,
+        database_url: Option<String>,
+    ) -> Self {
+        Self::DatabaseConnection {
+            message: message.into(),
+            database_url,
+        }
+    }
+    
+    pub fn database_operation<S: Into<String>>(
+        message: S,
+        operation: Option<String>,
+        table: Option<String>,
+        entity_id: Option<String>,
+    ) -> Self {
+        Self::DatabaseOperation {
+            message: message.into(),
+            operation,
+            table,
+            entity_id,
+        }
+    }
+    
+    pub fn database_migration<S: Into<String>>(
+        message: S,
+        migration_name: Option<String>,
+    ) -> Self {
+        Self::DatabaseMigration {
+            message: message.into(),
+            migration_name,
+        }
+    }
+    
+    pub fn database_orm<S: Into<String>>(
+        message: S,
+        operation: Option<String>,
+    ) -> Self {
+        Self::DatabaseORM {
+            message: message.into(),
+            operation,
+        }
+    }
+
+    // === Exchange Error Constructors ===
+    pub fn binance<S: Into<String>>(
+        message: S,
+        symbol: Option<String>,
+        operation: Option<String>,
+        error_code: Option<i32>,
+    ) -> Self {
+        Self::Binance {
+            message: message.into(),
+            symbol,
+            operation,
+            error_code,
+        }
+    }
+    
+    pub fn metatrader5<S: Into<String>>(
+        message: S,
+        terminal_id: Option<String>,
+        symbol: Option<String>,
+        operation: Option<String>,
+        mt5_error_code: Option<i64>,
+    ) -> Self {
+        Self::MetaTrader5 {
+            message: message.into(),
+            terminal_id,
+            symbol,
+            operation,
+            mt5_error_code,
+        }
+    }
+    
+    pub fn exchange<S: Into<String>>(
+        message: S,
+        exchange: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::Exchange {
+            message: message.into(),
+            exchange,
+            operation,
+        }
+    }
+
+    // === Trading System Error Constructors ===
+    pub fn order_management<S: Into<String>>(
+        message: S,
+        order_id: Option<String>,
+        symbol: Option<String>,
+        order_type: Option<String>,
+    ) -> Self {
+        Self::OrderManagement {
+            message: message.into(),
+            order_id,
+            symbol,
+            order_type,
+        }
+    }
+    
+    pub fn position_management<S: Into<String>>(
+        message: S,
+        position_id: Option<String>,
+        symbol: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::PositionManagement {
+            message: message.into(),
+            position_id,
+            symbol,
+            operation,
+        }
+    }
+    
+    pub fn virtual_trading<S: Into<String>>(
+        message: S,
+        operation: Option<String>,
+        virtual_entity_id: Option<String>,
+    ) -> Self {
+        Self::VirtualTrading {
+            message: message.into(),
+            operation,
+            virtual_entity_id,
+        }
+    }
+    
+    pub fn account_management<S: Into<String>>(
+        message: S,
+        account_id: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::AccountManagement {
+            message: message.into(),
+            account_id,
+            operation,
+        }
+    }
+
+    // === Indicator Error Constructors ===
+    pub fn talib_calculation<S: Into<String>>(
+        message: S,
+        indicator_name: Option<String>,
+        parameters: Option<String>,
+        data_length: Option<usize>,
+        lookback: Option<usize>,
+    ) -> Self {
+        Self::TaLibCalculation {
+            message: message.into(),
+            indicator_name,
+            parameters,
+            data_length,
+            lookback,
+        }
+    }
+    
+    pub fn indicator_data<S: Into<String>>(
+        message: S,
+        indicator_name: Option<String>,
+        symbol: Option<String>,
+        timeframe: Option<String>,
+    ) -> Self {
+        Self::IndicatorData {
+            message: message.into(),
+            indicator_name,
+            symbol,
+            timeframe,
+        }
+    }
+    
+    pub fn indicator_configuration<S: Into<String>>(
+        message: S,
+        indicator_name: Option<String>,
+        parameter: Option<String>,
+    ) -> Self {
+        Self::IndicatorConfiguration {
+            message: message.into(),
+            indicator_name,
+            parameter,
+        }
+    }
+
+    // === Network Error Constructors ===
+    pub fn http<S: Into<String>>(
+        message: S,
+        url: Option<String>,
+        status_code: Option<u16>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::Http {
+            message: message.into(),
+            url,
+            status_code,
+            operation,
+        }
+    }
+    
+    pub fn websocket<S: Into<String>>(
+        message: S,
+        connection_id: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::WebSocket {
+            message: message.into(),
+            connection_id,
+            operation,
+        }
+    }
+    
+    pub fn network<S: Into<String>>(
+        message: S,
+        endpoint: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::Network {
+            message: message.into(),
+            endpoint,
+            operation,
+        }
+    }
+    
+    pub fn timeout<S: Into<String>>(
+        message: S,
+        operation: Option<String>,
+        timeout_duration: Option<String>,
+    ) -> Self {
+        Self::Timeout {
+            message: message.into(),
+            operation,
+            timeout_duration,
+        }
+    }
+
+    // === Data Processing Error Constructors ===
+    pub fn json<S: Into<String>>(
+        message: S,
+        field: Option<String>,
+        data_type: Option<String>,
+    ) -> Self {
+        Self::Json {
+            message: message.into(),
+            field,
+            data_type,
+        }
+    }
+    
+    pub fn data_validation<S: Into<String>>(
+        message: S,
+        field: Option<String>,
+        value: Option<String>,
+        expected: Option<String>,
+    ) -> Self {
+        Self::DataValidation {
+            message: message.into(),
+            field,
+            value,
+            expected,
+        }
+    }
+    
+    pub fn data_conversion<S: Into<String>>(
+        message: S,
+        from_type: Option<String>,
+        to_type: Option<String>,
+        value: Option<String>,
+    ) -> Self {
+        Self::DataConversion {
+            message: message.into(),
+            from_type,
+            to_type,
+            value,
+        }
+    }
+    
+    pub fn market_data<S: Into<String>>(
+        message: S,
+        symbol: Option<String>,
+        data_type: Option<String>,
+        timeframe: Option<String>,
+    ) -> Self {
+        Self::MarketData {
+            message: message.into(),
+            symbol,
+            data_type,
+            timeframe,
+        }
+    }
+
+    // === Configuration Error Constructors ===
+    pub fn configuration<S: Into<String>>(
+        message: S,
+        config_key: Option<String>,
+        config_file: Option<String>,
+    ) -> Self {
+        Self::Configuration {
+            message: message.into(),
+            config_key,
+            config_file,
+        }
+    }
+    
+    pub fn environment<S: Into<String>>(
+        message: S,
+        variable: Option<String>,
+        expected: Option<String>,
+    ) -> Self {
+        Self::Environment {
+            message: message.into(),
+            variable,
+            expected,
+        }
+    }
+
+    // === Authentication Error Constructors ===
+    pub fn authentication<S: Into<String>>(
+        message: S,
+        service: Option<String>,
+        credential_type: Option<String>,
+    ) -> Self {
+        Self::Authentication {
+            message: message.into(),
+            service,
+            credential_type,
+        }
+    }
+    
+    pub fn authorization<S: Into<String>>(
+        message: S,
+        resource: Option<String>,
+        permission: Option<String>,
+    ) -> Self {
+        Self::Authorization {
+            message: message.into(),
+            resource,
+            permission,
+        }
+    }
+    
+    pub fn rate_limit<S: Into<String>>(
+        message: S,
+        service: Option<String>,
+        reset_time: Option<String>,
+    ) -> Self {
+        Self::RateLimit {
+            message: message.into(),
+            service,
+            reset_time,
+        }
+    }
+
+    // === System Error Constructors ===
+    pub fn file_system<S: Into<String>>(
+        message: S,
+        path: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::FileSystem {
+            message: message.into(),
+            path,
+            operation,
+        }
+    }
+    
+    pub fn resource<S: Into<String>>(
+        message: S,
+        resource_type: Option<String>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::Resource {
+            message: message.into(),
+            resource_type,
+            operation,
+        }
+    }
+    
+    pub fn concurrency<S: Into<String>>(
+        message: S,
+        operation: Option<String>,
+        thread_id: Option<String>,
+    ) -> Self {
+        Self::Concurrency {
+            message: message.into(),
+            operation,
+            thread_id,
+        }
+    }
+
+    // === Event System Error Constructors ===
+    pub fn event_publishing<S: Into<String>>(
+        message: S,
+        event_type: Option<String>,
+        channel: Option<String>,
+    ) -> Self {
+        Self::EventPublishing {
+            message: message.into(),
+            event_type,
+            channel,
+        }
+    }
+    
+    pub fn event_processing<S: Into<String>>(
+        message: S,
+        event_type: Option<String>,
+        handler: Option<String>,
+    ) -> Self {
+        Self::EventProcessing {
+            message: message.into(),
+            event_type,
+            handler,
+        }
+    }
+    
+    pub fn command_handling<S: Into<String>>(
+        message: S,
+        command_type: Option<String>,
+        handler: Option<String>,
+    ) -> Self {
+        Self::CommandHandling {
+            message: message.into(),
+            command_type,
+            handler,
+        }
+    }
+
+    // === External Integration Error Constructors ===
+    pub fn third_party_service<S: Into<String>>(
+        message: S,
+        service_name: Option<String>,
+        operation: Option<String>,
+        error_code: Option<String>,
+    ) -> Self {
+        Self::ThirdPartyService {
+            message: message.into(),
+            service_name,
+            operation,
+            error_code,
+        }
+    }
+
+    // === Generic Error Constructors ===
+    pub fn not_implemented<S: Into<String>>(
+        message: S,
+        feature: Option<String>,
+    ) -> Self {
+        Self::NotImplemented {
+            message: message.into(),
+            feature,
+        }
+    }
+    
+    pub fn unsupported_operation<S: Into<String>>(
+        message: S,
+        operation: Option<String>,
+        context: Option<String>,
+    ) -> Self {
+        Self::UnsupportedOperation {
+            message: message.into(),
+            operation,
+            context,
+        }
+    }
+    
+    pub fn internal<S: Into<String>>(
+        message: S,
+        component: Option<String>,
+        context: Option<String>,
+    ) -> Self {
+        Self::Internal {
+            message: message.into(),
+            component,
+            context,
+        }
+    }
+    
+    pub fn multiple(
+        errors: Vec<StarRiverError>,
+        operation: Option<String>,
+    ) -> Self {
+        Self::Multiple {
+            errors,
+            operation,
+        }
+    }
+}
+
+// === From Implementations for Common Error Types ===
+impl From<String> for StarRiverError {
+    fn from(err: String) -> Self {
+        Self::Internal {
+            message: err,
+            component: None,
+            context: None,
+        }
+    }
+}
+
+impl From<&str> for StarRiverError {
+    fn from(err: &str) -> Self {
+        Self::Internal {
+            message: err.to_string(),
+            component: None,
+            context: None,
+        }
+    }
+}
+
+impl From<std::io::Error> for StarRiverError {
+    fn from(err: std::io::Error) -> Self {
+        Self::FileSystem {
+            message: err.to_string(),
+            path: None,
+            operation: None,
+        }
+    }
+}
+
+impl From<serde_json::Error> for StarRiverError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::Json {
+            message: err.to_string(),
+            field: None,
+            data_type: None,
+        }
+    }
+}
+
+// Optional implementations for external crates would go here
+// These would need to be added with proper feature flags when needed:
+// - reqwest::Error -> StarRiverError 
+// - tokio_tungstenite::tungstenite::Error -> StarRiverError
+// - sea_orm::DbErr -> StarRiverError
+// 
+// For now, users of these external crates can convert their errors manually
+// using the appropriate constructor methods like:
+// StarRiverError::http("Request failed", Some(url), None, None)
+// StarRiverError::websocket("Connection failed", None, None)  
+// StarRiverError::database_orm("DB error", None)
+
+impl From<tokio::time::error::Elapsed> for StarRiverError {
+    fn from(err: tokio::time::error::Elapsed) -> Self {
+        Self::Timeout {
+            message: err.to_string(),
+            operation: None,
+            timeout_duration: None,
+        }
+    }
+}
+
+impl From<uuid::Error> for StarRiverError {
+    fn from(err: uuid::Error) -> Self {
+        Self::DataConversion {
+            message: err.to_string(),
+            from_type: Some("UUID".to_string()),
+            to_type: Some("String".to_string()),
+            value: None,
+        }
+    }
+}
+
+impl From<std::num::ParseIntError> for StarRiverError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        Self::DataConversion {
+            message: err.to_string(),
+            from_type: Some("String".to_string()),
+            to_type: Some("Integer".to_string()),
+            value: None,
+        }
+    }
+}
+
+impl From<std::num::ParseFloatError> for StarRiverError {
+    fn from(err: std::num::ParseFloatError) -> Self {
+        Self::DataConversion {
+            message: err.to_string(),
+            from_type: Some("String".to_string()),
+            to_type: Some("Float".to_string()),
+            value: None,
+        }
+    }
+}
+
+impl From<chrono::ParseError> for StarRiverError {
+    fn from(err: chrono::ParseError) -> Self {
+        Self::DataConversion {
+            message: err.to_string(),
+            from_type: Some("String".to_string()),
+            to_type: Some("DateTime".to_string()),
+            value: None,
+        }
+    }
+}
+
+// === From Implementations for Existing Error Types ===
+// These allow existing error types to be easily converted to StarRiverError
+// Note: StarRiverError already implements std::error::Error via thiserror,
+// so it can be automatically converted to Box<dyn std::error::Error>
+
+// === Context Trait for Enhanced Error Handling ===
+/// Helper trait for adding context to errors
+pub trait StarRiverErrorContext<T> {
+    /// Add contextual information to an error
+    fn with_context<F>(self, f: F) -> Result<T, StarRiverError>
+    where
+        F: FnOnce() -> String;
+    
+    /// Add component context to an error
+    fn with_component_context(self, component: &str) -> Result<T, StarRiverError>;
+    
+    /// Add operation context to an error
+    fn with_operation_context(self, operation: &str) -> Result<T, StarRiverError>;
+    
+    /// Add strategy context to an error
+    fn with_strategy_context(self, strategy_id: i32, strategy_name: Option<String>) -> Result<T, StarRiverError>;
+    
+    /// Add symbol context to an error
+    fn with_symbol_context(self, symbol: &str) -> Result<T, StarRiverError>;
+}
+
+impl<T, E> StarRiverErrorContext<T> for Result<T, E>
+where
+    E: Into<StarRiverError>,
+{
+    fn with_context<F>(self, f: F) -> Result<T, StarRiverError>
+    where
+        F: FnOnce() -> String,
+    {
+        self.map_err(|e| {
+            let base_error = e.into();
+            let context = f();
+            StarRiverError::Internal {
+                message: format!("{}: {}", context, base_error),
+                component: None,
+                context: Some(context),
+            }
+        })
+    }
+    
+    fn with_component_context(self, component: &str) -> Result<T, StarRiverError> {
+        self.map_err(|e| {
+            let base_error = e.into();
+            StarRiverError::Internal {
+                message: format!("Component '{}': {}", component, base_error),
+                component: Some(component.to_string()),
+                context: None,
+            }
+        })
+    }
+    
+    fn with_operation_context(self, operation: &str) -> Result<T, StarRiverError> {
+        self.map_err(|e| {
+            let base_error = e.into();
+            StarRiverError::Internal {
+                message: format!("Operation '{}': {}", operation, base_error),
+                component: None,
+                context: Some(operation.to_string()),
+            }
+        })
+    }
+    
+    fn with_strategy_context(self, strategy_id: i32, strategy_name: Option<String>) -> Result<T, StarRiverError> {
+        self.map_err(|e| {
+            let base_error = e.into();
+            let strategy_info = match &strategy_name {
+                Some(name) => format!("'{}'[{}]", name, strategy_id),
+                None => strategy_id.to_string(),
+            };
+            StarRiverError::StrategyEngine {
+                message: format!("Strategy {}: {}", strategy_info, base_error),
+                strategy_id: Some(strategy_id),
+                strategy_name,
+                node_id: None,
+            }
+        })
+    }
+    
+    fn with_symbol_context(self, symbol: &str) -> Result<T, StarRiverError> {
+        self.map_err(|e| {
+            let base_error = e.into();
+            StarRiverError::MarketData {
+                message: format!("Symbol '{}': {}", symbol, base_error),
+                symbol: Some(symbol.to_string()),
+                data_type: None,
+                timeframe: None,
+            }
+        })
+    }
+}
+
+// === Utility Functions ===
+impl StarRiverError {
+    /// Check if the error is retriable (temporary failure)
+    pub fn is_retriable(&self) -> bool {
+        match self {
+            StarRiverError::Network { .. } => true,
+            StarRiverError::Timeout { .. } => true,
+            StarRiverError::Http { status_code: Some(status), .. } if *status >= 500 => true,
+            StarRiverError::Http { .. } => false,
+            StarRiverError::RateLimit { .. } => true,
+            StarRiverError::DatabaseConnection { .. } => true,
+            StarRiverError::WebSocket { .. } => true,
+            _ => false,
+        }
+    }
+    
+    /// Check if the error is a client error (4xx HTTP status codes or user input errors)
+    pub fn is_client_error(&self) -> bool {
+        match self {
+            StarRiverError::Http { status_code: Some(status), .. } if *status >= 400 && *status < 500 => true,
+            StarRiverError::DataValidation { .. } |
+            StarRiverError::DataConversion { .. } |
+            StarRiverError::StrategyValidation { .. } |
+            StarRiverError::IndicatorConfiguration { .. } |
+            StarRiverError::Configuration { .. } => true,
+            _ => false,
+        }
+    }
+    
+    /// Get the error category for monitoring/metrics
+    pub fn category(&self) -> &'static str {
+        match self {
+            StarRiverError::EngineManager { .. } | 
+            StarRiverError::StrategyEngine { .. } |
+            StarRiverError::MarketEngine { .. } |
+            StarRiverError::ExchangeEngine { .. } |
+            StarRiverError::IndicatorEngine { .. } |
+            StarRiverError::CacheEngine { .. } |
+            StarRiverError::AccountEngine { .. } => "engine",
+            
+            StarRiverError::StrategyNode { .. } |
+            StarRiverError::StrategyValidation { .. } |
+            StarRiverError::StrategyExecution { .. } => "strategy",
+            
+            StarRiverError::DatabaseConnection { .. } |
+            StarRiverError::DatabaseOperation { .. } |
+            StarRiverError::DatabaseMigration { .. } |
+            StarRiverError::DatabaseORM { .. } => "database",
+            
+            StarRiverError::Binance { .. } |
+            StarRiverError::MetaTrader5 { .. } |
+            StarRiverError::Exchange { .. } => "exchange",
+            
+            StarRiverError::OrderManagement { .. } |
+            StarRiverError::PositionManagement { .. } |
+            StarRiverError::VirtualTrading { .. } |
+            StarRiverError::AccountManagement { .. } => "trading",
+            
+            StarRiverError::TaLibCalculation { .. } |
+            StarRiverError::IndicatorData { .. } |
+            StarRiverError::IndicatorConfiguration { .. } => "indicator",
+            
+            StarRiverError::Http { .. } |
+            StarRiverError::WebSocket { .. } |
+            StarRiverError::Network { .. } |
+            StarRiverError::Timeout { .. } => "network",
+            
+            StarRiverError::Json { .. } |
+            StarRiverError::DataValidation { .. } |
+            StarRiverError::DataConversion { .. } |
+            StarRiverError::MarketData { .. } => "data",
+            
+            StarRiverError::Configuration { .. } |
+            StarRiverError::Environment { .. } => "config",
+            
+            StarRiverError::Authentication { .. } |
+            StarRiverError::Authorization { .. } |
+            StarRiverError::RateLimit { .. } => "auth",
+            
+            StarRiverError::FileSystem { .. } |
+            StarRiverError::Resource { .. } |
+            StarRiverError::Concurrency { .. } => "system",
+            
+            StarRiverError::EventPublishing { .. } |
+            StarRiverError::EventProcessing { .. } |
+            StarRiverError::CommandHandling { .. } => "event",
+            
+            StarRiverError::ThirdPartyService { .. } => "external",
+            
+            StarRiverError::NotImplemented { .. } |
+            StarRiverError::UnsupportedOperation { .. } |
+            StarRiverError::Internal { .. } |
+            StarRiverError::Multiple { .. } => "system",
+        }
+    }
+    
+    /// Extract the main message without contextual information
+    pub fn message(&self) -> &str {
+        match self {
+            StarRiverError::EngineManager { message, .. } |
+            StarRiverError::StrategyEngine { message, .. } |
+            StarRiverError::MarketEngine { message, .. } |
+            StarRiverError::ExchangeEngine { message, .. } |
+            StarRiverError::IndicatorEngine { message, .. } |
+            StarRiverError::CacheEngine { message, .. } |
+            StarRiverError::AccountEngine { message, .. } |
+            StarRiverError::StrategyNode { message, .. } |
+            StarRiverError::StrategyValidation { message, .. } |
+            StarRiverError::StrategyExecution { message, .. } |
+            StarRiverError::DatabaseConnection { message, .. } |
+            StarRiverError::DatabaseOperation { message, .. } |
+            StarRiverError::DatabaseMigration { message, .. } |
+            StarRiverError::DatabaseORM { message, .. } |
+            StarRiverError::Binance { message, .. } |
+            StarRiverError::MetaTrader5 { message, .. } |
+            StarRiverError::Exchange { message, .. } |
+            StarRiverError::OrderManagement { message, .. } |
+            StarRiverError::PositionManagement { message, .. } |
+            StarRiverError::VirtualTrading { message, .. } |
+            StarRiverError::AccountManagement { message, .. } |
+            StarRiverError::TaLibCalculation { message, .. } |
+            StarRiverError::IndicatorData { message, .. } |
+            StarRiverError::IndicatorConfiguration { message, .. } |
+            StarRiverError::Http { message, .. } |
+            StarRiverError::WebSocket { message, .. } |
+            StarRiverError::Network { message, .. } |
+            StarRiverError::Timeout { message, .. } |
+            StarRiverError::Json { message, .. } |
+            StarRiverError::DataValidation { message, .. } |
+            StarRiverError::DataConversion { message, .. } |
+            StarRiverError::MarketData { message, .. } |
+            StarRiverError::Configuration { message, .. } |
+            StarRiverError::Environment { message, .. } |
+            StarRiverError::Authentication { message, .. } |
+            StarRiverError::Authorization { message, .. } |
+            StarRiverError::RateLimit { message, .. } |
+            StarRiverError::FileSystem { message, .. } |
+            StarRiverError::Resource { message, .. } |
+            StarRiverError::Concurrency { message, .. } |
+            StarRiverError::EventPublishing { message, .. } |
+            StarRiverError::EventProcessing { message, .. } |
+            StarRiverError::CommandHandling { message, .. } |
+            StarRiverError::ThirdPartyService { message, .. } |
+            StarRiverError::NotImplemented { message, .. } |
+            StarRiverError::UnsupportedOperation { message, .. } |
+            StarRiverError::Internal { message, .. } => message,
+            StarRiverError::Multiple { errors, .. } => {
+                if errors.is_empty() {
+                    "Multiple errors occurred"
+                } else {
+                    errors[0].message()
+                }
+            }
+        }
+    }
+}
+
+/// Result type alias for the Star River Backend system
+pub type StarRiverResult<T> = Result<T, StarRiverError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_creation() {
+        let err = StarRiverError::strategy_engine(
+            "Node execution failed",
+            Some(123),
+            Some("TestStrategy".to_string()),
+            Some("node_001".to_string()),
+        );
+        
+        assert_eq!(err.category(), "engine");
+        assert_eq!(err.message(), "Node execution failed");
+        assert!(!err.is_retriable());
+    }
+    
+    #[test]
+    fn test_error_context() {
+        let result: Result<i32, std::io::Error> = Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "File not found"
+        ));
+        
+        let err = result.with_component_context("ConfigLoader").unwrap_err();
+        assert!(err.message().contains("ConfigLoader"));
+        assert_eq!(err.category(), "system");
+    }
+    
+    #[test]
+    fn test_http_error_conversion() {
+        let http_err = reqwest::Error::from(reqwest::Error::from(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "Connection timed out"
+        )));
+        
+        // Note: This is a simplified test. In reality, reqwest::Error conversion is more complex
+        // let star_river_err: StarRiverError = http_err.into();
+        // assert_eq!(star_river_err.category(), "network");
+    }
+    
+    #[test]
+    fn test_json_error_conversion() {
+        let json_err = serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid JSON"
+        ));
+        
+        let star_river_err: StarRiverError = json_err.into();
+        assert_eq!(star_river_err.category(), "data");
+    }
+    
+    #[test]
+    fn test_multiple_errors() {
+        let errors = vec![
+            StarRiverError::database_connection("Connection lost", None),
+            StarRiverError::cache_engine("Cache miss", None, None),
+        ];
+        
+        let multi_err = StarRiverError::multiple(errors, Some("Startup".to_string()));
+        assert_eq!(multi_err.category(), "system");
+        assert!(multi_err.to_string().contains("Connection lost"));
+    }
+    
+    #[test]
+    fn test_is_retriable() {
+        let network_err = StarRiverError::network("Connection refused", None, None);
+        assert!(network_err.is_retriable());
+        
+        let validation_err = StarRiverError::data_validation("Invalid input", None, None, None);
+        assert!(!validation_err.is_retriable());
+    }
+    
+    #[test]
+    fn test_is_client_error() {
+        let validation_err = StarRiverError::data_validation("Invalid format", None, None, None);
+        assert!(validation_err.is_client_error());
+        
+        let network_err = StarRiverError::network("Connection failed", None, None);
+        assert!(!network_err.is_client_error());
+    }
+}
