@@ -26,3 +26,5 @@ utoipa.workspace = true
 ordered-float = {version = "5.0.0", features=["serde"]}
 paste = "1.0.15"
 thiserror.workspace = true
+reqwest.workspace = true
+tokio-tungstenite.workspace = true

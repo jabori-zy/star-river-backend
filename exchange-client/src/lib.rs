@@ -1,8 +1,6 @@
 mod utils;
 // pub mod binance;
 pub mod metatrader5;
-pub mod exchange_client_error;
-pub mod data_processor_error;
 
 use async_trait::async_trait;
 use types::market::KlineInterval;
@@ -15,7 +13,7 @@ use types::transaction::{Transaction, OriginalTransaction};
 use types::account::OriginalAccountInfo;
 use types::market::{Exchange, Kline};
 use types::strategy::TimeRange;
-use crate::exchange_client_error::ExchangeClientError;
+use types::error::exchange_client_error::ExchangeClientError;
 use types::market::Symbol;
 
 #[async_trait]

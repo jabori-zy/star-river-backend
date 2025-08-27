@@ -15,7 +15,7 @@ use crate::metatrader5::mt5_types::Mt5Deal;
 use types::account::OriginalAccountInfo;
 use types::account::mt5_account::OriginalMt5AccountInfo;
 use chrono::{Utc, TimeZone};
-use crate::data_processor_error::DataProcessorError;
+use types::error::exchange_client_error::DataProcessorError;
 use types::market::Symbol;
 
 #[derive(Debug)]

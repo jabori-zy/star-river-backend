@@ -1,6 +1,6 @@
 use crate::metatrader5::url::Mt5HttpUrl;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
-use crate::metatrader5::mt5_http_client_error::Mt5HttpClientError;
+use types::error::exchange_client_error::mt5::Mt5HttpClientError;
 use serde::Serialize;
 
 use super::mt5_types::Mt5GetPositionNumberParams;
@@ -39,20 +39,36 @@ impl Mt5HttpClient {
         tracing::debug!(url = %url, "Pinging MT5 server");
         
         let response = self.client.get(&url)
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(5)) // timeout 5 seconds
         .send()
         .await
         .map_err(Mt5HttpClientError::Http)?;
 
+        // if the status code is 200, then ping success
         if response.status().is_success() {
-            tracing::debug!("ping MT5 server success");
-            Ok(())
+            let response_data = response.json::<serde_json::Value>().await.map_err(Mt5HttpClientError::Http)?;
+            if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
+                if is_success {
+                    tracing::debug!("ping MT5 server success");
+                    Ok(())
+                } else {
+                    let error_message = response_data.get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown error")
+                    .to_string();
+                    tracing::error!(error = %error_message, "failed to ping MT5 server");
+                    Err(Mt5HttpClientError::ping(error_message))
+                }
+            } else {
+                let error_message = "no success field in the response";
+                tracing::error!(error = %error_message, "failed to ping MT5 server");
+                Err(Mt5HttpClientError::ping(error_message))
+            }
         } else {
+            // http status code is not 200, then ping failed
             let status_code = response.status().as_u16();
-            let error_text = response.text().await
-                .map_err(Mt5HttpClientError::Http)?;
-            
-            tracing::error!(status = %status_code, error = %error_text, "Failed to ping MT5 server");
+            let error_text = response.text().await.map_err(Mt5HttpClientError::Http)?;
+            tracing::error!(status = %status_code, error = %error_text, "failed to ping MT5 server");
             Err(Mt5HttpClientError::Ping(format!("status code: {}, error text: {}", status_code, error_text)))
         }
     }
@@ -66,7 +82,6 @@ impl Mt5HttpClient {
         server: &str,
         terminal_path: &str
     ) -> Result<(), Mt5HttpClientError> {
-        tracing::info!("Start to initialize MT5 terminal");
         let url = self.get_url(Mt5HttpUrl::InitializeTerminal);
         #[derive(Debug, Serialize)]
         struct InitializeTerminalRequest {
@@ -93,32 +108,29 @@ impl Mt5HttpClient {
             let response_data = response.json::<serde_json::Value>().await.map_err(|e| Mt5HttpClientError::Http(e))?;
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
-                    tracing::info!("MT5 terminal initialized successfully");
+                    tracing::info!(terminal_id = %login, "MT5 terminal initialized successfully");
                     return Ok(())
                 } else {
                     // 获取错误信息
                     let error_message = response_data.get("message")
                     .and_then(|m| m.as_str())
-                    .unwrap_or(&format!("unknown error, the init terminal response success is {}", is_success))
-                    .to_string();
-                    tracing::error!(is_success = %is_success, error = %error_message, "Failed to initialize MT5 terminal");
-                    Err(Mt5HttpClientError::InitializeTerminal(error_message))
-                }
-            } else {
-                let error_message = response_data.get("message")
-                    .and_then(|m| m.as_str())
                     .unwrap_or("unknown error")
                     .to_string();
-                tracing::error!(error = %error_message, "Failed to initialize MT5 terminal - invalid response format");
-                Err(Mt5HttpClientError::InitializeTerminal(error_message))
+                    tracing::error!(error = %error_message, "failed to initialize MT5 terminal");
+                    Err(Mt5HttpClientError::initialize_terminal(error_message))
+                }
+            } else {
+                let error_message = "no success field in the response";
+                tracing::error!(error = %error_message, "failed to initialize MT5 terminal");
+                Err(Mt5HttpClientError::initialize_terminal(error_message))
             }
         } else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
             .map_err(Mt5HttpClientError::Http)?;
             // 如果是其他状态码，则返回错误
-            tracing::error!(status = %status_code, error = %error_text, "Failed to initialize MT5 terminal - HTTP error");
-            Err(Mt5HttpClientError::InitializeTerminal(format!("status code: {}, error text: {}", status_code, error_text)))
+            tracing::error!(status = %status_code, error = %error_text, "failed to initialize MT5 terminal");
+            Err(Mt5HttpClientError::initialize_terminal(format!("status code: {}, error text: {}", status_code, error_text)))
         }
     }
 

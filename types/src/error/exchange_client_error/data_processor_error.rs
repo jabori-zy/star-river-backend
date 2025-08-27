@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::error::ErrorCode;
 
 #[derive(Error, Debug)]
 pub enum DataProcessorError {
@@ -107,6 +108,45 @@ pub enum DataProcessorError {
 }
 
 impl DataProcessorError {
+    /// Returns the error prefix for data processor errors
+    pub fn get_prefix(&self) -> &'static str {
+        "DATA_PROCESSOR"
+    }
+    
+    /// Returns a string error code for data processor errors (format: DATA_PROCESSOR_NNNN)
+    pub fn error_code(&self) -> ErrorCode {
+        let prefix = self.get_prefix();
+        let code = match self {
+            // JSON and serialization errors (1001-1002)
+            DataProcessorError::JsonParsing(_) => 1001,
+            DataProcessorError::StreamProcessing { .. } => 1002,
+            
+            // Field and data structure errors (1003-1006)
+            DataProcessorError::MissingField { .. } => 1003,
+            DataProcessorError::InvalidFieldType { .. } => 1004,
+            DataProcessorError::ArrayParsing { .. } => 1005,
+            DataProcessorError::InvalidKlineArrayFormat { .. } => 1006,
+            
+            // Type conversion and validation errors (1007-1010)
+            DataProcessorError::TypeConversion { .. } => 1007,
+            DataProcessorError::DataValidation { .. } => 1008,
+            DataProcessorError::EnumParsing { .. } => 1009,
+            DataProcessorError::TimestampConversion { .. } => 1010,
+            
+            // Specific data parsing errors (1011-1016)
+            DataProcessorError::KlineDataParsing { .. } => 1011,
+            DataProcessorError::OrderDataParsing { .. } => 1012,
+            DataProcessorError::PositionDataParsing { .. } => 1013,
+            DataProcessorError::DealDataParsing { .. } => 1014,
+            DataProcessorError::AccountInfoParsing { .. } => 1015,
+            DataProcessorError::StreamDataFormat { .. } => 1016,
+            
+            // Internal errors (1017)
+            DataProcessorError::Internal(_) => 1017,
+        };
+        format!("{}_{:04}", prefix, code)
+    }
+
     pub fn stream_processing(message: impl Into<String>, data_type: Option<String>) -> Self {
         Self::StreamProcessing {
             message: message.into(),
@@ -140,8 +180,16 @@ impl DataProcessorError {
         symbol: Option<String>, 
         interval: Option<String>
     ) -> Self {
+        let message = message.into();
+        let enhanced_message = match (&symbol, &interval) {
+            (Some(sym), Some(int)) => format!("{} (symbol: {}, interval: {})", message, sym, int),
+            (Some(sym), None) => format!("{} (symbol: {})", message, sym),
+            (None, Some(int)) => format!("{} (interval: {})", message, int),
+            _ => message,
+        };
+        
         Self::KlineDataParsing {
-            message: message.into(),
+            message: enhanced_message,
             symbol,
             interval,
         }
@@ -290,6 +338,171 @@ where
         self.map_err(|e| {
             let base_error = e.into();
             DataProcessorError::Internal(format!("Field '{}': {}", field, base_error))
+        })
+    }
+}
+
+// Implement the StarRiverErrorTrait for DataProcessorError
+impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
+    fn get_prefix(&self) -> &'static str {
+        self.get_prefix()
+    }
+    
+    fn error_code(&self) -> ErrorCode {
+        self.error_code()
+    }
+    
+    fn category(&self) -> &'static str {
+        "data_processor"
+    }
+    
+    fn is_retriable(&self) -> bool {
+        matches!(self,
+            DataProcessorError::StreamProcessing { .. } |
+            DataProcessorError::StreamDataFormat { .. }
+        )
+    }
+    
+    fn is_client_error(&self) -> bool {
+        matches!(self,
+            DataProcessorError::MissingField { .. } |
+            DataProcessorError::InvalidFieldType { .. } |
+            DataProcessorError::DataValidation { .. } |
+            DataProcessorError::EnumParsing { .. } |
+            DataProcessorError::InvalidKlineArrayFormat { .. }
+        )
+    }
+    
+    fn message(&self) -> &str {
+        match self {
+            DataProcessorError::JsonParsing(_) => "JSON parsing failed",
+            DataProcessorError::StreamProcessing { message, .. } |
+            DataProcessorError::KlineDataParsing { message, .. } |
+            DataProcessorError::OrderDataParsing { message, .. } |
+            DataProcessorError::PositionDataParsing { message, .. } |
+            DataProcessorError::DealDataParsing { message, .. } |
+            DataProcessorError::AccountInfoParsing { message, .. } |
+            DataProcessorError::TypeConversion { message, .. } |
+            DataProcessorError::DataValidation { message, .. } |
+            DataProcessorError::StreamDataFormat { message, .. } |
+            DataProcessorError::TimestampConversion { message, .. } |
+            DataProcessorError::Internal(message) => message,
+            DataProcessorError::MissingField { field, .. } => {
+                // Can't return reference to temporary string, use static message
+                "Required field missing"
+            },
+            DataProcessorError::InvalidFieldType { field, .. } => {
+                "Invalid field type"
+            },
+            DataProcessorError::ArrayParsing { .. } => {
+                "Array parsing failed"
+            },
+            DataProcessorError::InvalidKlineArrayFormat { .. } => {
+                "Invalid kline array format"
+            },
+            DataProcessorError::EnumParsing { .. } => {
+                "Enum parsing failed"
+            },
+        }
+    }
+    
+    fn context(&self) -> Vec<(&'static str, String)> {
+        match self {
+            DataProcessorError::StreamProcessing { data_type: Some(dt), .. } => {
+                vec![("data_type", dt.clone())]
+            },
+            DataProcessorError::MissingField { field, context } => {
+                let mut ctx = vec![("field", field.clone())];
+                if let Some(c) = context {
+                    ctx.push(("context", c.clone()));
+                }
+                ctx
+            },
+            DataProcessorError::InvalidFieldType { field, expected, actual, context } => {
+                let mut ctx = vec![
+                    ("field", field.clone()),
+                    ("expected", expected.clone()),
+                    ("actual", actual.clone())
+                ];
+                if let Some(c) = context {
+                    ctx.push(("context", c.clone()));
+                }
+                ctx
+            },
+            DataProcessorError::KlineDataParsing { symbol, interval, .. } => {
+                let mut ctx = vec![];
+                if let Some(sym) = symbol {
+                    ctx.push(("symbol", sym.clone()));
+                }
+                if let Some(int) = interval {
+                    ctx.push(("interval", int.clone()));
+                }
+                ctx
+            },
+            DataProcessorError::OrderDataParsing { order_id, .. } => {
+                if let Some(id) = order_id {
+                    vec![("order_id", id.to_string())]
+                } else {
+                    vec![]
+                }
+            },
+            DataProcessorError::PositionDataParsing { position_id, .. } => {
+                if let Some(id) = position_id {
+                    vec![("position_id", id.to_string())]
+                } else {
+                    vec![]
+                }
+            },
+            DataProcessorError::DealDataParsing { deal_id, .. } => {
+                if let Some(id) = deal_id {
+                    vec![("deal_id", id.to_string())]
+                } else {
+                    vec![]
+                }
+            },
+            DataProcessorError::AccountInfoParsing { account_id, .. } => {
+                if let Some(id) = account_id {
+                    vec![("account_id", id.to_string())]
+                } else {
+                    vec![]
+                }
+            },
+            DataProcessorError::EnumParsing { field, variant, .. } => {
+                vec![("field", field.clone()), ("variant", variant.clone())]
+            },
+            DataProcessorError::TimestampConversion { timestamp, .. } => {
+                if let Some(ts) = timestamp {
+                    vec![("timestamp", ts.to_string())]
+                } else {
+                    vec![]
+                }
+            },
+            _ => vec![],
+        }
+    }
+}
+
+// Implement ErrorContext trait for DataProcessorError
+impl<T> crate::error::error_trait::ErrorContext<T, DataProcessorError> for Result<T, DataProcessorError> {
+    fn with_context<F>(self, f: F) -> Result<T, DataProcessorError>
+    where
+        F: FnOnce() -> String,
+    {
+        self.map_err(|e| {
+            let context = f();
+            DataProcessorError::Internal(format!("{}: {}", context, e))
+        })
+    }
+    
+    fn with_operation_context(self, operation: &str) -> Result<T, DataProcessorError> {
+        self.map_err(|e| {
+            DataProcessorError::Internal(format!("Data Processing Operation '{}': {}", operation, e))
+        })
+    }
+    
+    fn with_resource_context(self, resource_type: &str, resource_id: &str) -> Result<T, DataProcessorError> {
+        self.map_err(|e| {
+            DataProcessorError::Internal(format!("Data Processing {} '{}': {}", resource_type, resource_id, e))
         })
     }
 }

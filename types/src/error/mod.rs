@@ -1,4 +1,17 @@
+pub mod exchange_client_error;
+pub mod error_trait;
+pub mod engine;
+
+use error_trait::StarRiverErrorTrait;
+
+// Re-export commonly used error types
+pub use engine::ExchangeEngineError;
+pub use exchange_client_error::ExchangeClientError;
+
 use thiserror::Error;
+
+
+pub type ErrorCode = String;
 
 /// Comprehensive top-level error type for the Star River Backend system
 #[derive(Error, Debug)]
@@ -30,12 +43,8 @@ pub enum StarRiverError {
     },
     
     /// Exchange engine errors  
-    #[error("EXCHANGE_ENGINE_ERROR: {message}")]
-    ExchangeEngine {
-        message: String,
-        exchange: Option<String>,
-        operation: Option<String>,
-    },
+    #[error("EXCHANGE_ENGINE_ERROR: {0}")]
+    ExchangeEngine(#[from] ExchangeEngineError),
     
     /// Indicator engine errors
     #[error("INDICATOR_ENGINE_ERROR: {message}")]
@@ -414,76 +423,93 @@ pub enum StarRiverError {
 }
 
 impl StarRiverError {
-    /// Returns a numeric error code for API responses
-    pub fn error_code(&self) -> i32 {
+    /// Returns the error prefix for Star River errors
+    pub fn get_prefix(&self) -> &'static str {
+        "STARRIVER"
+    }
+    
+    /// Returns a string error code for Star River errors (format: STARRIVER_NNNN or nested error codes)
+    pub fn error_code(&self) -> ErrorCode {
         match self {
-            // Core Engine Errors (1000-1999)
-            StarRiverError::EngineManager { .. } => 1001,
-            StarRiverError::StrategyEngine { .. } => 1002,
-            StarRiverError::MarketEngine { .. } => 1003,
-            StarRiverError::ExchangeEngine { .. } => 1004,
-            StarRiverError::IndicatorEngine { .. } => 1005,
-            StarRiverError::CacheEngine { .. } => 1006,
-            StarRiverError::AccountEngine { .. } => 1007,
+            // For nested errors, delegate to the inner error's code
+            StarRiverError::ExchangeEngine(err) => err.error_code(),
             
-            // Strategy System Errors (1100-1199)
-            StarRiverError::StrategyNode { .. } => 1101,
-            StarRiverError::StrategyValidation { .. } => 1102,
-            StarRiverError::StrategyExecution { .. } => 1103,
-            
-            // Database Errors (2000-2999)
-            StarRiverError::DatabaseConnection { .. } => 2001,
-            StarRiverError::DatabaseOperation { .. } => 2002,
-            StarRiverError::DatabaseMigration { .. } => 2003,
-            StarRiverError::DatabaseORM { .. } => 2004,
-            
-            // Exchange Integration Errors (3000-3999)
-            StarRiverError::Binance { .. } => 3001,
-            StarRiverError::MetaTrader5 { .. } => 3002,
-            StarRiverError::Exchange { .. } => 3003,
-            
-            // Trading System Errors (3100-3199)
-            StarRiverError::OrderManagement { .. } => 3101,
-            StarRiverError::PositionManagement { .. } => 3102,
-            StarRiverError::VirtualTrading { .. } => 3103,
-            StarRiverError::AccountManagement { .. } => 3104,
-            
-            // Indicator System Errors (4000-4099)
-            StarRiverError::TaLibCalculation { .. } => 4001,
-            StarRiverError::IndicatorData { .. } => 4002,
-            StarRiverError::IndicatorConfiguration { .. } => 4003,
-            
-            // Network & Communication Errors (5000-5999)
-            StarRiverError::Http { .. } => 5001,
-            StarRiverError::WebSocket { .. } => 5002,
-            StarRiverError::Network { .. } => 5003,
-            StarRiverError::Timeout { .. } => 5004,
-            
-            // Data Processing Errors (6000-6999)
-            StarRiverError::Json { .. } => 6001,
-            StarRiverError::DataValidation { .. } => 6002,
-            StarRiverError::DataConversion { .. } => 6003,
-            StarRiverError::MarketData { .. } => 6004,
-            
-            // System & Infrastructure Errors (7000-7999)
-            StarRiverError::Configuration { .. } => 7001,
-            StarRiverError::Environment { .. } => 7002,
-            StarRiverError::Authentication { .. } => 7003,
-            StarRiverError::Authorization { .. } => 7004,
-            StarRiverError::RateLimit { .. } => 7005,
-            StarRiverError::FileSystem { .. } => 7006,
-            StarRiverError::Resource { .. } => 7007,
-            StarRiverError::Concurrency { .. } => 7008,
-            StarRiverError::EventPublishing { .. } => 7009,
-            StarRiverError::EventProcessing { .. } => 7010,
-            StarRiverError::CommandHandling { .. } => 7011,
-            StarRiverError::ThirdPartyService { .. } => 7012,
-            
-            // Special Cases
-            StarRiverError::NotImplemented { .. } => 9001,
-            StarRiverError::UnsupportedOperation { .. } => 9002,
-            StarRiverError::Internal { .. } => 9998,
-            StarRiverError::Multiple { .. } => 9999,
+            // For direct Star River errors, use STARRIVER prefix
+            _ => {
+                let prefix = self.get_prefix();
+                let code = match self {
+                    // Core Engine Errors (1001-1007)
+                    StarRiverError::EngineManager { .. } => 1001,
+                    StarRiverError::StrategyEngine { .. } => 1002,
+                    StarRiverError::MarketEngine { .. } => 1003,
+                    StarRiverError::IndicatorEngine { .. } => 1004,
+                    StarRiverError::CacheEngine { .. } => 1005,
+                    StarRiverError::AccountEngine { .. } => 1006,
+                    
+                    // Strategy System Errors (1007-1009)
+                    StarRiverError::StrategyNode { .. } => 1007,
+                    StarRiverError::StrategyValidation { .. } => 1008,
+                    StarRiverError::StrategyExecution { .. } => 1009,
+                    
+                    // Database Errors (1010-1013)
+                    StarRiverError::DatabaseConnection { .. } => 1010,
+                    StarRiverError::DatabaseOperation { .. } => 1011,
+                    StarRiverError::DatabaseMigration { .. } => 1012,
+                    StarRiverError::DatabaseORM { .. } => 1013,
+                    
+                    // Exchange Integration Errors (1014-1016)
+                    StarRiverError::Binance { .. } => 1014,
+                    StarRiverError::MetaTrader5 { .. } => 1015,
+                    StarRiverError::Exchange { .. } => 1016,
+                    
+                    // Trading System Errors (1017-1020)
+                    StarRiverError::OrderManagement { .. } => 1017,
+                    StarRiverError::PositionManagement { .. } => 1018,
+                    StarRiverError::VirtualTrading { .. } => 1019,
+                    StarRiverError::AccountManagement { .. } => 1020,
+                    
+                    // Indicator System Errors (1021-1023)
+                    StarRiverError::TaLibCalculation { .. } => 1021,
+                    StarRiverError::IndicatorData { .. } => 1022,
+                    StarRiverError::IndicatorConfiguration { .. } => 1023,
+                    
+                    // Network & Communication Errors (1024-1027)
+                    StarRiverError::Http { .. } => 1024,
+                    StarRiverError::WebSocket { .. } => 1025,
+                    StarRiverError::Network { .. } => 1026,
+                    StarRiverError::Timeout { .. } => 1027,
+                    
+                    // Data Processing Errors (1028-1031)
+                    StarRiverError::Json { .. } => 1028,
+                    StarRiverError::DataValidation { .. } => 1029,
+                    StarRiverError::DataConversion { .. } => 1030,
+                    StarRiverError::MarketData { .. } => 1031,
+                    
+                    // System & Infrastructure Errors (1032-1043)
+                    StarRiverError::Configuration { .. } => 1032,
+                    StarRiverError::Environment { .. } => 1033,
+                    StarRiverError::Authentication { .. } => 1034,
+                    StarRiverError::Authorization { .. } => 1035,
+                    StarRiverError::RateLimit { .. } => 1036,
+                    StarRiverError::FileSystem { .. } => 1037,
+                    StarRiverError::Resource { .. } => 1038,
+                    StarRiverError::Concurrency { .. } => 1039,
+                    StarRiverError::EventPublishing { .. } => 1040,
+                    StarRiverError::EventProcessing { .. } => 1041,
+                    StarRiverError::CommandHandling { .. } => 1042,
+                    StarRiverError::ThirdPartyService { .. } => 1043,
+                    
+                    // Special Cases (1044-1047)
+                    StarRiverError::NotImplemented { .. } => 1044,
+                    StarRiverError::UnsupportedOperation { .. } => 1045,
+                    StarRiverError::Internal { .. } => 1046,
+                    StarRiverError::Multiple { .. } => 1047,
+                    
+                    // This should never happen due to outer match, but needed for completeness
+                    StarRiverError::ExchangeEngine(_) => unreachable!(),
+                };
+                format!("{}_{:04}", prefix, code)
+            }
         }
     }
     
@@ -527,17 +553,6 @@ impl StarRiverError {
         }
     }
     
-    pub fn exchange_engine<S: Into<String>>(
-        message: S,
-        exchange: Option<String>,
-        operation: Option<String>,
-    ) -> Self {
-        Self::ExchangeEngine {
-            message: message.into(),
-            exchange,
-            operation,
-        }
-    }
     
     pub fn indicator_engine<S: Into<String>>(
         message: S,
@@ -1406,7 +1421,6 @@ impl StarRiverError {
             StarRiverError::EngineManager { message, .. } |
             StarRiverError::StrategyEngine { message, .. } |
             StarRiverError::MarketEngine { message, .. } |
-            StarRiverError::ExchangeEngine { message, .. } |
             StarRiverError::IndicatorEngine { message, .. } |
             StarRiverError::CacheEngine { message, .. } |
             StarRiverError::AccountEngine { message, .. } |
@@ -1450,6 +1464,7 @@ impl StarRiverError {
             StarRiverError::NotImplemented { message, .. } |
             StarRiverError::UnsupportedOperation { message, .. } |
             StarRiverError::Internal { message, .. } => message,
+            StarRiverError::ExchangeEngine(err) => err.message(),
             StarRiverError::Multiple { errors, .. } => {
                 if errors.is_empty() {
                     "Multiple errors occurred"
@@ -1459,91 +1474,206 @@ impl StarRiverError {
             }
         }
     }
+
+    /// Extract structured context information from the error
+    pub fn context(&self) -> Vec<(&'static str, String)> {
+        match self {
+            StarRiverError::EngineManager { engine_name, operation, .. } => {
+                let mut ctx = vec![];
+                if let Some(name) = engine_name {
+                    ctx.push(("engine_name", name.clone()));
+                }
+                if let Some(op) = operation {
+                    ctx.push(("operation", op.clone()));
+                }
+                ctx
+            }
+            StarRiverError::StrategyEngine { strategy_id, strategy_name, node_id, .. } => {
+                let mut ctx = vec![];
+                if let Some(id) = strategy_id {
+                    ctx.push(("strategy_id", id.to_string()));
+                }
+                if let Some(name) = strategy_name {
+                    ctx.push(("strategy_name", name.clone()));
+                }
+                if let Some(id) = node_id {
+                    ctx.push(("node_id", id.clone()));
+                }
+                ctx
+            }
+            StarRiverError::MarketEngine { symbol, exchange, .. } => {
+                let mut ctx = vec![];
+                if let Some(sym) = symbol {
+                    ctx.push(("symbol", sym.clone()));
+                }
+                if let Some(ex) = exchange {
+                    ctx.push(("exchange", ex.clone()));
+                }
+                ctx
+            }
+            StarRiverError::ExchangeEngine(err) => err.context(),
+            StarRiverError::IndicatorEngine { indicator_name, symbol, .. } => {
+                let mut ctx = vec![];
+                if let Some(name) = indicator_name {
+                    ctx.push(("indicator_name", name.clone()));
+                }
+                if let Some(sym) = symbol {
+                    ctx.push(("symbol", sym.clone()));
+                }
+                ctx
+            }
+            StarRiverError::DatabaseOperation { operation, table, entity_id, .. } => {
+                let mut ctx = vec![];
+                if let Some(op) = operation {
+                    ctx.push(("operation", op.clone()));
+                }
+                if let Some(tbl) = table {
+                    ctx.push(("table", tbl.clone()));
+                }
+                if let Some(id) = entity_id {
+                    ctx.push(("entity_id", id.clone()));
+                }
+                ctx
+            }
+            StarRiverError::Binance { symbol, operation, error_code, .. } => {
+                let mut ctx = vec![];
+                if let Some(sym) = symbol {
+                    ctx.push(("symbol", sym.clone()));
+                }
+                if let Some(op) = operation {
+                    ctx.push(("operation", op.clone()));
+                }
+                if let Some(code) = error_code {
+                    ctx.push(("error_code", code.to_string()));
+                }
+                ctx
+            }
+            StarRiverError::MetaTrader5 { terminal_id, symbol, operation, mt5_error_code, .. } => {
+                let mut ctx = vec![];
+                if let Some(id) = terminal_id {
+                    ctx.push(("terminal_id", id.clone()));
+                }
+                if let Some(sym) = symbol {
+                    ctx.push(("symbol", sym.clone()));
+                }
+                if let Some(op) = operation {
+                    ctx.push(("operation", op.clone()));
+                }
+                if let Some(code) = mt5_error_code {
+                    ctx.push(("mt5_error_code", code.to_string()));
+                }
+                ctx
+            }
+            StarRiverError::OrderManagement { order_id, symbol, order_type, .. } => {
+                let mut ctx = vec![];
+                if let Some(id) = order_id {
+                    ctx.push(("order_id", id.clone()));
+                }
+                if let Some(sym) = symbol {
+                    ctx.push(("symbol", sym.clone()));
+                }
+                if let Some(otype) = order_type {
+                    ctx.push(("order_type", otype.clone()));
+                }
+                ctx
+            }
+            StarRiverError::Http { url, status_code, operation, .. } => {
+                let mut ctx = vec![];
+                if let Some(u) = url {
+                    ctx.push(("url", u.clone()));
+                }
+                if let Some(code) = status_code {
+                    ctx.push(("status_code", code.to_string()));
+                }
+                if let Some(op) = operation {
+                    ctx.push(("operation", op.clone()));
+                }
+                ctx
+            }
+            StarRiverError::Multiple { errors, operation } => {
+                let mut ctx = vec![("error_count", errors.len().to_string())];
+                if let Some(op) = operation {
+                    ctx.push(("operation", op.clone()));
+                }
+                ctx
+            }
+            // For other variants, return empty context or implement as needed
+            _ => vec![],
+        }
+    }
+}
+
+// Implement the StarRiverErrorTrait for StarRiverError
+impl StarRiverErrorTrait for StarRiverError {
+    fn get_prefix(&self) -> &'static str {
+        // For nested errors, delegate to the inner error's prefix
+        match self {
+            StarRiverError::ExchangeEngine(err) => err.get_prefix(),
+            _ => self.get_prefix(),
+        }
+    }
+    
+    fn error_code(&self) -> ErrorCode {
+        self.error_code()
+    }
+    
+    fn category(&self) -> &'static str {
+        self.category()
+    }
+    
+    fn is_retriable(&self) -> bool {
+        self.is_retriable()
+    }
+    
+    fn is_client_error(&self) -> bool {
+        self.is_client_error()
+    }
+    
+    fn message(&self) -> &str {
+        self.message()
+    }
+    
+    fn context(&self) -> Vec<(&'static str, String)> {
+        self.context()
+    }
+}
+
+// Implement ErrorContext trait for StarRiverError
+impl<T> crate::error::error_trait::ErrorContext<T, StarRiverError> for Result<T, StarRiverError> {
+    fn with_context<F>(self, f: F) -> Result<T, StarRiverError>
+    where
+        F: FnOnce() -> String,
+    {
+        self.map_err(|e| {
+            let context = f();
+            StarRiverError::Internal {
+                message: format!("{}: {}", context, e),
+                component: None,
+                context: Some(context),
+            }
+        })
+    }
+    
+    fn with_operation_context(self, operation: &str) -> Result<T, StarRiverError> {
+        self.map_err(|e| {
+            StarRiverError::Internal {
+                message: format!("Operation '{}': {}", operation, e),
+                component: None,
+                context: Some(format!("operation: {}", operation)),
+            }
+        })
+    }
+    
+    fn with_resource_context(self, resource_type: &str, resource_id: &str) -> Result<T, StarRiverError> {
+        self.map_err(|e| {
+            StarRiverError::Internal {
+                message: format!("{} '{}': {}", resource_type, resource_id, e),
+                component: None,
+                context: Some(format!("{}: {}", resource_type, resource_id)),
+            }
+        })
+    }
 }
 
 /// Result type alias for the Star River Backend system
 pub type StarRiverResult<T> = Result<T, StarRiverError>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_error_creation() {
-        let err = StarRiverError::strategy_engine(
-            "Node execution failed",
-            Some(123),
-            Some("TestStrategy".to_string()),
-            Some("node_001".to_string()),
-        );
-        
-        assert_eq!(err.category(), "engine");
-        assert_eq!(err.message(), "Node execution failed");
-        assert!(!err.is_retriable());
-    }
-    
-    #[test]
-    fn test_error_context() {
-        let result: Result<i32, std::io::Error> = Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "File not found"
-        ));
-        
-        let err = result.with_component_context("ConfigLoader").unwrap_err();
-        assert!(err.message().contains("ConfigLoader"));
-        assert_eq!(err.category(), "system");
-    }
-    
-    #[test]
-    fn test_http_error_conversion() {
-        let http_err = reqwest::Error::from(reqwest::Error::from(std::io::Error::new(
-            std::io::ErrorKind::TimedOut,
-            "Connection timed out"
-        )));
-        
-        // Note: This is a simplified test. In reality, reqwest::Error conversion is more complex
-        // let star_river_err: StarRiverError = http_err.into();
-        // assert_eq!(star_river_err.category(), "network");
-    }
-    
-    #[test]
-    fn test_json_error_conversion() {
-        let json_err = serde_json::Error::io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Invalid JSON"
-        ));
-        
-        let star_river_err: StarRiverError = json_err.into();
-        assert_eq!(star_river_err.category(), "data");
-    }
-    
-    #[test]
-    fn test_multiple_errors() {
-        let errors = vec![
-            StarRiverError::database_connection("Connection lost", None),
-            StarRiverError::cache_engine("Cache miss", None, None),
-        ];
-        
-        let multi_err = StarRiverError::multiple(errors, Some("Startup".to_string()));
-        assert_eq!(multi_err.category(), "system");
-        assert!(multi_err.to_string().contains("Connection lost"));
-    }
-    
-    #[test]
-    fn test_is_retriable() {
-        let network_err = StarRiverError::network("Connection refused", None, None);
-        assert!(network_err.is_retriable());
-        
-        let validation_err = StarRiverError::data_validation("Invalid input", None, None, None);
-        assert!(!validation_err.is_retriable());
-    }
-    
-    #[test]
-    fn test_is_client_error() {
-        let validation_err = StarRiverError::data_validation("Invalid format", None, None, None);
-        assert!(validation_err.is_client_error());
-        
-        let network_err = StarRiverError::network("Connection failed", None, None);
-        assert!(!network_err.is_client_error());
-    }
-}

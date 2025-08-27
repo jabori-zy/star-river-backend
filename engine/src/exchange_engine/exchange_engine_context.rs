@@ -142,7 +142,7 @@ impl ExchangeEngineContext {
                         #[cfg(debug_assertions)]
                         {
                             // 开发环境
-                            tracing::info!("开发环境，不注册MT5交易所，直接连接");
+                            tracing::debug!("in the dev mode, direct connect to mt5 server");
                             Self::register_mt5_exchange_in_dev(self, account_config).await?;
                         }
                         // Self::register_mt5_exchange(self, account_config).await?;
@@ -175,9 +175,9 @@ impl ExchangeEngineContext {
         let max_connect_retries = 3;
         let mut connect_retry_count = 0;
         
-        tracing::debug!("开发环境：开始连接mt5_server，端口8001");
+        tracing::debug!("direct connect to mt5 server in the dev mode, port: 8001");
         while connect_retry_count < max_connect_retries {
-            match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.connect_mt5_server(8001)).await
+            match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.connect_to_server(8001)).await
             {
                 Ok(connect_result) => {
                     match connect_result {

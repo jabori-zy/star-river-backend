@@ -13,7 +13,8 @@ mod tests {
     use types::strategy::TimeRange;
     use std::any::Any;
     use tracing::Level;
-    use crate::{ExchangeClientError, metatrader5::mt5_error::Mt5Error};
+    use types::error::exchange_client_error::ExchangeClientError;
+    use types::error::exchange_client_error::Mt5Error;
 
 
     const TEST_SYMBOL: &str = "BTCUSDm";

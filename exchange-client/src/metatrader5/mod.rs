@@ -1,6 +1,5 @@
 mod mt5_http_client;
-mod mt5_http_client_error;
-pub mod mt5_error;
+
 mod mt5_ws_client;
 mod url;
 mod mt5_data_processor;
@@ -43,10 +42,8 @@ use tokio::process::Command;
 use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use once_cell::sync::Lazy;
 use types::market::{Exchange, Kline};
-use thiserror::Error;
-use crate::metatrader5::mt5_http_client_error::Mt5HttpClientError;
-use crate::metatrader5::mt5_error::Mt5Error;
-use crate::exchange_client_error::ExchangeClientError;
+use types::error::exchange_client_error::Mt5Error;
+use types::error::exchange_client_error::ExchangeClientError;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use tracing::instrument;
 use types::strategy::TimeRange;
@@ -81,11 +78,11 @@ static ORIGINAL_EXE_PATH: Lazy<PathBuf> = Lazy::new(|| {
 
 // 从嵌入资源中提取原始exe文件，如果不存在或有更新
 #[instrument]
-fn ensure_original_exe_exists() -> Result<(), MetaTrader5Error> {
+fn ensure_original_exe_exists() -> Result<(), Mt5Error> {
     tracing::info!("ensure original executable file exists");
     let original_exe_path = ORIGINAL_EXE_PATH.as_path();
     let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
-        .ok_or(MetaTrader5Error::StartServerError("get python executable file failed".to_string()))?;
+        .ok_or(Mt5Error::internal("get python executable file failed"))?;
     
     let needs_update = if !original_exe_path.exists() {
         true
@@ -99,7 +96,7 @@ fn ensure_original_exe_exists() -> Result<(), MetaTrader5Error> {
     
     if needs_update {
         tracing::debug!(original_exe_path = %original_exe_path.display(), "create original executable file");
-        fs::write(original_exe_path, py_exe.data).map_err(|e| MetaTrader5Error::StartServerError(format!("write python executable file failed, error: {}", e)))?;
+        fs::write(original_exe_path, py_exe.data).map_err(|e| Mt5Error::internal(format!("write python executable file failed, error: {}", e)))?;
     }
     
     Ok(())
@@ -107,7 +104,7 @@ fn ensure_original_exe_exists() -> Result<(), MetaTrader5Error> {
 
 // 为特定终端创建唯一的exe副本，并清理旧文件
 #[instrument]
-fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, MetaTrader5Error> {
+fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, Mt5Error> {
     tracing::info!(terminal_id = %terminal_id, process_name=%process_name, "start create terminal exe");
     let original_exe_path = ORIGINAL_EXE_PATH.as_path();
     
@@ -152,22 +149,13 @@ fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, 
     
     // 复制原始exe到新位置
     fs::copy(original_exe_path, &terminal_exe_path)
-        .map_err(|e| MetaTrader5Error::StartServerError(format!("copy exe file failed, error: {}", e)))?;
+        .map_err(|e| Mt5Error::internal(format!("copy exe file failed, error: {}", e)))?;
     
     tracing::info!(terminal_id = %terminal_id, terminal_exe_path = %terminal_exe_path.display(), "create new exe file");
     
     Ok(terminal_exe_path)
 }
 
-#[derive(Error, Debug)]
-pub enum MetaTrader5Error {
-    #[error("Metatrader5 HTTP Error: {0}")]
-    Mt5HttpClientError(#[from] Mt5HttpClientError),
-    #[error("Start Server Error: {0}")]
-    StartServerError(String),
-    #[error("Connect Server Error: {0}")]
-    ConnectServerError(String),
-}
 
 
 #[derive(Clone, Debug)]
@@ -199,6 +187,8 @@ impl MetaTrader5 {
         event_publisher: EventPublisher
     ) -> Self {
         let event_publisher = Arc::new(Mutex::new(event_publisher));
+
+
         Self {
             process_name: format!("Metatrader5-{}.exe", terminal_id),
             server_port: 8000 + terminal_id as u16,
@@ -217,7 +207,7 @@ impl MetaTrader5 {
         }
     }
 
-    pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, MetaTrader5Error> {
+    pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, Mt5Error> {
         // 确保原始exe文件存在（只需执行一次）
         ensure_original_exe_exists()?;
         
@@ -344,7 +334,7 @@ impl MetaTrader5 {
         }
         
         if !port_available {
-            return Err(MetaTrader5Error::StartServerError(format!("can't find available port, tried from {} to {}", self.server_port, self.server_port + max_port_tries - 1)));
+            return Err(Mt5Error::internal(format!("can't find available port, tried from {} to {}", self.server_port, self.server_port + max_port_tries - 1)));
         }
 
         tracing::info!(terminal_id = %self.terminal_id, port = %self.server_port, "assign port to mt5 backend server");
@@ -366,13 +356,13 @@ impl MetaTrader5 {
             command
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
-                .spawn().map_err(|e| MetaTrader5Error::StartServerError(format!("启动进程失败: {}", e)))?
+                .spawn().map_err(|e| Mt5Error::internal(format!("启动进程失败: {}", e)))?
         } else {
             // 捕获输出用于日志
             command
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .spawn().map_err(|e| MetaTrader5Error::StartServerError(format!("启动进程失败: {}", e)))?
+                .spawn().map_err(|e| Mt5Error::internal(format!("启动进程失败: {}", e)))?
         };
         
         // 保存进程PID用于日志和后续清理
@@ -393,7 +383,7 @@ impl MetaTrader5 {
                 let _ = fs::remove_file(&exe_path);
                 
                 tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to initialize http client");
-                return Err(MetaTrader5Error::StartServerError(format!("failed to initialize http client, error: {}", e)));
+                return Err(Mt5Error::internal(format!("failed to initialize http client, error: {}", e)));
             }
         }
         
@@ -406,7 +396,7 @@ impl MetaTrader5 {
             // 删除临时exe文件
             let _ = fs::remove_file(&exe_path);
             
-            return Err(MetaTrader5Error::StartServerError(format!("Start MT5-{} server failed, port: {}", self.terminal_id, self.server_port)));
+            return Err(Mt5Error::internal(format!("Start MT5-{} server failed, port: {}", self.terminal_id, self.server_port)));
         }
 
         // 如果不是直接输出到终端，则捕获输出到日志
@@ -452,7 +442,7 @@ impl MetaTrader5 {
     }
 
     // 直接连接mt5服务器
-    pub async fn connect_mt5_server(&mut self, port: u16) -> Result<(), MetaTrader5Error> {
+    pub async fn connect_to_server(&mut self, port: u16) -> Result<(), Mt5Error> {
         self.server_port = port;
         
         // 添加超时和错误处理，而不是unwrap
@@ -462,21 +452,21 @@ impl MetaTrader5 {
         ).await {
             Ok(result) => {
                 if let Err(e) = result {
-                    return Err(MetaTrader5Error::ConnectServerError(
-                        format!("创建HTTP客户端失败，端口: {}, 错误: {}", self.server_port, e)
+                    return Err(Mt5Error::connection(
+                        format!("create http client failed, port: {}, error: {}", self.server_port, e)
                     ));
                 }
             },
             Err(_) => {
-                return Err(MetaTrader5Error::ConnectServerError(
-                    format!("创建HTTP客户端超时，端口: {}", self.server_port)
+                return Err(Mt5Error::timeout(
+                    format!("create http client timeout, port: {}", self.server_port)
                 ));
             }
         }
 
         let is_start_success = self.check_server_start_success().await;
         if !is_start_success {
-            return Err(MetaTrader5Error::ConnectServerError(format!("连接MT5-{}服务失败，端口: {}", self.terminal_id, self.server_port)));
+            return Err(Mt5Error::connection(format!("连接MT5-{}服务失败，端口: {}", self.terminal_id, self.server_port)));
         }
         
         Ok(())
@@ -704,33 +694,32 @@ impl MetaTrader5 {
     //     }
     // }
 
-    pub async fn initialize_terminal(&mut self) -> Result<(), MetaTrader5Error> {
-        tracing::debug!("开始初始化MT5-{}终端", self.terminal_id);
+    #[instrument(skip_all)]
+    pub async fn initialize_terminal(&mut self) -> Result<(), Mt5Error> {
+        tracing::info!(terminal_id = %self.terminal_id, "start to initialize terminal");
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            tracing::debug!("准备初始化MT5-{}终端", self.terminal_id);
+            tracing::debug!(terminal_id = %self.terminal_id, "http client is initialized, ready to initialize terminal");
             mt5_http_client.initialize_terminal(self.login, &self.password, &self.server, &self.terminal_path).await?;
             
-            tracing::info!("MT5-{} 终端初始化中，等待连接就绪...", self.terminal_id);
+            tracing::info!(terminal_id = %self.terminal_id, "terminal is initializing, waiting for connection ready");
             
             let max_retries = 10;
             let mut retry_count = 0;
             while retry_count < max_retries {
                 let result = mt5_http_client.get_terminal_info().await;
-                tracing::info!("MT5-{} 终端初始化结果: {:?}", self.terminal_id, result);
                 if result.is_ok() {
-                    tracing::info!("MT5-{} 终端连接成功", self.terminal_id);
+                    tracing::info!(terminal_id = %self.terminal_id, "terminal is initialized successfully");
                     return Ok(());
                 }
                 retry_count += 1;
-                tracing::debug!("MT5-{} 终端尚未就绪，等待重试... ({}/{})", self.terminal_id, retry_count, max_retries);
+                tracing::debug!(terminal_id = %self.terminal_id, "get terminal info failed, retry... ({}/{})", retry_count, max_retries);
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
-            
             // 如果多次重试后仍然失败，则返回错误
-            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminal(format!("MT5-{} 终端初始化超时，请检查终端是否正常启动", self.terminal_id))))
+            Err(Mt5Error::initialization(format!("the terminal is initialized, but cannot get terminal info, terminal_id: {}", self.terminal_id)))
         } else {
-            Err(MetaTrader5Error::Mt5HttpClientError(Mt5HttpClientError::InitializeTerminal("MT5 HTTP客户端未初始化".to_string())))
+            Err(Mt5Error::initialization(format!("MT5 HTTP client is not initialized, terminal_id: {}", self.terminal_id)))
         }
     }
 

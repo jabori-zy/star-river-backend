@@ -87,3 +87,42 @@ pub enum RecoveryPolicy {
     StopStrategy,     // 停止整个策略
 }
 ```
+
+
+## system disadvantage
+1. Performance Bottlenecks
+
+- SQLite single-writer limitation - Only one concurrent write operation, fatal for high-frequency trading
+- Event Center broadcast overhead - All events copied to all subscribers, wasting memory
+- Python bridge latency - MT5 operations add 5-50ms per call through HTTP subprocess
+- Arc<Mutex<>> contention - Heavy lock contention across engines
+
+2. Scalability Issues
+
+- Monolithic deployment - Cannot scale individual engines independently
+- Sequential event processing - Creates processing queues and bottlenecks
+- Fixed channel buffers - Size 100 channels can saturate and drop critical events
+- Memory growth - No cleanup for accumulated events and cached indicators
+
+3. Reliability Concerns
+
+- EventCenter single point of failure - If it fails, entire system stops
+- No transaction management - Inconsistent state during failures across engines
+- Error cascade propagation - Failures in one engine can bring down others
+- Python process management - MT5 bridge crashes can cascade to trading operations
+
+4. Technical Debt
+
+- Known compilation errors - Indicator system has unresolved build issues
+- Complex interdependencies - Engines tightly coupled through multiple subscriptions
+- Over-engineered node system - May be too complex for simple strategies
+- Mixed async patterns - Inconsistent async/blocking operations
+
+5. Operational Challenges
+
+- Multi-runtime deployment - Requires Rust + Python + MT5 coordination
+- Limited observability - No correlation IDs, metrics, or centralized error tracking
+- Configuration scattered - Settings distributed across multiple engines
+- Debugging complexity - Event-driven flow difficult to trace
+
+Most Critical Issue: The SQLite bottleneck combined with tight engine coupling creates a system that cannot handle production-scale quantitative trading loads.
