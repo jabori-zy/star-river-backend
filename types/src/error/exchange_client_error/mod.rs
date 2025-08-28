@@ -1,11 +1,13 @@
-pub mod mt5;
+pub mod mt5_error;
 mod data_processor_error;
 
 
 
 use thiserror::Error;
-pub use mt5::Mt5Error;
+pub use mt5_error::Mt5Error;
 pub use data_processor_error::DataProcessorError;
+use crate::custom_type::AccountId;
+use crate::market::Exchange;
 use super::ErrorCode;
 
 
@@ -19,9 +21,6 @@ pub enum ExchangeClientError {
     
     #[error("Binance error: {0}")]
     Binance(String),
-    
-    #[error("Connection error: {0}")]
-    Connection(String),
     
     #[error("Authentication error: {0}")]
     Authentication(String),
@@ -44,8 +43,15 @@ pub enum ExchangeClientError {
     #[error("Account management error: {0}")]
     AccountManagement(String),
     
-    #[error("WebSocket error: {0}")]
-    WebSocket(String),
+    #[error("exchange clientwebsocket error: {message}, exchange_type: {exchange_type:?}, account_id: {account_id}, url: {url}, source: {source}")]
+    WebSocket{
+        message: String,
+        exchange_type: Exchange,
+        account_id: AccountId,
+        url: String,
+        #[source]
+        source: tokio_tungstenite::tungstenite::error::Error,
+    },
     
     #[error("Serialization error: {0}")]
     Serialization(String),
@@ -90,9 +96,8 @@ impl ExchangeClientError {
                     ExchangeClientError::Binance(_) => 1001,
                     
                     // Network and connection errors (1002-1005)
-                    ExchangeClientError::Connection(_) => 1002,
                     ExchangeClientError::Network(_) => 1003,
-                    ExchangeClientError::WebSocket(_) => 1004,
+                    ExchangeClientError::WebSocket { .. } => 1004,
                     ExchangeClientError::Timeout(_) => 1005,
                     
                     // Authentication and authorization errors (1006-1007)
@@ -126,9 +131,15 @@ impl ExchangeClientError {
     pub fn binance<S: Into<String>>(message: S) -> Self {
         Self::Binance(message.into())
     }
-    
-    pub fn connection<S: Into<String>>(message: S) -> Self {
-        Self::Connection(message.into())
+
+    pub fn websocket<S: Into<String>>(message: S, exchange_type: Exchange, account_id: AccountId, url: String, source: tokio_tungstenite::tungstenite::error::Error) -> Self {
+        Self::WebSocket {
+            message: message.into(),
+            exchange_type,
+            account_id,
+            url,
+            source,
+        }
     }
     
     pub fn authentication<S: Into<String>>(message: S) -> Self {
@@ -157,10 +168,6 @@ impl ExchangeClientError {
     
     pub fn account_management<S: Into<String>>(message: S) -> Self {
         Self::AccountManagement(message.into())
-    }
-    
-    pub fn websocket<S: Into<String>>(message: S) -> Self {
-        Self::WebSocket(message.into())
     }
     
     pub fn serialization<S: Into<String>>(message: S) -> Self {
@@ -192,42 +199,7 @@ impl ExchangeClientError {
     }
 }
 
-// Conversion from common error types
-impl From<String> for ExchangeClientError {
-    fn from(err: String) -> Self {
-        Self::Internal(err)
-    }
-}
 
-impl From<&str> for ExchangeClientError {
-    fn from(err: &str) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
-impl From<serde_json::Error> for ExchangeClientError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Serialization(err.to_string())
-    }
-}
-
-impl From<reqwest::Error> for ExchangeClientError {
-    fn from(err: reqwest::Error) -> Self {
-        if err.is_timeout() {
-            Self::Timeout(err.to_string())
-        } else if err.is_connect() {
-            Self::Connection(err.to_string())
-        } else {
-            Self::Network(err.to_string())
-        }
-    }
-}
-
-impl From<tokio_tungstenite::tungstenite::Error> for ExchangeClientError {
-    fn from(err: tokio_tungstenite::tungstenite::Error) -> Self {
-        Self::WebSocket(err.to_string())
-    }
-}
 
 // Implement the StarRiverErrorTrait for ExchangeClientError
 impl super::error_trait::StarRiverErrorTrait for ExchangeClientError {
@@ -243,52 +215,7 @@ impl super::error_trait::StarRiverErrorTrait for ExchangeClientError {
     fn error_code(&self) -> ErrorCode {
         self.error_code()
     }
-    
-    fn category(&self) -> &'static str {
-        "exchange"
-    }
-    
-    fn is_retriable(&self) -> bool {
-        matches!(self,
-            ExchangeClientError::Connection(_) |
-            ExchangeClientError::Network(_) |
-            ExchangeClientError::WebSocket(_) |
-            ExchangeClientError::Timeout(_) |
-            ExchangeClientError::RateLimit(_)
-        )
-    }
-    
-    fn is_client_error(&self) -> bool {
-        matches!(self,
-            ExchangeClientError::Authentication(_) |
-            ExchangeClientError::InvalidParameters(_) |
-            ExchangeClientError::UnsupportedExchange(_)
-        )
-    }
-    
-    fn message(&self) -> &str {
-        match self {
-            ExchangeClientError::Binance(msg) |
-            ExchangeClientError::Connection(msg) |
-            ExchangeClientError::Authentication(msg) |
-            ExchangeClientError::RateLimit(msg) |
-            ExchangeClientError::InvalidParameters(msg) |
-            ExchangeClientError::MarketData(msg) |
-            ExchangeClientError::OrderManagement(msg) |
-            ExchangeClientError::PositionManagement(msg) |
-            ExchangeClientError::AccountManagement(msg) |
-            ExchangeClientError::WebSocket(msg) |
-            ExchangeClientError::Serialization(msg) |
-            ExchangeClientError::Network(msg) |
-            ExchangeClientError::Timeout(msg) |
-            ExchangeClientError::Configuration(msg) |
-            ExchangeClientError::UnsupportedExchange(msg) |
-            ExchangeClientError::NotImplemented(msg) |
-            ExchangeClientError::Internal(msg) => msg,
-            ExchangeClientError::MetaTrader5(_) => "MT5 error occurred",
-            ExchangeClientError::DataProcessor(_) => "Data processing error occurred",
-        }
-    }
+
 }
 
 // Implement ErrorContext trait for ExchangeClientError

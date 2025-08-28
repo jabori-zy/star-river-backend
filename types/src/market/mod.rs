@@ -22,10 +22,13 @@ pub type MT5Server = String;
 pub enum Exchange {
     #[serde(rename = "binance")]
     Binance,
+
     #[serde(rename = "huobi")]
     Huobi,
+
     #[serde(rename = "okx")]
     Okx,
+
     #[serde(rename = "metatrader5")]
     Metatrader5(MT5Server),
 }

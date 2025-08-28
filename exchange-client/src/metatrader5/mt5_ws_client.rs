@@ -2,7 +2,7 @@ use futures::SinkExt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{Error, Message, handshake::client::Response},
+    tungstenite::{Message, handshake::client::Response},
     MaybeTlsStream, WebSocketStream,
 };
 
@@ -16,16 +16,16 @@ pub struct Mt5WsClient;
 impl Mt5WsClient {
 
     #[instrument]
-    pub async fn connect(url: &str) -> Result<(WebSocketState, Response), Error> {
+    pub async fn connect(url: &str) -> Result<(WebSocketState, Response), tokio_tungstenite::tungstenite::error::Error> {
         let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
         let duration = start.elapsed();
-        tracing::info!("连接至metatrader5 websocket服务器成功, 耗时: {:?}。 响应状态: {:?}", duration, response.status());
+        tracing::info!("connect to metatrader5 websocket server successfully, duration: {:?}, response status: {:?}", duration, response.status());
         
         Ok((WebSocketState::new(socket), response))
     }
 
-    pub async fn connect_default(port: u16) -> Result<(WebSocketState, Response), Error> {
+    pub async fn connect_default(port: u16) -> Result<(WebSocketState, Response), tokio_tungstenite::tungstenite::error::Error> {
         let url = format!("ws://localhost:{}/ws", port);
         tracing::debug!("ws url: {:?}", url);
         Mt5WsClient::connect(&url).await

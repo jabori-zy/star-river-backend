@@ -388,7 +388,7 @@ impl MetaTrader5 {
         }
         
         // 检查服务是否启动成功
-        let is_start_success = self.check_server_start_success().await;
+        let is_start_success = self.ping_server().await;
         if !is_start_success {
             if let Err(e) = child.kill().await {
                 tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to kill the process");
@@ -445,36 +445,22 @@ impl MetaTrader5 {
     pub async fn connect_to_server(&mut self, port: u16) -> Result<(), Mt5Error> {
         self.server_port = port;
         
-        // 添加超时和错误处理，而不是unwrap
-        match tokio::time::timeout(
-            tokio::time::Duration::from_secs(30), 
-            self.create_mt5_http_client(self.server_port)
-        ).await {
-            Ok(result) => {
-                if let Err(e) = result {
-                    return Err(Mt5Error::connection(
-                        format!("create http client failed, port: {}, error: {}", self.server_port, e)
-                    ));
-                }
-            },
-            Err(_) => {
-                return Err(Mt5Error::timeout(
-                    format!("create http client timeout, port: {}", self.server_port)
-                ));
-            }
-        }
+        // create http client
+        self.create_mt5_http_client(self.server_port).await;
 
-        let is_start_success = self.check_server_start_success().await;
-        if !is_start_success {
-            return Err(Mt5Error::connection(format!("连接MT5-{}服务失败，端口: {}", self.terminal_id, self.server_port)));
+        // check server start success
+        let is_ping_success = self.ping_server().await;
+        if !is_ping_success {
+            return Err(Mt5Error::connection("server not start", self.terminal_id, self.server_port));
         }
         
         Ok(())
     }
 
-    async fn check_server_start_success(&mut self) -> bool {
+    #[instrument(skip_all)]
+    async fn ping_server(&mut self) -> bool {
         let mut retry_count = 0;
-        let max_retries = 10;
+        let max_retries = 3;
         let mut ping_success = false;
         tracing::info!(terminal_id = %self.terminal_id, "check if MT5-{} server is ready", self.terminal_id);
         while retry_count < max_retries {
@@ -490,7 +476,7 @@ impl MetaTrader5 {
                         if retry_count >= max_retries {
                             break;
                         }
-                        tracing::warn!(terminal_id = %self.terminal_id, "MT5-{} server is not ready, waiting for retry... ({}/{})", self.terminal_id, retry_count, max_retries);
+                        tracing::warn!(terminal_id = %self.terminal_id, "ping MT5-{} server failed, waiting for retry... ({}/{})", self.terminal_id, retry_count, max_retries);
                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     }
                 }
@@ -678,10 +664,9 @@ impl MetaTrader5 {
         Ok(success)
     }
 
-    async fn create_mt5_http_client(&mut self, port: u16) -> Result<(), ExchangeClientError> {
-        let mt5_http_client = Mt5HttpClient::new(port);
+    async fn create_mt5_http_client(&mut self, port: u16) {
+        let mt5_http_client = Mt5HttpClient::new(self.terminal_id, port);
         self.mt5_http_client.lock().await.replace(mt5_http_client);
-        Ok(())
     }
 
 
@@ -698,6 +683,7 @@ impl MetaTrader5 {
     pub async fn initialize_terminal(&mut self) -> Result<(), Mt5Error> {
         tracing::info!(terminal_id = %self.terminal_id, "start to initialize terminal");
         let mt5_http_client = self.mt5_http_client.lock().await;
+        
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             tracing::debug!(terminal_id = %self.terminal_id, "http client is initialized, ready to initialize terminal");
             mt5_http_client.initialize_terminal(self.login, &self.password, &self.server, &self.terminal_path).await?;
@@ -716,8 +702,7 @@ impl MetaTrader5 {
                 tracing::debug!(terminal_id = %self.terminal_id, "get terminal info failed, retry... ({}/{})", retry_count, max_retries);
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
-            // 如果多次重试后仍然失败，则返回错误
-            Err(Mt5Error::initialization(format!("the terminal is initialized, but cannot get terminal info, terminal_id: {}", self.terminal_id)))
+            Err(Mt5Error::get_account_info("the terminal is initialized, but cannot get terminal info", self.terminal_id, self.server_port))
         } else {
             Err(Mt5Error::initialization(format!("MT5 HTTP client is not initialized, terminal_id: {}", self.terminal_id)))
         }
@@ -784,8 +769,13 @@ impl ExchangeClient for MetaTrader5 {
     }
 
     async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
-        tracing::debug!("Metatrader5连接websocket");
-        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.unwrap();
+        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.map_err(|e| ExchangeClientError::websocket(
+            "connect to metatrader5 websocket server failed",
+            Exchange::Metatrader5(self.server.clone()),
+            self.terminal_id,
+            format!("ws://localhost:{}/ws", self.server_port),
+            e,
+        ))?;
         self.websocket_state.lock().await.replace(websocket_state);
         Ok(())
     }
@@ -999,7 +989,7 @@ impl ExchangeClient for MetaTrader5 {
             let position_list = position_info["data"].clone();
             // 如果仓位列表为空，则说明仓位已平仓
             if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return Err(ExchangeClientError::from("仓位已平仓"));
+                return Err(ExchangeClientError::internal("仓位已平仓"));
             }
             let data_processor = self.data_processor.lock().await;
             let position = data_processor.process_position(position_list[0].clone()).await
@@ -1017,7 +1007,7 @@ impl ExchangeClient for MetaTrader5 {
             let position_list = original_position_json["data"].clone();
             // 如果仓位列表为空，则说明仓位已平仓
             if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return Err(ExchangeClientError::from("仓位已平仓"));
+                    return Err(ExchangeClientError::internal("仓位已平仓"));
             }
             let data_processor = self.data_processor.lock().await;
             let position = data_processor.process_latest_position(position_list[0].clone(), position).await.expect("处理仓位失败");

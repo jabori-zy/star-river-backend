@@ -204,7 +204,6 @@ impl BacktestNodeTrait for KlineNode {
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            
                             let response = kline_node_context.register_exchange().await?;
                             if response.code() == 0 {
                                 *kline_node_context.exchange_is_registered.write().await = true;

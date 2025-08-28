@@ -1,5 +1,8 @@
+use reqwest::dns::Resolving;
 use types::market::Exchange;
 use crate::response::{Response, ResponseTrait};
+use types::error::ExchangeEngineError;
+use utils::get_utc8_timestamp;
 
 #[derive(Debug)]
 pub enum ExchangeEngineResponse {
@@ -54,8 +57,42 @@ impl TryFrom<Response> for ExchangeEngineResponse {
 #[derive(Debug)]
 pub struct RegisterExchangeResponse {
     pub code: i32,
+    pub success: bool,
     pub message: String,
     pub account_id: i32,
     pub exchange: Exchange,
+    pub error: Option<ExchangeEngineError>,
     pub response_timestamp: i64,
+}
+
+impl From<RegisterExchangeResponse> for Response {
+    fn from(response: RegisterExchangeResponse) -> Self {
+        Response::ExchangeEngine(ExchangeEngineResponse::RegisterExchange(response))
+    }
+}
+
+impl RegisterExchangeResponse {
+    pub fn success(message: impl Into<String>, account_id: i32, exchange: Exchange) -> Self {
+        Self {
+            code: 0,
+            success: true,
+            message: message.into(),
+            account_id,
+            exchange,
+            error: None,
+            response_timestamp: get_utc8_timestamp(),
+        }
+    }
+
+    pub fn error(message: impl Into<String>, account_id: i32, exchange: Exchange, error: ExchangeEngineError) -> Self {
+        Self {
+            code: -1,
+            success: false,
+            message: message.into(),
+            account_id,
+            exchange,
+            error: Some(error),
+            response_timestamp: get_utc8_timestamp(),
+        }
+    }
 }

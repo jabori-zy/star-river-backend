@@ -2,110 +2,64 @@ use thiserror::Error;
 use crate::error::ErrorCode;
 use crate::error::exchange_client_error::ExchangeClientError;
 use crate::custom_type::AccountId;
+use crate::error::exchange_client_error::Mt5Error;
+use crate::market::Exchange;
+use sea_orm::error::DbErr;
 
 #[derive(Error, Debug)]
 pub enum ExchangeEngineError {
     // === Registration & Configuration Errors ===
-    #[error("Exchange registration failed for account {account_id}: {message}")]
-    RegistrationFailed {
+    #[error("exchange registration failed for account {account_id}: {message}")]
+    RegisterExchangeFailed {
         message: String,
         account_id: AccountId,
-        exchange_type: Option<String>,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
+        exchange_type: Exchange,
+        #[source]
+        source: ExchangeClientError,
     },
     
-    #[error("Exchange unregistration failed for account {account_id}: {message}")]
+    #[error("exchange unregistration failed for account {account_id}: {message}")]
     UnregistrationFailed {
         message: String,
         account_id: AccountId,
-        exchange_type: Option<String>,
+        exchange_type: Exchange,
     },
     
-    #[error("Account configuration not found for account {account_id}: {message}")]
-    AccountConfigNotFound {
+
+    #[error("database error: {message}")]
+    Database { 
         message: String,
-        account_id: AccountId,
+        #[source]
+        source: DbErr,
     },
     
-    #[error("Unsupported exchange type: {exchange_type}")]
+    #[error("unsupported exchange type: {exchange_type:?}, account_id: {account_id}")]
     UnsupportedExchangeType {
         message: String,
-        exchange_type: String,
-        account_id: Option<AccountId>,
-    },
-    
-    // === MT5 Server Management Errors ===
-    #[error("MT5 server startup failed for account {account_id}: {message}")]
-    Mt5ServerStartupFailed {
-        message: String,
+        exchange_type: Exchange,
         account_id: AccountId,
-        port: Option<u16>,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
-        timeout_duration: Option<String>,
     },
-    
-    #[error("MT5 server shutdown failed for account {account_id}: {message}")]
-    Mt5ServerShutdownFailed {
-        message: String,
-        account_id: AccountId,
-        timeout_duration: Option<String>,
-    },
-    
-    #[error("MT5 server connection failed for account {account_id}: {message}")]
-    Mt5ServerConnectionFailed {
-        message: String,
-        account_id: AccountId,
-        port: Option<u16>,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
-    },
-    
-    // === Terminal Initialization Errors ===
-    #[error("MT5 terminal initialization failed for account {account_id}: {message}")]
-    Mt5TerminalInitializationFailed {
-        message: String,
-        account_id: AccountId,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
-        timeout_duration: Option<String>,
-    },
-    
-    #[error("MT5 terminal authentication failed for account {account_id}: {message}")]
-    Mt5TerminalAuthenticationFailed {
-        message: String,
-        account_id: AccountId,
-        login: Option<i64>,
-        server: Option<String>,
-    },
-    
-    // === WebSocket Connection Errors ===
-    #[error("WebSocket connection failed for account {account_id}: {message}")]
-    WebSocketConnectionFailed {
-        message: String,
-        account_id: AccountId,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
-    },
+
+    #[error("mt5 error: {0}")]
+    Mt5(#[from] Mt5Error),
     
     // === Exchange Client Management Errors ===
-    #[error("Exchange client not found for account {account_id}")]
+    #[error("exchange client not found for account {account_id}")]
     ExchangeClientNotFound {
         message: String,
         account_id: AccountId,
         requested_operation: Option<String>,
     },
     
-    #[error("Exchange client operation failed for account {account_id}: {message}")]
+    #[error("exchange client operation failed for account {account_id}: {message}")]
     ExchangeClientOperationFailed {
         message: String,
         account_id: AccountId,
         operation: String,
-        exchange_type: Option<String>,
+        exchange_type: Exchange,
     },
     
-    #[error("Exchange client type conversion failed for account {account_id}: {message}")]
+    #[error("exchange client type conversion failed for account {account_id}: {message}")]
     ExchangeClientTypeConversionFailed {
         message: String,
         account_id: AccountId,
@@ -114,7 +68,7 @@ pub enum ExchangeEngineError {
     },
     
     // === Database Errors ===
-    #[error("Database operation failed: {message}")]
+    #[error("database operation failed: {message}")]
     DatabaseOperationFailed {
         message: String,
         operation: String,
@@ -122,14 +76,14 @@ pub enum ExchangeEngineError {
         table: Option<String>,
     },
     
-    #[error("Database connection failed: {message}")]
+    #[error("database connection failed: {message}")]
     DatabaseConnectionFailed {
         message: String,
         database_url: Option<String>,
     },
     
     // === Timeout Errors ===
-    #[error("Operation timeout for account {}: {message}", account_id.map(|id| id.to_string()).unwrap_or("unknown".to_string()))]
+    #[error("operation timeout for account {}: {message}", account_id.map(|id| id.to_string()).unwrap_or("unknown".to_string()))]
     OperationTimeout {
         message: String,
         account_id: Option<AccountId>,
@@ -139,14 +93,14 @@ pub enum ExchangeEngineError {
     },
     
     // === Configuration Errors ===
-    #[error("Configuration error: {message}")]
+    #[error("configuration error: {message}")]
     ConfigurationError {
         message: String,
         config_key: Option<String>,
         account_id: Option<AccountId>,
     },
     
-    #[error("Environment error: {message}")]
+    #[error("environment error: {message}")]
     EnvironmentError {
         message: String,
         variable: Option<String>,
@@ -154,25 +108,25 @@ pub enum ExchangeEngineError {
     },
     
     // === Event & Command Handling Errors ===
-    #[error("Event publishing failed: {message}")]
+    #[error("event publishing failed: {message}")]
     EventPublishingFailed {
         message: String,
         account_id: Option<AccountId>,
         event_type: Option<String>,
     },
     
-    #[error("Command handling failed: {message}")]
+    #[error("command handling failed: {message}")]
     CommandHandlingFailed {
         message: String,
         account_id: Option<AccountId>,
         command_type: String,
     },
     
-    #[error("Exchange client error: {0}")]
+    #[error("exchange client error: {0}")]
     ExchangeClientError(#[from] ExchangeClientError),
     
     // === Generic Errors ===
-    #[error("Internal exchange engine error: {message}")]
+    #[error("internal exchange engine error: {message}")]
     Internal {
         message: String,
         component: Option<String>,
@@ -180,11 +134,11 @@ pub enum ExchangeEngineError {
         account_id: Option<AccountId>,
     },
     
-    #[error("Feature not implemented: {message}")]
+    #[error("feature not implemented: {message}")]
     NotImplemented {
         message: String,
         feature: String,
-        exchange_type: Option<String>,
+        exchange_type: Exchange,
     },
 }
 
@@ -205,22 +159,13 @@ impl ExchangeEngineError {
                 let prefix = self.get_prefix();
                 let code = match self {
                     // Registration & Configuration (1001-1004)
-                    ExchangeEngineError::RegistrationFailed { .. } => 1001,
+                    ExchangeEngineError::RegisterExchangeFailed { .. } => 1001,
                     ExchangeEngineError::UnregistrationFailed { .. } => 1002,
-                    ExchangeEngineError::AccountConfigNotFound { .. } => 1003,
+                    ExchangeEngineError::Database { .. } => 1003,
                     ExchangeEngineError::UnsupportedExchangeType { .. } => 1004,
-                    
-                    // MT5 Server Management (1005-1007)
-                    ExchangeEngineError::Mt5ServerStartupFailed { .. } => 1005,
-                    ExchangeEngineError::Mt5ServerShutdownFailed { .. } => 1006,
-                    ExchangeEngineError::Mt5ServerConnectionFailed { .. } => 1007,
-                    
-                    // Terminal Initialization (1008-1009)
-                    ExchangeEngineError::Mt5TerminalInitializationFailed { .. } => 1008,
-                    ExchangeEngineError::Mt5TerminalAuthenticationFailed { .. } => 1009,
-                    
-                    // WebSocket (1010)
-                    ExchangeEngineError::WebSocketConnectionFailed { .. } => 1010,
+
+                    // Mt5 (1005-1009)
+                    ExchangeEngineError::Mt5(_) => 1005,
                     
                     // Exchange Client Management (1011-1013)
                     ExchangeEngineError::ExchangeClientNotFound { .. } => 1011,
@@ -269,110 +214,20 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
         self.error_code()
     }
     
-    fn category(&self) -> &'static str {
-        "exchange_engine"
-    }
-    
-    fn is_retriable(&self) -> bool {
-        matches!(self,
-            ExchangeEngineError::Mt5ServerStartupFailed { .. } |
-            ExchangeEngineError::Mt5ServerConnectionFailed { .. } |
-            ExchangeEngineError::Mt5TerminalInitializationFailed { .. } |
-            ExchangeEngineError::WebSocketConnectionFailed { .. } |
-            ExchangeEngineError::DatabaseConnectionFailed { .. } |
-            ExchangeEngineError::OperationTimeout { .. } |
-            ExchangeEngineError::EventPublishingFailed { .. }
-        ) || matches!(self, ExchangeEngineError::ExchangeClientError(err) if err.is_retriable())
-    }
-    
-    fn is_client_error(&self) -> bool {
-        matches!(self,
-            ExchangeEngineError::AccountConfigNotFound { .. } |
-            ExchangeEngineError::UnsupportedExchangeType { .. } |
-            ExchangeEngineError::Mt5TerminalAuthenticationFailed { .. } |
-            ExchangeEngineError::ExchangeClientNotFound { .. } |
-            ExchangeEngineError::ConfigurationError { .. } |
-            ExchangeEngineError::NotImplemented { .. }
-        ) || matches!(self, ExchangeEngineError::ExchangeClientError(err) if err.is_client_error())
-    }
-    
-    fn message(&self) -> &str {
-        match self {
-            ExchangeEngineError::RegistrationFailed { message, .. } |
-            ExchangeEngineError::UnregistrationFailed { message, .. } |
-            ExchangeEngineError::AccountConfigNotFound { message, .. } |
-            ExchangeEngineError::UnsupportedExchangeType { message, .. } |
-            ExchangeEngineError::Mt5ServerStartupFailed { message, .. } |
-            ExchangeEngineError::Mt5ServerShutdownFailed { message, .. } |
-            ExchangeEngineError::Mt5ServerConnectionFailed { message, .. } |
-            ExchangeEngineError::Mt5TerminalInitializationFailed { message, .. } |
-            ExchangeEngineError::Mt5TerminalAuthenticationFailed { message, .. } |
-            ExchangeEngineError::WebSocketConnectionFailed { message, .. } |
-            ExchangeEngineError::ExchangeClientNotFound { message, .. } |
-            ExchangeEngineError::ExchangeClientOperationFailed { message, .. } |
-            ExchangeEngineError::ExchangeClientTypeConversionFailed { message, .. } |
-            ExchangeEngineError::DatabaseOperationFailed { message, .. } |
-            ExchangeEngineError::DatabaseConnectionFailed { message, .. } |
-            ExchangeEngineError::OperationTimeout { message, .. } |
-            ExchangeEngineError::ConfigurationError { message, .. } |
-            ExchangeEngineError::EnvironmentError { message, .. } |
-            ExchangeEngineError::EventPublishingFailed { message, .. } |
-            ExchangeEngineError::CommandHandlingFailed { message, .. } |
-            ExchangeEngineError::Internal { message, .. } |
-            ExchangeEngineError::NotImplemented { message, .. } => message,
-            ExchangeEngineError::ExchangeClientError(err) => err.message(),
-        }
-    }
-    
     fn context(&self) -> Vec<(&'static str, String)> {
         match self {
-            ExchangeEngineError::RegistrationFailed { account_id, exchange_type, retry_count, max_retries, .. } => {
+            ExchangeEngineError::RegisterExchangeFailed { account_id, exchange_type, .. } => {
                 let mut ctx = vec![("account_id", account_id.to_string())];
-                if let Some(ex_type) = exchange_type {
-                    ctx.push(("exchange_type", ex_type.clone()));
-                }
-                if let Some(retry) = retry_count {
-                    ctx.push(("retry_count", retry.to_string()));
-                }
-                if let Some(max) = max_retries {
-                    ctx.push(("max_retries", max.to_string()));
-                }
+                ctx.push(("exchange_type", exchange_type.to_string()));
                 ctx
             },
-            ExchangeEngineError::Mt5ServerStartupFailed { account_id, port, retry_count, max_retries, timeout_duration, .. } => {
-                let mut ctx = vec![("account_id", account_id.to_string())];
-                if let Some(p) = port {
-                    ctx.push(("port", p.to_string()));
-                }
-                if let Some(retry) = retry_count {
-                    ctx.push(("retry_count", retry.to_string()));
-                }
-                if let Some(max) = max_retries {
-                    ctx.push(("max_retries", max.to_string()));
-                }
-                if let Some(timeout) = timeout_duration {
-                    ctx.push(("timeout_duration", timeout.clone()));
-                }
-                ctx
-            },
-            ExchangeEngineError::Mt5TerminalAuthenticationFailed { account_id, login, server, .. } => {
-                let mut ctx = vec![("account_id", account_id.to_string())];
-                if let Some(l) = login {
-                    ctx.push(("login", l.to_string()));
-                }
-                if let Some(s) = server {
-                    ctx.push(("server", s.clone()));
-                }
-                ctx
-            },
+            
             ExchangeEngineError::ExchangeClientOperationFailed { account_id, operation, exchange_type, .. } => {
                 let mut ctx = vec![
                     ("account_id", account_id.to_string()),
                     ("operation", operation.clone())
                 ];
-                if let Some(ex_type) = exchange_type {
-                    ctx.push(("exchange_type", ex_type.clone()));
-                }
+                ctx.push(("exchange_type", exchange_type.to_string()));
                 ctx
             },
             ExchangeEngineError::DatabaseOperationFailed { operation, account_id, table, .. } => {
@@ -419,7 +274,6 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 // For simpler error types, extract account_id if available
                 match self {
                     ExchangeEngineError::UnregistrationFailed { account_id, .. } |
-                    ExchangeEngineError::AccountConfigNotFound { account_id, .. } |
                     ExchangeEngineError::ExchangeClientNotFound { account_id, .. } => {
                         vec![("account_id", account_id.to_string())]
                     },
@@ -475,26 +329,24 @@ impl<T> crate::error::error_trait::ErrorContext<T, ExchangeEngineError> for Resu
 
 impl ExchangeEngineError {
     // === Registration Error Constructors ===
-    pub fn registration_failed<S: Into<String>>(
+    pub fn register_exchange_failed<S: Into<String>>(
         message: S, 
         account_id: AccountId,
-        exchange_type: Option<String>,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>
+        exchange_type: Exchange,
+        source: ExchangeClientError
     ) -> Self {
-        Self::RegistrationFailed {
+        Self::RegisterExchangeFailed {
             message: message.into(),
             account_id,
             exchange_type,
-            retry_count,
-            max_retries,
+            source,
         }
     }
     
     pub fn unregistration_failed<S: Into<String>>(
         message: S,
         account_id: AccountId,
-        exchange_type: Option<String>
+        exchange_type: Exchange
     ) -> Self {
         Self::UnregistrationFailed {
             message: message.into(),
@@ -503,20 +355,12 @@ impl ExchangeEngineError {
         }
     }
     
-    pub fn account_config_not_found<S: Into<String>>(
-        message: S,
-        account_id: AccountId
-    ) -> Self {
-        Self::AccountConfigNotFound {
-            message: message.into(),
-            account_id,
-        }
-    }
+
     
     pub fn unsupported_exchange_type<S: Into<String>>(
         message: S,
-        exchange_type: String,
-        account_id: Option<AccountId>
+        exchange_type: Exchange,
+        account_id: AccountId
     ) -> Self {
         Self::UnsupportedExchangeType {
             message: message.into(),
@@ -524,99 +368,7 @@ impl ExchangeEngineError {
             account_id,
         }
     }
-    
-    // === MT5 Server Error Constructors ===
-    pub fn mt5_server_startup_failed<S: Into<String>>(
-        message: S,
-        account_id: AccountId,
-        port: Option<u16>,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
-        timeout_duration: Option<String>
-    ) -> Self {
-        Self::Mt5ServerStartupFailed {
-            message: message.into(),
-            account_id,
-            port,
-            retry_count,
-            max_retries,
-            timeout_duration,
-        }
-    }
-    
-    pub fn mt5_server_shutdown_failed<S: Into<String>>(
-        message: S,
-        account_id: AccountId,
-        timeout_duration: Option<String>
-    ) -> Self {
-        Self::Mt5ServerShutdownFailed {
-            message: message.into(),
-            account_id,
-            timeout_duration,
-        }
-    }
-    
-    pub fn mt5_server_connection_failed<S: Into<String>>(
-        message: S,
-        account_id: AccountId,
-        port: Option<u16>,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>
-    ) -> Self {
-        Self::Mt5ServerConnectionFailed {
-            message: message.into(),
-            account_id,
-            port,
-            retry_count,
-            max_retries,
-        }
-    }
-    
-    // === Terminal Error Constructors ===
-    pub fn mt5_terminal_initialization_failed<S: Into<String>>(
-        message: S,
-        account_id: AccountId,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>,
-        timeout_duration: Option<String>
-    ) -> Self {
-        Self::Mt5TerminalInitializationFailed {
-            message: message.into(),
-            account_id,
-            retry_count,
-            max_retries,
-            timeout_duration,
-        }
-    }
-    
-    pub fn mt5_terminal_authentication_failed<S: Into<String>>(
-        message: S,
-        account_id: AccountId,
-        login: Option<i64>,
-        server: Option<String>
-    ) -> Self {
-        Self::Mt5TerminalAuthenticationFailed {
-            message: message.into(),
-            account_id,
-            login,
-            server,
-        }
-    }
-    
-    // === WebSocket Error Constructors ===
-    pub fn websocket_connection_failed<S: Into<String>>(
-        message: S,
-        account_id: AccountId,
-        retry_count: Option<u32>,
-        max_retries: Option<u32>
-    ) -> Self {
-        Self::WebSocketConnectionFailed {
-            message: message.into(),
-            account_id,
-            retry_count,
-            max_retries,
-        }
-    }
+
     
     // === Exchange Client Error Constructors ===
     pub fn exchange_client_not_found<S: Into<String>>(
@@ -635,7 +387,7 @@ impl ExchangeEngineError {
         message: S,
         account_id: AccountId,
         operation: String,
-        exchange_type: Option<String>
+        exchange_type: Exchange
     ) -> Self {
         Self::ExchangeClientOperationFailed {
             message: message.into(),
@@ -718,7 +470,7 @@ impl ExchangeEngineError {
     pub fn not_implemented<S: Into<String>>(
         message: S,
         feature: String,
-        exchange_type: Option<String>
+        exchange_type: Exchange
     ) -> Self {
         Self::NotImplemented {
             message: message.into(),
@@ -752,68 +504,4 @@ impl ExchangeEngineError {
         }
     }
     
-}
-
-// === Conversion Implementations ===
-
-
-// Convert from String for convenience
-impl From<String> for ExchangeEngineError {
-    fn from(err: String) -> Self {
-        Self::Internal {
-            message: err,
-            component: None,
-            context: None,
-            account_id: None,
-        }
-    }
-}
-
-// Convert from &str for convenience
-impl From<&str> for ExchangeEngineError {
-    fn from(err: &str) -> Self {
-        Self::Internal {
-            message: err.to_string(),
-            component: None,
-            context: None,
-            account_id: None,
-        }
-    }
-}
-
-// Convert from std::io::Error
-impl From<std::io::Error> for ExchangeEngineError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Internal {
-            message: format!("IO error: {}", err),
-            component: Some("io".to_string()),
-            context: Some(err.kind().to_string()),
-            account_id: None,
-        }
-    }
-}
-
-// Convert from serde_json::Error
-impl From<serde_json::Error> for ExchangeEngineError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Internal {
-            message: format!("JSON error: {}", err),
-            component: Some("json".to_string()),
-            context: Some(format!("{:?}", err.classify())),
-            account_id: None,
-        }
-    }
-}
-
-// Convert from tokio::time::error::Elapsed (timeout errors)
-impl From<tokio::time::error::Elapsed> for ExchangeEngineError {
-    fn from(err: tokio::time::error::Elapsed) -> Self {
-        Self::OperationTimeout {
-            message: format!("Operation timed out: {}", err),
-            account_id: None,
-            operation: "unknown".to_string(),
-            timeout_duration: "unknown".to_string(),
-            retry_count: None,
-        }
-    }
 }

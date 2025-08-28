@@ -28,3 +28,4 @@ paste = "1.0.15"
 thiserror.workspace = true
 reqwest.workspace = true
 tokio-tungstenite.workspace = true
+sea-orm.workspace = true

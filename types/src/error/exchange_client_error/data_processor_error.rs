@@ -352,60 +352,6 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
         self.error_code()
     }
     
-    fn category(&self) -> &'static str {
-        "data_processor"
-    }
-    
-    fn is_retriable(&self) -> bool {
-        matches!(self,
-            DataProcessorError::StreamProcessing { .. } |
-            DataProcessorError::StreamDataFormat { .. }
-        )
-    }
-    
-    fn is_client_error(&self) -> bool {
-        matches!(self,
-            DataProcessorError::MissingField { .. } |
-            DataProcessorError::InvalidFieldType { .. } |
-            DataProcessorError::DataValidation { .. } |
-            DataProcessorError::EnumParsing { .. } |
-            DataProcessorError::InvalidKlineArrayFormat { .. }
-        )
-    }
-    
-    fn message(&self) -> &str {
-        match self {
-            DataProcessorError::JsonParsing(_) => "JSON parsing failed",
-            DataProcessorError::StreamProcessing { message, .. } |
-            DataProcessorError::KlineDataParsing { message, .. } |
-            DataProcessorError::OrderDataParsing { message, .. } |
-            DataProcessorError::PositionDataParsing { message, .. } |
-            DataProcessorError::DealDataParsing { message, .. } |
-            DataProcessorError::AccountInfoParsing { message, .. } |
-            DataProcessorError::TypeConversion { message, .. } |
-            DataProcessorError::DataValidation { message, .. } |
-            DataProcessorError::StreamDataFormat { message, .. } |
-            DataProcessorError::TimestampConversion { message, .. } |
-            DataProcessorError::Internal(message) => message,
-            DataProcessorError::MissingField { field, .. } => {
-                // Can't return reference to temporary string, use static message
-                "Required field missing"
-            },
-            DataProcessorError::InvalidFieldType { field, .. } => {
-                "Invalid field type"
-            },
-            DataProcessorError::ArrayParsing { .. } => {
-                "Array parsing failed"
-            },
-            DataProcessorError::InvalidKlineArrayFormat { .. } => {
-                "Invalid kline array format"
-            },
-            DataProcessorError::EnumParsing { .. } => {
-                "Enum parsing failed"
-            },
-        }
-    }
-    
     fn context(&self) -> Vec<(&'static str, String)> {
         match self {
             DataProcessorError::StreamProcessing { data_type: Some(dt), .. } => {

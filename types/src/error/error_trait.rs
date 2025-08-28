@@ -10,30 +10,11 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
     /// Returns a string error code in format "PREFIX_NNNN" (e.g., "MT5_HTTP_CLIENT_1001")
     fn error_code(&self) -> ErrorCode;
     
-    /// Returns the error category for monitoring and metrics
-    /// Examples: "exchange", "database", "strategy", "indicator", etc.
-    fn category(&self) -> &'static str;
-    
-    /// Check if this error represents a retriable/temporary failure
-    /// Used for automatic retry logic and error recovery
-    fn is_retriable(&self) -> bool {
-        false
-    }
-    
-    /// Check if this error is caused by client/user input
-    /// Used to determine HTTP response codes (4xx vs 5xx)
-    fn is_client_error(&self) -> bool {
-        false
-    }
-    
     /// Extract structured context information from the error
     /// Returns key-value pairs for logging, monitoring, and debugging
     fn context(&self) -> Vec<(&'static str, String)> {
         vec![]
     }
-    
-    /// Get the base error message without additional context
-    fn message(&self) -> &str;
 }
 
 /// Helper trait for adding context to error results
