@@ -18,7 +18,7 @@ sea-orm.workspace = true
 chrono.workspace = true
 migration = { path = "../migration" }
 entity = { path = "../entity" }
-sea-orm-migration = {version="1.1.7", features = ["sqlx-sqlite","runtime-tokio"]}
+sea-orm-migration = {version="1.1.14", features = ["sqlx-sqlite","runtime-tokio"]}
 event-center = { path = "../event-center" }
 utils = { path = "../utils" }
 types = {path = "../types" }

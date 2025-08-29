@@ -37,6 +37,7 @@ thiserror.workspace = true
 virtual-trading = { path = "../virtual-trading"}
 strategy-stats = { path = "../strategy-stats"}
 paste = "1.0.15"
+snafu.workspace = true
 
 
 [build-dependencies]

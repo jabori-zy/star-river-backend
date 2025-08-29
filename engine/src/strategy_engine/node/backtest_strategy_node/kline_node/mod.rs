@@ -3,6 +3,7 @@ pub mod kline_node_context;
 pub mod kline_node_type;
 
 use tokio::sync::broadcast;
+use std::error::Error;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
@@ -22,6 +23,8 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
 use types::strategy::node_event::BacktestNodeEvent;
 use types::custom_type::PlayIndex;
+use event_center::response::{Response, exchange_engine_response::{RegisterExchangeResponse, ExchangeEngineResponse}};
+use snafu::ErrorCompat;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -209,7 +212,10 @@ impl BacktestNodeTrait for KlineNode {
                                 *kline_node_context.exchange_is_registered.write().await = true;
                                 tracing::info!("{}注册交易所成功", node_id);   
                             } else {
-                                tracing::error!("{}注册交易所失败: {:?}", node_id, response);
+                                if let Response::ExchangeEngine(ExchangeEngineResponse::RegisterExchange(register_exchange_response)) = response {
+                                    let error = register_exchange_response.error.unwrap();
+                                    tracing::error!("{}注册交易所失败: {}", node_id, error.source().unwrap());
+                                }
                             }
                         }
                     }

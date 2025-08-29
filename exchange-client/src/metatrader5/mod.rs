@@ -8,6 +8,8 @@ mod mt5_types;
 mod test;
 
 use mt5_types::Mt5GetPositionNumberParams;
+use snafu::OptionExt;
+use snafu::ResultExt;
 use types::position::PositionNumber;
 use mt5_http_client::Mt5HttpClient;
 use std::os::windows::process::ExitStatusExt;
@@ -42,8 +44,7 @@ use tokio::process::Command;
 use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 use once_cell::sync::Lazy;
 use types::market::{Exchange, Kline};
-use types::error::exchange_client_error::Mt5Error;
-use types::error::exchange_client_error::ExchangeClientError;
+use types::error::exchange_client_error::*;
 use types::order::{CreateOrderParams, GetTransactionDetailParams};
 use tracing::instrument;
 use types::strategy::TimeRange;
@@ -81,8 +82,9 @@ static ORIGINAL_EXE_PATH: Lazy<PathBuf> = Lazy::new(|| {
 fn ensure_original_exe_exists() -> Result<(), Mt5Error> {
     tracing::info!("ensure original executable file exists");
     let original_exe_path = ORIGINAL_EXE_PATH.as_path();
-    let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe")
-        .ok_or(Mt5Error::internal("get python executable file failed"))?;
+    let py_exe = Asset::get("MetaTrader5-x86_64-pc-windows-msvc.exe").context(OtherSnafu {
+        message: "get python executable file failed".to_string()
+    })?;
     
     let needs_update = if !original_exe_path.exists() {
         true
@@ -96,7 +98,7 @@ fn ensure_original_exe_exists() -> Result<(), Mt5Error> {
     
     if needs_update {
         tracing::debug!(original_exe_path = %original_exe_path.display(), "create original executable file");
-        fs::write(original_exe_path, py_exe.data).map_err(|e| Mt5Error::internal(format!("write python executable file failed, error: {}", e)))?;
+        fs::write(original_exe_path, py_exe.data).unwrap();
     }
     
     Ok(())
@@ -148,8 +150,7 @@ fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, 
     let terminal_exe_path = terminal_dir.join(process_name);
     
     // 复制原始exe到新位置
-    fs::copy(original_exe_path, &terminal_exe_path)
-        .map_err(|e| Mt5Error::internal(format!("copy exe file failed, error: {}", e)))?;
+    fs::copy(original_exe_path, &terminal_exe_path).unwrap();
     
     tracing::info!(terminal_id = %terminal_id, terminal_exe_path = %terminal_exe_path.display(), "create new exe file");
     
@@ -207,239 +208,241 @@ impl MetaTrader5 {
         }
     }
 
-    pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, Mt5Error> {
-        // 确保原始exe文件存在（只需执行一次）
-        ensure_original_exe_exists()?;
+    // pub async fn start_mt5_server(&mut self, debug_output: bool) -> Result<u16, Mt5Error> {
+    //     // 确保原始exe文件存在（只需执行一次）
+    //     ensure_original_exe_exists()?;
         
-        // 变量用于存储进程ID以便后续检查
-        let mut old_pid: Option<u32> = None;
+    //     // 变量用于存储进程ID以便后续检查
+    //     let mut old_pid: Option<u32> = None;
         
-        // 先清理可能存在的旧进程
-        let mt5_process = self.mt5_process.lock().await;
-        if let Some(pid) = mt5_process.as_ref().and_then(|child| child.id()) {
-            old_pid = Some(pid);
-            #[cfg(windows)]
-            {
-                tracing::info!("正在终止旧的MT5-{}进程，PID: {}", self.terminal_id, pid);
-                // 仅终止特定PID的进程，不再通过进程名终止
-                // 完整命令: taskkill /F /PID <pid>
-                let _ = StdCommand::new("taskkill")
-                    .args(&["/F", "/PID", &pid.to_string()])
-                    .output();
-            }
-        }
+    //     // 先清理可能存在的旧进程
+    //     let mt5_process = self.mt5_process.lock().await;
+    //     if let Some(pid) = mt5_process.as_ref().and_then(|child| child.id()) {
+    //         old_pid = Some(pid);
+    //         #[cfg(windows)]
+    //         {
+    //             tracing::info!("正在终止旧的MT5-{}进程，PID: {}", self.terminal_id, pid);
+    //             // 仅终止特定PID的进程，不再通过进程名终止
+    //             // 完整命令: taskkill /F /PID <pid>
+    //             let _ = StdCommand::new("taskkill")
+    //                 .args(&["/F", "/PID", &pid.to_string()])
+    //                 .output();
+    //         }
+    //     }
         
-        // 先释放锁，避免长时间持有
-        drop(mt5_process);
+    //     // 先释放锁，避免长时间持有
+    //     drop(mt5_process);
         
-        // 如果有旧进程，等待其完全终止
-        if let Some(pid) = old_pid {
-            // 等待进程终止
-            let max_wait = 5; // 最多等待5秒
-            let mut wait_count = 0;
+    //     // 如果有旧进程，等待其完全终止
+    //     if let Some(pid) = old_pid {
+    //         // 等待进程终止
+    //         let max_wait = 5; // 最多等待5秒
+    //         let mut wait_count = 0;
             
-            loop {
-                #[cfg(windows)]
-                {
-                    // 检查进程是否仍在运行
-                    // 完整命令: tasklist /FI "PID eq <pid>" /FO CSV
-                    let output = StdCommand::new("tasklist")
-                        .args(&["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
-                        .output()
-                        .unwrap_or_else(|e| {
-                            tracing::warn!("检查进程状态失败: {}", e);
-                            std::process::Output {
-                                status: std::process::ExitStatus::from_raw(0),
-                                stdout: Vec::new(),
-                                stderr: Vec::new(),
-                            }
-                        });
+    //         loop {
+    //             #[cfg(windows)]
+    //             {
+    //                 // 检查进程是否仍在运行
+    //                 // 完整命令: tasklist /FI "PID eq <pid>" /FO CSV
+    //                 let output = StdCommand::new("tasklist")
+    //                     .args(&["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
+    //                     .output()
+    //                     .unwrap_or_else(|e| {
+    //                         tracing::warn!("检查进程状态失败: {}", e);
+    //                         std::process::Output {
+    //                             status: std::process::ExitStatus::from_raw(0),
+    //                             stdout: Vec::new(),
+    //                             stderr: Vec::new(),
+    //                         }
+    //                     });
                     
-                    let output_str = String::from_utf8_lossy(&output.stdout);
-                    if !output_str.contains(&pid.to_string()) {
-                        // 进程已终止
-                        tracing::info!("旧的MT5-{}进程(PID:{})已成功终止", self.terminal_id, pid);
-                        break;
-                    }
-                }
+    //                 let output_str = String::from_utf8_lossy(&output.stdout);
+    //                 if !output_str.contains(&pid.to_string()) {
+    //                     // 进程已终止
+    //                     tracing::info!("旧的MT5-{}进程(PID:{})已成功终止", self.terminal_id, pid);
+    //                     break;
+    //                 }
+    //             }
                 
-                wait_count += 1;
-                if wait_count >= max_wait {
-                    tracing::warn!("等待旧进程终止超时，将继续操作");
-                    break;
-                }
+    //             wait_count += 1;
+    //             if wait_count >= max_wait {
+    //                 tracing::warn!("等待旧进程终止超时，将继续操作");
+    //                 break;
+    //             }
                 
-                // 等待1秒
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            }
-        }
+    //             // 等待1秒
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    //         }
+    //     }
         
-        // 清理可能存在的同名进程（通过进程名进行精确匹配）
-        #[cfg(windows)]
-        {
-            tracing::info!(process_name = %self.process_name, "check if there is a process with the same name");
+    //     // 清理可能存在的同名进程（通过进程名进行精确匹配）
+    //     #[cfg(windows)]
+    //     {
+    //         tracing::info!(process_name = %self.process_name, "check if there is a process with the same name");
             
-            // 使用tasklist命令查找特定名称的进程
-            // 完整命令: tasklist /FI "IMAGENAME eq <process_name>" /FO CSV
-            let output = StdCommand::new("tasklist")
-                .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
-                .output()
-                .unwrap_or_else(|e| {
-                    tracing::warn!("检查进程状态失败: {}", e);
-                    std::process::Output {
-                        status: std::process::ExitStatus::from_raw(0),
-                        stdout: Vec::new(),
-                        stderr: Vec::new(),
-                    }
-                });
+    //         // 使用tasklist命令查找特定名称的进程
+    //         // 完整命令: tasklist /FI "IMAGENAME eq <process_name>" /FO CSV
+    //         let output = StdCommand::new("tasklist")
+    //             .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
+    //             .output()
+    //             .unwrap_or_else(|e| {
+    //                 tracing::warn!("检查进程状态失败: {}", e);
+    //                 std::process::Output {
+    //                     status: std::process::ExitStatus::from_raw(0),
+    //                     stdout: Vec::new(),
+    //                     stderr: Vec::new(),
+    //                 }
+    //             });
             
-            let output_str = String::from_utf8_lossy(&output.stdout);
-            if output_str.contains(&self.process_name) {
-                tracing::warn!(process_name = %self.process_name, "found a process with the same name, cleaning...");
+    //         let output_str = String::from_utf8_lossy(&output.stdout);
+    //         if output_str.contains(&self.process_name) {
+    //             tracing::warn!(process_name = %self.process_name, "found a process with the same name, cleaning...");
                 
-                // 使用进程名精确匹配终止进程，不使用通配符
-                // 完整命令: taskkill /F /IM <process_name>
-                let kill_result = StdCommand::new("taskkill")
-                    .args(&["/F", "/IM", &self.process_name])
-                    .output();
+    //             // 使用进程名精确匹配终止进程，不使用通配符
+    //             // 完整命令: taskkill /F /IM <process_name>
+    //             let kill_result = StdCommand::new("taskkill")
+    //                 .args(&["/F", "/IM", &self.process_name])
+    //                 .output();
                     
-                match kill_result {
-                    Ok(_) => tracing::info!(process_name = %self.process_name, "cleaned the process"),
-                    Err(e) => tracing::warn!(process_name = %self.process_name, error = %e, "failed to clean the process"),
-                }
+    //             match kill_result {
+    //                 Ok(_) => tracing::info!(process_name = %self.process_name, "cleaned the process"),
+    //                 Err(e) => tracing::warn!(process_name = %self.process_name, error = %e, "failed to clean the process"),
+    //             }
                 
-                // 等待进程终止
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            }
-        }
+    //             // 等待进程终止
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    //         }
+    //     }
         
-        // 现在创建终端特定的exe副本
-        let exe_path = create_terminal_exe(self.terminal_id, &self.process_name)?;
+    //     // 现在创建终端特定的exe副本
+    //     let exe_path = create_terminal_exe(self.terminal_id, &self.process_name)?;
         
-        // 检查端口是否可用，如果不可用则尝试其他端口
-        let max_port_tries = 10; // 最多尝试10个端口
-        let mut port_available = false;
+    //     // 检查端口是否可用，如果不可用则尝试其他端口
+    //     let max_port_tries = 10; // 最多尝试10个端口
+    //     let mut port_available = false;
         
-        for offset in 0..max_port_tries {
-            let port = self.server_port + offset;
-            // 使用socket来检测端口是否被占用
-            if let Ok(listener) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
-                // 如果成功绑定，说明端口可用
-                drop(listener); // 立即释放端口
-                port_available = true;
-                self.server_port = port;
-                break;
-            }
-            tracing::warn!(port = %port, "port is occupied, try next port");
-        }
+    //     for offset in 0..max_port_tries {
+    //         let port = self.server_port + offset;
+    //         // 使用socket来检测端口是否被占用
+    //         if let Ok(listener) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
+    //             // 如果成功绑定，说明端口可用
+    //             drop(listener); // 立即释放端口
+    //             port_available = true;
+    //             self.server_port = port;
+    //             break;
+    //         }
+    //         tracing::warn!(port = %port, "port is occupied, try next port");
+    //     }
         
-        if !port_available {
-            return Err(Mt5Error::internal(format!("can't find available port, tried from {} to {}", self.server_port, self.server_port + max_port_tries - 1)));
-        }
+    //     if !port_available {
+    //         return OtherSnafu {
+    //             message: "can't find available port".to_string()
+    //         }.fail()?;
+    //     }
 
-        tracing::info!(terminal_id = %self.terminal_id, port = %self.server_port, "assign port to mt5 backend server");
+    //     tracing::info!(terminal_id = %self.terminal_id, port = %self.server_port, "assign port to mt5 backend server");
 
-        // 创建子进程，设置新的进程组
-        let mut command = Command::new(&exe_path);
+    //     // 创建子进程，设置新的进程组
+    //     let mut command = Command::new(&exe_path);
         
-        #[cfg(windows)]
-        {
-            command.creation_flags(CREATE_NEW_PROCESS_GROUP.0 as u32);
-        }
+    //     #[cfg(windows)]
+    //     {
+    //         command.creation_flags(CREATE_NEW_PROCESS_GROUP.0 as u32);
+    //     }
 
-        // 添加端口参数
-        command.arg("--port").arg(self.server_port.to_string());
+    //     // 添加端口参数
+    //     command.arg("--port").arg(self.server_port.to_string());
         
-        // 根据debug_output参数决定如何处理输出
-        let mut child = if debug_output {
-            // 直接输出到终端
-            command
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .spawn().map_err(|e| Mt5Error::internal(format!("启动进程失败: {}", e)))?
-        } else {
-            // 捕获输出用于日志
-            command
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn().map_err(|e| Mt5Error::internal(format!("启动进程失败: {}", e)))?
-        };
+    //     // 根据debug_output参数决定如何处理输出
+    //     let mut child = if debug_output {
+    //         // 直接输出到终端
+    //         command
+    //             .stdout(Stdio::inherit())
+    //             .stderr(Stdio::inherit())
+    //             .spawn().unwrap();
+    //     } else {
+    //         // 捕获输出用于日志
+    //         command
+    //             .stdout(Stdio::piped())
+    //             .stderr(Stdio::piped())
+    //             .spawn().unwrap();
+    //     };
         
-        // 保存进程PID用于日志和后续清理
-        tracing::info!(terminal_id = %self.terminal_id, pid = %child.id().unwrap_or(0), "MT5-{} 进程已启动", self.terminal_id);
+    //     // 保存进程PID用于日志和后续清理
+    //     tracing::info!(terminal_id = %self.terminal_id, pid = %child.id().unwrap_or(0), "MT5-{} 进程已启动", self.terminal_id);
 
-        // 初始化http客户端
-        match tokio::time::timeout(tokio::time::Duration::from_secs(30), self.create_mt5_http_client(self.server_port)).await
-        {
-            Ok(_) => {
-                tracing::info!("initialize http client success");
-            }
-            Err(e) => {
-                // 客户端初始化失败，清理进程
-                if let Err(e) = child.kill().await {
-                    tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to kill the process");
-                }
-                // 删除临时exe文件
-                let _ = fs::remove_file(&exe_path);
+    //     // 初始化http客户端
+    //     match tokio::time::timeout(tokio::time::Duration::from_secs(30), self.create_mt5_http_client(self.server_port)).await
+    //     {
+    //         Ok(_) => {
+    //             tracing::info!("initialize http client success");
+    //         }
+    //         Err(e) => {
+    //             // 客户端初始化失败，清理进程
+    //             if let Err(e) = child.kill().await {
+    //                 tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to kill the process");
+    //             }
+    //             // 删除临时exe文件
+    //             let _ = fs::remove_file(&exe_path);
                 
-                tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to initialize http client");
-                return Err(Mt5Error::internal(format!("failed to initialize http client, error: {}", e)));
-            }
-        }
+    //             tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to initialize http client");
+    //             return Err(Mt5Error::internal(format!("failed to initialize http client, error: {}", e)));
+    //         }
+    //     }
         
-        // 检查服务是否启动成功
-        let is_start_success = self.ping_server().await;
-        if !is_start_success {
-            if let Err(e) = child.kill().await {
-                tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to kill the process");
-            }
-            // 删除临时exe文件
-            let _ = fs::remove_file(&exe_path);
+    //     // 检查服务是否启动成功
+    //     let is_start_success = self.ping_server().await;
+    //     if !is_start_success {
+    //         if let Err(e) = child.kill().await {
+    //             tracing::error!(terminal_id = %self.terminal_id, error = %e, "failed to kill the process");
+    //         }
+    //         // 删除临时exe文件
+    //         let _ = fs::remove_file(&exe_path);
             
-            return Err(Mt5Error::internal(format!("Start MT5-{} server failed, port: {}", self.terminal_id, self.server_port)));
-        }
+    //         return Err(Mt5Error::internal(format!("Start MT5-{} server failed, port: {}", self.terminal_id, self.server_port)));
+    //     }
 
-        // 如果不是直接输出到终端，则捕获输出到日志
-        if !debug_output {
-            // 处理标准输出
-            if let Some(stdout) = child.stdout.take() {
-                tokio::spawn(async move {
-                    use tokio::io::{BufReader, AsyncBufReadExt};
-                    let reader = BufReader::new(stdout);
-                    let mut lines = reader.lines();
+    //     // 如果不是直接输出到终端，则捕获输出到日志
+    //     if !debug_output {
+    //         // 处理标准输出
+    //         if let Some(stdout) = child.stdout.take() {
+    //             tokio::spawn(async move {
+    //                 use tokio::io::{BufReader, AsyncBufReadExt};
+    //                 let reader = BufReader::new(stdout);
+    //                 let mut lines = reader.lines();
                     
-                    while let Ok(Some(line)) = lines.next_line().await {
-                        // tracing::info!("MT5 output: {}", line);
-                    }
-                });
-            }
+    //                 while let Ok(Some(line)) = lines.next_line().await {
+    //                     // tracing::info!("MT5 output: {}", line);
+    //                 }
+    //             });
+    //         }
 
-            // 处理标准错误
-            if let Some(stderr) = child.stderr.take() {
-                tokio::spawn(async move {
-                    use tokio::io::{BufReader, AsyncBufReadExt};
-                    let reader = BufReader::new(stderr);
-                    let mut lines = reader.lines();
+    //         // 处理标准错误
+    //         if let Some(stderr) = child.stderr.take() {
+    //             tokio::spawn(async move {
+    //                 use tokio::io::{BufReader, AsyncBufReadExt};
+    //                 let reader = BufReader::new(stderr);
+    //                 let mut lines = reader.lines();
                     
-                    while let Ok(Some(line)) = lines.next_line().await {
-                        tracing::warn!(error = %line, "MT5 error");
-                    }
-                });
-            }
-        }
+    //                 while let Ok(Some(line)) = lines.next_line().await {
+    //                     tracing::warn!(error = %line, "MT5 error");
+    //                 }
+    //             });
+    //         }
+    //     }
 
-        // 保存进程和exe路径以便后续清理
-        let mut mt5_process = self.mt5_process.lock().await;
-        *mt5_process = Some(child);
-        drop(mt5_process);
+    //     // 保存进程和exe路径以便后续清理
+    //     let mut mt5_process = self.mt5_process.lock().await;
+    //     *mt5_process = Some(child);
+    //     drop(mt5_process);
         
-        let mut exe_path_lock = self.exe_path.lock().await;
-        *exe_path_lock = Some(exe_path);
-        drop(exe_path_lock);
+    //     let mut exe_path_lock = self.exe_path.lock().await;
+    //     *exe_path_lock = Some(exe_path);
+    //     drop(exe_path_lock);
 
-        tracing::info!(terminal_id = %self.terminal_id, port = %self.server_port, "metatrader5 server started successfully");
-        Ok(self.server_port)
-    }
+    //     tracing::info!(terminal_id = %self.terminal_id, port = %self.server_port, "metatrader5 server started successfully");
+    //     Ok(self.server_port)
+    // }
 
     // 直接连接mt5服务器
     pub async fn connect_to_server(&mut self, port: u16) -> Result<(), Mt5Error> {
@@ -451,7 +454,11 @@ impl MetaTrader5 {
         // check server start success
         let is_ping_success = self.ping_server().await;
         if !is_ping_success {
-            return Err(Mt5Error::connection("server not start", self.terminal_id, self.server_port));
+            return ConnectionSnafu {
+                message: "server not start".to_string(),
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
         
         Ok(())
@@ -462,7 +469,7 @@ impl MetaTrader5 {
         let mut retry_count = 0;
         let max_retries = 3;
         let mut ping_success = false;
-        tracing::info!(terminal_id = %self.terminal_id, "check if MT5-{} server is ready", self.terminal_id);
+        tracing::info!(terminal_id = %self.terminal_id, "ping mt5 server");
         while retry_count < max_retries {
             let mt5_http_client = self.mt5_http_client.lock().await;
             if let Some(mt5_http_client) = mt5_http_client.as_ref() {
@@ -471,7 +478,8 @@ impl MetaTrader5 {
                         ping_success = true;
                         break;
                     },
-                    _ => {
+                    Err(e) => {
+                        tracing::error!("{}", e.to_string());
                         retry_count += 1;
                         if retry_count >= max_retries {
                             break;
@@ -702,9 +710,16 @@ impl MetaTrader5 {
                 tracing::debug!(terminal_id = %self.terminal_id, "get terminal info failed, retry... ({}/{})", retry_count, max_retries);
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
-            Err(Mt5Error::get_account_info("the terminal is initialized, but cannot get terminal info", self.terminal_id, self.server_port))
+            return GetTerminalInfoSnafu {
+                message: "the terminal is initialized, but cannot get terminal info".to_string(),
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         } else {
-            Err(Mt5Error::initialization(format!("MT5 HTTP client is not initialized, terminal_id: {}", self.terminal_id)))
+            return TerminalNotInitializedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
@@ -732,15 +747,15 @@ impl ExchangeClient for MetaTrader5 {
     async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let symbols = mt5_http_client.get_symbol_list().await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let symbols = mt5_http_client.get_symbol_list().await?;
             let data_processor = self.data_processor.lock().await;
-            let symbols = data_processor.process_symbol_list(symbols).await
-                .map_err(ExchangeClientError::from)?;
+            let symbols = data_processor.process_symbol_list(symbols).await?;
             Ok(symbols)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
@@ -756,26 +771,24 @@ impl ExchangeClient for MetaTrader5 {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await?;
             let data_processor = self.data_processor.lock().await;
-            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await
-                .map_err(ExchangeClientError::from)?;
+            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await?;
             Ok(kline_series)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
     async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
-        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.map_err(|e| ExchangeClientError::websocket(
-            "connect to metatrader5 websocket server failed",
-            Exchange::Metatrader5(self.server.clone()),
-            self.terminal_id,
-            format!("ws://localhost:{}/ws", self.server_port),
-            e,
-        ))?;
+        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.context(WebSocketSnafu {
+            message: "connect to metatrader5 websocket server failed".to_string(),
+            account_id: self.terminal_id,
+            url: format!("ws://localhost:{}/ws", self.server_port),
+        })?;
         self.websocket_state.lock().await.replace(websocket_state);
         Ok(())
     }
@@ -877,15 +890,15 @@ impl ExchangeClient for MetaTrader5 {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await?;
             let data_processor = self.data_processor.lock().await;
-            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await
-                .map_err(ExchangeClientError::from)?;
+            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await?;
             Ok(klines)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
@@ -895,53 +908,56 @@ impl ExchangeClient for MetaTrader5 {
         
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             // 创建订单
-            let create_order_result = mt5_http_client.create_order(mt5_order_request).await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let create_order_result = mt5_http_client.create_order(mt5_order_request).await?;
             
             // 获取返回码
-            let retcode = create_order_result["data"]["retcode"].as_i64()
-                .ok_or_else(|| ExchangeClientError::order_management("获取retcode失败"))?;
+            let retcode = create_order_result["data"]["retcode"].as_i64().context(RetcodeSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            })?;
             
             if retcode != 10009 {
-                return Err(ExchangeClientError::order_management(
-                    format!("创建订单失败, retcode: {}", retcode)
-                ));
+                return RetcodeSnafu {
+                    terminal_id: self.terminal_id,
+                    port: self.server_port,
+                }.fail()?;
             }
             
             // 获取订单ID
             let order_id = create_order_result["data"]["order_id"].as_i64()
-                .ok_or_else(|| ExchangeClientError::order_management("获取order_id失败"))?;
+                .context(OrderIdSnafu {
+                    terminal_id: self.terminal_id,
+                    port: self.server_port,
+                })?;
             
             // 获取订单详情
-            let order_info = mt5_http_client.get_order(&order_id).await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let order_info = mt5_http_client.get_order(&order_id).await?;
 
             // 处理订单数据
             let data_processor = self.data_processor.lock().await;
-            let order = data_processor.process_order(order_info).await
-                .map_err(|e| ExchangeClientError::internal(format!("处理订单失败: {}", e)))?;
-
+            let order = data_processor.process_order(order_info).await?;
             Ok(order)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
     async fn update_order(&self, order: Order) -> Result<Order, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let order_info = mt5_http_client.get_order(&order.exchange_order_id).await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let order_info = mt5_http_client.get_order(&order.exchange_order_id).await?;
 
             let data_processor = self.data_processor.lock().await;
-            let updated_order = data_processor.update_order(order_info, order).await
-                .map_err(|e| ExchangeClientError::order_management(format!("处理订单失败: {}", e)))?;
+            let updated_order = data_processor.update_order(order_info, order).await?;
             Ok(updated_order)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
@@ -952,51 +968,49 @@ impl ExchangeClient for MetaTrader5 {
             let data_processor = self.data_processor.lock().await;
             
             if let Some(transaction_id) = params.transaction_id {
-                let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await
-                    .map_err(Mt5Error::from)
-                    .map_err(ExchangeClientError::from)?;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await
-                    .map_err(|e| ExchangeClientError::internal(format!("处理交易明细失败: {}", e)))?;
+                let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
                 return Ok(transaction_detail);
             } else if let Some(position_id) = params.position_id {
-                let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await
-                    .map_err(Mt5Error::from)
-                    .map_err(ExchangeClientError::from)?;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await
-                    .map_err(|e| ExchangeClientError::internal(format!("处理交易明细失败: {}", e)))?;
+                let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
                 return Ok(transaction_detail);
             } else if let Some(order_id) = params.order_id {
-                let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await
-                    .map_err(Mt5Error::from)
-                    .map_err(ExchangeClientError::from)?;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await
-                    .map_err(|e| ExchangeClientError::internal(format!("处理交易明细失败: {}", e)))?;
+                let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
                 return Ok(transaction_detail);
             } else {
-                return Err(ExchangeClientError::invalid_parameters("交易明细id不能为None"));
+                return OtherSnafu {
+                    message: "transaction_id, position_id, order_id cannot be None".to_string(),
+                }.fail()?;
             }
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
     async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let position_info = mt5_http_client.get_position(&params.position_id).await
-                .map_err(Mt5Error::from)
-                .map_err(ExchangeClientError::from)?;
+            let position_info = mt5_http_client.get_position(&params.position_id).await?;
             let position_list = position_info["data"].clone();
             // 如果仓位列表为空，则说明仓位已平仓
             if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return Err(ExchangeClientError::internal("仓位已平仓"));
+                return OtherSnafu {
+                    message: "仓位已平仓".to_string(),
+                }.fail()?;
             }
             let data_processor = self.data_processor.lock().await;
-            let position = data_processor.process_position(position_list[0].clone()).await
-                .map_err(|e| ExchangeClientError::internal(format!("处理仓位失败: {}", e)))?;
+            let position = data_processor.process_position(position_list[0].clone()).await?;
             Ok(position)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
@@ -1007,13 +1021,18 @@ impl ExchangeClient for MetaTrader5 {
             let position_list = original_position_json["data"].clone();
             // 如果仓位列表为空，则说明仓位已平仓
             if position_list.as_array().expect("转换为array失败").len() == 0 {
-                    return Err(ExchangeClientError::internal("仓位已平仓"));
+                return OtherSnafu {
+                    message: "仓位已平仓".to_string(),
+                }.fail()?;
             }
             let data_processor = self.data_processor.lock().await;
             let position = data_processor.process_latest_position(position_list[0].clone(), position).await.expect("处理仓位失败");
             Ok(position)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
@@ -1026,19 +1045,25 @@ impl ExchangeClient for MetaTrader5 {
             let position_number = mt5_data_processor.process_position_number(position_number_info).await.expect("解析position_number数据失败");
             Ok(position_number)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 
     async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let account_info = mt5_http_client.get_account_info().await.expect("获取账户信息失败");
+            let account_info = mt5_http_client.get_account_info().await?;
             let data_processor = self.data_processor.lock().await;
-            let account_info = data_processor.process_account_info(self.terminal_id, account_info).await.expect("处理账户信息失败");
+            let account_info = data_processor.process_account_info(self.terminal_id, account_info).await?;
             Ok(account_info)
         } else {
-            Err(ExchangeClientError::from(Mt5Error::initialization("metatrader5 http client is not initialized")))
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }.fail()?;
         }
     }
 

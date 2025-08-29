@@ -1,7 +1,7 @@
 use reqwest::dns::Resolving;
 use types::market::Exchange;
 use crate::response::{Response, ResponseTrait};
-use types::error::ExchangeEngineError;
+use types::error::engine_error::*;
 use utils::get_utc8_timestamp;
 
 #[derive(Debug)]

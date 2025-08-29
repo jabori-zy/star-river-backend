@@ -1,425 +1,462 @@
-use thiserror::Error;
+use snafu::{Snafu, Backtrace, GenerateImplicitData};
+use std::collections::HashMap;
 use super::data_processor_error::DataProcessorError;
 use crate::error::ErrorCode;
 use crate::custom_type::AccountId;
 
 pub type MT5ErrorCode = i64;
 
-#[derive(Error, Debug)]
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
 pub enum Mt5Error {
-    #[error("http error: message={message}, terminal_id={terminal_id}, port={port}")]
-    Http {
-        message: String,
+
+    #[snafu(display("network error: terminal_id={terminal_id}, url={url}"))]
+    Network {
         terminal_id: i32,
-        port: u16,
-        #[source]
+        url: String,
         source: reqwest::Error,
+        backtrace: Backtrace,
     },
 
-    #[error("no success field in the response")]
-    NoSuccessFieldInResponse,
+    #[snafu(display("server error: terminal_id={terminal_id}, url={url}"))]
+    Server {
+        terminal_id: i32,
+        url: String,
+        status_code: u16,
+        backtrace: Backtrace,
+    },
 
-    #[error("http client not created: terminal_id={terminal_id}, port={port}")]
+    #[snafu(display("response error: terminal_id={terminal_id}, url={url}"))]
+    Response{
+        terminal_id: i32,
+        url: String,
+        source: reqwest::Error,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("no success field in the response"))]
+    NoSuccessFieldInResponse {
+        terminal_id: i32,
+        url: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("http client not created: terminal_id={terminal_id}, port={port}"))]
     HttpClientNotCreated {
         terminal_id: i32,
         port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error(transparent)]
-    Json(#[from] serde_json::Error),
+    #[snafu(display("json parsing error"))]
+    Json {
+        source: serde_json::Error,
+        backtrace: Backtrace,
+    },
     
-    #[error("failed to initialize terminal: {0}")]
-    InitializeTerminal(String),
-    
-    #[error("failed to get terminal info: {0}")]
-    GetTerminalInfo(String),
+    #[snafu(display("failed to initialize terminal: {message}"))]
+    InitializeTerminal {
+        message: String,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
 
-    #[error("failed to get symbol list: {0}")]
-    GetSymbolList(String),
+    #[snafu(display("terminal {terminal_id} not initialized: port={port}"))]
+    TerminalNotInitialized {
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
     
-    #[error("failed to get kline data for symbol '{symbol}': {message}")]
+    #[snafu(display("failed to get terminal info: {message}"))]
+    GetTerminalInfo {
+        message: String,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("failed to get symbol list: {message}"))]
+    GetSymbolList {
+        message: String,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+    
+    #[snafu(display("failed to get kline data for symbol '{symbol}': {message}"))]
     GetKlineData { 
         symbol: String, 
         message: String, 
-        code: Option<MT5ErrorCode>
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("failed to create order for symbol '{symbol}': {message}")]
+    #[snafu(display("failed to create order for symbol '{symbol}': {message}"))]
     CreateOrder { 
         symbol: String, 
         message: String,
-        code: Option<MT5ErrorCode>
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("failed to get order {order_id}: {message}")]
+    #[snafu(display("failed to get order {order_id}: {message}"))]
     GetOrder { 
         order_id: i64, 
-        message: String 
+        message: String,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("failed to get position {position_id}: {message}")]
+    #[snafu(display("Failed to get position {position_id}: {message}"))]
     GetPosition {
         position_id: i64, 
-        message: String 
+        message: String,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Failed to get deal by position id {position_id}: {message}"))]
+    GetDealByPositionId {
+        position_id: i64,
+        message: String,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("failed to get deal: {message}")]
+    #[snafu(display("Failed to get deal: {message}"))]
     GetDeal {
         message: String,
         deal_id: Option<i64>,
         position_id: Option<i64>,
         order_id: Option<i64>,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Failed to get deal by deal id {deal_id}: {message}"))]
+    GetDealByDealId {
+        deal_id: i64,
+        message: String,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Failed to get deal by order id {order_id}: {message}"))]
+    GetDealByOrderId {
+        order_id: i64,
+        message: String,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("failed to get position number for symbol '{symbol}': {message}")]
+    #[snafu(display("Failed to get position number for symbol '{symbol}': {message}"))]
     GetPositionNumber {
         symbol: String, 
-        message: String 
+        message: String,
+        code: Option<MT5ErrorCode>,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("failed to get account info: message={message}, terminal_id={terminal_id}, port={port}")]
+    #[snafu(display("Failed to get account info: message={message}, terminal_id={terminal_id}, port={port}"))]
     GetAccountInfo {
         message: String,
         terminal_id: i32,
         port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Failed to get retcode: terminal_id={terminal_id}, port={port}"))]
+    Retcode {
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Failed to get order id: terminal_id={terminal_id}, port={port}"))]
+    OrderId {
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("ping failed: {message}, terminal_id={terminal_id}, port={port}")]
+    #[snafu(display("Ping failed: {message}, terminal_id={terminal_id}, port={port}"))]
     Ping {
         message: String,
         terminal_id: i32,
         port: u16,
-        #[source]
-        source: Option<reqwest::Error>
+        backtrace: Backtrace,
     },
+
     
-    #[error("metatrader5 websocket error: {message}, account_id: {account_id}, url: {url}")]
-    WebSocket{
+    #[snafu(display("MetaTrader5 websocket error: {message}, account_id: {account_id}, url: {url}"))]
+    WebSocket {
         message: String,
         account_id: AccountId,
         url: String,
-        #[source]
         source: tokio_tungstenite::tungstenite::error::Error,
+        backtrace: Backtrace,
     },
     
-    #[error(transparent)]
-    DataProcessor(#[from] DataProcessorError),
+    #[snafu(display("Data processor error"))]
+    DataProcessor {
+        source: DataProcessorError,
+        backtrace: Backtrace,
+    },
     
-    #[error("metatrader5 connection error: message={message}, terminal_id={terminal_id}, port={port}")]
-    Connection{
+    #[snafu(display("MetaTrader5 connection error: message={message}, terminal_id={terminal_id}, port={port}"))]
+    Connection {
         message: String,
         terminal_id: i32,
         port: u16,
+        backtrace: Backtrace,
     },
     
-    #[error("metatrader5 initialization error: {0}")]
-    Initialization(String),
+    #[snafu(display("MetaTrader5 initialization error: {message}"))]
+    Initialization {
+        message: String,
+        backtrace: Backtrace,
+    },
     
-    #[error("metatrader5 configuration error: {0}")]
-    Configuration(String),
+    #[snafu(display("MetaTrader5 configuration error: {message}"))]
+    Configuration {
+        message: String,
+        backtrace: Backtrace,
+    },
     
-    #[error("metatrader5 server error: {0}")]
-    Server(String),
+    #[snafu(display("MetaTrader5 timeout error: {message}"))]
+    Timeout {
+        message: String,
+        backtrace: Backtrace,
+    },
     
-    #[error("metatrader5 timeout error: {0}")]
-    Timeout(String),
+    #[snafu(display("MetaTrader5 authentication error: {message}"))]
+    Authentication {
+        message: String,
+        backtrace: Backtrace,
+    },
     
-    #[error("metatrader5 authentication error: {0}")]
-    Authentication(String),
+    #[snafu(display("MetaTrader5 validation error: {message}"))]
+    Validation {
+        message: String,
+        backtrace: Backtrace,
+    },
     
-    #[error("metatrader5 validation error: {0}")]
-    Validation(String),
-    
-    #[error("metatrader5 internal error: {0}")]
-    Internal(String),
+    #[snafu(display("MetaTrader5 other error: {message}"))]
+    Other {
+        message: String,
+        backtrace: Backtrace,
+    },
 }
 
-impl Mt5Error {
-    /// Returns the error prefix for MT5 errors
-    pub fn get_prefix(&self) -> &'static str {
+// Implement the StarRiverErrorTrait for Mt5Error
+impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
+    fn get_prefix(&self) -> &'static str {
         "MT5"
     }
     
-    /// Returns a string error code for MT5 errors (format: MT5_NNNN)
-    pub fn error_code(&self) -> ErrorCode {
+    fn error_code(&self) -> ErrorCode {
         match self {
             // For nested errors, delegate to the inner error's code
-            Mt5Error::DataProcessor(data_err) => data_err.error_code(),
+            Mt5Error::DataProcessor { source, .. } => source.error_code(),
             
             // For direct MT5 errors, use MT5 prefix
             _ => {
                 let prefix = self.get_prefix();
                 let code = match self {
-                    // HTTP and JSON errors (1001-1002)
-                    Mt5Error::Http { .. } => 1001,
-                    Mt5Error::NoSuccessFieldInResponse => 1002,
+                    // HTTP and JSON errors (1001-1004)
+                    Mt5Error::Network { .. } => 1001,
+                    Mt5Error::Server { .. } => 1002,
+                    Mt5Error::NoSuccessFieldInResponse { .. } => 1002,
                     Mt5Error::HttpClientNotCreated { .. } => 1003,
-                    Mt5Error::Json(_) => 1004,
+                    Mt5Error::Json { .. } => 1004,
+                    Mt5Error::Response { .. } => 1005,
                     
-                    // Terminal operations (1003-1006)
-                    Mt5Error::InitializeTerminal(_) => 1003,
-                    Mt5Error::GetTerminalInfo(_) => 1004,
-                    Mt5Error::GetSymbolList(_) => 1005,
-                    Mt5Error::Ping { .. } => 1006,
+                    // Terminal operations (1005-1008)
+                    Mt5Error::InitializeTerminal { .. } => 1005,
+                    Mt5Error::GetTerminalInfo { .. } => 1006,
+                    Mt5Error::GetSymbolList { .. } => 1007,
+                    Mt5Error::Ping { .. } => 1008,
                     
-                    // Market data operations (1007)
-                    Mt5Error::GetKlineData { .. } => 1007,
+                    // Market data operations (1009)
+                    Mt5Error::GetKlineData { .. } => 1009,
                     
-                    // Trading operations (1008-1012)
-                    Mt5Error::CreateOrder { .. } => 1008,
-                    Mt5Error::GetOrder { .. } => 1009,
-                    Mt5Error::GetPosition { .. } => 1010,
-                    Mt5Error::GetDeal { .. } => 1011,
-                    Mt5Error::GetPositionNumber { .. } => 1012,
+                    // Trading operations (1010-1014)
+                    Mt5Error::CreateOrder { .. } => 1010,
+                    Mt5Error::GetOrder { .. } => 1011,
+                    Mt5Error::GetPosition { .. } => 1012,
+                    Mt5Error::GetDealByPositionId { .. } => 1013,
+                    Mt5Error::GetDeal { .. } => 1014,
+                    Mt5Error::GetDealByDealId { .. } => 1015,
+                    Mt5Error::GetDealByOrderId { .. } => 1016,
+                    Mt5Error::GetPositionNumber { .. } => 1017,
+
+                    // Account operations (1018)
+                    Mt5Error::GetAccountInfo { .. } => 1018,
+                    Mt5Error::Retcode { .. } => 1019,
+                    Mt5Error::OrderId { .. } => 1020,
                     
-                    // Account operations (1013)
-                    Mt5Error::GetAccountInfo { .. } => 1013,
+                    // WebSocket errors (1016)
+                    Mt5Error::WebSocket { .. } => 1016,
                     
-                    // WebSocket errors (1014)
-                    Mt5Error::WebSocket { .. } => 1014,
+                    // Connection and initialization errors (1017-1019)
+                    Mt5Error::Connection { .. } => 1017,
+                    Mt5Error::Initialization { .. } => 1018,
+                    Mt5Error::TerminalNotInitialized { .. } => 1018,
+                    Mt5Error::Configuration { .. } => 1019,
                     
-                    // Connection and initialization errors (1015-1017)
-                    Mt5Error::Connection { .. } => 1015,
-                    Mt5Error::Initialization(_) => 1016,
-                    Mt5Error::Configuration(_) => 1017,
+                    // Server and service errors (1020-1022)
+                    Mt5Error::Timeout { .. } => 1020,
+                    Mt5Error::Authentication { .. } => 1021,
+                    Mt5Error::Validation { .. } => 1022,
                     
-                    // Server and service errors (1018-1021)
-                    Mt5Error::Server(_) => 1018,
-                    Mt5Error::Timeout(_) => 1019,
-                    Mt5Error::Authentication(_) => 1020,
-                    Mt5Error::Validation(_) => 1021,
-                    
-                    // Internal errors (1022)
-                    Mt5Error::Internal(_) => 1022,
-                    
+                    // Internal errors (1023)
+                    Mt5Error::Other { .. } => 1023,
+
                     // This should never happen due to outer match, but needed for completeness
-                    Mt5Error::DataProcessor(_) => unreachable!(),
+                    Mt5Error::DataProcessor { .. } => unreachable!(),
                 };
                 format!("{}_{:04}", prefix, code)
             }
         }
     }
 
-    pub fn http(message: impl Into<String>, terminal_id: i32, port: u16, source: reqwest::Error) -> Self {
-        Self::Http { message: message.into(), terminal_id, port, source }
-    }
-
-    pub fn http_client_not_created(terminal_id: i32, port: u16) -> Self {
-        Self::HttpClientNotCreated { terminal_id, port }
-    }
-
-    pub fn ping(message: impl Into<String>, terminal_id: i32, port: u16, source: Option<reqwest::Error>) -> Self {
-        Self::Ping { message: message.into(), terminal_id, port, source }
-    }
-
-    pub fn initialize_terminal(message: impl Into<String>) -> Self {
-        Self::InitializeTerminal(message.into())
-    }
-
-    pub fn get_terminal_info(message: impl Into<String>) -> Self {
-        Self::GetTerminalInfo(message.into())
-    }
-
-    pub fn get_symbol_list(message: impl Into<String>) -> Self {
-        Self::GetSymbolList(message.into())
-    }
-
-    pub fn get_kline_data(symbol: impl Into<String>, message: impl Into<String>, code: Option<MT5ErrorCode>) -> Self {
-        Self::GetKlineData {
-            symbol: symbol.into(),
-            message: message.into(),
-            code,
-        }
-    }
-    
-    pub fn create_order(symbol: impl Into<String>, message: impl Into<String>, code: Option<MT5ErrorCode>) -> Self {
-        Self::CreateOrder {
-            symbol: symbol.into(),
-            message: message.into(),
-            code,
-        }
-    }
-    
-    pub fn get_order(order_id: i64, message: impl Into<String>) -> Self {
-        Self::GetOrder {
-            order_id,
-            message: message.into(),
-        }
-    }
-    
-    pub fn get_position(position_id: i64, message: impl Into<String>) -> Self {
-        Self::GetPosition {
-            position_id,
-            message: message.into(),
-        }
-    }
-    
-    pub fn get_deal_by_deal_id(deal_id: i64, message: impl Into<String>) -> Self {
-        Self::GetDeal {
-            message: message.into(),
-            deal_id: Some(deal_id),
-            position_id: None,
-            order_id: None,
-        }
-    }
-    
-    pub fn get_deal_by_position_id(position_id: i64, message: impl Into<String>) -> Self {
-        Self::GetDeal {
-            message: message.into(),
-            deal_id: None,
-            position_id: Some(position_id),
-            order_id: None,
-        }
-    }
-    
-    pub fn get_deal_by_order_id(order_id: i64, message: impl Into<String>) -> Self {
-        Self::GetDeal {
-            message: message.into(),
-            deal_id: None,
-            position_id: None,
-            order_id: Some(order_id),
-        }
-    }
-    
-    pub fn get_position_number(symbol: impl Into<String>, message: impl Into<String>) -> Self {
-        Self::GetPositionNumber {
-            symbol: symbol.into(),
-            message: message.into(),
-        }
-    }
-
-    pub fn get_account_info(message: impl Into<String>, terminal_id: i32, port: u16) -> Self {
-        Self::GetAccountInfo { message: message.into(), terminal_id, port }
-    }
-
-    pub fn websocket<S: Into<String>>(message: S, account_id: AccountId, url: String, source: tokio_tungstenite::tungstenite::error::Error) -> Self {
-        Self::WebSocket {
-            message: message.into(),
-            account_id,
-            url,
-            source,
-        }
-    }
-    
-    pub fn data_processor(error: DataProcessorError) -> Self {
-        Self::DataProcessor(error)
-    }
-    
-    pub fn connection<S: Into<String>>(message: S, terminal_id: i32, port: u16) -> Self {
-        Self::Connection { message: message.into(), terminal_id, port }
-    }
-    
-    pub fn initialization<S: Into<String>>(message: S) -> Self {
-        Self::Initialization(message.into())
-    }
-    
-    pub fn configuration<S: Into<String>>(message: S) -> Self {
-        Self::Configuration(message.into())
-    }
-    
-    pub fn server<S: Into<String>>(message: S) -> Self {
-        Self::Server(message.into())
-    }
-    
-    pub fn timeout<S: Into<String>>(message: S) -> Self {
-        Self::Timeout(message.into())
-    }
-    
-    pub fn authentication<S: Into<String>>(message: S) -> Self {
-        Self::Authentication(message.into())
-    }
-    
-    pub fn validation<S: Into<String>>(message: S) -> Self {
-        Self::Validation(message.into())
-    }
-    
-    pub fn internal<S: Into<String>>(message: S) -> Self {
-        Self::Internal(message.into())
-    }
-}
-
-// Implement the StarRiverErrorTrait for Mt5Error
-impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
-    fn get_prefix(&self) -> &'static str {
-        // For nested errors, delegate to the inner error's prefix
+    fn context(&self) -> HashMap<&'static str, String> {
+        let mut ctx = HashMap::new();
         match self {
-            Mt5Error::DataProcessor(data_err) => data_err.get_prefix(),
-            _ => self.get_prefix(),
-        }
-    }
-    
-    fn error_code(&self) -> ErrorCode {
-        self.error_code()
-    }
-
-    fn context(&self) -> Vec<(&'static str, String)> {
-        match self {
+            Mt5Error::DataProcessor { source, .. } => return source.context(),
             Mt5Error::GetKlineData { symbol, .. } => {
-                vec![("symbol", symbol.clone())]
+                ctx.insert("symbol", symbol.clone());
             },
             Mt5Error::CreateOrder { symbol, .. } => {
-                vec![("symbol", symbol.clone())]
+                ctx.insert("symbol", symbol.clone());
             },
             Mt5Error::GetOrder { order_id, .. } => {
-                vec![("order_id", order_id.to_string())]
+                ctx.insert("order_id", order_id.to_string());
             },
             Mt5Error::GetPosition { position_id, .. } => {
-                vec![("position_id", position_id.to_string())]
+                ctx.insert("position_id", position_id.to_string());
             },
             Mt5Error::GetPositionNumber { symbol, .. } => {
-                vec![("symbol", symbol.clone())]
+                ctx.insert("symbol", symbol.clone());
             },
             Mt5Error::GetDeal { deal_id, position_id, order_id, .. } => {
-                let mut ctx = vec![];
                 if let Some(id) = deal_id {
-                    ctx.push(("deal_id", id.to_string()));
+                    ctx.insert("deal_id", id.to_string());
                 }
                 if let Some(id) = position_id {
-                    ctx.push(("position_id", id.to_string()));
+                    ctx.insert("position_id", id.to_string());
                 }
                 if let Some(id) = order_id {
-                    ctx.push(("order_id", id.to_string()));
+                    ctx.insert("order_id", id.to_string());
                 }
-                ctx
             },
             Mt5Error::WebSocket { account_id, url, .. } => {
-                vec![
-                    ("account_id", account_id.to_string()),
-                    ("url", url.clone())
-                ]
+                ctx.insert("account_id", account_id.to_string());
+                ctx.insert("url", url.clone());
             },
             Mt5Error::Connection { terminal_id, port, .. } => {
-                vec![
-                    ("terminal_id", terminal_id.to_string()),
-                    ("port", port.to_string())
-                ]
+                ctx.insert("terminal_id", terminal_id.to_string());
+                ctx.insert("port", port.to_string());
             },
-            _ => vec![],
+            Mt5Error::HttpClientNotCreated { terminal_id, port, .. } => {
+                ctx.insert("terminal_id", terminal_id.to_string());
+                ctx.insert("port", port.to_string());
+            },
+            Mt5Error::GetAccountInfo { terminal_id, port, .. } => {
+                ctx.insert("terminal_id", terminal_id.to_string());
+                ctx.insert("port", port.to_string());
+            },
+            Mt5Error::Ping { terminal_id, port, .. } => {
+                ctx.insert("terminal_id", terminal_id.to_string());
+                ctx.insert("port", port.to_string());
+            },
+            _ => {},
+        }
+        ctx
+    }
+
+    fn is_recoverable(&self) -> bool {
+        match self {
+            // For nested errors, delegate to the inner error's recoverability
+            Mt5Error::DataProcessor { source, .. } => source.is_recoverable(),
+            
+            // Server errors may be recoverable depending on status code
+            Mt5Error::Server { status_code, .. } => {
+                matches!(*status_code, 500..=599) // 5xx server errors are usually temporary
+            },
+            
+            // Recoverable errors (network, connection, temporary issues, trading operations)
+            _ => matches!(self,
+                // Network-related errors are usually recoverable (temporary network issues)
+                Mt5Error::Network { .. } |
+                Mt5Error::Response { .. } |
+                Mt5Error::Connection { .. } |
+                Mt5Error::Timeout { .. } |
+                Mt5Error::Ping { .. } |
+                Mt5Error::WebSocket { .. } |
+                
+                // Terminal and initialization errors may be recoverable
+                Mt5Error::InitializeTerminal { .. } |
+                Mt5Error::GetTerminalInfo { .. } |
+                Mt5Error::TerminalNotInitialized { .. } |
+                Mt5Error::HttpClientNotCreated { .. } |
+                Mt5Error::Initialization { .. } |
+                
+                // Trading operation errors may be recoverable (market conditions)
+                Mt5Error::CreateOrder { .. } |
+                Mt5Error::GetOrder { .. } |
+                Mt5Error::GetPosition { .. } |
+                Mt5Error::GetDealByPositionId { .. } |
+                Mt5Error::GetDeal { .. } |
+                Mt5Error::GetDealByDealId { .. } |
+                Mt5Error::GetDealByOrderId { .. } |
+                Mt5Error::GetPositionNumber { .. } |
+                
+                // Market data operations are usually recoverable
+                Mt5Error::GetKlineData { .. } |
+                Mt5Error::GetSymbolList { .. } |
+                Mt5Error::GetAccountInfo { .. }
+            )
         }
     }
 }
 
-// Implement ErrorContext trait for Mt5Error
-impl<T> crate::error::error_trait::ErrorContext<T, Mt5Error> for Result<T, Mt5Error> {
-    fn with_context<F>(self, f: F) -> Result<T, Mt5Error>
-    where
-        F: FnOnce() -> String,
-    {
-        self.map_err(|e| {
-            let context = f();
-            Mt5Error::Internal(format!("{}: {}", context, e))
-        })
+// Convert from serde_json::Error automatically
+impl From<serde_json::Error> for Mt5Error {
+    fn from(err: serde_json::Error) -> Self {
+        Self::Json {
+            source: err,
+            backtrace: Backtrace::generate(),
+        }
     }
-    
-    fn with_operation_context(self, operation: &str) -> Result<T, Mt5Error> {
-        self.map_err(|e| {
-            Mt5Error::Internal(format!("MT5 Operation '{}': {}", operation, e))
-        })
-    }
-    
-    fn with_resource_context(self, resource_type: &str, resource_id: &str) -> Result<T, Mt5Error> {
-        self.map_err(|e| {
-            Mt5Error::Internal(format!("MT5 {} '{}': {}", resource_type, resource_id, e))
-        })
+}
+
+// Convert from DataProcessorError automatically
+impl From<DataProcessorError> for Mt5Error {
+    fn from(err: DataProcessorError) -> Self {
+        Self::DataProcessor {
+            source: err,
+            backtrace: Backtrace::generate(),
+        }
     }
 }

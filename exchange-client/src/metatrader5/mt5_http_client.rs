@@ -1,18 +1,15 @@
-use std::error::Error;
+
 
 use crate::metatrader5::url::Mt5HttpUrl;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
-use types::error::exchange_client_error::Mt5Error;
+use types::error::exchange_client_error::*;
 use serde::Serialize;
+use snafu::prelude::*;
 
 use super::mt5_types::Mt5GetPositionNumberParams;
 use super::mt5_types::Mt5CreateOrderParams;
 use tracing::instrument;
 use types::strategy::TimeRange;
-
-
-
-
 
 
 
@@ -45,11 +42,11 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(5)) // timeout 5 seconds
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // if the status code is 200, then ping success
         if response.status().is_success() {
-            let response_data = response.json::<serde_json::Value>().await.map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
                     tracing::debug!("ping MT5 server success");
@@ -60,20 +57,26 @@ impl Mt5HttpClient {
                     .unwrap_or("unknown error")
                     .to_string();
                     tracing::error!(error = %error_message, "failed to ping MT5 server");
-                    Err(Mt5Error::ping(error_message, self.terminal_id, self.port, None))
+                    return PingSnafu {
+                        message: error_message,
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
-                let error = Mt5Error::NoSuccessFieldInResponse;
-                tracing::error!("{}", error.to_string());
-                Err(error)
+                return NoSuccessFieldInResponseSnafu{
+                    terminal_id: self.terminal_id,
+                    url: url.clone(),
+                }.fail()?;
             }
         } else {
             // http status code is not 200, then ping failed
             let status_code = response.status().as_u16();
-            let error = response.error_for_status().unwrap_err();
-            let error = Mt5Error::ping("ping error", self.terminal_id, self.port, Some(error));
-            tracing::error!("{}", error.source().unwrap().to_string());
-            Err(error)
+            return ServerSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+                status_code: status_code,
+            }.fail()?;
         }
     }
 
@@ -105,36 +108,41 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则初始化成功
         if response.status().is_success() {
-            let response_data = response.json::<serde_json::Value>().await.map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
                     tracing::info!(terminal_id = %login, "MT5 terminal initialized successfully");
                     return Ok(())
                 } else {
-                    // 获取错误信息
+                    // get error message
                     let error_message = response_data.get("message")
                     .and_then(|m| m.as_str())
                     .unwrap_or("unknown error")
                     .to_string();
                     tracing::error!(error = %error_message, "failed to initialize MT5 terminal");
-                    Err(Mt5Error::initialize_terminal(error_message))
+                    return InitializeTerminalSnafu {
+                        message: error_message,
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
-                let error_message = "no success field in the response";
-                tracing::error!(error = %error_message, "failed to initialize MT5 terminal");
-                Err(Mt5Error::initialize_terminal(error_message))
+                return NoSuccessFieldInResponseSnafu {
+                    terminal_id: self.terminal_id,
+                    url: url.clone(),
+                }.fail()?;
             }
         } else {
             let status_code = response.status().as_u16();
-            let error_text = response.text().await
-            .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
-            // 如果是其他状态码，则返回错误
-            tracing::error!(status = %status_code, error = %error_text, "failed to initialize MT5 terminal");
-            Err(Mt5Error::initialize_terminal(format!("status code: {}, error text: {}", status_code, error_text)))
+            return ServerSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+                status_code: status_code,
+            }.fail()?;
         }
     }
 
@@ -148,11 +156,11 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取终端信息
         if response.status().is_success() {
-            let response_data = response.json::<serde_json::Value>().await.map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             // 判断是否有code
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 // 如果code为0，则返回data，否则返回错误
@@ -168,23 +176,31 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get terminal info response success is {}", is_success))
                     .to_string();
                     tracing::error!(is_success = %is_success, error = %error_message, "Failed to get terminal info");
-                    Err(Mt5Error::GetTerminalInfo(error_message))
+                    return GetTerminalInfoSnafu {
+                        message: error_message,
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, "Failed to get terminal info");
-                Err(Mt5Error::GetTerminalInfo(error_message))
+                return GetTerminalInfoSnafu {
+                    message: error_message,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
-            let error_text = response.text().await
-            .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
-            // 如果是其他状态码，则返回错误
-            tracing::error!(status = %status_code, error = %error_text, "Failed to get terminal info - HTTP error");
-            Err(Mt5Error::GetTerminalInfo(format!("status code: {}, error text: {}", status_code, error_text)))
+            return ServerSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+                status_code: status_code,
+            }.fail()?;
         }
     }
 
@@ -199,11 +215,11 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
         
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             tracing::debug!("response_data: {:?}", response_data);
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
@@ -215,18 +231,27 @@ impl Mt5HttpClient {
                     .and_then(|m| m.as_str())
                     .unwrap_or("unknown error")
                     .to_string();
-                    Err(Mt5Error::get_symbol_list(error_message))
+                    return GetSymbolListSnafu {
+                        message: error_message,
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 let error_message = "No success field in the response".to_string();
-                Err(Mt5Error::get_symbol_list(error_message))
+                return GetSymbolListSnafu {
+                    message: error_message,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } else {
             let status_code = response.status().as_u16();
-            let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
-            tracing::error!(status = %status_code, error = %error_text, "Failed to get symbol list - HTTP error");
-            Err(Mt5Error::get_symbol_list(format!("status code: {}, error text: {}", status_code, error_text)))
+            return ServerSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+                status_code: status_code,
+            }.fail()?;
         }
     }
 
@@ -242,13 +267,13 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
         tracing::debug!("response: {:?}", response.status());
 
         // 如果为200，则获取K线数据成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             tracing::debug!("response_data: {:?}", response_data);
             
             // 判断是否有code
@@ -267,23 +292,41 @@ impl Mt5HttpClient {
                     .to_string();
                     let error_code = response_data.get("code").and_then(|v| v.as_i64()).unwrap_or(0);
                     tracing::error!(code = %error_code, error = %error_message, symbol = %symbol, "Failed to get kline series");
-                    Err(Mt5Error::get_kline_data(symbol, error_message, Some(error_code)))
+                    return GetKlineDataSnafu {
+                        symbol: symbol.to_string(),
+                        message: error_message,
+                        code: Some(error_code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无success错误"
                 let error_message = "No success field in the response".to_string();
                 tracing::error!(error = %error_message, symbol = %symbol, "The response has no success field");
-                Err(Mt5Error::get_kline_data(symbol, error_message, None))
+                return GetKlineDataSnafu {
+                    symbol: symbol.to_string(),
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, symbol = %symbol, "Failed to get kline series - HTTP error");
-            Err(Mt5Error::get_kline_data(symbol, format!("status code: {}, error text: {}", status_code, error_text), None))
+            return GetKlineDataSnafu {
+                symbol: symbol.to_string(),
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -299,12 +342,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::Http { message: e.to_string(), terminal_id: self.terminal_id, port: self.port, source: e })?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取K线数据成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::Http { message: e.to_string(), terminal_id: self.terminal_id, port: self.port, source: e })?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // if success is true, then return data, otherwise return error
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
@@ -322,13 +365,25 @@ impl Mt5HttpClient {
                     .to_string();
                     let error_code = response_data.get("code").and_then(|v| v.as_i64()).unwrap_or(0);
                     tracing::error!(code = %error_code, error = %error_message, symbol = %symbol, "Failed to get kline history");
-                    Err(Mt5Error::get_kline_data(symbol, error_message, Some(error_code)))
+                    return GetKlineDataSnafu {
+                        symbol: symbol.to_string(),
+                        message: error_message,
+                        code: Some(error_code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // if there is no success field, then return error
                 let error_message = "No success field in the response".to_string();
                 tracing::error!(error = %error_message, symbol = %symbol, "The response has no success field");
-                Err(Mt5Error::get_kline_data(symbol, error_message, None))
+                return GetKlineDataSnafu {
+                    symbol: symbol.to_string(),
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // if the status code is not 200, then return error
@@ -336,7 +391,11 @@ impl Mt5HttpClient {
             let status_code = response.status();
             tracing::error!(status = %status_code, symbol = %symbol, "Failed to get kline history - HTTP error");
             let error = response.error_for_status().unwrap_err();
-            Err(Mt5Error::http(error.to_string(), self.terminal_id, self.port, error))
+            return ServerSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+                status_code: status_code,
+            }.fail()?;
         }
     }
 
@@ -352,12 +411,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则创建订单成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -374,23 +433,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the create order response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, "Failed to create order");
-                    Err(Mt5Error::create_order(symbol, error_message, Some(code)))
+                    return CreateOrderSnafu {
+                        symbol: symbol.to_string(),
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, "Failed to create order");
-                Err(Mt5Error::create_order(symbol, error_message, None))
+                return CreateOrderSnafu {
+                    symbol: symbol.to_string(),
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, "Failed to create order - HTTP error");
-            Err(Mt5Error::create_order(symbol, format!("status code: {}, error text: {}", status_code, error_text), None))
+            return CreateOrderSnafu {
+                symbol: symbol.to_string(),
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -404,12 +481,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取订单成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -426,23 +503,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get order response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, order_id = %order_id, "Failed to get order");
-                    Err(Mt5Error::get_order(*order_id, error_message))
+                    return GetOrderSnafu {
+                        order_id: *order_id,
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, order_id = %order_id, "Failed to get order");
-                Err(Mt5Error::get_order(*order_id, error_message))
+                return GetOrderSnafu {
+                    order_id: *order_id,
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, order_id = %order_id, "Failed to get order - HTTP error");
-            Err(Mt5Error::get_order(*order_id, format!("status code: {}, error text: {}", status_code, error_text)))
+            return GetOrderSnafu {
+                order_id: *order_id,
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -455,12 +550,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取仓位成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -477,23 +572,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get position response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, position_id = %position_id, "Failed to get position");
-                    Err(Mt5Error::get_position(*position_id, error_message))
+                    return GetPositionSnafu {
+                        position_id: *position_id,
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, position_id = %position_id, "Failed to get position");
-                Err(Mt5Error::get_position(*position_id, error_message))
+                return GetPositionSnafu {
+                    position_id: *position_id,
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, position_id = %position_id, "Failed to get position - HTTP error");
-            Err(Mt5Error::get_position(*position_id, format!("status code: {}, error text: {}", status_code, error_text)))
+            return GetPositionSnafu {
+                position_id: *position_id,
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -507,12 +620,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取成交明细成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -529,23 +642,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get deal response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, position_id = %position_id, "Failed to get deal by position id");
-                    Err(Mt5Error::get_deal_by_position_id(*position_id, error_message))
+                    return GetDealByPositionIdSnafu {
+                        position_id: *position_id,
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, position_id = %position_id, "Failed to get deal by position id");
-                Err(Mt5Error::get_deal_by_position_id(*position_id, error_message))
+                return GetDealByPositionIdSnafu {
+                    position_id: *position_id,
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, position_id = %position_id, "Failed to get deal by position id - HTTP error");
-            Err(Mt5Error::get_deal_by_position_id(*position_id, format!("status code: {}, error text: {}", status_code, error_text)))
+            return GetDealByPositionIdSnafu {
+                position_id: *position_id,
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -558,12 +689,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取成交明细成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -580,23 +711,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get deal response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, deal_id = %deal_id, "Failed to get deal by deal id");
-                    Err(Mt5Error::get_deal_by_deal_id(*deal_id, error_message))
+                    return GetDealByDealIdSnafu {
+                        deal_id: *deal_id,
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, deal_id = %deal_id, "Failed to get deal by deal id");
-                Err(Mt5Error::get_deal_by_deal_id(*deal_id, error_message))
+                return GetDealByDealIdSnafu {
+                    deal_id: *deal_id,
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, deal_id = %deal_id, "Failed to get deal by deal id - HTTP error");
-            Err(Mt5Error::get_deal_by_deal_id(*deal_id, format!("status code: {}, error text: {}", status_code, error_text)))
+            return GetDealByDealIdSnafu {
+                deal_id: *deal_id,
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -609,12 +758,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取成交明细成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -631,23 +780,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get deals response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, order_id = %order_id, "Failed to get deals by order id");
-                    Err(Mt5Error::get_deal_by_order_id(*order_id, error_message))
+                    return GetDealByOrderIdSnafu {
+                        order_id: *order_id,
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, order_id = %order_id, "Failed to get deals by order id");
-                Err(Mt5Error::get_deal_by_order_id(*order_id, error_message))
+                return GetDealByOrderIdSnafu {
+                    order_id: *order_id,
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, order_id = %order_id, "Failed to get deals by order id - HTTP error");
-            Err(Mt5Error::get_deal_by_order_id(*order_id, format!("status code: {}, error text: {}", status_code, error_text)))
+            return GetDealByOrderIdSnafu {
+                order_id: *order_id,
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -668,12 +835,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取仓位数量成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -690,23 +857,41 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get position number response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, symbol = %symbol, position_side = ?position_side, "Failed to get position number");
-                    Err(Mt5Error::get_position_number(symbol, error_message))
+                    return GetPositionNumberSnafu {
+                        symbol: symbol.to_string(),
+                        message: error_message,
+                        code: Some(code),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, symbol = %symbol, position_side = ?position_side, "Failed to get position number");
-                Err(Mt5Error::get_position_number(symbol, error_message))
+                return GetPositionNumberSnafu {
+                    symbol: symbol.to_string(),
+                    message: error_message,
+                    code: None,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, symbol = %symbol, position_side = ?position_side, "Failed to get position number - HTTP error");
-            Err(Mt5Error::get_position_number(symbol, format!("status code: {}, error text: {}", status_code, error_text)))
+            return GetPositionNumberSnafu {
+                symbol: symbol.to_string(),
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                code: None,
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 
@@ -718,12 +903,12 @@ impl Mt5HttpClient {
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+        .context(NetworkSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
 
         // 如果为200，则获取账户信息成功
         if response.status().is_success() {
             let response_data = response.json::<serde_json::Value>().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
@@ -739,23 +924,35 @@ impl Mt5HttpClient {
                     .unwrap_or(&format!("unknown error, the get account info response code is {}", code))
                     .to_string();
                     tracing::error!(code = %code, error = %error_message, "Failed to get account info");
-                    Err(Mt5Error::get_account_info(error_message, self.terminal_id, self.port))
+                    return GetAccountInfoSnafu {
+                        message: error_message,
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }.fail()?;
                 }
             } else {
                 // 没有code，则返回"无code错误"
                 let error_message = "No code field in the response".to_string();
                 tracing::error!(error = %error_message, "Failed to get account info");
-                Err(Mt5Error::get_account_info(error_message, self.terminal_id, self.port))
+                return GetAccountInfoSnafu {
+                    message: error_message,
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }.fail()?;
             }
         } 
         // 如果为其他状态码，则返回错误
         else {
             let status_code = response.status().as_u16();
             let error_text = response.text().await
-                .map_err(|e| Mt5Error::http(e.to_string(), self.terminal_id, self.port, e))?;
+                .context(ResponseSnafu {terminal_id: self.terminal_id,url: url.clone()})?;
             
             tracing::error!(status = %status_code, error = %error_text, "Failed to get account info - HTTP error");
-            Err(Mt5Error::get_account_info(format!("status code: {}, error text: {}", status_code, error_text), self.terminal_id, self.port))
+            return GetAccountInfoSnafu {
+                message: format!("status code: {}, error text: {}", status_code, error_text),
+                terminal_id: self.terminal_id,
+                port: self.port,
+            }.fail()?;
         }
     }
 

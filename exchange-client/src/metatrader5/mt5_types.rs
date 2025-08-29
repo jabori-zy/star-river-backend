@@ -580,14 +580,17 @@ impl OriginalTransaction for Mt5Deal {
         self.deal_id
     }
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
 }
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Mt5Response<T> {
+    pub success: bool,
+    pub message: Option<String>,
+    pub data: T,
+    pub code: Option<i64>,
+    pub details: Option<String>,
+}
+
 

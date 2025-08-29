@@ -19,8 +19,10 @@ use event_center::command::exchange_engine_command::UnregisterExchangeParams;
 use types::custom_type::AccountId;
 use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
 use tokio::sync::Mutex;
-use types::error::{ExchangeEngineError, ExchangeClientError, error_trait::ErrorContext};
+use types::error::engine_error::*;
+use types::error::exchange_client_error::*;
 use tracing::instrument;
+use snafu::{ResultExt, Report};
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -103,6 +105,7 @@ impl EngineContext for ExchangeEngineContext {
                 match exchange_engine_command {
                     ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
                         let result = self.register_exchange(register_exchange_command.account_id).await;
+                        
                         let response = if let Ok(()) = result {
                             // success
                             RegisterExchangeResponse::success("register success", register_exchange_command.account_id, register_exchange_command.exchange)
@@ -126,41 +129,48 @@ impl EngineContext for ExchangeEngineContext {
 impl ExchangeEngineContext {
 
     pub async fn register_exchange(&mut self, account_id: AccountId) -> Result<(), ExchangeEngineError> {
+        tracing::info!("开始注册交易所，账户ID: {}", account_id);
+        
         // 从数据库中获取账户配置
-        let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await;
-        match account_config {
-            Ok(account_config) => {
-                match account_config.exchange {
-                    Exchange::Metatrader5(_) => {
-                        // 判断编译环境，当前逻辑如果是生产环境，则执行下方逻辑
-                        // #[cfg(debug_assertions)] - 仅在调试模式下编译（cargo build）
-                        // #[cfg(not(debug_assertions))] - 仅在发布模式下编译（cargo build --release）
-                        #[cfg(not(debug_assertions))]
-                        {
-                            // 生产环境
-                            Self::register_mt5_exchange(self, account_config).await?;
-                        }
-                        #[cfg(debug_assertions)]
-                        {
-                            // 开发环境
-                            tracing::debug!("in the dev mode, direct connect to mt5 server");
-                            Self::register_mt5_exchange_in_dev(self, account_config).await?;
-                        }
-                        // Self::register_mt5_exchange(self, account_config).await?;
-                        Ok(())
-
-                    }
-                    _ => {
-                        tracing::error!("不支持的交易所类型: {:?}", account_config.exchange);
-                        return Err(ExchangeEngineError::unsupported_exchange_type("unsupported exchange type", account_config.exchange, account_id));
-                    }
+        let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await?;
+        
+        let result = match account_config.exchange {
+            Exchange::Metatrader5(_) => {
+                // 判断编译环境，当前逻辑如果是生产环境，则执行下方逻辑
+                // #[cfg(debug_assertions)] - 仅在调试模式下编译（cargo build）
+                // #[cfg(not(debug_assertions))] - 仅在发布模式下编译（cargo build --release）
+                #[cfg(not(debug_assertions))]
+                {
+                    // 生产环境
+                    Self::register_mt5_exchange(self, account_config).await
+                }
+                #[cfg(debug_assertions)]
+                {
+                    // 开发环境
+                    tracing::debug!("in the dev mode, direct connect to mt5 server");
+                    Self::register_mt5_exchange_in_dev(self, account_config).await
                 }
             }
+            _ => {
+                tracing::error!("不支持的交易所类型: {:?}", account_config.exchange);
+                UnsupportedExchangeTypeSnafu {
+                    message: "unsupported exchange type".to_string(),
+                    exchange_type: account_config.exchange,
+                    account_id,
+                }.fail()
+            }
+        };
+
+        match result {
+            Ok(()) => {
+                tracing::info!("交易所注册成功，账户ID: {}", account_id);
+                Ok(())
+            }
             Err(e) => {
-                return Err(ExchangeEngineError::Database {
-                    message: e.to_string(),
-                    source: e,
-                });
+                // 使用 snafu::Report 显示清晰的错误链，无backtraces
+                let report = Report::from_error(&e);
+                tracing::error!("{}", report);
+                Err(e)
             }
         }
     }
@@ -183,50 +193,44 @@ impl ExchangeEngineContext {
             self.get_event_publisher().clone(),
         );
         
-            match mt5.connect_to_server(8001).await.with_context(|| "connect to server".to_string()) {
+            match mt5.connect_to_server(8001).await {
                 Ok(_) => tracing::info!("mt5 server connect success, port: 8001"),                
                 Err(e) => {
                     tracing::error!("context1: {}", e);
                     let exchange_client_error = ExchangeClientError::from(e);
-                    let error = ExchangeEngineError::register_exchange_failed(
-                        "fail to connect to server", 
-                        account_config.id, 
-                        Exchange::Metatrader5(server.clone()),
-                        exchange_client_error);
-                    
-                    tracing::error!("{}", error.to_string());
-                    
+                    return Err(exchange_client_error).context(RegisterExchangeFailedSnafu {
+                        message: "fail to connect to server".to_string(),
+                        account_id: account_config.id,
+                        exchange_type: Exchange::Metatrader5(server.clone()),
+                    })?;
                 }
             }
         
 
         // 初始化终端 (带重试机制)
-        match mt5.initialize_terminal().await.with_context(|| "initialize terminal".to_string()) {
+        match mt5.initialize_terminal().await {
             Ok(_) => tracing::info!(account_id = %account_config.id, "mt5 terminal is initialized successfully"),
             Err(e) => {
                 tracing::error!("context2: {}", e);
                 let exchange_client_error = ExchangeClientError::from(e);
-                let error = ExchangeEngineError::register_exchange_failed(
-                    "fail to initialize terminal", 
-                    account_config.id, 
-                    Exchange::Metatrader5(server.clone()),
-                    exchange_client_error);
-
-                tracing::error!("{}", error.to_string());
+                return Err(exchange_client_error).context(RegisterExchangeFailedSnafu {
+                    message: "fail to initialize terminal".to_string(),
+                    account_id: account_config.id,
+                    exchange_type: Exchange::Metatrader5(server.clone()),
+                })?;
             }
         }
 
-        match mt5.connect_websocket().await.with_context(|| "connect to websocket".to_string()) {
+        match mt5.connect_websocket().await {
             Ok(_) => tracing::info!("MT5-{} websocket connect success", account_config.id),
             Err(e) => {
                 tracing::error!("context3: {}", e);
                 let exchange_client_error = ExchangeClientError::from(e);
-                let error = ExchangeEngineError::register_exchange_failed(
-                    "fail to connect to websocket", 
-                    account_config.id, 
-                    Exchange::Metatrader5(server.clone()),
-                    exchange_client_error);
-                tracing::error!("{}", error.to_string());
+                return Err(exchange_client_error).context(RegisterExchangeFailedSnafu {
+                    message: "fail to connect to websocket".to_string(),
+                    account_id: account_config.id,
+                    exchange_type: Exchange::Metatrader5(server.clone()),
+                })?;
             }
         }
         
@@ -241,138 +245,138 @@ impl ExchangeEngineContext {
 
 
     
-    async fn register_mt5_exchange(&mut self, account_config: AccountConfig) -> Result<(), String> {
+    // async fn register_mt5_exchange(&mut self, account_config: AccountConfig) -> Result<(), String> {
         
-        let mut mt5 = MetaTrader5::new(
-            account_config.id,
-            account_config.config["login"].as_i64().unwrap(),
-            account_config.config["password"].as_str().unwrap().to_string(),
-            account_config.config["server"].as_str().unwrap().to_string(),
-            account_config.config["terminal_path"].as_str().unwrap().to_string(),
-            self.get_event_publisher().clone(),
-        );
+    //     let mut mt5 = MetaTrader5::new(
+    //         account_config.id,
+    //         account_config.config["login"].as_i64().unwrap(),
+    //         account_config.config["password"].as_str().unwrap().to_string(),
+    //         account_config.config["server"].as_str().unwrap().to_string(),
+    //         account_config.config["terminal_path"].as_str().unwrap().to_string(),
+    //         self.get_event_publisher().clone(),
+    //     );
         
-        // 启动mt5服务器 (带重试机制)
-        let max_server_retries = 3;
-        let mut server_retry_count = 0;
-        let mut server_port: Option<u16> = None;
+    //     // 启动mt5服务器 (带重试机制)
+    //     let max_server_retries = 3;
+    //     let mut server_retry_count = 0;
+    //     let mut server_port: Option<u16> = None;
         
-        tracing::debug!("开始启动mt5_server");
-        while server_retry_count < max_server_retries {
-            match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.start_mt5_server(false)).await
-            {
-                Ok(port_result) => {
-                    match port_result {
-                        Ok(port) => {
-                            tracing::info!("MT5-{} 服务器启动成功, 端口: {}", account_config.id, port);
-                            server_port = Some(port);
-                            break;
-                        }
-                        Err(_) => {
-                            server_retry_count += 1;
-                            tracing::error!("MT5-{} 服务器启动失败 (尝试 {}/{})", 
-                                account_config.id, server_retry_count, max_server_retries);
-                            if server_retry_count >= max_server_retries {
-                                return Err(format!("MT5-{} 服务器启动失败，已重试{}次",
-                                    account_config.id, max_server_retries));
-                            }
-                            // 等待一段时间后重试
-                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                        }
-                    }
-                }
-                Err(_) => {
-                    server_retry_count += 1;
-                    // 超时
-                    let error_msg = format!("MT5-{} 服务启动超时 (尝试 {}/{})", 
-                        account_config.id, server_retry_count, max_server_retries);
-                    tracing::error!("{}", error_msg);
-                    if server_retry_count >= max_server_retries {
-                        return Err(format!("MT5-{} 服务启动超时，已重试{}次",
-                            account_config.id, max_server_retries));
-                    }
-                    // 等待一段时间后重试
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                }
-            }
-        }
+    //     tracing::debug!("开始启动mt5_server");
+    //     while server_retry_count < max_server_retries {
+    //         match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.start_mt5_server(false)).await
+    //         {
+    //             Ok(port_result) => {
+    //                 match port_result {
+    //                     Ok(port) => {
+    //                         tracing::info!("MT5-{} 服务器启动成功, 端口: {}", account_config.id, port);
+    //                         server_port = Some(port);
+    //                         break;
+    //                     }
+    //                     Err(_) => {
+    //                         server_retry_count += 1;
+    //                         tracing::error!("MT5-{} 服务器启动失败 (尝试 {}/{})", 
+    //                             account_config.id, server_retry_count, max_server_retries);
+    //                         if server_retry_count >= max_server_retries {
+    //                             return Err(format!("MT5-{} 服务器启动失败，已重试{}次",
+    //                                 account_config.id, max_server_retries));
+    //                         }
+    //                         // 等待一段时间后重试
+    //                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //                     }
+    //                 }
+    //             }
+    //             Err(_) => {
+    //                 server_retry_count += 1;
+    //                 // 超时
+    //                 let error_msg = format!("MT5-{} 服务启动超时 (尝试 {}/{})", 
+    //                     account_config.id, server_retry_count, max_server_retries);
+    //                 tracing::error!("{}", error_msg);
+    //                 if server_retry_count >= max_server_retries {
+    //                     return Err(format!("MT5-{} 服务启动超时，已重试{}次",
+    //                         account_config.id, max_server_retries));
+    //                 }
+    //                 // 等待一段时间后重试
+    //                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //             }
+    //         }
+    //     }
         
-        if server_port.is_none() {
-            return Err(format!("MT5-{} 服务器启动失败，所有重试均失败", account_config.id));
-        }
+    //     if server_port.is_none() {
+    //         return Err(format!("MT5-{} 服务器启动失败，所有重试均失败", account_config.id));
+    //     }
 
-        // 初始化终端 (带重试机制)
-        let max_init_retries = 3;
-        let mut init_retry_count = 0;
-        tracing::debug!("开始初始化终端");
-        while init_retry_count < max_init_retries {
-            match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.initialize_terminal()).await
-            {
-                Ok(init_result) => {
-                    match init_result {
-                        Ok(_) => {
-                            tracing::info!("MT5-{} 终端初始化成功", account_config.id);
-                            break;
-                        }
-                        Err(_) => {
-                            init_retry_count += 1;
-                            tracing::error!("MT5-{} 终端初始化失败 (尝试 {}/{})", 
-                                account_config.id, init_retry_count, max_init_retries);
-                            if init_retry_count >= max_init_retries {
-                                return Err(format!("MT5-{} 终端初始化失败，已重试{}次", 
-                                    account_config.id, max_init_retries));
-                            }
-                            // 等待一段时间后重试
-                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                        }
-                    }
-                }
-                Err(_) => {
-                    init_retry_count += 1;
-                    tracing::error!("MT5-{} 终端初始化超时 (尝试 {}/{})", 
-                        account_config.id, init_retry_count, max_init_retries);
-                    if init_retry_count >= max_init_retries {
-                        return Err(format!("MT5-{} 终端初始化超时，已重试{}次", 
-                            account_config.id, max_init_retries));
-                    }
-                    // 等待一段时间后重试
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                }
-            }
-        }
+    //     // 初始化终端 (带重试机制)
+    //     let max_init_retries = 3;
+    //     let mut init_retry_count = 0;
+    //     tracing::debug!("开始初始化终端");
+    //     while init_retry_count < max_init_retries {
+    //         match tokio::time::timeout(tokio::time::Duration::from_secs(30), mt5.initialize_terminal()).await
+    //         {
+    //             Ok(init_result) => {
+    //                 match init_result {
+    //                     Ok(_) => {
+    //                         tracing::info!("MT5-{} 终端初始化成功", account_config.id);
+    //                         break;
+    //                     }
+    //                     Err(_) => {
+    //                         init_retry_count += 1;
+    //                         tracing::error!("MT5-{} 终端初始化失败 (尝试 {}/{})", 
+    //                             account_config.id, init_retry_count, max_init_retries);
+    //                         if init_retry_count >= max_init_retries {
+    //                             return Err(format!("MT5-{} 终端初始化失败，已重试{}次", 
+    //                                 account_config.id, max_init_retries));
+    //                         }
+    //                         // 等待一段时间后重试
+    //                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //                     }
+    //                 }
+    //             }
+    //             Err(_) => {
+    //                 init_retry_count += 1;
+    //                 tracing::error!("MT5-{} 终端初始化超时 (尝试 {}/{})", 
+    //                     account_config.id, init_retry_count, max_init_retries);
+    //                 if init_retry_count >= max_init_retries {
+    //                     return Err(format!("MT5-{} 终端初始化超时，已重试{}次", 
+    //                         account_config.id, max_init_retries));
+    //                 }
+    //                 // 等待一段时间后重试
+    //                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //             }
+    //         }
+    //     }
 
-        // 连接websocket (带重试机制)
-        let max_ws_retries = 3;
-        let mut ws_retry_count = 0;
-        tracing::debug!("开始连接websocket");
-        while ws_retry_count < max_ws_retries {
-            match mt5.connect_websocket().await {
-                Ok(_) => {
-                    tracing::info!("MT5-{} WebSocket连接成功", account_config.id);
-                    break;
-                }
-                Err(_) => {
-                    ws_retry_count += 1;
-                    tracing::error!("MT5-{} WebSocket连接失败 (尝试 {}/{})", 
-                        account_config.id, ws_retry_count, max_ws_retries);
-                    if ws_retry_count >= max_ws_retries {
-                        return Err(format!("MT5-{} WebSocket连接失败，已重试{}次", 
-                            account_config.id, max_ws_retries));
-                    }
-                    // 等待一段时间后重试
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                }
-            }
-        }
+    //     // 连接websocket (带重试机制)
+    //     let max_ws_retries = 3;
+    //     let mut ws_retry_count = 0;
+    //     tracing::debug!("开始连接websocket");
+    //     while ws_retry_count < max_ws_retries {
+    //         match mt5.connect_websocket().await {
+    //             Ok(_) => {
+    //                 tracing::info!("MT5-{} WebSocket连接成功", account_config.id);
+    //                 break;
+    //             }
+    //             Err(_) => {
+    //                 ws_retry_count += 1;
+    //                 tracing::error!("MT5-{} WebSocket连接失败 (尝试 {}/{})", 
+    //                     account_config.id, ws_retry_count, max_ws_retries);
+    //                 if ws_retry_count >= max_ws_retries {
+    //                     return Err(format!("MT5-{} WebSocket连接失败，已重试{}次", 
+    //                         account_config.id, max_ws_retries));
+    //                 }
+    //                 // 等待一段时间后重试
+    //                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    //             }
+    //         }
+    //     }
 
-        // 存储交易所客户端
-        let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+    //     // 存储交易所客户端
+    //     let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
 
-        tracing::info!("MT5-{} 交易所注册成功!", account_config.id);
-        self.exchanges
-            .insert(account_config.id, mt5_exchange);
-        Ok(())
-    }
+    //     tracing::info!("MT5-{} 交易所注册成功!", account_config.id);
+    //     self.exchanges
+    //         .insert(account_config.id, mt5_exchange);
+    //     Ok(())
+    // }
 
 
     pub async fn unregister_exchange(

@@ -44,7 +44,7 @@ async fn main() {
         event_publisher.clone()
     );
 
-    mt5_client.start_mt5_server(true).await.unwrap();
+    // mt5_client.start_mt5_server(true).await.unwrap();
     
 }
 
