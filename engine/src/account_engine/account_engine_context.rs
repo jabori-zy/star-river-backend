@@ -350,7 +350,7 @@ impl AccountEngineContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success() {
             let exchange_engine_response = ExchangeEngineResponse::try_from(response);
             if let Ok(exchange_engine_response) = exchange_engine_response {
                 match exchange_engine_response {

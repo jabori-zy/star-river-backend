@@ -56,11 +56,11 @@ pub async fn get_cache_keys(State(star_river): State<StarRiver>, Query(params): 
     let cache_key = match params.key_type {
         Some(key_type) => {
             match key_type {
-                CacheKeyType::Kline => engine_guard.get_cache_key(Some("kline")).await.unwrap(),
-                CacheKeyType::Indicator => engine_guard.get_cache_key(Some("indicator")).await.unwrap(),
+                CacheKeyType::Kline => engine_guard.get_key(Some("kline")).await.unwrap(),
+                CacheKeyType::Indicator => engine_guard.get_key(Some("indicator")).await.unwrap(),
             }
         }
-        None => engine_guard.get_cache_key(None).await.unwrap(),
+        None => engine_guard.get_key(None).await.unwrap(),
     };
     (StatusCode::OK, Json(ApiResponse {
         code: 0,

@@ -145,10 +145,10 @@ impl StrategyEngine{
         let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
             TradeMode::Live => {
-                Ok(strategy_context.get_live_strategy_cache_keys(strategy_id).await)
+                Ok(strategy_context.get_live_strategy_keys(strategy_id).await)
             }
             TradeMode::Backtest => {
-                Ok(strategy_context.get_backtest_strategy_cache_keys(strategy_id).await)
+                Ok(strategy_context.get_backtest_strategy_keys(strategy_id).await)
             }
         }
     }

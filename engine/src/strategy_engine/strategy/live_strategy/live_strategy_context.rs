@@ -42,7 +42,7 @@ pub struct LiveStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
     pub strategy_config: LiveStrategyConfig, // 策略配置
-    pub cache_keys: Arc<RwLock<Vec<Key>>>, // 缓存键
+    pub keys: Arc<RwLock<Vec<Key>>>, // 缓存键
     pub graph: Graph<Box<dyn LiveNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
     pub event_publisher: EventPublisher, // 事件发布器
@@ -82,8 +82,8 @@ impl LiveStrategyContext {
         self.strategy_name.clone()
     }
 
-    pub async fn get_cache_keys(&self) -> Vec<Key> {
-        self.cache_keys.read().await.clone()
+    pub async fn get_keys(&self) -> Vec<Key> {
+        self.keys.read().await.clone()
     }
 
     pub fn get_state_machine(&self) -> LiveStrategyStateMachine {
@@ -168,7 +168,7 @@ impl LiveStrategyContext {
         let event_publisher = self.event_publisher.clone();
         let strategy_id = self.strategy_id;
         let strategy_name = self.strategy_name.clone();
-        let cache_keys = self.cache_keys.clone();
+        let cache_keys = self.keys.clone();
 
         let mut heartbeat = self.heartbeat.lock().await;
         let task_id = heartbeat.register_async_task(
@@ -211,7 +211,7 @@ impl LiveStrategyContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheMultiParams {
             strategy_id: strategy_id,
-            cache_keys: cache_keys_clone,
+            keys: cache_keys_clone,
             index: None,
             limit: Some(1), // 只获取最新的一条数据
             sender: strategy_name,
@@ -224,7 +224,7 @@ impl LiveStrategyContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success() {
             let cache_engine_response = CacheEngineResponse::try_from(response);
             if let Ok(cache_engine_response) = cache_engine_response {
                 match cache_engine_response {

@@ -141,7 +141,7 @@ impl BacktestStrategy {
         let context = BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
-            cache_keys: Arc::new(RwLock::new(cache_keys)),
+            keys: Arc::new(RwLock::new(cache_keys)),
             cache_lengths: HashMap::new(),
             graph,
             node_indices,

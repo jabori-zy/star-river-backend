@@ -4,6 +4,8 @@ pub mod market_engine_response;
 pub mod indicator_engine_response;
 pub mod backtest_strategy_response;
 
+use std::error::Error;
+
 use cache_engine_response::CacheEngineResponse;
 use exchange_engine_response::ExchangeEngineResponse;
 use indicator_engine_response::IndicatorEngineResponse;
@@ -11,8 +13,8 @@ use market_engine_response::MarketEngineResponse;
 
 
 pub trait ResponseTrait {
-    fn code(&self) -> i32;
-    fn message(&self) -> String;
+    fn success(&self) -> bool;
+    fn error(&self) -> &Box<dyn Error + Send + Sync + 'static>;
     fn response_timestamp(&self) -> i64;
 }
 
@@ -27,21 +29,21 @@ pub enum Response {
 
 
 impl Response {
-    pub fn code(&self) -> i32 {
+    pub fn success(&self) -> bool {
         match self {
-            Response::CacheEngine(response) => response.code(),
-            Response::IndicatorEngine(response) => response.code(),
-            Response::MarketEngine(response) => response.code(),
-            Response::ExchangeEngine(response) => response.code(),
+            Response::CacheEngine(response) => response.success(),
+            Response::IndicatorEngine(response) => response.success(),
+            Response::MarketEngine(response) => response.success(),
+            Response::ExchangeEngine(response) => response.success(),
         }
     }
 
-    pub fn message(&self) -> String {
+    pub fn message(&self) -> &Box<dyn Error + Send + Sync + 'static> {
         match self {
-            Response::CacheEngine(response) => response.message(),
-            Response::IndicatorEngine(response) => response.message(),
-            Response::MarketEngine(response) => response.message(),
-            Response::ExchangeEngine(response) => response.message(),
+            Response::CacheEngine(response) => response.error(),
+            Response::IndicatorEngine(response) => response.error(),
+            Response::MarketEngine(response) => response.error(),
+            Response::ExchangeEngine(response) => response.error(),
         }
     }
 
@@ -54,17 +56,3 @@ impl Response {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,4 +1,4 @@
-use reqwest::dns::Resolving;
+use std::error::Error;
 use types::market::Exchange;
 use crate::response::{Response, ResponseTrait};
 use types::error::engine_error::*;
@@ -10,15 +10,17 @@ pub enum ExchangeEngineResponse {
 }
 
 impl ResponseTrait for ExchangeEngineResponse {
-    fn code(&self) -> i32 {
+
+    fn success(&self) -> bool {
         match self {
-            ExchangeEngineResponse::RegisterExchange(response) => response.code,
+            ExchangeEngineResponse::RegisterExchange(response) => response.success,
         }
     }
+    
 
-    fn message(&self) -> String {
+    fn error(&self) -> &Box<dyn Error + Send + Sync + 'static> {
         match self {
-            ExchangeEngineResponse::RegisterExchange(response) => response.message.clone(),
+            ExchangeEngineResponse::RegisterExchange(response) => response.error.as_ref().unwrap(),
         }
     }
 
@@ -56,12 +58,10 @@ impl TryFrom<Response> for ExchangeEngineResponse {
 // 注册交易所的响应
 #[derive(Debug)]
 pub struct RegisterExchangeResponse {
-    pub code: i32,
     pub success: bool,
-    pub message: String,
     pub account_id: i32,
     pub exchange: Exchange,
-    pub error: Option<ExchangeEngineError>,
+    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -72,11 +72,9 @@ impl From<RegisterExchangeResponse> for Response {
 }
 
 impl RegisterExchangeResponse {
-    pub fn success(message: impl Into<String>, account_id: i32, exchange: Exchange) -> Self {
+    pub fn success(account_id: i32, exchange: Exchange) -> Self {
         Self {
-            code: 0,
             success: true,
-            message: message.into(),
             account_id,
             exchange,
             error: None,
@@ -84,14 +82,12 @@ impl RegisterExchangeResponse {
         }
     }
 
-    pub fn error(message: impl Into<String>, account_id: i32, exchange: Exchange, error: ExchangeEngineError) -> Self {
+    pub fn error(account_id: i32, exchange: Exchange, error: ExchangeEngineError) -> Self {
         Self {
-            code: -1,
             success: false,
-            message: message.into(),
             account_id,
             exchange,
-            error: Some(error),
+            error: Some(Box::new(error)),
             response_timestamp: get_utc8_timestamp(),
         }
     }

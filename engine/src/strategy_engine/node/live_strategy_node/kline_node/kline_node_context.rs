@@ -141,7 +141,6 @@ impl KlineNodeContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        tracing::debug!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "received register exchange response code: {:?}", response.code());
         Ok(response)
         
         
@@ -170,7 +169,6 @@ impl KlineNodeContext {
         
         // 等待响应
         let response = resp_rx.await.unwrap();
-        tracing::debug!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "received subscribe kline stream response code: {:?}", response.code());
         Ok(response)
     }
 
@@ -271,7 +269,7 @@ impl KlineNodeContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success(){
             if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
                 match cache_reponse {
                     CacheEngineResponse::GetCacheData(get_cache_data_response) => {

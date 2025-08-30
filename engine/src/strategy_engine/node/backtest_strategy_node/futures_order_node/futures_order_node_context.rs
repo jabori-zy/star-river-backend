@@ -414,7 +414,7 @@ impl FuturesOrderNodeContext {
 
     }
 
-    async fn get_strategy_cache_keys(&mut self) -> Result<Vec<Key>, String> {
+    async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
         let node_command = NodeCommand::GetStrategyCacheKeys(GetStrategyCacheKeysParams {
             node_id: self.get_node_id().clone(),
@@ -437,7 +437,7 @@ impl FuturesOrderNodeContext {
     async fn get_kline_cache_data(&mut self) -> Result<Vec<Arc<CacheValue>>, String> {
         // 如果min_kline_interval为None，则获取策略的缓存键
         if self.min_kline_interval.is_none() {
-            let cache_keys = self.get_strategy_cache_keys().await;
+            let cache_keys = self.get_strategy_keys().await;
             // 获取成功
             if let Ok(cache_keys) = cache_keys {
                 // 过滤出K线缓存key

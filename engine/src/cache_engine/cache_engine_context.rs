@@ -102,13 +102,8 @@ impl EngineContext for CacheEngineContext {
                 match command {
                     // 添加缓存
                     CacheEngineCommand::AddCacheKey(params) => {
-                        self.add_cache_key(params.key.clone(), params.max_size, params.duration).await.unwrap();
-                        let response = AddCacheKeyResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            cache_key: params.key,
-                            response_timestamp: Utc::now().timestamp(),
-                        };
+                        self.add_key(params.key.clone(), params.max_size, params.duration).await.unwrap();
+                        let response = AddCacheKeyResponse::success(params.key);
                         let response_event = Response::CacheEngine(CacheEngineResponse::AddCacheKey(response));
 
                         params.responder.send(response_event.into()).unwrap();
@@ -117,40 +112,23 @@ impl EngineContext for CacheEngineContext {
                     // 处理获取缓存数据命令
                     CacheEngineCommand::GetCache(params) => {
                         let data = self.get_cache(&params.key, params.index, params.limit).await;
-                        let response = GetCacheDataResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            cache_key: params.key,
-                            cache_data: data,
-                            response_timestamp: Utc::now().timestamp(),
-                        };
+                        let response = GetCacheDataResponse::success(params.key, data);
                         let response = CacheEngineResponse::GetCacheData(response);
                         params.responder.send(response.into()).unwrap();
                     }
                     CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self.get_cache_multi(&params.cache_keys, params.index, params.limit).await;
-                        let response = GetCacheDataMultiResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            cache_data: multi_data.into_iter().map(|(cache_key, data)| (cache_key.get_key(), data.into_iter().map(|cache_value| cache_value.to_list()).collect())).collect(),
-                            response_timestamp: Utc::now().timestamp()
-                        };
+                        let multi_data = self.get_cache_multi(&params.keys, params.index, params.limit).await;
+                        let response = GetCacheDataMultiResponse::success(multi_data);
                         let response = CacheEngineResponse::GetCacheDataMulti(response);
                         params.responder.send(response.into()).unwrap();
                     }
                     CacheEngineCommand::GetCacheLengthMulti(params) => {
                         let mut length_result = HashMap::new();
-                        for cache_key in params.cache_keys.iter() {
-                            length_result.insert(cache_key.clone(), self.get_cache_length(cache_key).await);
+                        for key in params.keys.iter() {
+                            length_result.insert(key.clone(), self.get_cache_length(key).await);
                         }
 
-                        let get_cache_length_multi_response = GetCacheLengthMultiResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            cache_length: length_result.clone(),
-                            response_timestamp: Utc::now().timestamp()
-                        };
-                        tracing::debug!(cache_lengths = ?length_result, "get cache length multi");
+                        let get_cache_length_multi_response = GetCacheLengthMultiResponse::success(length_result);
                         let response = CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response);
                         params.responder.send(response.into()).unwrap();
                     }
@@ -182,16 +160,16 @@ impl CacheEngineContext {
             // 历史k线更新
             ExchangeEvent::ExchangeKlineHistoryUpdate(event) => {
                 // 更新cache_key对应的数据
-                let cache_key = KlineKey::new(
+                let key = KlineKey::new(
                     event.exchange, 
                     event.symbol, 
                     event.interval,
                     Some(event.time_range.start_date.to_string()), 
                     Some(event.time_range.end_date.to_string()))
                     .into();
-                tracing::debug!("更新历史k线缓存: {:?}", cache_key);
+                tracing::debug!("更新历史k线缓存: {:?}", key);
                 let cache_series = event.kline_history.into_iter().map(|kline| kline.into()).collect();
-                self.initialize_cache(cache_key, cache_series).await;
+                self.initialize_cache(key, cache_series).await;
             }
             _ => {}
         }
@@ -213,50 +191,50 @@ impl CacheEngineContext {
 
     }
 
-    async fn get_cache_length(&self, cache_key: &Key) -> u32 {
+    async fn get_cache_length(&self, key: &Key) -> u32 {
         let cache = self.cache.read().await;
-        match cache.get(&cache_key) {
+        match cache.get(&key) {
             Some(cache_entry) => cache_entry.get_length(),
             None => {
-                tracing::error!("缓存键不存在: {:?}", cache_key);
+                tracing::error!("缓存键不存在: {:?}", key);
                 0
             }
         }
     }
 
     // 获取多个缓存数据
-    pub async fn get_cache_multi(&self, cache_keys: &Vec<Key>, index: Option<u32>, limit: Option<u32>) -> HashMap<Key, Vec<Arc<CacheValue>>> {
+    pub async fn get_cache_multi(&self, keys: &Vec<Key>, index: Option<u32>, limit: Option<u32>) -> HashMap<Key, Vec<Arc<CacheValue>>> {
         let cache = self.cache.read().await;
         let mut cache_data = HashMap::new();
-        for cache_key in cache_keys {
-            let cache_entry = cache.get(&cache_key);
+        for key in keys {
+            let cache_entry = cache.get(&key);
             if cache_entry.is_none() {
-                tracing::warn!("缓存键不存在: {:?}", cache_key);
-                cache_data.insert(cache_key.clone(), vec![]);
+                tracing::warn!("缓存键不存在: {:?}", key);
+                cache_data.insert(key.clone(), vec![]);
                 continue;
             }
-            cache_data.insert(cache_key.clone(), cache_entry.unwrap().get_cache_data(index, limit));
+            cache_data.insert(key.clone(), cache_entry.unwrap().get_cache_data(index, limit));
         }
         cache_data
     }
 
-    pub async fn add_cache_key(&mut self, cache_key: Key, max_size: Option<u32>, ttl: Duration) -> Result<(), String>{
+    pub async fn add_key(&mut self, key: Key, max_size: Option<u32>, ttl: Duration) -> Result<(), String>{
         let is_contain = {
-            self.cache.read().await.contains_key(&cache_key)
+            self.cache.read().await.contains_key(&key)
         };
         
         // 如果缓存键已存在，则不插入
         if !is_contain {
-            match cache_key.clone() {
+            match key.clone() {
                 Key::Kline(backtest_kline_cache_key) => {
                     let mut cache = self.cache.write().await;
                     let cache_entry = KlineCacheEntry::new(backtest_kline_cache_key.clone(), max_size, ttl);
-                    cache.insert(cache_key, cache_entry.into());
+                    cache.insert(key, cache_entry.into());
                 }
                 Key::Indicator(history_indicator_cache_key) => {
                     let mut cache = self.cache.write().await;
                     let cache_entry = IndicatorCacheEntry::new(history_indicator_cache_key.clone(), max_size, ttl);
-                    cache.insert(cache_key, cache_entry.into());
+                    cache.insert(key, cache_entry.into());
                 }
                 // Key::Indicator(indicator_cache_key) => {
                 //     let is_contain = {
@@ -293,19 +271,19 @@ impl CacheEngineContext {
     }
 
 
-    #[instrument(skip(self, cache_series), fields(cache_key=?cache_key, cache_series_length=cache_series.len()))]
-    pub async fn initialize_cache(&mut self, cache_key: Key, cache_series: Vec<CacheValue>) {
+    #[instrument(skip(self, cache_series), fields(key=?key, cache_series_length=cache_series.len()))]
+    pub async fn initialize_cache(&mut self, key: Key, cache_series: Vec<CacheValue>) {
         // 更新cache_key对应的数据
-        tracing::info!(cache_key=?cache_key, cache_series_length=cache_series.len(), "initailize cache value");
+        tracing::info!(key=?key, cache_series_length=cache_series.len(), "initailize cache value");
         let mut cache = self.cache.write().await;
-        let cache_entry = cache.get_mut(&cache_key).unwrap();
+        let cache_entry = cache.get_mut(&key).unwrap();
         // 初始化数据
         cache_entry.initialize(cache_series);
     }
 
-    pub async fn update_cache(&mut self, cache_key: Key, cache_value: CacheValue) {
+    pub async fn update_cache(&mut self, key: Key, cache_value: CacheValue) {
         let mut cache = self.cache.write().await;
-        let cache_entry = cache.get_mut(&cache_key).unwrap();
+        let cache_entry = cache.get_mut(&key).unwrap();
         cache_entry.update(cache_value);
     }
 }

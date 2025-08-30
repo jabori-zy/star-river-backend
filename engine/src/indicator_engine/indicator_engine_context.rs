@@ -119,17 +119,14 @@ impl EngineContext for IndicatorEngineContext {
                             register_indicator_params.indicator_config.clone()
                         ).await;
                         // 发送注册指标完成事件
-                        let register_indicator_response = RegisterIndicatorResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            strategy_id: register_indicator_params.strategy_id,
-                            node_id: register_indicator_params.node_id,
-                            exchange: register_indicator_params.exchange,
-                            symbol: register_indicator_params.symbol,
-                            interval: register_indicator_params.interval,
-                            indicator: register_indicator_params.indicator_config,
-                            response_timestamp: get_utc8_timestamp_millis(),
-                        };
+                        let register_indicator_response = RegisterIndicatorResponse::success(
+                            register_indicator_params.strategy_id,
+                            register_indicator_params.node_id,
+                            register_indicator_params.exchange,
+                            register_indicator_params.symbol,
+                            register_indicator_params.interval,
+                            register_indicator_params.indicator_config
+                        );
                         let response_event = IndicatorEngineResponse::RegisterIndicator(register_indicator_response);
                         register_indicator_params.responder.send(response_event.into()).unwrap();
                     }
@@ -142,18 +139,13 @@ impl EngineContext for IndicatorEngineContext {
                             true //一次性将历史数据计算出来
                         ).await.unwrap();
                         // 将指标数据添加到缓存中
-                        let backtest_indicator_cache_key = self.cache_engine.lock().await.initialize_indicator_cache(
+                        let backtest_indicator_key = self.cache_engine.lock().await.initialize_indicator_cache(
                             calculate_backtest_indicator_params.kline_key.clone().into(),
                             calculate_backtest_indicator_params.indicator_config.clone(),
                             backtest_indicators
                         ).await;
                         // 发送计算指标完成响应
-                        let calculate_backtest_indicator_response = CalculateBacktestIndicatorResponse {
-                            code: 0,
-                            message: "success".to_string(),
-                            backtest_indicator_cache_key: backtest_indicator_cache_key,
-                            response_timestamp: get_utc8_timestamp_millis(),
-                        };
+                        let calculate_backtest_indicator_response = CalculateBacktestIndicatorResponse::success(backtest_indicator_key);
                         let response_event = IndicatorEngineResponse::CalculateBacktestIndicator(calculate_backtest_indicator_response);
                         calculate_backtest_indicator_params.responder.send(response_event.into()).unwrap();
                     }
@@ -264,8 +256,8 @@ impl IndicatorEngineContext {
         tracing::info!("已订阅的指标: {:?}", subscribe_indicators);
         
         // 1. 添加缓存键
-        let indicator_cache_key: IndicatorKey = indicator_sub_key.clone().into();
-        let _ = self.cache_engine.lock().await.add_cache_key(indicator_cache_key.into(), None, Duration::from_millis(10)).await;
+        let indicator_key: IndicatorKey = indicator_sub_key.clone().into();
+        let _ = self.cache_engine.lock().await.add_key(indicator_key.into(), None, Duration::from_millis(10)).await;
         // 3. 计算指标
         let kline_key = KlineKey::new(
             exchange.clone(), 

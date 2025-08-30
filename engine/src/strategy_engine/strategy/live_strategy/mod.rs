@@ -129,7 +129,7 @@ impl LiveStrategy {
             strategy_id,
             strategy_name: strategy_name.clone(),
             strategy_config: strategy_live_config,
-            cache_keys: Arc::new(RwLock::new(cache_keys)),
+            keys: Arc::new(RwLock::new(cache_keys)),
             graph,
             node_indices,
             event_publisher,

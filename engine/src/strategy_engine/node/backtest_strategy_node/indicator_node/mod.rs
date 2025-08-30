@@ -67,8 +67,8 @@ impl IndicatorNode {
         );
 
         // 通过配置，获取指标缓存键
-        let indicator_cache_keys = Self::get_indicator_cache_keys(&backtest_config);
-        tracing::debug!("indicator_cache_keys: {:?}", indicator_cache_keys);
+        let indicator_keys = Self::get_indicator_keys(&backtest_config);
+        tracing::debug!("indicator_cache_keys: {:?}", indicator_keys);
         // 通过配置，获取回测K线缓存键
         let kline_cache_key = Self::get_kline_key(&backtest_config);
 
@@ -77,14 +77,14 @@ impl IndicatorNode {
                 base_context,
                 backtest_config,
                 is_registered: Arc::new(RwLock::new(false)),
-                indicator_cache_keys,
+                indicator_keys,
                 kline_key: kline_cache_key,
             }))),
             
         }
     }
 
-    fn get_indicator_cache_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<IndicatorKey> {
+    fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<IndicatorKey> {
         let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
         let symbol = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.symbol.clone();
         let interval = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbol.interval.clone();
@@ -92,7 +92,7 @@ impl IndicatorNode {
 
         let mut indicator_keys = vec![];
         for indicator in backtest_config.exchange_mode_config.as_ref().unwrap().selected_indicators.iter() {
-            let indicator_cache_key = IndicatorKey {
+            let indicator_key = IndicatorKey {
                 exchange: exchange.clone(), 
                 symbol: symbol.clone(), 
                 interval: interval.clone(), 
@@ -100,7 +100,7 @@ impl IndicatorNode {
                 start_time: Some(time_range.start_date.to_string()),
                 end_time: Some(time_range.end_date.to_string()),
             };
-            indicator_keys.push(indicator_cache_key);
+            indicator_keys.push(indicator_key);
         }
         indicator_keys
     }

@@ -201,7 +201,7 @@ impl LiveNodeTrait for KlineNode {
                         let mut state_guard = context.write().await;
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
                             let response = kline_node_context.register_exchange().await?;
-                            if response.code() == 0 {
+                            if response.success() {
                                 tracing::info!("{}注册交易所成功", node_id);
                                 *kline_node_context.exchange_is_registered.write().await = true;
                             } else {
@@ -214,7 +214,7 @@ impl LiveNodeTrait for KlineNode {
                         let mut state_guard = context.write().await;
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
                             let response = kline_node_context.subscribe_kline_stream().await?;
-                            if response.code() == 0 {
+                            if response.success() {
                                 tracing::info!("{}订阅K线流成功", node_id);
                                 *kline_node_context.stream_is_subscribed.write().await = true;
                             } else {
@@ -243,7 +243,7 @@ impl LiveNodeTrait for KlineNode {
                             let mut state_guard = context.write().await;
                             if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
                                 let response = kline_node_context.unsubscribe_kline_stream().await?;
-                                if response.code() == 0 {
+                                if response.success() {
                                     tracing::info!("{}取消订阅K线流成功", node_id);
                                     *kline_node_context.stream_is_subscribed.write().await = false;
                                 } else {

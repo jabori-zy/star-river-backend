@@ -52,7 +52,7 @@ use types::transaction::virtual_transaction::VirtualTransaction;
 pub struct BacktestStrategyContext {
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
-    pub cache_keys: Arc<RwLock<Vec<Key>>>, // 缓存键
+    pub keys: Arc<RwLock<Vec<Key>>>, // 缓存键
     pub cache_lengths: HashMap<Key, u32>, // 缓存长度
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
@@ -89,8 +89,8 @@ impl BacktestStrategyContext {
         self.strategy_name.clone()
     }
 
-    pub async fn get_cache_keys(&self) -> Vec<Key> {
-        self.cache_keys.read().await.clone()
+    pub async fn get_keys(&self) -> Vec<Key> {
+        self.keys.read().await.clone()
     }
 
     // 获取节点
@@ -132,7 +132,7 @@ impl BacktestStrategyContext {
     pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
         match command {
             NodeCommand::GetStrategyCacheKeys(get_strategy_cache_keys_command) => {
-                let cache_keys = self.get_cache_keys().await;
+                let cache_keys = self.get_keys().await;
                 let get_strategy_cache_keys_response = NodeResponse::GetStrategyCacheKeys(GetStrategyCacheKeysResponse {
                     code: 0,
                     message: "success".to_string(),
@@ -305,7 +305,7 @@ impl BacktestStrategyContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheMultiParams {
             strategy_id: strategy_id,
-            cache_keys: cache_keys_clone,
+            keys: cache_keys_clone,
             index: None,
             limit: Some(1), // 只获取最新的一条数据
             sender: strategy_name,
@@ -318,7 +318,7 @@ impl BacktestStrategyContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success() {
             // let cache_engine_response = CacheEngineResponse::try_from(response);
             // if let Ok(cache_engine_response) = cache_engine_response {
             //     match cache_engine_response {
@@ -484,7 +484,7 @@ impl BacktestStrategyContext {
     pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
         
         // 过滤出k线缓存key
-        let kline_cache_keys = self.cache_keys
+        let kline_cache_keys = self.keys
             .read()
             .await
             .iter()
@@ -494,7 +494,7 @@ impl BacktestStrategyContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let get_cache_length_params = GetCacheLengthMultiParams {
             strategy_id: self.strategy_id,
-            cache_keys: kline_cache_keys,
+            keys: kline_cache_keys,
             timestamp: get_utc8_timestamp_millis(),
             sender: self.strategy_name.clone(),
             responder: resp_tx
@@ -503,7 +503,7 @@ impl BacktestStrategyContext {
         // 向缓存引擎发送命令
         self.command_publisher.send(cache_engine_command.into()).await.unwrap();
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success() {
             let cache_engine_response = CacheEngineResponse::try_from(response);
             if let Ok(cache_engine_response) = cache_engine_response {
                 match cache_engine_response {

@@ -108,11 +108,11 @@ impl EngineContext for ExchangeEngineContext {
                         
                         let response = if let Ok(()) = result {
                             // success
-                            RegisterExchangeResponse::success("register success", register_exchange_command.account_id, register_exchange_command.exchange)
+                            RegisterExchangeResponse::success(register_exchange_command.account_id, register_exchange_command.exchange)
                         } else {
                             // 注册失败
                             let error = result.unwrap_err();
-                            RegisterExchangeResponse::error("register failed", register_exchange_command.account_id, register_exchange_command.exchange, error)
+                            RegisterExchangeResponse::error(register_exchange_command.account_id, register_exchange_command.exchange, error)
                             
                         };
                         // 发送响应事件
@@ -152,18 +152,18 @@ impl ExchangeEngineContext {
                 }
             }
             _ => {
-                tracing::error!("不支持的交易所类型: {:?}", account_config.exchange);
-                UnsupportedExchangeTypeSnafu {
-                    message: "unsupported exchange type".to_string(),
-                    exchange_type: account_config.exchange,
+                let error = UnsupportedExchangeTypeSnafu {
+                    exchange_type: account_config.exchange.clone(),
                     account_id,
-                }.fail()
+                }.build();
+                tracing::error!("{}", error);
+                return Err(error);
             }
         };
 
         match result {
             Ok(()) => {
-                tracing::info!("交易所注册成功，账户ID: {}", account_id);
+                tracing::info!("account {account_id}'s exchange register success");
                 Ok(())
             }
             Err(e) => {

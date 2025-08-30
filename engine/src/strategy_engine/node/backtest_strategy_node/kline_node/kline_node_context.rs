@@ -234,7 +234,6 @@ impl KlineNodeContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        tracing::debug!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "received register exchange response code: {:?}", response.code());
         Ok(response)
     }
 
@@ -264,7 +263,7 @@ impl KlineNodeContext {
             let get_kline_history_command = MarketEngineCommand::GetKlineHistory(params);
             self.get_command_publisher().send(get_kline_history_command.into()).await.unwrap();
             let response = resp_rx.await.unwrap();
-            if response.code() != 0 {
+            if !response.success() {
                 is_all_success = false;
                 break;
             }
@@ -295,7 +294,7 @@ impl KlineNodeContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success() {
             if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
                 match cache_reponse {
                     CacheEngineResponse::GetCacheData(get_cache_data_response) => {

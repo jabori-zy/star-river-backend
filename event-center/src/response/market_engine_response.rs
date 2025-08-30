@@ -1,9 +1,11 @@
+use std::error::Error;
 use serde::{Deserialize, Serialize};
 use types::market::{Exchange, KlineInterval, Kline};
 use crate::response::{Response, ResponseTrait};
+use utils::get_utc8_timestamp;
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub enum MarketEngineResponse {
     SubscribeKlineStream(SubscribeKlineStreamResponse),
     UnsubscribeKlineStream(UnsubscribeKlineStreamResponse),
@@ -11,19 +13,19 @@ pub enum MarketEngineResponse {
 }
 
 impl ResponseTrait for MarketEngineResponse {
-    fn code(&self) -> i32 {
+    fn success(&self) -> bool {
         match self {
-            MarketEngineResponse::SubscribeKlineStream(response) => response.code,
-            MarketEngineResponse::UnsubscribeKlineStream(response) => response.code,
-            MarketEngineResponse::GetKlineHistory(response) => response.code,
+            MarketEngineResponse::SubscribeKlineStream(response) => response.success,
+            MarketEngineResponse::UnsubscribeKlineStream(response) => response.success,
+            MarketEngineResponse::GetKlineHistory(response) => response.success
         }
     }
 
-    fn message(&self) -> String {
+    fn error(&self) -> &Box<dyn Error + Send + Sync + 'static> {
         match self {
-            MarketEngineResponse::SubscribeKlineStream(response) => response.message.clone(),
-            MarketEngineResponse::UnsubscribeKlineStream(response) => response.message.clone(),
-            MarketEngineResponse::GetKlineHistory(response) => response.message.clone(),
+            MarketEngineResponse::SubscribeKlineStream(response) => response.error.as_ref().unwrap(),
+            MarketEngineResponse::UnsubscribeKlineStream(response) => response.error.as_ref().unwrap(),
+            MarketEngineResponse::GetKlineHistory(response) => response.error.as_ref().unwrap(),
         }
     }
 
@@ -56,33 +58,95 @@ impl TryFrom<Response> for MarketEngineResponse {
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct SubscribeKlineStreamResponse {
-    pub code: i32,
-    pub message: String,
+    pub success: bool,
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
+    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
+impl SubscribeKlineStreamResponse {
+    pub fn success(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
+        Self {
+            success: true,
+            exchange,
+            symbol,
+            interval,
+            error: None,
+            response_timestamp: get_utc8_timestamp(),
+        }
+    }
+}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl From<SubscribeKlineStreamResponse> for Response {
+    fn from(response: SubscribeKlineStreamResponse) -> Self {
+        Response::MarketEngine(MarketEngineResponse::SubscribeKlineStream(response))
+    }
+}
+
+
+#[derive(Debug)]
 pub struct UnsubscribeKlineStreamResponse {
-    pub code: i32,
-    pub message: String,
+    pub success: bool,
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
+    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl UnsubscribeKlineStreamResponse {
+
+    pub fn success(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
+        Self {
+            success: true,
+            exchange,
+            symbol,
+            interval,
+            error: None,
+            response_timestamp: get_utc8_timestamp(),
+        }
+    }
+}
+
+impl From<UnsubscribeKlineStreamResponse> for Response {
+    fn from(response: UnsubscribeKlineStreamResponse) -> Self {
+        Response::MarketEngine(MarketEngineResponse::UnsubscribeKlineStream(response))
+    }
+}
+
+
+#[derive(Debug)]
 pub struct GetKlineHistoryResponse {
-    pub code: i32,
-    pub message: String,
+    pub success: bool,
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
+    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
+
+impl GetKlineHistoryResponse {
+    pub fn success(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
+        Self {
+            success: true,
+            exchange,
+            symbol,
+            interval,
+            error: None,
+            response_timestamp: get_utc8_timestamp(),
+        }
+    }
+}
+
+impl From<GetKlineHistoryResponse> for Response {
+    fn from(response: GetKlineHistoryResponse) -> Self {
+        Response::MarketEngine(MarketEngineResponse::GetKlineHistory(response))
+    }
+}
+
+
+

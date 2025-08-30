@@ -34,9 +34,8 @@ pub enum ExchangeEngineError {
         backtrace: Backtrace,
     },
     
-    #[snafu(display("unsupported exchange type: {exchange_type:?}, account_id: {account_id}"))]
+    #[snafu(display("account {account_id}'s exchange type {:?} is unsupported", exchange_type))]
     UnsupportedExchangeType {
-        message: String,
         exchange_type: Exchange,
         account_id: AccountId,
         backtrace: Backtrace,

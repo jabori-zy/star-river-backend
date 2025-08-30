@@ -116,7 +116,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                 );
                 let response = self.get_indicator_cache(indicator_cache_key).await;
                 if let Ok(response) = response {
-                    if response.code() == 0 {
+                    if response.success() {
                         let cache_engine_response = CacheEngineResponse::try_from(response).unwrap();
                         match cache_engine_response {
                             CacheEngineResponse::GetCacheData(get_cache_data_response) => {

@@ -175,7 +175,7 @@ impl LiveNodeTrait for IndicatorNode {
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
                         let register_indicator_response = context.register_indicator().await;
                         if let Ok(register_indicator_response) = register_indicator_response {
-                            if register_indicator_response.code() == 0 {
+                            if register_indicator_response.success() {
                                 *context.is_registered.write().await = true;
                                 tracing::info!("{}: 注册指标成功", node_id);
                             } else {

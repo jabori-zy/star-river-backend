@@ -90,10 +90,10 @@ impl StrategyEngineContext {
     }
 
     // 获取回测策略的缓存键
-    pub async fn get_backtest_strategy_cache_keys(&self, strategy_id: i32) -> Vec<Key> {
+    pub async fn get_backtest_strategy_keys(&self, strategy_id: i32) -> Vec<Key> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
-            strategy.get_context().read().await.get_cache_keys().await
+            strategy.get_context().read().await.get_keys().await
         } else {
             Vec::new()
         }

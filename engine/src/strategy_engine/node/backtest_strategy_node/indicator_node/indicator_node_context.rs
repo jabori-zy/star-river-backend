@@ -37,7 +37,7 @@ pub struct IndicatorNodeContext {
     pub backtest_config: IndicatorNodeBacktestConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
     pub kline_key: KlineKey, // 回测K线缓存键
-    pub indicator_cache_keys: Vec<IndicatorKey>, // 指标缓存键
+    pub indicator_keys: Vec<IndicatorKey>, // 指标缓存键
 }
 
 
@@ -119,7 +119,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 
                 // 遍历指标缓存键，计算指标
                 for ind_config in exchange_config.selected_indicators.iter() {
-                    let indicator_cache_key = IndicatorKey { 
+                    let indicator_key = IndicatorKey { 
                         exchange: exchange.clone(), 
                         symbol: symbol.clone(), 
                         interval: interval.clone(), 
@@ -131,7 +131,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     let from_handle_id = ind_config.output_handle_id.clone();
                     
                     // 获取指标缓存数据，增加错误处理
-                    let indicator_cache_data = match self.get_backtest_indicator_cache(&indicator_cache_key, kline_update_event.play_index).await {
+                    let indicator_cache_data = match self.get_backtest_indicator_cache(&indicator_key, kline_update_event.play_index).await {
                         Ok(data) => data,
                         Err(e) => {
                             tracing::error!(
@@ -150,12 +150,12 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                             from_node_id: node_id.clone(),
                             from_node_name: node_name.clone(),
                             from_handle_id: handle_id,
-                            exchange: indicator_cache_key.get_exchange(),
-                            symbol: indicator_cache_key.get_symbol(),
-                            interval: indicator_cache_key.get_interval(),
+                            exchange: indicator_key.get_exchange(),
+                            symbol: indicator_key.get_symbol(),
+                            interval: indicator_key.get_interval(),
                             config_id: ind_config.config_id,
-                            indicator_config: indicator_cache_key.get_indicator_config(),
-                            indicator_key: indicator_cache_key.clone(),
+                            indicator_config: indicator_key.get_indicator_config(),
+                            indicator_key: indicator_key.clone(),
                             indicator_series: data,
                             play_index: kline_update_event.play_index,
                             timestamp: timestamp,
@@ -226,7 +226,7 @@ impl IndicatorNodeContext {
 
         let mut is_all_success = true;
         // 遍历已配置的指标，注册指标缓存键
-        for indicator_cache_key in self.indicator_cache_keys.iter() {
+        for indicator_cache_key in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
 
             let register_indicator_params = AddCacheKeyParams {
@@ -241,7 +241,7 @@ impl IndicatorNodeContext {
             let register_indicator_command = Command::CacheEngine(CacheEngineCommand::AddCacheKey(register_indicator_params));
             self.get_command_publisher().send(register_indicator_command).await.unwrap();
             let response = resp_rx.await.unwrap();
-            if response.code() != 0 {
+            if !response.success() {
                 is_all_success = false;
                 break;
             }
@@ -270,7 +270,7 @@ impl IndicatorNodeContext {
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
+        if response.success() {
             if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
                 match cache_reponse {
                     CacheEngineResponse::GetCacheData(get_cache_data_response) => {
@@ -302,7 +302,7 @@ impl IndicatorNodeContext {
             let calculate_indicator_command = Command::IndicatorEngine(IndicatorEngineCommand::CalculateBacktestIndicator(params));
             self.get_command_publisher().send(calculate_indicator_command).await.unwrap();
             let response = resp_rx.await.unwrap();
-            if response.code() != 0 {
+            if !response.success() {
                 is_all_success = false;
                 break;
             }

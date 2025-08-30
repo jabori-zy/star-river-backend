@@ -68,19 +68,19 @@ impl CacheEngine {
         }
     }
 
-    pub async fn add_cache_key(&self, cache_key: Key, max_size: Option<u32>, ttl: Duration) -> Result<(), String> {
+    pub async fn add_key(&self, key: Key, max_size: Option<u32>, ttl: Duration) -> Result<(), String> {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        cache_engine_context.add_cache_key(cache_key, max_size, ttl).await
+        cache_engine_context.add_key(key, max_size, ttl).await
     }
 
-    pub async fn get_cache_key(&self, key_type: Option<&str>) -> Result<Vec<String>, String> {
+    pub async fn get_key(&self, key_type: Option<&str>) -> Result<Vec<String>, String> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();
         // 获取hashmap所有的key
         let cache = cache_engine_context.cache.read().await;
-        if let Some(cache_key_type) = key_type {
-            match cache_key_type {
+        if let Some(key_type) = key_type {
+            match key_type {
                 "kline" => {
                     let keys = cache.keys().filter(|key| matches!(key, Key::Kline(_))).map(|key: &Key| key.get_key()).collect();
                     Ok(keys)
@@ -98,11 +98,11 @@ impl CacheEngine {
     }
 
     // 获取缓存值
-    pub async fn get_cache_value(&self, cache_key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+    pub async fn get_cache_value(&self, key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();
 
-        cache_engine_context.get_cache(cache_key, index, limit).await
+        cache_engine_context.get_cache(key, index, limit).await
     }
 
     pub async fn get_memory_size(&self) -> Result<HashMap<String, u32>, String> {
@@ -127,9 +127,9 @@ impl CacheEngine {
         kline_series: Vec<Kline>) {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Kline(KlineKey::new(exchange, symbol, interval, start_time, end_time));
+        let key = Key::Kline(KlineKey::new(exchange, symbol, interval, start_time, end_time));
         let cache_series = kline_series.into_iter().map(|kline| kline.into()).collect();
-        cache_engine_context.initialize_cache(cache_key, cache_series).await;
+        cache_engine_context.initialize_cache(key, cache_series).await;
     }
 
     pub async fn update_kline_cache(
@@ -143,8 +143,8 @@ impl CacheEngine {
     ) {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Kline(KlineKey::new(exchange, symbol, interval, start_time, end_time));
-        cache_engine_context.update_cache(cache_key, kline.into()).await;
+        let key = Key::Kline(KlineKey::new(exchange, symbol, interval, start_time, end_time));
+        cache_engine_context.update_cache(key, kline.into()).await;
     }
 
     // pub async fn initialize_indicator_cache(
@@ -170,10 +170,10 @@ impl CacheEngine {
     ) -> Key {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Indicator(IndicatorKey::new(kline_key, indicator_config));
+        let key = Key::Indicator(IndicatorKey::new(kline_key, indicator_config));
         let cache_series = indicator_series.into_iter().map(|indicator| indicator.into()).collect();
-        cache_engine_context.initialize_cache(cache_key.clone(), cache_series).await;
-        cache_key
+        cache_engine_context.initialize_cache(key.clone(), cache_series).await;
+        key
     }
 
     pub async fn update_indicator_cache(
@@ -184,7 +184,7 @@ impl CacheEngine {
     ) {
         let mut context = self.context.write().await;
         let cache_engine_context = context.as_any_mut().downcast_mut::<CacheEngineContext>().unwrap();
-        let cache_key = Key::Indicator(IndicatorKey::new(kline_key, indicator_config));
-        cache_engine_context.update_cache(cache_key.clone(), indicator.into()).await;
+        let key = Key::Indicator(IndicatorKey::new(kline_key, indicator_config));
+        cache_engine_context.update_cache(key.clone(), indicator.into()).await;
     }
 }
