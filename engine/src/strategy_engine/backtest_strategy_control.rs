@@ -9,19 +9,20 @@ use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
+use types::error::engine_error::StrategyEngineError;
 
 /* 
     回测策略控制
 */
 impl StrategyEngineContext {
-    pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<StrategyId, String> {
+    pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<StrategyId, StrategyEngineError> {
         // 判断策略是否在回测策略列表中
         if self.backtest_strategy_list.contains_key(&strategy_id) {
             tracing::warn!("策略已存在, 不进行初始化");
             return Ok(strategy_id);
         }
 
-        let strategy_info = self.get_strategy_info_by_id(strategy_id).await?;
+        let strategy_info = self.get_strategy_info_by_id(strategy_id).await.unwrap();
         let strategy_id = strategy_info.id;
         let mut strategy = BacktestStrategy::new(
             strategy_info,

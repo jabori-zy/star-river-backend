@@ -24,6 +24,7 @@ use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
+use types::error::engine_error::*;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -84,13 +85,13 @@ impl StrategyEngine{
     }
 
     // 初始化策略
-    pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await.unwrap();
         match strategy_info.trade_mode {
             TradeMode::Live => {
-                strategy_context.live_strategy_init(strategy_id).await?;
+                strategy_context.live_strategy_init(strategy_id).await.unwrap();
                 Ok(())
 
             }
@@ -98,9 +99,11 @@ impl StrategyEngine{
                 strategy_context.backtest_strategy_init(strategy_id).await?;
                 Ok(())
             }
-            _ => {
-                Err("不支持的策略类型".to_string())
-            }
+            // _ => {
+            //     UnsupportedStrategyTypeSnafu {
+            //         strategy_type: strategy_info.trade_mode.to_string(),
+            //     }.fail()?
+            // }
         }
     }
 

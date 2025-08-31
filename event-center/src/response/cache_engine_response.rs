@@ -30,14 +30,14 @@ impl ResponseTrait for CacheEngineResponse {
     }
     
 
-    fn error(&self) -> &Box<dyn Error + Send + Sync + 'static> {
+    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
         match self {
-            CacheEngineResponse::AddCacheKey(response) => response.error.as_ref().unwrap(),
-            CacheEngineResponse::AddIndicatorCacheKey(response) => response.error.as_ref().unwrap(),
-            CacheEngineResponse::GetCacheData(response) => response.error.as_ref().unwrap(),
-            CacheEngineResponse::GetCacheDataMulti(response) => response.error.as_ref().unwrap(),
-            CacheEngineResponse::GetCacheLength(response) => response.error.as_ref().unwrap(),
-            CacheEngineResponse::GetCacheLengthMulti(response) => response.error.as_ref().unwrap(),
+            CacheEngineResponse::AddCacheKey(response) =>  response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::AddIndicatorCacheKey(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheData(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheDataMulti(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheLength(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheLengthMulti(response) => response.error.as_ref().unwrap().clone(),
         }
     }
 
@@ -73,7 +73,7 @@ impl TryFrom<Response> for CacheEngineResponse {
 pub struct AddCacheKeyResponse {
     pub success: bool,
     pub key: Key,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -104,7 +104,7 @@ pub struct GetCacheDataResponse {
     pub success: bool,
     pub key: Key,
     pub cache_data: Vec<Arc<CacheValue>>,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -134,7 +134,7 @@ impl From<GetCacheDataResponse> for Response {
 pub struct GetCacheDataMultiResponse {
     pub success: bool,
     pub cache_data: HashMap<String, Vec<Vec<f64>>>,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -170,7 +170,7 @@ pub struct AddIndicatorCacheKeyResponse {
     pub requested_strategy_id: StrategyId, // 请求的策略id
     pub requested_node_id: NodeId, // 请求的节点id
     pub indicator_key: Key,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -201,7 +201,7 @@ pub struct GetCacheLengthResponse {
     pub success: bool,
     pub cache_key: Key,
     pub cache_length: u32,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -231,7 +231,7 @@ impl From<GetCacheLengthResponse> for Response {
 pub struct GetCacheLengthMultiResponse {
     pub success: bool,
     pub cache_length: HashMap<Key, u32>,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 

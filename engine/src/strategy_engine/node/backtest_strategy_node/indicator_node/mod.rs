@@ -23,6 +23,7 @@ use indicator_node_type::IndicatorNodeBacktestConfig;
 use types::cache::key::{IndicatorKey, KlineKey};
 use types::strategy::node_event::BacktestNodeEvent;
 use types::custom_type::PlayIndex;
+use types::error::engine_error::strategy_engine_error::node_error::*;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -180,11 +181,11 @@ impl BacktestNodeTrait for IndicatorNode {
         tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
-    async fn init(&mut self) -> Result<(), String> {
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         // 循环检查是否已经注册指标
         // 检查交易所是否注册成功，并且K线流是否订阅成功
@@ -209,9 +210,9 @@ impl BacktestNodeTrait for IndicatorNode {
         Ok(())
     }
 
-    async fn stop(&mut self) -> Result<(), String> {
+    async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -220,7 +221,7 @@ impl BacktestNodeTrait for IndicatorNode {
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
         
         // 获取状态管理器并执行转换
@@ -244,27 +245,27 @@ impl BacktestNodeTrait for IndicatorNode {
                     }
                     IndicatorNodeStateAction::ListenAndHandleExternalEvents => {
                         tracing::info!("{}: 开始监听外部事件", node_id);
-                        self.listen_external_events().await?;
+                        self.listen_external_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点传递的message", node_id);
-                        self.listen_node_events().await?;
+                        self.listen_node_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部事件", node_id);
-                        self.listen_strategy_inner_events().await?;
+                        self.listen_strategy_inner_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
-                        self.listen_strategy_command().await?;
+                        self.listen_strategy_command().await;
                     }
                     
                     IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
                         tracing::info!("{}: 开始注册指标缓存键", node_id);
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
-                        let is_all_success = context.register_indicator_cache_key().await;
-                        if let Ok(is_all_success) = is_all_success {
+                        let is_all_success = context.register_indicator_cache_key().await.unwrap();
+                        if is_all_success {
                             if is_all_success {
                                 *context.is_registered.write().await = true;
                                 tracing::info!("{}: 注册指标缓存键成功", node_id);
@@ -277,16 +278,14 @@ impl BacktestNodeTrait for IndicatorNode {
                         tracing::info!("{}: 开始计算指标", node_id);
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
-                        let is_all_success = context.calculate_indicator().await;
-                        if let Ok(is_all_success) = is_all_success {
-                            if is_all_success {
-                                tracing::info!("{}: 计算指标成功", node_id);
-                            } else {
-                                tracing::error!("{}: 计算指标失败", node_id);
-                            }
+                        let is_all_success = context.calculate_indicator().await.unwrap();
+                        
+                        if is_all_success {
+                            tracing::info!("{}: 计算指标成功", node_id);
                         } else {
                             tracing::error!("{}: 计算指标失败", node_id);
                         }
+                        
                     }
                     IndicatorNodeStateAction::CancelAsyncTask => {
                         tracing::debug!(node_id = %node_id, "cancel async task");

@@ -5,6 +5,7 @@ pub mod indicator_engine_response;
 pub mod backtest_strategy_response;
 
 use std::error::Error;
+use std::sync::Arc;
 
 use cache_engine_response::CacheEngineResponse;
 use exchange_engine_response::ExchangeEngineResponse;
@@ -14,7 +15,7 @@ use market_engine_response::MarketEngineResponse;
 
 pub trait ResponseTrait {
     fn success(&self) -> bool;
-    fn error(&self) -> &Box<dyn Error + Send + Sync + 'static>;
+    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static>;
     fn response_timestamp(&self) -> i64;
 }
 
@@ -38,7 +39,7 @@ impl Response {
         }
     }
 
-    pub fn message(&self) -> &Box<dyn Error + Send + Sync + 'static> {
+    pub fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
         match self {
             Response::CacheEngine(response) => response.error(),
             Response::IndicatorEngine(response) => response.error(),

@@ -440,23 +440,3 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
         }
     }
 }
-
-// Convert from serde_json::Error automatically
-impl From<serde_json::Error> for Mt5Error {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Json {
-            source: err,
-            backtrace: Backtrace::generate(),
-        }
-    }
-}
-
-// Convert from DataProcessorError automatically
-impl From<DataProcessorError> for Mt5Error {
-    fn from(err: DataProcessorError) -> Self {
-        Self::DataProcessor {
-            source: err,
-            backtrace: Backtrace::generate(),
-        }
-    }
-}

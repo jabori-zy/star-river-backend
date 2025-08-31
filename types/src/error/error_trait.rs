@@ -25,4 +25,5 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
     /// Returns true if the operation that caused this error can potentially be retried
     /// Returns false if the error indicates a permanent failure that should not be retried
     fn is_recoverable(&self) -> bool;
+
 }

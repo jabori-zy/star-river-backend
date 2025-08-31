@@ -23,6 +23,7 @@ use types::strategy::node_event::BacktestNodeEvent;
 use tokio::sync::broadcast;
 use virtual_trading::VirtualTradingSystem;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+use types::error::engine_error::strategy_engine_error::node_error::BacktestStrategyNodeError;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -107,17 +108,17 @@ impl BacktestNodeTrait for StartNode {
         let _from_node_id = from_node_id;
     }
 
-    async fn init(&mut self) -> Result<(), String> {
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         tracing::info!(node_id = %node_id, node_name = %node_name, "=================init start node====================");
         tracing::info!(node_id = %node_id, node_name = %node_name, "start init");
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         tracing::info!(node_id = %node_id, node_name = %node_name, "init complete");
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
@@ -143,7 +144,7 @@ impl BacktestNodeTrait for StartNode {
 
     
 
-    async fn stop(&mut self) -> Result<(), String> {
+    async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
@@ -155,11 +156,9 @@ impl BacktestNodeTrait for StartNode {
         Ok(())
     }
 
-    async fn listen_node_events(&self) -> Result<(), String> {
-        Ok(())
-    }
+    async fn listen_node_events(&self) {}
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let (transition_result, state_manager) = {
@@ -179,11 +178,11 @@ impl BacktestNodeTrait for StartNode {
                 }
                 StartNodeStateAction::ListenAndHandleInnerEvents => {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy inner events");
-                    self.listen_strategy_inner_events().await?;
+                    self.listen_strategy_inner_events().await;
                 }
                 StartNodeStateAction::ListenAndHandleStrategyCommand => {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy command");
-                    self.listen_strategy_command().await?;
+                    self.listen_strategy_command().await;
                 }
                 StartNodeStateAction::ListenAndHandlePlayIndex => {
                     tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen play index");

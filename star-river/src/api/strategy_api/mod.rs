@@ -15,6 +15,7 @@ use types::strategy::Strategy;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
+use snafu::{Report, ResultExt};
 
 
 
@@ -316,7 +317,10 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
         let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
         let mut engine_guard = engine.lock().await;
         let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-        strategy_engine.init_strategy(strategy_id).await.unwrap();
+        if let Err(e) = strategy_engine.init_strategy(strategy_id).await {
+            let report = Report::from_error(e);
+            tracing::error!("初始化策略失败: {:?}", report);
+        }
     }).await;
     (StatusCode::OK, Json(ApiResponse {
         code: 0,

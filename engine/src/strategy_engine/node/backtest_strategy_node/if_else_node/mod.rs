@@ -28,6 +28,7 @@ use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
 use types::custom_type::PlayIndex;
+use types::error::engine_error::strategy_engine_error::node_error::*;
 
 
 // 条件分支节点
@@ -191,11 +192,11 @@ impl BacktestNodeTrait for IfElseNode {
     }
 
 
-    async fn init(&mut self) -> Result<(), String> {
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
         // 初始化完成 Initialize -> InitializeComplete
@@ -206,10 +207,10 @@ impl BacktestNodeTrait for IfElseNode {
         
     }
 
-    async fn stop(&mut self) -> Result<(), String> {
+    async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
@@ -217,7 +218,7 @@ impl BacktestNodeTrait for IfElseNode {
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let node_id = self.context.read().await.get_node_id().clone();
         
@@ -243,11 +244,11 @@ impl BacktestNodeTrait for IfElseNode {
 
                 IfElseNodeStateAction::ListenAndHandleNodeEvents => {
                     tracing::info!("{}: 开始监听节点传递的message", node_id);
-                    self.listen_node_events().await?;
+                    self.listen_node_events().await;
                 }
                 IfElseNodeStateAction::ListenAndHandleInnerEvents => {
                     tracing::info!("{}: 开始监听策略内部事件", node_id);
-                    self.listen_strategy_inner_events().await?;
+                    self.listen_strategy_inner_events().await;
                 }
                 IfElseNodeStateAction::InitReceivedData => {
                     tracing::info!("{}: 开始初始化接收标记", node_id);
@@ -263,7 +264,7 @@ impl BacktestNodeTrait for IfElseNode {
                 }
                 IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("{}: 开始监听策略命令", node_id);
-                    self.listen_strategy_command().await?;
+                    self.listen_strategy_command().await;
                 }
                 
                 IfElseNodeStateAction::CancelAsyncTask => {

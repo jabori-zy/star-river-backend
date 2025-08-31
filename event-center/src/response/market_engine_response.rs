@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use types::market::{Exchange, KlineInterval, Kline};
 use crate::response::{Response, ResponseTrait};
 use utils::get_utc8_timestamp;
+use std::sync::Arc;
 
 
 #[derive(Debug)]
@@ -21,11 +22,11 @@ impl ResponseTrait for MarketEngineResponse {
         }
     }
 
-    fn error(&self) -> &Box<dyn Error + Send + Sync + 'static> {
+    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
         match self {
-            MarketEngineResponse::SubscribeKlineStream(response) => response.error.as_ref().unwrap(),
-            MarketEngineResponse::UnsubscribeKlineStream(response) => response.error.as_ref().unwrap(),
-            MarketEngineResponse::GetKlineHistory(response) => response.error.as_ref().unwrap(),
+            MarketEngineResponse::SubscribeKlineStream(response) => response.error.as_ref().unwrap().clone(),
+            MarketEngineResponse::UnsubscribeKlineStream(response) => response.error.as_ref().unwrap().clone(),
+            MarketEngineResponse::GetKlineHistory(response) => response.error.as_ref().unwrap().clone(),
         }
     }
 
@@ -64,7 +65,7 @@ pub struct SubscribeKlineStreamResponse {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -94,7 +95,7 @@ pub struct UnsubscribeKlineStreamResponse {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 
@@ -125,7 +126,7 @@ pub struct GetKlineHistoryResponse {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
-    pub error: Option<Box<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
     pub response_timestamp: i64,
 }
 

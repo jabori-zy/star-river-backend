@@ -78,21 +78,21 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         &mut self.base_context
     }
     
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+    async fn handle_event(&mut self, event: Event) {
         // match event {
         //     Event::Response(response_event) => {
         //         self.handle_response_event(response_event).await;
         //     }
         //     _ => {}
         // }
-        Ok(())
+        
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
         self.base_context.output_handles.get(&format!("position_node_update_output")).unwrap().clone()
     }
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
 
         match node_event {
@@ -135,10 +135,10 @@ impl BacktestNodeContextTrait for PositionNodeContext {
 
             _ => {}
         }
-        Ok(())
+        
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
         // match strategy_inner_event {
         //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
         //         // 更新k线缓存索引
@@ -155,12 +155,11 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         //     }
         //     _ => {}  
         // }
-        Ok(())
     }
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
-        Ok(())
+        
     }
 
 

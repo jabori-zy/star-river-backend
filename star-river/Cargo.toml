@@ -34,4 +34,5 @@ async-stream.workspace = true
 utoipa.workspace = true
 utoipa-scalar = {version="0.3", features=["axum"]}
 strum.workspace = true
+snafu.workspace = true
 

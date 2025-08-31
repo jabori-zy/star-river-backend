@@ -70,22 +70,20 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
         self.base_context.output_handles.get(&default_output_handle_id).unwrap().clone()
     }
 
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+    async fn handle_event(&mut self, event: Event) {
 
 
 
-        Ok(())
     }
 
     
-    async fn handle_node_event(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         match message {
             BacktestNodeEvent::KlineNode(kline_event) => {
                 // tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), kline_event);
 
                 // 提前获取配置信息，统一错误处理
-                let exchange_config = self.backtest_config.exchange_mode_config.as_ref()
-                    .ok_or("Exchange mode config is not set")?;
+                let exchange_config = self.backtest_config.exchange_mode_config.as_ref().unwrap();
                 
                 // let current_play_index = self.get_play_index().await;
                 // tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
@@ -104,7 +102,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                             signal_index = %current_play_index, 
                             "kline cache index is not equal to signal index"
                         );
-                    return Ok(());
+                    return;
                 }
 
                 // 提取公共数据
@@ -183,10 +181,9 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
             }
             _ => {}
         }
-        Ok(())
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
         match strategy_inner_event {
             // StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
             //     // 更新k线缓存索引
@@ -206,12 +203,10 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 tracing::info!("收到策略重置事件，清空指标缓存键");
             }
         }
-        Ok(())
     }
 
-    async fn handle_strategy_command(&mut self, _strategy_command: StrategyCommand) -> Result<(), String> {
+    async fn handle_strategy_command(&mut self, _strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
-        Ok(())
     }
 
 

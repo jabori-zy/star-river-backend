@@ -26,6 +26,7 @@ use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use crate::strategy_engine::node::node_types::DefaultOutputHandleId;
 use types::custom_type::PlayIndex;
+use types::error::engine_error::strategy_engine_error::node_error::*;
 
 
 #[derive(Debug, Clone)]
@@ -129,11 +130,11 @@ impl BacktestNodeTrait for VariableNode {
         tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
-    async fn init(&mut self) -> Result<(), String> {
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("================={}====================", self.get_node_name().await);
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -144,17 +145,17 @@ impl BacktestNodeTrait for VariableNode {
         Ok(())
     }
 
-    async fn stop(&mut self) -> Result<(), String> {
+    async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await?;
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
 
         // 获取状态管理器并执行转换
@@ -191,15 +192,15 @@ impl BacktestNodeTrait for VariableNode {
                     }
                     VariableNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
-                        self.listen_node_events().await?;
+                        self.listen_node_events().await;
                     }
                     VariableNodeStateAction::ListenAndHandleStrategyInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部消息", node_id);
-                        self.listen_strategy_inner_events().await?;
+                        self.listen_strategy_inner_events().await;
                     }
                     VariableNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
-                        self.listen_strategy_command().await?;
+                        self.listen_strategy_command().await;
                     }
                     VariableNodeStateAction::LogError(error) => {
                         tracing::error!("{}: 发生错误: {}", node_id, error);

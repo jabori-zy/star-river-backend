@@ -60,7 +60,7 @@ impl BacktestNodeContextTrait for VariableNodeContext {
         self.base_context.output_handles.get(&format!("{}_default_output", node_id)).unwrap().clone()
     }
     
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+    async fn handle_event(&mut self, event: Event) {
         tracing::info!("{}: 处理事件: {:?}", self.get_node_id(), event);
         // match event {
         //     Event::Response(response_event) => {
@@ -68,10 +68,9 @@ impl BacktestNodeContextTrait for VariableNodeContext {
         //     }
         //     _ => {}
         // }
-        Ok(())
     }
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         match node_event {
             BacktestNodeEvent::Signal(SignalEvent::BacktestConditionMatch(_)) => {
                 // 判断当前节点的模式
@@ -99,17 +98,17 @@ impl BacktestNodeContextTrait for VariableNodeContext {
             _ => {}
 
         }
-        Ok(())
-    }
-
-    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
         
-        Ok(())
     }
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {
+        
+        
+    }
+
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
-        Ok(())
+        
     }
 
 }

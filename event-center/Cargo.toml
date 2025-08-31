@@ -18,3 +18,4 @@ tracing.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
 sea-orm.workspace = true
+snafu.workspace = true

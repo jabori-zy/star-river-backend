@@ -56,16 +56,15 @@ impl BacktestNodeContextTrait for StartNodeContext {
     }
 
 
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+    async fn handle_event(&mut self, event: Event){
         tracing::info!("{}: 收到事件: {:?}", self.base_context.node_id, event);
-        Ok(())
     }
-    async fn handle_node_event(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
-        Ok(())
+       
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
         // match strategy_inner_event {
         //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
         //         // 更新播放索引
@@ -85,12 +84,12 @@ impl BacktestNodeContextTrait for StartNodeContext {
         //         tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
         //     }
         // }
-        Ok(())
+        
     }
 
     
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         match strategy_command {
             StrategyCommand::GetStartNodeConfig(get_start_node_config_params) => {
@@ -108,7 +107,7 @@ impl BacktestNodeContextTrait for StartNodeContext {
                 
             }
         }
-        Ok(())
+        
     }
     
 }

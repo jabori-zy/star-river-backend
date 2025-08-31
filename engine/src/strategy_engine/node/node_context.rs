@@ -225,13 +225,13 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait>;
 
-    async fn handle_event(&mut self, event: Event) -> Result<(), String>;
+    async fn handle_event(&mut self, event: Event);
     
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String>;
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent);
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String>;
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent);
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String>;
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand);
 
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 

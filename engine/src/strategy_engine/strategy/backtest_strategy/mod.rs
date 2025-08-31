@@ -34,6 +34,8 @@ use types::strategy_stats::event::StrategyStatsEvent;
 use types::strategy_stats::StatsSnapshot;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::transaction::virtual_transaction::VirtualTransaction;
+use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::BacktestStrategyError;
+use snafu::Report;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -194,7 +196,7 @@ impl BacktestStrategy {
         self.context.read().await.state_machine.clone()
     }
 
-    pub async fn update_strategy_state(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<(), String> {
+    pub async fn update_strategy_state(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<(), BacktestStrategyError> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let strategy_name = self.get_strategy_name().await;
 
@@ -206,6 +208,7 @@ impl BacktestStrategy {
 
         tracing::info!("需要执行的动作: {:?}", transition_result.actions);
         for action in transition_result.actions {
+            // action execute result flag
             match action {
                 BacktestStrategyStateAction::InitInitialPlaySpeed => {
                     tracing::info!("{}: 初始化初始播放速度", strategy_name);
@@ -219,14 +222,6 @@ impl BacktestStrategy {
                         tracing::error!("{}: 获取start节点配置失败", strategy_name);
                     }
                     
-
-                    // let backtest_config = context_guard.strategy_config.clone();
-                    // let initial_play_speed = backtest_config.play_speed as u32;
-                    // tracing::info!("{}: 初始化初始播放速度成功。播放速度: {:?}", strategy_name, backtest_config);
-
-                    // let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
-                    // tracing::info!("{}: 初始化初始播放速度成功。播放速度: {}", strategy_name, initial_play_speed);
-                    // *initial_play_speed_guard = initial_play_speed;
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
                     tracing::info!("{}: 初始化信号计数", strategy_name);
@@ -288,22 +283,24 @@ impl BacktestStrategy {
                         context_guard.topological_sort()
                     };
                     
-                    let mut all_nodes_initialized = true;
+                    // let mut all_nodes_initialized = true;
 
                     for node in nodes {
                         let context_guard = self.context.read().await;
                         if let Err(e) = context_guard.init_node(node).await {
                             tracing::error!("{}", e);
-                            all_nodes_initialized = false;
-                            break;
+                            // all_nodes_initialized = false;
+                            return Err(e);
                         }
                     }
 
-                    if all_nodes_initialized {
-                        tracing::info!("{}: 所有节点已成功初始化", strategy_name);
-                    } else {
-                        tracing::error!("{}: 部分节点初始化失败，策略无法正常运行", strategy_name);
-                    }
+                    // if all_nodes_initialized {
+                    //     tracing::info!("{}: 所有节点已成功初始化", strategy_name);
+                    // } else {
+                    //     is_action_success = false;
+                    //     tracing::error!("{}: 部分节点初始化失败，策略无法正常运行", strategy_name);
+                    //     Err(e)
+                    // }
                 }
 
                 BacktestStrategyStateAction::StopNode => {
@@ -353,7 +350,7 @@ impl BacktestStrategy {
                 BacktestStrategyStateAction::LogError(error) => {
                     tracing::error!("{}: {}", strategy_name, error);
                 }
-            }
+            };
 
             {
                 let mut context_guard = self.context.write().await;
@@ -369,16 +366,16 @@ impl BacktestStrategy {
     }
 
     
-    pub async fn init_strategy(&mut self) -> Result<(), String> {
+    pub async fn init_strategy(&mut self) -> Result<(), BacktestStrategyError> {
         tracing::info!("{}: 开始初始化策略", self.get_strategy_name().await);
 
         // created => initializing
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Initialize).await.unwrap();
+        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Initialize).await?;
 
         // 
         // initializing => ready
         tracing::info!("{}: 初始化完成", self.get_strategy_name().await);
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::InitializeComplete).await.unwrap();
+        self.update_strategy_state(BacktestStrategyStateTransitionEvent::InitializeComplete).await?;
 
         Ok(())
     }

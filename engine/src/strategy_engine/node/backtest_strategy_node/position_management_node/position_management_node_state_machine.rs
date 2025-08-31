@@ -1,5 +1,6 @@
 use crate::strategy_engine::node::node_state_machine::*;
 use std::any::Any;
+use types::error::engine_error::strategy_engine_error::node_error::*;
 
 // 状态转换后需要执行的动作
 #[derive(Debug, Clone)]
@@ -73,7 +74,7 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, String> {
+    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -132,7 +133,11 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
             (state, event) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Failed;
-                Err(format!("节点 {} 无效的状态转换: {:?} -> {:?}", self.node_id, state, event))
+                return NodeTransitionSnafu {
+                    from_state: state.to_string(),
+                    to_state: event.to_string(),
+                    event: event.to_string(),
+                }.fail()?
             }
 
         }

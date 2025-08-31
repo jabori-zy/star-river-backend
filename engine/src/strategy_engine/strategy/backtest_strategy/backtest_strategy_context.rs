@@ -1,6 +1,8 @@
 use petgraph::{Directed, Direction, Graph};
 use petgraph::graph::NodeIndex;
+use snafu::ResultExt;
 use types::custom_type::{NodeId, StrategyId};
+use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::{BacktestStrategyError, NodeInitSnafu, NodeInitTimeoutSnafu, NodeStateNotReadySnafu, TokioTaskFailedSnafu};
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
@@ -45,6 +47,8 @@ use types::position::virtual_position::VirtualPosition;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 use types::transaction::virtual_transaction::VirtualTransaction;
+use types::error::engine_error::strategy_engine_error::strategy_error::*;
+use snafu::{IntoError, Report};
 
 
 #[derive(Debug)]
@@ -339,7 +343,6 @@ impl BacktestStrategyContext {
     }
                 
     
-
     pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
         let start_time = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(timeout_secs);
@@ -373,40 +376,54 @@ impl BacktestStrategyContext {
     }
 
 
-    pub async fn init_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
+    pub async fn init_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), BacktestStrategyError> {
         let mut node_clone = node.clone();
 
-        let node_handle = tokio::spawn(async move {
+        let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
+            let node_id = node_clone.get_node_id().await;
             let node_name = node_clone.get_node_name().await;
-            if let Err(e) = node_clone.init().await {
-                tracing::error!("{} 节点初始化失败: {}", node_name, e);
-                return Err(format!("节点初始化失败: {}", e));
-            }
+            let node_type = node_clone.get_node_type().await;
+            node_clone.init().await.context(NodeInitSnafu {
+                node_id: node_id,
+                node_name: node_name,
+                node_type: node_type.to_string(),
+            })?;
             Ok(())
-        });
 
+        });
 
         let node_name = node.get_node_name().await;
         let node_id = node.get_node_id().await;
+        let node_type = node.get_node_type().await;
         
         // 等待节点初始化完成
         match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
             Ok(result) => {
                 if let Err(e) = result {
-                    return Err(format!("节点 {} 初始化任务失败: {}", node_name, e));
+                    return Err(TokioTaskFailedSnafu {
+                        task_name: "INIT_NODE".to_string(),
+                        node_name: node_name,
+                        node_id: node_id,
+                        node_type: node_type.to_string(),
+                    }.into_error(e));
                 }
                 
                 if let Ok(Err(e)) = result {
-                    return Err(format!("节点 {} 初始化过程中出错: {}", node_name, e));
+                    return Err(e);
                 }
             }
-            Err(_) => {
-                return Err(format!("节点 {} 初始化超时", node_id));
+            Err(e) => {
+                return Err(NodeInitTimeoutSnafu {
+                    node_id: node_id,
+                    node_name: node_name,
+                    node_type: node_type.to_string(),
+                }.into_error(e));
             }
         }
-        // 等待节点进入Running状态
+        
+        // 等待节点进入Ready状态
         let mut retry_count = 0;
-        let max_retries = 20;
+        let max_retries = 10;
         
         while retry_count < max_retries {
             let run_state = node.get_run_state().await;
@@ -420,7 +437,11 @@ impl BacktestStrategyContext {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
         
-        Err(format!("节点 {} 未能进入Ready状态", node_id))
+        NodeStateNotReadySnafu {
+            node_id: node_id,
+            node_name: node_name,
+            node_type: node_type.to_string(),
+        }.fail()?
     }
 
     

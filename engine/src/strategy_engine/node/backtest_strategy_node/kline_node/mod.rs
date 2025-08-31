@@ -3,7 +3,6 @@ pub mod kline_node_context;
 pub mod kline_node_type;
 
 use tokio::sync::broadcast;
-use std::error::Error;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
@@ -23,8 +22,10 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
 use types::strategy::node_event::BacktestNodeEvent;
 use types::custom_type::PlayIndex;
-use event_center::response::{Response, exchange_engine_response::{RegisterExchangeResponse, ExchangeEngineResponse}};
-use snafu::ErrorCompat;
+use snafu::Report;
+use types::error::engine_error::strategy_engine_error::node_error::*;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::kline_node_error::*;
+use snafu::IntoError;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -131,11 +132,15 @@ impl BacktestNodeTrait for KlineNode {
 
 
     
-    async fn init(&mut self) -> Result<(), String> {
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("================={}====================", self.context.read().await.get_node_name());
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await.unwrap();
+        if let Err(error) = self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await {
+            let report = Report::from_error(&error);
+            tracing::error!("report: {}", report.to_string());
+            return Err(error);
+        }
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
 
         // 检查交易所是否注册成功，并且K线流是否订阅成功
@@ -157,18 +162,19 @@ impl BacktestNodeTrait for KlineNode {
         Ok(())
     }
 
-    async fn stop(&mut self) -> Result<(), String> {
+    async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         let state = self.get_context();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
 
         self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await?;
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let node_id = self.context.read().await.get_node_id().clone();
+        let node_name = self.context.read().await.get_node_name().clone();
         
         // 获取状态管理器并执行转换
         let (transition_result, state_machine) = {
@@ -184,7 +190,7 @@ impl BacktestNodeTrait for KlineNode {
                 match kline_node_state_action {
                     KlineNodeStateAction::LogTransition => {
                         let current_state = self.context.read().await.get_state_machine().current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id.clone(), current_state, transition_result.get_new_state());
                     }
                     KlineNodeStateAction::LogNodeState => {
                         let current_state = self.context.read().await.get_state_machine().current_state();
@@ -192,30 +198,33 @@ impl BacktestNodeTrait for KlineNode {
                     }
                     KlineNodeStateAction::ListenAndHandleExternalEvents => {
                         tracing::info!("{}: 开始监听外部事件", node_id);
-                        self.listen_external_events().await?;
+                        self.listen_external_events().await;
                     }
                     KlineNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("{}: 开始监听节点消息", node_id);
-                        self.listen_node_events().await?;
+                        self.listen_node_events().await;
                     }
                     KlineNodeStateAction::ListenAndHandleInnerEvents => {
                         tracing::info!("{}: 开始监听策略内部事件", node_id);
-                        self.listen_strategy_inner_events().await?;
+                        self.listen_strategy_inner_events().await;
                     }
                     KlineNodeStateAction::RegisterExchange => {
                         tracing::info!("{}: 注册交易所", node_id);
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            let response = kline_node_context.register_exchange().await?;
+                            let response = kline_node_context.register_exchange().await.unwrap();
                             if response.success() {
                                 *kline_node_context.exchange_is_registered.write().await = true;
-                                tracing::info!("{}注册交易所成功", node_id);   
+                                tracing::info!("{}注册交易所成功", node_id); 
                             } else {
-                                if let Response::ExchangeEngine(ExchangeEngineResponse::RegisterExchange(register_exchange_response)) = response {
-                                    let error = register_exchange_response.error.unwrap();
-                                    tracing::error!("{}注册交易所失败: {}", node_id, error.source().unwrap());
-                                }
+                                let error = response.error();
+                                tracing::error!("注册交易所失败: {}", error);
+                                let kline_error = RegisterExchangeSnafu {
+                                    node_id,
+                                    node_name: node_name.clone(),
+                                }.into_error(error.clone());
+                                return Err(kline_error.into());
                             }
                         }
                     }
@@ -224,7 +233,7 @@ impl BacktestNodeTrait for KlineNode {
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            let is_all_success = kline_node_context.load_kline_history_from_exchange().await?;
+                            let is_all_success = kline_node_context.load_kline_history_from_exchange().await.unwrap();
                             if is_all_success {
                                 // 加载K线历史成功后，设置data_is_loaded=true
                                 *kline_node_context.data_is_loaded.write().await = true;
@@ -236,7 +245,7 @@ impl BacktestNodeTrait for KlineNode {
                     }
                     KlineNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("{}: 开始监听策略命令", node_id);
-                        self.listen_strategy_command().await?;
+                        self.listen_strategy_command().await;
                     }
                     
                     KlineNodeStateAction::CancelAsyncTask => {

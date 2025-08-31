@@ -46,7 +46,7 @@ impl LiveNodeFunction {
                         match receive_result {
                             Some(Ok(event)) => {
                                 let mut context_guard = context.write().await;
-                                context_guard.handle_event(event).await.unwrap();
+                                context_guard.handle_event(event).await;
 
                             }
                             Some(Err(e)) => {
@@ -102,7 +102,7 @@ impl LiveNodeFunction {
                             Some(Ok(message)) => {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut state_guard = state.write().await;
-                                state_guard.handle_message(message).await.unwrap();
+                                state_guard.handle_message(message).await;
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", node_id, e);
@@ -177,7 +177,7 @@ impl BacktestNodeFunction {
                         match receive_result {
                             Some(Ok(event)) => {
                                 let mut context_guard = context.write().await;
-                                context_guard.handle_event(event).await.unwrap();
+                                context_guard.handle_event(event).await;
 
                             }
                             Some(Err(e)) => {
@@ -234,7 +234,7 @@ impl BacktestNodeFunction {
                             Some(Ok(message)) => {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut state_guard = state.write().await;
-                                state_guard.handle_node_event(message).await.unwrap();
+                                state_guard.handle_node_event(message).await;
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", node_id, e);
@@ -279,7 +279,7 @@ impl BacktestNodeFunction {
                             Some(Ok(message)) => {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut state_guard = state.write().await;
-                                state_guard.handle_strategy_inner_event(message).await.unwrap();
+                                state_guard.handle_strategy_inner_event(message).await;
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", node_id, e);
@@ -320,7 +320,7 @@ impl BacktestNodeFunction {
                     _ = async {
                         if let Some(received_command) = strategy_command_receiver.lock().await.recv().await {
                             let mut context_guard = context.write().await;
-                            context_guard.handle_strategy_command(received_command).await.unwrap();
+                            context_guard.handle_strategy_command(received_command).await;
                         }
                     } => {}
                 }

@@ -17,6 +17,7 @@ use super::node::node_functions::{LiveNodeFunction, BacktestNodeFunction};
 use super::node::node_context::{LiveNodeContextTrait, BacktestNodeContextTrait};
 use super::node::node_state_machine::*;
 use node_types::*;
+use types::error::engine_error::strategy_engine_error::node_error::BacktestStrategyNodeError;
 
 #[async_trait]
 pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
@@ -360,42 +361,37 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 初始化节点
-    async fn init(&mut self) -> Result<(), String>; 
-    // 启动节点
-    // async fn start(&mut self) -> Result<(), String>;
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError>; 
+
     // 停止节点
-    async fn stop(&mut self) -> Result<(), String>;
+    async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError>;
     
 
 
     // 监听外部事件
-    async fn listen_external_events(&self) -> Result<(), String> {
+    async fn listen_external_events(&self) {
         let context = self.get_context();
         BacktestNodeFunction::listen_external_event(context).await;
-        Ok(())
     }
 
 
     // 监听节点传递过来的message
-    async fn listen_node_events(&self) -> Result<(), String> {
+    async fn listen_node_events(&self) {
         let context = self.get_context();
         BacktestNodeFunction::listen_node_events(context).await;
-        Ok(())
     }
 
 
     // 监听内部事件
-    async fn listen_strategy_inner_events(&self) -> Result<(), String> {
+    async fn listen_strategy_inner_events(&self) {
         let context = self.get_context();
         BacktestNodeFunction::listen_strategy_inner_events(context).await;
-        Ok(())
     }
 
     // 监听策略命令
-    async fn listen_strategy_command(&self) -> Result<(), String> {
+    async fn listen_strategy_command(&self) {
         let context = self.get_context();
         BacktestNodeFunction::listen_strategy_command(context).await;
-        Ok(())
     }
 
     // 监听播放索引
@@ -412,7 +408,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 更新节点状态
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), String>;
+    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError>;
 }
 
 impl Clone for Box<dyn BacktestNodeTrait> {

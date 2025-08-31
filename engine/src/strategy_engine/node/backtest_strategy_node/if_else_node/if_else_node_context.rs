@@ -64,12 +64,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
 
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
+    async fn handle_event(&mut self, event: Event) {
         let _event = event;
-        Ok(())
     }
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), String> {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
         //如果事件类型是回测指标更新或者k线更新
         match &node_event {
@@ -122,10 +121,9 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             }
             _ => {}
         }
-        Ok(())
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) -> Result<(), String> {
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
         match strategy_inner_event {
             // StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
             //     // 更新播放索引
@@ -144,12 +142,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 // tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
             }
         }
-        Ok(())
+        
     }
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) -> Result<(), String> {
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
-        Ok(())
     }
 
 
