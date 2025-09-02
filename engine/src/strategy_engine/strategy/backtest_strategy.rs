@@ -9,7 +9,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use backtest_strategy_context::BacktestStrategyContext;
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
-use types::position::virtual_position::VirtualPosition;
+use types::error::engine_error::strategy_error::EdgeConfigNullSnafu;
+use types::{error::engine_error::strategy_error::NodeConfigNullSnafu, position::virtual_position::VirtualPosition};
 use types::strategy::StrategyConfig;
 use event_center::EventPublisher;
 use tokio::sync::{Mutex, Notify};
@@ -50,133 +51,111 @@ pub struct BacktestStrategy {
 
 impl BacktestStrategy {
     pub async fn new(
-        strategy: StrategyConfig,
+        strategy_config: StrategyConfig,
         event_publisher: EventPublisher, 
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
-        market_event_receiver: EventReceiver, 
         response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
     ) -> Self {
-        let mut graph = Graph::new();
-        let mut node_indices = HashMap::new();
-        let mut cache_keys: Vec<Key> = vec![];
-        let mut strategy_command_publisher = StrategyCommandPublisher::new();
-        let strategy_id = strategy.id;
-        let strategy_name = strategy.name;
-
-        // 创建播放索引监听器
-        let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<i32>(-1);
-
-        // 创建虚拟交易系统
-        let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), virtual_trading_system_event_tx, play_index_watch_rx.clone())));
-
-        // 创建策略统计模块
-        let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
-        let strategy_stats: Arc<RwLock<BacktestStrategyStats>> = Arc::new(RwLock::new(BacktestStrategyStats::new(strategy_id, virtual_trading_system.clone(), virtual_trading_system_event_rx.resubscribe(), strategy_stats_event_tx, play_index_watch_rx.clone())));
-
         
+        let context = BacktestStrategyContext::new(
+            strategy_config,
+            event_publisher,
+            response_event_receiver,
+            database,
+            heartbeat,
+            command_publisher,
+            command_receiver,
+        );
+        Self { context: Arc::new(RwLock::new(context)) }
+    }
+
+    pub async fn add_node(
+        &mut self, 
+        market_event_receiver: EventReceiver,
+        response_event_receiver: EventReceiver,
+    ) -> Result<(), BacktestStrategyError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
-        // 创建策略内部事件的广播通道
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
 
-        let cancel_token = CancellationToken::new();
-        let cancel_play_token = CancellationToken::new();
+        // setting strategy context properties
+        {
+            let mut context_guard = self.context.write().await;
+            context_guard.set_node_command_receiver(node_command_rx);
+            context_guard.set_strategy_inner_event_publisher(strategy_inner_event_tx);
 
-        
-        if let Some(nodes_str) = strategy.nodes {
-            if let Ok(nodes) = serde_json::from_str::<Vec<Value>>(&nodes_str.to_string()) {
-                for node_config in nodes {
-                    tracing::debug!("添加节点: {:?}", node_config);
-                    BacktestStrategyFunction::add_node(
-                        &mut graph, 
-                        &mut node_indices, 
-                        &mut cache_keys,
-                        node_config, 
-                        event_publisher.clone(), 
-                        command_publisher.clone(),
-                        command_receiver.clone(),
-                        market_event_receiver.resubscribe(), 
-                        response_event_receiver.resubscribe(),
-                        database.clone(),
-                        heartbeat.clone(),
-                        &mut strategy_command_publisher,
-                        node_command_tx.clone(),
-                        virtual_trading_system.clone(),
-                        strategy_inner_event_rx.resubscribe(),
-                        virtual_trading_system_event_rx.resubscribe(),
-                        strategy_stats.clone(),
-                        play_index_watch_rx.clone()
-                    ).await.unwrap();
+        }// context lock end
 
-                }
-            }
-        }
-        // 添加边
-        if let Some(edges_str) = strategy.edges {
-            if let Ok(edges) = serde_json::from_str::<Vec<Value>>(&edges_str.to_string()) {
-                // tracing::debug!("edges: {:?}", edges);
-                for edge_config in edges {
-                    let from_handle_id = edge_config["sourceHandle"].as_str().unwrap();
-                    let from_node_id = edge_config["source"].as_str().unwrap();
-                    let to_node_id = edge_config["target"].as_str().unwrap();
-                    let to_handle_id = edge_config["targetHandle"].as_str().unwrap();
-
-                    BacktestStrategyFunction::add_edge(&mut graph, &mut node_indices, from_node_id, from_handle_id, to_node_id, to_handle_id).await;
-                    
-                }
-            }
-        }
-
-        // 设置叶子节点
-        let leaf_node_ids = BacktestStrategyFunction::set_leaf_nodes(&mut graph).await;
-        tracing::debug!("leaf_node_ids: {:?}", leaf_node_ids);
-
-        // 将所有节点的输出控制器添加到 strategy_output_handles 中
-        let strategy_output_handles = BacktestStrategyFunction::add_strategy_output_handle(&mut graph).await;
-        tracing::debug!("all node's strategy output handles: {:?}", strategy_output_handles);
-        
-        
-        // tracing::debug!("策略的输出句柄: {:?}", strategy_output_handles);
-        // tracing::debug!("virtual trading system kline cache keys: {:?}", virtual_trading_system.lock().await.kline_price);
-        let context = BacktestStrategyContext {
-            strategy_id,
-            strategy_name: strategy_name.clone(),
-            keys: Arc::new(RwLock::new(cache_keys)),
-            cache_lengths: HashMap::new(),
-            graph,
-            node_indices,
-            event_publisher,
-            event_receivers: vec![response_event_receiver],
-            cancel_token,
-            state_machine: BacktestStrategyStateMachine::new(strategy_id, strategy_name, BacktestStrategyRunState::Created),
-            all_node_output_handles: strategy_output_handles, // 所有节点的输出控制器
-            database: database,
-            heartbeat: heartbeat,
-            registered_tasks: Arc::new(RwLock::new(HashMap::new())),
-            command_publisher: command_publisher,
-            command_receiver: command_receiver,
-            node_command_receiver: Arc::new(Mutex::new(node_command_rx)),
-            strategy_command_publisher,
-            total_signal_count: Arc::new(RwLock::new(0)),
-            play_index: Arc::new(RwLock::new(-1)), // 播放索引初始值为-1，表示未开始播放
-            is_playing: Arc::new(RwLock::new(false)),
-            initial_play_speed: Arc::new(RwLock::new(0)),
-            cancel_play_token: cancel_play_token,
-            virtual_trading_system: virtual_trading_system,
-            strategy_inner_event_publisher: strategy_inner_event_tx,
-            execute_over_notify: Arc::new(Notify::new()),
-            strategy_stats: strategy_stats,
-            strategy_stats_event_receiver: strategy_stats_event_rx,
-            play_index_watch_tx,
-            leaf_node_ids,
-            execute_over_node_ids: Arc::new(RwLock::new(vec![])),
+        // get strategy config
+        let node_config_list = {
+            let context_guard = self.context.read().await;
+            let node_config_list = context_guard.strategy_config.nodes
+            .as_ref()
+            .and_then(|node| node.as_array())
+            .ok_or_else(|| NodeConfigNullSnafu {
+                strategy_id: context_guard.strategy_id,
+                strategy_name: context_guard.strategy_name.clone(),
+            }.build())?;
+            node_config_list.clone()
         };
-        Self { context: Arc::new(RwLock::new(context)) }
+
+        
+        // tracing::debug!("添加节点: {:?}", node_config);
+
+        let context = self.get_context();
+        for node_config in node_config_list {
+            BacktestStrategyFunction::add_node(
+                context.clone(),
+                node_config,
+                market_event_receiver.resubscribe(),
+                response_event_receiver.resubscribe(),
+                node_command_tx.clone(),
+                strategy_inner_event_rx.resubscribe(),
+                ).await.unwrap();
+            }
+
+        Ok(())
     }
+
+    pub async fn add_edge(&mut self) -> Result<(), BacktestStrategyError> {
+        let context = self.get_context();
+        
+        let edge_config_list = {
+            let context_guard = context.read().await;
+            context_guard.strategy_config.edges
+            .as_ref()
+            .and_then(|edge| edge.as_array())
+            .ok_or_else(|| EdgeConfigNullSnafu {
+                strategy_id: context_guard.strategy_id,
+                strategy_name: context_guard.strategy_name.clone(),
+            }.build())?.clone()
+        };
+
+        for edge_config in edge_config_list {
+            BacktestStrategyFunction::add_edge(
+                context.clone(),
+                edge_config,
+            ).await.unwrap();
+        }
+        Ok(())
+    }
+
+    pub async fn set_leaf_nodes(&mut self) -> Result<(), BacktestStrategyError> {
+        let context = self.get_context();
+        BacktestStrategyFunction::set_leaf_nodes(context).await;
+        Ok(())
+    }
+
+    pub async fn set_strategy_output_handles(&mut self) -> Result<(), BacktestStrategyError> {
+        let context = self.get_context();
+        BacktestStrategyFunction::add_strategy_output_handle(context).await;
+        Ok(())
+    }
+
+    
 }
 
 
@@ -262,11 +241,10 @@ impl BacktestStrategy {
                 BacktestStrategyStateAction::InitStrategyStats => {
                     tracing::info!("{}: 初始化策略统计", strategy_name);
                     let context_guard = self.context.read().await;
-                    let strategy_stats1 = context_guard.strategy_stats.clone();
-                    let strategy_stats2 = context_guard.strategy_stats.clone();
+                    let strategy_stats = context_guard.strategy_stats.clone();
                     drop(context_guard); // 释放锁
                     
-                    if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(strategy_stats1).await {
+                    if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(strategy_stats).await {
                         tracing::error!("{}: 初始化策略统计失败: {}", strategy_name, e);
                     } else {
                         tracing::info!("{}: 初始化策略统计成功", strategy_name);

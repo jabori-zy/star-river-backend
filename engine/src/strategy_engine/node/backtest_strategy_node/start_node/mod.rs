@@ -274,7 +274,7 @@ impl StartNode {
                                 start_node_context.handle_play_index().await;
                             }
                             Err(e) => {
-                                tracing::error!("节点{}监听播放索引错误: {}", node_id, e);
+                                // tracing::error!("节点{}监听播放索引错误: {}", node_id, e);
                                 break;
                             }
                         }

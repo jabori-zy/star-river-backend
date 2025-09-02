@@ -16,7 +16,6 @@ pub struct BacktestStrategyStats {
     pub strategy_id: StrategyId,
     initial_balance: Balance,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-    pub virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
     pub strategy_stats_event_sender: StrategyStatsEventSender,
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     cancel_token: CancellationToken,
@@ -31,7 +30,6 @@ impl BacktestStrategyStats {
     pub fn new(
         strategy_id: StrategyId,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver, 
         strategy_stats_event_sender: StrategyStatsEventSender,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
@@ -39,7 +37,6 @@ impl BacktestStrategyStats {
             strategy_id,
             initial_balance: 0.0,
             virtual_trading_system,
-            virtual_trading_system_event_receiver,
             strategy_stats_event_sender,
             cancel_token: CancellationToken::new(),
             asset_snapshot_history: Arc::new(RwLock::new(StatsSnapshotHistory::new(None))),
@@ -60,7 +57,8 @@ impl BacktestStrategyStats {
     pub async fn handle_virtual_trading_system_events(stats: Arc<RwLock<Self>>) -> Result<(), String> {
         let (receiver, cancel_token) = {
             let guard = stats.read().await;
-            let receiver = guard.virtual_trading_system_event_receiver.resubscribe();
+            let virtual_trading_system = guard.virtual_trading_system.lock().await;
+            let receiver = virtual_trading_system.get_virtual_trading_system_event_receiver();
             let cancel_token = guard.cancel_token.clone();
             (receiver, cancel_token)
         };

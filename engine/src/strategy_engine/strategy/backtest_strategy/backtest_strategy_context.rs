@@ -1,7 +1,7 @@
 use petgraph::{Directed, Graph};
 use petgraph::graph::NodeIndex;
 use snafu::ResultExt;
-use types::custom_type::{NodeId, StrategyId};
+use types::custom_type::{NodeId, PlayIndex, StrategyId};
 use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::{BacktestStrategyError, NodeInitSnafu, NodeInitTimeoutSnafu, NodeStateNotReadySnafu, TokioTaskFailedSnafu};
 use std::collections::HashMap;
 use tokio::sync::broadcast;
@@ -26,7 +26,7 @@ use utils::get_utc8_timestamp_millis;
 use event_center::command::Command;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
-use types::strategy::BacktestStrategyConfig;
+use types::strategy::{BacktestStrategyConfig, StrategyConfig};
 use types::strategy::node_command::{NodeCommandReceiver, NodeCommand};
 use types::strategy::node_response::{GetStrategyCacheKeysResponse};
 use tracing::instrument;
@@ -48,11 +48,13 @@ use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 use types::transaction::virtual_transaction::VirtualTransaction;
 use snafu::IntoError;
+use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 
 
 #[derive(Debug)]
 // 实盘策略上下文
 pub struct BacktestStrategyContext {
+    pub strategy_config: StrategyConfig,
     pub strategy_id: i32,
     pub strategy_name: String, // 策略名称
     pub keys: Arc<RwLock<Vec<Key>>>, // 缓存键
@@ -63,13 +65,13 @@ pub struct BacktestStrategyContext {
     pub event_receivers: Vec<EventReceiver>, // 外部事件接收器
     pub command_publisher: CommandPublisher, // 外部命令发布器
     pub command_receiver: Arc<Mutex<CommandReceiver>>, // 外部命令接收器
-    pub cancel_token: CancellationToken, // 取消令牌
+    pub cancel_task_token: CancellationToken, // 取消令牌
     pub state_machine: BacktestStrategyStateMachine, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
     pub database: DatabaseConnection, // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 心跳
     pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>, // 注册的任务 任务名称-> 任务id
-    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 接收节点的命令
+    pub node_command_receiver: Arc<Mutex<Option<NodeCommandReceiver>>>, // 接收节点的命令
     pub strategy_command_publisher: StrategyCommandPublisher, // 节点命令发送器
     pub total_signal_count: Arc<RwLock<i32>>, // 信号计数
     pub play_index: Arc<RwLock<i32>>, // 播放索引
@@ -77,10 +79,11 @@ pub struct BacktestStrategyContext {
     pub initial_play_speed: Arc<RwLock<u32>>, // 初始播放速度 （从策略配置中加载）
     pub cancel_play_token: CancellationToken, // 取消播放令牌
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, // 虚拟交易系统
-    pub strategy_inner_event_publisher: StrategyInnerEventPublisher, // 策略内部事件发布器
+    pub strategy_inner_event_publisher: Option<StrategyInnerEventPublisher>, // 策略内部事件发布器
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,   // 策略统计模块
     pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
     pub play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
+    pub play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
     pub leaf_node_ids: Vec<NodeId>, // 叶子节点id
     pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
     pub execute_over_notify: Arc<Notify>, // 已经更新播放索引的节点id通知
@@ -88,6 +91,73 @@ pub struct BacktestStrategyContext {
 
 
 impl BacktestStrategyContext {
+
+
+    pub fn new(
+        strategy_config: StrategyConfig,
+        event_publisher: EventPublisher,
+        response_event_receiver: EventReceiver,
+        database: DatabaseConnection,
+        heartbeat: Arc<Mutex<Heartbeat>>,
+        command_publisher: CommandPublisher,
+        command_receiver: Arc<Mutex<CommandReceiver>>,
+    ) -> Self {
+        let strategy_id = strategy_config.id;
+        let strategy_name = strategy_config.name.clone();
+        let cancel_task_token = CancellationToken::new();
+        let cancel_play_token = CancellationToken::new();
+
+
+        let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<PlayIndex>(-1);
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), play_index_watch_rx.clone())));
+        
+        let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
+        let strategy_stats: Arc<RwLock<BacktestStrategyStats>> = Arc::new(RwLock::new(BacktestStrategyStats::new(
+            strategy_id, 
+            virtual_trading_system.clone(), 
+            strategy_stats_event_tx, 
+            play_index_watch_rx.clone())));
+        
+        Self {
+            strategy_config,
+            strategy_id,
+            strategy_name: strategy_name.clone(),
+            keys: Arc::new(RwLock::new(vec![])),
+            cache_lengths: HashMap::new(),
+            graph: Graph::new(),
+            node_indices: HashMap::new(),
+            event_publisher,
+            event_receivers: vec![response_event_receiver],
+            cancel_task_token,
+            state_machine: BacktestStrategyStateMachine::new(strategy_id, strategy_name, BacktestStrategyRunState::Created),
+            all_node_output_handles: vec![],
+            database,
+            heartbeat,
+            registered_tasks: Arc::new(RwLock::new(HashMap::new())),
+            command_publisher,
+            command_receiver,
+            node_command_receiver: Arc::new(Mutex::new(None)),
+            strategy_command_publisher: StrategyCommandPublisher::new(),
+            total_signal_count: Arc::new(RwLock::new(0)),
+            play_index: Arc::new(RwLock::new(-1)),
+            is_playing: Arc::new(RwLock::new(false)),
+            initial_play_speed: Arc::new(RwLock::new(0)),
+            cancel_play_token,
+            virtual_trading_system,
+            strategy_inner_event_publisher: None,
+            execute_over_notify: Arc::new(Notify::new()),
+            strategy_stats,
+            strategy_stats_event_receiver: strategy_stats_event_rx,
+            play_index_watch_tx,
+            play_index_watch_rx,
+            leaf_node_ids: vec![],
+            execute_over_node_ids: Arc::new(RwLock::new(vec![])),
+        }
+    }
+
+
+
+
     pub fn get_strategy_name(&self) -> String {
         self.strategy_name.clone()
     }
@@ -115,13 +185,30 @@ impl BacktestStrategyContext {
         self.state_machine = state_machine;
     }
 
+
+    pub fn set_node_command_receiver(&mut self, node_command_receiver: NodeCommandReceiver) {
+        self.node_command_receiver = Arc::new(Mutex::new(Some(node_command_receiver)));
+    }
+
+    pub fn set_strategy_inner_event_publisher(&mut self, strategy_inner_event_publisher: StrategyInnerEventPublisher) {
+        self.strategy_inner_event_publisher = Some(strategy_inner_event_publisher);
+    }
+
+    pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
+        self.all_node_output_handles = all_node_output_handles;
+    }
+
+    pub fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
+        self.leaf_node_ids = leaf_node_ids;
+    }
+
     pub fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
         self.all_node_output_handles.clone()
     }
 
 
-    pub fn get_cancel_token(&self) -> CancellationToken {
-        self.cancel_token.clone()
+    pub fn get_cancel_task_token(&self) -> CancellationToken {
+        self.cancel_task_token.clone()
     }
 
     pub fn get_event_publisher(&self) -> &EventPublisher {
@@ -132,7 +219,7 @@ impl BacktestStrategyContext {
         &self.event_receivers
     }
 
-    pub fn get_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>> {
+    pub fn get_command_receiver(&self) -> Arc<Mutex<Option<NodeCommandReceiver>>> {
         self.node_command_receiver.clone()
     }
 
@@ -173,6 +260,8 @@ impl BacktestStrategyContext {
             match signal_event {
                 // 执行结束
                 SignalEvent::ExecuteOver(execute_over_event) => {
+                    tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
+                    tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
                     let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
                     if !execute_over_node_ids.contains(&execute_over_event.from_node_id) {
                         execute_over_node_ids.push(execute_over_event.from_node_id.clone());

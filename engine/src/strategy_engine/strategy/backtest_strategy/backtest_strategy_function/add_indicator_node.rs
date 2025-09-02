@@ -1,16 +1,12 @@
 use super::BacktestStrategyFunction;
 use crate::strategy_engine::node::BacktestNodeTrait;
-use petgraph::{Graph, Directed};
-use petgraph::graph::NodeIndex;
-use std::collections::HashMap;
 use types::indicator::IndicatorConfig;
 use crate::strategy_engine::node::backtest_strategy_node::indicator_node::IndicatorNode;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::backtest_strategy_node::indicator_node::indicator_node_type::{IndicatorNodeBacktestConfig, ExchangeModeConfig,SelectedIndicator};
 use std::str::FromStr;
 use types::cache::Key;
 use types::cache::key::KlineKey;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::EventReceiver;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
@@ -19,30 +15,42 @@ use types::cache::key::IndicatorKey;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use types::strategy::SelectedAccount;
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::SelectedSymbol;
-use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::custom_type::PlayIndex;
+use tokio::sync::RwLock;
+use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 
 impl BacktestStrategyFunction {
     pub async fn add_indicator_node(
-        graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>, 
-        node_indices: &mut HashMap<String, NodeIndex>,
-        cache_keys: &mut Vec<Key>,
+        context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
-        strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone();
         let strategy_id = node_data["strategyId"].as_i64().unwrap();
         let node_id = node_config["id"].as_str().unwrap();
         let node_name = node_data["nodeName"].as_str().unwrap_or_default();
+
+
+        let strategy_command_rx = {
+            let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+            let strategy_context_guard = context.read().await;
+            let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
+            strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+            strategy_command_rx
+        };
+        
+        let (event_publisher, command_publisher, command_receiver, strategy_keys, play_index_watch_rx) = {
+            let strategy_context_guard = context.read().await;
+            let event_publisher = strategy_context_guard.event_publisher.clone();
+            let command_publisher = strategy_context_guard.command_publisher.clone();
+            let command_receiver = strategy_context_guard.command_receiver.clone();
+            let strategy_keys = strategy_context_guard.keys.clone();
+            let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
+            (event_publisher, command_publisher, command_receiver, strategy_keys, play_index_watch_rx)
+        };
 
         
         let backtest_config_json = node_data["backtestConfig"].clone();
@@ -93,7 +101,8 @@ impl BacktestStrategyFunction {
                 kline_key,
                 indicator_config,
             ));
-            cache_keys.push(indicator_cache_key.into());
+            let mut strategy_keys_guard = strategy_keys.write().await;
+            strategy_keys_guard.push(indicator_cache_key.into());
         }
         tracing::debug!("selected_indicators: {:?}", selected_indicators);
 
@@ -113,10 +122,6 @@ impl BacktestStrategyFunction {
         tracing::debug!("backtest_config: {:?}", backtest_config);
 
 
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
-        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
-
-
         let mut node = IndicatorNode::new(
             strategy_id as i32,
             node_id.to_string(), 
@@ -134,8 +139,9 @@ impl BacktestStrategyFunction {
         // 设置默认输出句柄
         node.set_output_handle().await;
         let node = Box::new(node);
-        let node_index = graph.add_node(node);
-        node_indices.insert(node_id.to_string(), node_index);
+        let mut context_guard = context.write().await;
+        let node_index = context_guard.graph.add_node(node);
+        context_guard.node_indices.insert(node_id.to_string(), node_index);
         Ok(())
     }
 

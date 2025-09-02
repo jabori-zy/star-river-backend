@@ -43,6 +43,7 @@ impl BacktestStrategyContext {
     async fn create_play_context(&self) -> PlayContext {
         let start_node_index = self.node_indices.get("start_node").unwrap();
         let node = self.graph.node_weight(*start_node_index).unwrap().clone();
+        let strategy_inner_event_publisher = self.strategy_inner_event_publisher.clone().unwrap();
 
         PlayContext {
             node,
@@ -52,7 +53,7 @@ impl BacktestStrategyContext {
             initial_play_speed: self.initial_play_speed.clone(),
             child_cancel_play_token: self.cancel_play_token.child_token(),
             virtual_trading_system: self.virtual_trading_system.clone(),
-            strategy_inner_event_publisher: self.strategy_inner_event_publisher.clone(),
+            strategy_inner_event_publisher: strategy_inner_event_publisher,
             execute_over_notify: self.execute_over_notify.clone(),
             play_index_watch_tx: self.play_index_watch_tx.clone(),
         }
@@ -354,7 +355,11 @@ impl BacktestStrategyContext {
 
     pub(crate) async fn send_reset_node_event(&self) {
         let event = StrategyInnerEvent::NodeReset;
-        self.strategy_inner_event_publisher.send(event).unwrap();
+        if let Some(strategy_inner_event_publisher) = self.strategy_inner_event_publisher.clone() {
+            if let Err(e) = strategy_inner_event_publisher.send(event) {
+                tracing::error!("{}: 发送策略内部事件失败: {}", self.strategy_name.clone(), e);
+            }
+        }
     }
 
 }

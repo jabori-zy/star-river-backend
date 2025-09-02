@@ -1,9 +1,5 @@
 use super::BacktestStrategyFunction;
-use petgraph::{Graph, Directed};
-use petgraph::graph::NodeIndex;
-use std::collections::HashMap;
 use crate::strategy_engine::node::backtest_strategy_node::if_else_node::IfElseNode;
-use event_center::{EventPublisher, CommandPublisher, CommandReceiver};
 use crate::strategy_engine::node::backtest_strategy_node::if_else_node::if_else_node_type::*;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::backtest_strategy_node::if_else_node::condition::Case;
@@ -11,23 +7,17 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
-use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::custom_type::PlayIndex;
+use tokio::sync::RwLock;
+use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 
 impl BacktestStrategyFunction {
     pub async fn add_if_else_node(
-        graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>, 
-        node_indices: &mut HashMap<String, NodeIndex>, 
+        context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
         node_command_sender: NodeCommandSender,
-        strategy_command_publisher: &mut StrategyCommandPublisher,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         
         let node_data = node_config["data"].clone();
@@ -45,8 +35,22 @@ impl BacktestStrategyFunction {
             cases: cases.clone(),
         };
 
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
-        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+        let strategy_command_rx = {
+            let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+            let strategy_context_guard = context.read().await;
+            let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
+            strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+            strategy_command_rx
+        };
+        
+        let (event_publisher, command_publisher, command_receiver, play_index_watch_rx) = {
+            let strategy_context_guard = context.read().await;
+            let event_publisher = strategy_context_guard.event_publisher.clone();
+            let command_publisher = strategy_context_guard.command_publisher.clone();
+            let command_receiver = strategy_context_guard.command_receiver.clone();
+            let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
+            (event_publisher, command_publisher, command_receiver, play_index_watch_rx)
+        };
 
         let mut node = IfElseNode::new(
             strategy_id as i32, 
@@ -63,8 +67,9 @@ impl BacktestStrategyFunction {
         );
         node.set_output_handle().await;
         let node = Box::new(node);
-        let node_index = graph.add_node(node);
-        node_indices.insert(node_id.to_string(), node_index);
+        let mut context_guard = context.write().await;
+        let node_index = context_guard.graph.add_node(node);
+        context_guard.node_indices.insert(node_id.to_string(), node_index);
         Ok(())
     }
 

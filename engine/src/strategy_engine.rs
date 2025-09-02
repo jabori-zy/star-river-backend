@@ -1,8 +1,8 @@
 mod strategy_engine_context;
 mod strategy;
 pub mod node;
-pub mod backtest_strategy_control;
-pub mod live_strategy_control;
+pub mod backtest_strategy_manager;
+pub mod live_strategy_control_manager;
 pub mod log_message;
 
 use std::collections::HashMap;

@@ -19,11 +19,12 @@ use event_center::response::cache_engine_response::CacheEngineResponse;
 use ::utils::get_utc8_timestamp_millis;
 use std::collections::HashMap;
 use types::market::Exchange;
-use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventSender};
+use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventSender, VirtualTradingSystemEventReceiver};
 use types::custom_type::PlayIndex;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use types::market::Kline;
+use tokio::sync::broadcast;
 
 /// 虚拟交易系统
 /// 
@@ -33,6 +34,7 @@ pub struct VirtualTradingSystem {
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
     pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
+    pub event_receiver: VirtualTradingSystemEventReceiver, // 事件接收器
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
     pub leverage: Leverage, // 杠杆
 
@@ -69,10 +71,11 @@ pub struct VirtualTradingSystem {
 // 虚拟交易系统get方法
 impl VirtualTradingSystem {
     pub fn new(
-        command_publisher: CommandPublisher, 
-        event_publisher: VirtualTradingSystemEventSender,
+        command_publisher: CommandPublisher,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
+
+        let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
         Self {
             timestamp: 0,
             kline_price: HashMap::new(),
@@ -92,9 +95,19 @@ impl VirtualTradingSystem {
             orders: vec![],
             transactions: vec![],
             command_publisher,
-            event_publisher,
+            event_publisher: virtual_trading_system_event_tx,
+            event_receiver: virtual_trading_system_event_rx,
             play_index_watch_rx,
         }
+    }
+
+
+    pub fn get_virtual_trading_system_event_receiver(&self) -> VirtualTradingSystemEventReceiver {
+        self.event_receiver.resubscribe()
+    }
+
+    pub fn get_virtual_trading_system_event_publisher(&self) -> VirtualTradingSystemEventSender {
+        self.event_publisher.clone()
     }
 
     // 添加k线缓存key，只保留interval最小的那一个

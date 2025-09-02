@@ -2,7 +2,6 @@ use super::StrategyEngineContext;
 
 
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
-use types::custom_type::StrategyId;
 use types::cache::Key;
 use types::strategy::TradeMode;
 use types::order::virtual_order::VirtualOrder;
@@ -11,6 +10,7 @@ use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::error::engine_error::strategy_engine_error::*;
 use snafu::Report;
+use types::error::engine_error::strategy_error::BacktestStrategyError;
 /* 
     回测策略控制
 */
@@ -36,23 +36,38 @@ impl StrategyEngineContext {
 
         tokio::spawn(async move {
             let strategy_id = strategy_info.id;
-            let mut strategy = BacktestStrategy::new(
-                strategy_info,
-                event_publisher,
-                command_publisher,
-                command_receiver,
-                market_event_receiver,
-                response_event_receiver,
-                database,
-                heartbeat
-            ).await;
+            let result: Result<(), BacktestStrategyError> = async {
 
-            let init_result = strategy.init_strategy().await;
-            if let Err(e) = init_result {
+                let mut strategy = BacktestStrategy::new(
+                    strategy_info,
+                    event_publisher,
+                    command_publisher,
+                    command_receiver,
+                    response_event_receiver.resubscribe(),
+                    database,
+                    heartbeat
+                ).await;
+                strategy.add_node(
+                    market_event_receiver,
+                    response_event_receiver,
+                ).await?;
+                strategy.add_edge().await?;
+                strategy.set_leaf_nodes().await?;
+                strategy.set_strategy_output_handles().await?;
+
+                let init_result = strategy.init_strategy().await;
+                if let Err(e) = init_result {
+                    let report = Report::from_error(&e);
+                    tracing::error!("{}", report);
+                }
+                strategy_list.lock().await.insert(strategy_id, strategy);
+                Ok(())
+            }.await;
+
+            if let Err(e) = result {
                 let report = Report::from_error(&e);
                 tracing::error!("{}", report);
             }
-            strategy_list.lock().await.insert(strategy_id, strategy);
         });
         // strategy.init_strategy().await?;
         // let node_list = strategy.get_node_list().await;

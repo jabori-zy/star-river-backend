@@ -1,42 +1,26 @@
 use crate::strategy_engine::node::BacktestNodeTrait;
 use super::BacktestStrategyFunction;
-use petgraph::{Graph, Directed};
-use petgraph::graph::NodeIndex;
-use std::collections::HashMap;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::backtest_strategy_node::futures_order_node::futures_order_node_types::*;
 use crate::strategy_engine::node::backtest_strategy_node::futures_order_node::FuturesOrderNode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use sea_orm::DatabaseConnection;
-use heartbeat::Heartbeat;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::EventReceiver;
 use types::strategy::node_command::NodeCommandSender;
-use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
-use super::super::StrategyCommandPublisher;
 use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
-use types::custom_type::PlayIndex;
+use tokio::sync::RwLock;
+use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
+
+
 
 impl BacktestStrategyFunction {
     pub async fn add_futures_order_node(
-        graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
-        node_indices: &mut HashMap<String, NodeIndex>,
+        context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
         response_event_receiver: EventReceiver,
-        database: DatabaseConnection,
-        heartbeat: Arc<Mutex<Heartbeat>>,
         node_command_sender: NodeCommandSender,
-        strategy_command_publisher: &mut StrategyCommandPublisher,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
-        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<(), String> {
         let node_data = node_config["data"].clone(); // 节点数据
 
@@ -50,8 +34,26 @@ impl BacktestStrategyFunction {
         let backtest_config = serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).unwrap();
 
 
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
-        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+        let strategy_command_rx = {
+            let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+            let strategy_context_guard = context.read().await;
+            let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
+            strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+            strategy_command_rx
+        };
+        
+        let (event_publisher, command_publisher, command_receiver, heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx) = {
+            let strategy_context_guard = context.read().await;
+            let event_publisher = strategy_context_guard.event_publisher.clone();
+            let command_publisher = strategy_context_guard.command_publisher.clone();
+            let command_receiver = strategy_context_guard.command_receiver.clone();
+            let heartbeat = strategy_context_guard.heartbeat.clone();
+            let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
+            let virtual_trading_system_event_receiver = strategy_context_guard.virtual_trading_system.lock().await.get_virtual_trading_system_event_receiver();
+            let database = strategy_context_guard.database.clone();
+            let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
+            (event_publisher, command_publisher, command_receiver, heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx)
+        };
 
         let mut node = FuturesOrderNode::new(
             strategy_id as i32,
@@ -74,8 +76,9 @@ impl BacktestStrategyFunction {
         node.set_output_handle().await;
 
         let node = Box::new(node);
-        let node_index = graph.add_node(node);
-        node_indices.insert(node_id, node_index);
+        let mut context_guard = context.write().await;
+        let node_index = context_guard.graph.add_node(node);
+        context_guard.node_indices.insert(node_id, node_index);
         Ok(())
     }
 }

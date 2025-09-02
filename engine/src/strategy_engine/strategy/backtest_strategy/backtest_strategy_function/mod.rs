@@ -24,29 +24,30 @@ pub struct BacktestStrategyFunction;
 
 impl BacktestStrategyFunction {
     // 将所有节点的strategy_output_handle添加到策略中
-    pub async fn add_strategy_output_handle(graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>) -> Vec<NodeOutputHandle> {
+    pub async fn add_strategy_output_handle(context: Arc<RwLock<BacktestStrategyContext>>) {
+        let mut context_guard = context.write().await;
         let mut strategy_output_handles = Vec::new();
         // 先将所有的连接数+1
-        for node in graph.node_weights_mut() {
+        for node in context_guard.graph.node_weights_mut() {
             let output_handle = node.get_strategy_output_handle().await;
             let output_handle_id = &output_handle.output_handle_id;
             // 增加节点的出口连接数
             node.add_output_handle_connect_count(output_handle_id).await;
         }
         // 再将所有节点的策略输出句柄添加到策略中
-        for node in graph.node_weights_mut() {
+        for node in context_guard.graph.node_weights_mut() {
             let output_handle = node.get_strategy_output_handle().await;
             strategy_output_handles.push(output_handle);
         }
-        strategy_output_handles
+        context_guard.set_all_node_output_handles(strategy_output_handles);
     }
 
     pub async fn listen_node_events(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (receivers, cancel_token, strategy_name) = {
             let context_guard = context.read().await;
             let node_handles = context_guard.get_all_node_output_handles();
-            tracing::debug!("待监听的node handles: {:?}", node_handles);
-            let cancel_token = context_guard.get_cancel_token();
+            tracing::debug!("待监听的node handles: {:#?}", node_handles);
+            let cancel_token = context_guard.get_cancel_task_token();
             let strategy_name = context_guard.get_strategy_name();
             (node_handles, cancel_token, strategy_name)
         };
@@ -111,9 +112,14 @@ impl BacktestStrategyFunction {
             loop {
                 // 先获取命令并立即释放锁
                 let command = {
-                    let received_command = command_receiver.lock().await.recv().await;
-                    if let Some(cmd) = received_command {
-                        cmd
+                    let mut command_receiver_guard = command_receiver.lock().await;
+                    if let Some(ref mut receiver) = *command_receiver_guard {
+                        let received_command = receiver.recv().await;
+                        if let Some(cmd) = received_command {
+                            cmd
+                        } else {
+                            continue;
+                        }
                     } else {
                         continue;
                     }
@@ -132,7 +138,7 @@ impl BacktestStrategyFunction {
         let (strategy_name, cancel_token, strategy_stats_event_receiver) = {
             let context_guard = context.read().await;
             let strategy_name = context_guard.get_strategy_name();
-            let cancel_token = context_guard.get_cancel_token();
+            let cancel_token = context_guard.get_cancel_task_token();
             let strategy_stats_event_receiver = context_guard.strategy_stats_event_receiver.resubscribe();
             (strategy_name, cancel_token, strategy_stats_event_receiver)
         };
@@ -167,14 +173,15 @@ impl BacktestStrategyFunction {
     }
 
 
-    pub async fn set_leaf_nodes(graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>) -> Vec<NodeId> {
-        let leaf_nodes: Vec<NodeIndex> = graph.externals(Direction::Outgoing).collect();
+    pub async fn set_leaf_nodes(context: Arc<RwLock<BacktestStrategyContext>>) {
+        let mut context_guard = context.write().await;
+        let leaf_nodes: Vec<NodeIndex> = context_guard.graph.externals(Direction::Outgoing).collect();
         let mut leaf_node_ids = Vec::new();
         for node_index in leaf_nodes {
-            let node = graph.node_weight_mut(node_index).unwrap();
+            let node = context_guard.graph.node_weight_mut(node_index).unwrap();
             leaf_node_ids.push(node.get_node_id().await);
             node.set_is_leaf_node(true).await;
         }
-        leaf_node_ids
+        context_guard.set_leaf_node_ids(leaf_node_ids);
     }
 }

@@ -43,6 +43,35 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] nodes config is null"))]
+    NodeConfigNull {
+        strategy_id: i32,
+        strategy_name: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] edges config is null"))]
+    EdgeConfigNull {
+        strategy_id: i32,
+        strategy_name: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] edges config miss field: {field_name}"))]
+    EdgeConfigMissField {
+        strategy_id: i32,
+        strategy_name: String,
+        field_name: String,
+        backtrace: Backtrace,
+    },
+
+    NodeNotFound {
+        strategy_id: i32,
+        strategy_name: String,
+        node_id: String,
+        backtrace: Backtrace,
+    },
+
     
 }
 
@@ -60,6 +89,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::NodeInitTimeout { .. } => 1002,
                 BacktestStrategyError::TokioTaskFailed { .. } => 1003,
                 BacktestStrategyError::NodeStateNotReady { .. } => 1004,
+                BacktestStrategyError::NodeConfigNull { .. } => 1005,
+                BacktestStrategyError::EdgeConfigNull { .. } => 1006,
+                BacktestStrategyError::EdgeConfigMissField { .. } => 1007,
+                BacktestStrategyError::NodeNotFound { .. } => 1008,
             };   
 
             format!("{}_{:04}", prefix, code)
@@ -77,7 +110,11 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::NodeInit { .. } |
             BacktestStrategyError::NodeInitTimeout { .. } |
             BacktestStrategyError::TokioTaskFailed { .. } |
-            BacktestStrategyError::NodeStateNotReady { .. }
+            BacktestStrategyError::NodeStateNotReady { .. } |
+            BacktestStrategyError::NodeConfigNull { .. } |
+            BacktestStrategyError::EdgeConfigNull { .. } |
+            BacktestStrategyError::EdgeConfigMissField { .. } |
+            BacktestStrategyError::NodeNotFound { .. }
         )
     }
 }
