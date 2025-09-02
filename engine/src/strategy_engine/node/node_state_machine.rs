@@ -102,18 +102,25 @@ pub trait BacktestNodeTransitionAction: Debug + Any + Send + Sync {
 pub enum BacktestNodeRunState {
     #[strum(to_string = "Created")]
     Created,        // 节点已创建但未初始化
+
     #[strum(to_string = "Initializing")]
     Initializing,   // 节点正在初始化
+
     #[strum(to_string = "Ready")]
     Ready,        // 节点已初始化，准备好但未运行
+
     #[strum(to_string = "Backtesting")]
     Backtesting,    // 节点正在回测
+
     #[strum(to_string = "BacktestComplete")]
     BacktestComplete,    // 节点回测完成
+
     #[strum(to_string = "Stopping")]
     Stopping,       // 节点正在停止
+
     #[strum(to_string = "Stopped")]
     Stopped,        // 节点已停止
+    
     #[strum(to_string = "Failed")]
     Failed,         // 节点发生错误
 }

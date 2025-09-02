@@ -1,11 +1,11 @@
-use types::strategy::Strategy;
+use types::strategy::StrategyConfig;
 use crate::strategy_config::Model as StrategyConfigModel;
 use types::strategy::TradeMode;
 use std::str::FromStr;
 
-impl From<StrategyConfigModel> for Strategy {
+impl From<StrategyConfigModel> for StrategyConfig {
     fn from(config: StrategyConfigModel) -> Self {
-        Strategy {
+        StrategyConfig {
             id: config.id,
             name: config.name,
             description: config.description,

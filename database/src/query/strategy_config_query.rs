@@ -1,6 +1,6 @@
 use sea_orm::*;
-use ::entity::{strategy_config, strategy_config::Entity as StrategyConfig};
-use types::strategy::Strategy;
+use ::entity::{strategy_config, strategy_config::Entity as StrategyConfigEntity};
+use types::strategy::StrategyConfig;
 
 pub struct StrategyConfigQuery;
 
@@ -12,8 +12,8 @@ impl StrategyConfigQuery {
         db: &DbConn,
         page: u64,
         strategy_per_page: u64
-    ) -> Result<(Vec<Strategy>, u64), DbErr> {
-        let paginator = StrategyConfig::find()
+    ) -> Result<(Vec<StrategyConfig>, u64), DbErr> {
+        let paginator = StrategyConfigEntity::find()
         // 只查询未删除的策略
         .filter(strategy_config::Column::IsDeleted.eq(false))
         .order_by_desc(strategy_config::Column::CreatedTime)
@@ -27,16 +27,16 @@ impl StrategyConfigQuery {
     // 获取所有未删除的策略
     pub async fn get_all_strategy(
         db: &DbConn,
-    ) -> Result<Vec<Strategy>, DbErr> {
-        let strategies = StrategyConfig::find().filter(strategy_config::Column::IsDeleted.eq(false)).all(db).await?;
+    ) -> Result<Vec<StrategyConfig>, DbErr> {
+        let strategies = StrategyConfigEntity::find().filter(strategy_config::Column::IsDeleted.eq(false)).all(db).await?;
         Ok(strategies.into_iter().map(|config| config.into()).collect())
     }
 
     pub async fn get_strategy_by_id(
         db: &DbConn,
         id: i32
-    ) -> Result<Option<Strategy>, DbErr> {
-        let strategy_config = StrategyConfig::find_by_id(id)
+    ) -> Result<Option<StrategyConfig>, DbErr> {
+        let strategy_config = StrategyConfigEntity::find_by_id(id)
         .filter(strategy_config::Column::IsDeleted.eq(false))
         .one(db).await?;
         Ok(strategy_config.map(|config| config.into()))
@@ -46,7 +46,7 @@ impl StrategyConfigQuery {
         db: &DbConn,
         strategy_id: i32
     ) -> Result<JsonValue, DbErr> {
-        let strategy_config = StrategyConfig::find_by_id(strategy_id)
+        let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
         .filter(strategy_config::Column::IsDeleted.eq(false))
         .one(db).await?;
     

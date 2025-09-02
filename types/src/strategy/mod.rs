@@ -8,7 +8,6 @@ pub mod strategy_inner_event;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use crate::market::Exchange;
-use std::str::FromStr;
 use strum::{EnumString, Display};
 use chrono::{DateTime, Utc};
 use std::fmt;
@@ -18,7 +17,7 @@ use crate::custom_type::FeeRate;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct Strategy {
+pub struct StrategyConfig {
     /// 策略ID
     pub id: i32,
     /// 策略名称
@@ -46,6 +45,7 @@ pub struct Strategy {
     /// 更新时间
     pub updated_time: DateTime<Utc>,
 }
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash, ToSchema)]

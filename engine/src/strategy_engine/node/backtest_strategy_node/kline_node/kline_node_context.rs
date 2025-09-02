@@ -4,10 +4,11 @@ use std::any::Any;
 use async_trait::async_trait;
 use utils::get_utc8_timestamp_millis;
 use event_center::Event;
-use types::strategy::node_event::{KlineSeriesMessage, BacktestNodeEvent};
+use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::node_event::backtest_node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use event_center::response::Response;
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_log_message::StartRegisterExchangeMsg;
 use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
 use event_center::command::market_engine_command::{MarketEngineCommand, GetKlineHistoryParams};
 use event_center::command::exchange_engine_command::RegisterExchangeParams;
@@ -17,19 +18,17 @@ use tokio::sync::RwLock;
 use tokio::sync::Mutex;
 use heartbeat::Heartbeat;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use types::cache::Key;
-use event_center::CommandPublisher;
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use tokio::sync::oneshot;
 use tracing::instrument;
 use super::kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_event::SignalEvent;
-use event_center::strategy_event::{StrategyEvent,BacktestStrategyData};
 use types::cache::CacheValue;
-use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::custom_type::PlayIndex;
+use types::strategy::node_event::{NodeStartLogEvent, LogLevel};
+use super::kline_node_state_machine::KlineNodeStateAction;
+use crate::strategy_engine::log_message::LogMessage;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -216,12 +215,50 @@ impl KlineNodeContext {
     // 注册交易所
     #[instrument(skip(self))]
     pub async fn register_exchange(&mut self) -> Result<Response, String> {
-        tracing::info!(node_id = %self.base_context.node_id, node_name = %self.base_context.node_name, "start to register exchange");
+        let account_id = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.account_id.clone();
+        let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+        let node_id = self.base_context.node_id.clone();
+        let node_name = self.base_context.node_name.clone();
+
+        tracing::info!(
+            node_id = %node_id, 
+            node_name = %node_name,
+            account_id = %account_id,
+            exchange = ?exchange,
+            account_id = %account_id,
+            "start to register exchange.");
+
+        let log_message = StartRegisterExchangeMsg::new(
+            node_id.clone(),
+            node_name.clone(),
+            exchange.clone(),
+            account_id.clone(),
+        );
+        
+        
+        let log_event = NodeStartLogEvent {
+            strategy_id: self.get_strategy_id().clone(),
+            node_id: node_id.clone(),
+            node_name: node_name.clone(),
+            node_state: self.get_run_state().to_string(),
+            node_state_action: KlineNodeStateAction::RegisterExchange.to_string(),
+            log_level: LogLevel::Info,
+            message: log_message.to_english(),
+            error_code: None,
+            detail: None,
+            duration: None,
+            timestamp: get_utc8_timestamp_millis(),
+        };
+        let _ = self.get_strategy_output_handle().send(log_event.clone().into());
+            
+        
+        tracing::info!("log_message: {}", log_message);
+
         let (resp_tx, resp_rx) = oneshot::channel();
         let register_param = RegisterExchangeParams {
-            account_id: self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.account_id.clone(),
-            exchange: self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone(),
-            sender: self.base_context.node_id.clone(),
+            account_id: account_id,
+            exchange: exchange,
+            sender: node_id,
             timestamp: get_utc8_timestamp_millis(),
             responder: resp_tx,
         };

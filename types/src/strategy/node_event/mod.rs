@@ -26,7 +26,6 @@ use crate::custom_type::PlayIndex;
 
 
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "node_type")]
 pub enum BacktestNodeEvent {
@@ -358,4 +357,63 @@ where
     // 在实际应用中，你可能需要根据具体需求来实现反序列化逻辑
     let _: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
     Ok(Vec::new())
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[serde(rename_all = "lowercase")]
+
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeStartLogEvent {
+    #[serde(rename = "strategyId")]
+    pub strategy_id: i32,
+
+    #[serde(rename = "nodeId")]
+    pub node_id: String,
+
+    #[serde(rename = "nodeName")]
+    pub node_name: String,
+
+    #[serde(rename = "nodeState")]
+    pub node_state: String,
+
+    #[serde(rename = "nodeStateAction")]
+    pub node_state_action: String,
+
+    #[serde(rename = "logLevel")]
+    pub log_level: LogLevel,
+
+    #[serde(rename = "errorCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+
+
+    #[serde(rename = "message")]
+    pub message: String,
+
+    #[serde(rename = "detail")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+
+    #[serde(rename = "duration")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<i64>,
+
+    #[serde(rename = "timestamp")]
+    pub timestamp: i64,
+}
+
+impl From<NodeStartLogEvent> for BacktestNodeEvent {
+    fn from(event: NodeStartLogEvent) -> Self {
+        BacktestNodeEvent::KlineNode(KlineNodeEvent::StateLog(event))
+    }
 }

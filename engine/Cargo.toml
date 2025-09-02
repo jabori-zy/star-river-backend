@@ -38,6 +38,7 @@ virtual-trading = { path = "../virtual-trading"}
 strategy-stats = { path = "../strategy-stats"}
 paste = "1.0.15"
 snafu.workspace = true
+once_cell = "1.21.3"
 
 
 [build-dependencies]

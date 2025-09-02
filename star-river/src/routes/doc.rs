@@ -56,6 +56,11 @@ use types::system::system_config::SystemConfigUpdateParams;
         // 市场相关路径
         crate::api::market_api::get_symbol_list,
         crate::api::market_api::get_support_kline_intervals,
+
+        //sse
+        crate::sse::backtest_strategy_start_log_sse::backtest_strategy_start_log_sse_handler,
+        crate::sse::backtest_strategy_sse::backtest_strategy_sse_handler,
+
         // // 其他路径
         // crate::api::strategy_api::enable_strategy_data_push,
         // crate::api::strategy_api::disable_strategy_data_push,

@@ -9,41 +9,62 @@ use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
-use types::error::engine_error::StrategyEngineError;
-
+use types::error::engine_error::strategy_engine_error::*;
+use snafu::Report;
 /* 
     回测策略控制
 */
 impl StrategyEngineContext {
-    pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<StrategyId, StrategyEngineError> {
+    pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         // 判断策略是否在回测策略列表中
-        if self.backtest_strategy_list.contains_key(&strategy_id) {
+        if self.backtest_strategy_list.lock().await.contains_key(&strategy_id) {
             tracing::warn!("策略已存在, 不进行初始化");
-            return Ok(strategy_id);
+            return Err(StrategyIsExistSnafu {
+                strategy_id: strategy_id,
+            }.fail()?);
         }
+        let strategy_info: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
-        let strategy_info = self.get_strategy_info_by_id(strategy_id).await.unwrap();
-        let strategy_id = strategy_info.id;
-        let mut strategy = BacktestStrategy::new(
-            strategy_info,
-            self.event_publisher.clone(),
-            self.command_publisher.clone(),
-            self.command_receiver.clone(),
-            self.market_event_receiver.resubscribe(),
-            self.response_event_receiver.resubscribe(),
-            self.database.clone(),
-            self.heartbeat.clone()
-        ).await;
+        let strategy_list = self.backtest_strategy_list.clone();
+        let event_publisher = self.event_publisher.clone();
+        let command_publisher = self.command_publisher.clone();
+        let command_receiver = self.command_receiver.clone();
+        let market_event_receiver = self.market_event_receiver.resubscribe();
+        let response_event_receiver = self.response_event_receiver.resubscribe();
+        let database = self.database.clone();
+        let heartbeat = self.heartbeat.clone();
 
-        strategy.init_strategy().await?;
-        self.backtest_strategy_list.insert(strategy_id, strategy);
-        Ok(strategy_id)
+        tokio::spawn(async move {
+            let strategy_id = strategy_info.id;
+            let mut strategy = BacktestStrategy::new(
+                strategy_info,
+                event_publisher,
+                command_publisher,
+                command_receiver,
+                market_event_receiver,
+                response_event_receiver,
+                database,
+                heartbeat
+            ).await;
+
+            let init_result = strategy.init_strategy().await;
+            if let Err(e) = init_result {
+                let report = Report::from_error(&e);
+                tracing::error!("{}", report);
+            }
+            strategy_list.lock().await.insert(strategy_id, strategy);
+        });
+        // strategy.init_strategy().await?;
+        // let node_list = strategy.get_node_list().await;
+        // self.backtest_strategy_list.insert(strategy_id, strategy);
+        
+        Ok(())
     }
 
     // 停止回测策略
     pub async fn backtest_strategy_stop(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.get_backtest_strategy_instance_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(mut strategy) = strategy {
             strategy.stop_strategy().await.unwrap();
             self.remove_strategy_instance(TradeMode::Backtest, strategy_id).await?;
         }
@@ -54,8 +75,8 @@ impl StrategyEngineContext {
 
     // 播放回测策略
     pub async fn backtest_strategy_play(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.get_backtest_strategy_instance_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(mut strategy) = strategy {
             strategy.play().await.unwrap();
         }
         Ok(())
@@ -63,8 +84,8 @@ impl StrategyEngineContext {
 
     // 重置回测策略
     pub async fn backtest_strategy_reset(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.get_backtest_strategy_instance_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(mut strategy) = strategy {
             strategy.reset().await.unwrap();
         }
         Ok(())
@@ -72,8 +93,8 @@ impl StrategyEngineContext {
 
     // 暂停回测策略
     pub async fn backtest_strategy_pause(&mut self, strategy_id: i32) -> Result<(), String> {
-        let strategy = self.get_backtest_strategy_instance_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(mut strategy) = strategy {
             strategy.pause().await.unwrap();
         }
         Ok(())
@@ -81,8 +102,8 @@ impl StrategyEngineContext {
 
     // 播放单根k线
     pub async fn backtest_strategy_play_one_kline(&mut self, strategy_id: i32) -> Result<i32, String> {
-        let strategy = self.get_backtest_strategy_instance_mut(strategy_id).await;
-        if let Ok(strategy) = strategy {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
+        if let Ok(mut strategy) = strategy {
             let play_index = strategy.play_one_kline().await.unwrap();
             Ok(play_index)
         } else {

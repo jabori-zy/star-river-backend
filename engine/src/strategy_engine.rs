@@ -3,6 +3,7 @@ mod strategy;
 pub mod node;
 pub mod backtest_strategy_control;
 pub mod live_strategy_control;
+pub mod log_message;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,6 +26,7 @@ use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::error::engine_error::*;
+use snafu::{Report, ResultExt};
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -72,7 +74,7 @@ impl StrategyEngine{
             command_receiver: Arc::new(Mutex::new(command_receiver)),
             database,
             live_strategy_list: HashMap::new(),
-            backtest_strategy_list: HashMap::new(),
+            backtest_strategy_list: Arc::new(Mutex::new(HashMap::new())),
             market_event_receiver,
             request_event_receiver,
             response_event_receiver,
@@ -92,18 +94,17 @@ impl StrategyEngine{
         match strategy_info.trade_mode {
             TradeMode::Live => {
                 strategy_context.live_strategy_init(strategy_id).await.unwrap();
-                Ok(())
+                return Ok(());
 
             }
             TradeMode::Backtest => {
-                strategy_context.backtest_strategy_init(strategy_id).await?;
-                Ok(())
+                if let Err(e) = strategy_context.backtest_strategy_init(strategy_id).await {
+                    let report = Report::from_error(&e);
+                    tracing::error!("{}", report);
+                    return Err(e);
+                }
+                return Ok(());
             }
-            // _ => {
-            //     UnsupportedStrategyTypeSnafu {
-            //         strategy_type: strategy_info.trade_mode.to_string(),
-            //     }.fail()?
-            // }
         }
     }
 

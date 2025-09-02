@@ -1,7 +1,7 @@
 use sea_orm::*;
-use ::entity::{strategy_config, strategy_config::Entity as StrategyConfig};
+use ::entity::{strategy_config, strategy_config::Entity as StrategyConfigEntity};
 use chrono::Utc;
-use types::strategy::Strategy;
+use types::strategy::StrategyConfig;
 
 
 pub struct StrategyConfigMutation;
@@ -13,7 +13,7 @@ impl StrategyConfigMutation {
         strategy_name: String,
         strategy_description: String,
         strategy_status: i32,
-    ) -> Result<Strategy, DbErr> {
+    ) -> Result<StrategyConfig, DbErr> {
         let strategy_config_model = strategy_config::ActiveModel {
             id: NotSet,
             name: Set(strategy_name),
@@ -41,8 +41,8 @@ impl StrategyConfigMutation {
         edges: Option<JsonValue>,
         live_chart_config: Option<JsonValue>,
         backtest_chart_config: Option<JsonValue>,
-    ) -> Result<Strategy, DbErr> {
-        let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
+    ) -> Result<StrategyConfig, DbErr> {
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
@@ -72,7 +72,7 @@ impl StrategyConfigMutation {
         db: &DbConn,
         strategy_id: i32,
     ) -> Result<(), DbErr> {
-        let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
@@ -99,7 +99,7 @@ impl StrategyConfigMutation {
         strategy_id: i32,
         backtest_chart_config: Option<JsonValue>,
     ) -> Result<JsonValue, DbErr> {
-        let strategy: strategy_config::ActiveModel = StrategyConfig::find_by_id(strategy_id)
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))

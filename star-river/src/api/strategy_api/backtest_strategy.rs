@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use axum::extract::{Json,Path,Query};
 use crate::api::response::ApiResponse;
 use utoipa::{IntoParams, ToSchema};
-use types::strategy::Strategy;
+use types::strategy::StrategyConfig;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use tracing::instrument;
@@ -45,8 +45,8 @@ pub struct UpdateBacktestChartConfigParams {
     params(UpdateBacktestChartConfigParams),
     request_body = UpdateBacktestChartConfigParams,
     responses(
-        (status = 200, description = "成功", body = ApiResponse<Strategy>),
-        (status = 500, description = "内部服务器错误", body = ApiResponse<Strategy>),
+        (status = 200, description = "成功", body = ApiResponse<StrategyConfig>),
+        (status = 500, description = "内部服务器错误", body = ApiResponse<StrategyConfig>),
     )
 )]
 #[instrument(skip(star_river))]

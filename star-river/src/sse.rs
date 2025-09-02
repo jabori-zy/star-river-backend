@@ -1,5 +1,10 @@
 pub mod account_sse;
 pub mod backtest_strategy_sse;
+pub mod backtest_strategy_start_log_sse;
+
+pub use account_sse::account_sse_handler;
+pub use backtest_strategy_sse::backtest_strategy_sse_handler;
+pub use backtest_strategy_start_log_sse::backtest_strategy_start_log_sse_handler;
 
 
 use axum::response::sse::{Event, Sse};

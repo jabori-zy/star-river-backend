@@ -81,7 +81,7 @@ impl BacktestStrategyFunction {
                         match receive_result {
                             Some(Ok(event)) => {
                                 let state_guard = context_clone.write().await;
-                                state_guard.handle_node_event(event).await.unwrap();
+                                state_guard.handle_node_event(event).await;
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", strategy_name, e);

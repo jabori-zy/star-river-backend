@@ -17,6 +17,8 @@ use types::strategy::node_event::backtest_node_event::futures_order_node_event::
 };
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent};
 use types::strategy_stats::event::StrategyStatsUpdatedEvent;
+use types::strategy::node_event::NodeStartLogEvent;
+use types::strategy::node_event::LogLevel;
 
 
 
@@ -88,10 +90,60 @@ pub enum BacktestStrategyEvent {
     #[strum(serialize = "transaction-created")]
     #[serde(rename = "transaction-created")]
     TransactionCreated(TransactionCreatedEvent), // 交易明细创建事件
+
+    #[strum(serialize = "state-log")]
+    #[serde(rename = "state-log")]
+    NodeStartLog(NodeStartLogEvent), // 启动日志事件
+
+    #[strum(serialize = "strategy-state-log")]
+    #[serde(rename = "strategy-state-log")]
+    StrategyStartLog(StrategyStartLogEvent), // 策略启动日志事件
 }
 
 impl From<BacktestStrategyEvent> for Event {
     fn from(event: BacktestStrategyEvent) -> Self {
         StrategyEvent::BacktestStrategy(event).into()
     }
+}
+
+
+
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StrategyStartLogEvent {
+    #[serde(rename = "strategyId")]
+    pub strategy_id: i32,
+
+    #[serde(rename = "strategyName")]
+    pub strategy_name: String,
+
+    #[serde(rename = "strategyState")]
+    pub strategy_state: Option<String>,
+
+    #[serde(rename = "strategyStateAction")]
+    pub strategy_state_action: Option<String>,
+
+    #[serde(rename = "logLevel")]
+    pub log_level: LogLevel,
+
+    #[serde(rename = "errorCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+
+
+    #[serde(rename = "message")]
+    pub message: String,
+
+    #[serde(rename = "detail")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+
+    #[serde(rename = "duration")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<i64>,
+
+    #[serde(rename = "timestamp")]
+    pub timestamp: i64,
 }

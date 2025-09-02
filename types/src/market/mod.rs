@@ -13,6 +13,7 @@ use serde::ser::Serializer;
 use crate::cache::{CacheValue, CacheItem};
 use deepsize::DeepSizeOf;
 use utoipa::ToSchema;
+use std::fmt::Display;
 
 pub type MT5Server = String;
 
@@ -33,22 +34,39 @@ pub enum Exchange {
     Metatrader5(MT5Server),
 }
 
-impl ToString for Exchange {
-    fn to_string(&self) -> String {
+impl Display for Exchange {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Exchange::Binance => "binance".to_string(),
-            Exchange::Huobi => "huobi".to_string(),
-            Exchange::Okx => "okx".to_string(),
+            Exchange::Binance => write!(f, "binance"),
+            Exchange::Huobi => write!(f, "huobi"),
+            Exchange::Okx => write!(f, "okx"),
             Exchange::Metatrader5(server) => {
                 if server.is_empty() {
-                    "metatrader5".to_string()
+                    write!(f, "metatrader5")
                 } else {
-                    format!("metatrader5({})", server)
+                    write!(f, "metatrader5({})", server)
                 }
             }
         }
     }
 }
+
+// impl ToString for Exchange {
+//     fn to_string(&self) -> String {
+//         match self {
+//             Exchange::Binance => "binance".to_string(),
+//             Exchange::Huobi => "huobi".to_string(),
+//             Exchange::Okx => "okx".to_string(),
+//             Exchange::Metatrader5(server) => {
+//                 if server.is_empty() {
+//                     "metatrader5".to_string()
+//                 } else {
+//                     format!("metatrader5({})", server)
+//                 }
+//             }
+//         }
+//     }
+// }
 
 impl Serialize for Exchange {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

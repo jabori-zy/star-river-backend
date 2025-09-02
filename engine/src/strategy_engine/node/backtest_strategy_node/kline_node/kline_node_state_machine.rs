@@ -1,23 +1,34 @@
 use types::strategy::BacktestDataSource;
 use types::error::engine_error::strategy_engine_error::node_error::*;
+use strum::Display;
 
 use crate::strategy_engine::node::node_state_machine::*;
 use std::any::Any;
 
 
 // 状态转换后需要执行的动作
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum KlineNodeStateAction {
+    #[strum(serialize = "ListenAndHandleExternalEvents")]
     ListenAndHandleExternalEvents,   // 处理外部事件
+    #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents,    // 监听节点消息
+    #[strum(serialize = "ListenAndHandleInnerEvents")]
     ListenAndHandleInnerEvents,    // 监听内部事件
+    #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     LogNodeState,    // 记录节点状态
+    #[strum(serialize = "RegisterExchange")]
     RegisterExchange, // 注册交易所
+    #[strum(serialize = "LoadHistoryFromExchange")]
     LoadHistoryFromExchange, // 从交易所加载K线历史
+    #[strum(serialize = "LoadHistoryFromFile")]
     LoadHistoryFromFile, // 从文件加载K线历史
+    #[strum(serialize = "LogTransition")]
     LogTransition,          // 记录状态转换
+    #[strum(serialize = "LogError")]
     LogError(String),       // 记录错误
+    #[strum(serialize = "CancelAsyncTask")]
     CancelAsyncTask,        // 取消异步任务
 }
 
@@ -96,7 +107,8 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                         Ok(Box::new(KlineNodeStateChangeActions {
                             new_state: BacktestNodeRunState::Initializing,
                             actions: vec![
-                                Box::new(KlineNodeStateAction::LogTransition), 
+                                Box::new(KlineNodeStateAction::LogNodeState), // 节点状态日志
+                                Box::new(KlineNodeStateAction::LogTransition),
                                 Box::new(KlineNodeStateAction::ListenAndHandleExternalEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleNodeEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleInnerEvents),
@@ -111,6 +123,7 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                         Ok(Box::new(KlineNodeStateChangeActions {
                             new_state: BacktestNodeRunState::Initializing,
                             actions: vec![
+                                Box::new(KlineNodeStateAction::LogNodeState), // 节点状态日志
                                 Box::new(KlineNodeStateAction::LogTransition),
                                 Box::new(KlineNodeStateAction::ListenAndHandleExternalEvents), 
                                 Box::new(KlineNodeStateAction::LoadHistoryFromFile), // 从文件加载K线历史
@@ -126,7 +139,10 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(KlineNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Ready,
-                    actions: vec![Box::new(KlineNodeStateAction::LogTransition), Box::new(KlineNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(KlineNodeStateAction::LogNodeState),
+                        Box::new(KlineNodeStateAction::LogTransition), 
+                        ],
                 }))
             }
             // 从Running状态开始停止
@@ -136,6 +152,7 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 Ok(Box::new(KlineNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
                     actions: vec![
+                        Box::new(KlineNodeStateAction::LogNodeState),
                         Box::new(KlineNodeStateAction::LogTransition),
                         Box::new(KlineNodeStateAction::CancelAsyncTask),
                     ],
@@ -147,7 +164,10 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Stopped;
                 Ok(Box::new(KlineNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopped,
-                    actions: vec![Box::new(KlineNodeStateAction::LogTransition), Box::new(KlineNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(KlineNodeStateAction::LogNodeState),
+                        Box::new(KlineNodeStateAction::LogTransition),
+                    ],
                 }))
             }
             // 从任何状态都可以失败
@@ -156,7 +176,11 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(KlineNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Failed,
-                    actions: vec![Box::new(KlineNodeStateAction::LogTransition), Box::new(KlineNodeStateAction::LogError(error))],
+                    actions: vec![
+                        Box::new(KlineNodeStateAction::LogNodeState),
+                        Box::new(KlineNodeStateAction::LogTransition), 
+                        Box::new(KlineNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换

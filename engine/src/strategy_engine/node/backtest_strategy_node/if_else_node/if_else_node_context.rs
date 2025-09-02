@@ -81,10 +81,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             }
             BacktestNodeEvent::KlineNode(kline_event) => {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event;
-                if self.get_play_index() == kline_update_event.play_index {
-                    tracing::debug!("{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, self.get_play_index());
-                    self.update_received_event(node_event);
+                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
+                    if self.get_play_index() == kline_update_event.play_index {
+                        tracing::debug!("{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, self.get_play_index());
+                        self.update_received_event(node_event);
+                    }
                 }
             }
             BacktestNodeEvent::Variable(variable_event) => {
@@ -172,8 +173,11 @@ impl IfElseNodeContext {
                 (sys_variable_updated_event.from_node_id.clone(), sys_variable_updated_event.variable_config_id)
             }
             BacktestNodeEvent::KlineNode(kline_event) => {
-                let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event;
-                (kline_update_event.from_node_id.clone(), kline_update_event.config_id)
+                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
+                    (kline_update_event.from_node_id.clone(), kline_update_event.config_id)
+                } else {
+                    return;
+                }
             }
             _ => {
                 return;

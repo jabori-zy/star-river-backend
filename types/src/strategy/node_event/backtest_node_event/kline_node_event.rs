@@ -3,7 +3,7 @@ use strum::Display;
 use crate::cache::{key::KlineKey, KeyTrait, CacheValue};
 use std::sync::Arc;
 use crate::strategy::node_event::BacktestNodeEvent;
-
+use super::super::NodeStartLogEvent;
 
 
 
@@ -13,6 +13,8 @@ pub enum KlineNodeEvent {
     #[strum(serialize = "kline-update")]
     #[serde(rename = "kline-update")]
     KlineUpdate(KlineUpdateEvent),
+    StateLog(NodeStartLogEvent),
+    RunningLog(NodeStartLogEvent),
 }
 
 impl From<KlineNodeEvent> for BacktestNodeEvent {

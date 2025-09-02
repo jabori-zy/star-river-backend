@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use std::any::Any;
 use live_strategy_state_machine::{LiveStrategyStateTransitionEvent,LiveStrategyRunState};
 use live_strategy_state_machine::LiveStrategyStateAction;
-use types::strategy::Strategy;
+use types::strategy::StrategyConfig;
 use event_center::EventPublisher;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
@@ -39,7 +39,7 @@ pub struct LiveStrategy {
 
 impl LiveStrategy {
     pub async fn new(
-        strategy: Strategy,
+        strategy: StrategyConfig,
         event_publisher: EventPublisher, 
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,

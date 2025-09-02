@@ -1,4 +1,4 @@
-use petgraph::{Directed, Direction, Graph};
+use petgraph::{Directed, Graph};
 use petgraph::graph::NodeIndex;
 use snafu::ResultExt;
 use types::custom_type::{NodeId, StrategyId};
@@ -47,8 +47,7 @@ use types::position::virtual_position::VirtualPosition;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 use types::transaction::virtual_transaction::VirtualTransaction;
-use types::error::engine_error::strategy_engine_error::strategy_error::*;
-use snafu::{IntoError, Report};
+use snafu::IntoError;
 
 
 #[derive(Debug)]
@@ -125,6 +124,10 @@ impl BacktestStrategyContext {
         self.cancel_token.clone()
     }
 
+    pub fn get_event_publisher(&self) -> &EventPublisher {
+        &self.event_publisher
+    }
+
     pub fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
         &self.event_receivers
     }
@@ -164,7 +167,7 @@ impl BacktestStrategyContext {
     }
 
     // 所有节点发送的事件都会汇集到这里
-    pub async fn handle_node_event(&self, node_event: BacktestNodeEvent) -> Result<(), String> {
+    pub async fn handle_node_event(&self, node_event: BacktestNodeEvent) {
         // 执行完毕
         if let BacktestNodeEvent::Signal(signal_event) = &node_event {
             match signal_event {
@@ -194,6 +197,12 @@ impl BacktestStrategyContext {
                     // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
                     let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                 }
+                KlineNodeEvent::StateLog(log_event) => {
+                    tracing::info!("kline-node-log: {:#?}", serde_json::to_string(&log_event).unwrap());
+                    let backtest_strategy_event = BacktestStrategyEvent::NodeStartLog(log_event.clone());
+                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                }
+                _ => {}
             }
         }
 
@@ -270,7 +279,6 @@ impl BacktestStrategyContext {
                 }
             }
         }
-        Ok(())
     }
 
 
@@ -295,6 +303,17 @@ impl BacktestStrategyContext {
         .into_iter()
         .map(|index| self.graph[index].clone())
         .collect()
+    }
+
+    pub async fn get_node_list(&self) -> Vec<Vec<String>> {
+        let nodes = self.topological_sort();
+        let mut node_list = Vec::new();
+        for node in &nodes {
+            let node_name = node.get_node_name().await;
+            let node_id = node.get_node_id().await;
+            node_list.push(vec![node_id, node_name]);
+        }
+        node_list
     }
 
 
@@ -376,72 +395,94 @@ impl BacktestStrategyContext {
     }
 
 
-    pub async fn init_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), BacktestStrategyError> {
-        let mut node_clone = node.clone();
+    // 初始化所有节点的方法，不持有外部锁
+    pub async fn init_node(
+        context: Arc<RwLock<Self>>
+    ) -> Result<Vec<Vec<String>>, BacktestStrategyError> {
+        // 短暂持有锁获取节点列表
+        let nodes = {
+            let context_guard = context.read().await;
+            context_guard.topological_sort()
+        }; // 锁立即释放
 
-        let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
-            let node_id = node_clone.get_node_id().await;
-            let node_name = node_clone.get_node_name().await;
-            let node_type = node_clone.get_node_type().await;
-            node_clone.init().await.context(NodeInitSnafu {
-                node_id: node_id,
-                node_name: node_name,
-                node_type: node_type.to_string(),
-            })?;
-            Ok(())
-
-        });
-
-        let node_name = node.get_node_name().await;
-        let node_id = node.get_node_id().await;
-        let node_type = node.get_node_type().await;
+        let mut node_list = Vec::new();
+        for node in &nodes {
+            let node_name = node.get_node_name().await;
+            let node_id = node.get_node_id().await;
+            node_list.push(vec![node_id, node_name]);
+        }
         
-        // 等待节点初始化完成
-        match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
-            Ok(result) => {
-                if let Err(e) = result {
-                    return Err(TokioTaskFailedSnafu {
-                        task_name: "INIT_NODE".to_string(),
-                        node_name: node_name,
-                        node_id: node_id,
-                        node_type: node_type.to_string(),
-                    }.into_error(e));
-                }
-                
-                if let Ok(Err(e)) = result {
-                    return Err(e);
-                }
-            }
-            Err(e) => {
-                return Err(NodeInitTimeoutSnafu {
+        // 逐个初始化节点，不持有锁
+        for node in nodes {
+            let mut node_clone = node.clone();
+
+            let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
+                let node_id = node_clone.get_node_id().await;
+                let node_name = node_clone.get_node_name().await;
+                let node_type = node_clone.get_node_type().await;
+                node_clone.init().await.context(NodeInitSnafu {
                     node_id: node_id,
                     node_name: node_name,
                     node_type: node_type.to_string(),
-                }.into_error(e));
+                })?;
+                Ok(())
+            });
+
+            let node_name = node.get_node_name().await;
+            let node_id = node.get_node_id().await;
+            let node_type = node.get_node_type().await;
+            
+            // 等待节点初始化完成（这里没有持有任何锁）
+            match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
+                Ok(result) => {
+                    if let Err(e) = result {
+                        return Err(TokioTaskFailedSnafu {
+                            task_name: "INIT_NODE".to_string(),
+                            node_name: node_name,
+                            node_id: node_id,
+                            node_type: node_type.to_string(),
+                        }.into_error(e));
+                    }
+                    
+                    if let Ok(Err(e)) = result {
+                        return Err(e);
+                    }
+                }
+                Err(e) => {
+                    return Err(NodeInitTimeoutSnafu {
+                        node_id: node_id,
+                        node_name: node_name,
+                        node_type: node_type.to_string(),
+                    }.into_error(e));
+                }
+            }
+            
+            // 等待节点进入Ready状态（这里也没有持有锁）
+            let mut retry_count = 0;
+            let max_retries = 10;
+            
+            while retry_count < max_retries {
+                let run_state = node.get_run_state().await;
+                if run_state == BacktestNodeRunState::Ready {
+                    tracing::debug!("节点 {} 已进入Ready状态", node_id);
+                    // 节点初始化间隔
+                    tokio::time::sleep(Duration::from_millis(1)).await;
+                    break;
+                }
+                retry_count += 1;
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+            
+            if retry_count >= max_retries {
+                return Err(NodeStateNotReadySnafu {
+                    node_id: node_id,
+                    node_name: node_name,
+                    node_type: node_type.to_string(),
+                }.fail()?);
             }
         }
         
-        // 等待节点进入Ready状态
-        let mut retry_count = 0;
-        let max_retries = 10;
-        
-        while retry_count < max_retries {
-            let run_state = node.get_run_state().await;
-            if run_state == BacktestNodeRunState::Ready {
-                tracing::debug!("节点 {} 已进入Ready状态", node_id);
-                // 节点初始化间隔
-                tokio::time::sleep(Duration::from_millis(1)).await;
-                return Ok(());
-            }
-            retry_count += 1;
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
-        
-        NodeStateNotReadySnafu {
-            node_id: node_id,
-            node_name: node_name,
-            node_type: node_type.to_string(),
-        }.fail()?
+        Ok(node_list)
     }
 
     

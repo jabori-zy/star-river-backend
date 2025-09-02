@@ -1,6 +1,7 @@
 pub mod kline_node_state_machine;
 pub mod kline_node_context;
 pub mod kline_node_type;
+pub mod kline_node_log_message;
 
 use tokio::sync::broadcast;
 use std::fmt::Debug;
@@ -26,6 +27,13 @@ use snafu::Report;
 use types::error::engine_error::strategy_engine_error::node_error::*;
 use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::kline_node_error::*;
 use snafu::IntoError;
+use types::strategy::node_event::NodeStartLogEvent;
+use types::strategy::node_event::LogLevel;
+use utils::get_utc8_timestamp_millis;
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_log_message::*;
+
+
+
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -195,17 +203,79 @@ impl BacktestNodeTrait for KlineNode {
                     KlineNodeStateAction::LogNodeState => {
                         let current_state = self.context.read().await.get_state_machine().current_state();
                         tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                        let log_event = NodeStartLogEvent {
+                            strategy_id: self.context.read().await.get_strategy_id().clone(),
+                            node_id: node_id.clone(),
+                            node_name: node_name.clone(),
+                            node_state: current_state.to_string(),
+                            node_state_action: KlineNodeStateAction::LogNodeState.to_string(),
+                            log_level: LogLevel::Info,
+                            message: log_message.to_string(),
+                            error_code: None,
+                            detail: None,
+                            duration: None,
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let _ = self.context.read().await.get_strategy_output_handle().send(log_event.into());
                     }
                     KlineNodeStateAction::ListenAndHandleExternalEvents => {
                         tracing::info!("{}: 开始监听外部事件", node_id);
+                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStartLogEvent {
+                            strategy_id: self.context.read().await.get_strategy_id().clone(),
+                            node_id: node_id.clone(),
+                            node_name: node_name.clone(),
+                            node_state: self.context.read().await.get_state_machine().current_state().to_string(),
+                            node_state_action: KlineNodeStateAction::ListenAndHandleExternalEvents.to_string(),
+                            log_level: LogLevel::Info,
+                            message: log_message.to_string(),
+                            error_code: None,
+                            detail: None,
+                            duration: None,
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let _ = self.context.read().await.get_strategy_output_handle().send(log_event.into());
                         self.listen_external_events().await;
                     }
                     KlineNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("{}: 开始监听节点消息", node_id);
+                        
+                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("{}", log_message);
+                        let log_event = NodeStartLogEvent {
+                            strategy_id: self.context.read().await.get_strategy_id().clone(),
+                            node_id: node_id.clone(),
+                            node_name: node_name.clone(),
+                            node_state: self.context.read().await.get_state_machine().current_state().to_string(),
+                            node_state_action: KlineNodeStateAction::ListenAndHandleNodeEvents.to_string(),
+                            log_level: LogLevel::Info,
+                            message: log_message.to_string(),
+                            error_code: None,
+                            detail: None,
+                            duration: None,
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let _ = self.context.read().await.get_strategy_output_handle().send(log_event.into());
                         self.listen_node_events().await;
                     }
                     KlineNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("{}: 开始监听策略内部事件", node_id);
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("{}", log_message);
+                        let log_event = NodeStartLogEvent {
+                            strategy_id: self.context.read().await.get_strategy_id().clone(),
+                            node_id: node_id.clone(),
+                            node_name: node_name.clone(),
+                            node_state: self.context.read().await.get_state_machine().current_state().to_string(),
+                            node_state_action: KlineNodeStateAction::ListenAndHandleInnerEvents.to_string(),
+                            log_level: LogLevel::Info,
+                            message: log_message.to_string(),
+                            error_code: None,
+                            detail: None,
+                            duration: None,
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let _ = self.context.read().await.get_strategy_output_handle().send(log_event.into());
+                        
                         self.listen_strategy_inner_events().await;
                     }
                     KlineNodeStateAction::RegisterExchange => {

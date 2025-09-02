@@ -13,7 +13,7 @@ use crate::exchange_engine::ExchangeEngine;
 use heartbeat::Heartbeat;
 use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
-use types::strategy::{Strategy, TradeMode};
+use types::strategy::{StrategyConfig, TradeMode};
 use types::custom_type::StrategyId;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use event_center::command::Command;
@@ -32,7 +32,7 @@ pub struct StrategyEngineContext {
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
-    pub backtest_strategy_list: HashMap<StrategyId, BacktestStrategy>,
+    pub backtest_strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>,
 }
 
 
@@ -120,25 +120,23 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<&BacktestStrategy, String> {
-        if let Some(strategy) = self.backtest_strategy_list.get(&strategy_id) {
-            Ok(strategy)
+    pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, String> {
+        let backtest_strategy_list = self.backtest_strategy_list.lock().await;
+        if let Some(strategy) = backtest_strategy_list.get(&strategy_id) {
+            Ok(strategy.clone())
         } else {
             tracing::error!("策略不存在");
             Err("策略不存在".to_string())
         }
     }
 
-    pub async fn get_backtest_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut BacktestStrategy, String> {
-        if let Some(strategy) = self.backtest_strategy_list.get_mut(&strategy_id) {
-            Ok(strategy)
-        } else {
-            tracing::error!("策略不存在");
-            Err("策略不存在".to_string())
-        }
-    }
+    // 注意：由于 backtest_strategy_list 是 Arc<Mutex<HashMap<...>>>，
+    // 无法直接返回可变引用。如需修改策略，请考虑使用其他方法。
+    // pub async fn get_backtest_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut BacktestStrategy, String> {
+    //     // 此方法无法实现，因为无法返回指向 Mutex 保护数据的可变引用
+    // }
 
-    pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<Strategy, String> {
+    pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, String> {
         let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap_or(None);
         if let Some(strategy) = strategy {
             Ok(strategy)
@@ -155,7 +153,7 @@ impl StrategyEngineContext {
                 tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
             }
             TradeMode::Backtest => {
-                self.backtest_strategy_list.remove(&strategy_id);
+                self.backtest_strategy_list.lock().await.remove(&strategy_id);
                 tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);
             }
             _ => {

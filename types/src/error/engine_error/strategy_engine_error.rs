@@ -22,6 +22,12 @@ pub enum StrategyEngineError {
         strategy_type: String,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("strategy {} is exists", strategy_id))]
+    StrategyIsExist {
+        strategy_id: i32,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for StrategyEngineError
@@ -36,7 +42,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             // For nested errors, delegate to the inner error's code
             StrategyEngineError::BacktestStrategyError { .. } => 1001,
             StrategyEngineError::UnsupportedStrategyType { .. } => 1002,
-            
+            StrategyEngineError::StrategyIsExist { .. } => 1003,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -49,7 +55,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
     fn is_recoverable(&self) -> bool {
         matches!(self,
             StrategyEngineError::BacktestStrategyError { .. } |
-            StrategyEngineError::UnsupportedStrategyType { .. }
+            StrategyEngineError::UnsupportedStrategyType { .. } |
+            StrategyEngineError::StrategyIsExist { .. }
         )
     }
     

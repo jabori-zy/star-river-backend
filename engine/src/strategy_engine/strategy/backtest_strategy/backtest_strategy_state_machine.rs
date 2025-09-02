@@ -1,12 +1,18 @@
+use strum::Display;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Display)]
 pub enum BacktestStrategyRunState { // 回测策略的运行状态
+    #[strum(serialize = "Created")]
     Created,        // 策略已创建但未初始化
+    #[strum(serialize = "Initializing")]
     Initializing,   // 策略正在初始化
     Ready,          // 策略已准备
+    #[strum(serialize = "Stopping")]
     Stopping,       // 策略正在停止
+    #[strum(serialize = "Stopped")]
     Stopped,        // 策略已停止
+    #[strum(serialize = "Failed")]
     Failed,         // 策略发生错误
 }
 
@@ -17,26 +23,40 @@ pub enum BacktestStrategyStateTransitionEvent { // 当切换到某一个状态�
     InitializeComplete,  // 初始化完成 -> 进入Ready状态
     Stop,           // 停止策略
     StopComplete,   // 停止完成 -> 进入Stopped状态
-    Fail(String),   // 策略失败，带有错误信息
+    Fail(String),  // 策略失败，带有错误信息
 }
 
 
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum BacktestStrategyStateAction { // 当切换到某一个状态时, 需要执行的动作
+    #[strum(serialize = "InitCacheLength")]
     InitCacheLength,      // 初始化缓存长度
+    #[strum(serialize = "InitSignalCount")]
     InitSignalCount,      // 初始化信号计数
+    #[strum(serialize = "InitInitialPlaySpeed")]
     InitInitialPlaySpeed, // 初始化初始播放速度
+    #[strum(serialize = "InitVirtualTradingSystem")]
     InitVirtualTradingSystem, // 初始化虚拟交易系统
+    #[strum(serialize = "InitStrategyStats")]
     InitStrategyStats,    // 初始化策略统计
+    #[strum(serialize = "InitNode")]
     InitNode,             // 初始化节点
+    #[strum(serialize = "StopNode")]
     StopNode,             // 停止节点
+    #[strum(serialize = "ListenAndHandleNodeEvent")]
     ListenAndHandleNodeEvent,  // 监听节点消息
+    #[strum(serialize = "ListenAndHandleNodeCommand")]
     ListenAndHandleNodeCommand,  // 监听命令
+    #[strum(serialize = "ListenAndHandleStrategyStatsEvent")]
     ListenAndHandleStrategyStatsEvent,  // 监听策略统计事件
+    #[strum(serialize = "LogStrategyState")]
+    LogStrategyState,          // 记录策略状态
+    #[strum(serialize = "LogTransition")]
     LogTransition,          // 记录状态转换
+    #[strum(serialize = "LogError")]
     LogError(String),       // 记录错误
 }
 
@@ -85,6 +105,7 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Initializing,
                     actions: vec![
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition,
                         BacktestStrategyStateAction::ListenAndHandleNodeEvent,
                         BacktestStrategyStateAction::ListenAndHandleNodeCommand,
@@ -105,6 +126,7 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Ready,
                     actions: vec![
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition,
                     ],
                 })
@@ -115,6 +137,7 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Stopping,
                     actions: vec![
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition, 
                         BacktestStrategyStateAction::StopNode,
                     ],
@@ -125,7 +148,10 @@ impl BacktestStrategyStateMachine {
                 self.current_state = BacktestStrategyRunState::Stopped;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Stopped,
-                    actions: vec![BacktestStrategyStateAction::LogTransition],
+                    actions: vec![
+                        BacktestStrategyStateAction::LogStrategyState,
+                        BacktestStrategyStateAction::LogTransition
+                        ],
                 })
             }
             // 从任何状态都可以失败
@@ -134,6 +160,7 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Failed,
                     actions: vec![
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition, 
                         BacktestStrategyStateAction::LogError(error),
                     ],
