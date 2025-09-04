@@ -29,6 +29,7 @@ use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::strategy::node_event::{NodeStartLogEvent, LogLevel};
 use super::kline_node_state_machine::KlineNodeStateAction;
 use crate::strategy_engine::log_message::LogMessage;
+use event_center::EventCenterSingleton;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -264,7 +265,8 @@ impl KlineNodeContext {
         };
 
         let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_param);
-        self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
+        // self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(register_exchange_command.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
@@ -295,7 +297,9 @@ impl KlineNodeContext {
                 responder: resp_tx,
             };
             let get_kline_history_command = MarketEngineCommand::GetKlineHistory(params);
-            self.get_command_publisher().send(get_kline_history_command.into()).await.unwrap();
+            // self.get_command_publisher().send(get_kline_history_command.into()).await.unwrap();
+            EventCenterSingleton::send_command(get_kline_history_command.into()).await.unwrap();
+
             let response = resp_rx.await.unwrap();
             if !response.success() {
                 is_all_success = false;
@@ -324,7 +328,10 @@ impl KlineNodeContext {
         };
 
         let get_cache_command = CacheEngineCommand::GetCache(params);
-        self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+        // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(get_cache_command.into()).await.unwrap();
+
+
 
         // 等待响应
         let response = resp_rx.await.unwrap();

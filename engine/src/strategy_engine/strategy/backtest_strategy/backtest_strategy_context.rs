@@ -48,7 +48,7 @@ use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 use types::transaction::virtual_transaction::VirtualTransaction;
 use snafu::IntoError;
-use types::virtual_trading_system::event::VirtualTradingSystemEvent;
+use event_center::singleton::EventCenterSingleton;
 
 
 #[derive(Debug)]
@@ -61,10 +61,10 @@ pub struct BacktestStrategyContext {
     pub cache_lengths: HashMap<Key, u32>, // 缓存长度
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
-    pub event_publisher: EventPublisher, // 外部事件发布器
-    pub event_receivers: Vec<EventReceiver>, // 外部事件接收器
-    pub command_publisher: CommandPublisher, // 外部命令发布器
-    pub command_receiver: Arc<Mutex<CommandReceiver>>, // 外部命令接收器
+    // pub event_publisher: EventPublisher, // 外部事件发布器
+    // pub event_receivers: Vec<EventReceiver>, // 外部事件接收器
+    // pub command_publisher: CommandPublisher, // 外部命令发布器
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>, // 外部命令接收器
     pub cancel_task_token: CancellationToken, // 取消令牌
     pub state_machine: BacktestStrategyStateMachine, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
@@ -95,12 +95,12 @@ impl BacktestStrategyContext {
 
     pub fn new(
         strategy_config: StrategyConfig,
-        event_publisher: EventPublisher,
-        response_event_receiver: EventReceiver,
+        // event_publisher: EventPublisher,
+        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
+        // command_publisher: CommandPublisher,
+        // command_receiver: Arc<Mutex<CommandReceiver>>,
     ) -> Self {
         let strategy_id = strategy_config.id;
         let strategy_name = strategy_config.name.clone();
@@ -109,7 +109,7 @@ impl BacktestStrategyContext {
 
 
         let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<PlayIndex>(-1);
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(command_publisher.clone(), play_index_watch_rx.clone())));
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new( play_index_watch_rx.clone())));
         
         let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
         let strategy_stats: Arc<RwLock<BacktestStrategyStats>> = Arc::new(RwLock::new(BacktestStrategyStats::new(
@@ -126,16 +126,16 @@ impl BacktestStrategyContext {
             cache_lengths: HashMap::new(),
             graph: Graph::new(),
             node_indices: HashMap::new(),
-            event_publisher,
-            event_receivers: vec![response_event_receiver],
+            // event_publisher,
+            // event_receivers: vec![response_event_receiver],
             cancel_task_token,
             state_machine: BacktestStrategyStateMachine::new(strategy_id, strategy_name, BacktestStrategyRunState::Created),
             all_node_output_handles: vec![],
             database,
             heartbeat,
             registered_tasks: Arc::new(RwLock::new(HashMap::new())),
-            command_publisher,
-            command_receiver,
+            // command_publisher,
+            // command_receiver,
             node_command_receiver: Arc::new(Mutex::new(None)),
             strategy_command_publisher: StrategyCommandPublisher::new(),
             total_signal_count: Arc::new(RwLock::new(0)),
@@ -211,15 +211,8 @@ impl BacktestStrategyContext {
         self.cancel_task_token.clone()
     }
 
-    pub fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
 
-    pub fn get_event_receivers(&self) -> &Vec<broadcast::Receiver<Event>> {
-        &self.event_receivers
-    }
-
-    pub fn get_command_receiver(&self) -> Arc<Mutex<Option<NodeCommandReceiver>>> {
+    pub fn get_node_command_receiver(&self) -> Arc<Mutex<Option<NodeCommandReceiver>>> {
         self.node_command_receiver.clone()
     }
 
@@ -284,12 +277,14 @@ impl BacktestStrategyContext {
                 KlineNodeEvent::KlineUpdate(kline_update_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::KlineUpdate(kline_update_event.clone());
                     // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 KlineNodeEvent::StateLog(log_event) => {
                     tracing::info!("kline-node-log: {:#?}", serde_json::to_string(&log_event).unwrap());
                     let backtest_strategy_event = BacktestStrategyEvent::NodeStartLog(log_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 _ => {}
             }
@@ -300,7 +295,8 @@ impl BacktestStrategyContext {
                 IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::IndicatorUpdate(indicator_update_event.clone());
                     // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 _ => {}
             }
@@ -311,43 +307,53 @@ impl BacktestStrategyContext {
             match futures_order_node_event {
                 FuturesOrderNodeEvent::FuturesOrderFilled(futures_order_filled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderFilled(futures_order_filled_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::FuturesOrderCreated(futures_order_created_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCreated(futures_order_created_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::TakeProfitOrderCreated(take_profit_order_created_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCreated(take_profit_order_created_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::StopLossOrderCreated(stop_loss_order_created_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCreated(stop_loss_order_created_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::TakeProfitOrderFilled(take_profit_order_filled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderFilled(take_profit_order_filled_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::StopLossOrderFilled(stop_loss_order_filled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderFilled(stop_loss_order_filled_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::StopLossOrderCanceled(stop_loss_order_canceled_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCanceled(stop_loss_order_canceled_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    //  let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 FuturesOrderNodeEvent::TransactionCreated(transaction_created_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::TransactionCreated(transaction_created_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
             }
         }
@@ -356,15 +362,18 @@ impl BacktestStrategyContext {
             match position_management_node_event {
                 PositionManagementNodeEvent::PositionCreated(position_created_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::PositionCreated(position_created_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 PositionManagementNodeEvent::PositionUpdated(position_updated_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::PositionUpdated(position_updated_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 PositionManagementNodeEvent::PositionClosed(position_closed_event) => { 
                     let backtest_strategy_event = BacktestStrategyEvent::PositionClosed(position_closed_event.clone());
-                    let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
             }
         }
@@ -376,7 +385,8 @@ impl BacktestStrategyContext {
             StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event) => {
                 // tracing::debug!("{}: 收到策略统计更新事件: {:?}", self.strategy_name, strategy_stats_updated_event);
                 let backtest_strategy_event = BacktestStrategyEvent::StrategyStatsUpdated(strategy_stats_updated_event);
-                let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
             }
         }
         Ok(())
@@ -651,7 +661,8 @@ impl BacktestStrategyContext {
         };
         let cache_engine_command = CacheEngineCommand::GetCacheLengthMulti(get_cache_length_params);
         // 向缓存引擎发送命令
-        self.command_publisher.send(cache_engine_command.into()).await.unwrap();
+        // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(cache_engine_command.into()).await.unwrap();
         let response = resp_rx.await.unwrap();
         if response.success() {
             let cache_engine_response = CacheEngineResponse::try_from(response);
@@ -690,6 +701,7 @@ impl BacktestStrategyContext {
             responder: resp_tx,
         });
         self.strategy_command_publisher.send(get_start_node_config_command).await.unwrap();
+        // EventCenterSingleton::send_command(get_start_node_config_command).await.unwrap();
         let response = resp_rx.await.unwrap();
         if response.code() == 0 {
             if let StrategyResponse::GetStartNodeConfig(get_start_node_config_response) = response {

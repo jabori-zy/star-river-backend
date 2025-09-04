@@ -15,8 +15,8 @@ impl BacktestStrategyFunction {
     pub async fn add_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: Value,
-        market_event_receiver: EventReceiver,
-        response_event_receiver: EventReceiver,
+        // market_event_receiver: EventReceiver,
+        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), BacktestStrategyNodeError> {
@@ -39,8 +39,8 @@ impl BacktestStrategyFunction {
                 Self::add_kline_node(
                     context,
                     node_config, 
-                    market_event_receiver, 
-                    response_event_receiver, 
+                    // market_event_receiver, 
+                    // response_event_receiver, 
                     node_command_sender,
                     strategy_inner_event_receiver,
                 ).await.unwrap();
@@ -52,7 +52,7 @@ impl BacktestStrategyFunction {
                 Self::add_indicator_node(
                     context, 
                     node_config, 
-                    response_event_receiver,
+                    // response_event_receiver,
                     node_command_sender, 
                     strategy_inner_event_receiver
                 ).await?;
@@ -75,7 +75,7 @@ impl BacktestStrategyFunction {
                 Self::add_futures_order_node(
                     context,
                     node_config, 
-                    response_event_receiver, 
+                    // response_event_receiver, 
                     node_command_sender, 
                     strategy_inner_event_receiver, 
                 ).await?;
@@ -86,7 +86,7 @@ impl BacktestStrategyFunction {
                 Self::add_position_management_node(
                     context,
                     node_config, 
-                    response_event_receiver,
+                    // response_event_receiver,
                     node_command_sender, 
                     strategy_inner_event_receiver,
                 ).await?;
@@ -100,7 +100,7 @@ impl BacktestStrategyFunction {
                 Self::add_variable_node(
                     context,
                     node_config, 
-                    response_event_receiver, 
+                    // response_event_receiver, 
                     node_command_sender, 
                     strategy_inner_event_receiver,
                 ).await?;

@@ -16,7 +16,7 @@ impl BacktestStrategyFunction {
     pub async fn add_variable_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        response_event_receiver: EventReceiver,
+        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), GetVariableNodeError> {
@@ -26,24 +26,24 @@ impl BacktestStrategyFunction {
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
 
         
-        let (event_publisher, command_publisher, command_receiver, heartbeat, virtual_trading_system, database, play_index_watch_rx) = {
+        let (heartbeat, virtual_trading_system, database, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
-            let event_publisher = strategy_context_guard.event_publisher.clone();
-            let command_publisher = strategy_context_guard.command_publisher.clone();
-            let command_receiver = strategy_context_guard.command_receiver.clone();
+            // let event_publisher = strategy_context_guard.event_publisher.clone();
+            // let command_publisher = strategy_context_guard.command_publisher.clone();
+            // let command_receiver = strategy_context_guard.command_receiver.clone();
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let database = strategy_context_guard.database.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (event_publisher, command_publisher, command_receiver, heartbeat, virtual_trading_system, database, play_index_watch_rx)
+            (heartbeat, virtual_trading_system, database, play_index_watch_rx)
         };
 
         let mut node = VariableNode::new(
             node_config,
-            event_publisher,
-            command_publisher,
-            command_receiver,
-            response_event_receiver,
+            // event_publisher,
+            // command_publisher,
+            // command_receiver,
+            // response_event_receiver,
             heartbeat,
             database,
             node_command_sender,

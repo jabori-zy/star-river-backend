@@ -7,6 +7,7 @@ use crate::StarRiver;
 use axum::extract::{State};
 use event_center::Channel;
 use async_stream::stream;
+use event_center::EventCenterSingleton;
 
 
 
@@ -42,8 +43,8 @@ use async_stream::stream;
 pub async fn account_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Account SSE连接成功");
 
-    let event_center = star_river.event_center.lock().await;
-    let account_event_receiver = event_center.subscribe(&Channel::Account).await.expect("订阅Account通道失败");
+    // let event_center = star_river.event_center.lock().await;
+    let account_event_receiver = EventCenterSingleton::subscribe(&Channel::Account).await.expect("订阅Account通道失败");
     
     // 使用 Guard 在连接断开时记录日志
     struct Guard {

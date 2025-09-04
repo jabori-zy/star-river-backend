@@ -30,10 +30,10 @@ pub struct IndicatorEngineContext {
     pub engine_name: EngineName,
     pub cache_engine: Arc<Mutex<CacheEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub event_publisher: EventPublisher,
-    pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
-    pub event_receiver: Vec<EventReceiver>,
+    // pub event_publisher: EventPublisher,
+    // pub command_publisher: CommandPublisher,
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    // pub event_receiver: Vec<EventReceiver>,
     pub subscribe_indicators: Arc<Mutex<HashMap<IndicatorSubKey, Vec<StrategyId>>>>, // 已订阅的指标
     
 }
@@ -43,13 +43,13 @@ impl Clone for IndicatorEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            event_publisher: self.event_publisher.clone(),
-            event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            // event_publisher: self.event_publisher.clone(),
+            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
             cache_engine: self.cache_engine.clone(),
             heartbeat: self.heartbeat.clone(),
             subscribe_indicators: self.subscribe_indicators.clone(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -75,21 +75,6 @@ impl EngineContext for IndicatorEngineContext {
         self.engine_name.clone()
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
-
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>> {
-        self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
-    }
-
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.command_publisher
-    }
-
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.command_receiver.clone()
-    }
 
     async fn handle_event(&mut self, event: Event) {
         if let Event::Exchange(exchange_event) = event {

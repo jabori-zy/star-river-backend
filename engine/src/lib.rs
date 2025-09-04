@@ -14,7 +14,8 @@ use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
 use types::custom_type::StrategyId;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
@@ -28,6 +29,8 @@ use event_center::{EventPublisher, CommandPublisher};
 use types::engine::EngineName;
 use event_center::CommandReceiver;
 use event_center::command::Command;
+use event_center::Channel;
+use event_center::EventCenterSingleton;
 
 
 #[async_trait]
@@ -40,13 +43,13 @@ pub trait EngineContext: Debug + Send + Sync + 'static {
 
     fn get_engine_name(&self) -> EngineName;
 
-    fn get_event_publisher(&self) -> &EventPublisher; 
+    // fn get_event_publisher(&self) -> &EventPublisher; 
 
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>>;
+    // fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>>;
 
-    fn get_command_publisher(&self) -> &CommandPublisher;
+    // fn get_command_publisher(&self) -> &CommandPublisher;
 
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>>;
+    // fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>>;
 
     async fn handle_event(&mut self, event: Event);
 
@@ -101,6 +104,31 @@ pub trait Engine : Debug + Send + Sync + 'static {
 }
 
 
+// 引擎事件接收器, 定义每个引擎应该接收哪些引擎的事件
+static ENGINE_EVENT_RECEIVERS: LazyLock<HashMap<EngineName, Vec<Channel>>> = LazyLock::new(|| {
+    HashMap::from([
+        (EngineName::CacheEngine, vec![Channel::Exchange]),
+        (EngineName::ExchangeEngine, vec![]),
+        (EngineName::MarketEngine, vec![]),
+        (EngineName::IndicatorEngine, vec![Channel::Exchange]),
+        (EngineName::StrategyEngine, vec![Channel::Market]),
+        (EngineName::AccountEngine, vec![Channel::Account]),
+    ])
+});
+
+pub struct EngineEventReceiver;
+
+impl EngineEventReceiver {
+    pub fn get_event_receivers(engine_name:&EngineName) -> Vec<Channel> {
+        ENGINE_EVENT_RECEIVERS.get(engine_name).cloned().unwrap_or_default()
+    }
+}
+
+
+
+
+
+
 pub struct EngineFunction;
 
 impl EngineFunction {
@@ -109,10 +137,18 @@ impl EngineFunction {
         let (engine_name, event_receivers) = {
             let context_guard = context.read().await;
             let engine_name = context_guard.get_engine_name();
-            let event_receivers : Vec<broadcast::Receiver<Event>>= context.read().await.get_event_receiver()
-            .iter()
-            .map(|r| r.resubscribe())
-            .collect();
+            let should_receive_channels = EngineEventReceiver::get_event_receivers(&engine_name);
+            
+            let mut event_receivers = Vec::new();
+            for channel in should_receive_channels.iter() {
+                let event_receiver = EventCenterSingleton::subscribe(channel).await.unwrap();
+                event_receivers.push(event_receiver);
+            }
+            
+            // let event_receivers : Vec<broadcast::Receiver<Event>>= context.read().await.get_event_receiver()
+            // .iter()
+            // .map(|r| r.resubscribe())
+            // .collect();
             (engine_name, event_receivers)
 
         };
@@ -155,7 +191,8 @@ impl EngineFunction {
         let (engine_name, command_receiver) = {
             let context_guard = context.read().await;
             let engine_name = context_guard.get_engine_name();
-            let command_receiver = context.read().await.get_command_receiver();
+            // let command_receiver = context.read().await.get_command_receiver();
+            let command_receiver = EventCenterSingleton::get_command_receiver(&engine_name).await.unwrap();
             (engine_name, command_receiver)
 
         };

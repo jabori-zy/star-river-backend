@@ -28,10 +28,10 @@ use snafu::{ResultExt, Report};
 pub struct ExchangeEngineContext {
     pub engine_name: EngineName,
     pub exchanges: HashMap<AccountId, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
-    pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<EventReceiver>,
-    pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    // pub event_publisher: EventPublisher,
+    // pub event_receiver: Vec<EventReceiver>,
+    // pub command_publisher: CommandPublisher,
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
 }
 
@@ -44,14 +44,14 @@ impl Clone for ExchangeEngineContext {
                 .iter()
                 .map(|(id, client)| (id.clone(), client.clone_box()))
                 .collect(),
-            event_publisher: self.event_publisher.clone(),
-            event_receiver: self
-                .event_receiver
-                .iter()
-                .map(|receiver| receiver.resubscribe())
-                .collect(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // event_publisher: self.event_publisher.clone(),
+            // event_receiver: self
+            //     .event_receiver
+            //     .iter()
+            //     .map(|receiver| receiver.resubscribe())
+            //     .collect(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
             database: self.database.clone(),
         }
     }
@@ -75,24 +75,6 @@ impl EngineContext for ExchangeEngineContext {
         self.engine_name.clone()
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
-
-    fn get_event_receiver(&self) -> Vec<EventReceiver> {
-        self.event_receiver
-            .iter()
-            .map(|receiver| receiver.resubscribe())
-            .collect()
-    }
-
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.command_publisher
-    }
-
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.command_receiver.clone()
-    }
 
     async fn handle_event(&mut self, event: Event) {
         let _event = event;
@@ -190,7 +172,7 @@ impl ExchangeEngineContext {
             password,
             server.clone(),
             terminal_path,
-            self.get_event_publisher().clone(),
+            // self.get_event_publisher().clone(),
         );
         
             match mt5.connect_to_server(8001).await {

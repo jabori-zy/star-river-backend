@@ -153,7 +153,7 @@ impl BacktestStrategyStateMachine {
                 })
             }
             // created => initializing
-            (BacktestStrategyRunState::CheckPassed, BacktestStrategyStateTransitionEvent::Initialize) => {
+            (BacktestStrategyRunState::Created, BacktestStrategyStateTransitionEvent::Initialize) => {
                 self.current_state = BacktestStrategyRunState::Initializing;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Initializing,

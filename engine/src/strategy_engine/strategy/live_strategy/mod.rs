@@ -1,6 +1,6 @@
-pub mod live_strategy_context;
-pub mod live_strategy_state_machine;
-pub mod live_strategy_function;
+// pub mod live_strategy_context;
+// pub mod live_strategy_state_machine;
+// pub mod live_strategy_function;
 
 
 use std::sync::Arc;
@@ -40,11 +40,11 @@ pub struct LiveStrategy {
 impl LiveStrategy {
     pub async fn new(
         strategy: StrategyConfig,
-        event_publisher: EventPublisher, 
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
-        market_event_receiver: EventReceiver, 
-        response_event_receiver: EventReceiver,
+        // event_publisher: EventPublisher, 
+        // command_publisher: CommandPublisher,
+        // command_receiver: Arc<Mutex<CommandReceiver>>,
+        // market_event_receiver: EventReceiver, 
+        // response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
@@ -90,11 +90,11 @@ impl LiveStrategy {
                         &mut node_indices, 
                         &mut cache_keys,
                         node_config, 
-                        event_publisher.clone(), 
-                        command_publisher.clone(),
-                        command_receiver.clone(),
-                        market_event_receiver.resubscribe(), 
-                        response_event_receiver.resubscribe(),
+                        // event_publisher.clone(), 
+                        // command_publisher.clone(),
+                        // command_receiver.clone(),
+                        // market_event_receiver.resubscribe(), 
+                        // response_event_receiver.resubscribe(),
                         exchange_engine.clone(),
                         database.clone(),
                         heartbeat.clone(),

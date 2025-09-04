@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use types::cache::CacheValue;
 use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 use chrono::Utc;
-use event_center::Event;
+use event_center::{Event, EventCenterSingleton};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use types::strategy::node_event::BacktestNodeEvent;
 use event_center::response::Response;
@@ -481,7 +481,8 @@ impl FuturesOrderNodeContext {
             };
             let get_cache_command = CacheEngineCommand::GetCache(get_cache_params);
 
-            self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+            // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+            EventCenterSingleton::send_command(get_cache_command.into()).await.unwrap();
 
             let reponse = rx.await.unwrap();
             match reponse {

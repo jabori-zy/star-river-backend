@@ -1,6 +1,4 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use event_center::EventPublisher;
+use event_center::EventCenterSingleton;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
 use types::market::{Kline, Exchange, MT5Server};
 use types::position::PositionNumber;
@@ -22,15 +20,17 @@ use types::market::Symbol;
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
     server: MT5Server,
-    event_publisher: Arc<Mutex<EventPublisher>>,
+    // event_publisher: Arc<Mutex<EventPublisher>>,
 
 }
 
 
 impl Mt5DataProcessor {
-    pub fn new(event_publisher: Arc<Mutex<EventPublisher>>, server: MT5Server) -> Self {
+    pub fn new(
+        // event_publisher: Arc<Mutex<EventPublisher>>, 
+        server: MT5Server) -> Self {
         Self {
-            event_publisher,
+            // event_publisher,
             server,
         }
     }
@@ -122,7 +122,8 @@ impl Mt5DataProcessor {
 
         let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event).into();
         
-        self.event_publisher.lock().await.publish(event).await.unwrap();
+        // self.event_publisher.lock().await.publish(event).await.unwrap();
+        EventCenterSingleton::publish(event).await.unwrap();
 
         Ok(())
     }

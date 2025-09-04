@@ -11,7 +11,6 @@ use types::custom_type::*;
 use types::position::virtual_position::VirtualPosition;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::order::virtual_order::VirtualOrder;
-use event_center::CommandPublisher;
 use tokio::sync::oneshot;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
@@ -25,6 +24,7 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 use types::market::Kline;
 use tokio::sync::broadcast;
+use event_center::EventCenterSingleton;
 
 /// 虚拟交易系统
 /// 
@@ -32,7 +32,7 @@ use tokio::sync::broadcast;
 pub struct VirtualTradingSystem {
     timestamp: i64, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
-    pub command_publisher: CommandPublisher, // 命令发布者
+    // pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub event_receiver: VirtualTradingSystemEventReceiver, // 事件接收器
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
@@ -71,7 +71,6 @@ pub struct VirtualTradingSystem {
 // 虚拟交易系统get方法
 impl VirtualTradingSystem {
     pub fn new(
-        command_publisher: CommandPublisher,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
 
@@ -94,7 +93,6 @@ impl VirtualTradingSystem {
             history_positions: vec![],
             orders: vec![],
             transactions: vec![],
-            command_publisher,
             event_publisher: virtual_trading_system_event_tx,
             event_receiver: virtual_trading_system_event_rx,
             play_index_watch_rx,
@@ -337,7 +335,8 @@ impl VirtualTradingSystem {
             };
 
             let get_cache_command = CacheEngineCommand::GetCache(params);
-            self.command_publisher.send(get_cache_command.into()).await.unwrap();
+            // self.command_publisher.send(get_cache_command.into()).await.unwrap();
+            EventCenterSingleton::send_command(get_cache_command.into()).await.unwrap();
     
             // 等待响应
             let response = resp_rx.await.unwrap();

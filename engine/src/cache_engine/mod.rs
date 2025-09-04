@@ -50,18 +50,18 @@ impl Engine for CacheEngine {
 
 impl CacheEngine {
     pub fn new(
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: CommandReceiver,
-        exchange_event_receiver: EventReceiver,
+        // event_publisher: EventPublisher,
+        // command_publisher: CommandPublisher,
+        // command_receiver: CommandReceiver,
+        // exchange_event_receiver: EventReceiver,
     ) -> Self {
         let context = CacheEngineContext {
             engine_name: EngineName::CacheEngine,
-            event_publisher,
-            event_receiver: vec![exchange_event_receiver],
+            // event_publisher,
+            // event_receiver: vec![exchange_event_receiver],
             cache: Arc::new(RwLock::new(HashMap::new())),
-            command_publisher,
-            command_receiver: Arc::new(Mutex::new(command_receiver)),
+            // command_publisher,
+            // command_receiver: Arc::new(Mutex::new(command_receiver)),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

@@ -6,6 +6,11 @@ use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use super::node_context::{LiveNodeContextTrait, BacktestNodeContextTrait};
+use crate::{strategy_engine::node::node_types::NodeType, EngineName};
+use std::collections::HashMap;
+use std::sync::LazyLock;
+use event_center::Channel;
+use event_center::EventCenterSingleton;
 
 pub struct LiveNodeFunction;
 
@@ -137,6 +142,31 @@ impl LiveNodeFunction {
 
 
 
+static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> = LazyLock::new(|| {
+    HashMap::from([
+        (NodeType::StartNode, vec![]),
+        (NodeType::KlineNode, vec![Channel::Market]),
+        (NodeType::IndicatorNode, vec![]),
+        (NodeType::IfElseNode, vec![]),
+        (NodeType::FuturesOrderNode, vec![]),
+        (NodeType::PositionNode, vec![]),
+        (NodeType::PositionManagementNode, vec![]),
+        (NodeType::GetVariableNode, vec![]),
+        (NodeType::OrderNode, vec![]),
+        (NodeType::VariableNode, vec![]),
+    ])
+});
+
+pub struct BacktestNodeEventReceiver;
+
+impl BacktestNodeEventReceiver {
+    pub fn get_backtest_node_event_receivers(node_type: &NodeType) -> Vec<Channel> {
+        BACKTEST_NODE_EVENT_RECEIVERS.get(node_type).cloned().unwrap_or_default()
+    }
+}
+
+
+
 
 pub struct BacktestNodeFunction;
 
@@ -146,13 +176,23 @@ impl BacktestNodeFunction {
         let (event_receivers, cancel_token, node_id) = {
             // let state_guard = state.read().await;
             // 这里需要深度克隆接收器，而不是克隆引用
-            let event_receivers : Vec<broadcast::Receiver<Event>> = context.read().await.get_event_receivers()
-            .iter()
-            .map(|r| r.resubscribe())
-            .collect();
+            // let event_receivers : Vec<broadcast::Receiver<Event>> = context.read().await.get_event_receivers()
+            // .iter()
+            // .map(|r| r.resubscribe())
+            // .collect();
+            let context_guard = context.read().await;
 
-            let cancel_token = context.read().await.get_cancel_token().clone();
-            let node_id = context.read().await.get_node_id().to_string();
+            let cancel_token = context_guard.get_cancel_token().clone();
+            let node_id = context_guard.get_node_id().to_string();
+            let node_type = context_guard.get_node_type();
+            let should_receive_channels = BacktestNodeEventReceiver::get_backtest_node_event_receivers(node_type);
+            
+            let mut event_receivers = Vec::new();
+            for channel in should_receive_channels.iter() {
+                let event_receiver = EventCenterSingleton::subscribe(channel).await.unwrap();
+                event_receivers.push(event_receiver);
+            }
+
             (event_receivers, cancel_token, node_id)
         };
 

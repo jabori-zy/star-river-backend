@@ -30,21 +30,21 @@ use tracing::instrument;
 pub struct CacheEngineContext {
     pub engine_name: EngineName,
     pub cache: Arc<RwLock<HashMap<Key, CacheEntry>>>,
-    pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<EventReceiver>,
-    pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    // pub event_publisher: EventPublisher,
+    // pub event_receiver: Vec<EventReceiver>,
+    // pub command_publisher: CommandPublisher,
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
 }
 
 impl Clone for CacheEngineContext {
     fn clone(&self) -> Self {
         Self {
             cache: self.cache.clone(),
-            event_publisher: self.event_publisher.clone(),
-            event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            // event_publisher: self.event_publisher.clone(),
+            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
             engine_name: self.engine_name.clone(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -68,21 +68,6 @@ impl EngineContext for CacheEngineContext {
         self.engine_name.clone()
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
-
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>> {
-        self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
-    }
-
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.command_publisher
-    }
-
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.command_receiver.clone()
-    }
 
     async fn handle_event(&mut self, event: Event) {
         match event {

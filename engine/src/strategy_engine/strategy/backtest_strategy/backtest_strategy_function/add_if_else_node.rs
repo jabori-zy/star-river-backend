@@ -22,20 +22,20 @@ impl BacktestStrategyFunction {
         tracing::info!("start to add if else node.");
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
             
-        let (event_publisher, command_publisher, command_receiver, play_index_watch_rx) = {
+        let (play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
-            let event_publisher = strategy_context_guard.event_publisher.clone();
-            let command_publisher = strategy_context_guard.command_publisher.clone();
-            let command_receiver = strategy_context_guard.command_receiver.clone();
+            // let event_publisher = strategy_context_guard.event_publisher.clone();
+            // let command_publisher = strategy_context_guard.command_publisher.clone();
+            // let command_receiver = strategy_context_guard.command_receiver.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (event_publisher, command_publisher, command_receiver, play_index_watch_rx)
+            (play_index_watch_rx)
         };
 
         let mut node = IfElseNode::new(
             node_config, 
-            event_publisher,
-            command_publisher,
-            command_receiver,
+            // event_publisher,
+            // command_publisher,
+            // command_receiver,
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,

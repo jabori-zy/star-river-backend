@@ -63,20 +63,20 @@ impl Engine for AccountEngine {
 
 impl AccountEngine {
     pub fn new(
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: CommandReceiver,
-        account_event_receiver: EventReceiver,
+        // event_publisher: EventPublisher,
+        // command_publisher: CommandPublisher,
+        // command_receiver: CommandReceiver,
+        // account_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let context = AccountEngineContext {
             engine_name: EngineName::AccountEngine,
-            event_publisher,
-            event_receiver: vec![account_event_receiver],
-            command_publisher,
-            command_receiver: Arc::new(Mutex::new(command_receiver)),
+            // event_publisher,
+            // event_receiver: vec![account_event_receiver],
+            // command_publisher,
+            // command_receiver: Arc::new(Mutex::new(command_receiver)),
             exchange_engine,
             database,
             heartbeat,

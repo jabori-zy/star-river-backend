@@ -172,7 +172,7 @@ pub struct MetaTrader5 {
     websocket_state: Arc<Mutex<Option<WebSocketState>>>,
     data_processor: Arc<Mutex<Mt5DataProcessor>>,
     is_process_stream: Arc<AtomicBool>,
-    event_publisher: Arc<Mutex<EventPublisher>>,
+    // event_publisher: Arc<Mutex<EventPublisher>>,
     mt5_process: Arc<Mutex<Option<Child>>>,
     exe_path: Arc<Mutex<Option<PathBuf>>>,
 }
@@ -185,9 +185,9 @@ impl MetaTrader5 {
         password: String,
         server: String,
         terminal_path: String,
-        event_publisher: EventPublisher
+        // event_publisher: EventPublisher
     ) -> Self {
-        let event_publisher = Arc::new(Mutex::new(event_publisher));
+        // let event_publisher = Arc::new(Mutex::new(event_publisher));
 
 
         Self {
@@ -201,8 +201,8 @@ impl MetaTrader5 {
             mt5_http_client: Arc::new(Mutex::new(None)),
             websocket_state: Arc::new(Mutex::new(None)),
             is_process_stream: Arc::new(AtomicBool::new(false)),
-            event_publisher: event_publisher.clone(),
-            data_processor: Arc::new(Mutex::new(Mt5DataProcessor::new(event_publisher, server))),
+            // event_publisher: event_publisher.clone(),
+            data_processor: Arc::new(Mutex::new(Mt5DataProcessor::new(server))),
             mt5_process: Arc::new(Mutex::new(None)),
             exe_path: Arc::new(Mutex::new(None)),
         }

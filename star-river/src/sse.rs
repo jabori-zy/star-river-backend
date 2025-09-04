@@ -19,15 +19,17 @@ use event_center::Channel;
 use async_stream::stream;
 use event_center::strategy_event::StrategyEvent;
 use event_center::Event as EventCenterEvent;
+use event_center::EventCenterSingleton;
 
 pub async fn market_sse_handler(
     State(star_river): State<StarRiver>
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Market SSE连接成功");
 
-    let event_center = star_river.event_center.lock().await;
+    // let event_center = star_river.event_center.lock().await;
 
-    let market_event_receiver = event_center.subscribe(&Channel::Market).await.expect("订阅Market通道失败");
+    // let market_event_receiver = event_center.subscribe(&Channel::Market).await.expect("订阅Market通道失败");
+    let market_event_receiver = EventCenterSingleton::subscribe(&Channel::Market).await.expect("订阅Market通道失败");
 
     let stream = tokio_stream::wrappers::BroadcastStream::new(market_event_receiver)
     .map(|result| {
@@ -55,9 +57,10 @@ pub async fn indicator_sse_handler(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Indicator SSE连接成功");
 
-    let event_center = star_river.event_center.lock().await;
+    // let event_center = star_river.event_center.lock().await;
+    let indicator_event_receiver = EventCenterSingleton::subscribe(&Channel::Indicator).await.expect("订阅Indicator通道失败");
 
-    let indicator_event_receiver = event_center.subscribe(&Channel::Indicator).await.expect("订阅Indicator通道失败");
+    // let indicator_event_receiver = event_center.subscribe(&Channel::Indicator).await.expect("订阅Indicator通道失败");
 
     let stream = tokio_stream::wrappers::BroadcastStream::new(indicator_event_receiver)
     .map(|result| {
@@ -95,9 +98,10 @@ pub async fn live_strategy_sse_handler(
     tracing::info!("Strategy SSE连接成功: {}", query.strategy_id);
     let strategy_id = query.strategy_id;
 
-    let event_center = star_river.event_center.lock().await;
+    // let event_center = star_river.event_center.lock().await;
+    let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
 
-    let strategy_event_receiver = event_center.subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
+    // let strategy_event_receiver = event_center.subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
     // 使用 Guard 在连接断开时记录日志
     struct Guard {
         channel_name: &'static str,

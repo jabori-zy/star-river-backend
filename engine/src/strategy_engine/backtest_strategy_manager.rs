@@ -27,11 +27,11 @@ impl StrategyEngineContext {
         let strategy_info: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
         let strategy_list = self.backtest_strategy_list.clone();
-        let event_publisher = self.event_publisher.clone();
-        let command_publisher = self.command_publisher.clone();
-        let command_receiver = self.command_receiver.clone();
-        let market_event_receiver = self.market_event_receiver.resubscribe();
-        let response_event_receiver = self.response_event_receiver.resubscribe();
+        // let event_publisher = self.event_publisher.clone();
+        // let command_publisher = self.command_publisher.clone();
+        // let command_receiver = self.command_receiver.clone();
+        // let market_event_receiver = self.market_event_receiver.resubscribe();
+        // let response_event_receiver = self.response_event_receiver.resubscribe();
         let database = self.database.clone();
         let heartbeat = self.heartbeat.clone();
 
@@ -41,16 +41,16 @@ impl StrategyEngineContext {
 
                 let mut strategy = BacktestStrategy::new(
                     strategy_info,
-                    event_publisher.clone(),
-                    command_publisher,
-                    command_receiver,
-                    response_event_receiver.resubscribe(),
+                    // event_publisher.clone(),
+                    // command_publisher,
+                    // command_receiver,
+                    // response_event_receiver.resubscribe(),
                     database,
                     heartbeat
                 ).await;
                 strategy.add_node(
-                    market_event_receiver,
-                    response_event_receiver,
+                    // market_event_receiver,
+                    // response_event_receiver,
                 ).await?;
                 strategy.add_edge().await?;
                 strategy.set_leaf_nodes().await?;

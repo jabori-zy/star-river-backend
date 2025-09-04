@@ -6,12 +6,13 @@ use std::sync::Arc;
 use axum::extract::State;
 use engine::engine_manager::EngineManager;
 use tracing::instrument;
+use event_center::EventCenterSingleton;
 
 
 #[derive(Clone, Debug)]
 pub struct StarRiver {
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub event_center: Arc<Mutex<EventCenter>>,
+    // pub event_center: Arc<Mutex<EventCenter>>,
     pub database: Arc<Mutex<DatabaseManager>>,
     pub engine_manager: Arc<Mutex<EngineManager>>,
 }
@@ -22,21 +23,22 @@ impl StarRiver {
         // 系统心跳间隔为100毫秒
         let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100))); 
         
-        let mut event_center = EventCenter::new().init_channel().await;
+        // let mut event_center = EventCenter::new().init_channel().await;
+        EventCenterSingleton::init().await.unwrap();
         // 初始化数据库
 
         let database = DatabaseManager::new().await;
 
         // 初始化引擎管理器
         let engine_manager = EngineManager::new(
-            &mut event_center,
+            // &mut event_center,
             database.get_conn(),
             heartbeat.clone()
         ).await;
 
         Self {
             heartbeat: heartbeat.clone(),
-            event_center: Arc::new(Mutex::new(event_center)),
+            // event_center: Arc::new(Mutex::new(event_center)),
             database: Arc::new(Mutex::new(database)),
             engine_manager: Arc::new(Mutex::new(engine_manager)),
         }

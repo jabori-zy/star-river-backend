@@ -1,18 +1,14 @@
 use std::fmt::Debug;
 use std::any::Any;
-use uuid::Uuid;
 use async_trait::async_trait;
-use event_center::Event;
+use event_center::{Event, EventCenterSingleton};
 use event_center::command::Command;
-use event_center::response::Response;
-use event_center::response::indicator_engine_response::IndicatorEngineResponse;
-use event_center::command::indicator_engine_command::{IndicatorEngineCommand, RegisterIndicatorParams};
+use event_center::command::indicator_engine_command::IndicatorEngineCommand;
 use utils::get_utc8_timestamp_millis;
 use types::strategy::node_event::{IndicatorUpdateEvent, BacktestNodeEvent, IndicatorNodeEvent};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use event_center::command::cache_engine_command::{AddCacheKeyParams, CacheEngineCommand, GetCacheParams};
 use event_center::command::indicator_engine_command::CalculateBacktestIndicatorParams;
@@ -23,13 +19,9 @@ use event_center::response::ResponseTrait;
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use types::cache::key::{IndicatorKey, KlineKey};
 use tokio::time::Duration;
-use types::indicator::IndicatorConfig;
-use types::indicator::Indicator;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::strategy::node_event::SignalEvent;
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
@@ -234,7 +226,8 @@ impl IndicatorNodeContext {
                 responder: resp_tx,
             };
             let register_indicator_command = Command::CacheEngine(CacheEngineCommand::AddCacheKey(register_indicator_params));
-            self.get_command_publisher().send(register_indicator_command).await.unwrap();
+            // self.get_command_publisher().send(register_indicator_command).await.unwrap();
+            EventCenterSingleton::send_command(register_indicator_command).await.unwrap();
             let response = resp_rx.await.unwrap();
             if !response.success() {
                 is_all_success = false;
@@ -261,7 +254,8 @@ impl IndicatorNodeContext {
         };
     
         let get_cache_command = CacheEngineCommand::GetCache(params);
-        self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+        // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(get_cache_command.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
@@ -295,7 +289,8 @@ impl IndicatorNodeContext {
                 responder: resp_tx,
             };
             let calculate_indicator_command = Command::IndicatorEngine(IndicatorEngineCommand::CalculateBacktestIndicator(params));
-            self.get_command_publisher().send(calculate_indicator_command).await.unwrap();
+            // self.get_command_publisher().send(calculate_indicator_command).await.unwrap();
+            EventCenterSingleton::send_command(calculate_indicator_command).await.unwrap();
             let response = resp_rx.await.unwrap();
             if !response.success() {
                 is_all_success = false;

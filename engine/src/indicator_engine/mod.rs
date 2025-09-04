@@ -51,19 +51,19 @@ impl IndicatorEngine {
     pub fn new(
         heartbeat: Arc<Mutex<Heartbeat>>,
         cache_engine: Arc<Mutex<CacheEngine>>,
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: CommandReceiver,
-        exchange_event_receiver: broadcast::Receiver<Event>
+        // event_publisher: EventPublisher,
+        // command_publisher: CommandPublisher,
+        // command_receiver: CommandReceiver,
+        // exchange_event_receiver: broadcast::Receiver<Event>
     ) -> Self {
         let context = IndicatorEngineContext {
             heartbeat,
             cache_engine,
             engine_name: EngineName::IndicatorEngine,
-            event_publisher,
-            command_publisher,
-            command_receiver: Arc::new(Mutex::new(command_receiver)),
-            event_receiver: vec![exchange_event_receiver],
+            // event_publisher,
+            // command_publisher,
+            // command_receiver: Arc::new(Mutex::new(command_receiver)),
+            // event_receiver: vec![exchange_event_receiver],
             subscribe_indicators: Arc::new(Mutex::new(HashMap::new())),
         };
         Self {

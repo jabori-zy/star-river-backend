@@ -256,20 +256,20 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         self.get_base_context().is_leaf_node
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.get_base_context().event_publisher
-    }
+    // fn get_event_publisher(&self) -> &EventPublisher {
+    //     &self.get_base_context().event_publisher
+    // }
 
-    fn get_event_receivers(&self) -> &Vec<EventReceiver> {
-        &self.get_base_context().event_receivers
-    }
+    // fn get_event_receivers(&self) -> &Vec<EventReceiver> {
+    //     &self.get_base_context().event_receivers
+    // }
 
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.get_base_context().command_publisher
-    }
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.get_base_context().command_receiver.clone()
-    }
+    // fn get_command_publisher(&self) -> &CommandPublisher {
+    //     &self.get_base_context().command_publisher
+    // }
+    // fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+    //     self.get_base_context().command_receiver.clone()
+    // }
     
     fn get_node_command_sender(&self) -> &NodeCommandSender {
         &self.get_base_context().node_command_sender
@@ -393,10 +393,10 @@ pub struct BacktestBaseNodeContext {
     pub node_name: String,
     is_leaf_node: bool, // 是否是叶子节点
     pub cancel_token: CancellationToken,
-    pub event_publisher: EventPublisher,
-    pub event_receivers:Vec<EventReceiver>, // 事件接收器
-    pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    // pub event_publisher: EventPublisher,
+    // pub event_receivers:Vec<EventReceiver>, // 事件接收器
+    // pub command_publisher: CommandPublisher,
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub input_handles: Vec<NodeInputHandle>, // 节点事件接收器
     pub output_handles: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
@@ -417,15 +417,15 @@ impl Clone for BacktestBaseNodeContext {
             node_name: self.node_name.clone(),
             is_leaf_node: self.is_leaf_node.clone(),
             cancel_token: self.cancel_token.clone(),
-            event_publisher: self.event_publisher.clone(),
+            // event_publisher: self.event_publisher.clone(),
             input_handles: self.input_handles.clone(),
-            event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
+            // event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
             output_handles: self.output_handles.clone(),
             is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),
             from_node_id: self.from_node_id.clone(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
             node_command_sender: self.node_command_sender.clone(),
             strategy_inner_event_receiver: self.strategy_inner_event_receiver.resubscribe(),
             strategy_command_receiver: self.strategy_command_receiver.clone(),
@@ -440,10 +440,10 @@ impl BacktestBaseNodeContext {
         node_id: String, 
         node_name: String,
         node_type: NodeType,
-        event_publisher: EventPublisher,
-        event_receivers: Vec<EventReceiver>,
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
+        // event_publisher: EventPublisher,
+        // event_receivers: Vec<EventReceiver>,
+        // command_publisher: CommandPublisher,
+        // command_receiver: Arc<Mutex<CommandReceiver>>,
         state_machine: Box<dyn BacktestNodeStateMachine>,
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
@@ -457,13 +457,13 @@ impl BacktestBaseNodeContext {
             node_type,
             is_leaf_node: false,
             output_handles: HashMap::new(), 
-            event_publisher,
+            // event_publisher,
             is_enable_event_publish: false, 
             cancel_token: CancellationToken::new(), 
             input_handles: Vec::new(),
-            event_receivers,
-            command_publisher,
-            command_receiver,
+            // event_receivers,
+            // command_publisher,
+            // command_receiver,
             state_machine,
             from_node_id: Vec::new(),
             node_command_sender,

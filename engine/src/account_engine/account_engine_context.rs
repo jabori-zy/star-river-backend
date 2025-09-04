@@ -24,14 +24,15 @@ use event_center::command::exchange_engine_command::UnregisterExchangeParams;
 use event_center::command::exchange_engine_command::RegisterExchangeParams;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
+use event_center::EventCenterSingleton;
 
 #[derive(Debug)]
 pub struct AccountEngineContext {
     pub engine_name: EngineName,
-    pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<EventReceiver>,
-    pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    // pub event_publisher: EventPublisher,
+    // pub event_receiver: Vec<EventReceiver>,
+    // pub command_publisher: CommandPublisher,
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
@@ -42,10 +43,10 @@ impl Clone for AccountEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            event_publisher: self.event_publisher.clone(),
-            event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // event_publisher: self.event_publisher.clone(),
+            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
             database: self.database.clone(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
@@ -71,22 +72,6 @@ impl EngineContext for AccountEngineContext {
 
     fn get_engine_name(&self) -> EngineName {
         self.engine_name.clone()
-    }
-
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
-
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>> {
-        self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
-    }
-
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.command_publisher
-    }
-
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.command_receiver.clone()
     }
 
     async fn handle_event(&mut self, event: Event) {
@@ -135,7 +120,8 @@ impl AccountEngineContext {
             responder: resp_tx,
         };
         let command_event = ExchangeEngineCommand::UnregisterExchange(unregister_params);
-        self.get_command_publisher().send(command_event.into()).await.unwrap();
+        // self.get_command_publisher().send(command_event.into()).await.unwrap();
+        EventCenterSingleton::send_command(command_event.into()).await.unwrap();
 
     }
 
@@ -162,7 +148,7 @@ impl AccountEngineContext {
 
         let accounts = self.monitor_account_list.clone();
         let exchange_engine = self.exchange_engine.clone();
-        let event_publisher = self.event_publisher.clone();
+        // let event_publisher = self.event_publisher.clone();
         let database = self.database.clone();
         let mut heartbeat = self.heartbeat.lock().await;
         heartbeat.register_async_task(
@@ -170,12 +156,12 @@ impl AccountEngineContext {
             move || {
                 let accounts = accounts.clone();
                 let exchange_engine = exchange_engine.clone();
-                let event_publisher = event_publisher.clone();
+                // let event_publisher = event_publisher.clone();
                 async move {
                     Self::process_exchange_status(
                         accounts,
                         exchange_engine,
-                        event_publisher,
+                        // event_publisher,
                     ).await
                 }
             },
@@ -184,20 +170,20 @@ impl AccountEngineContext {
 
         let accounts = self.monitor_account_list.clone();
         let exchange_engine = self.exchange_engine.clone();
-        let event_publisher = self.event_publisher.clone();
+        // let event_publisher = self.event_publisher.clone();
         let database = self.database.clone();
         heartbeat.register_async_task(
             "监控账户信息".to_string(),
             move || {
                 let accounts = accounts.clone();
                 let exchange_engine = exchange_engine.clone();
-                let event_publisher = event_publisher.clone();
+                // let event_publisher = event_publisher.clone();
                 let database = database.clone();
                 async move {
                     Self::process_account_info(
                         accounts,
                         exchange_engine,
-                        event_publisher,
+                        // event_publisher,
                         database,
                     ).await
                 }
@@ -209,7 +195,11 @@ impl AccountEngineContext {
     }
 
     // 监控账户的交易所状态
-    async fn process_exchange_status(accounts: Arc<RwLock<Vec<Account>>>, exchange_engine: Arc<Mutex<ExchangeEngine>>, event_publisher: EventPublisher) {
+    async fn process_exchange_status(
+        accounts: Arc<RwLock<Vec<Account>>>, 
+        exchange_engine: Arc<Mutex<ExchangeEngine>>, 
+        // event_publisher: EventPublisher
+    ) {
         
         let accounts_clone = {
             let accounts = accounts.read().await;
@@ -259,7 +249,7 @@ impl AccountEngineContext {
     async fn process_account_info(
         accounts: Arc<RwLock<Vec<Account>>>, 
         exchange_engine: Arc<Mutex<ExchangeEngine>>, 
-        event_publisher: EventPublisher,
+        // event_publisher: EventPublisher,
         database: DatabaseConnection
     ) {
         let accounts_clone = {
@@ -295,7 +285,8 @@ impl AccountEngineContext {
                                     accounts[index].set_account_info(account_info);
                                     // 3.发布账户已更新事件
                                     let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                                    event_publisher.publish(account_updated_event.into()).await.unwrap();
+                                    // event_publisher.publish(account_updated_event.into()).await.unwrap();
+                                    EventCenterSingleton::publish(account_updated_event.into()).await.unwrap();
                                 }
                                 Err(e) => {
                                     let mut accounts = accounts.write().await;
@@ -322,7 +313,8 @@ impl AccountEngineContext {
                         Exchange::Metatrader5(_) => {
                             // 发布账户已更新事件
                             let account_updated_event = AccountEvent::AccountUpdated(account.clone());
-                            event_publisher.publish(account_updated_event.into()).await.unwrap();
+                            // event_publisher.publish(account_updated_event.into()).await.unwrap();
+                            EventCenterSingleton::publish(account_updated_event.into()).await.unwrap();
                         }
                         _ => {}
                     }
@@ -346,7 +338,8 @@ impl AccountEngineContext {
             responder: resp_tx,
         };
         let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_params);
-        self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
+        // self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(register_exchange_command.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();

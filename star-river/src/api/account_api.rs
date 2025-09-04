@@ -16,6 +16,7 @@ use axum::extract::{Query, Path};
 use std::str::FromStr;
 use database::query::account_config_query::AccountConfigQuery;
 use strum::{EnumString, Display};
+use event_center::EventCenterSingleton;
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -210,10 +211,11 @@ pub async fn add_account_config(
         Ok(account_config) => {
             // 添加成功之后，发布账户配置已添加事件
             tracing::info!("添加账户配置成功: {:?}", account_config);
-            let event_center = star_river.event_center.lock().await;
-            let event_publisher = event_center.get_event_publisher();
+            // let event_center = star_river.event_center.lock().await;
+            // let event_publisher = EventCenterSingleton::publisher().await.unwrap();
+            // let event_publisher = event_center.get_event_publisher();
             let event = Event::Account(AccountEvent::AccountConfigAdded(account_config.id));
-            event_publisher.publish(event).await.unwrap();
+            EventCenterSingleton::publish(event).await.unwrap();
 
             (
             StatusCode::OK,
@@ -258,10 +260,11 @@ pub async fn delete_account_config(
     match AccountConfigMutation::delete_account_config(conn, account_id).await {
         Ok(_) => {
             // 删除成功之后，发布账户配置已删除事件
-            let event_center = star_river.event_center.lock().await;
-            let event_publisher = event_center.get_event_publisher();
+            // let event_center = star_river.event_center.lock().await;
+            // let event_publisher = event_center.get_event_publisher();
+            let event_publisher = EventCenterSingleton::publisher().await.unwrap();
             let event = Event::Account(AccountEvent::AccountConfigDeleted(account_id));
-            event_publisher.publish(event).await.unwrap();
+            EventCenterSingleton::publish(event).await.unwrap();
 
             (
             StatusCode::OK,
@@ -336,10 +339,11 @@ pub async fn update_account_config(
     ).await {
         Ok(account_config) => {
             // 更新成功之后，发布账户配置已更新事件
-            let event_center = star_river.event_center.lock().await;
-            let event_publisher = event_center.get_event_publisher();
+            // let event_center = star_river.event_center.lock().await;
+            // let event_publisher = event_center.get_event_publisher();
+            let event_publisher = EventCenterSingleton::publisher().await.unwrap();
             let event = Event::Account(AccountEvent::AccountConfigUpdated(account_config.clone()));
-            event_publisher.publish(event).await.unwrap();
+            EventCenterSingleton::publish(event).await.unwrap();
 
             (
             StatusCode::OK,
@@ -397,10 +401,11 @@ pub async fn update_account_is_available(
     match AccountConfigMutation::update_account_config_is_available(conn, account_id, query.is_available).await {
         Ok(account_config) => {
             // 更新成功之后，发布账户配置已更新事件
-            let event_center = star_river.event_center.lock().await;
-            let event_publisher = event_center.get_event_publisher();
+            // let event_center = star_river.event_center.lock().await;
+            // let event_publisher = event_center.get_event_publisher();
+            // let event_publisher = EventCenterSingleton::publisher().await.unwrap();
             let event = Event::Account(AccountEvent::AccountConfigUpdated(account_config.clone()));
-            event_publisher.publish(event).await.unwrap();
+            EventCenterSingleton::publish(event).await.unwrap();
 
             (
             StatusCode::OK,

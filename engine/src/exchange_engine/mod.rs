@@ -48,19 +48,19 @@ impl Engine for ExchangeEngine {
 
 impl ExchangeEngine {
     pub fn new(
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: CommandReceiver,
+        // event_publisher: EventPublisher,
+        // command_publisher: CommandPublisher,
+        // command_receiver: CommandReceiver,
         database: DatabaseConnection,
     ) -> Self {
         let context = ExchangeEngineContext {
             engine_name: EngineName::ExchangeEngine,
             exchanges: HashMap::new(),
-            event_publisher,
-            event_receiver: vec![],
+            // event_publisher,
+            // event_receiver: vec![],
             database,
-            command_publisher,
-            command_receiver: Arc::new(Mutex::new(command_receiver)),
+            // command_publisher,
+            // command_receiver: Arc::new(Mutex::new(command_receiver)),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

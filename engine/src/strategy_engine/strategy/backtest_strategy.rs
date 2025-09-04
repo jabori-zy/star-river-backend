@@ -42,6 +42,7 @@ use event_center::strategy_event::backtest_strategy_event::{BacktestStrategyEven
 use utils::get_utc8_timestamp_millis;
 use snafu::{Report, ResultExt, IntoError};
 use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use event_center::EventCenterSingleton;
 
 
 
@@ -54,22 +55,22 @@ pub struct BacktestStrategy {
 impl BacktestStrategy {
     pub async fn new(
         strategy_config: StrategyConfig,
-        event_publisher: EventPublisher, 
-        command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
-        response_event_receiver: EventReceiver,
+        // event_publisher: EventPublisher,
+        // command_publisher: CommandPublisher,
+        // command_receiver: Arc<Mutex<CommandReceiver>>,
+        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
     ) -> Self {
         
         let context = BacktestStrategyContext::new(
             strategy_config,
-            event_publisher,
-            response_event_receiver,
+            // event_publisher,
+            // response_event_receiver,
             database,
             heartbeat,
-            command_publisher,
-            command_receiver,
+            // command_publisher,
+            // command_receiver,
         );
         Self { context: Arc::new(RwLock::new(context)) }
     }
@@ -77,8 +78,8 @@ impl BacktestStrategy {
 
     pub async fn add_node(
         &mut self, 
-        market_event_receiver: EventReceiver,
-        response_event_receiver: EventReceiver,
+        // market_event_receiver: EventReceiver,
+        // response_event_receiver: EventReceiver,
     ) -> Result<(), BacktestStrategyError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
@@ -113,8 +114,8 @@ impl BacktestStrategy {
             let result = BacktestStrategyFunction::add_node(
                 context.clone(),
                 node_config,
-                market_event_receiver.resubscribe(),
-                response_event_receiver.resubscribe(),
+                // market_event_receiver.resubscribe(),
+                // response_event_receiver.resubscribe(),
                 node_command_tx.clone(),
                 strategy_inner_event_rx.resubscribe(),
                 ).await;
@@ -345,7 +346,9 @@ impl BacktestStrategy {
                         timestamp: get_utc8_timestamp_millis(),
                     };
                     let backtest_strategy_event = BacktestStrategyEvent::StrategyStartLog(log_event.clone());
-                    let _ = self.get_context().read().await.get_event_publisher().publish(backtest_strategy_event.into()).await;
+                    // let _ = self.get_context().read().await.get_event_publisher().publish(backtest_strategy_event.into()).await;
+                    let _ = EventCenterSingleton::publish(backtest_strategy_event.into()).await;
+
                 }
             };
 

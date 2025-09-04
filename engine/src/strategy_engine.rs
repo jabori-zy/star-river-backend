@@ -2,7 +2,7 @@ mod strategy_engine_context;
 mod strategy;
 pub mod node;
 pub mod backtest_strategy_manager;
-pub mod live_strategy_control_manager;
+// pub mod live_strategy_control_manager;
 pub mod log_message;
 
 use std::collections::HashMap;
@@ -56,28 +56,28 @@ impl Engine for StrategyEngine {
 
 impl StrategyEngine{
     pub fn new(
-        event_publisher: EventPublisher,
-        command_publisher: CommandPublisher,
-        command_receiver: CommandReceiver,
-        market_event_receiver: EventReceiver,
-        request_event_receiver: EventReceiver,
-        response_event_receiver: EventReceiver,
+        // event_publisher: EventPublisher,
+        // command_publisher: CommandPublisher,
+        // command_receiver: CommandReceiver,
+        // market_event_receiver: EventReceiver,
+        // request_event_receiver: EventReceiver,
+        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let context = StrategyEngineContext {
             engine_name: EngineName::StrategyEngine,
-            event_publisher,
-            event_receiver: vec![market_event_receiver.resubscribe()],
-            command_publisher,
-            command_receiver: Arc::new(Mutex::new(command_receiver)),
+            // event_publisher,
+            // event_receiver: vec![market_event_receiver.resubscribe()],
+            // command_publisher,
+            // command_receiver: Arc::new(Mutex::new(command_receiver)),
             database,
-            live_strategy_list: HashMap::new(),
+            // live_strategy_list: HashMap::new(),
             backtest_strategy_list: Arc::new(Mutex::new(HashMap::new())),
-            market_event_receiver,
-            request_event_receiver,
-            response_event_receiver,
+            // market_event_receiver,
+            // request_event_receiver,
+            // response_event_receiver,
             exchange_engine,
             heartbeat,
         };
@@ -92,11 +92,11 @@ impl StrategyEngine{
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await.unwrap();
         match strategy_info.trade_mode {
-            TradeMode::Live => {
-                strategy_context.live_strategy_init(strategy_id).await.unwrap();
-                return Ok(());
+            // TradeMode::Live => {
+            //     strategy_context.live_strategy_init(strategy_id).await.unwrap();
+            //     return Ok(());
 
-            }
+            // }
             TradeMode::Backtest => {
                 if let Err(e) = strategy_context.backtest_strategy_init(strategy_id).await {
                     let report = Report::from_error(&e);
@@ -105,6 +105,7 @@ impl StrategyEngine{
                 }
                 return Ok(());
             }
+            _ => {return Ok(());}
         }
     }
 
@@ -115,7 +116,8 @@ impl StrategyEngine{
         let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
             TradeMode::Live => {
-                strategy_context.live_strategy_start(strategy_id).await
+                // strategy_context.live_strategy_start(strategy_id).await
+                return Ok(());
             }
             _ => {
                 Err("不支持的策略类型".to_string())
@@ -129,9 +131,9 @@ impl StrategyEngine{
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
-            TradeMode::Live => {
-                strategy_context.live_strategy_stop(strategy_id).await
-            }
+            // TradeMode::Live => {
+            //     strategy_context.live_strategy_stop(strategy_id).await
+            // }
             TradeMode::Backtest => {
                 strategy_context.backtest_strategy_stop(strategy_id).await
             }
@@ -148,11 +150,14 @@ impl StrategyEngine{
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
-            TradeMode::Live => {
-                Ok(strategy_context.get_live_strategy_keys(strategy_id).await)
-            }
+            // TradeMode::Live => {
+            //     Ok(strategy_context.get_live_strategy_keys(strategy_id).await)
+            // }
             TradeMode::Backtest => {
                 Ok(strategy_context.get_backtest_strategy_keys(strategy_id).await)
+            }
+            _ => {
+                Err("不支持的策略类型".to_string())
             }
         }
     }
@@ -242,7 +247,7 @@ impl StrategyEngine {
     pub async fn enable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.enable_live_strategy_data_push(strategy_id).await?;
+        // strategy_context.enable_live_strategy_data_push(strategy_id).await?;
         Ok(())
     }
 
@@ -250,7 +255,7 @@ impl StrategyEngine {
     pub async fn disable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
         let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
-        strategy_context.disable_live_strategy_data_push(strategy_id).await?;
+        // strategy_context.disable_live_strategy_data_push(strategy_id).await?;
         Ok(())
     }
 

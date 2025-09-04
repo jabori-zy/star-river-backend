@@ -18,9 +18,9 @@ impl StrategyEngineContext {
         let strategy_id = strategy_info.id;
         let mut strategy = LiveStrategy::new(
             strategy_info, 
-            self.event_publisher.clone(),
-            self.command_publisher.clone(),
-            self.command_receiver.clone(),
+            // self.event_publisher.clone(),
+            // self.command_publisher.clone(),
+            // self.command_receiver.clone(),
             self.market_event_receiver.resubscribe(), 
             self.response_event_receiver.resubscribe(),
             self.exchange_engine.clone(),

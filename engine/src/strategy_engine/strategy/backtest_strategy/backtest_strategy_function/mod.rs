@@ -7,10 +7,8 @@ mod add_indicator_node;
 mod add_futures_order_node;
 mod add_get_variable_node;
 mod add_position_management_node;
-// pub mod sys_variable_function;
-use crate::strategy_engine::node::BacktestNodeTrait;
-use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use petgraph::{Graph, Directed, Direction, graph::NodeIndex};
+
+use petgraph::{Direction, graph::NodeIndex};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
@@ -103,7 +101,7 @@ impl BacktestStrategyFunction {
         let (strategy_name, command_receiver) = {
             let context_guard = context.read().await;
             let strategy_name = context_guard.get_strategy_name();
-            let command_receiver = context_guard.get_command_receiver();
+            let command_receiver = context_guard.get_node_command_receiver();
             (strategy_name, command_receiver)
 
         };

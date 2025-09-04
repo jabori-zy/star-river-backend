@@ -27,14 +27,15 @@ use types::strategy::TimeRange;
 use types::market::Kline;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent};
 use types::market::Symbol;
+use event_center::EventCenterSingleton;
 
 #[derive(Debug)]
 pub struct MarketEngineContext {
     pub engine_name: EngineName,
-    pub event_publisher: EventPublisher, // 事件发布器
-    pub event_receiver: Vec<EventReceiver>, // 事件接收器
-    pub command_publisher: CommandPublisher, // 命令发布器
-    pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
+    // pub event_publisher: EventPublisher, // 事件发布器
+    // pub event_receiver: Vec<EventReceiver>, // 事件接收器
+    // pub command_publisher: CommandPublisher, // 命令发布器
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
     pub subscribe_klines: Arc<Mutex<HashMap<KlineSubKey, Vec<StrategyId>>>>, // 已订阅的k线
 }
@@ -43,12 +44,12 @@ impl Clone for MarketEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            event_publisher: self.event_publisher.clone(),
-            event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            // event_publisher: self.event_publisher.clone(),
+            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
             exchange_engine: self.exchange_engine.clone(),
             subscribe_klines: self.subscribe_klines.clone(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -73,21 +74,6 @@ impl EngineContext for MarketEngineContext {
         self.engine_name.clone()
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
-
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>> {
-        self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
-    }
-
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.command_publisher
-    }
-
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.command_receiver.clone()
-    }
 
     async fn handle_event(&mut self, event: Event) {
         let _event = event;
@@ -135,7 +121,8 @@ impl EngineContext for MarketEngineContext {
                     kline_history: kline_history,
                     event_timestamp: get_utc8_timestamp_millis(),
                 });
-                self.get_event_publisher().publish(exchange_kline_history_update_event.into()).await.unwrap();
+                // self.get_event_publisher().publish(exchange_kline_history_update_event.into()).await.unwrap();
+                EventCenterSingleton::publish(exchange_kline_history_update_event.into()).await.unwrap();
                 
                 let get_kline_history_response = GetKlineHistoryResponse::success(params.exchange, params.symbol, params.interval);
                 params.responder.send(get_kline_history_response.into()).unwrap();
@@ -171,7 +158,8 @@ impl MarketEngineContext {
 
         let add_key_command = CacheEngineCommand::AddCacheKey(params);
 
-        self.get_command_publisher().send(add_key_command.into()).await.unwrap();
+        // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(add_key_command.into()).await.unwrap();
 
         let response_event = resp_rx.await.unwrap();
         tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
@@ -201,7 +189,8 @@ impl MarketEngineContext {
 
         let add_key_command = CacheEngineCommand::AddCacheKey(params);
 
-        self.get_command_publisher().send(add_key_command.into()).await.unwrap();
+        // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
+        EventCenterSingleton::send_command(add_key_command.into()).await.unwrap();
 
         let response_event = resp_rx.await.unwrap();
         tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
@@ -261,7 +250,9 @@ impl MarketEngineContext {
             kline_series: initail_kline_series.clone(),
         };
         let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
-        self.get_event_publisher().publish(exchange_klineseries_update_event.into()).await.unwrap();
+        // self.get_event_publisher().publish(exchange_klineseries_update_event.into()).await.unwrap();
+        EventCenterSingleton::publish(exchange_klineseries_update_event.into()).await.unwrap();
+
         // 再订阅k线流
         exchange_client.subscribe_kline_stream(&symbol, interval.clone(), frequency).await.unwrap();
         // 获取socket流

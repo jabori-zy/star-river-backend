@@ -19,7 +19,7 @@ impl BacktestStrategyFunction {
     pub async fn add_indicator_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        response_event_receiver: EventReceiver,
+        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), IndicatorNodeError> {
@@ -27,23 +27,23 @@ impl BacktestStrategyFunction {
         
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
 
-        let (event_publisher, command_publisher, command_receiver, strategy_keys, play_index_watch_rx) = {
+        let (strategy_keys, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
-            let event_publisher = strategy_context_guard.event_publisher.clone();
-            let command_publisher = strategy_context_guard.command_publisher.clone();
-            let command_receiver = strategy_context_guard.command_receiver.clone();
+            // let event_publisher = strategy_context_guard.event_publisher.clone();
+            // let command_publisher = strategy_context_guard.command_publisher.clone();
+            // let command_receiver = strategy_context_guard.command_receiver.clone();
             let strategy_keys = strategy_context_guard.keys.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (event_publisher, command_publisher, command_receiver, strategy_keys, play_index_watch_rx)
+            (strategy_keys, play_index_watch_rx)
         };
 
 
         let mut node = IndicatorNode::new(
             node_config,
-            event_publisher,
-            command_publisher,
-            command_receiver,
-            response_event_receiver,
+            // event_publisher,
+            // command_publisher,
+            // command_receiver,
+            // response_event_receiver,
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,

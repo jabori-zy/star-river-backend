@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use heartbeat::Heartbeat;
-use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
+// use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::strategy::{StrategyConfig, TradeMode};
 use types::custom_type::StrategyId;
@@ -21,17 +21,17 @@ use event_center::command::Command;
 #[derive(Debug)]
 pub struct StrategyEngineContext {
     pub engine_name: EngineName,
-    pub event_publisher: EventPublisher,
-    pub event_receiver: Vec<EventReceiver>,
-    pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    // pub event_publisher: EventPublisher,
+    // pub event_receiver: Vec<EventReceiver>,
+    // pub command_publisher: CommandPublisher,
+    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
-    pub market_event_receiver: broadcast::Receiver<Event>,
-    pub request_event_receiver: broadcast::Receiver<Event>,
-    pub response_event_receiver: broadcast::Receiver<Event>,
+    // pub market_event_receiver: broadcast::Receiver<Event>,
+    // pub request_event_receiver: broadcast::Receiver<Event>,
+    // pub response_event_receiver: broadcast::Receiver<Event>,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
+    // pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
     pub backtest_strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>,
 }
 
@@ -40,18 +40,18 @@ impl Clone for StrategyEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            event_publisher: self.event_publisher.clone(),
-            event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
-            live_strategy_list: self.live_strategy_list.clone(),
+            // event_publisher: self.event_publisher.clone(),
+            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
+            // live_strategy_list: self.live_strategy_list.clone(),
             backtest_strategy_list: self.backtest_strategy_list.clone(),
             database: self.database.clone(),
-            market_event_receiver: self.market_event_receiver.resubscribe(),
-            request_event_receiver: self.request_event_receiver.resubscribe(),
-            response_event_receiver: self.response_event_receiver.resubscribe(),
+            // market_event_receiver: self.market_event_receiver.resubscribe(),
+            // request_event_receiver: self.request_event_receiver.resubscribe(),
+            // response_event_receiver: self.response_event_receiver.resubscribe(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
-            command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
+            // command_publisher: self.command_publisher.clone(),
+            // command_receiver: self.command_receiver.clone(),
         }
     }
 }
@@ -77,21 +77,6 @@ impl EngineContext for StrategyEngineContext {
         self.engine_name.clone()
     }
 
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.event_publisher
-    }
-
-    fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>> {
-        self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect()
-    }
-
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.command_publisher
-    }
-
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-        self.command_receiver.clone()
-    }
     async fn handle_event(&mut self, event: Event) {
         let _event = event;
     }
@@ -104,21 +89,21 @@ impl EngineContext for StrategyEngineContext {
 
 impl StrategyEngineContext {
 
-    pub async fn get_live_strategy_instance(&self, strategy_id: StrategyId) -> Result<&LiveStrategy, String> {
-        if let Some(strategy) = self.live_strategy_list.get(&strategy_id) {
-            Ok(strategy)
-        } else {
-            Err("策略不存在".to_string())
-        }
-    }
+    // pub async fn get_live_strategy_instance(&self, strategy_id: StrategyId) -> Result<&LiveStrategy, String> {
+    //     if let Some(strategy) = self.live_strategy_list.get(&strategy_id) {
+    //         Ok(strategy)
+    //     } else {
+    //         Err("策略不存在".to_string())
+    //     }
+    // }
 
-    pub async fn get_live_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut LiveStrategy, String> {
-        if let Some(strategy) = self.live_strategy_list.get_mut(&strategy_id) {
-            Ok(strategy)
-        } else {
-            Err("策略不存在".to_string())
-        }
-    }
+    // pub async fn get_live_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut LiveStrategy, String> {
+    //     if let Some(strategy) = self.live_strategy_list.get_mut(&strategy_id) {
+    //         Ok(strategy)
+    //     } else {
+    //         Err("策略不存在".to_string())
+    //     }
+    // }
 
     pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, String> {
         let backtest_strategy_list = self.backtest_strategy_list.lock().await;
@@ -148,10 +133,10 @@ impl StrategyEngineContext {
 
     pub async fn remove_strategy_instance(&mut self, trade_mode: TradeMode, strategy_id: i32) -> Result<(), String> {
         match trade_mode {
-            TradeMode::Live => {
-                self.live_strategy_list.remove(&strategy_id);
-                tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
-            }
+            // TradeMode::Live => {
+            //     self.live_strategy_list.remove(&strategy_id);
+            //     tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
+            // }
             TradeMode::Backtest => {
                 self.backtest_strategy_list.lock().await.remove(&strategy_id);
                 tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);

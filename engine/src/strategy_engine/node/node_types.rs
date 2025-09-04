@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 
 // 节点类型
-#[derive(Debug, Clone, Serialize, Deserialize, Display, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, PartialEq, Eq, Hash)]
 pub enum NodeType {
     #[strum(serialize = "start_node")]
     StartNode,
