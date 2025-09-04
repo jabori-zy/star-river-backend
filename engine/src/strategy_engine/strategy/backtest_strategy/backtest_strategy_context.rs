@@ -226,11 +226,11 @@ impl BacktestStrategyContext {
     pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
         match command {
             NodeCommand::GetStrategyCacheKeys(get_strategy_cache_keys_command) => {
-                let cache_keys = self.get_keys().await;
+                let keys = self.get_keys().await;
                 let get_strategy_cache_keys_response = NodeResponse::GetStrategyCacheKeys(GetStrategyCacheKeysResponse {
                     code: 0,
                     message: "success".to_string(),
-                    cache_keys: cache_keys,
+                    keys,
                     response_timestamp: get_utc8_timestamp_millis(),
                 });
                 get_strategy_cache_keys_command.responder.send(get_strategy_cache_keys_response).unwrap();
@@ -260,8 +260,8 @@ impl BacktestStrategyContext {
             match signal_event {
                 // 执行结束
                 SignalEvent::ExecuteOver(execute_over_event) => {
-                    tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
-                    tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
+                    // tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
+                    // tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
                     let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
                     if !execute_over_node_ids.contains(&execute_over_event.from_node_id) {
                         execute_over_node_ids.push(execute_over_event.from_node_id.clone());
@@ -484,10 +484,9 @@ impl BacktestStrategyContext {
     }
 
 
+
     // 初始化所有节点的方法，不持有外部锁
-    pub async fn init_node(
-        context: Arc<RwLock<Self>>
-    ) -> Result<Vec<Vec<String>>, BacktestStrategyError> {
+    pub async fn init_node(context: Arc<RwLock<Self>>) -> Result<Vec<Vec<String>>, BacktestStrategyError> {
         // 短暂持有锁获取节点列表
         let nodes = {
             let context_guard = context.read().await;

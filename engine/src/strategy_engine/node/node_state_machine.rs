@@ -100,6 +100,10 @@ pub trait BacktestNodeTransitionAction: Debug + Any + Send + Sync {
 
 #[derive(Debug, Clone, PartialEq, Display)]
 pub enum BacktestNodeRunState {
+
+    #[strum(to_string = "Checking")]
+    Checking,       // 节点正在检查
+
     #[strum(to_string = "Created")]
     Created,        // 节点已创建但未初始化
 

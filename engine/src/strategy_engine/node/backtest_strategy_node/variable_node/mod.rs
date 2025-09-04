@@ -14,6 +14,7 @@ use std::time::Duration;
 use types::strategy::node_event::BacktestNodeEvent;
 use event_center::EventPublisher;
 use sea_orm::DatabaseConnection;
+use snafu::ResultExt;
 use heartbeat::Heartbeat;
 use types::node::variable_node::*;
 use tokio::sync::broadcast;
@@ -24,9 +25,10 @@ use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::ba
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
-use crate::strategy_engine::node::node_types::DefaultOutputHandleId;
-use types::custom_type::PlayIndex;
+use types::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
+use types::error::engine_error::node_error::get_variable_node::ConfigFieldValueNullSnafu;
 use types::error::engine_error::strategy_engine_error::node_error::*;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
 
 
 #[derive(Debug, Clone)]
@@ -37,10 +39,7 @@ pub struct VariableNode {
 
 impl VariableNode {
     pub fn new(
-        strategy_id: i32,
-        node_id: String,
-        node_name: String,
-        backtest_config: VariableNodeBacktestConfig,
+        node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -52,7 +51,8 @@ impl VariableNode {
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Self {
+    ) -> Result<Self, GetVariableNodeError> {
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_get_variable_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -68,7 +68,7 @@ impl VariableNode {
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );
-        Self {
+        Ok(Self {
             context: Arc::new(RwLock::new(Box::new(VariableNodeContext {
                 base_context,
                 backtest_config,
@@ -76,8 +76,38 @@ impl VariableNode {
                 database,
                 virtual_trading_system,
             }))),
-        }
+        })
         
+    }
+
+
+    fn check_get_variable_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, VariableNodeBacktestConfig), GetVariableNodeError> {
+        let node_id = node_config
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .to_owned();
+        let node_data = node_config
+            .get("data")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .to_owned();
+        let node_name = node_data
+            .get("nodeName")
+            .and_then(|name| name.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .to_owned();
+        let strategy_id = node_data
+            .get("strategyId")
+            .and_then(|id| id.as_i64())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .to_owned() as StrategyId;
+
+        let backtest_config_json = node_data.get("backtestConfig")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .to_owned();
+
+        let backtest_config = serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+        Ok((strategy_id, node_id, node_name, backtest_config))
     }
 }
 

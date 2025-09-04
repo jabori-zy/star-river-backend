@@ -3,7 +3,6 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::strategy_engine::node::backtest_strategy_node::variable_node::VariableNode;
-use types::node::variable_node::*;
 use event_center::EventReceiver;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
@@ -11,6 +10,7 @@ use tokio::sync::mpsc;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
 
 impl BacktestStrategyFunction {
     pub async fn add_variable_node(
@@ -19,25 +19,12 @@ impl BacktestStrategyFunction {
         response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
-    ) -> Result<(), String> {
-        let node_data = node_config["data"].clone();
-        let node_id = node_config["id"].as_str().unwrap().to_string();
-        let strategy_id = node_data["strategyId"].as_i64().unwrap();
-        let node_name = node_data["nodeName"].as_str().unwrap().to_string();
-        let backtest_config_json = node_data["backtestConfig"].clone();
-        if backtest_config_json.is_null() {
-            return Err("backtestConfig is null".to_string());
-        }
-        let backtest_config = serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json).unwrap();
+    ) -> Result<(), GetVariableNodeError> {
 
 
-        let strategy_command_rx = {
-            let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
-            let strategy_context_guard = context.read().await;
-            let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
-            strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
-            strategy_command_rx
-        };
+
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+
         
         let (event_publisher, command_publisher, command_receiver, heartbeat, virtual_trading_system, database, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
@@ -52,10 +39,7 @@ impl BacktestStrategyFunction {
         };
 
         let mut node = VariableNode::new(
-            strategy_id as i32,
-            node_id.clone(),
-            node_name,
-            backtest_config,
+            node_config,
             event_publisher,
             command_publisher,
             command_receiver,
@@ -67,13 +51,21 @@ impl BacktestStrategyFunction {
             virtual_trading_system,
             strategy_inner_event_receiver,
             play_index_watch_rx,
-        );
+        )?;
+        // set output handle
+        let node_id = node.get_node_id().await;
         node.set_output_handle().await;
 
+        let mut strategy_context_guard = context.write().await;
+        let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
+        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+
         let node = Box::new(node);
-        let mut context_guard = context.write().await;
-        let node_index = context_guard.graph.add_node(node);
-        context_guard.node_indices.insert(node_id.to_string(), node_index);
+
+        let node_index = strategy_context_guard.graph.add_node(node);
+        strategy_context_guard.node_indices.insert(node_id.to_string(), node_index);
         Ok(())
     }
+
+
 }

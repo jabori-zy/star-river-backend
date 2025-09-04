@@ -24,6 +24,9 @@ use tokio::sync::broadcast;
 use virtual_trading::VirtualTradingSystem;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::error::engine_error::strategy_engine_error::node_error::BacktestStrategyNodeError;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::start_node_error::*;
+use types::custom_type::{StrategyId, NodeId, NodeName};
+use snafu::ResultExt;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -40,10 +43,7 @@ impl Clone for StartNode {
 
 impl StartNode {
     pub fn new(
-        strategy_id: i32,
-        node_id: String, 
-        node_name: String,
-        backtest_config: BacktestStrategyConfig,
+        start_node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -54,7 +54,10 @@ impl StartNode {
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
-    ) -> Self {
+    ) -> Result<Self, StartNodeError> {
+
+        let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(start_node_config)?;
+
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -70,15 +73,63 @@ impl StartNode {
             strategy_inner_event_receiver,
             play_index_watch_rx
         );
-        StartNode {
+        Ok(StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
                 base_context,
-                node_config: Arc::new(RwLock::new(backtest_config)),
+                node_config: Arc::new(RwLock::new(backtest_strategy_config)),
                 heartbeat,
                 virtual_trading_system,
                 strategy_stats,
             }))),
+        })
+    }
+
+
+    fn check_start_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, BacktestStrategyConfig), StartNodeError> {
+        let node_id = node_config
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .to_owned();
+        let node_data = node_config
+            .get("data")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .to_owned();
+        let node_name = node_data
+            .get("nodeName")
+            .and_then(|name| name.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .to_owned();
+        let strategy_id = node_data
+            .get("strategyId")
+            .and_then(|id| id.as_i64())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .to_owned() as StrategyId;
+        let backtest_config_json = node_data
+            .get("backtestConfig")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .to_owned();
+
+        let backtest_strategy_config = serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json)
+            .context(ConfigDeserializationFailedSnafu {})?;
+
+        // check initial balance (> 0)
+        if backtest_strategy_config.initial_balance <= 0.0 {
+            return ValueNotGreaterThanZeroSnafu {config_name: "initial balance".to_string(), config_value: backtest_strategy_config.initial_balance}.fail();
         }
+
+        // check leverage (> 0)
+        if backtest_strategy_config.leverage <= 0 {
+            return ValueNotGreaterThanZeroSnafu {config_name: "leverage".to_string(), config_value: backtest_strategy_config.leverage as f64}.fail();
+        }
+
+        // check fee rate (>= 0)
+        if backtest_strategy_config.fee_rate < 0.0 {
+            return ValueNotGreaterThanOrEqualToZeroSnafu {config_name: "fee rate".to_string(), config_value: backtest_strategy_config.fee_rate}.fail();
+        }
+
+        Ok((strategy_id, node_id, node_name, backtest_strategy_config))
+
     }
 
     

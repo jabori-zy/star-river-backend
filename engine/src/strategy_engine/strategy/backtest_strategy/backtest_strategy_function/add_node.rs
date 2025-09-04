@@ -1,5 +1,6 @@
 use super::BacktestStrategyFunction;
 use serde_json::Value;
+use snafu::Report;
 use std::str::FromStr;
 use crate::strategy_engine::node::node_types::NodeType;
 use std::sync::Arc;
@@ -7,8 +8,8 @@ use event_center::EventReceiver;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use tokio::sync::RwLock;
-use types::custom_type::PlayIndex;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -18,7 +19,7 @@ impl BacktestStrategyFunction {
         response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
-    ) -> Result<(), String> {
+    ) -> Result<(), BacktestStrategyNodeError> {
         // 获取节点类型
         let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
         let node_type = NodeType::from_str(&node_type_str).unwrap();
@@ -30,7 +31,7 @@ impl BacktestStrategyFunction {
                     node_config, 
                     node_command_sender, 
                     strategy_inner_event_receiver,
-                ).await.unwrap();
+                ).await?;
                 Ok(())
             }
             // k线节点
@@ -54,7 +55,7 @@ impl BacktestStrategyFunction {
                     response_event_receiver,
                     node_command_sender, 
                     strategy_inner_event_receiver
-                ).await.unwrap();
+                ).await?;
                 Ok(())
                 
             }
@@ -66,7 +67,7 @@ impl BacktestStrategyFunction {
                     node_config,
                     node_command_sender,
                     strategy_inner_event_receiver,
-                ).await.unwrap();
+                ).await?;
                 Ok(())
             }
             // // 订单节点
@@ -77,7 +78,7 @@ impl BacktestStrategyFunction {
                     response_event_receiver, 
                     node_command_sender, 
                     strategy_inner_event_receiver, 
-                ).await.unwrap();
+                ).await?;
                 Ok(())
             }
             // // 持仓节点
@@ -88,7 +89,7 @@ impl BacktestStrategyFunction {
                     response_event_receiver,
                     node_command_sender, 
                     strategy_inner_event_receiver,
-                ).await.unwrap();
+                ).await?;
                 Ok(())
                 
             }
@@ -102,12 +103,14 @@ impl BacktestStrategyFunction {
                     response_event_receiver, 
                     node_command_sender, 
                     strategy_inner_event_receiver,
-                ).await.unwrap();
+                ).await?;
                 Ok(())
             }
             _ => {
-                tracing::error!("不支持的节点类型: {}", node_type);
-                Err("不支持的节点类型".to_string())
+                let error = UnsupportedNodeTypeSnafu { node_type: node_type_str}.build();
+                let report = Report::from_error(&error);
+                tracing::error!("{}", report);
+                Err(error)
             }
             
         }

@@ -448,17 +448,18 @@ macro_rules! impl_indicator_config {
 
             // 实现 new 方法
             impl $indicator_config_enum {
-                pub fn new(indicator_type: &str, config: &serde_json::Value) -> Result<Self, serde_json::Error> {
+                pub fn new(indicator_type: &str, config: &serde_json::Value) -> Result<Self, IndicatorError> {
                     tracing::debug!("indicator_type: {:?}, config: {:?}", indicator_type, config);
                     match indicator_type {
                         $(
                             stringify!([<$indicator_name:lower>]) | stringify!([<$indicator_name:snake>]) => {
-                                Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::new(config)?))
+                                Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::new(config).context(CreateIndicatorFailedSnafu {indicator_type: indicator_type.to_string()})?))
                             }
                         )+
                         _ => {
-                            use serde::de::Error as _;
-                            Err(serde_json::Error::custom(format!("匹配指标类型失败: {}", indicator_type)))
+                            // use serde::de::Error as _;
+                            // Err(serde_json::Error::custom(format!("匹配指标类型失败: {}", indicator_type)))
+                            Err(UnsupportedIndicatorTypeSnafu {indicator_type: indicator_type.to_string()}.build())
                         },
                     }
                 }

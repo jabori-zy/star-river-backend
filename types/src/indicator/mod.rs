@@ -25,6 +25,12 @@ use crate::indicator::indicator_define::price_transform::*;
 use crate::indicator::indicator_define::volatility::*;
 use crate::indicator::indicator_define::pattern_recognition::*;
 
+use crate::error::indicator_error::*;
+use snafu::ResultExt;
+
+
+
+
 // 价格来源
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display)]
 pub enum PriceSource {

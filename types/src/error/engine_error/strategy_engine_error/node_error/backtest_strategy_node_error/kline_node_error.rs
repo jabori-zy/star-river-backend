@@ -15,6 +15,18 @@ pub enum KlineNodeError {
         source: Arc<dyn std::error::Error + Send + Sync + 'static>,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("kline node config field value is null: {field_name}"))]
+    ConfigFieldValueNull {
+        field_name: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("kline node backtest config deserialization failed. reason: {source}"))]
+    ConfigDeserializationFailed {
+        source: serde_json::Error,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -28,6 +40,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             let code = match self {
                 // HTTP and JSON errors (1001-1004)
                 KlineNodeError::RegisterExchange { .. } => 1001,
+                KlineNodeError::ConfigFieldValueNull { .. } => 1002,
+                KlineNodeError::ConfigDeserializationFailed { .. } => 1003,
             };   
 
             format!("{}_{:04}", prefix, code)
@@ -40,7 +54,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
 
     fn is_recoverable(&self) -> bool {
         matches!(self,
-            KlineNodeError::RegisterExchange { .. }
+            KlineNodeError::RegisterExchange { .. } |
+            KlineNodeError::ConfigFieldValueNull { .. } |
+            KlineNodeError::ConfigDeserializationFailed { .. }
         )
     }
 }

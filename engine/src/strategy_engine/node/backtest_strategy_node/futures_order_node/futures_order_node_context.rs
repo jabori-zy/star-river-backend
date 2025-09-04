@@ -427,7 +427,7 @@ impl FuturesOrderNodeContext {
         let response = rx.await.unwrap();
         match response {
             NodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
-                return Ok(get_strategy_cache_keys_response.cache_keys)
+                return Ok(get_strategy_cache_keys_response.keys)
             }
         }
     }

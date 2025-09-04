@@ -10,6 +10,7 @@ use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::error::engine_error::strategy_engine_error::*;
 use snafu::Report;
+use event_center::strategy_event::backtest_strategy_event::StrategyStartLogEvent;
 use types::error::engine_error::strategy_error::BacktestStrategyError;
 /* 
     回测策略控制
@@ -40,7 +41,7 @@ impl StrategyEngineContext {
 
                 let mut strategy = BacktestStrategy::new(
                     strategy_info,
-                    event_publisher,
+                    event_publisher.clone(),
                     command_publisher,
                     command_receiver,
                     response_event_receiver.resubscribe(),

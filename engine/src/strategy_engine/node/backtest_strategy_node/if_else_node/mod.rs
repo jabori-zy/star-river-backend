@@ -29,6 +29,11 @@ use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
 use types::custom_type::PlayIndex;
 use types::error::engine_error::strategy_engine_error::node_error::*;
+use types::error::engine_error::strategy_engine_error::node_error::if_else_node_error::*;
+use types::custom_type::{StrategyId, NodeId, NodeName};
+use snafu::ResultExt;
+use condition::Case;
+
 
 
 // 条件分支节点
@@ -40,10 +45,7 @@ pub struct IfElseNode {
 impl IfElseNode {
 
     pub fn new(
-        strategy_id: i32,
-        node_id: String, 
-        node_name: String,
-        backtest_config: IfElseNodeBacktestConfig,
+        node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -51,7 +53,8 @@ impl IfElseNode {
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Self {
+    ) -> Result<Self, IfElseNodeError> {
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -67,7 +70,7 @@ impl IfElseNode {
             strategy_inner_event_receiver,
             play_index_watch_rx
         );
-        Self {
+        Ok(Self {
             context: Arc::new(RwLock::new(Box::new(IfElseNodeContext {
                 base_context,
                 is_processing: false,
@@ -75,8 +78,41 @@ impl IfElseNode {
                 received_message: HashMap::new(),
                 backtest_config,
             }))),
-            
-        }
+        })
+    }
+
+
+    fn check_if_else_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, IfElseNodeBacktestConfig), IfElseNodeError> {
+        let node_id = node_config
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .to_owned();
+        let node_data = node_config
+            .get("data")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .to_owned();
+        let node_name = node_data
+            .get("nodeName")
+            .and_then(|name| name.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .to_owned();
+        let strategy_id = node_data
+            .get("strategyId")
+            .and_then(|id| id.as_i64())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .to_owned() as StrategyId;
+
+        let backtest_config_json = node_data.get("backtestConfig")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .to_owned();
+
+        let cases_json = backtest_config_json.get("cases")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "cases".to_string()}.build())?
+            .to_owned();
+        let cases = serde_json::from_value::<Vec<Case>>(cases_json).context(ConfigDeserializationFailedSnafu {})?;
+        let backtest_config = IfElseNodeBacktestConfig {cases};
+        Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
     async fn evaluate(&self) {

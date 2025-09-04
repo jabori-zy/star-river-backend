@@ -20,6 +20,7 @@ use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
 use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
+use snafu::ResultExt;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
@@ -29,7 +30,8 @@ use types::strategy::node_event::BacktestNodeEvent;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
-use types::custom_type::PlayIndex;
+use types::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
+use types::error::engine_error::node_error::position_management_node_error::*;
 use types::error::engine_error::strategy_engine_error::node_error::*;
 
 
@@ -41,10 +43,7 @@ pub struct PositionManagementNode {
 
 impl PositionManagementNode {
     pub fn new(
-        strategy_id: i32,
-        node_id: String,
-        node_name: String,
-        backtest_config: PositionNodeBacktestConfig,
+        node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -57,7 +56,8 @@ impl PositionManagementNode {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Self {
+    ) -> Result<Self, PositionManagementNodeError> {
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_position_management_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -73,7 +73,7 @@ impl PositionManagementNode {
             strategy_inner_event_receiver,
             play_index_watch_rx
         );
-        Self {
+        Ok(Self {
             context: Arc::new(RwLock::new(Box::new(PositionNodeContext {
                 base_context,
                 backtest_config,
@@ -82,8 +82,37 @@ impl PositionManagementNode {
                 virtual_trading_system,
                 virtual_trading_system_event_receiver,
             }))),
-        }
+        })
         
+    }
+
+    fn check_position_management_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, PositionNodeBacktestConfig), PositionManagementNodeError> {
+        let node_id = node_config
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .to_owned();
+        let node_data = node_config
+            .get("data")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .to_owned();
+        let node_name = node_data
+            .get("nodeName")
+            .and_then(|name| name.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .to_owned();
+        let strategy_id = node_data
+            .get("strategyId")
+            .and_then(|id| id.as_i64())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .to_owned() as StrategyId;
+
+        let backtest_config_json = node_data.get("backtestConfig")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .to_owned();
+
+        let backtest_config = serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+        Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
     async fn listen_virtual_trading_system_events(&self) -> Result<(), String> {

@@ -7,7 +7,14 @@ use super::super::node_error::BacktestStrategyNodeError;
 #[snafu(visibility(pub))]
 pub enum BacktestStrategyError {
 
-    #[snafu(display("{node_name}({node_id}) {node_type} node init error"))]
+
+    #[snafu(display("node create error"))]
+    NodeCreate {
+        source: BacktestStrategyNodeError,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("{node_name}({node_id}) {node_type} node init error: {source}"))]
     NodeInit {
         node_id: String,
         node_name: String,
@@ -85,6 +92,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             let prefix = self.get_prefix();
             let code = match self {
                 // HTTP and JSON errors (1001-1004)
+                BacktestStrategyError::NodeCreate { .. } => 1000,
                 BacktestStrategyError::NodeInit { .. } => 1001,
                 BacktestStrategyError::NodeInitTimeout { .. } => 1002,
                 BacktestStrategyError::TokioTaskFailed { .. } => 1003,

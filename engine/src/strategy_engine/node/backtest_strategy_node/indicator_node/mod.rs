@@ -24,6 +24,15 @@ use types::cache::key::{IndicatorKey, KlineKey};
 use types::strategy::node_event::BacktestNodeEvent;
 use types::custom_type::PlayIndex;
 use types::error::engine_error::strategy_engine_error::node_error::*;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::indicator_node_error::*;
+
+use types::custom_type::{StrategyId, NodeId, NodeName};
+use snafu::ResultExt;
+use types::strategy::{BacktestDataSource, TimeRange, SelectedAccount};
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::SelectedSymbol;
+use types::indicator::IndicatorConfig;
+use indicator_node_type::{ExchangeModeConfig, SelectedIndicator};
+use std::str::FromStr;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -37,10 +46,7 @@ pub struct IndicatorNode {
 
 impl IndicatorNode {
     pub fn new(
-        strategy_id: i32, 
-        node_id: String, 
-        node_name: String, 
-        backtest_config: IndicatorNodeBacktestConfig,
+        node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -49,8 +55,9 @@ impl IndicatorNode {
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Self {
+    ) -> Result<Self, IndicatorNodeError> {
 
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_indicator_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -73,7 +80,7 @@ impl IndicatorNode {
         // 通过配置，获取回测K线缓存键
         let kline_cache_key = Self::get_kline_key(&backtest_config);
 
-        Self {
+        Ok(Self {
             context: Arc::new(RwLock::new(Box::new(IndicatorNodeContext {
                 base_context,
                 backtest_config,
@@ -82,7 +89,108 @@ impl IndicatorNode {
                 kline_key: kline_cache_key,
             }))),
             
+        })
+    }
+
+    fn check_indicator_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, IndicatorNodeBacktestConfig), IndicatorNodeError> {
+        let node_id = node_config
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .to_owned();
+        let node_data = node_config
+            .get("data")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .to_owned();
+        let node_name = node_data
+            .get("nodeName")
+            .and_then(|name| name.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .to_owned();
+        let strategy_id = node_data
+            .get("strategyId")
+            .and_then(|id| id.as_i64())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .to_owned() as StrategyId;
+
+        let backtest_config_json = node_data.get("backtestConfig")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .to_owned();
+
+        let selected_account_json = backtest_config_json.get("exchangeModeConfig")
+            .and_then(|config| config.get("selectedAccount"))
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "selectedAccount".to_string()}.build())?
+            .to_owned();
+        let selected_account = serde_json::from_value::<SelectedAccount>(selected_account_json)
+            .context(ConfigDeserializationFailedSnafu {})?;
+
+        let selected_symbol_json = backtest_config_json.get("exchangeModeConfig")
+            .and_then(|config| config.get("selectedSymbol"))
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "selectedSymbol".to_string()}.build())?
+            .to_owned();
+        let selected_symbol = serde_json::from_value::<SelectedSymbol>(selected_symbol_json)
+            .context(ConfigDeserializationFailedSnafu {})?;
+
+
+        let time_range_json = backtest_config_json.get("exchangeModeConfig")
+            .and_then(|config| config.get("timeRange"))
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "timeRange".to_string()}.build())?
+            .to_owned();
+        let time_range = serde_json::from_value::<TimeRange>(time_range_json)
+            .context(ConfigDeserializationFailedSnafu {})?;
+
+        let data_source = backtest_config_json.get("dataSource")
+            .and_then(|source| source.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "dataSource".to_string()}.build())?
+            .to_owned();
+        let data_source = BacktestDataSource::from_str(&data_source)
+            .context(DataSourceParseFailedSnafu {data_source})?;
+
+        let selected_indicators_array = backtest_config_json.get("exchangeModeConfig")
+            .and_then(|config| config.get("selectedIndicators"))
+            .and_then(|indicators| indicators.as_array())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "selectedIndicators".to_string()}.build())?
+            .to_owned();
+
+        let mut selected_indicators = Vec::new();
+        for ind_config in selected_indicators_array {
+            let indicator_type = ind_config
+                .get("indicatorType")
+                .and_then(|t| t.as_str())
+                .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "indicatorType".to_string()}.build())?;
+            let indicator_config_json = ind_config.get("indicatorConfig")
+                .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "indicatorConfig".to_string()}.build())?
+                .to_owned();
+            let indicator_config = IndicatorConfig::new(indicator_type, &indicator_config_json)?;
+            let config_id = ind_config.get("configId")
+                .and_then(|id| id.as_i64())
+                .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "configId".to_string()}.build())?
+                .to_owned() as i32;
+            let output_handle_id = ind_config.get("outputHandleId")
+                .and_then(|id| id.as_str())
+                .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "outputHandleId".to_string()}.build())?
+                .to_owned();
+            selected_indicators.push(SelectedIndicator {
+                config_id,
+                output_handle_id,
+                indicator_config,
+            });
+            
         }
+        let exchange_mode_config = ExchangeModeConfig {
+            selected_account,
+            selected_symbol,
+            selected_indicators,
+            time_range,
+        };
+
+        let backtest_config = IndicatorNodeBacktestConfig {
+            data_source,
+            exchange_mode_config: Some(exchange_mode_config),
+            file_mode_config: None,
+        };
+        Ok((strategy_id, node_id, node_name, backtest_config))
+
     }
 
     fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<IndicatorKey> {
@@ -149,12 +257,13 @@ impl BacktestNodeTrait for IndicatorNode {
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
 
-        // 添加strategy_ouput_handle
+        // 添加strategy_output_handle
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         self.add_output_handle(strategy_output_handle_id, tx).await;
-        
+
+        tracing::debug!("1111");
         
 
         // 添加默认出口

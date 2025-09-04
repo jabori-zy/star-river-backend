@@ -40,6 +40,8 @@ use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_log_m
 use types::strategy::node_event::LogLevel;
 use event_center::strategy_event::backtest_strategy_event::{BacktestStrategyEvent, StrategyStartLogEvent};
 use utils::get_utc8_timestamp_millis;
+use snafu::{Report, ResultExt, IntoError};
+use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 
 
 
@@ -71,6 +73,7 @@ impl BacktestStrategy {
         );
         Self { context: Arc::new(RwLock::new(context)) }
     }
+
 
     pub async fn add_node(
         &mut self, 
@@ -107,14 +110,20 @@ impl BacktestStrategy {
 
         let context = self.get_context();
         for node_config in node_config_list {
-            BacktestStrategyFunction::add_node(
+            let result = BacktestStrategyFunction::add_node(
                 context.clone(),
                 node_config,
                 market_event_receiver.resubscribe(),
                 response_event_receiver.resubscribe(),
                 node_command_tx.clone(),
                 strategy_inner_event_rx.resubscribe(),
-                ).await.unwrap();
+                ).await;
+            if let Err(e) = result {
+                let error = NodeCreateSnafu {}.into_error(e);
+                let report = Report::from_error(&error);
+                tracing::error!("{}", report);
+                return Err(error);
+            }
             }
 
         Ok(())
@@ -253,6 +262,10 @@ impl BacktestStrategy {
                     // 监听播放索引
                     // BacktestStrategyStats::listen_play_index(strategy_stats2).await;
                     
+                }
+
+                BacktestStrategyStateAction::CheckNode => {
+
                 }
 
                 BacktestStrategyStateAction::InitNode => {

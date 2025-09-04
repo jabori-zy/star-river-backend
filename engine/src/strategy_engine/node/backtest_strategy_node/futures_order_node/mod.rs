@@ -30,9 +30,12 @@ use types::order::OrderType;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;
 use std::collections::HashMap;
+use snafu::ResultExt;
 use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
-use types::custom_type::PlayIndex;
+use types::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
+use types::error::engine_error::node_error::futures_order_node_error::ConfigFieldValueNullSnafu;
 use types::error::engine_error::strategy_engine_error::node_error::*;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::futures_order_node_error::*;
 
 #[derive(Debug, Clone)]
 pub struct FuturesOrderNode {
@@ -42,10 +45,7 @@ pub struct FuturesOrderNode {
 
 impl FuturesOrderNode {
     pub fn new(
-        strategy_id: i32,
-        node_id: String,
-        node_name: String,
-        backtest_config: FuturesOrderNodeBacktestConfig,
+        node_config: serde_json::Value,
         event_publisher: EventPublisher,
         command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<CommandReceiver>>,
@@ -58,7 +58,8 @@ impl FuturesOrderNode {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Self {
+    ) -> Result<Self, FuturesOrderNodeError> {
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_futures_order_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -74,7 +75,7 @@ impl FuturesOrderNode {
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );
-        Self {
+        Ok(Self {
             context: Arc::new(RwLock::new(Box::new(FuturesOrderNodeContext {
                 base_context,
                 backtest_config,
@@ -88,7 +89,36 @@ impl FuturesOrderNode {
                 virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
                 min_kline_interval: None,
             }))),
-        }
+        })
+    }
+
+    fn check_futures_order_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, FuturesOrderNodeBacktestConfig), FuturesOrderNodeError> {
+        let node_id = node_config
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .to_owned();
+        let node_data = node_config
+            .get("data")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .to_owned();
+        let node_name = node_data
+            .get("nodeName")
+            .and_then(|name| name.as_str())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .to_owned();
+        let strategy_id = node_data
+            .get("strategyId")
+            .and_then(|id| id.as_i64())
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .to_owned() as StrategyId;
+
+        let backtest_config_json = node_data.get("backtestConfig")
+            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .to_owned();
+
+        let backtest_config = serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+        Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
     async fn listen_virtual_trading_system_events(&self) -> Result<(), String> {
