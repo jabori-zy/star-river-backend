@@ -1,4 +1,3 @@
-use tokio::sync::broadcast;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -10,7 +9,7 @@ use crate::EngineName;
 use std::sync::Arc;
 use event_center::command::Command;
 use event_center::command::cache_engine_command::CacheEngineCommand;
-use event_center::response::market_engine_response::{MarketEngineResponse, SubscribeKlineStreamResponse, UnsubscribeKlineStreamResponse, GetKlineHistoryResponse};
+use event_center::response::market_engine_response::{SubscribeKlineStreamResponse, UnsubscribeKlineStreamResponse, GetKlineHistoryResponse};
 use event_center::command::market_engine_command::MarketEngineCommand;
 use event_center::command::cache_engine_command::AddCacheKeyParams;
 use types::cache::{Key, key::KlineKey};
@@ -21,7 +20,6 @@ use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use crate::market_engine::market_engine_type::KlineSubKey;
 use std::collections::HashMap;
 use types::custom_type::{StrategyId, AccountId};
-use event_center::{EventReceiver, CommandReceiver, CommandPublisher, EventPublisher};
 use tokio::sync::oneshot;
 use types::strategy::TimeRange;
 use types::market::Kline;
@@ -32,10 +30,6 @@ use event_center::EventCenterSingleton;
 #[derive(Debug)]
 pub struct MarketEngineContext {
     pub engine_name: EngineName,
-    // pub event_publisher: EventPublisher, // 事件发布器
-    // pub event_receiver: Vec<EventReceiver>, // 事件接收器
-    // pub command_publisher: CommandPublisher, // 命令发布器
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>, // 命令接收器
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
     pub subscribe_klines: Arc<Mutex<HashMap<KlineSubKey, Vec<StrategyId>>>>, // 已订阅的k线
 }
@@ -44,12 +38,8 @@ impl Clone for MarketEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            // event_publisher: self.event_publisher.clone(),
-            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
             exchange_engine: self.exchange_engine.clone(),
             subscribe_klines: self.subscribe_klines.clone(),
-            // command_publisher: self.command_publisher.clone(),
-            // command_receiver: self.command_receiver.clone(),
         }
     }
 }

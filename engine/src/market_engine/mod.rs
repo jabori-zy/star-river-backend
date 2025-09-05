@@ -1,18 +1,14 @@
 mod market_engine_context;
 mod market_engine_type;
 use std::sync::Arc;
-use std::vec;
-use event_center::{Event,EventPublisher};
 use tokio::sync::RwLock;
 use crate::{exchange_engine::ExchangeEngine, market_engine::market_engine_context::MarketEngineContext};
-use tokio::sync::broadcast;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use crate::EngineName;
 use tokio::sync::Mutex;
 use std::any::Any;
 use std::collections::HashMap;
-use event_center::{CommandReceiver, CommandPublisher, EventReceiver};
 use types::custom_type::AccountId;
 use types::market::{Symbol, KlineInterval};
 
@@ -42,21 +38,11 @@ impl Engine for MarketEngine {
 
 
 impl MarketEngine{
-    pub fn new(
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: CommandReceiver,
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
-        
-    ) -> Self {
+    pub fn new(exchange_engine: Arc<Mutex<ExchangeEngine>>) -> Self {
         let context = MarketEngineContext {
             engine_name: EngineName::MarketEngine,
-            // event_publisher,
-            // command_publisher,
-            // event_receiver: vec![],
             exchange_engine,
-            subscribe_klines: Arc::new(Mutex::new(HashMap::new())),
-            // command_receiver: Arc::new(Mutex::new(command_receiver)),
+            subscribe_klines: Arc::new(Mutex::new(HashMap::new()))
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

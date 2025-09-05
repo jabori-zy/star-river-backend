@@ -1,5 +1,4 @@
-use tokio::sync::broadcast;
-use event_center::{Event, EventPublisher};
+use event_center::Event;
 use sea_orm::DatabaseConnection;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use std::collections::HashMap;
@@ -15,20 +14,12 @@ use heartbeat::Heartbeat;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::strategy::{StrategyConfig, TradeMode};
 use types::custom_type::StrategyId;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use event_center::command::Command;
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
     pub engine_name: EngineName,
-    // pub event_publisher: EventPublisher,
-    // pub event_receiver: Vec<EventReceiver>,
-    // pub command_publisher: CommandPublisher,
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
-    // pub market_event_receiver: broadcast::Receiver<Event>,
-    // pub request_event_receiver: broadcast::Receiver<Event>,
-    // pub response_event_receiver: broadcast::Receiver<Event>,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     // pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
@@ -40,18 +31,10 @@ impl Clone for StrategyEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            // event_publisher: self.event_publisher.clone(),
-            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
-            // live_strategy_list: self.live_strategy_list.clone(),
             backtest_strategy_list: self.backtest_strategy_list.clone(),
             database: self.database.clone(),
-            // market_event_receiver: self.market_event_receiver.resubscribe(),
-            // request_event_receiver: self.request_event_receiver.resubscribe(),
-            // response_event_receiver: self.response_event_receiver.resubscribe(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
-            // command_publisher: self.command_publisher.clone(),
-            // command_receiver: self.command_receiver.clone(),
         }
     }
 }

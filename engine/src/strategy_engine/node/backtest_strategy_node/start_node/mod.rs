@@ -3,7 +3,6 @@ pub mod start_node_context;
 
 use tokio::sync::RwLock;
 use std::sync::Arc;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeStateTransitionEvent;
 use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
@@ -12,13 +11,12 @@ use std::time::Duration;
 use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
-use types::strategy::{LiveStrategyConfig, BacktestStrategyConfig, SimulatedConfig, TradeMode};
-use event_center::{CommandPublisher, CommandReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
+use types::strategy::{BacktestStrategyConfig};
+use event_center::{command::backtest_strategy_command::StrategyCommandReceiver};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
-use std::collections::HashMap;
-use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use types::strategy::node_event::BacktestNodeEvent;
 use tokio::sync::broadcast;
 use virtual_trading::VirtualTradingSystem;
@@ -44,9 +42,6 @@ impl Clone for StartNode {
 impl StartNode {
     pub fn new(
         start_node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
@@ -63,10 +58,6 @@ impl StartNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::StartNode,
-            // event_publisher,
-            // vec![],
-            // command_publisher,
-            // command_receiver,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
             node_command_sender,
             strategy_command_receiver,

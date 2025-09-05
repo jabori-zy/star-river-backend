@@ -7,26 +7,23 @@ mod utils;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::any::Any;
-use std::vec;
 use async_trait::async_trait;
 use tokio::sync::broadcast;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use types::strategy::node_event::BacktestNodeEvent;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
 use super::if_else_node::if_else_node_state_machine::{IfElseNodeStateManager,IfElseNodeStateAction};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
-use crate::strategy_engine::node::node_types::{NodeType,DefaultOutputHandleId};
+use crate::strategy_engine::node::node_types::NodeType;
 use if_else_node_context::IfElseNodeContext;
-use crate::strategy_engine::node::{NodeOutputHandle,BacktestNodeTrait};
-use types::strategy::TradeMode;
+use crate::strategy_engine::node::BacktestNodeTrait;
 use if_else_node_type::IfElseNodeBacktestConfig;
-use event_center::{CommandPublisher, CommandReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
+use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
 use tokio::sync::Mutex;
 use types::strategy::node_command::NodeCommandSender;
-use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver, StrategyInnerEventPublisher};
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use types::custom_type::PlayIndex;
 use types::error::engine_error::strategy_engine_error::node_error::*;
 use types::error::engine_error::strategy_engine_error::node_error::if_else_node_error::*;
@@ -46,9 +43,6 @@ impl IfElseNode {
 
     pub fn new(
         node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
@@ -60,10 +54,6 @@ impl IfElseNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::IfElseNode,
-            // event_publisher,
-            // vec![],
-            // command_publisher,
-            // command_receiver,
             Box::new(IfElseNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
             node_command_sender,
             strategy_command_receiver,
@@ -73,7 +63,6 @@ impl IfElseNode {
         Ok(Self {
             context: Arc::new(RwLock::new(Box::new(IfElseNodeContext {
                 base_context,
-                is_processing: false,
                 received_flag: HashMap::new(),
                 received_message: HashMap::new(),
                 backtest_config,

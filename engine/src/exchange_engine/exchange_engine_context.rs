@@ -5,20 +5,16 @@ use event_center::command::exchange_engine_command::ExchangeEngineCommand;
 use event_center::command::Command;
 use event_center::response::exchange_engine_response::{RegisterExchangeResponse};
 use event_center::Event;
-use event_center::EventPublisher;
 use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::ExchangeClient;
 use std::any::Any;
 use std::collections::HashMap;
-use std::sync::Arc;
 use types::market::Exchange;
 use sea_orm::DatabaseConnection;
 use database::query::account_config_query::AccountConfigQuery;
 use types::account::AccountConfig;
 use event_center::command::exchange_engine_command::UnregisterExchangeParams;
 use types::custom_type::AccountId;
-use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
-use tokio::sync::Mutex;
 use types::error::engine_error::*;
 use types::error::exchange_client_error::*;
 use tracing::instrument;
@@ -28,10 +24,6 @@ use snafu::{ResultExt, Report};
 pub struct ExchangeEngineContext {
     pub engine_name: EngineName,
     pub exchanges: HashMap<AccountId, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
-    // pub event_publisher: EventPublisher,
-    // pub event_receiver: Vec<EventReceiver>,
-    // pub command_publisher: CommandPublisher,
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
 }
 
@@ -44,14 +36,6 @@ impl Clone for ExchangeEngineContext {
                 .iter()
                 .map(|(id, client)| (id.clone(), client.clone_box()))
                 .collect(),
-            // event_publisher: self.event_publisher.clone(),
-            // event_receiver: self
-            //     .event_receiver
-            //     .iter()
-            //     .map(|receiver| receiver.resubscribe())
-            //     .collect(),
-            // command_publisher: self.command_publisher.clone(),
-            // command_receiver: self.command_receiver.clone(),
             database: self.database.clone(),
         }
     }

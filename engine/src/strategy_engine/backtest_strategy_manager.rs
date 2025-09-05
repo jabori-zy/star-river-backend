@@ -24,27 +24,18 @@ impl StrategyEngineContext {
                 strategy_id: strategy_id,
             }.fail()?);
         }
-        let strategy_info: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
+        let strategy_config: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
         let strategy_list = self.backtest_strategy_list.clone();
-        // let event_publisher = self.event_publisher.clone();
-        // let command_publisher = self.command_publisher.clone();
-        // let command_receiver = self.command_receiver.clone();
-        // let market_event_receiver = self.market_event_receiver.resubscribe();
-        // let response_event_receiver = self.response_event_receiver.resubscribe();
         let database = self.database.clone();
         let heartbeat = self.heartbeat.clone();
 
         tokio::spawn(async move {
-            let strategy_id = strategy_info.id;
+            let strategy_id = strategy_config.id;
             let result: Result<(), BacktestStrategyError> = async {
 
                 let mut strategy = BacktestStrategy::new(
-                    strategy_info,
-                    // event_publisher.clone(),
-                    // command_publisher,
-                    // command_receiver,
-                    // response_event_receiver.resubscribe(),
+                    strategy_config,
                     database,
                     heartbeat
                 ).await;

@@ -10,7 +10,6 @@ use std::any::Any;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use event_center::EventPublisher;
 use super::futures_order_node::futures_order_node_state_machine::{OrderNodeStateMachine, OrderNodeStateAction};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use std::time::Duration;
@@ -20,7 +19,7 @@ use futures_order_node_types::*;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
+use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
 use types::strategy::node_command::NodeCommandSender;
 use crate::strategy_engine::node::node_state_machine::*;
 use virtual_trading::VirtualTradingSystem;
@@ -46,10 +45,6 @@ pub struct FuturesOrderNode {
 impl FuturesOrderNode {
     pub fn new(
         node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         node_command_sender: NodeCommandSender,
@@ -65,10 +60,6 @@ impl FuturesOrderNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::OrderNode,
-            // event_publisher,
-            // vec![response_event_receiver],
-            // command_publisher,
-            // command_receiver,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
             node_command_sender,
             strategy_command_receiver,

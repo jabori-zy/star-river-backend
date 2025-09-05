@@ -255,21 +255,6 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     fn is_leaf_node(&self) -> bool {
         self.get_base_context().is_leaf_node
     }
-
-    // fn get_event_publisher(&self) -> &EventPublisher {
-    //     &self.get_base_context().event_publisher
-    // }
-
-    // fn get_event_receivers(&self) -> &Vec<EventReceiver> {
-    //     &self.get_base_context().event_receivers
-    // }
-
-    // fn get_command_publisher(&self) -> &CommandPublisher {
-    //     &self.get_base_context().command_publisher
-    // }
-    // fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
-    //     self.get_base_context().command_receiver.clone()
-    // }
     
     fn get_node_command_sender(&self) -> &NodeCommandSender {
         &self.get_base_context().node_command_sender

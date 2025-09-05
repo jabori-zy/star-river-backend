@@ -9,7 +9,6 @@ use std::any::Any;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use std::sync::Arc;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use kline_node_state_machine::{KlineNodeStateMachine, KlineNodeStateAction};
@@ -17,7 +16,7 @@ use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,Backte
 use kline_node_context::{KlineNodeContext};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
+use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
 use kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
@@ -45,11 +44,6 @@ pub struct KlineNode {
 impl KlineNode {
     pub fn new(
         node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // market_event_receiver: EventReceiver,
-        // response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
@@ -62,10 +56,6 @@ impl KlineNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::KlineNode,
-            // event_publisher,
-            // vec![market_event_receiver, response_event_receiver],
-            // command_publisher,
-            // command_receiver,
             Box::new(KlineNodeStateMachine::new(node_id, node_name, backtest_config.data_source.clone())),
             node_command_sender,
             strategy_command_receiver,

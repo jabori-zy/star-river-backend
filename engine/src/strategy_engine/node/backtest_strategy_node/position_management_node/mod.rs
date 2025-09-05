@@ -5,13 +5,9 @@ mod position_management_node_state_machine;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::strategy::TradeMode;
 use position_management_node_types::*;
-use event_center::EventPublisher;
-use event_center::Event;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use position_management_node_state_machine::*;
@@ -21,7 +17,7 @@ use std::any::Any;
 use async_trait::async_trait;
 use std::time::Duration;
 use snafu::ResultExt;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
+use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::node_command::NodeCommandSender;
@@ -44,10 +40,6 @@ pub struct PositionManagementNode {
 impl PositionManagementNode {
     pub fn new(
         node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         node_command_sender: NodeCommandSender,
@@ -63,10 +55,6 @@ impl PositionManagementNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::PositionManagementNode,
-            // event_publisher,
-            // vec![response_event_receiver],
-            // command_publisher,
-            // command_receiver,
             Box::new(PositionNodeStateMachine::new(node_id, node_name)),
             node_command_sender,
             strategy_command_receiver,

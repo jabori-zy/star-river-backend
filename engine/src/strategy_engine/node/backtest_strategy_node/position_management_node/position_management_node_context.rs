@@ -2,20 +2,12 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,Backtes
 use super::position_management_node_types::*;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use std::any::Any;
 use async_trait::async_trait;
 use event_center::Event;
-use types::strategy::node_event::{BacktestNodeEvent, OrderEvent};
-use types::order::Order;
-use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
-use exchange_client::ExchangeClient;
-use crate::Engine;
-use database::mutation::position_mutation::PositionMutation;
-use types::position::GetPositionParam;
-use types::strategy::node_event::PositionEvent;
+use types::strategy::node_event::BacktestNodeEvent;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use types::strategy::node_event::SignalEvent;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
@@ -24,8 +16,6 @@ use virtual_trading::VirtualTradingSystem;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent, PositionManagementNodeEvent};
-use types::custom_type::PlayIndex;
-use types::position::virtual_position::VirtualPosition;
 use types::strategy::node_event::ExecuteOverEvent;
 
 #[derive(Debug)]

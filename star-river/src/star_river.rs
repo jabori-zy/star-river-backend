@@ -1,4 +1,3 @@
-use event_center::{EventCenter, Channel};
 use heartbeat::Heartbeat;
 use database::DatabaseManager;
 use tokio::sync::Mutex;

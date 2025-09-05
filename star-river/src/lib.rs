@@ -4,16 +4,13 @@ pub mod websocket;
 pub mod sse;
 pub mod routes;
 
-
-use axum::{routing::{get, post, delete}, Router, routing::any};
 use axum::extract::State;
-
 use std::net::SocketAddr;
 use tokio;
 use tower_http::cors::{Any, CorsLayer};
 use axum::http::HeaderValue;
 use crate::star_river::StarRiver;
-use tracing::{Level, instrument};
+use tracing::instrument;
 use crate::star_river::init_app;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
@@ -26,10 +23,6 @@ use std::path::Path;
 use std::fs;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, Registry};
-use tracing_subscriber::fmt::format;
-use types::account::ExchangeStatus::Error;
 use crate::routes::create_app_routes;
 
 #[tokio::main]

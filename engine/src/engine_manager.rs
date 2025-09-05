@@ -24,94 +24,30 @@ pub struct EngineManager {
 
 impl EngineManager {
     pub async fn new(
-        // event_center: &mut EventCenter,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
-    ) -> Self
-    
-    {
-
-        // let (cache_command_tx, cache_command_rx) = mpsc::channel::<Command>(100);
-        // let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).await.unwrap();
-        let cache_engine = Arc::new(Mutex::new(CacheEngine::new(
-            // event_center.get_event_publisher(),
-            // event_center.get_command_publisher(),
-            // cache_command_rx,
-            // exchange_event_receiver,
-        )));
+    ) -> Self {
+        // 缓存引擎
+        let cache_engine = Arc::new(Mutex::new(CacheEngine::new()));
 
         // 交易所引擎
-        // let (exchange_command_tx, exchange_command_rx) = mpsc::channel::<Command>(100);
-        let exchange_engine = Arc::new(Mutex::new(ExchangeEngine::new(
-            // event_center.get_event_publisher(), 
-            // event_center.get_command_publisher(),
-            // exchange_command_rx,
-            database.clone()
-        )));
+        let exchange_engine = Arc::new(Mutex::new(ExchangeEngine::new(database.clone())));
 
         // 市场引擎
-        // let (market_command_tx, market_command_rx) = mpsc::channel::<Command>(100);
-        let market_engine = MarketEngine::new(
-            // event_center.get_event_publisher(),
-            // event_center.get_command_publisher(),
-            // market_command_rx,
-            exchange_engine.clone(),
-            
-        );
+        let market_engine = MarketEngine::new(exchange_engine.clone());
         
         // 指标引擎
-        // let (indicator_command_tx, indicator_command_rx) = mpsc::channel::<Command>(100);
-        // let exchange_event_receiver = event_center.subscribe(&Channel::Exchange).await.unwrap();
-        let indicator_engine = IndicatorEngine::new(
-            heartbeat.clone(),
-            cache_engine.clone(),
-            // event_center.get_event_publisher(), 
-            // event_center.get_command_publisher(),
-            // indicator_command_rx,
-            // exchange_event_receiver,
-        );
+        let indicator_engine = IndicatorEngine::new( heartbeat.clone(),cache_engine.clone());
 
         // 策略引擎
-        // let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<Command>(100);
-        // let market_event_receiver = event_center.subscribe(&Channel::Market).await.unwrap();
-
         let strategy_engine = StrategyEngine::new(
-            // event_center.get_event_publisher(), 
-            // event_center.get_command_publisher(),
-            // strategy_command_rx,
-            // market_event_receiver.resubscribe(),
-            // market_event_receiver.resubscribe(),
-            // market_event_receiver.resubscribe(),
-
             database.clone(),
             exchange_engine.clone(),
             heartbeat.clone()
         );
 
-        
         // 账户引擎
-        // let (account_command_tx, account_command_rx) = mpsc::channel::<Command>(100);
-        // let account_event_receiver = event_center.subscribe(&Channel::Account).await.unwrap();
-        let account_engine = AccountEngine::new(
-            // event_center.get_event_publisher(),
-            // event_center.get_command_publisher(),
-            // account_command_rx,
-            // account_event_receiver,
-            exchange_engine.clone(),
-            database.clone(),
-            heartbeat.clone()
-        );
-
-        // 设置每一个引擎的命令发送器
-        // {
-        //     event_center.set_engine_command_sender(EngineName::CacheEngine, cache_command_tx).await;
-        //     event_center.set_engine_command_sender(EngineName::ExchangeEngine, exchange_command_tx).await;
-        //     event_center.set_engine_command_sender(EngineName::MarketEngine, market_command_tx).await;
-        //     event_center.set_engine_command_sender(EngineName::IndicatorEngine, indicator_command_tx).await;
-        //     event_center.set_engine_command_sender(EngineName::StrategyEngine, strategy_command_tx).await;
-        //     event_center.set_engine_command_sender(EngineName::AccountEngine, account_command_tx).await;
-        // }
-
+        let account_engine = AccountEngine::new(exchange_engine.clone(),database.clone(),heartbeat.clone());
 
         Self {
             exchange_engine,

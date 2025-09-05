@@ -5,7 +5,7 @@ use event_center::{Event, EventCenterSingleton};
 use event_center::command::Command;
 use event_center::command::indicator_engine_command::IndicatorEngineCommand;
 use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::{IndicatorUpdateEvent, BacktestNodeEvent, IndicatorNodeEvent};
+use types::strategy::node_event::{IndicatorUpdateEvent, BacktestNodeEvent, IndicatorNodeEvent, SignalEvent, ExecuteOverEvent};
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::sync::Arc;
@@ -15,7 +15,6 @@ use event_center::command::indicator_engine_command::CalculateBacktestIndicatorP
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::cache::{KeyTrait, CacheValue};
 use tokio::sync::oneshot;
-use event_center::response::ResponseTrait;
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use types::cache::key::{IndicatorKey, KlineKey};
 use tokio::time::Duration;
@@ -72,13 +71,10 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         match message {
             BacktestNodeEvent::KlineNode(kline_event) => {
-                // tracing::debug!("{}: 收到回测k线更新事件: {:?}", self.get_node_id(), kline_event);
 
                 // 提前获取配置信息，统一错误处理
                 let exchange_config = self.backtest_config.exchange_mode_config.as_ref().unwrap();
                 
-                // let current_play_index = self.get_play_index().await;
-                // tracing::debug!("indicator_node_context current_play_index: {}", current_play_index);
 
                 let current_play_index = self.get_play_index();
                
@@ -86,6 +82,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                 // 如果索引不匹配，提前返回错误日志
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
                     tracing::debug!("{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}", self.base_context.node_id, kline_update_event.play_index, current_play_index);
+                    tracing::debug!("is_leaf_node: {}", self.is_leaf_node());
                     if current_play_index != kline_update_event.play_index {
                         tracing::error!(
                             node_id = %self.base_context.node_id, 
@@ -168,6 +165,18 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     // 发送到strategy
                     let strategy_output_handle = self.get_strategy_output_handle();
                     send_indicator_event(strategy_output_handle.output_handle_id.clone(), strategy_output_handle.clone(), indicator_cache_data);
+                    }
+                    // 如果节点是叶子节点，则发送执行完毕事件
+                    if self.is_leaf_node() {
+                        let execute_over_event = ExecuteOverEvent {
+                            from_node_id: self.get_node_id().clone(),
+                            from_node_name: self.get_node_name().clone(),
+                            from_node_handle_id: self.get_node_id().clone(),
+                            play_index: self.get_play_index(),
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let strategy_output_handle = self.get_strategy_output_handle();
+                        strategy_output_handle.send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(execute_over_event))).unwrap();
                     }
                 }
             }

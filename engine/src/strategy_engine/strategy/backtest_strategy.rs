@@ -12,14 +12,9 @@ use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrat
 use types::error::engine_error::strategy_error::EdgeConfigNullSnafu;
 use types::{error::engine_error::strategy_error::NodeConfigNullSnafu, position::virtual_position::VirtualPosition};
 use types::strategy::StrategyConfig;
-use event_center::EventPublisher;
 use tokio::sync::{Mutex, Notify};
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use petgraph::Graph;
-use std::collections::HashMap;
-use serde_json::Value;
-use tokio_util::sync::CancellationToken;
 use backtest_strategy_function::BacktestStrategyFunction;
 use crate::strategy_engine::{node::BacktestNodeTrait, strategy::backtest_strategy::backtest_strategy_state_machine::*};
 use types::cache::Key;
@@ -55,31 +50,21 @@ pub struct BacktestStrategy {
 impl BacktestStrategy {
     pub async fn new(
         strategy_config: StrategyConfig,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>
     ) -> Self {
         
         let context = BacktestStrategyContext::new(
             strategy_config,
-            // event_publisher,
-            // response_event_receiver,
             database,
             heartbeat,
-            // command_publisher,
-            // command_receiver,
         );
         Self { context: Arc::new(RwLock::new(context)) }
     }
 
 
     pub async fn add_node(
-        &mut self, 
-        // market_event_receiver: EventReceiver,
-        // response_event_receiver: EventReceiver,
+        &mut self,
     ) -> Result<(), BacktestStrategyError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
@@ -114,8 +99,6 @@ impl BacktestStrategy {
             let result = BacktestStrategyFunction::add_node(
                 context.clone(),
                 node_config,
-                // market_event_receiver.resubscribe(),
-                // response_event_receiver.resubscribe(),
                 node_command_tx.clone(),
                 strategy_inner_event_rx.resubscribe(),
                 ).await;

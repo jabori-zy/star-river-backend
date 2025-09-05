@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use types::strategy::node_event::variable_event;
 use utils::get_utc8_timestamp;
-use utils::get_utc8_timestamp_millis;
 use event_center::Event;
 use types::strategy::node_event::{SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, BacktestConditionNotMatchEvent};
 use super::if_else_node_type::IfElseNodeBacktestConfig;
@@ -12,11 +10,10 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::condition::*;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::custom_type::{NodeId, HandleId};
-use super::utils::{get_variable_value, get_condition_variable_value};
+use types::custom_type::NodeId;
+use super::utils::{get_condition_variable_value};
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::custom_type::PlayIndex;
 use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 
 pub type ConfigId = i32;
@@ -25,7 +22,6 @@ pub type ConfigId = i32;
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub is_processing: bool,
     pub received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
     pub received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     pub backtest_config: IfElseNodeBacktestConfig,

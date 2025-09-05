@@ -39,8 +39,7 @@ use types::strategy::node_event::backtest_node_event::futures_order_node_event::
 use types::strategy::node_event::BacktestConditionNotMatchEvent;
 use event_center::command::backtest_strategy_command::StrategyCommand;
 use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
-use types::custom_type::{InputHandleId, NodeId};
-use types::custom_type::PlayIndex;
+use types::custom_type::InputHandleId;
 use types::transaction::virtual_transaction::VirtualTransaction;
 
 #[derive(Debug)]

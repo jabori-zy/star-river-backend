@@ -1,5 +1,4 @@
 use event_center::response::indicator_engine_response::{RegisterIndicatorResponse, IndicatorEngineResponse, CalculateBacktestIndicatorResponse};
-use tokio::sync::broadcast;
 use event_center::Event;
 use async_trait::async_trait;
 use std::any::Any;
@@ -7,13 +6,10 @@ use std::time::Duration;
 use crate::{EngineContext, EngineName};
 use event_center::command::Command;
 use event_center::command::indicator_engine_command::IndicatorEngineCommand;
-use utils::get_utc8_timestamp_millis;
-use event_center::EventPublisher;
 use types::indicator::IndicatorConfig;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use types::cache::key::{IndicatorKey, KlineKey};
-use types::cache::Key;
 use types::custom_type::{StrategyId, NodeId};
 use crate::cache_engine::CacheEngine;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
@@ -23,17 +19,12 @@ use event_center::exchange_event::ExchangeKlineUpdateEvent;
 use types::market::{Exchange, KlineInterval};
 use heartbeat::Heartbeat;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
-use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
 
 #[derive(Debug)]
 pub struct IndicatorEngineContext {
     pub engine_name: EngineName,
     pub cache_engine: Arc<Mutex<CacheEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    // pub event_publisher: EventPublisher,
-    // pub command_publisher: CommandPublisher,
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
-    // pub event_receiver: Vec<EventReceiver>,
     pub subscribe_indicators: Arc<Mutex<HashMap<IndicatorSubKey, Vec<StrategyId>>>>, // 已订阅的指标
     
 }
@@ -43,13 +34,9 @@ impl Clone for IndicatorEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            // event_publisher: self.event_publisher.clone(),
-            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
             cache_engine: self.cache_engine.clone(),
             heartbeat: self.heartbeat.clone(),
             subscribe_indicators: self.subscribe_indicators.clone(),
-            // command_publisher: self.command_publisher.clone(),
-            // command_receiver: self.command_receiver.clone(),
         }
     }
 }

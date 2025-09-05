@@ -3,10 +3,8 @@ pub mod account_engine_types;
 
 use std::sync::Arc;
 use std::vec;
-use event_center::{Event,EventPublisher};
 use tokio::sync::RwLock;
 use crate::{exchange_engine::ExchangeEngine, account_engine::account_engine_context::AccountEngineContext};
-use tokio::sync::broadcast;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use crate::EngineName;
@@ -14,11 +12,6 @@ use tokio::sync::Mutex;
 use std::any::Any;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-// use crate::account_engine::account_engine_types::ExchangeAccountConfig;
-use std::collections::HashMap;
-use types::market::Exchange;
-use types::account::ExchangeAccountConfig;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 
 
 #[derive(Debug, Clone)]
@@ -63,20 +56,12 @@ impl Engine for AccountEngine {
 
 impl AccountEngine {
     pub fn new(
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: CommandReceiver,
-        // account_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let context = AccountEngineContext {
             engine_name: EngineName::AccountEngine,
-            // event_publisher,
-            // event_receiver: vec![account_event_receiver],
-            // command_publisher,
-            // command_receiver: Arc::new(Mutex::new(command_receiver)),
             exchange_engine,
             database,
             heartbeat,

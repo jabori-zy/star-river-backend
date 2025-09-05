@@ -1,4 +1,3 @@
-use tokio::sync::broadcast;
 use types::market::Exchange;
 use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
@@ -7,7 +6,6 @@ use async_trait::async_trait;
 use std::any::Any;
 use crate::EngineName;
 use std::sync::Arc;
-use event_center::EventPublisher;
 use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
@@ -22,17 +20,12 @@ use database::mutation::account_info_mutation::AccountInfoMutation;
 use database::query::account_config_query::AccountConfigQuery;
 use event_center::command::exchange_engine_command::UnregisterExchangeParams;
 use event_center::command::exchange_engine_command::RegisterExchangeParams;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
 use event_center::EventCenterSingleton;
 
 #[derive(Debug)]
 pub struct AccountEngineContext {
     pub engine_name: EngineName,
-    // pub event_publisher: EventPublisher,
-    // pub event_receiver: Vec<EventReceiver>,
-    // pub command_publisher: CommandPublisher,
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub database: DatabaseConnection,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
@@ -43,10 +36,6 @@ impl Clone for AccountEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            // event_publisher: self.event_publisher.clone(),
-            // event_receiver: self.event_receiver.iter().map(|receiver| receiver.resubscribe()).collect(),
-            // command_publisher: self.command_publisher.clone(),
-            // command_receiver: self.command_receiver.clone(),
             database: self.database.clone(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),

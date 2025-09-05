@@ -2,23 +2,14 @@ pub mod exchange_engine_context;
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::vec;
-use event_center::{Event,EventPublisher};
 use tokio::sync::RwLock;
 use exchange_client::ExchangeClient;
-use types::market::Exchange;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
-use tokio::sync::broadcast;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use crate::EngineName;
 use std::any::Any;
-use std::sync::Mutex as StdMutex;
-use std::sync::atomic::AtomicBool;
-use event_center::command::exchange_engine_command::RegisterMt5ExchangeParams;
 use sea_orm::DatabaseConnection;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-use tokio::sync::Mutex;
 /// 交易所引擎
 /// 负责管理交易所客户端，并提供交易所客户端的注册、注销、获取等功能
 
@@ -47,20 +38,11 @@ impl Engine for ExchangeEngine {
 }
 
 impl ExchangeEngine {
-    pub fn new(
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: CommandReceiver,
-        database: DatabaseConnection,
-    ) -> Self {
+    pub fn new(database: DatabaseConnection) -> Self {
         let context = ExchangeEngineContext {
             engine_name: EngineName::ExchangeEngine,
             exchanges: HashMap::new(),
-            // event_publisher,
-            // event_receiver: vec![],
             database,
-            // command_publisher,
-            // command_receiver: Arc::new(Mutex::new(command_receiver)),
         };
         Self {
             context: Arc::new(RwLock::new(Box::new(context)))

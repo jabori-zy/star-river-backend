@@ -61,10 +61,6 @@ pub struct BacktestStrategyContext {
     pub cache_lengths: HashMap<Key, u32>, // 缓存长度
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (),  Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>, // 节点索引
-    // pub event_publisher: EventPublisher, // 外部事件发布器
-    // pub event_receivers: Vec<EventReceiver>, // 外部事件接收器
-    // pub command_publisher: CommandPublisher, // 外部命令发布器
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>, // 外部命令接收器
     pub cancel_task_token: CancellationToken, // 取消令牌
     pub state_machine: BacktestStrategyStateMachine, // 策略状态机
     pub all_node_output_handles: Vec<NodeOutputHandle>, // 接收策略内所有节点的消息
@@ -95,12 +91,8 @@ impl BacktestStrategyContext {
 
     pub fn new(
         strategy_config: StrategyConfig,
-        // event_publisher: EventPublisher,
-        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
     ) -> Self {
         let strategy_id = strategy_config.id;
         let strategy_name = strategy_config.name.clone();

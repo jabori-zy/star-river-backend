@@ -13,10 +13,9 @@ use crate::strategy_engine::node::node_state_machine::*;
 use indicator_node_state_machine::{IndicatorNodeStateManager,IndicatorNodeStateAction};
 use std::time::Duration;
 use indicator_node_context::IndicatorNodeContext;
-use event_center::EventPublisher;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use tokio::sync::Mutex;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver, command::backtest_strategy_command::StrategyCommandReceiver};
+use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
@@ -47,10 +46,6 @@ pub struct IndicatorNode {
 impl IndicatorNode {
     pub fn new(
         node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
@@ -63,10 +58,6 @@ impl IndicatorNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::IndicatorNode,
-            // event_publisher,
-            // vec![response_event_receiver],
-            // command_publisher,
-            // command_receiver,
             Box::new(IndicatorNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
             node_command_sender,
             strategy_command_receiver,

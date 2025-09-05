@@ -1,8 +1,9 @@
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use std::any::Any;
-use event_center::{command::cache_engine_command::{GetCacheLengthMultiParams, GetCacheLengthParams, CacheEngineCommand}, Event};
-use tracing::instrument;
-use types::{strategy::{node_command::GetStrategyCacheKeysParams, node_event::BacktestNodeEvent}, virtual_trading_system};
+use event_center::Event;
+use types::{
+    strategy::node_event::BacktestNodeEvent
+};
 use async_trait::async_trait;
 use types::strategy::BacktestStrategyConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -17,7 +18,6 @@ use event_center::command::backtest_strategy_command::StrategyCommand;
 use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
 use virtual_trading::VirtualTradingSystem;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
-use types::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
