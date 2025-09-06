@@ -1,19 +1,30 @@
 use crate::strategy_engine::node::node_state_machine::*;
 use types::error::engine_error::strategy_engine_error::node_error::*;
 use std::any::Any;
+use strum::Display;
 
 // 状态转换后需要执行的动作
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum IfElseNodeStateAction {
+    #[strum(serialize = "ListenAndHandleStrategySignal")]
     ListenAndHandleStrategySignal,   // 处理策略信号
+    #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents,
+    #[strum(serialize = "ListenAndHandleInnerEvents")]
     ListenAndHandleInnerEvents,
+    #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
+    #[strum(serialize = "InitReceivedData")]
     InitReceivedData,
+    #[strum(serialize = "Evaluate")]
     Evaluate,
+    #[strum(serialize = "LogNodeState")]
     LogNodeState,    // 记录节点状态
+    #[strum(serialize = "LogTransition")]
     LogTransition,          // 记录状态转换
+    #[strum(serialize = "LogError")]
     LogError(String),       // 记录错误
+    #[strum(serialize = "CancelAsyncTask")]
     CancelAsyncTask,        // 取消异步任务
 }
 

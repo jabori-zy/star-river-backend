@@ -8,7 +8,6 @@ use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::node_event::backtest_node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use event_center::response::Response;
-use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_log_message::StartRegisterExchangeMsg;
 use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
 use event_center::command::market_engine_command::{MarketEngineCommand, GetKlineHistoryParams};
 use event_center::command::exchange_engine_command::RegisterExchangeParams;
@@ -26,7 +25,7 @@ use super::kline_node_type::KlineNodeBacktestConfig;
 use types::strategy::node_event::SignalEvent;
 use types::cache::CacheValue;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::strategy::node_event::{NodeStartLogEvent, LogLevel};
+use types::strategy::node_event::{NodeStateLogEvent, LogLevel};
 use super::kline_node_state_machine::KlineNodeStateAction;
 use crate::strategy_engine::log_message::LogMessage;
 use event_center::EventCenterSingleton;
@@ -228,32 +227,8 @@ impl KlineNodeContext {
             exchange = ?exchange,
             account_id = %account_id,
             "start to register exchange.");
+        
 
-        let log_message = StartRegisterExchangeMsg::new(
-            node_id.clone(),
-            node_name.clone(),
-            exchange.clone(),
-            account_id.clone(),
-        );
-        
-        
-        let log_event = NodeStartLogEvent {
-            strategy_id: self.get_strategy_id().clone(),
-            node_id: node_id.clone(),
-            node_name: node_name.clone(),
-            node_state: self.get_run_state().to_string(),
-            node_state_action: KlineNodeStateAction::RegisterExchange.to_string(),
-            log_level: LogLevel::Info,
-            message: log_message.to_english(),
-            error_code: None,
-            detail: None,
-            duration: None,
-            timestamp: get_utc8_timestamp_millis(),
-        };
-        let _ = self.get_strategy_output_handle().send(log_event.clone().into());
-            
-        
-        tracing::info!("log_message: {}", log_message);
 
         let (resp_tx, resp_rx) = oneshot::channel();
         let register_param = RegisterExchangeParams {

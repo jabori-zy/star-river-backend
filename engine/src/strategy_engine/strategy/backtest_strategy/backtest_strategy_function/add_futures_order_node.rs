@@ -18,7 +18,6 @@ impl BacktestStrategyFunction {
     pub async fn add_futures_order_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), FuturesOrderNodeError> {
@@ -27,9 +26,6 @@ impl BacktestStrategyFunction {
         
         let (heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
-            // let event_publisher = strategy_context_guard.event_publisher.clone();
-            // let command_publisher = strategy_context_guard.command_publisher.clone();
-            // let command_receiver = strategy_context_guard.command_receiver.clone();
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let virtual_trading_system_event_receiver = strategy_context_guard.virtual_trading_system.lock().await.get_virtual_trading_system_event_receiver();
@@ -40,10 +36,6 @@ impl BacktestStrategyFunction {
 
         let mut node = FuturesOrderNode::new(
             node_config,
-            // event_publisher,
-            // command_publisher,
-            // command_receiver,
-            // response_event_receiver,
             database,
             heartbeat,
             node_command_sender,

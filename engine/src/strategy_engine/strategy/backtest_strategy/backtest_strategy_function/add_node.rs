@@ -4,7 +4,6 @@ use snafu::Report;
 use std::str::FromStr;
 use crate::strategy_engine::node::node_types::NodeType;
 use std::sync::Arc;
-use event_center::EventReceiver;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use tokio::sync::RwLock;
@@ -15,8 +14,6 @@ impl BacktestStrategyFunction {
     pub async fn add_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: Value,
-        // market_event_receiver: EventReceiver,
-        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), BacktestStrategyNodeError> {
@@ -38,12 +35,10 @@ impl BacktestStrategyFunction {
             NodeType::KlineNode => {
                 Self::add_kline_node(
                     context,
-                    node_config, 
-                    // market_event_receiver, 
-                    // response_event_receiver, 
+                    node_config,
                     node_command_sender,
                     strategy_inner_event_receiver,
-                ).await.unwrap();
+                ).await?;
                 Ok(())
             }
                 
@@ -51,8 +46,7 @@ impl BacktestStrategyFunction {
             NodeType::IndicatorNode => {
                 Self::add_indicator_node(
                     context, 
-                    node_config, 
-                    // response_event_receiver,
+                    node_config,
                     node_command_sender, 
                     strategy_inner_event_receiver
                 ).await?;
@@ -74,8 +68,7 @@ impl BacktestStrategyFunction {
             NodeType::FuturesOrderNode => {
                 Self::add_futures_order_node(
                     context,
-                    node_config, 
-                    // response_event_receiver, 
+                    node_config,
                     node_command_sender, 
                     strategy_inner_event_receiver, 
                 ).await?;
@@ -85,8 +78,7 @@ impl BacktestStrategyFunction {
             NodeType::PositionManagementNode => {
                 Self::add_position_management_node(
                     context,
-                    node_config, 
-                    // response_event_receiver,
+                    node_config,
                     node_command_sender, 
                     strategy_inner_event_receiver,
                 ).await?;
@@ -99,8 +91,7 @@ impl BacktestStrategyFunction {
             NodeType::VariableNode => {
                 Self::add_variable_node(
                     context,
-                    node_config, 
-                    // response_event_receiver, 
+                    node_config,
                     node_command_sender, 
                     strategy_inner_event_receiver,
                 ).await?;

@@ -2,6 +2,7 @@ use snafu::{Snafu, Backtrace, GenerateImplicitData};
 use std::collections::HashMap;
 use super::data_processor_error::DataProcessorError;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use crate::custom_type::AccountId;
 
 pub type MT5ErrorCode = i64;
@@ -437,6 +438,151 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 Mt5Error::GetSymbolList { .. } |
                 Mt5Error::GetAccountInfo { .. }
             )
+        }
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    Mt5Error::Network { terminal_id, url, .. } => {
+                        format!("网络错误: 终端ID={}, URL={}", terminal_id, url)
+                    },
+                    Mt5Error::Server { terminal_id, url, status_code, .. } => {
+                        format!("服务器错误: 终端ID={}, URL={}, 状态码={}", terminal_id, url, status_code)
+                    },
+                    Mt5Error::Response { terminal_id, url, .. } => {
+                        format!("响应错误: 终端ID={}, URL={}", terminal_id, url)
+                    },
+                    Mt5Error::NoSuccessFieldInResponse { terminal_id, url, .. } => {
+                        format!("响应中缺少成功字段: 终端ID={}, URL={}", terminal_id, url)
+                    },
+                    Mt5Error::HttpClientNotCreated { terminal_id, port, .. } => {
+                        format!("HTTP客户端未创建: 终端ID={}, 端口={}", terminal_id, port)
+                    },
+                    Mt5Error::Json { .. } => {
+                        "JSON解析错误".to_string()
+                    },
+                    Mt5Error::InitializeTerminal { message, terminal_id, port, .. } => {
+                        format!("终端初始化失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                    },
+                    Mt5Error::TerminalNotInitialized { terminal_id, port, .. } => {
+                        format!("终端 {} 未初始化: 端口={}", terminal_id, port)
+                    },
+                    Mt5Error::GetTerminalInfo { message, terminal_id, port, .. } => {
+                        format!("获取终端信息失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                    },
+                    Mt5Error::GetSymbolList { message, terminal_id, port, .. } => {
+                        format!("获取交易品种列表失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                    },
+                    Mt5Error::GetKlineData { symbol, message, .. } => {
+                        format!("获取 '{}' K线数据失败: {}", symbol, message)
+                    },
+                    Mt5Error::CreateOrder { symbol, message, .. } => {
+                        format!("为 '{}' 创建订单失败: {}", symbol, message)
+                    },
+                    Mt5Error::GetOrder { order_id, message, .. } => {
+                        format!("获取订单 {} 失败: {}", order_id, message)
+                    },
+                    Mt5Error::GetPosition { position_id, message, .. } => {
+                        format!("获取持仓 {} 失败: {}", position_id, message)
+                    },
+                    Mt5Error::GetDealByPositionId { position_id, message, .. } => {
+                        format!("通过持仓ID {} 获取交易失败: {}", position_id, message)
+                    },
+                    Mt5Error::GetDeal { message, deal_id, position_id, order_id, .. } => {
+                        let mut details = Vec::new();
+                        if let Some(id) = deal_id {
+                            details.push(format!("交易ID={}", id));
+                        }
+                        if let Some(id) = position_id {
+                            details.push(format!("持仓ID={}", id));
+                        }
+                        if let Some(id) = order_id {
+                            details.push(format!("订单ID={}", id));
+                        }
+                        let detail_str = if details.is_empty() {
+                            String::new()
+                        } else {
+                            format!(", {}", details.join(", "))
+                        };
+                        format!("获取交易失败: {}{}", message, detail_str)
+                    },
+                    Mt5Error::GetDealByDealId { deal_id, message, .. } => {
+                        format!("通过交易ID {} 获取交易失败: {}", deal_id, message)
+                    },
+                    Mt5Error::GetDealByOrderId { order_id, message, .. } => {
+                        format!("通过订单ID {} 获取交易失败: {}", order_id, message)
+                    },
+                    Mt5Error::GetPositionNumber { symbol, message, .. } => {
+                        format!("获取 '{}' 持仓数量失败: {}", symbol, message)
+                    },
+                    Mt5Error::GetAccountInfo { message, terminal_id, port, .. } => {
+                        format!("获取账户信息失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                    },
+                    Mt5Error::Retcode { terminal_id, port, .. } => {
+                        format!("获取返回码失败: 终端ID={}, 端口={}", terminal_id, port)
+                    },
+                    Mt5Error::OrderId { terminal_id, port, .. } => {
+                        format!("获取订单ID失败: 终端ID={}, 端口={}", terminal_id, port)
+                    },
+                    Mt5Error::Ping { message, terminal_id, port, .. } => {
+                        format!("Ping失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                    },
+                    Mt5Error::WebSocket { message, account_id, url, .. } => {
+                        format!("MetaTrader5 WebSocket错误: {}, 账户ID: {}, URL: {}", message, account_id, url)
+                    },
+                    Mt5Error::DataProcessor { source, .. } => {
+                        format!("数据处理器错误: {}", source.get_error_message(language))
+                    },
+                    Mt5Error::Connection { message, terminal_id, port, .. } => {
+                        format!("MetaTrader5 连接错误: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                    },
+                    Mt5Error::Initialization { message, .. } => {
+                        format!("MetaTrader5 初始化错误: {}", message)
+                    },
+                    Mt5Error::Configuration { message, .. } => {
+                        format!("MetaTrader5 配置错误: {}", message)
+                    },
+                    Mt5Error::Timeout { message, .. } => {
+                        format!("MetaTrader5 超时错误: {}", message)
+                    },
+                    Mt5Error::Authentication { message, .. } => {
+                        format!("MetaTrader5 认证错误: {}", message)
+                    },
+                    Mt5Error::Validation { message, .. } => {
+                        format!("MetaTrader5 验证错误: {}", message)
+                    },
+                    Mt5Error::Other { message, .. } => {
+                        format!("MetaTrader5 其他错误: {}", message)
+                    },
+                }
+            },
+        }
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        match self {
+            // Errors with source that implement our trait
+            Mt5Error::DataProcessor { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            },
+            
+            // Errors with source that don't implement our trait - start chain here
+            Mt5Error::Network { .. } |
+            Mt5Error::Response { .. } |
+            Mt5Error::Json { .. } |
+            Mt5Error::WebSocket { .. } => {
+                vec![self.error_code()]
+            },
+            
+            // Errors without source - return own error code
+            _ => vec![self.error_code()],
         }
     }
 }

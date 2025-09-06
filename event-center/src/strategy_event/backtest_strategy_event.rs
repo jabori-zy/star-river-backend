@@ -17,7 +17,7 @@ use types::strategy::node_event::backtest_node_event::futures_order_node_event::
 };
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent};
 use types::strategy_stats::event::StrategyStatsUpdatedEvent;
-use types::strategy::node_event::NodeStartLogEvent;
+use types::strategy::node_event::NodeStateLogEvent;
 use types::strategy::node_event::LogLevel;
 
 
@@ -91,13 +91,13 @@ pub enum BacktestStrategyEvent {
     #[serde(rename = "transaction-created")]
     TransactionCreated(TransactionCreatedEvent), // 交易明细创建事件
 
-    #[strum(serialize = "state-log")]
-    #[serde(rename = "state-log")]
-    NodeStartLog(NodeStartLogEvent), // 启动日志事件
+    #[strum(serialize = "node-state-log")]
+    #[serde(rename = "node-state-log")]
+    NodeStateLog(NodeStateLogEvent), // 节点状态日志事件
 
     #[strum(serialize = "strategy-state-log")]
     #[serde(rename = "strategy-state-log")]
-    StrategyStartLog(StrategyStartLogEvent), // 策略启动日志事件
+    StrategyStateLog(StrategyStateLogEvent), // 策略状态日志事件
 }
 
 impl From<BacktestStrategyEvent> for Event {
@@ -112,7 +112,7 @@ impl From<BacktestStrategyEvent> for Event {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StrategyStartLogEvent {
+pub struct StrategyStateLogEvent {
     #[serde(rename = "strategyId")]
     pub strategy_id: i32,
 
@@ -132,17 +132,14 @@ pub struct StrategyStartLogEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
+    #[serde(rename = "errorCodeChain")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code_chain: Option<Vec<String>>,
+
 
     #[serde(rename = "message")]
     pub message: String,
 
-    #[serde(rename = "detail")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<String>,
-
-    #[serde(rename = "duration")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration: Option<i64>,
 
     #[serde(rename = "timestamp")]
     pub timestamp: i64,

@@ -1,28 +1,29 @@
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::{Language, StarRiverErrorTrait};
 use std::sync::Arc;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum KlineNodeError {
 
-    #[snafu(display("{node_name}({node_id}) register exchange error"))]
+    #[snafu(display("kline node [{node_name}({node_id})] register exchange error"))]
     RegisterExchange {
         node_id: String,
         node_name: String,
-        #[snafu(source(from(Arc<dyn std::error::Error + Send + Sync + 'static>, Arc::new)))]
-        source: Arc<dyn std::error::Error + Send + Sync + 'static>,
+        #[snafu(source)]
+        source: Arc<dyn StarRiverErrorTrait>,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("kline node config field value is null: {field_name}"))]
+    #[snafu(display("kline node config field [{field_name}]'s value is null"))]
     ConfigFieldValueNull {
         field_name: String,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("kline node backtest config deserialization failed. reason: {source}"))]
+    #[snafu(display("kline node backtest config deserialization failed. reason: [{source}]"))]
     ConfigDeserializationFailed {
         source: serde_json::Error,
         backtrace: Backtrace,
@@ -32,7 +33,7 @@ pub enum KlineNodeError {
 // Implement the StarRiverErrorTrait for Mt5Error
 impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
     fn get_prefix(&self) -> &'static str {
-        "MT5"
+        "KLINE_NODE"
     }
     
     fn error_code(&self) -> ErrorCode {
@@ -58,5 +59,46 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::ConfigFieldValueNull { .. } |
             KlineNodeError::ConfigDeserializationFailed { .. }
         )
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        // All KlineNodeError variants have no source or external sources
+        // that don't implement our trait (serde_json::Error)
+
+        match self {
+            // For transparent errors, delegate to the inner error's chain
+            KlineNodeError::RegisterExchange { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            },
+            
+            // For errors with external sources or no source
+            KlineNodeError::ConfigFieldValueNull { .. } |
+            
+            // For errors with external sources that don't implement our trait
+            KlineNodeError::ConfigDeserializationFailed { .. }  => vec![self.error_code()],
+        }
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    KlineNodeError::RegisterExchange { node_name, node_id, .. } => {
+                        format!("K线节点 [{}({})] 注册交易所错误", node_name, node_id)
+                    },
+                    KlineNodeError::ConfigFieldValueNull { field_name, .. } => {
+                        format!("K线节点配置字段 [{}] 值为空", field_name)
+                    },
+                    KlineNodeError::ConfigDeserializationFailed { source, .. } => {
+                        format!("K线节点回测配置反序列化失败，原因: [{}]", source)
+                    },
+                }
+            },
+        }
     }
 }

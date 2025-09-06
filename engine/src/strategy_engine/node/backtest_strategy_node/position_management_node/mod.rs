@@ -1,6 +1,7 @@
 mod position_management_node_context;
 pub mod position_management_node_types;
 mod position_management_node_state_machine;
+// pub mod position_management_node_log_message;
 
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use std::sync::Arc;
@@ -29,6 +30,9 @@ use tokio_stream::StreamExt;
 use types::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
 use types::error::engine_error::node_error::position_management_node_error::*;
 use types::error::engine_error::strategy_engine_error::node_error::*;
+use super::node_message::position_management_node_log_message::*;
+use super::node_message::common_log_message::*;
+use types::strategy::node_event::NodeStateLogEvent;
 
 
 #[derive(Debug, Clone)]
@@ -230,63 +234,133 @@ impl BacktestNodeTrait for PositionManagementNode {
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
-
+        let node_name = self.get_node_name().await;
+        let strategy_id = self.get_strategy_id().await;
+        let strategy_output_handle = self.get_strategy_output_handle().await;
+        
         // 获取状态管理器并执行转换
-        let (transition_result, state_machine) = {
-            let mut state_machine = self.get_state_machine().await;
-            let transition_result = state_machine.transition(event)?;
-            (transition_result, state_machine)
-        };
-
+        let mut state_machine = self.get_state_machine().await;
+        let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
+        for action in transition_result.get_actions() {
             if let Some(position_node_state_action) = action.as_any().downcast_ref::<PositionManagementNodeStateAction>() {
+                let current_state = state_machine.current_state();
                 match position_node_state_action {
                     PositionManagementNodeStateAction::LogTransition => {
-                        let current_state = self.get_state_machine().await.current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                        tracing::info!("[{node_name}({node_id})] state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
                     }
                     PositionManagementNodeStateAction::LogNodeState => {
-                        let current_state = self.get_state_machine().await.current_state();
-                        tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
+                        
+                        // 发送节点状态日志事件
+                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                     }
                     PositionManagementNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!("{}: 开始监听外部事件", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_external_events().await;
                     }
                     PositionManagementNodeStateAction::RegisterTask => {
-                        tracing::info!("{}: 开始注册心跳任务", node_id);
+                        tracing::info!("[{node_name}({node_id})] registering position monitoring task");
+                        let log_message = RegisterTaskMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        
                         let mut context_guard = self.context.write().await;
-                        let position_node_context = context_guard.as_any_mut().downcast_mut::<PositionNodeContext>().unwrap();
+                        let _position_node_context = context_guard.as_any_mut().downcast_mut::<PositionNodeContext>().unwrap();
                         // position_node_context.monitor_unfilled_order().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("{}: 开始监听节点消息", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen node events");
+                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("{}: 开始监听策略内部事件", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_strategy_inner_events().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_strategy_command().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
-                        tracing::info!("{}: 开始监听虚拟交易系统事件", node_id);
-                        self.listen_virtual_trading_system_events().await;
+                        tracing::info!("[{node_name}({node_id})] starting to listen virtual trading system events");
+                        let log_message = ListenVirtualTradingSystemEventMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            position_node_state_action.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        let _ = self.listen_virtual_trading_system_events().await;
                     }
                     PositionManagementNodeStateAction::LogError(error) => {
-                        tracing::error!("{}: 发生错误: {}", node_id, error);
+                        tracing::error!("[{node_name}({node_id})] error occurred: {}", error);
                     }
-                }
-                // 所有动作执行完毕后更新节点最新的状态
-                {
-                    self.context.write().await.set_state_machine(state_machine.clone_box());
                 }
             }
         }
+        
+        // 所有动作执行完毕后更新节点最新的状态
+        self.context.write().await.set_state_machine(state_machine.clone_box());
         Ok(())
     }
 }

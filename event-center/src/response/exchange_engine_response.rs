@@ -1,9 +1,10 @@
-use std::error::Error;
+
 use types::market::Exchange;
 use crate::response::{Response, ResponseTrait};
 use types::error::engine_error::*;
 use utils::get_utc8_timestamp;
 use std::sync::Arc;
+use types::error::error_trait::StarRiverErrorTrait;
 
 #[derive(Debug)]
 pub enum ExchangeEngineResponse {
@@ -19,7 +20,7 @@ impl ResponseTrait for ExchangeEngineResponse {
     }
     
 
-    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
+    fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
             ExchangeEngineResponse::RegisterExchange(response) => response.error.as_ref().unwrap().clone(),
         }
@@ -62,7 +63,7 @@ pub struct RegisterExchangeResponse {
     pub success: bool,
     pub account_id: i32,
     pub exchange: Exchange,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 

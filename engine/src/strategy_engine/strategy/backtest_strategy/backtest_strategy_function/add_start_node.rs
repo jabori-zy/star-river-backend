@@ -23,9 +23,6 @@ impl BacktestStrategyFunction {
         
         let (heartbeat, virtual_trading_system, strategy_stats, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
-            // let event_publisher = strategy_context_guard.event_publisher.clone();
-            // let command_publisher = strategy_context_guard.command_publisher.clone();
-            // let command_receiver = strategy_context_guard.command_receiver.clone();
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let strategy_stats = strategy_context_guard.strategy_stats.clone();
@@ -36,9 +33,6 @@ impl BacktestStrategyFunction {
         
         let mut node = StartNode::new(
             node_config,
-            // event_publisher,
-            // command_publisher,
-            // command_receiver,
             heartbeat,
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),

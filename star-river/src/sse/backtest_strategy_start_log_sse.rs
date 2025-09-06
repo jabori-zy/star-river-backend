@@ -3,8 +3,6 @@ use futures::stream::Stream;
 use std::{convert::Infallible, time::Duration};
 use tokio_stream::StreamExt;
 
-use crate::StarRiver;
-use axum::extract::State;
 use event_center::Channel;
 use async_stream::stream;
 use event_center::strategy_event::StrategyEvent;
@@ -18,14 +16,14 @@ use event_center::EventCenterSingleton;
 
 #[utoipa::path(
     get,
-    path = "/api/v1/strategy/backtest/start-log",
+    path = "/api/v1/sse/strategy/backtest/start-log",
     tag = "Strategy Management",
     summary = "Backtest Strategy Start Log SSE",
     responses(
         (status = 200, description = "Backtest Strategy Start Log SSE connection successful")
     )
 )]
-pub async fn backtest_strategy_start_log_sse_handler(State(star_river): State<StarRiver>,) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn backtest_strategy_start_log_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Backtest Strategy Start Log SSE connection successful");
     // let event_center = star_river.event_center.lock().await;
     let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
@@ -49,8 +47,8 @@ pub async fn backtest_strategy_start_log_sse_handler(State(star_river): State<St
                 Ok(EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(_))) => {
                     let event = result.as_ref().unwrap();
                     match event {
-                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::NodeStartLog(_))) |
-                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::StrategyStartLog(_))) => {
+                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::NodeStateLog(_))) |
+                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::StrategyStateLog(_))) => {
                             let json = serde_json::to_string(event).unwrap();
                             // tracing::debug!("backtest-strategy-sse: {:?}", json);
                             // tracing::debug!("序列化后的 JSON: {}", json); // 添加这行

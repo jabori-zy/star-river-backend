@@ -25,6 +25,10 @@ use types::error::engine_error::strategy_engine_error::node_error::BacktestStrat
 use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::start_node_error::*;
 use types::custom_type::{StrategyId, NodeId, NodeName};
 use snafu::ResultExt;
+// use start_node_log_message::*;
+use super::node_message::start_node_log_message::*;
+use super::node_message::common_log_message::*;
+use types::strategy::node_event::NodeStateLogEvent;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -106,17 +110,17 @@ impl StartNode {
 
         // check initial balance (> 0)
         if backtest_strategy_config.initial_balance <= 0.0 {
-            return ValueNotGreaterThanZeroSnafu {config_name: "initial balance".to_string(), config_value: backtest_strategy_config.initial_balance}.fail();
+            return ValueNotGreaterThanZeroSnafu {node_name: node_name.clone(), node_id: node_id.clone(), config_name: "initial balance".to_string(), config_value: backtest_strategy_config.initial_balance}.fail();
         }
 
         // check leverage (> 0)
         if backtest_strategy_config.leverage <= 0 {
-            return ValueNotGreaterThanZeroSnafu {config_name: "leverage".to_string(), config_value: backtest_strategy_config.leverage as f64}.fail();
+            return ValueNotGreaterThanZeroSnafu {node_name: node_name.clone(), node_id: node_id.clone(), config_name: "leverage".to_string(), config_value: backtest_strategy_config.leverage as f64}.fail();
         }
 
         // check fee rate (>= 0)
         if backtest_strategy_config.fee_rate < 0.0 {
-            return ValueNotGreaterThanOrEqualToZeroSnafu {config_name: "fee rate".to_string(), config_value: backtest_strategy_config.fee_rate}.fail();
+            return ValueNotGreaterThanOrEqualToZeroSnafu {node_name: node_name.clone(), node_id: node_id.clone(), config_name: "fee rate".to_string(), config_value: backtest_strategy_config.fee_rate}.fail();
         }
 
         Ok((strategy_id, node_id, node_name, backtest_strategy_config))
@@ -201,65 +205,124 @@ impl BacktestNodeTrait for StartNode {
     async fn listen_node_events(&self) {}
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
+
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
-        let (transition_result, state_manager) = {
-            let node_guard = self.context.read().await;  // 使用读锁获取当前状态
-            let mut state_manager = node_guard.get_state_machine().clone_box();
-            let transition_result = state_manager.transition(event)?;
-            (transition_result, state_manager)
-        };
+        let strategy_id = self.get_strategy_id().await;
+        let strategy_output_handle = self.get_strategy_output_handle().await;
+        
+        let mut state_machine = self.get_state_machine().await;
+        let transition_result = state_machine.transition(event)?;
+            
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {  // 克隆actions避免移动问题
             if let Some(start_action) = action.as_any().downcast_ref::<StartNodeStateAction>() {
+                let current_state = state_machine.current_state();
                 match start_action {
-                StartNodeStateAction::LogTransition => {
-                    let current_state = self.context.read().await.get_state_machine().current_state();
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
-                }
-                StartNodeStateAction::ListenAndHandleInnerEvents => {
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy inner events");
-                    self.listen_strategy_inner_events().await;
-                }
-                StartNodeStateAction::ListenAndHandleStrategyCommand => {
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen strategy command");
-                    self.listen_strategy_command().await;
-                }
-                StartNodeStateAction::ListenAndHandlePlayIndex => {
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start listen play index");
-                    self.listen_play_index_change().await;
-                }
-                StartNodeStateAction::InitVirtualTradingSystem => {
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start init virtual trading system");
-                    let context = self.get_context();
-                    let mut state_guard = context.write().await;
-                    if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-                        start_node_context.init_virtual_trading_system().await;
+                    StartNodeStateAction::LogTransition => {
+                        tracing::debug!("[{node_name}({node_id})] state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
                     }
-                }
-                StartNodeStateAction::InitStrategyStats => {
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "start init strategy stats");
-                    let context = self.get_context();
-                    let mut state_guard = context.write().await;
-                    if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-                        start_node_context.init_strategy_stats().await;
+                    StartNodeStateAction::ListenAndHandleInnerEvents => {
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            StartNodeStateAction::ListenAndHandleInnerEvents.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        self.listen_strategy_inner_events().await;
                     }
-                }
-                StartNodeStateAction::LogNodeState => {
-                    let current_state = self.context.read().await.get_state_machine().current_state();
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "current state: {:?}", current_state);
-                }
-                StartNodeStateAction::CancelAsyncTask => {
-                    tracing::debug!(node_id = %node_id, node_name = %node_name, "cancel async task");
-                    self.cancel_task().await;
-                }
-                _ => {}
+                    StartNodeStateAction::ListenAndHandleStrategyCommand => {
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            StartNodeStateAction::ListenAndHandleStrategyCommand.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        self.listen_strategy_command().await;
+                    }
+                    StartNodeStateAction::ListenAndHandlePlayIndex => {
+                        tracing::info!("[{node_name}({node_id})] starting to listen play index change");
+                        let log_message = ListenPlayIndexChangeMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            StartNodeStateAction::ListenAndHandlePlayIndex.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        self.listen_play_index_change().await;
+                    }
+                    StartNodeStateAction::InitVirtualTradingSystem => {
+                        tracing::info!("[{node_name}({node_id})] start to init virtual trading system");
+                        let log_message = InitVirtualTradingSystemMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            StartNodeStateAction::InitVirtualTradingSystem.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                            start_node_context.init_virtual_trading_system().await;
+                        }
+                    }
+                    StartNodeStateAction::InitStrategyStats => {
+                        tracing::info!("[{node_name}({node_id})] start to init strategy stats");
+                        let log_message = InitStrategyStatsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            StartNodeStateAction::InitStrategyStats.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                            start_node_context.init_strategy_stats().await;
+                        }
+                    }
+                    StartNodeStateAction::LogNodeState => {
+                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            StartNodeStateAction::LogNodeState.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                    }
+                    StartNodeStateAction::CancelAsyncTask => {
+                        tracing::debug!("[{node_name}({node_id})] cancel async task");
+                        self.cancel_task().await;
+                    }
+                    _ => {}
             }
             // 更新状态
             {
                 let mut state_guard = self.context.write().await;
-                state_guard.set_state_machine(state_manager.clone_box());
+                state_guard.set_state_machine(state_machine.clone_box());
             }
         }
     }

@@ -4,9 +4,8 @@
 
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
-
-
 use types::error::ErrorCode;
+use types::error::error_trait::Language;
 use crate::{Event, Command};
 
 #[derive(Debug, Snafu)]
@@ -99,5 +98,41 @@ impl types::error::error_trait::StarRiverErrorTrait for EventCenterError {
             EventCenterError::EventCenterInstanceAlreadyInitialized { .. } |
             EventCenterError::EventCenterInstanceNotInitialized { .. }
         )
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    EventCenterError::ChannelNotInitialized { channel, .. } => {
+                        format!("通道 [{}] 未初始化", channel)
+                    },
+                    EventCenterError::ChannelNotFound { channel, .. } => {
+                        format!("通道 [{}] 未找到", channel)
+                    },
+                    EventCenterError::EngineCommandReceiverNotFound { engine_name, .. } => {
+                        format!("引擎 [{}] 的命令接收器未找到", engine_name)
+                    },
+                    EventCenterError::EngineCommandSenderNotFound { engine_name, .. } => {
+                        format!("引擎 [{}] 的命令发送器未找到", engine_name)
+                    },
+                    EventCenterError::EventSendError { source, .. } => {
+                        format!("事件发送错误: {}", source)
+                    },
+                    EventCenterError::CommandSendError { source, .. } => {
+                        format!("命令发送错误: {}", source)
+                    },
+                    EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => {
+                        "事件中心实例已初始化".to_string()
+                    },
+                    EventCenterError::EventCenterInstanceNotInitialized { .. } => {
+                        "事件中心实例未初始化".to_string()
+                    },
+                }
+            },
+        }
     }
 }

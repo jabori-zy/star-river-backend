@@ -1,6 +1,7 @@
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use crate::error::exchange_client_error::ExchangeClientError;
 use crate::error::exchange_client_error::Mt5Error;
 use crate::custom_type::AccountId;
@@ -308,6 +309,153 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 ExchangeEngineError::EventPublishingFailed { .. } |
                 ExchangeEngineError::CommandHandlingFailed { .. }
             )
+        }
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        match self {
+            // For transparent errors, delegate to the inner error's chain
+            ExchangeEngineError::ExchangeClientError { source } => source.error_code_chain(),
+            ExchangeEngineError::Mt5 { source } => source.error_code_chain(),
+            ExchangeEngineError::Database { .. } => {
+                // DbErr doesn't implement our trait, so just return our code
+                vec![self.error_code()]
+            },
+            
+            // For errors with source that implements our trait
+            ExchangeEngineError::RegisterExchangeFailed { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            },
+            
+            // For errors without source or with external sources
+            _ => vec![self.error_code()],
+        }
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    ExchangeEngineError::RegisterExchangeFailed { message, account_id, exchange_type, .. } => {
+                        format!("账户 {} 注册交易所失败: {}, 交易所类型: {:?}", account_id, message, exchange_type)
+                    },
+                    ExchangeEngineError::UnregistrationFailed { message, account_id, exchange_type, .. } => {
+                        format!("账户 {} 注销交易所失败: {}, 交易所类型: {:?}", account_id, message, exchange_type)
+                    },
+                    ExchangeEngineError::Database { source, .. } => {
+                        format!("数据库错误: {}", source)
+                    },
+                    ExchangeEngineError::UnsupportedExchangeType { exchange_type, account_id, .. } => {
+                        format!("账户 {} 的交易所类型 {:?} 不支持", account_id, exchange_type)
+                    },
+                    ExchangeEngineError::Mt5 { source } => {
+                        format!("MetaTrader5错误: {}", source.get_error_message(language))
+                    },
+                    ExchangeEngineError::ExchangeClientNotFound { message, account_id, requested_operation, .. } => {
+                        let op_str = if let Some(op) = requested_operation {
+                            format!(", 请求操作: {}", op)
+                        } else {
+                            String::new()
+                        };
+                        format!("账户 {} 未找到交易所客户端: {}{}", account_id, message, op_str)
+                    },
+                    ExchangeEngineError::ExchangeClientOperationFailed { message, account_id, operation, exchange_type, .. } => {
+                        format!("账户 {} 交易所客户端操作失败: {}, 操作: {}, 交易所: {:?}", account_id, message, operation, exchange_type)
+                    },
+                    ExchangeEngineError::ExchangeClientTypeConversionFailed { message, account_id, expected_type, actual_type, .. } => {
+                        format!("账户 {} 交易所客户端类型转换失败: {}, 期望类型: {}, 实际类型: {}", account_id, message, expected_type, actual_type)
+                    },
+                    ExchangeEngineError::DatabaseOperationFailed { message, operation, account_id, table, .. } => {
+                        let mut msg = format!("数据库操作失败: {}, 操作: {}", message, operation);
+                        if let Some(acc_id) = account_id {
+                            msg.push_str(&format!(", 账户ID: {}", acc_id));
+                        }
+                        if let Some(t) = table {
+                            msg.push_str(&format!(", 表: {}", t));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::DatabaseConnectionFailed { message, database_url, .. } => {
+                        let url_str = if let Some(url) = database_url {
+                            format!(", 数据库URL: {}", url)
+                        } else {
+                            String::new()
+                        };
+                        format!("数据库连接失败: {}{}", message, url_str)
+                    },
+                    ExchangeEngineError::OperationTimeout { message, account_id, operation, timeout_duration, retry_count, .. } => {
+                        let mut msg = format!("操作超时: {}, 操作: {}, 超时时长: {}", message, operation, timeout_duration);
+                        if let Some(acc_id) = account_id {
+                            msg.push_str(&format!(", 账户: {}", acc_id));
+                        }
+                        if let Some(retry) = retry_count {
+                            msg.push_str(&format!(", 重试次数: {}", retry));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::ConfigurationError { message, config_key, account_id, .. } => {
+                        let mut msg = format!("配置错误: {}", message);
+                        if let Some(key) = config_key {
+                            msg.push_str(&format!(", 配置键: {}", key));
+                        }
+                        if let Some(acc_id) = account_id {
+                            msg.push_str(&format!(", 账户ID: {}", acc_id));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::EnvironmentError { message, variable, expected, .. } => {
+                        let mut msg = format!("环境错误: {}", message);
+                        if let Some(var) = variable {
+                            msg.push_str(&format!(", 变量: {}", var));
+                        }
+                        if let Some(exp) = expected {
+                            msg.push_str(&format!(", 期望值: {}", exp));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::EventPublishingFailed { message, account_id, event_type, .. } => {
+                        let mut msg = format!("事件发布失败: {}", message);
+                        if let Some(acc_id) = account_id {
+                            msg.push_str(&format!(", 账户ID: {}", acc_id));
+                        }
+                        if let Some(ev_type) = event_type {
+                            msg.push_str(&format!(", 事件类型: {}", ev_type));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::CommandHandlingFailed { message, account_id, command_type, .. } => {
+                        let mut msg = format!("命令处理失败: {}, 命令类型: {}", message, command_type);
+                        if let Some(acc_id) = account_id {
+                            msg.push_str(&format!(", 账户ID: {}", acc_id));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::ExchangeClientError { source } => {
+                        format!("交易所客户端错误: {}", source.get_error_message(language))
+                    },
+                    ExchangeEngineError::Internal { message, component, context, account_id, .. } => {
+                        let mut msg = format!("交易所引擎内部错误: {}", message);
+                        if let Some(comp) = component {
+                            msg.push_str(&format!(", 组件: {}", comp));
+                        }
+                        if let Some(ctx) = context {
+                            msg.push_str(&format!(", 上下文: {}", ctx));
+                        }
+                        if let Some(acc_id) = account_id {
+                            msg.push_str(&format!(", 账户ID: {}", acc_id));
+                        }
+                        msg
+                    },
+                    ExchangeEngineError::NotImplemented { message, feature, exchange_type, .. } => {
+                        format!("功能未实现: {}, 功能: {}, 交易所类型: {:?}", message, feature, exchange_type)
+                    },
+                }
+            },
         }
     }
 }

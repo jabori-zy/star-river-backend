@@ -9,6 +9,7 @@ pub mod position_management_node_error;
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 
 
 pub use kline_node_error::KlineNodeError;
@@ -34,7 +35,7 @@ pub enum BacktestStrategyNodeError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("unsupported node type: {node_type}"))]
+    #[snafu(display("unsupported backtest strategy node type: {node_type}"))]
     UnsupportedNodeType {
         node_type: String,
         backtrace: Backtrace,
@@ -92,21 +93,24 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
     }
     
     fn error_code(&self) -> ErrorCode {
-            let prefix = self.get_prefix();
-            let code = match self {
-                // HTTP and JSON errors (1001-1004)
-                BacktestStrategyNodeError::StateMachine { .. } => 1001,
-                BacktestStrategyNodeError::StartNode { .. } => 1002,
-                BacktestStrategyNodeError::KlineNode { .. } => 1003,
-                BacktestStrategyNodeError::UnsupportedNodeType { .. } => 1004,
-                BacktestStrategyNodeError::IndicatorNode { .. } => 1005,
-                BacktestStrategyNodeError::IfElseNode { .. } => 1006,
-                BacktestStrategyNodeError::GetVariableNode { .. } => 1007,
-                BacktestStrategyNodeError::FuturesOrderNode { .. } => 1008,
-                BacktestStrategyNodeError::PositionManagementNode { .. } => 1009,
-            };   
-
-            format!("{}_{:04}", prefix, code)
+            match self {
+                // transparent errors - delegate to source error
+                BacktestStrategyNodeError::StateMachine { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::StartNode { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::KlineNode { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::IndicatorNode { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::IfElseNode { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::GetVariableNode { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::FuturesOrderNode { source, .. } => source.error_code(),
+                BacktestStrategyNodeError::PositionManagementNode { source, .. } => source.error_code(),
+                
+                // non-transparent errors - use own error code
+                BacktestStrategyNodeError::UnsupportedNodeType { .. } => {
+                    let prefix = self.get_prefix();
+                    let code = 1004;
+                    format!("{}_{:04}", prefix, code)
+                },
+            }
     }
 
     fn context(&self) -> HashMap<&'static str, String> {
@@ -126,5 +130,64 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
             BacktestStrategyNodeError::FuturesOrderNode { .. } |
             BacktestStrategyNodeError::PositionManagementNode { .. }
         )
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    // transparent errors - return source message directly
+                    BacktestStrategyNodeError::StateMachine { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::StartNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::KlineNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::IndicatorNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::IfElseNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::GetVariableNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::FuturesOrderNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    BacktestStrategyNodeError::PositionManagementNode { source, .. } => {
+                        source.get_error_message(language)
+                    },
+                    
+                    // non-transparent errors - use custom message
+                    BacktestStrategyNodeError::UnsupportedNodeType { node_type, .. } => {
+                        format!("不支持的回测策略节点类型: {}", node_type)
+                    },
+                }
+            },
+        }
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        match self {
+            // transparent errors - delegate to source
+            BacktestStrategyNodeError::StateMachine { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::StartNode { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::KlineNode { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::IndicatorNode { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::IfElseNode { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::GetVariableNode { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::FuturesOrderNode { source, .. } => source.error_code_chain(),
+            BacktestStrategyNodeError::PositionManagementNode { source, .. } => source.error_code_chain(),
+            
+            // non-transparent errors - return own error code
+            BacktestStrategyNodeError::UnsupportedNodeType { .. } => vec![self.error_code()],
+        }
     }
 }

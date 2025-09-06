@@ -30,6 +30,9 @@ use types::error::engine_error::strategy_engine_error::node_error::if_else_node_
 use types::custom_type::{StrategyId, NodeId, NodeName};
 use snafu::ResultExt;
 use condition::Case;
+use super::node_message::if_else_node_log_message::*;
+use super::node_message::common_log_message::*;
+use types::strategy::node_event::NodeStateLogEvent;
 
 
 
@@ -244,39 +247,90 @@ impl BacktestNodeTrait for IfElseNode {
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        // 提前获取所有需要的数据，避免在循环中持有引用
-        let node_id = self.context.read().await.get_node_id().clone();
+        let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+        let strategy_id = self.get_strategy_id().await;
+        let strategy_output_handle = self.get_strategy_output_handle().await;
         
         // 获取状态管理器并执行转换
-        let (transition_result, state_manager) = {
-            let mut state_manager = self.context.read().await.get_state_machine().clone_box();  // 使用读锁获取当前状态
-            let transition_result = state_manager.transition(event)?;
-            (transition_result, state_manager)
-        };
+        let mut state_machine = self.get_state_machine().await;
+        let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
+        for action in transition_result.get_actions() {
             if let Some(if_else_node_state_action) = action.as_any().downcast_ref::<IfElseNodeStateAction>() {
+                let current_state = state_machine.current_state();
                 match if_else_node_state_action {
                     IfElseNodeStateAction::LogTransition => {
-                        let current_state = self.context.read().await.get_state_machine().current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
-                }
+                        tracing::info!("[{node_name}({node_id})] state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
+                    }
+                    IfElseNodeStateAction::ListenAndHandleStrategySignal => {
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy signal");
+                        let log_message = ListenStrategySignalMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IfElseNodeStateAction::ListenAndHandleStrategySignal.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+                    }
                 IfElseNodeStateAction::LogNodeState => {
-                    let current_state = self.context.read().await.get_state_machine().current_state();
-                    tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                    tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
+                    let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                    let log_event = NodeStateLogEvent::success(
+                        strategy_id.clone(),
+                        node_id.clone(),
+                        node_name.clone(),
+                        current_state.to_string(),
+                        IfElseNodeStateAction::LogNodeState.to_string(),
+                        log_message.to_string(),
+                    );
+                    let _ = strategy_output_handle.send(log_event.into());
                 }
 
                 IfElseNodeStateAction::ListenAndHandleNodeEvents => {
-                    tracing::info!("{}: 开始监听节点传递的message", node_id);
+                    tracing::info!("[{node_name}({node_id})] starting to listen node events");
+                    let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                    let log_event = NodeStateLogEvent::success(
+                        strategy_id.clone(),
+                        node_id.clone(),
+                        node_name.clone(),
+                        current_state.to_string(),
+                        IfElseNodeStateAction::ListenAndHandleNodeEvents.to_string(),
+                        log_message.to_string(),
+                    );
+                    let _ = strategy_output_handle.send(log_event.into());
                     self.listen_node_events().await;
                 }
                 IfElseNodeStateAction::ListenAndHandleInnerEvents => {
-                    tracing::info!("{}: 开始监听策略内部事件", node_id);
+                    tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                    let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                    let log_event = NodeStateLogEvent::success(
+                        strategy_id.clone(),
+                        node_id.clone(),
+                        node_name.clone(),
+                        current_state.to_string(),
+                        IfElseNodeStateAction::ListenAndHandleInnerEvents.to_string(),
+                        log_message.to_string(),
+                    );
+                    let _ = strategy_output_handle.send(log_event.into());
                     self.listen_strategy_inner_events().await;
                 }
                 IfElseNodeStateAction::InitReceivedData => {
-                    tracing::info!("{}: 开始初始化接收标记", node_id);
+                    tracing::info!("[{node_name}({node_id})] initializing received data flags");
+                    let log_message = InitReceivedDataMsg::new(node_id.clone(), node_name.clone());
+                    let log_event = NodeStateLogEvent::success(
+                        strategy_id.clone(),
+                        node_id.clone(),
+                        node_name.clone(),
+                        current_state.to_string(),
+                        IfElseNodeStateAction::InitReceivedData.to_string(),
+                        log_message.to_string(),
+                    );
+                    let _ = strategy_output_handle.send(log_event.into());
                     let context = self.get_context();
                     let mut state_guard = context.write().await;
                     if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
@@ -284,28 +338,46 @@ impl BacktestNodeTrait for IfElseNode {
                     }
                 }
                 IfElseNodeStateAction::Evaluate => {
-                    tracing::info!("{}: 开始判断条件", node_id);
+                    tracing::info!("[{node_name}({node_id})] starting condition evaluation");
+                    let log_message = StartConditionEvaluationMsg::new(node_id.clone(), node_name.clone());
+                    let log_event = NodeStateLogEvent::success(
+                        strategy_id.clone(),
+                        node_id.clone(),
+                        node_name.clone(),
+                        current_state.to_string(),
+                        IfElseNodeStateAction::Evaluate.to_string(),
+                        log_message.to_string(),
+                    );
+                    let _ = strategy_output_handle.send(log_event.into());
                     self.evaluate().await;
                 }
                 IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
-                    tracing::info!("{}: 开始监听策略命令", node_id);
+                    tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                    let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                    let log_event = NodeStateLogEvent::success(
+                        strategy_id.clone(),
+                        node_id.clone(),
+                        node_name.clone(),
+                        current_state.to_string(),
+                        IfElseNodeStateAction::ListenAndHandleStrategyCommand.to_string(),
+                        log_message.to_string(),
+                    );
+                    let _ = strategy_output_handle.send(log_event.into());
                     self.listen_strategy_command().await;
                 }
                 
                 IfElseNodeStateAction::CancelAsyncTask => {
-                    tracing::info!("{}: 开始取消异步任务", node_id);
+                    tracing::debug!("[{node_name}({node_id})] cancel async task");
                     self.cancel_task().await;
                 }
                 _ => {}
+                }
                 // 所有动作执行完毕后更新节点最新的状态
-                
-            }
-            // 所有动作执行完毕后更新节点最新的状态
-            {
-                self.context.write().await.set_state_machine(state_manager.clone_box());
+                {
+                    self.context.write().await.set_state_machine(state_machine.clone_box());
+                }
             }
         }
-    }
                     
         Ok(())
     }

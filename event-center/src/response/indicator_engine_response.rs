@@ -1,4 +1,4 @@
-use std::error::Error;
+
 use types::market::{Exchange, KlineInterval};
 use types::indicator::IndicatorConfig;
 use types::custom_type::{StrategyId, NodeId};
@@ -6,6 +6,7 @@ use crate::response::{Response, ResponseTrait};
 use types::cache::Key;
 use utils::get_utc8_timestamp;
 use std::sync::Arc;
+use types::error::error_trait::StarRiverErrorTrait;
 
 #[derive(Debug)]
 pub enum IndicatorEngineResponse {
@@ -21,7 +22,7 @@ impl ResponseTrait for IndicatorEngineResponse {
         }
     }
 
-    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
+    fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
             IndicatorEngineResponse::RegisterIndicator(response) => response.error.as_ref().unwrap().clone(),
             IndicatorEngineResponse::CalculateBacktestIndicator(response) => response.error.as_ref().unwrap().clone(),
@@ -47,7 +48,7 @@ impl From<IndicatorEngineResponse> for Response {
 pub struct CalculateBacktestIndicatorResponse {
     pub success: bool,
     pub backtest_indicator_key: Key,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
@@ -79,7 +80,7 @@ pub struct RegisterIndicatorResponse {
     pub symbol: String,
     pub interval: KlineInterval,
     pub indicator: IndicatorConfig,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 

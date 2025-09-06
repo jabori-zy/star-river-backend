@@ -1,4 +1,5 @@
 use strum::Display;
+use types::error::engine_error::strategy_engine_error::strategy_error::*;
 
 
 #[derive(Debug, Clone, PartialEq, Display)]
@@ -30,14 +31,21 @@ pub enum BacktestStrategyRunState { // 回测策略的运行状态
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum BacktestStrategyStateTransitionEvent { // 当切换到某一个状态时, 抛出的事件
+    #[strum(serialize = "Check")]
     Check,            // 检查策略
+    #[strum(serialize = "CheckComplete")]
     CheckComplete,    // 检查完成 -> 进入Created状态
+    #[strum(serialize = "Initialize")]
     Initialize,     // 初始化开始
+    #[strum(serialize = "InitializeComplete")]
     InitializeComplete,  // 初始化完成 -> 进入Ready状态
+    #[strum(serialize = "Stop")]
     Stop,           // 停止策略
+    #[strum(serialize = "StopComplete")]
     StopComplete,   // 停止完成 -> 进入Stopped状态
+    #[strum(serialize = "Fail")]
     Fail(String),  // 策略失败，带有错误信息
 }
 
@@ -97,10 +105,11 @@ pub struct BacktestStrategyStateChangeActions { // 回测策略的状态转换�
 }
 
 impl BacktestStrategyStateChangeActions {
-    fn get_new_state(&self) -> BacktestStrategyRunState {
+    pub fn get_new_state(&self) -> BacktestStrategyRunState {
         self.new_state.clone()
     }
-    fn get_actions(&self) -> Vec<BacktestStrategyStateAction> {
+
+    pub fn get_actions(&self) -> Vec<BacktestStrategyStateAction> {
         self.actions.clone()
     }
 }
@@ -127,15 +136,16 @@ impl BacktestStrategyStateMachine {
         self.current_state.clone()
     }
 
-    pub fn transition(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<BacktestStrategyStateChangeActions, String> {
+    // 事件触发状态转换
+    pub fn transition(&mut self, event: BacktestStrategyStateTransitionEvent) -> Result<BacktestStrategyStateChangeActions, BacktestStrategyError> {
         match (self.current_state.clone(), event) {
             (BacktestStrategyRunState::Created, BacktestStrategyStateTransitionEvent::Check) => {
                 self.current_state = BacktestStrategyRunState::Checking;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Checking,
                     actions: vec![
-                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition,
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::CheckNode,
                     ],
                 })
@@ -147,19 +157,19 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::CheckPassed,
                     actions: vec![
-                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition,
+                        BacktestStrategyStateAction::LogStrategyState,
                     ],
                 })
             }
             // created => initializing
-            (BacktestStrategyRunState::Created, BacktestStrategyStateTransitionEvent::Initialize) => {
+            (BacktestStrategyRunState::CheckPassed, BacktestStrategyStateTransitionEvent::Initialize) => {
                 self.current_state = BacktestStrategyRunState::Initializing;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Initializing,
                     actions: vec![
-                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition,
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::ListenAndHandleNodeEvent,
                         BacktestStrategyStateAction::ListenAndHandleNodeCommand,
                         BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent,
@@ -179,8 +189,8 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Ready,
                     actions: vec![
-                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition,
+                        BacktestStrategyStateAction::LogStrategyState,
                     ],
                 })
             }
@@ -190,8 +200,8 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Stopping,
                     actions: vec![
-                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::LogTransition, 
+                        BacktestStrategyStateAction::LogStrategyState,
                         BacktestStrategyStateAction::StopNode,
                     ],
                 })
@@ -202,8 +212,9 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Stopped,
                     actions: vec![
-                        BacktestStrategyStateAction::LogStrategyState,
-                        BacktestStrategyStateAction::LogTransition
+                        BacktestStrategyStateAction::LogTransition,
+                        BacktestStrategyStateAction::LogStrategyState
+                        
                         ],
                 })
             }
@@ -213,16 +224,21 @@ impl BacktestStrategyStateMachine {
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Failed,
                     actions: vec![
+                        BacktestStrategyStateAction::LogTransition,
                         BacktestStrategyStateAction::LogStrategyState,
-                        BacktestStrategyStateAction::LogTransition, 
                         BacktestStrategyStateAction::LogError(error),
                     ],
                 })
             }
-            // 处理无效的状态转换
+            // 无效的（非法）状态转换
             (state, event) => {
                 self.current_state = BacktestStrategyRunState::Failed;
-                Err(format!("策略 {} 无效的状态转换: {:?} -> {:?}", self.strategy_name, state, event))
+                return Err(StrategyStateInvalidStateTransitionSnafu {
+                    strategy_id: self.strategy_id,
+                    strategy_name: self.strategy_name.clone(),
+                    current_state: state.to_string(),
+                    event: event.to_string(),
+                }.build());
             }
 
         }

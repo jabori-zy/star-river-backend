@@ -1,11 +1,10 @@
-use std::error::Error;
-
 use types::custom_type::{StrategyId, NodeId};
 use types::cache::{CacheValue, Key};
 use std::sync::Arc;
 use std::collections::HashMap;
 use crate::response::{Response, ResponseTrait};
 use utils::get_utc8_timestamp;
+use types::error::error_trait::StarRiverErrorTrait;
 
 #[derive(Debug)]
 pub enum CacheEngineResponse {
@@ -30,7 +29,7 @@ impl ResponseTrait for CacheEngineResponse {
     }
     
 
-    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
+    fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
             CacheEngineResponse::AddCacheKey(response) =>  response.error.as_ref().unwrap().clone(),
             CacheEngineResponse::AddIndicatorCacheKey(response) => response.error.as_ref().unwrap().clone(),
@@ -73,7 +72,7 @@ impl TryFrom<Response> for CacheEngineResponse {
 pub struct AddCacheKeyResponse {
     pub success: bool,
     pub key: Key,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
@@ -104,7 +103,7 @@ pub struct GetCacheDataResponse {
     pub success: bool,
     pub key: Key,
     pub cache_data: Vec<Arc<CacheValue>>,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
@@ -134,7 +133,7 @@ impl From<GetCacheDataResponse> for Response {
 pub struct GetCacheDataMultiResponse {
     pub success: bool,
     pub cache_data: HashMap<String, Vec<Vec<f64>>>,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
@@ -170,7 +169,7 @@ pub struct AddIndicatorCacheKeyResponse {
     pub requested_strategy_id: StrategyId, // 请求的策略id
     pub requested_node_id: NodeId, // 请求的节点id
     pub indicator_key: Key,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
@@ -201,7 +200,7 @@ pub struct GetCacheLengthResponse {
     pub success: bool,
     pub cache_key: Key,
     pub cache_length: u32,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
@@ -231,7 +230,7 @@ impl From<GetCacheLengthResponse> for Response {
 pub struct GetCacheLengthMultiResponse {
     pub success: bool,
     pub cache_length: HashMap<Key, u32>,
-    pub error: Option<Arc<dyn Error + Send + Sync + 'static>>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 

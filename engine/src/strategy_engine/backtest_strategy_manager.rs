@@ -10,7 +10,7 @@ use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::error::engine_error::strategy_engine_error::*;
 use snafu::Report;
-use event_center::strategy_event::backtest_strategy_event::StrategyStartLogEvent;
+use event_center::strategy_event::backtest_strategy_event::StrategyStateLogEvent;
 use types::error::engine_error::strategy_error::BacktestStrategyError;
 /* 
     回测策略控制
@@ -21,7 +21,7 @@ impl StrategyEngineContext {
         if self.backtest_strategy_list.lock().await.contains_key(&strategy_id) {
             tracing::warn!("策略已存在, 不进行初始化");
             return Err(StrategyIsExistSnafu {
-                strategy_id: strategy_id,
+                strategy_id,
             }.fail()?);
         }
         let strategy_config: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
@@ -32,6 +32,7 @@ impl StrategyEngineContext {
 
         tokio::spawn(async move {
             let strategy_id = strategy_config.id;
+            let strategy_name = strategy_config.name.clone();
             let result: Result<(), BacktestStrategyError> = async {
 
                 let mut strategy = BacktestStrategy::new(
@@ -39,20 +40,13 @@ impl StrategyEngineContext {
                     database,
                     heartbeat
                 ).await;
-                strategy.add_node(
-                    // market_event_receiver,
-                    // response_event_receiver,
-                ).await?;
-                strategy.add_edge().await?;
-                strategy.set_leaf_nodes().await?;
-                strategy.set_strategy_output_handles().await?;
 
-                let init_result = strategy.init_strategy().await;
-                if let Err(e) = init_result {
-                    let report = Report::from_error(&e);
-                    tracing::error!("{}", report);
-                }
+                strategy.check_strategy().await?;
+
+                strategy.init_strategy().await?;
+                
                 strategy_list.lock().await.insert(strategy_id, strategy);
+                tracing::info!("strategy [{}({})] init success", strategy_name, strategy_id);
                 Ok(())
             }.await;
 
@@ -61,9 +55,6 @@ impl StrategyEngineContext {
                 tracing::error!("{}", report);
             }
         });
-        // strategy.init_strategy().await?;
-        // let node_list = strategy.get_node_list().await;
-        // self.backtest_strategy_list.insert(strategy_id, strategy);
         
         Ok(())
     }

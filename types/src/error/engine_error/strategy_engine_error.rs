@@ -5,6 +5,7 @@ pub mod strategy_error;
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use strategy_error::BacktestStrategyError;
 
 
@@ -59,7 +60,38 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             StrategyEngineError::StrategyIsExist { .. }
         )
     }
-    
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        match self {
+            // For transparent errors, delegate to the inner error's chain
+            StrategyEngineError::BacktestStrategyError { source, .. } => source.error_code_chain(),
+            
+            // For errors without source
+            StrategyEngineError::UnsupportedStrategyType { .. } |
+            StrategyEngineError::StrategyIsExist { .. } => vec![self.error_code()],
+        }
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    StrategyEngineError::BacktestStrategyError { source, .. } => {
+                        format!("回测策略错误: {}", source.get_error_message(language))
+                    },
+                    StrategyEngineError::UnsupportedStrategyType { strategy_type, .. } => {
+                        format!("不支持的策略类型: {}", strategy_type)
+                    },
+                    StrategyEngineError::StrategyIsExist { strategy_id, .. } => {
+                        format!("策略 {} 已存在", strategy_id)
+                    },
+                }
+            },
+        }
+    }
 }
 
 

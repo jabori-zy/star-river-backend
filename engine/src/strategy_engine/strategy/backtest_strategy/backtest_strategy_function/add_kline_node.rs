@@ -20,8 +20,6 @@ impl BacktestStrategyFunction {
     pub async fn add_kline_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        // market_event_receiver: EventReceiver,
-        // response_event_receiver: EventReceiver,
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), KlineNodeError> {
@@ -32,9 +30,6 @@ impl BacktestStrategyFunction {
         
         let (heartbeat, virtual_trading_system, strategy_keys, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
-            // let event_publisher = strategy_context_guard.event_publisher.clone();
-            // let command_publisher = strategy_context_guard.command_publisher.clone();
-            // let command_receiver = strategy_context_guard.command_receiver.clone();
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let strategy_keys = strategy_context_guard.keys.clone();
@@ -46,11 +41,6 @@ impl BacktestStrategyFunction {
 
         let mut node = KlineNode::new(
             node_config,
-            // event_publisher,
-            // command_publisher,
-            // command_receiver,
-            // market_event_receiver,
-            // response_event_receiver,
             heartbeat,
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),

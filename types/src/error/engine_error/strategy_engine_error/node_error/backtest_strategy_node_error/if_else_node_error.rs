@@ -1,6 +1,7 @@
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -46,5 +47,29 @@ impl crate::error::error_trait::StarRiverErrorTrait for IfElseNodeError {
             IfElseNodeError::ConfigFieldValueNull { .. } |
             IfElseNodeError::ConfigDeserializationFailed { .. }
         )
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        // All IfElseNodeError variants either have no source or
+        // have external sources (serde_json::Error) that don't implement our trait
+        vec![self.error_code()]
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    IfElseNodeError::ConfigFieldValueNull { field_name, .. } => {
+                        format!("条件判断节点回测配置字段值为空: {}", field_name)
+                    },
+                    IfElseNodeError::ConfigDeserializationFailed { source, .. } => {
+                        format!("条件判断节点回测配置反序列化失败，原因: {}", source)
+                    },
+                }
+            },
+        }
     }
 }

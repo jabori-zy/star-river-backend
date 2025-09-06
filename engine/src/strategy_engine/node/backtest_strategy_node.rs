@@ -7,4 +7,7 @@ pub mod futures_order_node;
 pub mod position_management_node;
 pub mod start_node;
 
+pub mod node_message;
+
+
 

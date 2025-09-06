@@ -15,7 +15,6 @@ use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_conte
 use futures::stream::select_all;
 use futures::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
-use types::custom_type::NodeId;
 
 pub struct BacktestStrategyFunction;
 

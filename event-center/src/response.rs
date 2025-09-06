@@ -11,11 +11,12 @@ use cache_engine_response::CacheEngineResponse;
 use exchange_engine_response::ExchangeEngineResponse;
 use indicator_engine_response::IndicatorEngineResponse;
 use market_engine_response::MarketEngineResponse;
+use types::error::error_trait::StarRiverErrorTrait;
 
 
 pub trait ResponseTrait {
     fn success(&self) -> bool;
-    fn error(&self) -> Arc<dyn Error + Send + Sync + 'static>;
+    fn error(&self) -> Arc<dyn StarRiverErrorTrait>;
     fn response_timestamp(&self) -> i64;
 }
 
@@ -39,7 +40,7 @@ impl Response {
         }
     }
 
-    pub fn error(&self) -> Arc<dyn Error + Send + Sync + 'static> {
+    pub fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
             Response::CacheEngine(response) => response.error(),
             Response::IndicatorEngine(response) => response.error(),

@@ -221,6 +221,12 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_from_node_id().clone()
     }
 
+    async fn get_strategy_id(&self) -> i32 {
+        let context = self.get_context();
+        let context_guard = context.read().await;
+        context_guard.get_strategy_id().clone()
+    }
+
     
     // 获取节点id
     async fn get_node_id(&self) -> String {

@@ -22,6 +22,8 @@ use backtest_node_event::position_management_node_event::PositionManagementNodeE
 use crate::strategy::sys_varibale::SysVariable;
 use backtest_node_event::variable_node_event::VariableNodeEvent;
 use crate::custom_type::PlayIndex;
+use utils::get_utc8_timestamp_millis;
+use crate::error::error_trait::{StarRiverErrorTrait, Language};
 
 
 
@@ -373,7 +375,7 @@ pub enum LogLevel {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeStartLogEvent {
+pub struct NodeStateLogEvent {
     #[serde(rename = "strategyId")]
     pub strategy_id: i32,
 
@@ -396,24 +398,69 @@ pub struct NodeStartLogEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
+    #[serde(rename = "errorCodeChain")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code_chain: Option<Vec<String>>,
 
     #[serde(rename = "message")]
     pub message: String,
-
-    #[serde(rename = "detail")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<String>,
-
-    #[serde(rename = "duration")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration: Option<i64>,
 
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
 
-impl From<NodeStartLogEvent> for BacktestNodeEvent {
-    fn from(event: NodeStartLogEvent) -> Self {
-        BacktestNodeEvent::KlineNode(KlineNodeEvent::StateLog(event))
+
+impl NodeStateLogEvent {
+    pub fn success(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_state: String,
+        node_state_action: String,
+        message: String,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            node_state,
+            node_state_action,
+            log_level: LogLevel::Info,
+            message,
+            error_code: None,
+            error_code_chain: None,
+            timestamp: get_utc8_timestamp_millis(),
+        }
+    }
+
+    pub fn error(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_state: String,
+        node_state_action: String,
+        error: &impl StarRiverErrorTrait,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            node_state,
+            node_state_action,
+            log_level: LogLevel::Error,
+            message: error.get_error_message(Language::Chinese),
+            error_code: Some(error.error_code().to_string()),
+            error_code_chain: Some(error.error_code_chain()),
+            timestamp: get_utc8_timestamp_millis(),
+        }
+    }
+}
+
+
+
+
+impl From<NodeStateLogEvent> for BacktestNodeEvent {
+    fn from(event: NodeStateLogEvent) -> Self {
+        BacktestNodeEvent::KlineNode(KlineNodeEvent::StartLog(event))
     }
 }

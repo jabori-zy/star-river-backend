@@ -2,6 +2,12 @@ use std::error::Error;
 use std::collections::HashMap;
 use super::ErrorCode;
 
+#[derive(Debug, Clone)]
+pub enum Language {
+    English,
+    Chinese,
+}
+
 /// Trait that all errors in the Star River Backend system should implement
 /// This ensures consistent error handling patterns across all components
 /// 
@@ -25,5 +31,19 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
     /// Returns true if the operation that caused this error can potentially be retried
     /// Returns false if the error indicates a permanent failure that should not be retried
     fn is_recoverable(&self) -> bool;
+
+    /// Returns localized error message based on the specified language
+    /// For English, it returns the Display trait message (from snafu display)
+    /// For other languages, it should return the localized version
+    fn get_error_message(&self, language: Language) -> String;
+
+    /// Returns the error code chain from the root cause to this error
+    /// For leaf errors (no source), returns [self.error_code()]
+    /// For errors with source, returns [root_error_code, ..., parent_error_code, self.error_code()]
+    /// Example: A->B->C would return [A_code, B_code, C_code] where A is the root cause
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        // Default implementation for leaf errors (no source)
+        vec![self.error_code()]
+    }
 
 }

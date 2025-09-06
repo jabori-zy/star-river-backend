@@ -1,6 +1,7 @@
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 
 
 #[derive(Debug, Snafu)]
@@ -46,11 +47,35 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorError {
             IndicatorError::CreateIndicatorFailed { .. }
         )
     }
-    
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    IndicatorError::UnsupportedIndicatorType { indicator_type, .. } => {
+                        format!("不支持的指标类型 [{}]", indicator_type)
+                    },
+                    IndicatorError::CreateIndicatorFailed { indicator_type, source, .. } => {
+                        format!("创建指标 [{}] 失败，原因: [{}]", indicator_type, source)
+                    },
+                }
+            },
+        }
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        match self {
+            // CreateIndicatorFailed has source but serde_json::Error doesn't implement our trait
+            // So we start the chain here
+            IndicatorError::CreateIndicatorFailed { .. } => vec![self.error_code()],
+            
+            // Other errors have no source - return own error code
+            _ => vec![self.error_code()],
+        }
+    }
 }
-
-
-
-
 
 

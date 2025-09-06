@@ -272,10 +272,9 @@ impl BacktestStrategyContext {
                     // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
-                KlineNodeEvent::StateLog(log_event) => {
+                KlineNodeEvent::StartLog(log_event) => {
                     tracing::info!("kline-node-log: {:#?}", serde_json::to_string(&log_event).unwrap());
-                    let backtest_strategy_event = BacktestStrategyEvent::NodeStartLog(log_event.clone());
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    let backtest_strategy_event = BacktestStrategyEvent::NodeStateLog(log_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 _ => {}
@@ -507,14 +506,7 @@ impl BacktestStrategyContext {
             let mut node_clone = node.clone();
 
             let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
-                let node_id = node_clone.get_node_id().await;
-                let node_name = node_clone.get_node_name().await;
-                let node_type = node_clone.get_node_type().await;
-                node_clone.init().await.context(NodeInitSnafu {
-                    node_id: node_id,
-                    node_name: node_name,
-                    node_type: node_type.to_string(),
-                })?;
+                node_clone.init().await.context(NodeInitSnafu {})?;
                 Ok(())
             });
 
@@ -528,8 +520,8 @@ impl BacktestStrategyContext {
                     if let Err(e) = result {
                         return Err(TokioTaskFailedSnafu {
                             task_name: "INIT_NODE".to_string(),
-                            node_name: node_name,
-                            node_id: node_id,
+                            node_name,
+                            node_id,
                             node_type: node_type.to_string(),
                         }.into_error(e));
                     }
@@ -540,8 +532,8 @@ impl BacktestStrategyContext {
                 }
                 Err(e) => {
                     return Err(NodeInitTimeoutSnafu {
-                        node_id: node_id,
-                        node_name: node_name,
+                        node_id,
+                        node_name,
                         node_type: node_type.to_string(),
                     }.into_error(e));
                 }

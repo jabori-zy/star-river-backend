@@ -24,6 +24,9 @@ use types::strategy::node_event::BacktestNodeEvent;
 use types::custom_type::PlayIndex;
 use types::error::engine_error::strategy_engine_error::node_error::*;
 use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::indicator_node_error::*;
+use super::node_message::indicator_node_log_message::*;
+use super::node_message::common_log_message::*;
+use types::strategy::node_event::NodeStateLogEvent;
 
 use types::custom_type::{StrategyId, NodeId, NodeName};
 use snafu::ResultExt;
@@ -323,72 +326,143 @@ impl BacktestNodeTrait for IndicatorNode {
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
+        let node_name = self.get_node_name().await;
+        let strategy_id = self.get_strategy_id().await;
+        let strategy_output_handle = self.get_strategy_output_handle().await;
         
         // 获取状态管理器并执行转换
-        let (transition_result, state_machine) = {
-            let mut state_machine = self.get_state_machine().await;
-            let transition_result = state_machine.transition(event)?;
-            (transition_result, state_machine)
-        };
+        let mut state_machine = self.get_state_machine().await;  // 使用读锁获取当前状态
+        let transition_result = state_machine.transition(event)?;
         
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {
             if let Some(indicator_node_state_action) = action.as_any().downcast_ref::<IndicatorNodeStateAction>() {
+                let current_state = state_machine.current_state();
                 match indicator_node_state_action {
                     IndicatorNodeStateAction::LogTransition => {
-                        let current_state = self.get_state_machine().await.current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                        tracing::info!("[{node_name}({node_id})] state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
                     }
                     IndicatorNodeStateAction::LogNodeState => {
-                        let current_state = self.get_state_machine().await.current_state();
-                        tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
+                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::LogNodeState.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                     }
                     IndicatorNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!("{}: 开始监听外部事件", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::ListenAndHandleExternalEvents.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_external_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("{}: 开始监听节点传递的message", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen node events");
+                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::ListenAndHandleNodeEvents.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("{}: 开始监听策略内部事件", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::ListenAndHandleInnerEvents.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_strategy_inner_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("{}: 开始监听策略命令", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::ListenAndHandleStrategyCommand.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         self.listen_strategy_command().await;
                     }
                     
                     IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
-                        tracing::info!("{}: 开始注册指标缓存键", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to register indicator cache key");
+                        
+                        let log_message = RegisterIndicatorCacheKeyMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::RegisterIndicatorCacheKey.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
+
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
                         let is_all_success = context.register_indicator_cache_key().await.unwrap();
                         if is_all_success {
                             if is_all_success {
                                 *context.is_registered.write().await = true;
-                                tracing::info!("{}: 注册指标缓存键成功", node_id);
+                                tracing::info!("[{node_name}({node_id})] register indicator cache key success");
                             } else {
-                                tracing::error!("{}: 注册指标缓存键失败", node_id);
+                                tracing::error!("[{node_name}({node_id})] register indicator cache key failed");
                             }
                         }
                     }
                     IndicatorNodeStateAction::CalculateIndicator => {
-                        tracing::info!("{}: 开始计算指标", node_id);
+                        tracing::info!("[{node_name}({node_id})] starting to calculate indicator");
+                        let log_message = CalculateIndicatorMsg::new(node_id.clone(), node_name.clone());
+                        let log_event = NodeStateLogEvent::success(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                            IndicatorNodeStateAction::CalculateIndicator.to_string(),
+                            log_message.to_string(),
+                        );
+                        let _ = strategy_output_handle.send(log_event.into());
                         let mut context = self.context.write().await;
                         let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
                         let is_all_success = context.calculate_indicator().await.unwrap();
                         
                         if is_all_success {
-                            tracing::info!("{}: 计算指标成功", node_id);
+                            tracing::info!("[{node_name}({node_id})] calculate indicator success");
                         } else {
-                            tracing::error!("{}: 计算指标失败", node_id);
+                            tracing::error!("[{node_name}({node_id})] calculate indicator failed");
                         }
                         
                     }
                     IndicatorNodeStateAction::CancelAsyncTask => {
-                        tracing::debug!(node_id = %node_id, "cancel async task");
+                        tracing::debug!("[{node_name}({node_id})] cancel async task");
                         self.cancel_task().await;
                     }
                     _ => {}

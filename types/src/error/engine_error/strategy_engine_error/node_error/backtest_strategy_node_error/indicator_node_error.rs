@@ -1,6 +1,7 @@
 use snafu::{Snafu, Backtrace};
 use std::collections::HashMap;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use crate::error::indicator_error::IndicatorError;
 
 #[derive(Debug, Snafu)]
@@ -85,5 +86,51 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::IndicatorError { .. } |
             IndicatorNodeError::DataSourceParseFailed { .. }
         )
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        match self {
+            // For transparent errors, delegate to the inner error's chain
+            IndicatorNodeError::IndicatorError { source, .. } => source.error_code_chain(),
+            
+            // For errors with external sources or no source
+            IndicatorNodeError::ConfigFieldValueNull { .. } |
+            IndicatorNodeError::ValueNotGreaterThanOrEqualToZero { .. } |
+            IndicatorNodeError::ValueNotGreaterThanZero { .. } => vec![self.error_code()],
+            
+            // For errors with external sources that don't implement our trait
+            IndicatorNodeError::ConfigDeserializationFailed { .. } |
+            IndicatorNodeError::DataSourceParseFailed { .. } => vec![self.error_code()],
+        }
+    }
+
+    fn get_error_message(&self, language: Language) -> String {
+        match language {
+            Language::English => {
+                self.to_string()
+            },
+            Language::Chinese => {
+                match self {
+                    IndicatorNodeError::ConfigFieldValueNull { field_name, .. } => {
+                        format!("指标节点回测配置字段值为空: {}", field_name)
+                    },
+                    IndicatorNodeError::ConfigDeserializationFailed { source, .. } => {
+                        format!("指标节点回测配置反序列化失败，原因: {}", source)
+                    },
+                    IndicatorNodeError::ValueNotGreaterThanOrEqualToZero { config_name, config_value, .. } => {
+                        format!("配置 {} 应该大于等于零，但得到了 {}", config_name, config_value)
+                    },
+                    IndicatorNodeError::ValueNotGreaterThanZero { config_name, config_value, .. } => {
+                        format!("配置 {} 应该大于零，但得到了 {}", config_name, config_value)
+                    },
+                    IndicatorNodeError::IndicatorError { source, .. } => {
+                        format!("指标错误: {}", source)
+                    },
+                    IndicatorNodeError::DataSourceParseFailed { data_source, source, .. } => {
+                        format!("数据源 [{}] 解析失败，原因: [{}]", data_source, source)
+                    },
+                }
+            },
+        }
     }
 }
