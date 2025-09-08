@@ -24,6 +24,8 @@ pub struct NewApiResponse<T> {
     pub message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code_chain: Option<Vec<ErrorCode>>,
 }
 
 
@@ -35,6 +37,7 @@ impl<T> NewApiResponse<T> {
             data: Some(data),
             message: None,
             error_code: None,
+            error_code_chain: None,
         }
     }
 
@@ -45,6 +48,7 @@ impl<T> NewApiResponse<T> {
             timestamp: Utc::now().to_string(),
             data: None,
             error_code: Some(error.error_code()),
+            error_code_chain: Some(error.error_code_chain()),
             message: Some(report.to_string()),
         }
     }

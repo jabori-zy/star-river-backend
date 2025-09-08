@@ -171,7 +171,7 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 }))
             }
             // 从任何状态都可以失败
-            (_, BacktestNodeStateTransitionEvent::Fail(error)) => {
+            (_, BacktestNodeStateTransitionEvent::Failed(error)) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(KlineNodeStateChangeActions {

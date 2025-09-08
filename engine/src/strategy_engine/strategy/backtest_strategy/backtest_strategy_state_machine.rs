@@ -18,7 +18,16 @@ pub enum BacktestStrategyRunState { // 回测策略的运行状态
     Initializing,   // 策略正在初始化
 
     #[strum(serialize = "Ready")]
-    Ready,          // 策略已准备
+    Ready,          // 策略已准备就绪
+
+    #[strum(serialize = "Playing")]
+    Playing,    // 策略正在播放
+
+    #[strum(serialize = "Pausing")]
+    Pausing,    // 策略正在暂停
+
+    #[strum(serialize = "PlayComplete")]
+    PlayComplete,    // 策略播放完成
     
     #[strum(serialize = "Stopping")]
     Stopping,       // 策略正在停止

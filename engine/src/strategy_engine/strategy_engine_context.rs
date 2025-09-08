@@ -1,7 +1,7 @@
 use event_center::Event;
 use sea_orm::DatabaseConnection;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::EngineName;
 use async_trait::async_trait;
 use crate::EngineContext;
@@ -15,6 +15,8 @@ use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use types::strategy::{StrategyConfig, TradeMode};
 use types::custom_type::StrategyId;
 use event_center::command::Command;
+use types::error::engine_error::strategy_engine_error::*;
+use snafu::Report;
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
@@ -24,6 +26,7 @@ pub struct StrategyEngineContext {
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     // pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
     pub backtest_strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>,
+    pub initializing_strategies: Arc<Mutex<HashSet<StrategyId>>>,
 }
 
 
@@ -35,6 +38,7 @@ impl Clone for StrategyEngineContext {
             database: self.database.clone(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
+            initializing_strategies: self.initializing_strategies.clone(),
         }
     }
 }
@@ -88,13 +92,17 @@ impl StrategyEngineContext {
     //     }
     // }
 
-    pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, String> {
+    pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, StrategyEngineError> {
         let backtest_strategy_list = self.backtest_strategy_list.lock().await;
         if let Some(strategy) = backtest_strategy_list.get(&strategy_id) {
             Ok(strategy.clone())
         } else {
-            tracing::error!("策略不存在");
-            Err("策略不存在".to_string())
+            let error = StrategyInstanceNotFoundSnafu {
+                strategy_id,
+            }.build();
+            let report = Report::from_error(&error);
+            tracing::error!("{}", report);
+            Err(error)
         }
     }
 

@@ -56,5 +56,23 @@ impl StrategyConfigQuery {
             Ok(JsonValue::Null)
         }
     }
+
+
+    pub async fn get_strategy_status_by_strategy_id(
+        db: &DbConn,
+        strategy_id: i32
+    ) -> Result<String, DbErr> {
+        let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
+        .filter(strategy_config::Column::IsDeleted.eq(false))
+        .one(db).await?
+        .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))
+        .map(Into::into)?;
+    
+        if let Some(config) = strategy_config {
+            Ok(config.status)
+        } else {
+            Ok("stopped".to_string())
+        }
+    }
 }
 

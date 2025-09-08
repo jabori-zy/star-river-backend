@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use super::super::node_error::BacktestStrategyNodeError;
+use sea_orm::error::DbErr;
 // use event_center::EventCenterError;
 
 #[derive(Debug, Snafu)]
@@ -47,21 +48,21 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("NODE_CONFIG_NULL: strategy [{strategy_name}({strategy_id})] nodes config is null"))]
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] nodes config is null"))]
     NodeConfigNull {
         strategy_id: i32,
         strategy_name: String,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("EDGE_CONFIG_NULL: strategy [{strategy_name}({strategy_id})] edges config is null"))]
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] edges config is null"))]
     EdgeConfigNull {
         strategy_id: i32,
         strategy_name: String,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("EDGE_CONFIG_MISS_FIELD: strategy [{strategy_name}({strategy_id})] edges config miss field: {field_name}"))]
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] edges config miss field: {field_name}"))]
     EdgeConfigMissField {
         strategy_id: i32,
         strategy_name: String,
@@ -69,7 +70,7 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("NODE_NOT_FOUND: strategy [{strategy_name}({strategy_id})] node not found"))]
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] node not found"))]
     NodeNotFound {
         strategy_id: i32,
         strategy_name: String,
@@ -77,12 +78,41 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("STRATEGY_STATE_INVALID_STATE_TRANSITION: strategy [{strategy_name}({strategy_id})] invalid state transition: current state: {current_state}, event: {event}"))]
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] invalid state transition: current state: {current_state}, event: {event}"))]
     StrategyStateInvalidStateTransition {
         strategy_id: i32,
         strategy_name: String,
         current_state: String,
         event: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("update strategy [{strategy_name}({strategy_id})] status failed: {source}"))]
+    UpdateStrategyStatusFailed {
+        strategy_id: i32,
+        strategy_name: String,
+        source: DbErr,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("wait for all nodes to stop timeout"))]
+    WaitAllNodesStoppedTimeout {
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("all backtest data played finished"))]
+    PlayFinished {
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("already playing, cannot play again"))]
+    AlreadyPlaying {
+        backtrace: Backtrace,
+    },
+
+
+    #[snafu(display("already pausing, cannot pause again"))]
+    AlreadyPausing {
         backtrace: Backtrace,
     },
 
@@ -114,6 +144,11 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::EdgeConfigMissField { .. } => 1007,
                 BacktestStrategyError::NodeNotFound { .. } => 1008,
                 BacktestStrategyError::StrategyStateInvalidStateTransition { .. } => 1009,
+                BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1010,
+                BacktestStrategyError::WaitAllNodesStoppedTimeout { .. } => 1011,
+                BacktestStrategyError::PlayFinished { .. } => 1012,
+                BacktestStrategyError::AlreadyPlaying { .. } => 1013,
+                BacktestStrategyError::AlreadyPausing { .. } => 1014,
                 // BacktestStrategyError::EventSendError { .. } => 1010,
             };
             format!("{prefix}_{code}")
@@ -136,7 +171,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::EdgeConfigNull { .. } |
             BacktestStrategyError::EdgeConfigMissField { .. } |
             BacktestStrategyError::NodeNotFound { .. } |
-            BacktestStrategyError::StrategyStateInvalidStateTransition { .. }
+            BacktestStrategyError::StrategyStateInvalidStateTransition { .. } |
+            BacktestStrategyError::UpdateStrategyStatusFailed { .. } |
+            BacktestStrategyError::WaitAllNodesStoppedTimeout { .. } |
+            BacktestStrategyError::PlayFinished { .. } |
+            BacktestStrategyError::AlreadyPlaying { .. } |
+            BacktestStrategyError::AlreadyPausing { .. }
         )
     }
 
@@ -176,6 +216,21 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     },
                     BacktestStrategyError::StrategyStateInvalidStateTransition { strategy_name, strategy_id, current_state, event, .. } => {
                         format!("策略状态转换无效: 策略 [{}({})] 无效的状态转换: 当前状态: {}, 事件: {}", strategy_name, strategy_id, current_state, event)
+                    },
+                    BacktestStrategyError::UpdateStrategyStatusFailed { strategy_name, strategy_id, source, .. } => {
+                        format!("更新策略状态失败: 策略 [{}({})] 更新状态失败: {}", strategy_name, strategy_id, source)
+                    },
+                    BacktestStrategyError::WaitAllNodesStoppedTimeout { .. } => {
+                        format!("等待所有节点停止超时")
+                    },
+                    BacktestStrategyError::PlayFinished { .. } => {
+                        format!("所有回测数据播放完毕")
+                    },
+                    BacktestStrategyError::AlreadyPlaying { .. } => {
+                        format!("策略正在播放，无法再次播放")
+                    },
+                    BacktestStrategyError::AlreadyPausing { .. } => {
+                        format!("策略正在暂停，无法再次暂停")
                     },
                 }
             },

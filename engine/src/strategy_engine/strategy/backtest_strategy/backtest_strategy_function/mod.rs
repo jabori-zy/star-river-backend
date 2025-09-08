@@ -43,7 +43,6 @@ impl BacktestStrategyFunction {
         let (receivers, cancel_token, strategy_name) = {
             let context_guard = context.read().await;
             let node_handles = context_guard.get_all_node_output_handles();
-            tracing::debug!("待监听的node handles: {:#?}", node_handles);
             let cancel_token = context_guard.get_cancel_task_token();
             let strategy_name = context_guard.get_strategy_name();
             (node_handles, cancel_token, strategy_name)

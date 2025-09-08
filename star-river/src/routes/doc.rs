@@ -26,19 +26,19 @@ use types::system::system_config::SystemConfigUpdateParams;
         // crate::api::strategy_api::stop_strategy,
 
         // 回测策略
-        crate::api::strategy_api::backtest_strategy::play,
-        crate::api::strategy_api::backtest_strategy::pause,
-        crate::api::strategy_api::backtest_strategy::reset,
-        crate::api::strategy_api::backtest_strategy::play_one,
-        crate::api::strategy_api::backtest_strategy::update_backtest_chart_config,
-        crate::api::strategy_api::backtest_strategy::get_backtest_chart_config,
-        crate::api::strategy_api::backtest_strategy::get_play_index,
-        crate::api::strategy_api::backtest_strategy::get_virtual_orders,
-        crate::api::strategy_api::backtest_strategy::get_current_positions,
-        crate::api::strategy_api::backtest_strategy::get_history_positions,
-        crate::api::strategy_api::backtest_strategy::get_stats_history,
-        crate::api::strategy_api::backtest_strategy::get_virtual_transactions,
-        
+        crate::api::strategy_api::backtest::play,
+        crate::api::strategy_api::backtest::pause,
+        crate::api::strategy_api::backtest::reset,
+        crate::api::strategy_api::backtest::play_one,
+        crate::api::strategy_api::backtest::update_backtest_chart_config,
+        crate::api::strategy_api::backtest::get_backtest_chart_config,
+        crate::api::strategy_api::backtest::get_play_index,
+        crate::api::strategy_api::backtest::get_virtual_orders,
+        crate::api::strategy_api::backtest::get_current_positions,
+        crate::api::strategy_api::backtest::get_history_positions,
+        crate::api::strategy_api::backtest::get_stats_history,
+        crate::api::strategy_api::backtest::get_virtual_transactions,
+        crate::api::strategy_api::backtest::get_strategy_status,
         // 账户相关路径
         crate::api::account_api::get_account_configs,
         crate::api::account_api::add_account_config,
@@ -58,7 +58,7 @@ use types::system::system_config::SystemConfigUpdateParams;
         crate::api::market_api::get_support_kline_intervals,
 
         //sse
-        crate::sse::backtest_strategy_start_log_sse::backtest_strategy_start_log_sse_handler,
+        crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,
         crate::sse::backtest_strategy_sse::backtest_strategy_sse_handler,
 
         // // 其他路径

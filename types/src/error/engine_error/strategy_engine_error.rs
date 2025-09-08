@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use strategy_error::BacktestStrategyError;
+use sea_orm::error::DbErr;
 
 
 #[derive(Debug, Snafu)]
@@ -29,6 +30,18 @@ pub enum StrategyEngineError {
         strategy_id: i32,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("strategy instance not found: {}", strategy_id))]
+    StrategyInstanceNotFound {
+        strategy_id: i32,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("database error: {}", source))]
+    Database {
+        source: DbErr,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for StrategyEngineError
@@ -44,6 +57,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             StrategyEngineError::BacktestStrategyError { .. } => 1001,
             StrategyEngineError::UnsupportedStrategyType { .. } => 1002,
             StrategyEngineError::StrategyIsExist { .. } => 1003,
+            StrategyEngineError::StrategyInstanceNotFound { .. } => 1004,
+            StrategyEngineError::Database { .. } => 1005,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -57,7 +72,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
         matches!(self,
             StrategyEngineError::BacktestStrategyError { .. } |
             StrategyEngineError::UnsupportedStrategyType { .. } |
-            StrategyEngineError::StrategyIsExist { .. }
+            StrategyEngineError::StrategyIsExist { .. } |
+            StrategyEngineError::StrategyInstanceNotFound { .. } |
+            StrategyEngineError::Database { .. }
         )
     }
 
@@ -68,7 +85,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             
             // For errors without source
             StrategyEngineError::UnsupportedStrategyType { .. } |
-            StrategyEngineError::StrategyIsExist { .. } => vec![self.error_code()],
+            StrategyEngineError::StrategyIsExist { .. } |
+            StrategyEngineError::StrategyInstanceNotFound { .. } |
+            StrategyEngineError::Database { .. } => vec![self.error_code()],
         }
     }
 
@@ -87,6 +106,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
                     },
                     StrategyEngineError::StrategyIsExist { strategy_id, .. } => {
                         format!("策略 {} 已存在", strategy_id)
+                    },
+                    StrategyEngineError::StrategyInstanceNotFound { strategy_id, .. } => {
+                        format!("策略实例 {} 不存在", strategy_id)
+                    },
+                    StrategyEngineError::Database { source, .. } => {
+                        format!("数据库错误: {}", source)
                     },
                 }
             },

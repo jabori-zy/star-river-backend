@@ -25,7 +25,7 @@ pub struct StrategyConfig {
     /// 策略描述
     pub description: String,
     /// 策略状态
-    pub status: i32,
+    pub status: String,
     /// 是否删除
     pub is_deleted: bool,
     /// 交易模式

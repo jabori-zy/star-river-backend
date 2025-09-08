@@ -8,7 +8,7 @@ use crate::api::strategy_api::{
     create_strategy, update_strategy, delete_strategy, get_strategy_list, get_strategy_by_id
 };
 
-use crate::api::strategy_api::backtest_strategy::{
+use crate::api::strategy_api::backtest::{
     update_backtest_chart_config, 
     get_backtest_chart_config, 
     play, 
@@ -20,7 +20,8 @@ use crate::api::strategy_api::backtest_strategy::{
     get_current_positions, 
     get_stats_history, 
     get_virtual_transactions, 
-    get_history_positions
+    get_history_positions,
+    get_strategy_status
 };
 
 use crate::star_river::StarRiver;
@@ -65,4 +66,5 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/history-positions", get(get_history_positions))
         .route("/{strategy_id}/stats-history", get(get_stats_history))
         .route("/{strategy_id}/virtual-transactions", get(get_virtual_transactions))
+        .route("/{strategy_id}/status", get(get_strategy_status))
 }

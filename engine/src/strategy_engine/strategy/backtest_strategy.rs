@@ -13,21 +13,16 @@ use types::error::engine_error::strategy_error::EdgeConfigNullSnafu;
 use types::error::error_trait::{StarRiverErrorTrait, Language};
 use types::{error::engine_error::strategy_error::NodeConfigNullSnafu, position::virtual_position::VirtualPosition};
 use types::strategy::StrategyConfig;
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::Mutex;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use backtest_strategy_function::BacktestStrategyFunction;
 use crate::strategy_engine::{node::BacktestNodeTrait, strategy::backtest_strategy::backtest_strategy_state_machine::*};
-use types::cache::Key;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::{mpsc, broadcast};
 use types::strategy::node_command::NodeCommand;
 use virtual_trading::VirtualTradingSystem;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use super::StrategyCommandPublisher;
-use types::virtual_trading_system::event::VirtualTradingSystemEvent;
 use types::order::virtual_order::VirtualOrder;
-use types::strategy_stats::event::StrategyStatsEvent;
 use types::strategy_stats::StatsSnapshot;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use types::transaction::virtual_transaction::VirtualTransaction;
@@ -36,7 +31,7 @@ use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_log_m
 use types::strategy::node_event::LogLevel;
 use event_center::strategy_event::backtest_strategy_event::{BacktestStrategyEvent, StrategyStateLogEvent};
 use utils::get_utc8_timestamp_millis;
-use snafu::{Report, ResultExt, IntoError};
+use snafu::IntoError;
 use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use event_center::EventCenterSingleton;
 
@@ -377,10 +372,21 @@ impl BacktestStrategy {
         let strategy_id = self.get_strategy_id().await;
         
         tracing::info!("[{}({})] starting check strategy", strategy_name, strategy_id);
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Check).await?;
+        self.context.write().await.update_strategy_status(BacktestStrategyRunState::Checking.to_string().to_lowercase()).await?;
+        
+        let update_result = self.update_strategy_state(BacktestStrategyStateTransitionEvent::Check).await;
+        if let Err(e) = update_result {
+            self.context.write().await.update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await?;
+            return Err(e);
+        }
 
         tracing::info!("[{}({})] check finished.", strategy_name, strategy_id);
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::CheckComplete).await?;
+        self.context.write().await.update_strategy_status(BacktestStrategyRunState::CheckPassed.to_string().to_lowercase()).await?;
+        let update_result = self.update_strategy_state(BacktestStrategyStateTransitionEvent::CheckComplete).await;
+        if let Err(e) = update_result {
+            self.context.write().await.update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await?;
+            return Err(e);
+        }
         Ok(())
 
     }
@@ -392,17 +398,27 @@ impl BacktestStrategy {
         tracing::info!("[{}({})] starting init strategy", strategy_name, strategy_id);
 
         // created => initializing
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Initialize).await?;
+        self.context.write().await.update_strategy_status(BacktestStrategyRunState::Initializing.to_string().to_lowercase()).await?;
+        let update_result = self.update_strategy_state(BacktestStrategyStateTransitionEvent::Initialize).await;
+        if let Err(e) = update_result {
+            self.context.write().await.update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await?;
+            return Err(e);
+        }
 
         // 
         // initializing => ready
         tracing::info!("[{}({})] init finished.", strategy_name, strategy_id);
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::InitializeComplete).await?;
+        self.context.write().await.update_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase()).await?;
+        let update_result = self.update_strategy_state(BacktestStrategyStateTransitionEvent::InitializeComplete).await;
+        if let Err(e) = update_result {
+            self.context.write().await.update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await?;
+            return Err(e);
+        }
 
         Ok(())
     }
 
-    pub async fn stop_strategy(&mut self) -> Result<(), String> {
+    pub async fn stop_strategy(&mut self) -> Result<(), BacktestStrategyError> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
         let current_state = self.get_state_machine().await.current_state();
@@ -411,7 +427,12 @@ impl BacktestStrategy {
             return Ok(());
         }
         tracing::info!("waiting for all nodes to stop...");
-        self.update_strategy_state(BacktestStrategyStateTransitionEvent::Stop).await.unwrap();
+        self.context.write().await.update_strategy_status(BacktestStrategyRunState::Stopping.to_string().to_lowercase()).await?;
+        let update_result = self.update_strategy_state(BacktestStrategyStateTransitionEvent::Stop).await;
+        if let Err(e) = update_result {
+            self.context.write().await.update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await?;
+            return Err(e);
+        }
 
         // 发送完信号后，循环遍历所有的节点，获取节点的状态，如果所有的节点状态都为stopped，则更新策略状态为Stopped
         let all_stopped = {
@@ -419,34 +440,39 @@ impl BacktestStrategy {
             context_guard.wait_for_all_nodes_stopped(10).await.unwrap()
         };
         if all_stopped {
-            self.update_strategy_state(BacktestStrategyStateTransitionEvent::StopComplete).await.unwrap();
+            self.context.write().await.update_strategy_status(BacktestStrategyRunState::Stopped.to_string().to_lowercase()).await?;
+            let update_result = self.update_strategy_state(BacktestStrategyStateTransitionEvent::StopComplete).await;
+            if let Err(e) = update_result {
+                self.context.write().await.update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await?;
+                return Err(e);
+            }
             Ok(())
         } else {
-            Err("wait for all nodes to stop timeout".to_string())
+            Err(WaitAllNodesStoppedTimeoutSnafu {}.build())
         }
     }
 
-    pub async fn play(&mut self) -> Result<(), String> {
+    pub async fn play(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.get_strategy_name().await;
         let strategy_id = self.get_strategy_id().await;
         tracing::info!("[{}({})] start play kline", strategy_name, strategy_id);
-        let context_guard = self.context.read().await;
-        context_guard.play().await;
-        Ok(())
-    }
-
-    pub async fn pause(&mut self) -> Result<(), String> {
         let mut context_guard = self.context.write().await;
-        context_guard.pause().await;
+        context_guard.play().await?;
         Ok(())
     }
 
-    pub async fn reset(&mut self) -> Result<(), String> {
+    pub async fn pause(&mut self) -> Result<(), BacktestStrategyError> {
+        let mut context_guard = self.context.write().await;
+        context_guard.pause().await?;
+        Ok(())
+    }
+
+    pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.get_strategy_name().await;
         let strategy_id = self.get_strategy_id().await;
         tracing::info!("[{}({})] reset play", strategy_name, strategy_id);
         let mut context_guard = self.context.write().await;
-        context_guard.reset().await;
+        context_guard.reset().await?;
         // 重置虚拟交易系统
         context_guard.virtual_trading_system_reset().await;
         // 重置策略统计
@@ -456,15 +482,11 @@ impl BacktestStrategy {
         Ok(())
     }
 
-    pub async fn play_one_kline(&mut self) -> Result<i32, String> {
+    pub async fn play_one_kline(&mut self) -> Result<i32, BacktestStrategyError> {
         
         let context_guard = self.context.read().await;
-        let play_index = context_guard.play_one_kline().await;
-        if let Ok(play_index) = play_index {
-            Ok(play_index)
-        } else {
-            Err("play one kline failed".to_string())
-        }
+        let play_index = context_guard.play_one_kline().await?;
+        Ok(play_index)
     }
 
     pub async fn get_play_index(&self) -> i32 {

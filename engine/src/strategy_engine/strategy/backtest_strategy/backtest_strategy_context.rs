@@ -2,10 +2,10 @@ use petgraph::{Directed, Graph};
 use petgraph::graph::NodeIndex;
 use snafu::ResultExt;
 use types::custom_type::{NodeId, PlayIndex, StrategyId};
-use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::{BacktestStrategyError, NodeInitSnafu, NodeInitTimeoutSnafu, NodeStateNotReadySnafu, TokioTaskFailedSnafu};
+use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
-use event_center::{Event, EventPublisher};
+use event_center::Event;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use crate::strategy_engine::node::BacktestNodeTrait;
@@ -24,7 +24,6 @@ use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMu
 use event_center::response::cache_engine_response::CacheEngineResponse;
 use utils::get_utc8_timestamp_millis;
 use event_center::command::Command;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use tokio::sync::oneshot;
 use types::strategy::{BacktestStrategyConfig, StrategyConfig};
 use types::strategy::node_command::{NodeCommandReceiver, NodeCommand};
@@ -49,6 +48,7 @@ use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceive
 use types::transaction::virtual_transaction::VirtualTransaction;
 use snafu::IntoError;
 use event_center::singleton::EventCenterSingleton;
+use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 
 
 #[derive(Debug)]
@@ -273,7 +273,6 @@ impl BacktestStrategyContext {
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
                 KlineNodeEvent::StartLog(log_event) => {
-                    tracing::info!("kline-node-log: {:#?}", serde_json::to_string(&log_event).unwrap());
                     let backtest_strategy_event = BacktestStrategyEvent::NodeStateLog(log_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
@@ -411,8 +410,6 @@ impl BacktestStrategyContext {
         strategy_id: StrategyId,
         strategy_name: String,
         cache_keys: Arc<RwLock<Vec<Key>>>,
-        command_publisher: CommandPublisher,
-        event_publisher: EventPublisher,
     ) {
         let cache_keys_clone = cache_keys.read().await.clone();
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -427,7 +424,7 @@ impl BacktestStrategyContext {
         };
 
         let get_cache_multi_command = Command::CacheEngine(CacheEngineCommand::GetCacheMulti(params));
-        command_publisher.send(get_cache_multi_command).await.unwrap();
+        let _ =EventCenterSingleton::send_command(get_cache_multi_command).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
@@ -744,6 +741,18 @@ impl BacktestStrategyContext {
     pub async fn strategy_stats_reset(&self) {
         let mut strategy_stats = self.strategy_stats.write().await;
         strategy_stats.clear_asset_snapshots().await;
+    }
+
+
+    pub async fn update_strategy_status(&mut self, status: String) -> Result<(), BacktestStrategyError> {
+        let strategy_id = self.strategy_id;
+        StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, status)
+            .await
+            .context(UpdateStrategyStatusFailedSnafu {
+                strategy_id,
+                strategy_name: self.strategy_name.clone(),
+            })?;
+        Ok(())
     }
 
 

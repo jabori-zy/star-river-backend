@@ -344,8 +344,6 @@ impl BacktestNodeFunction {
             let node_id = state_guard.get_node_id().to_string();
             (receiver, cancel_token, node_id)
         };
-
-        tracing::debug!("{}: 开始监听策略命令", node_id);
         
         // 节点接收数据
         tokio::spawn(async move {

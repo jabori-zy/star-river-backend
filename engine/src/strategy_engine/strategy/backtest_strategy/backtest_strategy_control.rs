@@ -8,6 +8,8 @@ use virtual_trading::VirtualTradingSystem;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Notify, Mutex};
 use types::custom_type::PlayIndex;
+use super::backtest_strategy_state_machine::BacktestStrategyRunState;
+use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 
 
 #[derive(Debug)]
@@ -220,46 +222,58 @@ impl BacktestStrategyContext {
 
 
     // 播放k线
-    pub async fn play(&self) {
+    pub async fn play(&mut self) -> Result<(), BacktestStrategyError> {
 
         // 判断是否已播放完毕
         if *self.play_index.read().await == *self.total_signal_count.read().await as i32 {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
-            return;
+            return Err(PlayFinishedSnafu {}.build());
         }
 
         // 判断播放状态是否为true
         if !self.check_and_set_playing_state().await {
-            return;
+            return Err(AlreadyPlayingSnafu {}.build());
         }
 
         
 
         let play_context = self.create_play_context().await;
-        tracing::info!("创建播放上下文完毕: played_signal_index: {}, signal_count: {}",play_context.play_index.read().await, play_context.signal_count.read().await);
+        // tracing::info!("创建播放上下文完毕: played_signal_index: {}, signal_count: {}",play_context.play_index.read().await, play_context.signal_count.read().await);
         let strategy_name = self.strategy_name.clone();
+
+        // 更新策略状态为playing
+        self.update_strategy_status(BacktestStrategyRunState::Playing.to_string().to_lowercase()).await?;
         
         tokio::spawn(async move {
             Self::run_play_loop(play_context, strategy_name).await;
         });
+        Ok(())
     }
 
     // 暂停播放
-    pub async fn pause(&mut self) {
+    pub async fn pause(&mut self) -> Result<(), BacktestStrategyError> {
         // 判断播放状态是否为true
         if !*self.is_playing.read().await {
-            tracing::warn!("{}: 正在暂停，无需重复暂停", self.strategy_name.clone());
-            return;
+            tracing::error!("{}: 正在暂停，无需重复暂停", self.strategy_name.clone());
+            return Err(AlreadyPausingSnafu {}.build());
         }
         tracing::info!("{}: 请求暂停播放", self.strategy_name);
+        // 更新策略状态为pausing
+        self.update_strategy_status(BacktestStrategyRunState::Pausing.to_string().to_lowercase()).await?;
+        
         self.cancel_play_token.cancel();
         // 替换已经取消的令牌
         self.cancel_play_token = CancellationToken::new();
+        Ok(())
     }
 
     // 重置播放
-    pub async fn reset(&mut self) {
+    pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
         tracing::info!("{}: 重置播放", self.strategy_name.clone());
+
+        // 更新策略状态为ready
+        self.update_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase()).await?;
+        
         self.cancel_play_token.cancel();
         // 重置信号计数
         *self.play_index.write().await = -1; // 重置为-1，表示未播放
@@ -267,6 +281,7 @@ impl BacktestStrategyContext {
         *self.is_playing.write().await = false;
         // 替换已经取消的令牌
         self.cancel_play_token = CancellationToken::new();
+        Ok(())
 
     }
 
@@ -301,14 +316,14 @@ impl BacktestStrategyContext {
     }
 
     // 播放单根k线
-    pub async fn play_one_kline(&self) -> Result<i32, String> {
+    pub async fn play_one_kline(&self) -> Result<i32, BacktestStrategyError> {
         if *self.play_index.read().await == *self.total_signal_count.read().await{
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
-            return Err("已播放完毕，无法继续播放".to_string());
+            return Err(PlayFinishedSnafu {}.build());
         }
 
         if !self.can_play_one_kline().await {
-            return Err("无法播放单根k线".to_string());
+            return Err(AlreadyPlayingSnafu {}.build());
         }
 
         let (total_signal_count, play_index) = self.get_current_play_index().await;

@@ -162,7 +162,6 @@ impl BacktestNodeTrait for StartNode {
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
-        tracing::info!(node_id = %node_id, node_name = %node_name, "init complete");
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
@@ -216,7 +215,7 @@ impl BacktestNodeTrait for StartNode {
             
 
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
+        for action in transition_result.get_actions() { // 克隆actions避免移动问题
             if let Some(start_action) = action.as_any().downcast_ref::<StartNodeStateAction>() {
                 let current_state = state_machine.current_state();
                 match start_action {
@@ -325,6 +324,8 @@ impl BacktestNodeTrait for StartNode {
                 state_guard.set_state_machine(state_machine.clone_box());
             }
         }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
     }
         Ok(())
     }

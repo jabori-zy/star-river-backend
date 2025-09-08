@@ -8,6 +8,7 @@ use std::any::Any;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use std::sync::Arc;
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_state_machine::KlineNodeStateChangeActions;
 use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use kline_node_state_machine::{KlineNodeStateMachine, KlineNodeStateAction};
@@ -319,6 +320,7 @@ impl BacktestNodeTrait for KlineNode {
                                 );
                                 let _ = strategy_output_handle.send(log_event.into());
                             } else {
+                                // 转换状态 Failed
                                 let error = response.error();
                                 let kline_error = RegisterExchangeSnafu {
                                     node_id: node_id.clone(),
@@ -329,7 +331,7 @@ impl BacktestNodeTrait for KlineNode {
                                     strategy_id.clone(),
                                     node_id.clone(),
                                     node_name.clone(),
-                                    current_state.to_string(),
+                                    BacktestNodeRunState::Failed.to_string(),
                                     KlineNodeStateAction::RegisterExchange.to_string(),
                                     &kline_error,
                                 );
@@ -362,6 +364,9 @@ impl BacktestNodeTrait for KlineNode {
                         tracing::info!("[{node_name}({node_id})] cancel node task");
                         self.cancel_task().await;
                     }
+                    KlineNodeStateAction::LogError(error) => {
+                        tracing::error!("[{node_name}({node_id})] node failed: {:?}", error);
+                    }
                     _ => {}
                 }
             }
@@ -369,6 +374,7 @@ impl BacktestNodeTrait for KlineNode {
             {
                 self.context.write().await.set_state_machine(state_machine.clone_box());
             }
+            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
         }
         Ok(())
     }

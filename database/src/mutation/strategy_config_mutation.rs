@@ -12,13 +12,12 @@ impl StrategyConfigMutation {
         db: &DbConn,
         strategy_name: String,
         strategy_description: String,
-        strategy_status: i32,
     ) -> Result<StrategyConfig, DbErr> {
         let strategy_config_model = strategy_config::ActiveModel {
             id: NotSet,
             name: Set(strategy_name),
             description: Set(strategy_description),
-            status: Set(strategy_status),
+            status: Set("stopped".to_string()),
             is_deleted: Set(false),
             created_time: Set(Utc::now()),
             updated_time: Set(Utc::now()),
@@ -35,7 +34,6 @@ impl StrategyConfigMutation {
         strategy_name: String,
         strategy_description: String,
         strategy_trade_mode: String,
-        strategy_status: i32,
         strategy_config: Option<JsonValue>,
         nodes: Option<JsonValue>,
         edges: Option<JsonValue>,
@@ -45,7 +43,7 @@ impl StrategyConfigMutation {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
+            .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))
             .map(Into::into)?;
 
         let strategy_config_model = strategy_config::ActiveModel {
@@ -53,7 +51,6 @@ impl StrategyConfigMutation {
             name: Set(strategy_name),
             description: Set(strategy_description),
             trade_mode: Set(strategy_trade_mode),
-            status: Set(strategy_status),
             config: Set(strategy_config),
             nodes: Set(nodes),
             edges: Set(edges),
@@ -102,7 +99,7 @@ impl StrategyConfigMutation {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
+            .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))
             .map(Into::into)?;
 
         let strategy_config_model = strategy_config::ActiveModel {
@@ -116,6 +113,28 @@ impl StrategyConfigMutation {
         Ok(strategy_config_model.backtest_chart_config.unwrap_or(JsonValue::Null))
     }
 
+
+    pub async fn update_strategy_status(
+        db: &DbConn,
+        strategy_id: i32,
+        strategy_status: String,
+    ) -> Result<StrategyConfig, DbErr> {
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))
+            .map(Into::into)?;
+
+        let strategy_config_model = strategy_config::ActiveModel {
+            id: strategy.id,
+            status: Set(strategy_status),
+            updated_time: Set(Utc::now()),
+            ..Default::default()
+        }
+        .update(db)
+        .await?;
+        Ok(strategy_config_model.into())
+    }
         
 }
 

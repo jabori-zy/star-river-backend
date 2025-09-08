@@ -141,8 +141,8 @@ pub enum BacktestNodeStateTransitionEvent {
     Stop,           // 停止节点
     #[strum(to_string = "StopComplete")]
     StopComplete,   // 停止完成 -> 进入Stopped状态
-    #[strum(to_string = "Fail")]
-    Fail(String),   // 节点失败，带有错误信息
+    #[strum(to_string = "Failed")]
+    Failed(String),   // 节点失败，带有错误信息
 }
 
 

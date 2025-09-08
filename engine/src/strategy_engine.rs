@@ -5,7 +5,7 @@ pub mod backtest_strategy_manager;
 // pub mod live_strategy_control_manager;
 pub mod log_message;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec;
 use event_center::EventPublisher;
@@ -75,6 +75,7 @@ impl StrategyEngine{
             database,
             // live_strategy_list: HashMap::new(),
             backtest_strategy_list: Arc::new(Mutex::new(HashMap::new())),
+            initializing_strategies: Arc::new(Mutex::new(HashSet::new())),
             // market_event_receiver,
             // request_event_receiver,
             // response_event_receiver,
@@ -99,6 +100,8 @@ impl StrategyEngine{
             // }
             TradeMode::Backtest => {
                 if let Err(e) = strategy_context.backtest_strategy_init(strategy_id).await {
+
+
                     let report = Report::from_error(&e);
                     tracing::error!("{}", report);
                     return Err(e);
@@ -235,6 +238,13 @@ impl StrategyEngine {
             let context = self.context.read().await;
             let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
             strategy_context.get_backtest_strategy_transactions(strategy_id).await
+        }
+
+        pub async fn get_strategy_status(&mut self, strategy_id: i32) -> Result<String, StrategyEngineError> {
+            let context = self.context.read().await;
+            let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+            let strategy_status = strategy_context.get_backtest_strategy_status(strategy_id).await?;
+            Ok(strategy_status)
         }
 
 

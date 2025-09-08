@@ -1,4 +1,4 @@
-pub mod backtest_strategy;
+pub mod backtest;
 
 
 
@@ -15,7 +15,6 @@ use types::strategy::StrategyConfig;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use snafu::{Report, ResultExt};
 use tracing::instrument;
 
 
@@ -127,8 +126,6 @@ pub struct CreateStrategyParams {
     pub name: String,
     /// 策略描述
     pub description: String,
-    /// 策略状态
-    pub status: i32,
 }
 
 
@@ -149,7 +146,7 @@ pub async fn create_strategy(
 ) -> (StatusCode, Json<ApiResponse<StrategyConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyConfigMutation::create_strategy(conn, params.name, params.description, params.status).await {
+    match StrategyConfigMutation::create_strategy(conn, params.name, params.description).await {
         Ok(strategy) => {
             tracing::info!("创建策略成功: {:?}", strategy);
             // 创建策略系统变量
@@ -188,8 +185,6 @@ pub struct UpdateStrategyParams {
     pub description: String,
     /// 策略交易模式
     pub trade_mode: String,
-    /// 策略状态
-    pub status: i32,
     /// 策略配置
     pub config: Option<serde_json::Value>,
     /// 策略节点
@@ -228,8 +223,7 @@ pub async fn update_strategy(
         strategy_id,
         params.name, 
         params.description, 
-        params.trade_mode,
-        params.status, 
+        params.trade_mode, 
         params.config,
         params.nodes, 
         params.edges,
@@ -355,18 +349,18 @@ pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id)
 #[utoipa::path(
     post,
     path = "/api/v1/strategy/{strategy_id}/stop",
-    tag = "策略管理",
-    summary = "停止策略",
+    tag = "Strategy Management",
+    summary = "stop strategy",
     params(
-        ("strategy_id" = i32, Path, description = "要停止的策略ID")
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to stop")
     ),
     responses(
-        (status = 200, description = "停止策略成功", content_type = "application/json")
+        (status = 200, description = "Stop strategy successfully", content_type = "application/json")
     )
 )]
 pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let heartbeat = star_river.heartbeat.lock().await;
-    heartbeat.run_async_task_once("停止策略".to_string(), async move {
+    heartbeat.run_async_task_once("Stop strategy".to_string(), async move {
         let engine_manager = star_river.engine_manager.lock().await;
         let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
         let mut engine_guard = engine.lock().await;

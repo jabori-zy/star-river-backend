@@ -472,8 +472,8 @@ impl BacktestNodeTrait for IndicatorNode {
                     self.context.write().await.set_state_machine(state_machine.clone_box());
                 }
             }
-        }
-                    
+            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        }  
         Ok(())
     }
 }

@@ -9,26 +9,32 @@ use types::position::virtual_position::VirtualPosition;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use types::error::engine_error::strategy_engine_error::*;
-use snafu::Report;
-use event_center::strategy_event::backtest_strategy_event::StrategyStateLogEvent;
-use types::error::engine_error::strategy_error::BacktestStrategyError;
+use snafu::{Report, ResultExt};
+use types::error::engine_error::strategy_error::*;
+use database::query::strategy_config_query::StrategyConfigQuery;
+use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 /* 
     回测策略控制
 */
 impl StrategyEngineContext {
     pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
-        // 判断策略是否在回测策略列表中
-        if self.backtest_strategy_list.lock().await.contains_key(&strategy_id) {
-            tracing::warn!("策略已存在, 不进行初始化");
+        // 检查是否已经在初始化或已存在
+        if self.initializing_strategies.lock().await.contains(&strategy_id)
+            || self.backtest_strategy_list.lock().await.contains_key(&strategy_id) {
+            tracing::warn!("策略已存在或正在初始化中, 不进行初始化");
             return Err(StrategyIsExistSnafu {
                 strategy_id,
             }.fail()?);
         }
+
+        // 标记为初始化中
+        self.initializing_strategies.lock().await.insert(strategy_id);
         let strategy_config: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
         let strategy_list = self.backtest_strategy_list.clone();
         let database = self.database.clone();
         let heartbeat = self.heartbeat.clone();
+        let initializing_set = self.initializing_strategies.clone();
 
         tokio::spawn(async move {
             let strategy_id = strategy_config.id;
@@ -51,9 +57,13 @@ impl StrategyEngineContext {
             }.await;
 
             if let Err(e) = result {
+                // 如果策略初始化失败，则将状态重置为stopped
                 let report = Report::from_error(&e);
                 tracing::error!("{}", report);
             }
+            
+            // 无论成功或失败，都从初始化集合中移除
+            initializing_set.lock().await.remove(&strategy_id);
         });
         
         Ok(())
@@ -170,6 +180,28 @@ impl StrategyEngineContext {
             Ok(strategy.get_transactions().await)
         } else {
             Err("获取回测策略交易明细失败".to_string())
+        }
+    }
+
+
+    pub async fn get_backtest_strategy_status(&self, strategy_id: i32) -> Result<String, StrategyEngineError> {
+        // 检查是否正在初始化或有策略实例
+        let is_initializing = self.initializing_strategies.lock().await.contains(&strategy_id);
+        let has_instance = self.get_backtest_strategy_instance(strategy_id).await.is_ok();
+        let strategy_status = StrategyConfigQuery::get_strategy_status_by_strategy_id(&self.database, strategy_id).await.context(DatabaseSnafu {})?;
+        
+        if is_initializing || has_instance {
+            // 正在初始化或有实例，返回数据库中的状态
+            Ok(strategy_status)
+        } 
+        // 无实例且未初始化, 但是状态为running，则将状态设为stopped
+        else if (!is_initializing && !has_instance) && strategy_status == "running" {
+            // 无实例且未初始化，将状态设为stopped并返回
+            StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, "stopped".to_string()).await.context(DatabaseSnafu {})?;
+            Ok("stopped".to_string())
+        }
+        else {
+            Ok(strategy_status)
         }
     }
 
