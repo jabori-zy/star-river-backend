@@ -11,10 +11,12 @@ use types::strategy::strategy_inner_event::{
     PlayIndexUpdateEvent, StrategyInnerEvent, StrategyInnerEventPublisher,
 };
 use utils::get_utc8_timestamp_millis;
+use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug)]
 struct PlayContext {
+    strategy_name: String,
     node: Box<dyn BacktestNodeTrait + 'static>,
     play_index: Arc<RwLock<PlayIndex>>,
     signal_count: Arc<RwLock<i32>>,
@@ -44,6 +46,7 @@ impl BacktestStrategyContext {
         let strategy_inner_event_publisher = self.strategy_inner_event_publisher.clone().unwrap();
 
         PlayContext {
+            strategy_name: self.strategy_name.clone(),
             node,
             play_index: self.play_index.clone(),
             signal_count: self.total_signal_count.clone(),
@@ -57,17 +60,19 @@ impl BacktestStrategyContext {
         }
     }
 
-    async fn run_play_loop(context: PlayContext, strategy_name: String) {
+    async fn run_play_loop(context: PlayContext) {
         loop {
             // 检查取消状态
             if context.child_cancel_play_token.is_cancelled() {
-                tracing::info!("{}: 收到取消信号，优雅退出播放任务", strategy_name);
+                tracing::info!("{}: 收到取消信号，优雅退出播放任务", context.strategy_name);
                 *context.is_playing.write().await = false;
                 break;
             }
 
             // 检查暂停状态
-            if let Some(should_break) = Self::handle_pause_state(&context, &strategy_name).await {
+            if let Some(should_break) =
+                Self::handle_pause_state(&context, &context.strategy_name).await
+            {
                 if should_break {
                     break;
                 }
@@ -91,12 +96,12 @@ impl BacktestStrategyContext {
 
             // 检查播放完毕
             if play_index == total_signal_count - 1 {
-                Self::handle_play_finished(&context, &strategy_name, play_index).await;
+                Self::handle_play_finished(&context, &context.strategy_name, play_index).await;
                 break;
             }
 
             // 播放延迟
-            if Self::handle_play_delay(&context, &strategy_name, play_speed).await {
+            if Self::handle_play_delay(&context, &context.strategy_name, play_speed).await {
                 break;
             }
         }
@@ -233,15 +238,24 @@ impl BacktestStrategyContext {
         }
 
         let play_context = self.create_play_context().await;
-        // tracing::info!("创建播放上下文完毕: played_signal_index: {}, signal_count: {}",play_context.play_index.read().await, play_context.signal_count.read().await);
-        let strategy_name = self.strategy_name.clone();
+        let before_reset_batch_id = self.batch_id;
+        // 说明策略刚启动，重置batch_id
+        if *play_context.play_index.read().await == -1 {
+            self.batch_id = Uuid::new_v4();
+            tracing::info!(
+                "{}: 策略刚启动，重置batch_id: {}, 之前batch_id: {}",
+                self.strategy_name.clone(),
+                self.batch_id,
+                before_reset_batch_id
+            );
+        }
 
         // 更新策略状态为playing
         self.update_strategy_status(BacktestStrategyRunState::Playing.to_string().to_lowercase())
             .await?;
 
         tokio::spawn(async move {
-            Self::run_play_loop(play_context, strategy_name).await;
+            Self::run_play_loop(play_context).await;
         });
         Ok(())
     }
@@ -312,7 +326,7 @@ impl BacktestStrategyContext {
     }
 
     // 播放单根k线
-    pub async fn play_one_kline(&self) -> Result<i32, BacktestStrategyError> {
+    pub async fn play_one_kline(&mut self) -> Result<i32, BacktestStrategyError> {
         if *self.play_index.read().await == *self.total_signal_count.read().await {
             tracing::warn!("{}: 已播放完毕，无法继续播放", self.strategy_name.clone());
             return Err(PlayFinishedSnafu {}.build());
@@ -320,6 +334,18 @@ impl BacktestStrategyContext {
 
         if !self.can_play_one_kline().await {
             return Err(AlreadyPlayingSnafu {}.build());
+        }
+
+        let before_reset_batch_id = self.batch_id;
+        // 说明策略刚启动，重置batch_id
+        if *self.play_index.read().await == -1 {
+            self.batch_id = Uuid::new_v4();
+            tracing::info!(
+                "{}: 策略刚启动，重置batch_id: {}, 之前batch_id: {}",
+                self.strategy_name.clone(),
+                self.batch_id,
+                before_reset_batch_id
+            );
         }
 
         let (total_signal_count, play_index) = self.get_current_play_index().await;

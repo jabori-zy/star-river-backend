@@ -3,6 +3,7 @@ use crate::cache::Key;
 #[derive(Debug)]
 pub enum NodeResponse {
     GetStrategyCacheKeys(GetStrategyCacheKeysResponse),
+    GetCurrentTime(GetCurrentTimeResponse),
 }
 
 impl NodeResponse {
@@ -10,6 +11,9 @@ impl NodeResponse {
         match self {
             NodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 get_strategy_cache_keys_response.code
+            }
+            NodeResponse::GetCurrentTime(get_current_time_response) => {
+                get_current_time_response.code
             }
         }
     }
@@ -19,6 +23,9 @@ impl NodeResponse {
             NodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 get_strategy_cache_keys_response.message.clone()
             }
+            NodeResponse::GetCurrentTime(get_current_time_response) => {
+                get_current_time_response.message.clone()
+            }
         }
     }
 
@@ -26,6 +33,9 @@ impl NodeResponse {
         match self {
             NodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 get_strategy_cache_keys_response.response_timestamp
+            }
+            NodeResponse::GetCurrentTime(get_current_time_response) => {
+                get_current_time_response.response_timestamp
             }
         }
     }
@@ -36,5 +46,13 @@ pub struct GetStrategyCacheKeysResponse {
     pub code: i32,
     pub message: String,
     pub keys: Vec<Key>,
+    pub response_timestamp: i64,
+}
+
+#[derive(Debug)]
+pub struct GetCurrentTimeResponse {
+    pub code: i32,
+    pub message: String,
+    pub current_time: i64,
     pub response_timestamp: i64,
 }

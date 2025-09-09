@@ -39,9 +39,9 @@ use types::strategy::node_event::backtest_node_event::if_else_node_event::IfElse
 use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use types::strategy::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use types::strategy::node_event::IndicatorNodeEvent;
-use types::strategy::node_event::{BacktestNodeEvent, SignalEvent};
-use types::strategy::node_response::GetStrategyCacheKeysResponse;
+use types::strategy::node_event::{BacktestNodeEvent, SignalEvent, StrategyRunningLogEvent};
 use types::strategy::node_response::NodeResponse;
+use types::strategy::node_response::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse};
 use types::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use types::strategy::{BacktestStrategyConfig, StrategyConfig};
 use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
@@ -52,7 +52,7 @@ use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug)]
-// 实盘策略上下文
+// 回测策略上下文
 pub struct BacktestStrategyContext {
     pub strategy_config: StrategyConfig,
     pub strategy_id: i32,
@@ -66,23 +66,26 @@ pub struct BacktestStrategyContext {
     pub all_node_output_handles: Vec<NodeOutputHandle>,         // 接收策略内所有节点的消息
     pub database: DatabaseConnection,                           // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>,                       // 心跳
-    pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>,   // 注册的任务 任务名称-> 任务id
+    // pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>,   // 注册的任务 任务名称-> 任务id
     pub node_command_receiver: Arc<Mutex<Option<NodeCommandReceiver>>>, // 接收节点的命令
-    pub strategy_command_publisher: StrategyCommandPublisher,   // 节点命令发送器
-    pub total_signal_count: Arc<RwLock<i32>>,                   // 信号计数
-    pub play_index: Arc<RwLock<i32>>,                           // 播放索引
-    pub is_playing: Arc<RwLock<bool>>,                          // 是否正在播放
-    pub initial_play_speed: Arc<RwLock<u32>>,                   // 初始播放速度 （从策略配置中加载）
-    pub cancel_play_token: CancellationToken,                   // 取消播放令牌
+    pub strategy_command_publisher: StrategyCommandPublisher,           // 节点命令发送器
+    pub total_signal_count: Arc<RwLock<i32>>,                           // 信号计数
+    pub play_index: Arc<RwLock<i32>>,                                   // 播放索引
+    pub is_playing: Arc<RwLock<bool>>,                                  // 是否正在播放
+    pub initial_play_speed: Arc<RwLock<u32>>, // 初始播放速度 （从策略配置中加载）
+    pub cancel_play_token: CancellationToken, // 取消播放令牌
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, // 虚拟交易系统
     pub strategy_inner_event_publisher: Option<StrategyInnerEventPublisher>, // 策略内部事件发布器
-    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,     // 策略统计模块
+    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>, // 策略统计模块
     pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
-    pub play_index_watch_tx: tokio::sync::watch::Sender<i32>,   // 播放索引监听器
+    pub play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
     pub play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
-    pub leaf_node_ids: Vec<NodeId>,                             // 叶子节点id
-    pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,        // 执行完毕的节点id
-    pub execute_over_notify: Arc<Notify>,                       // 已经更新播放索引的节点id通知
+    pub leaf_node_ids: Vec<NodeId>,           // 叶子节点id
+    pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
+    pub execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
+    pub current_time: Arc<RwLock<i64>>,       // 当前时间
+    pub batch_id: Uuid,                       // 回测批次id
+    pub running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
 }
 
 impl BacktestStrategyContext {
@@ -131,9 +134,7 @@ impl BacktestStrategyContext {
             all_node_output_handles: vec![],
             database,
             heartbeat,
-            registered_tasks: Arc::new(RwLock::new(HashMap::new())),
-            // command_publisher,
-            // command_receiver,
+            // registered_tasks: Arc::new(RwLock::new(HashMap::new())),
             node_command_receiver: Arc::new(Mutex::new(None)),
             strategy_command_publisher: StrategyCommandPublisher::new(),
             total_signal_count: Arc::new(RwLock::new(0)),
@@ -150,6 +151,9 @@ impl BacktestStrategyContext {
             play_index_watch_rx,
             leaf_node_ids: vec![],
             execute_over_node_ids: Arc::new(RwLock::new(vec![])),
+            current_time: Arc::new(RwLock::new(0)),
+            batch_id: Uuid::new_v4(),
+            running_log: Arc::new(RwLock::new(vec![])),
         }
     }
 
@@ -191,6 +195,26 @@ impl BacktestStrategyContext {
         self.strategy_inner_event_publisher = Some(strategy_inner_event_publisher);
     }
 
+    pub async fn get_current_time(&self) -> i64 {
+        self.current_time.read().await.clone()
+    }
+
+    pub async fn set_current_time(&mut self, current_time: i64) {
+        *self.current_time.write().await = current_time;
+    }
+
+    pub async fn get_running_log(&self) -> Vec<StrategyRunningLogEvent> {
+        self.running_log.read().await.clone()
+    }
+
+    pub async fn add_running_log(&mut self, running_log: StrategyRunningLogEvent) {
+        self.running_log.write().await.push(running_log);
+    }
+
+    pub async fn reset_running_log(&mut self) {
+        *self.running_log.write().await = vec![];
+    }
+
     pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
         self.all_node_output_handles = all_node_output_handles;
     }
@@ -227,6 +251,20 @@ impl BacktestStrategyContext {
                     .send(get_strategy_cache_keys_response)
                     .unwrap();
             }
+            NodeCommand::GetCurrentTime(get_current_time_command) => {
+                let current_time = self.get_current_time().await;
+                let get_current_time_response =
+                    NodeResponse::GetCurrentTime(GetCurrentTimeResponse {
+                        code: 0,
+                        message: "success".to_string(),
+                        current_time,
+                        response_timestamp: get_utc8_timestamp_millis(),
+                    });
+                get_current_time_command
+                    .responder
+                    .send(get_current_time_response)
+                    .unwrap();
+            }
             _ => {}
         }
         Ok(())
@@ -246,7 +284,7 @@ impl BacktestStrategyContext {
     }
 
     // 所有节点发送的事件都会汇集到这里
-    pub async fn handle_node_event(&self, node_event: BacktestNodeEvent) {
+    pub async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // 执行完毕
         if let BacktestNodeEvent::Signal(signal_event) = &node_event {
             match signal_event {
@@ -286,12 +324,16 @@ impl BacktestStrategyContext {
                         .await
                         .unwrap();
                 }
-                KlineNodeEvent::StartLog(log_event) => {
+                KlineNodeEvent::StateLog(log_event) => {
                     let backtest_strategy_event =
                         BacktestStrategyEvent::NodeStateLog(log_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into())
                         .await
                         .unwrap();
+                }
+                KlineNodeEvent::TimeUpdate(time_update_event) => {
+                    // 更新策略的全局时间
+                    self.set_current_time(time_update_event.current_time).await;
                 }
                 _ => {}
             }
@@ -444,6 +486,9 @@ impl BacktestStrategyContext {
         if let BacktestNodeEvent::IfElseNode(if_else_node_event) = &node_event {
             match if_else_node_event {
                 IfElseNodeEvent::RunningLog(running_log_event) => {
+                    // 添加运行日志
+                    self.add_running_log(running_log_event.clone()).await;
+
                     let backtest_strategy_event =
                         BacktestStrategyEvent::RunningLog(running_log_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into())

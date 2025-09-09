@@ -2,12 +2,15 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::any::Any;
 use async_trait::async_trait;
-use utils::get_utc8_timestamp;
+use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 use event_center::Event;
 use types::strategy::node_event::{
-    SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent, 
+    SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent,
     BacktestConditionNotMatchEvent, StrategyRunningLogEvent, StrategyRunningLogType
 };
+use tokio::sync::oneshot;
+use types::strategy::node_command::NodeCommand;
+use types::strategy::node_command::GetCurrentTimeParams;
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::backtest_strategy_node::node_message::if_else_node_log_message::ConditionMatchedMsg;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -23,6 +26,8 @@ use types::strategy::node_event::StrategyRunningLogSource;
 use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use snafu::ResultExt;
 use types::strategy::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
+use types::strategy::node_event::ExecuteOverEvent;
+use types::strategy::node_response::NodeResponse;
 
 pub type ConfigId = i32;
 
@@ -277,7 +282,8 @@ impl IfElseNodeContext {
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
         // 在锁外执行评估
         let mut case_matched = false; // 是否匹配到case
-                                      // 根据交易模式获取case
+        let current_time = self.get_current_time().await.unwrap();
+        tracing::debug!("current_time: {}", current_time);
 
         // 遍历case
         for case in self.backtest_config.cases.iter() {
@@ -318,6 +324,7 @@ impl IfElseNodeContext {
                         StrategyRunningLogType::ConditionMatch,
                         message.to_string(),
                         condition_result_json,
+                        current_time,
                     );
                     (signal_event, Some(log_event))
                 } else {
@@ -334,32 +341,56 @@ impl IfElseNodeContext {
                 }
             };
 
-            let _ = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
             if let Some(log_event) = log_event {
                 let _ = strategy_output_handle.send(BacktestNodeEvent::IfElseNode(
                     IfElseNodeEvent::RunningLog(log_event),
                 ));
             }
 
+            if self.is_leaf_node() {
+                let execute_over_event = ExecuteOverEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_node_id().clone(),
+                    play_index: self.get_play_index(),
+                    timestamp: get_utc8_timestamp_millis(),
+                };
+                let _ = strategy_output_handle.send(BacktestNodeEvent::Signal(
+                    SignalEvent::ExecuteOver(execute_over_event),
+                ));
+            } else {
+                let _ = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
+            }
             case_matched = true;
             break;
         }
 
         // 只有当所有case都为false时才执行else
-        let else_output_handle = self.get_default_output_handle(); // 获取else的输出句柄
         if !case_matched {
-            let signal_event = SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
-                from_node_id: self.get_node_id().clone(),
-                from_node_name: self.get_node_name().clone(),
-                from_node_handle_id: else_output_handle.output_handle_id.clone(),
-                play_index: self.get_play_index(),
-                timestamp: get_utc8_timestamp(),
-            });
-
             // tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
-            if let Err(e) = else_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()))
-            {
-                // tracing::error!("{}: 发送信号事件失败: {:?}", self.get_node_id(), e);
+            if self.is_leaf_node() {
+                let execute_over_event = ExecuteOverEvent {
+                    from_node_id: self.get_node_id().clone(),
+                    from_node_name: self.get_node_name().clone(),
+                    from_node_handle_id: self.get_node_id().clone(),
+                    play_index: self.get_play_index(),
+                    timestamp: get_utc8_timestamp_millis(),
+                };
+                let strategy_output_handle = self.get_strategy_output_handle();
+                let _ = strategy_output_handle.send(BacktestNodeEvent::Signal(
+                    SignalEvent::ExecuteOver(execute_over_event),
+                ));
+            } else {
+                let else_output_handle = self.get_default_output_handle(); // 获取else的输出句柄
+                let signal_event =
+                    SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
+                        from_node_id: self.get_node_id().clone(),
+                        from_node_name: self.get_node_name().clone(),
+                        from_node_handle_id: else_output_handle.output_handle_id.clone(),
+                        play_index: self.get_play_index(),
+                        timestamp: get_utc8_timestamp(),
+                    });
+                let _ = else_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
             }
         }
         Ok(())
@@ -481,5 +512,26 @@ impl IfElseNodeContext {
             result
         });
         (result, condition_results)
+    }
+
+    async fn get_current_time(&self) -> Result<i64, String> {
+        let (tx, rx) = oneshot::channel();
+        let node_command = NodeCommand::GetCurrentTime(GetCurrentTimeParams {
+            node_id: self.get_node_id().clone(),
+            timestamp: get_utc8_timestamp_millis(),
+            responder: tx,
+        });
+        self.get_node_command_sender()
+            .send(node_command)
+            .await
+            .unwrap();
+
+        let response = rx.await.unwrap();
+        match response {
+            NodeResponse::GetCurrentTime(get_current_time_response) => {
+                return Ok(get_current_time_response.current_time)
+            }
+            _ => return Err("获取当前时间失败".to_string()),
+        }
     }
 }

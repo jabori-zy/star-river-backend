@@ -11,15 +11,18 @@ pub enum KlineNodeEvent {
     #[strum(serialize = "kline-update")]
     #[serde(rename = "kline-update")]
     KlineUpdate(KlineUpdateEvent),
-    #[strum(serialize = "start-log")]
-    #[serde(rename = "start-log")]
-    StartLog(NodeStateLogEvent),
+
+    #[strum(serialize = "state-log")]
+    #[serde(rename = "state-log")]
+    StateLog(NodeStateLogEvent),
+
     #[strum(serialize = "running-log")]
     #[serde(rename = "running-log")]
     RunningLog(NodeStateLogEvent),
-    #[strum(serialize = "error-log")]
-    #[serde(rename = "error-log")]
-    ErrorLog(NodeStateLogEvent),
+
+    #[strum(serialize = "time-update")]
+    #[serde(rename = "time-update")]
+    TimeUpdate(TimeUpdateEvent),
 }
 
 impl From<KlineNodeEvent> for BacktestNodeEvent {
@@ -96,4 +99,22 @@ where
     // 在实际应用中，你可能需要根据具体需求来实现反序列化逻辑
     let _: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
     Ok(Vec::new())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeUpdateEvent {
+    #[serde(rename = "fromNodeId")]
+    pub from_node_id: String,
+
+    #[serde(rename = "fromNodeName")]
+    pub from_node_name: String,
+
+    #[serde(rename = "fromNodeHandleId")]
+    pub from_node_handle_id: String,
+
+    #[serde(rename = "currentTime")]
+    pub current_time: i64,
+
+    #[serde(rename = "messageTimestamp")]
+    pub message_timestamp: i64,
 }

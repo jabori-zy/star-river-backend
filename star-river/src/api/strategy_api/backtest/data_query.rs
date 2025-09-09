@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use types::engine::EngineName;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy::node_event::StrategyRunningLogEvent;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
 use utoipa::{IntoParams, ToSchema};
@@ -297,6 +298,44 @@ pub async fn get_strategy_status(
         (
             StatusCode::BAD_REQUEST,
             Json(NewApiResponse::error(strategy_status.unwrap_err())),
+        )
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/running-log",
+    tag = "Backtest Strategy",
+    summary = "Get running log",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get running log")
+    ),
+    responses(
+        (status = 200, description = "Get running log successfully", body = NewApiResponse<Vec<StrategyRunningLogEvent>>),
+        (status = 400, description = "Get running log failed", body = NewApiResponse<Vec<StrategyRunningLogEvent>>)
+    )
+)]
+pub async fn get_running_log(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (
+    StatusCode,
+    Json<NewApiResponse<Vec<StrategyRunningLogEvent>>>,
+) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
+    let running_log = strategy_engine.get_running_log(strategy_id).await;
+    if let Ok(running_log) = running_log {
+        (StatusCode::OK, Json(NewApiResponse::success(running_log)))
+    } else {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(NewApiResponse::error(running_log.unwrap_err())),
         )
     }
 }

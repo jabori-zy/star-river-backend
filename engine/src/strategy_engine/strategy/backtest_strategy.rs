@@ -29,7 +29,7 @@ use types::error::engine_error::strategy_error::EdgeConfigNullSnafu;
 use types::error::error_trait::{Language, StarRiverErrorTrait};
 use types::order::virtual_order::VirtualOrder;
 use types::strategy::node_command::NodeCommand;
-use types::strategy::node_event::LogLevel;
+use types::strategy::node_event::{LogLevel, StrategyRunningLogEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::strategy::StrategyConfig;
 use types::strategy_stats::StatsSnapshot;
@@ -642,7 +642,7 @@ impl BacktestStrategy {
     }
 
     pub async fn play_one_kline(&mut self) -> Result<i32, BacktestStrategyError> {
-        let context_guard = self.context.read().await;
+        let mut context_guard = self.context.write().await;
         let play_index = context_guard.play_one_kline().await?;
         Ok(play_index)
     }
@@ -675,5 +675,10 @@ impl BacktestStrategy {
     pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
         let context_guard = self.context.read().await;
         context_guard.get_stats_history(play_index).await
+    }
+
+    pub async fn get_running_log(&self) -> Vec<StrategyRunningLogEvent> {
+        let context_guard = self.context.read().await;
+        context_guard.get_running_log().await
     }
 }

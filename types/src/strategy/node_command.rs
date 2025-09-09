@@ -9,6 +9,7 @@ pub type NodeCommandReceiver = mpsc::Receiver<NodeCommand>;
 pub enum NodeCommand {
     GetStrategyCacheKeys(GetStrategyCacheKeysParams),
     GetKlineIndex(GetKlineIndexParams),
+    GetCurrentTime(GetCurrentTimeParams),
 }
 
 #[derive(Debug)]
@@ -20,6 +21,13 @@ pub struct GetStrategyCacheKeysParams {
 
 #[derive(Debug)]
 pub struct GetKlineIndexParams {
+    pub node_id: String,
+    pub timestamp: i64,
+    pub responder: NodeResponder,
+}
+
+#[derive(Debug)]
+pub struct GetCurrentTimeParams {
     pub node_id: String,
     pub timestamp: i64,
     pub responder: NodeResponder,

@@ -1,4 +1,3 @@
-pub mod backtest_strategy_manager;
 pub mod node;
 mod strategy;
 mod strategy_engine_context;
@@ -12,21 +11,19 @@ use crate::{
 };
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
-use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use snafu::{Report, ResultExt};
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::vec;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use types::cache::Key;
 use types::error::engine_error::*;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy::node_event::StrategyRunningLogEvent;
 use types::strategy::TradeMode;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
@@ -326,6 +323,20 @@ impl StrategyEngine {
             .get_backtest_strategy_status(strategy_id)
             .await?;
         Ok(strategy_status)
+    }
+
+    pub async fn get_running_log(
+        &mut self,
+        strategy_id: i32,
+    ) -> Result<Vec<StrategyRunningLogEvent>, StrategyEngineError> {
+        let context = self.context.read().await;
+        let strategy_context = context
+            .as_any()
+            .downcast_ref::<StrategyEngineContext>()
+            .unwrap();
+        strategy_context
+            .get_backtest_strategy_running_log(strategy_id)
+            .await
     }
 }
 

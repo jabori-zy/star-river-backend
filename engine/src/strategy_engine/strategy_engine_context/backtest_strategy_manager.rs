@@ -9,9 +9,11 @@ use types::error::engine_error::strategy_engine_error::*;
 use types::error::engine_error::strategy_error::*;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy::node_event::StrategyRunningLogEvent;
 use types::strategy::TradeMode;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
+
 /*
     回测策略控制
 */
@@ -236,7 +238,9 @@ impl StrategyEngineContext {
             Ok(strategy_status)
         }
         // 无实例且未初始化, 但是状态为running，则将状态设为stopped
-        else if (!is_initializing && !has_instance) && (status.contains(&strategy_status.as_str())) {
+        else if (!is_initializing && !has_instance)
+            && (status.contains(&strategy_status.as_str()))
+        {
             // 无实例且未初始化，将状态设为stopped并返回
             StrategyConfigMutation::update_strategy_status(
                 &self.database,
@@ -249,5 +253,13 @@ impl StrategyEngineContext {
         } else {
             Ok(strategy_status)
         }
+    }
+
+    pub async fn get_backtest_strategy_running_log(
+        &self,
+        strategy_id: i32,
+    ) -> Result<Vec<StrategyRunningLogEvent>, StrategyEngineError> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
+        Ok(strategy.get_running_log().await)
     }
 }

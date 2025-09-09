@@ -14,9 +14,7 @@ use tokio::sync::Mutex;
 use types::strategy::node_event::backtest_node_event::position_management_node_event::{
     PositionClosedEvent, PositionCreatedEvent, PositionManagementNodeEvent, PositionUpdatedEvent,
 };
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::node_event::ExecuteOverEvent;
-use types::strategy::node_event::SignalEvent;
+use types::strategy::node_event::{BacktestNodeEvent, ExecuteOverEvent, SignalEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use types::virtual_trading_system::event::{
     VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,

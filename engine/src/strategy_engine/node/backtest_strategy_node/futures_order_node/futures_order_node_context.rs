@@ -499,6 +499,7 @@ impl FuturesOrderNodeContext {
             NodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 return Ok(get_strategy_cache_keys_response.keys)
             }
+            _ => return Err("获取策略缓存键失败".to_string()),
         }
     }
 

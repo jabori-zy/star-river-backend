@@ -90,17 +90,18 @@ pub struct ConditionResult {
     pub condition_result: bool,
 }
 
-
 impl serde::Serialize for ConditionResult {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let left_value_str = self.left_value
+        let left_value_str = self
+            .left_value
             .map(|v| v.to_string())
             .unwrap_or_else(|| "null".to_string());
-        
-        let right_value_str = self.right_value
+
+        let right_value_str = self
+            .right_value
             .map(|v| v.to_string())
             .unwrap_or_else(|| "null".to_string());
 
@@ -108,7 +109,7 @@ impl serde::Serialize for ConditionResult {
             VarType::Variable => self.right_variable.variable.clone(),
             VarType::Constant => "constant".to_string(),
         };
-        
+
         let condition_str = format!(
             "condition{}: {}: {} {} {}: {}",
             self.condition_id,
@@ -118,7 +119,7 @@ impl serde::Serialize for ConditionResult {
             right_variable_name,
             right_value_str
         );
-        
+
         serializer.serialize_str(&condition_str)
     }
 }

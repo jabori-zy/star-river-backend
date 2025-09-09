@@ -1,3 +1,5 @@
+pub mod backtest_strategy_manager;
+
 use crate::exchange_engine::ExchangeEngine;
 use crate::EngineContext;
 use crate::EngineName;

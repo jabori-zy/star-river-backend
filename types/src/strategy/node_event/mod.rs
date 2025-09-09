@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum::Display;
 use utils::get_utc8_timestamp_millis;
+use utoipa::ToSchema;
 use variable_event::PositionNumberUpdateEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -348,7 +349,7 @@ where
     Ok(Vec::new())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 #[serde(rename_all = "lowercase")]
 
 pub enum LogLevel {
@@ -442,11 +443,11 @@ impl NodeStateLogEvent {
 
 impl From<NodeStateLogEvent> for BacktestNodeEvent {
     fn from(event: NodeStateLogEvent) -> Self {
-        BacktestNodeEvent::KlineNode(KlineNodeEvent::StartLog(event))
+        BacktestNodeEvent::KlineNode(KlineNodeEvent::StateLog(event))
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 pub enum StrategyRunningLogSource {
     #[strum(serialize = "node")]
     #[serde(rename = "Node")]
@@ -456,7 +457,7 @@ pub enum StrategyRunningLogSource {
     VirtualTradingSystem,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 pub enum StrategyRunningLogType {
     #[strum(serialize = "condition_match")]
     #[serde(rename = "ConditionMatch")]
@@ -464,7 +465,7 @@ pub enum StrategyRunningLogType {
 }
 
 // 策略运行日志
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StrategyRunningLogEvent {
     #[serde(rename = "strategyId")]
     pub strategy_id: i32,
@@ -509,6 +510,7 @@ impl StrategyRunningLogEvent {
         log_type: StrategyRunningLogType,
         message: String,
         detail: serde_json::Value,
+        current_time: i64,
     ) -> Self {
         Self {
             strategy_id,
@@ -521,7 +523,7 @@ impl StrategyRunningLogEvent {
             detail,
             error_code: None,
             error_code_chain: None,
-            timestamp: get_utc8_timestamp_millis(),
+            timestamp: current_time,
         }
     }
 }

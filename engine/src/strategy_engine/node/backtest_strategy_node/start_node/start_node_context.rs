@@ -129,9 +129,7 @@ impl StartNodeContext {
             self.base_context.node_id,
             self.get_play_index()
         );
-        self.get_default_output_handle()
-            .send(signal.clone())
-            .unwrap();
+        self.get_default_output_handle().send(signal).unwrap();
     }
 
     // 发送k线播放完毕信号

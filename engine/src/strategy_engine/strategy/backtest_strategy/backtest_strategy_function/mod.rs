@@ -75,7 +75,7 @@ impl BacktestStrategyFunction {
                     receive_result = combined_stream.next() => {
                         match receive_result {
                             Some(Ok(event)) => {
-                                let state_guard = context_clone.write().await;
+                                let mut state_guard = context_clone.write().await;
                                 state_guard.handle_node_event(event).await;
                             }
                             Some(Err(e)) => {

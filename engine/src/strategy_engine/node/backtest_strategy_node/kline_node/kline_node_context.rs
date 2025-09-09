@@ -26,7 +26,7 @@ use tracing::instrument;
 use types::cache::key::KlineKey;
 use types::cache::CacheValue;
 use types::strategy::node_event::backtest_node_event::kline_node_event::{
-    KlineNodeEvent, KlineUpdateEvent,
+    KlineNodeEvent, KlineUpdateEvent, TimeUpdateEvent,
 };
 use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::node_event::SignalEvent;
@@ -94,12 +94,6 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         // tracing::debug!("current_play_index: {}", current_play_index);
 
                         let current_play_index = self.get_play_index();
-                        tracing::debug!(
-                            "{}: 接受到k线播放信号。信号的play_index: {}，节点的play_index: {}",
-                            self.base_context.node_id,
-                            play_event.play_index,
-                            current_play_index
-                        );
 
                         // 如果索引不匹配，提前返回错误日志
                         if current_play_index != play_event.play_index {
@@ -120,6 +114,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                         let end_time = exchange_config.time_range.end_date.to_string();
 
                         // 循环处理所有选定的交易对
+                        let mut pre_kline_timestamp = 0;
                         for symbol_config in exchange_config.selected_symbols.iter() {
                             // 创建k线缓存键
                             let backtest_kline_key = KlineKey::new(
@@ -131,10 +126,10 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             );
 
                             // 获取k线缓存值
-                            let kline_cache_value = match self
+                            let kline_cache_value = self
                                 .get_history_kline_cache(&backtest_kline_key, current_play_index)
-                                .await
-                            {
+                                .await;
+                            let kline_cache_value = match kline_cache_value {
                                 Ok(value) => value,
                                 Err(e) => {
                                     tracing::error!(
@@ -146,6 +141,36 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                                     continue;
                                 }
                             };
+
+                            let kline_timestamp = kline_cache_value.last().unwrap().get_timestamp();
+                            // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
+                            if pre_kline_timestamp != kline_timestamp && pre_kline_timestamp == 0 {
+                                pre_kline_timestamp = kline_timestamp;
+                                let time_update_event = TimeUpdateEvent {
+                                    from_node_id: self.get_node_id().clone(),
+                                    from_node_name: self.get_node_name().clone(),
+                                    from_node_handle_id: self.get_node_id().clone(),
+                                    current_time: kline_timestamp,
+                                    message_timestamp: get_utc8_timestamp_millis(),
+                                };
+                                self.get_strategy_output_handle()
+                                    .send(BacktestNodeEvent::KlineNode(KlineNodeEvent::TimeUpdate(
+                                        time_update_event,
+                                    )))
+                                    .unwrap();
+                            }
+                            // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳不为0，说明有错误，同一批k线的时间戳不一致
+                            else if pre_kline_timestamp != kline_timestamp
+                                && pre_kline_timestamp != 0
+                            {
+                                tracing::error!(
+                                    node_id = %self.base_context.node_id,
+                                    node_name = %self.base_context.node_name,
+                                    symbol = %symbol_config.symbol,
+                                    "kline timestamp is not equal to previous kline timestamp"
+                                );
+                                continue;
+                            }
 
                             // 发送K线更新事件的通用函数
 

@@ -37,6 +37,7 @@ use utoipa::OpenApi;
         crate::api::strategy_api::backtest::get_stats_history,
         crate::api::strategy_api::backtest::get_virtual_transactions,
         crate::api::strategy_api::backtest::get_strategy_status,
+        crate::api::strategy_api::backtest::get_running_log,
         // 账户相关路径
         crate::api::account_api::get_account_configs,
         crate::api::account_api::add_account_config,
