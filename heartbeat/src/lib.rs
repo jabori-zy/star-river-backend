@@ -1,14 +1,14 @@
 // #![allow(unused_imports)]
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use uuid::Uuid;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::fmt::{Debug, Formatter};
 use tracing::instrument;
+use uuid::Uuid;
 
 // 普通任务类型定义
 type NormalFunction = Box<dyn Fn() + Send + Sync + 'static>;
@@ -23,17 +23,13 @@ pub struct Heartbeat {
     interval: u64, //心跳间隔，单位为毫秒
     all_tasks: Arc<Mutex<HashMap<Uuid, Task>>>,
     running: Arc<AtomicBool>,
-
 }
-
-
 
 #[derive(Debug)]
 enum Task {
     NormalTask(NormalTaskConfig),
     AsyncTask(AsyncTaskConfig),
 }
-
 
 struct NormalTaskConfig {
     task_name: String,
@@ -43,10 +39,13 @@ struct NormalTaskConfig {
 
 impl Debug for NormalTaskConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "NormalTaskConfig {{ task_name: {}, interval: {} }}", self.task_name, self.interval)
+        write!(
+            f,
+            "NormalTaskConfig {{ task_name: {}, interval: {} }}",
+            self.task_name, self.interval
+        )
     }
 }
-
 
 struct AsyncTaskConfig {
     task_name: String,
@@ -56,10 +55,13 @@ struct AsyncTaskConfig {
 
 impl Debug for AsyncTaskConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AsyncTaskConfig {{ task_name: {}, interval: {} }}", self.task_name, self.interval)
+        write!(
+            f,
+            "AsyncTaskConfig {{ task_name: {}, interval: {} }}",
+            self.task_name, self.interval
+        )
     }
 }
-
 
 impl Heartbeat {
     pub fn new(interval: u64) -> Self {
@@ -87,27 +89,22 @@ impl Heartbeat {
 
         tokio::spawn(async move {
             // 创建一个间隔为 interval 的定时器
-            let mut tick_interval =
-                tokio::time::interval(Duration::from_millis(interval));
+            let mut tick_interval = tokio::time::interval(Duration::from_millis(interval));
 
             loop {
                 tick_interval.tick().await;
                 // let current_count = count.fetch_add(1, Ordering::SeqCst);
-                let current_count = count.fetch_update(
-                    Ordering::SeqCst, 
-                    Ordering::SeqCst,
-                    |count| {
+                let current_count = count
+                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
                         if count < max_count {
                             Some(count + 1)
                         } else {
                             Some(0)
                         }
-                    }
-                ).unwrap();
+                    })
+                    .unwrap();
                 // tracing::debug!("Heartbeat #{}", current_count);
                 Heartbeat::do_task(&all_tasks, current_count).await;
-
-
             }
         });
 
@@ -117,8 +114,6 @@ impl Heartbeat {
     pub fn get_heartbeat_status(&self) -> bool {
         self.running.load(Ordering::Relaxed)
     }
-
-
 
     /// 注册一个新的异步任务
     ///
@@ -143,10 +138,9 @@ impl Heartbeat {
         let task_id = Uuid::new_v4();
         tracing::info!("注册异步任务: {} {}", task_id, task_name);
 
-
         let async_task_config = AsyncTaskConfig {
             task_name,
-            function: Box::new(move || {Box::pin(function())}),
+            function: Box::new(move || Box::pin(function())),
             interval,
         };
         // 生成一个任务配置
@@ -191,8 +185,6 @@ impl Heartbeat {
                         });
                     }
                 }
-
-
             }
         }
     }
@@ -208,6 +200,4 @@ impl Heartbeat {
             function.await;
         });
     }
-
-
 }

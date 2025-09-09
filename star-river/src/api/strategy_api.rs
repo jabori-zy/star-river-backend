@@ -1,23 +1,19 @@
 pub mod backtest;
 
-
-
-use crate::star_river::StarRiver;
-use axum::http::StatusCode;
-use axum::extract::State;
-use serde::{Serialize, Deserialize};
-use axum::extract::{Json,Query,Path};
 use crate::api::response::{ApiResponse, NewApiResponse};
-use types::engine::EngineName;
-use engine::strategy_engine::StrategyEngine;
-use utoipa::{IntoParams, ToSchema};
-use types::strategy::StrategyConfig;
+use crate::star_river::StarRiver;
+use axum::extract::State;
+use axum::extract::{Json, Path, Query};
+use axum::http::StatusCode;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
+use engine::strategy_engine::StrategyEngine;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
-
-
+use types::engine::EngineName;
+use types::strategy::StrategyConfig;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -65,7 +61,10 @@ pub async fn get_strategy_list(
     let strategy_per_page = params.strategy_per_page.unwrap_or(10);
 
     let db = &star_river.database.lock().await.conn;
-    let (strategy_list, num_pages) = StrategyConfigQuery::get_strategy_list_in_page(db, page, strategy_per_page).await.unwrap();
+    let (strategy_list, num_pages) =
+        StrategyConfigQuery::get_strategy_list_in_page(db, page, strategy_per_page)
+            .await
+            .unwrap();
     (
         StatusCode::OK,
         Json(GetStrategyListResponse {
@@ -73,11 +72,9 @@ pub async fn get_strategy_list(
             message: "获取成功".to_string(),
             page_num: Some(num_pages),
             data: Some(strategy_list),
-        })
+        }),
     )
 }
-
-
 
 #[axum::debug_handler]
 #[utoipa::path(
@@ -98,16 +95,16 @@ pub async fn get_strategy_by_id(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<ApiResponse<StrategyConfig>>) {
     let db = &star_river.database.lock().await.conn;
-    let strategy = StrategyConfigQuery::get_strategy_by_id(db, strategy_id).await.unwrap();
+    let strategy = StrategyConfigQuery::get_strategy_by_id(db, strategy_id)
+        .await
+        .unwrap();
     (
         StatusCode::OK,
-        Json(
-            ApiResponse {
-                code: 0,
-                message: "获取成功".to_string(),
-                data: strategy,
-            }
-        )
+        Json(ApiResponse {
+            code: 0,
+            message: "获取成功".to_string(),
+            data: strategy,
+        }),
     )
 }
 
@@ -127,7 +124,6 @@ pub struct CreateStrategyParams {
     /// 策略描述
     pub description: String,
 }
-
 
 #[axum::debug_handler]
 #[utoipa::path(
@@ -150,34 +146,33 @@ pub async fn create_strategy(
         Ok(strategy) => {
             tracing::info!("创建策略成功: {:?}", strategy);
             // 创建策略系统变量
-            if let Err(e) = StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await {
+            if let Err(e) =
+                StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await
+            {
                 tracing::error!("创建策略系统变量失败: {:?}", e);
             }
             (
-            StatusCode::CREATED,
-            Json(ApiResponse {
-                code: 0,
-                message: "创建成功".to_string(),
-                data: Some(strategy),
-            })
-        )
-    },
+                StatusCode::CREATED,
+                Json(ApiResponse {
+                    code: 0,
+                    message: "创建成功".to_string(),
+                    data: Some(strategy),
+                }),
+            )
+        }
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(ApiResponse {
                 code: -1,
                 message: e.to_string(),
                 data: None,
-            })
+            }),
         ),
     }
 }
 
-#[derive(Serialize, Deserialize,Debug, IntoParams, ToSchema)]
-#[schema(
-    title = "更新策略参数",
-    description = "更新策略参数"
-)]
+#[derive(Serialize, Deserialize, Debug, IntoParams, ToSchema)]
+#[schema(title = "更新策略参数", description = "更新策略参数")]
 pub struct UpdateStrategyParams {
     /// 策略名称
     pub name: String,
@@ -221,22 +216,24 @@ pub async fn update_strategy(
     match StrategyConfigMutation::update_strategy_by_id(
         conn,
         strategy_id,
-        params.name, 
-        params.description, 
-        params.trade_mode, 
+        params.name,
+        params.description,
+        params.trade_mode,
         params.config,
-        params.nodes, 
+        params.nodes,
         params.edges,
         params.live_chart_config,
         params.backtest_chart_config,
-    ).await {
+    )
+    .await
+    {
         Ok(strategy) => (
             StatusCode::OK,
             Json(ApiResponse {
                 code: 0,
                 message: "更新成功".to_string(),
                 data: Some(strategy),
-            })
+            }),
         ),
         Err(e) => (
             StatusCode::BAD_REQUEST,
@@ -244,11 +241,10 @@ pub async fn update_strategy(
                 code: -1,
                 message: e.to_string(),
                 data: None,
-            })
+            }),
         ),
     }
 }
-
 
 #[axum::debug_handler]
 #[utoipa::path(
@@ -277,7 +273,7 @@ pub async fn delete_strategy(
                 code: 0,
                 message: "策略删除成功".to_string(),
                 data: None,
-            })
+            }),
         ),
         Err(e) => (
             StatusCode::BAD_REQUEST,
@@ -285,12 +281,10 @@ pub async fn delete_strategy(
                 code: -1,
                 message: e.to_string(),
                 data: None,
-            })
+            }),
         ),
     }
 }
-
-
 
 // 初始化策略
 #[utoipa::path(
@@ -306,45 +300,57 @@ pub async fn delete_strategy(
     )
 )]
 #[instrument(skip(star_river))]
-pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
+pub async fn init_strategy(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<NewApiResponse<()>>) {
     tracing::info!(strategy_id = strategy_id, "initialize strategy");
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     let result = strategy_engine.init_strategy(strategy_id).await;
     if let Err(e) = result {
         return (StatusCode::CONFLICT, Json(NewApiResponse::error(e)));
     }
 
     (StatusCode::OK, Json(NewApiResponse::success(())))
-    
 }
-
-
-
 
 // todo
 // 将strategy_engine 中将策略的启动逻辑拆分为两部分：
 // start_strategy: 负责策略的初始化和启动，确保策略可以正常运行（比如检查配置、建立连接等）
 // 实际的策略运行逻辑应该在一个单独的异步任务中进行
 // 例如，strategy_engine 的实现可能是这样的
-pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn run_strategy(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
     let heartbeat = star_river.heartbeat.lock().await;
-    heartbeat.run_async_task_once(format!("启动策略{}", strategy_id), async move {
-        let engine_manager = star_river.engine_manager.lock().await;
-        let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-        let mut engine_guard = engine.lock().await;
-        let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-        strategy_engine.start_strategy(strategy_id).await.unwrap();
-    }).await;
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    heartbeat
+        .run_async_task_once(format!("启动策略{}", strategy_id), async move {
+            let engine_manager = star_river.engine_manager.lock().await;
+            let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+            let mut engine_guard = engine.lock().await;
+            let strategy_engine = engine_guard
+                .as_any_mut()
+                .downcast_mut::<StrategyEngine>()
+                .unwrap();
+            strategy_engine.start_strategy(strategy_id).await.unwrap();
+        })
+        .await;
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: None,
+        }),
+    )
 }
-
 
 #[utoipa::path(
     post,
@@ -358,20 +364,31 @@ pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id)
         (status = 200, description = "Stop strategy successfully", content_type = "application/json")
     )
 )]
-pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn stop_strategy(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
     let heartbeat = star_river.heartbeat.lock().await;
-    heartbeat.run_async_task_once("Stop strategy".to_string(), async move {
-        let engine_manager = star_river.engine_manager.lock().await;
-        let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-        let mut engine_guard = engine.lock().await;
-        let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-        strategy_engine.stop_strategy(strategy_id).await.unwrap();
-    }).await;
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    heartbeat
+        .run_async_task_once("Stop strategy".to_string(), async move {
+            let engine_manager = star_river.engine_manager.lock().await;
+            let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+            let mut engine_guard = engine.lock().await;
+            let strategy_engine = engine_guard
+                .as_any_mut()
+                .downcast_mut::<StrategyEngine>()
+                .unwrap();
+            strategy_engine.stop_strategy(strategy_id).await.unwrap();
+        })
+        .await;
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: None,
+        }),
+    )
 }
 
 // #[derive(Deserialize, Debug)]
@@ -393,8 +410,6 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 //     }))
 // }
 
-
-
 #[utoipa::path(
     get,
     path = "/api/v1/strategy/{strategy_id}/cache-keys",
@@ -407,64 +422,91 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
         (status = 200, description = "获取策略缓存键成功", content_type = "application/json")
     )
 )]
-pub async fn get_strategy_cache_keys(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
+pub async fn get_strategy_cache_keys(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
     if let Ok(cache_keys) = cache_keys {
-        let cache_keys_str = cache_keys.iter().map(|cache_key| cache_key.get_key()).collect();
-        (StatusCode::OK, Json(ApiResponse {
+        let cache_keys_str = cache_keys
+            .iter()
+            .map(|cache_key| cache_key.get_key())
+            .collect();
+        (
+            StatusCode::OK,
+            Json(ApiResponse {
+                code: 0,
+                message: "success".to_string(),
+                data: Some(cache_keys_str),
+            }),
+        )
+    } else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                code: -1,
+                message: "failed".to_string(),
+                data: None,
+            }),
+        );
+    }
+}
+
+pub async fn enable_strategy_data_push(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
+    strategy_engine
+        .enable_live_strategy_data_push(strategy_id)
+        .await
+        .expect("开启策略数据推送失败");
+
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
             code: 0,
             message: "success".to_string(),
-            data: Some(cache_keys_str),
-        }))
-    } else {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse {
-            code: -1,
-            message: "failed".to_string(),
             data: None,
-        }));
-    }
-    
+        }),
+    )
 }
 
-
-pub async fn enable_strategy_data_push(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn disable_strategy_data_push(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    strategy_engine.enable_live_strategy_data_push(strategy_id).await.expect("开启策略数据推送失败");
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
+    strategy_engine
+        .disable_live_strategy_data_push(strategy_id)
+        .await
+        .expect("关闭策略数据推送失败");
 
-
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: None,
+        }),
+    )
 }
-
-
-pub async fn disable_strategy_data_push(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
-    let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
-    strategy_engine.disable_live_strategy_data_push(strategy_id).await.expect("关闭策略数据推送失败");
-
-
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
-}
-
-
-
-
-
-
-

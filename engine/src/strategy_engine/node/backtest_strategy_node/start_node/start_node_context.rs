@@ -1,23 +1,25 @@
-use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use std::any::Any;
-use event_center::Event;
-use types::{
-    strategy::node_event::BacktestNodeEvent
+use crate::strategy_engine::node::node_context::{
+    BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
-use async_trait::async_trait;
-use types::strategy::BacktestStrategyConfig;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use async_trait::async_trait;
+use event_center::command::backtest_strategy_command::StrategyCommand;
+use event_center::response::backtest_strategy_response::{
+    GetStartNodeConfigResponse, StrategyResponse,
+};
+use event_center::Event;
 use heartbeat::Heartbeat;
+use std::any::Any;
+use std::sync::Arc;
+use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::Mutex;
-use utils::get_utc8_timestamp_millis;
+use tokio::sync::RwLock;
+use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::node_event::{KlinePlayEvent, KlinePlayFinishedEvent, SignalEvent};
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::response::backtest_strategy_response::{StrategyResponse, GetStartNodeConfigResponse};
+use types::strategy::BacktestStrategyConfig;
+use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
-use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {
@@ -25,14 +27,11 @@ pub struct StartNodeContext {
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>
-    
+    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
 }
-
 
 #[async_trait]
 impl BacktestNodeContextTrait for StartNodeContext {
-
     fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait> {
         Box::new(self.clone())
     }
@@ -46,22 +45,24 @@ impl BacktestNodeContextTrait for StartNodeContext {
     fn get_base_context(&self) -> &BacktestBaseNodeContext {
         &self.base_context
     }
-    
+
     fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
         &mut self.base_context
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handles.get(&format!("start_node_default_output")).unwrap().clone()
+        self.base_context
+            .output_handles
+            .get(&format!("start_node_default_output"))
+            .unwrap()
+            .clone()
     }
 
-
-    async fn handle_event(&mut self, event: Event){
+    async fn handle_event(&mut self, event: Event) {
         tracing::info!("{}: 收到事件: {:?}", self.base_context.node_id, event);
     }
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
-       
     }
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
@@ -84,17 +85,14 @@ impl BacktestNodeContextTrait for StartNodeContext {
         //         tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
         //     }
         // }
-        
     }
-
-    
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         match strategy_command {
             StrategyCommand::GetStartNodeConfig(get_start_node_config_params) => {
                 let start_node_config = self.node_config.read().await.clone();
-                
+
                 let response = StrategyResponse::GetStartNodeConfig(GetStartNodeConfigResponse {
                     code: 0,
                     message: "success".to_string(),
@@ -103,13 +101,13 @@ impl BacktestNodeContextTrait for StartNodeContext {
                     response_timestamp: get_utc8_timestamp_millis(),
                 });
 
-                get_start_node_config_params.responder.send(response).unwrap();
-                
+                get_start_node_config_params
+                    .responder
+                    .send(response)
+                    .unwrap();
             }
         }
-        
     }
-    
 }
 
 impl StartNodeContext {
@@ -122,17 +120,22 @@ impl StartNodeContext {
             play_index: self.get_play_index(),
             message_timestamp: chrono::Utc::now().timestamp_millis(),
         };
-        
+
         let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlay(kline_tick_event.clone()));
         // 通过default出口，给节点发送信号
         tracing::debug!("=============={}==================", self.get_play_index());
-        tracing::debug!("{}: 发送k线播放信号。play_index: {}", self.base_context.node_id, self.get_play_index());
-        self.get_default_output_handle().send(signal.clone()).unwrap();
-
+        tracing::debug!(
+            "{}: 发送k线播放信号。play_index: {}",
+            self.base_context.node_id,
+            self.get_play_index()
+        );
+        self.get_default_output_handle()
+            .send(signal.clone())
+            .unwrap();
     }
 
     // 发送k线播放完毕信号
-    pub async fn send_finish_signal(&self, play_index : i32) {
+    pub async fn send_finish_signal(&self, play_index: i32) {
         let default_output_handle = self.get_default_output_handle();
         let finish_signal = KlinePlayFinishedEvent {
             from_node_id: self.get_node_id().clone(),
@@ -144,7 +147,6 @@ impl StartNodeContext {
 
         let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlayFinished(finish_signal));
         default_output_handle.send(signal.clone()).unwrap();
-
     }
 
     pub async fn init_virtual_trading_system(&self) {
@@ -153,9 +155,7 @@ impl StartNodeContext {
         virtual_trading_system.set_initial_balance(node_config.initial_balance);
         virtual_trading_system.set_leverage(node_config.leverage as u32);
         virtual_trading_system.set_fee_rate(node_config.fee_rate);
-
     }
-
 
     pub async fn init_strategy_stats(&self) {
         let mut strategy_stats = self.strategy_stats.write().await;
@@ -166,6 +166,4 @@ impl StartNodeContext {
     pub async fn handle_play_index(&self) {
         self.send_play_signal().await;
     }
-
-    
 }

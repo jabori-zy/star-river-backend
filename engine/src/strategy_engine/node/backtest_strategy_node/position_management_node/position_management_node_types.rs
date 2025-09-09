@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use types::strategy::SelectedAccount;
 
@@ -11,8 +11,6 @@ pub enum PositionOperation {
     #[strum(serialize = "close_all")]
     CloseAll,
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionOperationConfig {
@@ -31,7 +29,6 @@ pub struct PositionOperationConfig {
     #[serde(rename = "positionOperationName")]
     pub position_operation_name: String, // 操作名称
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionNodeBacktestConfig {

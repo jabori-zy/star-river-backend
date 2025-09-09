@@ -1,35 +1,33 @@
 mod position_node_context;
-pub mod position_node_types;
 mod position_node_state_machine;
+pub mod position_node_types;
 
-use crate::strategy_engine::node::node_context::{LiveNodeContextTrait,LiveBaseNodeContext};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use types::strategy::TradeMode;
-use position_node_types::*;
-use event_center::EventPublisher;
+use crate::exchange_engine::ExchangeEngine;
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
+use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
+use crate::strategy_engine::node::{LiveNodeTrait, NodeType};
+use async_trait::async_trait;
 use event_center::Event;
+use event_center::EventPublisher;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use heartbeat::Heartbeat;
+use position_node_context::PositionNodeContext;
+use position_node_state_machine::{PositionNodeStateAction, PositionNodeStateMachine};
+use position_node_types::*;
+use sea_orm::DatabaseConnection;
+use std::any::Any;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use crate::exchange_engine::ExchangeEngine;
-use sea_orm::DatabaseConnection;
-use heartbeat::Heartbeat;
-use position_node_state_machine::{PositionNodeStateMachine,PositionNodeStateAction};
-use position_node_context::PositionNodeContext;
-use crate::strategy_engine::node::{LiveNodeTrait,NodeType};
-use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
-use std::any::Any;
-use async_trait::async_trait;
-use std::time::Duration;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use tokio::sync::RwLock;
 use types::strategy::node_command::NodeCommandSender;
-
+use types::strategy::TradeMode;
 
 #[derive(Debug, Clone)]
 pub struct PositionNode {
     pub context: Arc<RwLock<Box<dyn LiveNodeContextTrait>>>,
 }
-
 
 impl PositionNode {
     pub fn new(
@@ -67,7 +65,6 @@ impl PositionNode {
                 heartbeat,
             }))),
         }
-        
     }
 }
 
@@ -89,45 +86,64 @@ impl LiveNodeTrait for PositionNode {
     }
 
     async fn init(&mut self) -> Result<(), String> {
-        tracing::info!("================={}====================", self.get_node_name().await);
+        tracing::info!(
+            "================={}====================",
+            self.get_node_name().await
+        );
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
-        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize)
+            .await
+            .unwrap();
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        tracing::info!(
+            "{:?}: 初始化完成",
+            self.get_state_machine().await.current_state()
+        );
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete)
+            .await?;
         Ok(())
     }
 
     async fn start(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始启动", self.get_node_id().await);
-        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Start)
+            .await
+            .unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为running状态
-        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete)
+            .await
+            .unwrap();
         Ok(())
-        
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop)
+            .await
+            .unwrap();
 
         // 等待所有任务结束
         self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete)
+            .await
+            .unwrap();
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(
+        &mut self,
+        event: LiveNodeStateTransitionEvent,
+    ) -> Result<(), String> {
         let node_id = self.get_node_id().await;
 
         // 获取状态管理器并执行转换
@@ -137,15 +153,27 @@ impl LiveNodeTrait for PositionNode {
             (transition_result, state_machine)
         };
 
-        tracing::debug!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
+        tracing::debug!(
+            "{}需要执行的动作: {:?}",
+            node_id,
+            transition_result.get_actions()
+        );
 
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
-            if let Some(position_node_state_action) = action.as_any().downcast_ref::<PositionNodeStateAction>() {
+        for action in transition_result.get_actions() {
+            // 克隆actions避免移动问题
+            if let Some(position_node_state_action) =
+                action.as_any().downcast_ref::<PositionNodeStateAction>()
+            {
                 match position_node_state_action {
                     PositionNodeStateAction::LogTransition => {
                         let current_state = self.get_state_machine().await.current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                        tracing::info!(
+                            "{}: 状态转换: {:?} -> {:?}",
+                            node_id,
+                            current_state,
+                            transition_result.get_new_state()
+                        );
                     }
                     PositionNodeStateAction::LogNodeState => {
                         let current_state = self.get_state_machine().await.current_state();
@@ -158,7 +186,10 @@ impl LiveNodeTrait for PositionNode {
                     PositionNodeStateAction::RegisterHeartbeatTask => {
                         tracing::info!("{}: 开始注册心跳任务", node_id);
                         let mut context_guard = self.context.write().await;
-                        let position_node_context = context_guard.as_any_mut().downcast_mut::<PositionNodeContext>().unwrap();
+                        let position_node_context = context_guard
+                            .as_any_mut()
+                            .downcast_mut::<PositionNodeContext>()
+                            .unwrap();
                         // position_node_context.monitor_unfilled_order().await;
                     }
                     PositionNodeStateAction::ListenAndHandleMessage => {
@@ -171,7 +202,10 @@ impl LiveNodeTrait for PositionNode {
                 }
                 // 所有动作执行完毕后更新节点最新的状态
                 {
-                    self.context.write().await.set_state_machine(state_machine.clone_box());
+                    self.context
+                        .write()
+                        .await
+                        .set_state_machine(state_machine.clone_box());
                 }
             }
         }

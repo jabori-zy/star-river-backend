@@ -1,11 +1,9 @@
-use sea_orm::*;
 use ::entity::{strategy_sys_variable, strategy_sys_variable::Entity as StrategySysVariableEntity};
 use chrono::Utc;
+use sea_orm::*;
 use types::strategy::sys_varibale::StrategySysVariable;
 
-
 pub struct StrategySysVariableQuery;
-
 
 impl StrategySysVariableQuery {
     // 获取策略的持仓数量
@@ -16,9 +14,7 @@ impl StrategySysVariableQuery {
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))?;
-        
+
         Ok(strategy_sys_variable.position_number)
     }
 }
-
-

@@ -1,12 +1,10 @@
-
-use types::position::{OriginalPosition, PositionState};
-use sea_orm::*;
 use ::entity::position;
-use types::position::Position;
+use sea_orm::*;
 use types::market::Exchange;
+use types::position::Position;
+use types::position::{OriginalPosition, PositionState};
 
 pub struct PositionMutation;
-
 
 impl PositionMutation {
     pub async fn insert_position(
@@ -14,7 +12,7 @@ impl PositionMutation {
         strategy_id: i64,
         node_id: String,
         account_id: i32,
-        exchange_position: Box<dyn OriginalPosition>
+        exchange_position: Box<dyn OriginalPosition>,
     ) -> Result<Position, DbErr> {
         match exchange_position.get_exchange() {
             Exchange::Metatrader5(_) => {
@@ -37,24 +35,21 @@ impl PositionMutation {
                     extra_info: Set(extra_info),
                     created_time: Set(exchange_position.get_create_time()),
                     updated_time: Set(exchange_position.get_update_time()),
-                }.insert(db).await?;
-        
+                }
+                .insert(db)
+                .await?;
+
                 Ok(position_model.into()) // 将数据库模型转换系统模型
-
-
             }
             _ => {
                 return Err(DbErr::Custom("不支持的交易所".to_string()));
             }
         }
-
-        
-
     }
 
     pub async fn update_position(
         db: &DbConn,
-        latest_position: Position // 最新的持仓
+        latest_position: Position, // 最新的持仓
     ) -> Result<Position, DbErr> {
         let position_id = latest_position.position_id;
         let position: position::ActiveModel = position::Entity::find_by_id(position_id)
@@ -73,7 +68,7 @@ impl PositionMutation {
             extra_info: Set(latest_position.extra_info),
             created_time: Set(latest_position.create_time),
             updated_time: Set(latest_position.update_time),
-            ..Default::default()   
+            ..Default::default()
         }
         .update(db)
         .await?;
@@ -83,7 +78,7 @@ impl PositionMutation {
     pub async fn update_position_state(
         db: &DbConn,
         position_id: i32,
-        position_state: PositionState
+        position_state: PositionState,
     ) -> Result<Position, DbErr> {
         let position: position::ActiveModel = position::Entity::find_by_id(position_id)
             .one(db)

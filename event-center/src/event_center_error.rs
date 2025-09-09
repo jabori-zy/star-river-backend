@@ -1,12 +1,8 @@
-
-
-
-
-use snafu::{Snafu, Backtrace};
+use crate::{Command, Event};
+use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use types::error::ErrorCode;
 use types::error::error_trait::Language;
-use crate::{Event, Command};
+use types::error::ErrorCode;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -35,7 +31,6 @@ pub enum EventCenterError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(transparent)]
     EventSendError {
         source: tokio::sync::broadcast::error::SendError<Event>,
@@ -49,88 +44,80 @@ pub enum EventCenterError {
     },
 
     #[snafu(display("EventCenter already initialized"))]
-    EventCenterInstanceAlreadyInitialized {
-        backtrace: Backtrace,
-    },
+    EventCenterInstanceAlreadyInitialized { backtrace: Backtrace },
 
     #[snafu(display("EventCenter not initialized"))]
-    EventCenterInstanceNotInitialized {
-        backtrace: Backtrace,
-    },
+    EventCenterInstanceNotInitialized { backtrace: Backtrace },
 }
-
 
 impl types::error::error_trait::StarRiverErrorTrait for EventCenterError {
     fn get_prefix(&self) -> &'static str {
         "EVENT_CENTER"
     }
-    
-    fn error_code(&self) -> ErrorCode {
-            let prefix = self.get_prefix();
-            let code = match self {
-                // HTTP and JSON errors (1001-1004)
-                EventCenterError::ChannelNotInitialized { .. } => 1001,
-                EventCenterError::ChannelNotFound { .. } => 1002,
-                EventCenterError::EventSendError { .. } => 1003,
-                EventCenterError::EngineCommandReceiverNotFound { .. } => 1004,
-                EventCenterError::EngineCommandSenderNotFound { .. } => 1005,
-                EventCenterError::CommandSendError { .. } => 1006,
-                EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => 1007,
-                EventCenterError::EventCenterInstanceNotInitialized { .. } => 1008,
-            };   
 
-            format!("{}_{:04}", prefix, code)
+    fn error_code(&self) -> ErrorCode {
+        let prefix = self.get_prefix();
+        let code = match self {
+            // HTTP and JSON errors (1001-1004)
+            EventCenterError::ChannelNotInitialized { .. } => 1001,
+            EventCenterError::ChannelNotFound { .. } => 1002,
+            EventCenterError::EventSendError { .. } => 1003,
+            EventCenterError::EngineCommandReceiverNotFound { .. } => 1004,
+            EventCenterError::EngineCommandSenderNotFound { .. } => 1005,
+            EventCenterError::CommandSendError { .. } => 1006,
+            EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => 1007,
+            EventCenterError::EventCenterInstanceNotInitialized { .. } => 1008,
+        };
+
+        format!("{}_{:04}", prefix, code)
     }
 
     fn context(&self) -> HashMap<&'static str, String> {
         let ctx = HashMap::new();
-        ctx 
+        ctx
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(self,
-            EventCenterError::ChannelNotInitialized { .. } |
-            EventCenterError::ChannelNotFound { .. } |
-            EventCenterError::EventSendError { .. } |
-            EventCenterError::EngineCommandReceiverNotFound { .. } |
-            EventCenterError::EngineCommandSenderNotFound { .. } |
-            EventCenterError::CommandSendError { .. } |
-            EventCenterError::EventCenterInstanceAlreadyInitialized { .. } |
-            EventCenterError::EventCenterInstanceNotInitialized { .. }
+        matches!(
+            self,
+            EventCenterError::ChannelNotInitialized { .. }
+                | EventCenterError::ChannelNotFound { .. }
+                | EventCenterError::EventSendError { .. }
+                | EventCenterError::EngineCommandReceiverNotFound { .. }
+                | EventCenterError::EngineCommandSenderNotFound { .. }
+                | EventCenterError::CommandSendError { .. }
+                | EventCenterError::EventCenterInstanceAlreadyInitialized { .. }
+                | EventCenterError::EventCenterInstanceNotInitialized { .. }
         )
     }
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    EventCenterError::ChannelNotInitialized { channel, .. } => {
-                        format!("通道 [{}] 未初始化", channel)
-                    },
-                    EventCenterError::ChannelNotFound { channel, .. } => {
-                        format!("通道 [{}] 未找到", channel)
-                    },
-                    EventCenterError::EngineCommandReceiverNotFound { engine_name, .. } => {
-                        format!("引擎 [{}] 的命令接收器未找到", engine_name)
-                    },
-                    EventCenterError::EngineCommandSenderNotFound { engine_name, .. } => {
-                        format!("引擎 [{}] 的命令发送器未找到", engine_name)
-                    },
-                    EventCenterError::EventSendError { source, .. } => {
-                        format!("事件发送错误: {}", source)
-                    },
-                    EventCenterError::CommandSendError { source, .. } => {
-                        format!("命令发送错误: {}", source)
-                    },
-                    EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => {
-                        "事件中心实例已初始化".to_string()
-                    },
-                    EventCenterError::EventCenterInstanceNotInitialized { .. } => {
-                        "事件中心实例未初始化".to_string()
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                EventCenterError::ChannelNotInitialized { channel, .. } => {
+                    format!("通道 [{}] 未初始化", channel)
+                }
+                EventCenterError::ChannelNotFound { channel, .. } => {
+                    format!("通道 [{}] 未找到", channel)
+                }
+                EventCenterError::EngineCommandReceiverNotFound { engine_name, .. } => {
+                    format!("引擎 [{}] 的命令接收器未找到", engine_name)
+                }
+                EventCenterError::EngineCommandSenderNotFound { engine_name, .. } => {
+                    format!("引擎 [{}] 的命令发送器未找到", engine_name)
+                }
+                EventCenterError::EventSendError { source, .. } => {
+                    format!("事件发送错误: {}", source)
+                }
+                EventCenterError::CommandSendError { source, .. } => {
+                    format!("命令发送错误: {}", source)
+                }
+                EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => {
+                    "事件中心实例已初始化".to_string()
+                }
+                EventCenterError::EventCenterInstanceNotInitialized { .. } => {
+                    "事件中心实例未初始化".to_string()
                 }
             },
         }

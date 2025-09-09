@@ -1,8 +1,8 @@
-use types::order::{OrderType, FuturesOrderSide, TpslType};
-use serde::{Serialize, Deserialize};
-use types::order::{deserialize_order_type, deserialize_futures_order_side};
-use types::strategy::{BacktestDataSource, DataSourceExchange, TimeRange, SelectedAccount};
+use serde::{Deserialize, Serialize};
 use types::custom_type::InputHandleId;
+use types::order::{deserialize_futures_order_side, deserialize_order_type};
+use types::order::{FuturesOrderSide, OrderType, TpslType};
+use types::strategy::{BacktestDataSource, DataSourceExchange, SelectedAccount, TimeRange};
 
 // 合约订单配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub struct FuturesOrderConfig {
     pub price: f64,
 
     pub quantity: f64,
-    
+
     pub tp: Option<f64>,
     pub sl: Option<f64>,
 
@@ -36,10 +36,6 @@ pub struct FuturesOrderConfig {
     #[serde(rename = "slType")]
     pub sl_type: Option<TpslType>,
 }
-
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuturesOrderNodeBacktestConfig {
@@ -60,6 +56,3 @@ pub struct FuturesOrderNodeExchangeModeConfig {
     #[serde(rename = "timeRange")]
     pub time_range: TimeRange,
 }
-
-
-

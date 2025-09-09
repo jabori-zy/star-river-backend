@@ -23,18 +23,47 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Transaction::StrategyId).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(Transaction::StrategyId)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Transaction::NodeId).string().not_null())
                     .col(ColumnDef::new(Transaction::Exchange).string().not_null())
                     .col(ColumnDef::new(Transaction::Symbol).string().not_null())
-                    .col(ColumnDef::new(Transaction::ExchangePositionId).big_integer().not_null())
-                    .col(ColumnDef::new(Transaction::ExchangeTransactionId).big_integer().not_null())
-                    .col(ColumnDef::new(Transaction::ExchangeOrderId).big_integer().not_null())
-                    .col(ColumnDef::new(Transaction::TransactionType).string().not_null())
-                    .col(ColumnDef::new(Transaction::TransactionSide).string().not_null())
+                    .col(
+                        ColumnDef::new(Transaction::ExchangePositionId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Transaction::ExchangeTransactionId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Transaction::ExchangeOrderId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Transaction::TransactionType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Transaction::TransactionSide)
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Transaction::Quantity).double().not_null())
                     .col(ColumnDef::new(Transaction::Price).double().not_null())
-                    .col(ColumnDef::new(Transaction::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(Transaction::CreatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .col(ColumnDef::new(Transaction::ExtraInfo).json())
                     // .col(ColumnDef::new(Position::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     // .foreign_key(
@@ -60,18 +89,18 @@ impl MigrationTrait for Migration {
 #[derive(Iden)]
 pub enum Transaction {
     Table,
-    Id, // 主键
-    StrategyId, // 策略ID
-    NodeId, // 节点ID
-    Exchange, // 交易所
-    Symbol, // 交易对
+    Id,                    // 主键
+    StrategyId,            // 策略ID
+    NodeId,                // 节点ID
+    Exchange,              // 交易所
+    Symbol,                // 交易对
     ExchangeTransactionId, // 每个交易所的交易明细ID
-    ExchangePositionId, // 持仓ID
-    ExchangeOrderId, // 订单ID
-    TransactionType, // 交易类型
-    TransactionSide, // 交易方向
-    Quantity, // 数量
-    Price, // 价格
-    CreatedTime,//创建时间
-    ExtraInfo, // 额外信息
+    ExchangePositionId,    // 持仓ID
+    ExchangeOrderId,       // 订单ID
+    TransactionType,       // 交易类型
+    TransactionSide,       // 交易方向
+    Quantity,              // 数量
+    Price,                 // 价格
+    CreatedTime,           //创建时间
+    ExtraInfo,             // 额外信息
 }

@@ -1,8 +1,8 @@
+use super::CommandTrait;
+use crate::command::Command;
+use crate::Responder;
 use std::fmt::Debug;
 use types::market::Exchange;
-use crate::command::Command;
-use crate::{Responder};
-use super::CommandTrait;
 
 #[derive(Debug)]
 pub enum ExchangeEngineCommand {
@@ -31,14 +31,12 @@ impl CommandTrait for ExchangeEngineCommand {
             ExchangeEngineCommand::UnregisterExchange(params) => params.sender.clone(),
         }
     }
-    
 }
 impl From<ExchangeEngineCommand> for Command {
     fn from(command: ExchangeEngineCommand) -> Self {
         Command::ExchangeEngine(command)
     }
 }
-
 
 #[derive(Debug)]
 pub struct RegisterExchangeParams {
@@ -59,18 +57,18 @@ pub struct UnregisterExchangeParams {
 
 #[derive(Debug)]
 pub struct RegisterMt5ExchangeParams {
-    pub account_id: i32, // 终端id 和系统的account_config的id一致
-    pub login: i64, // 账户id
-    pub password: String, // 密码
-    pub server: String, // 服务器
+    pub account_id: i32,       // 终端id 和系统的account_config的id一致
+    pub login: i64,            // 账户id
+    pub password: String,      // 密码
+    pub server: String,        // 服务器
     pub terminal_path: String, // 终端路径
-    pub sender: String, // 发送者
-    pub timestamp: i64, // 时间戳
+    pub sender: String,        // 发送者
+    pub timestamp: i64,        // 时间戳
 }
 
 #[derive(Debug)]
 pub struct UnregisterMt5ExchangeParams {
     pub terminal_id: i32, // 终端id 和系统的account_config的id一致
-    pub sender: String, // 发送者
-    pub timestamp: i64, // 时间戳
+    pub sender: String,   // 发送者
+    pub timestamp: i64,   // 时间戳
 }

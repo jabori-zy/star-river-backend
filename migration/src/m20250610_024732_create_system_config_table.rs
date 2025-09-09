@@ -13,8 +13,14 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto(SystemConfig::Id))
                     .col(string(SystemConfig::Localization))
-                    .col(timestamp(SystemConfig::CreatedTime).default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(timestamp(SystemConfig::UpdatedTime).default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        timestamp(SystemConfig::CreatedTime)
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        timestamp(SystemConfig::UpdatedTime)
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .to_owned(),
             )
             .await

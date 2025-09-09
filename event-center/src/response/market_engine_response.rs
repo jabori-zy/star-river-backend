@@ -1,9 +1,8 @@
-use types::market::{Exchange, KlineInterval};
 use crate::response::{Response, ResponseTrait};
-use utils::get_utc8_timestamp;
 use std::sync::Arc;
 use types::error::error_trait::StarRiverErrorTrait;
-
+use types::market::{Exchange, KlineInterval};
+use utils::get_utc8_timestamp;
 
 #[derive(Debug)]
 pub enum MarketEngineResponse {
@@ -17,15 +16,21 @@ impl ResponseTrait for MarketEngineResponse {
         match self {
             MarketEngineResponse::SubscribeKlineStream(response) => response.success,
             MarketEngineResponse::UnsubscribeKlineStream(response) => response.success,
-            MarketEngineResponse::GetKlineHistory(response) => response.success
+            MarketEngineResponse::GetKlineHistory(response) => response.success,
         }
     }
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            MarketEngineResponse::SubscribeKlineStream(response) => response.error.as_ref().unwrap().clone(),
-            MarketEngineResponse::UnsubscribeKlineStream(response) => response.error.as_ref().unwrap().clone(),
-            MarketEngineResponse::GetKlineHistory(response) => response.error.as_ref().unwrap().clone(),
+            MarketEngineResponse::SubscribeKlineStream(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
+            MarketEngineResponse::UnsubscribeKlineStream(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
+            MarketEngineResponse::GetKlineHistory(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
         }
     }
 
@@ -37,7 +42,6 @@ impl ResponseTrait for MarketEngineResponse {
         }
     }
 }
-
 
 impl From<MarketEngineResponse> for Response {
     fn from(response: MarketEngineResponse) -> Self {
@@ -55,8 +59,6 @@ impl TryFrom<Response> for MarketEngineResponse {
         }
     }
 }
-
-
 
 #[derive(Debug)]
 pub struct SubscribeKlineStreamResponse {
@@ -87,7 +89,6 @@ impl From<SubscribeKlineStreamResponse> for Response {
     }
 }
 
-
 #[derive(Debug)]
 pub struct UnsubscribeKlineStreamResponse {
     pub success: bool,
@@ -99,7 +100,6 @@ pub struct UnsubscribeKlineStreamResponse {
 }
 
 impl UnsubscribeKlineStreamResponse {
-
     pub fn success(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
         Self {
             success: true,
@@ -117,7 +117,6 @@ impl From<UnsubscribeKlineStreamResponse> for Response {
         Response::MarketEngine(MarketEngineResponse::UnsubscribeKlineStream(response))
     }
 }
-
 
 #[derive(Debug)]
 pub struct GetKlineHistoryResponse {
@@ -147,6 +146,3 @@ impl From<GetKlineHistoryResponse> for Response {
         Response::MarketEngine(MarketEngineResponse::GetKlineHistory(response))
     }
 }
-
-
-

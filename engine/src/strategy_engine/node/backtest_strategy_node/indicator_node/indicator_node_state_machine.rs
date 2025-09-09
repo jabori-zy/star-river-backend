@@ -7,7 +7,7 @@ use types::error::engine_error::strategy_engine_error::node_error::*;
 #[derive(Debug, Clone, Display)]
 pub enum IndicatorNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
-    ListenAndHandleExternalEvents,   // 处理外部事件
+    ListenAndHandleExternalEvents, // 处理外部事件
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
@@ -19,13 +19,13 @@ pub enum IndicatorNodeStateAction {
     #[strum(serialize = "CalculateIndicator")]
     CalculateIndicator, // 计算指标
     #[strum(serialize = "LogNodeState")]
-    LogNodeState,    // 记录节点状态
+    LogNodeState, // 记录节点状态
     #[strum(serialize = "LogTransition")]
-    LogTransition,          // 记录状态转换
+    LogTransition, // 记录状态转换
     #[strum(serialize = "LogError")]
-    LogError(String),       // 记录错误
+    LogError(String), // 记录错误
     #[strum(serialize = "CancelAsyncTask")]
-    CancelAsyncTask,        // 取消异步任务
+    CancelAsyncTask, // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for IndicatorNodeStateAction {
@@ -51,7 +51,10 @@ impl BacktestStateChangeActions for IndicatorNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+        self.actions
+            .iter()
+            .map(|action| action.clone_box())
+            .collect()
     }
 }
 
@@ -71,7 +74,6 @@ impl IndicatorNodeStateManager {
             node_name,
         }
     }
-
 }
 
 impl BacktestNodeStateMachine for IndicatorNodeStateManager {
@@ -83,13 +85,15 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
         Box::new(self.clone())
     }
 
-
     // 获取当前状态
     fn current_state(&self) -> BacktestNodeRunState {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
+    fn transition(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -99,23 +103,29 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                 Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
-                        Box::new(IndicatorNodeStateAction::LogTransition), 
-                        Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents), 
+                        Box::new(IndicatorNodeStateAction::LogTransition),
+                        Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(IndicatorNodeStateAction::RegisterIndicatorCacheKey),
                         Box::new(IndicatorNodeStateAction::CalculateIndicator),
-                        ],
+                    ],
                 }))
             }
             // 初始化完成，进入Ready状态
-            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
+            (
+                BacktestNodeRunState::Initializing,
+                BacktestNodeStateTransitionEvent::InitializeComplete,
+            ) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Ready,
-                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(IndicatorNodeStateAction::LogTransition),
+                        Box::new(IndicatorNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从Running状态开始停止
@@ -136,7 +146,10 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                 self.current_state = BacktestNodeRunState::Stopped;
                 Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopped,
-                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(IndicatorNodeStateAction::LogTransition),
+                        Box::new(IndicatorNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从任何状态都可以失败
@@ -145,7 +158,10 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                 self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(IndicatorNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Failed,
-                    actions: vec![Box::new(IndicatorNodeStateAction::LogTransition), Box::new(IndicatorNodeStateAction::LogError(error))],
+                    actions: vec![
+                        Box::new(IndicatorNodeStateAction::LogTransition),
+                        Box::new(IndicatorNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换
@@ -156,9 +172,9 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                     from_state: state.to_string(),
                     to_state: event.to_string(),
                     event: event.to_string(),
-                }.fail()?
+                }
+                .fail()?;
             }
-
         }
     }
 }

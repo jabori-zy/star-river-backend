@@ -23,9 +23,17 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Position::StrategyId).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(Position::StrategyId)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Position::NodeId).string().not_null())
-                    .col(ColumnDef::new(Position::ExchangePositionId).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(Position::ExchangePositionId)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Position::AccountId).integer().not_null())
                     .col(ColumnDef::new(Position::Exchange).string().not_null())
                     .col(ColumnDef::new(Position::Symbol).string().not_null())
@@ -37,14 +45,24 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Position::Sl).double())
                     .col(ColumnDef::new(Position::Tp).double())
                     .col(ColumnDef::new(Position::ExtraInfo).json())
-                    .col(ColumnDef::new(Position::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(Position::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(Position::CreatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(Position::UpdatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .index(
                         Index::create()
-                        .unique()
-                        .name("idx_exchange_position_id_unique") // 唯一索引 交易所订单ID+交易所名称
-                        .col(Position::Exchange)
-                        .col(Position::ExchangePositionId)
+                            .unique()
+                            .name("idx_exchange_position_id_unique") // 唯一索引 交易所订单ID+交易所名称
+                            .col(Position::Exchange)
+                            .col(Position::ExchangePositionId),
                     )
                     .to_owned(),
             )
@@ -63,21 +81,21 @@ impl MigrationTrait for Migration {
 #[derive(Iden)]
 pub enum Position {
     Table,
-    Id, // 主键
-    StrategyId, // 策略ID
+    Id,                 // 主键
+    StrategyId,         // 策略ID
     ExchangePositionId, // 交易所订单ID
-    NodeId, // 节点ID
-    AccountId, // 账户ID
-    Exchange, // 交易所
-    Symbol, // 交易对
-    PositionSide, // 订单方向
-    PositionState, // 持仓状态
-    Quantity, // 数量
+    NodeId,             // 节点ID
+    AccountId,          // 账户ID
+    Exchange,           // 交易所
+    Symbol,             // 交易对
+    PositionSide,       // 订单方向
+    PositionState,      // 持仓状态
+    Quantity,           // 数量
     OpenPrice,
     UnrealizedProfit, //未平仓利润
     Tp,
     Sl,
-    ExtraInfo, // 额外信息
-    CreatedTime,//创建时间
-    UpdatedTime,//更新时间
+    ExtraInfo,   // 额外信息
+    CreatedTime, //创建时间
+    UpdatedTime, //更新时间
 }

@@ -4,26 +4,24 @@ pub mod key;
 use crate::market::Exchange;
 use serde::{Deserialize, Serialize};
 
-use crate::market::KlineInterval;
-use std::hash::Hash;
-use std::fmt::Debug;
-use crate::market::Kline;
-use key::{KlineKey, IndicatorKey};
-use std::time::Duration;
-use cache_entry::{KlineCacheEntry, IndicatorCacheEntry};
 use crate::indicator::Indicator;
+use crate::market::Kline;
+use crate::market::KlineInterval;
+use cache_entry::{IndicatorCacheEntry, KlineCacheEntry};
 use deepsize::DeepSizeOf;
-use std::sync::Arc;
+use key::{IndicatorKey, KlineKey};
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 
-pub trait KeyTrait{
+pub trait KeyTrait {
     fn get_key_str(&self) -> String;
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
     fn get_interval(&self) -> KlineInterval;
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[serde(tag = "key_type", content = "key_config")]
@@ -31,7 +29,7 @@ pub trait KeyTrait{
 pub enum Key {
     // Kline(KlineKey), // 实时K线缓存键
     // Indicator(IndicatorKey), // 实时指标缓存键
-    Kline(KlineKey), // 回测K线缓存键
+    Kline(KlineKey),         // 回测K线缓存键
     Indicator(IndicatorKey), // 回测指标缓存键
 }
 
@@ -87,15 +85,7 @@ impl Key {
             Key::Indicator(key) => key.interval.clone(),
         }
     }
-    
 }
-
-
-
-
-
-
-
 
 pub trait CacheItem: Clone + Debug + DeepSizeOf {
     fn to_json(&self) -> serde_json::Value;
@@ -133,15 +123,13 @@ impl CacheValue {
         }
     }
 
-    
-
     pub fn get_timestamp(&self) -> i64 {
         match self {
             CacheValue::Kline(value) => value.get_timestamp(),
             CacheValue::Indicator(value) => value.get_timestamp(),
         }
     }
-    
+
     pub fn as_kline_ref(&self) -> Option<&Kline> {
         match self {
             CacheValue::Kline(value) => Some(value),
@@ -171,8 +159,6 @@ impl CacheValue {
     }
 }
 
-
-
 pub trait CacheEntryTrait {
     fn get_key(&self) -> Key;
     fn initialize(&mut self, data: Vec<CacheValue>);
@@ -188,7 +174,6 @@ pub trait CacheEntryTrait {
     fn get_memory_size(&self) -> u32;
 }
 
-
 #[derive(Debug, Clone)]
 pub enum CacheEntry {
     // Kline(KlineCacheEntry),
@@ -202,8 +187,12 @@ impl CacheEntry {
         match key {
             // Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
             // Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
-            Key::Kline(key) => CacheEntry::HistoryKline(KlineCacheEntry::new(key, Some(max_size), ttl)),
-            Key::Indicator(key) => CacheEntry::HistoryIndicator(IndicatorCacheEntry::new(key, Some(max_size), ttl)),
+            Key::Kline(key) => {
+                CacheEntry::HistoryKline(KlineCacheEntry::new(key, Some(max_size), ttl))
+            }
+            Key::Indicator(key) => {
+                CacheEntry::HistoryIndicator(IndicatorCacheEntry::new(key, Some(max_size), ttl))
+            }
         }
     }
 
@@ -343,25 +332,4 @@ impl CacheEntry {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // 缓存管理器
-
-
-

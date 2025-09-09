@@ -1,4 +1,4 @@
-use crate::{define_indicator};
+use crate::define_indicator;
 
 // AVGPRICE             Average Price #平均价格
 define_indicator!(AVGPRICE,

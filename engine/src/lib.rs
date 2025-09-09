@@ -1,30 +1,27 @@
 pub mod engine_manager; // 引擎管理器
-pub mod market_engine; // 市场引擎
 pub mod exchange_engine; // 交易所引擎
-pub mod indicator_engine; // 指标引擎
+pub mod indicator_engine;
+pub mod market_engine; // 市场引擎 // 指标引擎
 
-pub mod strategy_engine; // 策略引擎
 pub mod account_engine; // 账户引擎
 pub mod cache_engine;
+pub mod strategy_engine; // 策略引擎
 
-
-
-use std::fmt::Debug;
-use std::any::Any;
 use async_trait::async_trait;
-use std::sync::{Arc, LazyLock};
-use std::collections::HashMap;
-use tokio::sync::RwLock;
-use tokio::sync::Mutex;
-use event_center::Event;
-use futures::stream::select_all;
-use tokio_stream::wrappers::BroadcastStream;
-use futures::StreamExt;
-use types::engine::EngineName;
 use event_center::command::Command;
 use event_center::Channel;
+use event_center::Event;
 use event_center::EventCenterSingleton;
-
+use futures::stream::select_all;
+use futures::StreamExt;
+use std::any::Any;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::sync::{Arc, LazyLock};
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
+use tokio_stream::wrappers::BroadcastStream;
+use types::engine::EngineName;
 
 #[async_trait]
 pub trait EngineContext: Debug + Send + Sync + 'static {
@@ -36,7 +33,7 @@ pub trait EngineContext: Debug + Send + Sync + 'static {
 
     fn get_engine_name(&self) -> EngineName;
 
-    // fn get_event_publisher(&self) -> &EventPublisher; 
+    // fn get_event_publisher(&self) -> &EventPublisher;
 
     // fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>>;
 
@@ -55,11 +52,8 @@ impl Clone for Box<dyn EngineContext> {
     }
 }
 
-
-
-
 #[async_trait]
-pub trait Engine : Debug + Send + Sync + 'static {
+pub trait Engine: Debug + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -67,7 +61,7 @@ pub trait Engine : Debug + Send + Sync + 'static {
     fn clone_box(&self) -> Box<dyn Engine>;
 
     fn get_context(&self) -> Arc<RwLock<Box<dyn EngineContext>>>;
-    
+
     async fn get_engine_name(&self) -> EngineName {
         let context = self.get_context();
         let context_guard = context.read().await;
@@ -85,7 +79,6 @@ pub trait Engine : Debug + Send + Sync + 'static {
         EngineFunction::listen_commands(context).await;
     }
 
-
     async fn start(&self) {
         let engine_name = self.get_engine_name().await;
         tracing::info!("{}已启动", engine_name);
@@ -95,7 +88,6 @@ pub trait Engine : Debug + Send + Sync + 'static {
         self.listen_commands().await;
     }
 }
-
 
 // 引擎事件接收器, 定义每个引擎应该接收哪些引擎的事件
 static ENGINE_EVENT_RECEIVERS: LazyLock<HashMap<EngineName, Vec<Channel>>> = LazyLock::new(|| {
@@ -112,38 +104,34 @@ static ENGINE_EVENT_RECEIVERS: LazyLock<HashMap<EngineName, Vec<Channel>>> = Laz
 pub struct EngineEventReceiver;
 
 impl EngineEventReceiver {
-    pub fn get_event_receivers(engine_name:&EngineName) -> Vec<Channel> {
-        ENGINE_EVENT_RECEIVERS.get(engine_name).cloned().unwrap_or_default()
+    pub fn get_event_receivers(engine_name: &EngineName) -> Vec<Channel> {
+        ENGINE_EVENT_RECEIVERS
+            .get(engine_name)
+            .cloned()
+            .unwrap_or_default()
     }
 }
-
-
-
-
-
 
 pub struct EngineFunction;
 
 impl EngineFunction {
     pub async fn listen_events(context: Arc<RwLock<Box<dyn EngineContext>>>) {
-
         let (engine_name, event_receivers) = {
             let context_guard = context.read().await;
             let engine_name = context_guard.get_engine_name();
             let should_receive_channels = EngineEventReceiver::get_event_receivers(&engine_name);
-            
+
             let mut event_receivers = Vec::new();
             for channel in should_receive_channels.iter() {
                 let event_receiver = EventCenterSingleton::subscribe(channel).await.unwrap();
                 event_receivers.push(event_receiver);
             }
-            
+
             // let event_receivers : Vec<broadcast::Receiver<Event>>= context.read().await.get_event_receiver()
             // .iter()
             // .map(|r| r.resubscribe())
             // .collect();
             (engine_name, event_receivers)
-
         };
 
         if event_receivers.is_empty() {
@@ -151,7 +139,8 @@ impl EngineFunction {
             return;
         }
 
-        let streams: Vec<_> = event_receivers.into_iter()
+        let streams: Vec<_> = event_receivers
+            .into_iter()
             .map(|receiver| BroadcastStream::new(receiver))
             .collect();
 
@@ -164,20 +153,16 @@ impl EngineFunction {
                     match received_event {
                         Ok(event) => {
                             let mut context_guard = context.write().await;
-                                // tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
-                                context_guard.handle_event(event).await;
+                            // tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
+                            context_guard.handle_event(event).await;
                         }
                         Err(e) => {
                             tracing::error!("节点{}接收事件错误: {}", engine_name, e);
                         }
-                        
                     }
                 }
             }
-
         });
-
-
     }
 
     pub async fn listen_commands(context: Arc<RwLock<Box<dyn EngineContext>>>) {
@@ -185,9 +170,10 @@ impl EngineFunction {
             let context_guard = context.read().await;
             let engine_name = context_guard.get_engine_name();
             // let command_receiver = context.read().await.get_command_receiver();
-            let command_receiver = EventCenterSingleton::get_command_receiver(&engine_name).await.unwrap();
+            let command_receiver = EventCenterSingleton::get_command_receiver(&engine_name)
+                .await
+                .unwrap();
             (engine_name, command_receiver)
-
         };
         tracing::debug!("{}: 开始监听命令", engine_name);
         tokio::spawn(async move {
@@ -196,15 +182,8 @@ impl EngineFunction {
                     let mut context_guard = context.write().await;
                     // tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
                     context_guard.handle_command(received_command).await;
-                    }
                 }
             }
-        );
+        });
     }
 }
-
-
-
-
-
-

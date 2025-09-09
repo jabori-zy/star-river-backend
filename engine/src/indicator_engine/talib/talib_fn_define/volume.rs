@@ -1,13 +1,12 @@
-use crate::talib_fn;
-use types::indicator::indicator_define::volume::*;
 use crate::indicator_engine::talib::TALib;
-use types::indicator::Indicator;
 use crate::indicator_engine::talib_bindings::*;
 use crate::indicator_engine::talib_error::TalibError;
+use crate::talib_fn;
+use types::indicator::indicator_define::volume::*;
+use types::indicator::Indicator;
 
 impl TALib {
-
-    // AD                   Chaikin A/D Line #钱德动量线 
+    // AD                   Chaikin A/D Line #钱德动量线
     talib_fn!(
         AD,
         timestamp => (timestamp_list: &[i64]),

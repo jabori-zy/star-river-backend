@@ -1,11 +1,9 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
-use crate::cache::{key::KlineKey, KeyTrait, CacheValue};
-use std::sync::Arc;
-use crate::strategy::node_event::BacktestNodeEvent;
 use super::super::NodeStateLogEvent;
-
-
+use crate::cache::{key::KlineKey, CacheValue, KeyTrait};
+use crate::strategy::node_event::BacktestNodeEvent;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
@@ -29,8 +27,6 @@ impl From<KlineNodeEvent> for BacktestNodeEvent {
         BacktestNodeEvent::KlineNode(event)
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlineUpdateEvent {
@@ -60,7 +56,6 @@ pub struct KlineUpdateEvent {
     pub timestamp: i64,
 }
 
-
 fn serialize_kline_cache_key<'de, S>(kline_key: &KlineKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -69,17 +64,23 @@ where
     serializer.serialize_str(&kline_key_str)
 }
 
-fn serialize_kline_data<S>(kline_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_kline_data<S>(
+    kline_data: &Vec<Arc<CacheValue>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     use serde::ser::SerializeSeq;
-    
+
     let mut seq = serializer.serialize_seq(Some(kline_data.len()))?;
-    kline_data.iter().map(|cache_value| {
-        let json_value = cache_value.to_json();
-        seq.serialize_element(&json_value)
-    }).collect::<Result<(), S::Error>>()?;
+    kline_data
+        .iter()
+        .map(|cache_value| {
+            let json_value = cache_value.to_json();
+            seq.serialize_element(&json_value)
+        })
+        .collect::<Result<(), S::Error>>()?;
     seq.end()
 }
 
@@ -90,7 +91,7 @@ where
 {
     use serde::de::Error;
     use serde::Deserialize;
-    
+
     // 这里我们简单地跳过反序列化，返回空向量
     // 在实际应用中，你可能需要根据具体需求来实现反序列化逻辑
     let _: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;

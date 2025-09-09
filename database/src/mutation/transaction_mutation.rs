@@ -1,20 +1,16 @@
+use ::entity::transaction;
+use sea_orm::*;
 use types::transaction::OriginalTransaction;
 use types::transaction::Transaction;
-use sea_orm::*;
-use ::entity::transaction;
-
-
 
 pub struct TransactionMutation;
 
-
 impl TransactionMutation {
-    
     pub async fn insert_transaction(
         db: &DbConn,
         strategy_id: i64,
         node_id: String,
-        transaction: Box<dyn OriginalTransaction>
+        transaction: Box<dyn OriginalTransaction>,
     ) -> Result<Transaction, DbErr> {
         let transaction_model = transaction::ActiveModel {
             id: NotSet,
@@ -31,7 +27,10 @@ impl TransactionMutation {
             price: Set(transaction.get_price()),
             created_time: Set(transaction.get_create_time()),
             ..Default::default()
-        }.insert(db).await.unwrap();
+        }
+        .insert(db)
+        .await
+        .unwrap();
 
         Ok(transaction_model.into())
     }

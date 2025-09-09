@@ -1,10 +1,8 @@
-use sea_orm::*;
 use ::entity::system_config::Entity as SystemConfigEntity;
+use sea_orm::*;
 use types::system::system_config::SystemConfig;
 
-
 pub struct SystemConfigQuery;
-
 
 impl SystemConfigQuery {
     pub async fn get_system_config(db: &DbConn) -> Result<SystemConfig, DbErr> {
@@ -16,6 +14,4 @@ impl SystemConfigQuery {
 
         Ok(system_config.into())
     }
-
-
 }

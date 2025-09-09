@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::market::Exchange;
-
+use serde::{Deserialize, Serialize};
 
 // 仓位数量更新
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,6 +1,5 @@
-
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString)]

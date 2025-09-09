@@ -1,10 +1,9 @@
-
-use types::market::Exchange;
 use crate::response::{Response, ResponseTrait};
-use types::error::engine_error::*;
-use utils::get_utc8_timestamp;
 use std::sync::Arc;
+use types::error::engine_error::*;
 use types::error::error_trait::StarRiverErrorTrait;
+use types::market::Exchange;
+use utils::get_utc8_timestamp;
 
 #[derive(Debug)]
 pub enum ExchangeEngineResponse {
@@ -12,17 +11,17 @@ pub enum ExchangeEngineResponse {
 }
 
 impl ResponseTrait for ExchangeEngineResponse {
-
     fn success(&self) -> bool {
         match self {
             ExchangeEngineResponse::RegisterExchange(response) => response.success,
         }
     }
-    
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            ExchangeEngineResponse::RegisterExchange(response) => response.error.as_ref().unwrap().clone(),
+            ExchangeEngineResponse::RegisterExchange(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
         }
     }
 
@@ -33,13 +32,11 @@ impl ResponseTrait for ExchangeEngineResponse {
     }
 }
 
-
 impl From<ExchangeEngineResponse> for Response {
     fn from(response: ExchangeEngineResponse) -> Self {
         Response::ExchangeEngine(response)
     }
 }
-
 
 impl TryFrom<Response> for ExchangeEngineResponse {
     type Error = String;
@@ -51,11 +48,6 @@ impl TryFrom<Response> for ExchangeEngineResponse {
         }
     }
 }
-
-
-
-
-
 
 // 注册交易所的响应
 #[derive(Debug)]

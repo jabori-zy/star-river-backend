@@ -1,12 +1,11 @@
-use crate::talib_snake_fn;
-use types::indicator::indicator_define::cycle::*;
 use crate::indicator_engine::talib::TALib;
-use types::indicator::Indicator;
 use crate::indicator_engine::talib_bindings::*;
 use crate::indicator_engine::talib_error::TalibError;
+use crate::talib_snake_fn;
+use types::indicator::indicator_define::cycle::*;
+use types::indicator::Indicator;
 
 impl TALib {
-
     // HT_DCPERIOD          Hilbert Transform - Dominant Cycle Period #希尔伯特变换 - 主导周期
     talib_snake_fn!(
         HtDcperiod,
@@ -51,5 +50,4 @@ impl TALib {
         talib_params => [],
         output => [(ht_trendmode: i32)],
     );
-
 }

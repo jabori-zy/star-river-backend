@@ -1,7 +1,6 @@
-use types::strategy::SelectedAccount;
-use types::strategy::sys_varibale::SysVariable;
 use serde::{Deserialize, Serialize};
-
+use types::strategy::sys_varibale::SysVariable;
+use types::strategy::SelectedAccount;
 
 // 获取变量的方式
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +28,6 @@ impl TimerConfig {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableConfig {
     #[serde(rename = "configId")]
@@ -38,7 +36,6 @@ pub struct GetVariableConfig {
     pub variable_name: String, // 变量名称
     pub variable: SysVariable, // 变量类型，使用StrategySysVariable的值
 }
-
 
 // 时间单位
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,8 +50,6 @@ pub enum TimeUnit {
     Day,
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeLiveConfig {
     #[serde(rename = "selectedLiveAccount")]
@@ -67,12 +62,10 @@ pub struct GetVariableNodeLiveConfig {
     pub timer_config: Option<TimerConfig>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeSimulateConfig {
     pub variables: Vec<GetVariableConfig>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeBacktestConfig {

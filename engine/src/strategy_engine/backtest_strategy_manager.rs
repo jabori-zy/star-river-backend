@@ -1,35 +1,48 @@
 use super::StrategyEngineContext;
 
-
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
+use database::mutation::strategy_config_mutation::StrategyConfigMutation;
+use database::query::strategy_config_query::StrategyConfigQuery;
+use snafu::{Report, ResultExt};
 use types::cache::Key;
-use types::strategy::TradeMode;
+use types::error::engine_error::strategy_engine_error::*;
+use types::error::engine_error::strategy_error::*;
 use types::order::virtual_order::VirtualOrder;
 use types::position::virtual_position::VirtualPosition;
+use types::strategy::TradeMode;
 use types::strategy_stats::StatsSnapshot;
 use types::transaction::virtual_transaction::VirtualTransaction;
-use types::error::engine_error::strategy_engine_error::*;
-use snafu::{Report, ResultExt};
-use types::error::engine_error::strategy_error::*;
-use database::query::strategy_config_query::StrategyConfigQuery;
-use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-/* 
+/*
     回测策略控制
 */
 impl StrategyEngineContext {
-    pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
+    pub async fn backtest_strategy_init(
+        &mut self,
+        strategy_id: i32,
+    ) -> Result<(), StrategyEngineError> {
         // 检查是否已经在初始化或已存在
-        if self.initializing_strategies.lock().await.contains(&strategy_id)
-            || self.backtest_strategy_list.lock().await.contains_key(&strategy_id) {
+        if self
+            .initializing_strategies
+            .lock()
+            .await
+            .contains(&strategy_id)
+            || self
+                .backtest_strategy_list
+                .lock()
+                .await
+                .contains_key(&strategy_id)
+        {
             tracing::warn!("策略已存在或正在初始化中, 不进行初始化");
-            return Err(StrategyIsExistSnafu {
-                strategy_id,
-            }.fail()?);
+            return Err(StrategyIsExistSnafu { strategy_id }.fail()?);
         }
 
         // 标记为初始化中
-        self.initializing_strategies.lock().await.insert(strategy_id);
-        let strategy_config: types::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
+        self.initializing_strategies
+            .lock()
+            .await
+            .insert(strategy_id);
+        let strategy_config: types::strategy::StrategyConfig =
+            self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
         let strategy_list = self.backtest_strategy_list.clone();
         let database = self.database.clone();
@@ -40,32 +53,29 @@ impl StrategyEngineContext {
             let strategy_id = strategy_config.id;
             let strategy_name = strategy_config.name.clone();
             let result: Result<(), BacktestStrategyError> = async {
-
-                let mut strategy = BacktestStrategy::new(
-                    strategy_config,
-                    database,
-                    heartbeat
-                ).await;
+                let mut strategy =
+                    BacktestStrategy::new(strategy_config, database, heartbeat).await;
 
                 strategy.check_strategy().await?;
 
                 strategy.init_strategy().await?;
-                
+
                 strategy_list.lock().await.insert(strategy_id, strategy);
                 tracing::info!("strategy [{}({})] init success", strategy_name, strategy_id);
                 Ok(())
-            }.await;
+            }
+            .await;
 
             if let Err(e) = result {
                 // 如果策略初始化失败，则将状态重置为stopped
                 let report = Report::from_error(&e);
                 tracing::error!("{}", report);
             }
-            
+
             // 无论成功或失败，都从初始化集合中移除
             initializing_set.lock().await.remove(&strategy_id);
         });
-        
+
         Ok(())
     }
 
@@ -74,12 +84,11 @@ impl StrategyEngineContext {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(mut strategy) = strategy {
             strategy.stop_strategy().await.unwrap();
-            self.remove_strategy_instance(TradeMode::Backtest, strategy_id).await?;
+            self.remove_strategy_instance(TradeMode::Backtest, strategy_id)
+                .await?;
         }
         Ok(())
     }
-
-
 
     // 播放回测策略
     pub async fn backtest_strategy_play(&mut self, strategy_id: i32) -> Result<(), String> {
@@ -109,7 +118,10 @@ impl StrategyEngineContext {
     }
 
     // 播放单根k线
-    pub async fn backtest_strategy_play_one_kline(&mut self, strategy_id: i32) -> Result<i32, String> {
+    pub async fn backtest_strategy_play_one_kline(
+        &mut self,
+        strategy_id: i32,
+    ) -> Result<i32, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(mut strategy) = strategy {
             let play_index = strategy.play_one_kline().await.unwrap();
@@ -138,7 +150,10 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_virtual_orders(&self, strategy_id: i32) -> Result<Vec<VirtualOrder>, String> {
+    pub async fn get_backtest_strategy_virtual_orders(
+        &self,
+        strategy_id: i32,
+    ) -> Result<Vec<VirtualOrder>, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             Ok(strategy.get_virtual_orders().await)
@@ -147,7 +162,10 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_current_positions(&self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
+    pub async fn get_backtest_strategy_current_positions(
+        &self,
+        strategy_id: i32,
+    ) -> Result<Vec<VirtualPosition>, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             Ok(strategy.get_current_positions().await)
@@ -156,7 +174,10 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_history_positions(&self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
+    pub async fn get_backtest_strategy_history_positions(
+        &self,
+        strategy_id: i32,
+    ) -> Result<Vec<VirtualPosition>, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             Ok(strategy.get_history_positions().await)
@@ -165,7 +186,11 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_stats_history(&self, strategy_id: i32, play_index: i32) -> Result<Vec<StatsSnapshot>, String> {
+    pub async fn get_backtest_strategy_stats_history(
+        &self,
+        strategy_id: i32,
+        play_index: i32,
+    ) -> Result<Vec<StatsSnapshot>, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             Ok(strategy.get_stats_history(play_index).await)
@@ -174,7 +199,10 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn get_backtest_strategy_transactions(&self, strategy_id: i32) -> Result<Vec<VirtualTransaction>, String> {
+    pub async fn get_backtest_strategy_transactions(
+        &self,
+        strategy_id: i32,
+    ) -> Result<Vec<VirtualTransaction>, String> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             Ok(strategy.get_transactions().await)
@@ -183,26 +211,43 @@ impl StrategyEngineContext {
         }
     }
 
-
-    pub async fn get_backtest_strategy_status(&self, strategy_id: i32) -> Result<String, StrategyEngineError> {
+    pub async fn get_backtest_strategy_status(
+        &self,
+        strategy_id: i32,
+    ) -> Result<String, StrategyEngineError> {
         // 检查是否正在初始化或有策略实例
-        let is_initializing = self.initializing_strategies.lock().await.contains(&strategy_id);
-        let has_instance = self.get_backtest_strategy_instance(strategy_id).await.is_ok();
-        let strategy_status = StrategyConfigQuery::get_strategy_status_by_strategy_id(&self.database, strategy_id).await.context(DatabaseSnafu {})?;
-        
+        let is_initializing = self
+            .initializing_strategies
+            .lock()
+            .await
+            .contains(&strategy_id);
+        let has_instance = self
+            .get_backtest_strategy_instance(strategy_id)
+            .await
+            .is_ok();
+        let strategy_status =
+            StrategyConfigQuery::get_strategy_status_by_strategy_id(&self.database, strategy_id)
+                .await
+                .context(DatabaseSnafu {})?;
+
+        let status = ["running", "playing", "ready", "pausing"];
         if is_initializing || has_instance {
             // 正在初始化或有实例，返回数据库中的状态
             Ok(strategy_status)
-        } 
-        // 无实例且未初始化, 但是状态为running，则将状态设为stopped
-        else if (!is_initializing && !has_instance) && strategy_status == "running" {
-            // 无实例且未初始化，将状态设为stopped并返回
-            StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, "stopped".to_string()).await.context(DatabaseSnafu {})?;
-            Ok("stopped".to_string())
         }
-        else {
+        // 无实例且未初始化, 但是状态为running，则将状态设为stopped
+        else if (!is_initializing && !has_instance) && (status.contains(&strategy_status.as_str())) {
+            // 无实例且未初始化，将状态设为stopped并返回
+            StrategyConfigMutation::update_strategy_status(
+                &self.database,
+                strategy_id,
+                "stopped".to_string(),
+            )
+            .await
+            .context(DatabaseSnafu {})?;
+            Ok("stopped".to_string())
+        } else {
             Ok(strategy_status)
         }
     }
-
 }

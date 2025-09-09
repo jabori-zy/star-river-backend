@@ -5,18 +5,17 @@ pub use symbol::{Symbol, SymbolError};
 
 use std::fmt::Debug;
 
-use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
-use serde_json::{self, json};
-use std::str::FromStr;
-use serde::ser::Serializer;
-use crate::cache::{CacheValue, CacheItem};
+use crate::cache::{CacheItem, CacheValue};
 use deepsize::DeepSizeOf;
-use utoipa::ToSchema;
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
+use serde_json::{self, json};
 use std::fmt::Display;
+use std::str::FromStr;
+use strum::{Display, EnumString};
+use utoipa::ToSchema;
 
 pub type MT5Server = String;
-
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash, DeepSizeOf, ToSchema)]
 #[serde(rename_all = "lowercase")]
@@ -88,7 +87,6 @@ impl Serialize for Exchange {
     }
 }
 
-
 impl FromStr for Exchange {
     type Err = String;
 
@@ -106,7 +104,7 @@ impl FromStr for Exchange {
                         let end = s.len() - 1;
                         let server = &s[start..end];
                         Ok(Exchange::Metatrader5(server.to_string()))
-                    } 
+                    }
                     // 兼容原有的冒号格式: metatrader5:server
                     else if s.contains(":") {
                         let parts = s.split(":").collect::<Vec<&str>>();
@@ -115,13 +113,12 @@ impl FromStr for Exchange {
                         } else {
                             Ok(Exchange::Metatrader5(String::new()))
                         }
-                    } 
+                    }
                     // 无服务器信息的情况
                     else {
                         Ok(Exchange::Metatrader5(String::new()))
                     }
-                }
-                else {
+                } else {
                     Err(format!("无效的交易所: {}", s))
                 }
             }
@@ -138,9 +135,21 @@ where
     Exchange::from_str(&exchange_str).map_err(serde::de::Error::custom)
 }
 
-
 // k线间隔
-#[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, ToSchema)]
+#[derive(
+    Clone,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Ord,
+    PartialOrd,
+    ToSchema,
+)]
 pub enum KlineInterval {
     #[strum(serialize = "1m")]
     #[serde(rename = "1m")]
@@ -207,10 +216,9 @@ pub enum KlineInterval {
     Months1,
 }
 
-pub trait MarketData: Serialize + Clone + Debug{
+pub trait MarketData: Serialize + Clone + Debug {
     fn to_json(&self) -> serde_json::Value;
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct Kline {
@@ -249,12 +257,19 @@ impl CacheItem for Kline {
     fn get_timestamp(&self) -> i64 {
         self.timestamp
     }
-    
+
     fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }
     fn to_list(&self) -> Vec<f64> {
-        vec![self.timestamp as f64, self.open, self.high, self.low, self.close, self.volume]
+        vec![
+            self.timestamp as f64,
+            self.open,
+            self.high,
+            self.low,
+            self.close,
+            self.volume,
+        ]
     }
     fn to_json_with_time(&self) -> serde_json::Value {
         json!(
@@ -289,9 +304,6 @@ impl MarketData for KlineSeries {
         serde_json::to_value(self).unwrap()
     }
 }
-
-
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TickerPrice {

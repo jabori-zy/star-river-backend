@@ -1,12 +1,9 @@
-use sea_orm::*;
 use ::entity::account_info;
 use chrono::Utc;
+use sea_orm::*;
 use types::account::AccountInfo;
 
-
-
 pub struct AccountInfoMutation;
-
 
 impl AccountInfoMutation {
     pub async fn insert_account_info(
@@ -47,11 +44,10 @@ impl AccountInfoMutation {
                 Ok(account_info_model.into())
             }
             None => {
-                let account_info_model = AccountInfoMutation::insert_account_info(db, account_id, info).await?;
+                let account_info_model =
+                    AccountInfoMutation::insert_account_info(db, account_id, info).await?;
                 Ok(account_info_model)
             }
         }
     }
-
 }
-

@@ -1,12 +1,11 @@
-use crate::talib_fn;
-use types::indicator::indicator_define::price_transform::*;
 use crate::indicator_engine::talib::TALib;
-use types::indicator::Indicator;
 use crate::indicator_engine::talib_bindings::*;
 use crate::indicator_engine::talib_error::TalibError;
+use crate::talib_fn;
+use types::indicator::indicator_define::price_transform::*;
+use types::indicator::Indicator;
 
 impl TALib {
-
     // AVGPRICE             Average Price #平均价格
     talib_fn!(
         AVGPRICE,

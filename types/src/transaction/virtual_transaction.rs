@@ -1,17 +1,14 @@
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 use crate::custom_type::*;
 use crate::market::Exchange;
-use crate::transaction::TransactionType;
-use crate::transaction::TransactionSide;
 use crate::order::virtual_order::VirtualOrder;
-use crate::position::virtual_position::VirtualPosition;
 use crate::order::FuturesOrderSide;
+use crate::position::virtual_position::VirtualPosition;
+use crate::transaction::TransactionSide;
+use crate::transaction::TransactionType;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use utoipa::IntoParams;
 use utoipa::ToSchema;
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
 pub struct VirtualTransaction {
@@ -50,7 +47,7 @@ pub struct VirtualTransaction {
 
     #[serde(rename = "price")]
     pub price: f64, // 交易价格
-    
+
     #[serde(rename = "profit")]
     pub profit: Option<f64>, // 收益
 
@@ -65,7 +62,6 @@ impl VirtualTransaction {
         virtual_position: &VirtualPosition,
         timestamp: i64,
     ) -> Self {
-
         let transaction_type = match virtual_order.order_side {
             FuturesOrderSide::OpenLong => TransactionType::Open,
             FuturesOrderSide::OpenShort => TransactionType::Open,
@@ -85,8 +81,6 @@ impl VirtualTransaction {
             TransactionType::Close => Some(virtual_position.unrealized_profit),
         };
 
-
-
         Self {
             transaction_id,
             order_id: virtual_order.order_id,
@@ -103,6 +97,5 @@ impl VirtualTransaction {
             profit,
             create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
         }
-
     }
 }

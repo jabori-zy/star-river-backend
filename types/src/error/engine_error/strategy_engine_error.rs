@@ -1,14 +1,12 @@
 pub mod node_error;
 pub mod strategy_error;
 
-
-use snafu::{Snafu, Backtrace};
-use std::collections::HashMap;
-use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
-use strategy_error::BacktestStrategyError;
+use crate::error::ErrorCode;
 use sea_orm::error::DbErr;
-
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
+use strategy_error::BacktestStrategyError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -38,10 +36,7 @@ pub enum StrategyEngineError {
     },
 
     #[snafu(display("database error: {}", source))]
-    Database {
-        source: DbErr,
-        backtrace: Backtrace,
-    },
+    Database { source: DbErr, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for StrategyEngineError
@@ -49,7 +44,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
     fn get_prefix(&self) -> &'static str {
         "STRATEGY_ENGINE"
     }
-    
+
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
@@ -62,19 +57,20 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
         };
         format!("{}_{:04}", prefix, code)
     }
-    
+
     fn context(&self) -> HashMap<&'static str, String> {
         let ctx = HashMap::new();
         ctx
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(self,
-            StrategyEngineError::BacktestStrategyError { .. } |
-            StrategyEngineError::UnsupportedStrategyType { .. } |
-            StrategyEngineError::StrategyIsExist { .. } |
-            StrategyEngineError::StrategyInstanceNotFound { .. } |
-            StrategyEngineError::Database { .. }
+        matches!(
+            self,
+            StrategyEngineError::BacktestStrategyError { .. }
+                | StrategyEngineError::UnsupportedStrategyType { .. }
+                | StrategyEngineError::StrategyIsExist { .. }
+                | StrategyEngineError::StrategyInstanceNotFound { .. }
+                | StrategyEngineError::Database { .. }
         )
     }
 
@@ -82,45 +78,35 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
         match self {
             // For transparent errors, delegate to the inner error's chain
             StrategyEngineError::BacktestStrategyError { source, .. } => source.error_code_chain(),
-            
+
             // For errors without source
-            StrategyEngineError::UnsupportedStrategyType { .. } |
-            StrategyEngineError::StrategyIsExist { .. } |
-            StrategyEngineError::StrategyInstanceNotFound { .. } |
-            StrategyEngineError::Database { .. } => vec![self.error_code()],
+            StrategyEngineError::UnsupportedStrategyType { .. }
+            | StrategyEngineError::StrategyIsExist { .. }
+            | StrategyEngineError::StrategyInstanceNotFound { .. }
+            | StrategyEngineError::Database { .. } => vec![self.error_code()],
         }
     }
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    StrategyEngineError::BacktestStrategyError { source, .. } => {
-                        format!("回测策略错误: {}", source.get_error_message(language))
-                    },
-                    StrategyEngineError::UnsupportedStrategyType { strategy_type, .. } => {
-                        format!("不支持的策略类型: {}", strategy_type)
-                    },
-                    StrategyEngineError::StrategyIsExist { strategy_id, .. } => {
-                        format!("策略 {} 已存在", strategy_id)
-                    },
-                    StrategyEngineError::StrategyInstanceNotFound { strategy_id, .. } => {
-                        format!("策略实例 {} 不存在", strategy_id)
-                    },
-                    StrategyEngineError::Database { source, .. } => {
-                        format!("数据库错误: {}", source)
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                StrategyEngineError::BacktestStrategyError { source, .. } => {
+                    format!("回测策略错误: {}", source.get_error_message(language))
+                }
+                StrategyEngineError::UnsupportedStrategyType { strategy_type, .. } => {
+                    format!("不支持的策略类型: {}", strategy_type)
+                }
+                StrategyEngineError::StrategyIsExist { strategy_id, .. } => {
+                    format!("策略 {} 已存在", strategy_id)
+                }
+                StrategyEngineError::StrategyInstanceNotFound { strategy_id, .. } => {
+                    format!("策略实例 {} 不存在", strategy_id)
+                }
+                StrategyEngineError::Database { source, .. } => {
+                    format!("数据库错误: {}", source)
                 }
             },
         }
     }
 }
-
-
-
-
-
-

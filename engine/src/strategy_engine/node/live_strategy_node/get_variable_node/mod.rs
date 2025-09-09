@@ -1,34 +1,33 @@
-pub mod get_variable_node_types;
 mod get_variable_node_context;
 mod get_variable_node_state_machine;
+pub mod get_variable_node_types;
 
-use crate::strategy_engine::node::node_context::{LiveNodeContextTrait,LiveBaseNodeContext};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use get_variable_node_context::GetVariableNodeContext;
-use get_variable_node_state_machine::{GetVariableNodeStateAction,GetVariableNodeStateMachine};
-use crate::strategy_engine::node::{LiveNodeTrait,NodeType,NodeOutputHandle};
-use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
-use std::any::Any;
-use async_trait::async_trait;
-use std::time::Duration;
-use types::strategy::node_event::BacktestNodeEvent;
-use event_center::EventPublisher;
-use sea_orm::DatabaseConnection;
-use heartbeat::Heartbeat;
-use get_variable_node_types::*;
-use tokio::sync::broadcast;
-use event_center::Event;
 use crate::exchange_engine::ExchangeEngine;
-use tokio::sync::Mutex;
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
+use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
+use crate::strategy_engine::node::{LiveNodeTrait, NodeOutputHandle, NodeType};
+use async_trait::async_trait;
+use event_center::Event;
+use event_center::EventPublisher;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use get_variable_node_context::GetVariableNodeContext;
+use get_variable_node_state_machine::{GetVariableNodeStateAction, GetVariableNodeStateMachine};
+use get_variable_node_types::*;
+use heartbeat::Heartbeat;
+use sea_orm::DatabaseConnection;
+use std::any::Any;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::broadcast;
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use types::strategy::node_command::NodeCommandSender;
+use types::strategy::node_event::BacktestNodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNode {
     pub context: Arc<RwLock<Box<dyn LiveNodeContextTrait>>>,
 }
-
 
 impl GetVariableNode {
     pub fn new(
@@ -66,7 +65,6 @@ impl GetVariableNode {
                 database,
             }))),
         }
-        
     }
 }
 
@@ -91,64 +89,98 @@ impl LiveNodeTrait for GetVariableNode {
         let node_id = self.get_node_id().await;
         let context = self.get_context();
         let mut state_guard = context.write().await;
-        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
+        if let Some(get_variable_node_context) = state_guard
+            .as_any_mut()
+            .downcast_mut::<GetVariableNodeContext>()
+        {
             let variable_config = get_variable_node_context.live_config.variables.clone();
-            
+
             for variable in variable_config {
                 let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
                 let handle = NodeOutputHandle {
                     node_id: node_id.clone(),
-                    output_handle_id: format!("get_variable_node_output_{}", variable.variable.to_string()),
+                    output_handle_id: format!(
+                        "get_variable_node_output_{}",
+                        variable.variable.to_string()
+                    ),
                     node_event_sender: tx,
                     connect_count: 0,
                 };
 
-                get_variable_node_context.get_all_output_handle_mut().insert(format!("get_variable_node_output_{}", variable.variable.to_string()), handle);
-                tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, format!("get_variable_node_output_{}", variable.variable.to_string()));
+                get_variable_node_context
+                    .get_all_output_handle_mut()
+                    .insert(
+                        format!("get_variable_node_output_{}", variable.variable.to_string()),
+                        handle,
+                    );
+                tracing::debug!(
+                    "{}: 设置节点默认出口成功: {}",
+                    node_id,
+                    format!("get_variable_node_output_{}", variable.variable.to_string())
+                );
             }
         }
     }
 
     async fn init(&mut self) -> Result<(), String> {
-        tracing::info!("================={}====================", self.get_node_name().await);
+        tracing::info!(
+            "================={}====================",
+            self.get_node_name().await
+        );
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
-        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize)
+            .await
+            .unwrap();
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        tracing::info!(
+            "{:?}: 初始化完成",
+            self.get_state_machine().await.current_state()
+        );
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete)
+            .await?;
         Ok(())
     }
 
     async fn start(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始启动", self.get_node_id().await);
-        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Start)
+            .await
+            .unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为running状态
-        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete)
+            .await
+            .unwrap();
         Ok(())
-        
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop)
+            .await
+            .unwrap();
 
         // 等待所有任务结束
         self.cancel_task().await.unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete)
+            .await
+            .unwrap();
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(
+        &mut self,
+        event: LiveNodeStateTransitionEvent,
+    ) -> Result<(), String> {
         let node_id = self.get_node_id().await;
 
         // 获取状态管理器并执行转换
@@ -158,15 +190,27 @@ impl LiveNodeTrait for GetVariableNode {
             (transition_result, state_machine)
         };
 
-        tracing::debug!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
+        tracing::debug!(
+            "{}需要执行的动作: {:?}",
+            node_id,
+            transition_result.get_actions()
+        );
 
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
-            if let Some(get_variable_node_state_action) = action.as_any().downcast_ref::<GetVariableNodeStateAction>() {
+        for action in transition_result.get_actions() {
+            // 克隆actions避免移动问题
+            if let Some(get_variable_node_state_action) =
+                action.as_any().downcast_ref::<GetVariableNodeStateAction>()
+            {
                 match get_variable_node_state_action {
                     GetVariableNodeStateAction::LogTransition => {
                         let current_state = self.get_state_machine().await.current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
+                        tracing::info!(
+                            "{}: 状态转换: {:?} -> {:?}",
+                            node_id,
+                            current_state,
+                            transition_result.get_new_state()
+                        );
                     }
                     GetVariableNodeStateAction::LogNodeState => {
                         let current_state = self.get_state_machine().await.current_state();
@@ -176,7 +220,10 @@ impl LiveNodeTrait for GetVariableNode {
                         tracing::info!("{}: 开始注册任务", node_id);
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
-                        if let Some(get_variable_node_context) = state_guard.as_any_mut().downcast_mut::<GetVariableNodeContext>() {
+                        if let Some(get_variable_node_context) = state_guard
+                            .as_any_mut()
+                            .downcast_mut::<GetVariableNodeContext>(
+                        ) {
                             let live_config = get_variable_node_context.live_config.clone();
                             let get_variable_type = live_config.get_variable_type.clone();
                             // 如果获取变量类型为定时触发，则注册任务
@@ -195,11 +242,13 @@ impl LiveNodeTrait for GetVariableNode {
                 }
                 // 所有动作执行完毕后更新节点最新的状态
                 {
-                    self.context.write().await.set_state_machine(state_machine.clone_box());
+                    self.context
+                        .write()
+                        .await
+                        .set_state_machine(state_machine.clone_box());
                 }
             }
         }
         Ok(())
     }
 }
-

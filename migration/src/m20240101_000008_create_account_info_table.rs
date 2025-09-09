@@ -25,8 +25,18 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AccountInfo::AccountId).integer().not_null()) //账户配置id
                     .col(ColumnDef::new(AccountInfo::Info).json()) //账户信息
-                    .col(ColumnDef::new(AccountInfo::CreateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(AccountInfo::UpdateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(AccountInfo::CreateTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(AccountInfo::UpdateTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .to_owned(),
             )
             .await

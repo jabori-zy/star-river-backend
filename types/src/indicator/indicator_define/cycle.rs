@@ -1,6 +1,5 @@
 use crate::{define_indicator, indicator::PriceSource};
 
-
 // HT_DCPERIOD          Hilbert Transform - Dominant Cycle Period #希尔伯特变换 - 主导周期
 define_indicator!(HtDcperiod,
     params => [(price_source: PriceSource)],
@@ -25,15 +24,8 @@ define_indicator!(HtSine,
     output => [(timestamp: i64), (sine: f64), (lead_sine: f64)],
 );
 
-
 // HT_TRENDMODE         Hilbert Transform - Trend vs Cycle Mode #希尔伯特变换 - 趋势与周期模式
 define_indicator!(HtTrendmode,
     params => [(price_source: PriceSource)],
     output => [(timestamp: i64), (ht_trendmode: i32)],
 );
-
-
-
-
-
-

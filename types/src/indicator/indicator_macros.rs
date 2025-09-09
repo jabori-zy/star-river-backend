@@ -2,7 +2,7 @@
 pub fn snake_to_camel(snake_str: &str) -> String {
     let mut result = String::new();
     let mut capitalize_next = false;
-    
+
     for ch in snake_str.chars() {
         if ch == '_' {
             capitalize_next = true;
@@ -15,8 +15,6 @@ pub fn snake_to_camel(snake_str: &str) -> String {
     }
     result
 }
-
-
 
 #[macro_export]
 macro_rules! define_indicator_output {
@@ -175,7 +173,7 @@ macro_rules! define_indicator_config {
 
             impl std::str::FromStr for [<$indicator_name Config>] {
                 type Err = String;
-                
+
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
                     use crate::indicator::utils::*;
                     let (_name, params) = parse_indicator_config_from_str(s)?;
@@ -198,7 +196,6 @@ macro_rules! define_indicator_config {
         }
     };
 }
-
 
 // 辅助宏：包装浮点类型为OrderedFloat
 #[macro_export]
@@ -267,50 +264,55 @@ macro_rules! parse_param_by_type {
     ($params:expr, $key:expr, $other_type:ty) => {
         get_required_special_param::<$other_type>(&$params, $key)?
     };
-    
 }
 
 // 辅助宏：根据类型选择合适的JSON解析方法
 #[macro_export]
 macro_rules! parse_json_param_by_type {
     ($config:expr, $key:expr, i32) => {
-        $config.get($key)
+        $config
+            .get($key)
             .and_then(|v| v.as_i64())
             .map(|v| v as i32)
             .ok_or(format!("缺少必需参数: {}", $key))?
     };
     ($config:expr, $key:expr, f64) => {
         ordered_float::OrderedFloat::from(
-            $config.get($key)
+            $config
+                .get($key)
                 .and_then(|v| v.as_f64())
-                .ok_or(format!("缺少必需参数: {}", $key))?
+                .ok_or(format!("缺少必需参数: {}", $key))?,
         )
     };
     ($config:expr, $key:expr, f32) => {
         ordered_float::OrderedFloat::from(
-            $config.get($key)
+            $config
+                .get($key)
                 .and_then(|v| v.as_f64())
                 .map(|v| v as f32)
-                .ok_or(format!("缺少必需参数: {}", $key))?
+                .ok_or(format!("缺少必需参数: {}", $key))?,
         )
     };
     ($config:expr, $key:expr, ordered_float::OrderedFloat<f64>) => {
         ordered_float::OrderedFloat::from(
-            $config.get($key)
+            $config
+                .get($key)
                 .and_then(|v| v.as_f64())
-                .ok_or(format!("缺少必需参数: {}", $key))?
+                .ok_or(format!("缺少必需参数: {}", $key))?,
         )
     };
     ($config:expr, $key:expr, ordered_float::OrderedFloat<f32>) => {
         ordered_float::OrderedFloat::from(
-            $config.get($key)
+            $config
+                .get($key)
                 .and_then(|v| v.as_f64())
                 .map(|v| v as f32)
-                .ok_or(format!("缺少必需参数: {}", $key))?
+                .ok_or(format!("缺少必需参数: {}", $key))?,
         )
     };
     ($config:expr, $key:expr, $other_type:ty) => {
-        $config.get($key)
+        $config
+            .get($key)
             .and_then(|v| v.as_str())
             .ok_or(format!("缺少必需参数: {}", $key))?
             .parse::<$other_type>()
@@ -339,8 +341,6 @@ macro_rules! define_indicator {
         );
     };
 }
-
-
 
 #[macro_export]
 // 为Indicator枚举创建所有trait方法的宏
@@ -407,7 +407,6 @@ macro_rules! impl_indicator {
         }
     };
 }
-
 
 #[macro_export]
 macro_rules! impl_indicator_config {

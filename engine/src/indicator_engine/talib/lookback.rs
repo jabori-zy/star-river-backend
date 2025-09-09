@@ -2,7 +2,6 @@ use super::TALib;
 use crate::indicator_engine::talib_bindings::*;
 use types::indicator::IndicatorConfig;
 
-
 impl TALib {
     pub fn lookback(config: &IndicatorConfig) -> usize {
         unsafe {
@@ -10,10 +9,11 @@ impl TALib {
                 // Overlap
                 IndicatorConfig::BBANDS(bbands_config) => {
                     let lookback = TA_BBANDS_Lookback(
-                        bbands_config.time_period, 
-                        bbands_config.dev_up.into(), 
-                        bbands_config.dev_down.into(), 
-                        bbands_config.ma_type.clone() as i32);
+                        bbands_config.time_period,
+                        bbands_config.dev_up.into(),
+                        bbands_config.dev_down.into(),
+                        bbands_config.ma_type.clone() as i32,
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::DEMA(dema_config) => {
@@ -33,11 +33,15 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::MA(ma_config) => {
-                    let lookback = TA_MA_Lookback(ma_config.time_period, ma_config.ma_type.clone() as i32);
+                    let lookback =
+                        TA_MA_Lookback(ma_config.time_period, ma_config.ma_type.clone() as i32);
                     return lookback as usize;
                 }
                 IndicatorConfig::MAMA(mama_config) => {
-                    let lookback = TA_MAMA_Lookback(mama_config.fast_limit.into(), mama_config.slow_limit.into());
+                    let lookback = TA_MAMA_Lookback(
+                        mama_config.fast_limit.into(),
+                        mama_config.slow_limit.into(),
+                    );
                     return lookback as usize;
                 }
                 // IndicatorConfig::MAVP(mavp_config) => {
@@ -53,19 +57,21 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::SAR(sar_config) => {
-                    let lookback = TA_SAR_Lookback(sar_config.acceleration.into(), sar_config.maximum.into());
+                    let lookback =
+                        TA_SAR_Lookback(sar_config.acceleration.into(), sar_config.maximum.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::SAREXT(sarext_config) => {
                     let lookback = TA_SAREXT_Lookback(
-                        sarext_config.start_value.into(), 
-                        sarext_config.offset_on_reverse.into(), 
-                        sarext_config.acceleration_init_long.into(), 
-                        sarext_config.acceleration_long.into(), 
-                        sarext_config.acceleration_max_long.into(), 
-                        sarext_config.acceleration_init_short.into(), 
-                        sarext_config.acceleration_short.into(), 
-                        sarext_config.acceleration_max_short.into());
+                        sarext_config.start_value.into(),
+                        sarext_config.offset_on_reverse.into(),
+                        sarext_config.acceleration_init_long.into(),
+                        sarext_config.acceleration_long.into(),
+                        sarext_config.acceleration_max_long.into(),
+                        sarext_config.acceleration_init_short.into(),
+                        sarext_config.acceleration_short.into(),
+                        sarext_config.acceleration_max_short.into(),
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::SMA(sma_config) => {
@@ -98,7 +104,11 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::APO(apo_config) => {
-                    let lookback = TA_APO_Lookback(apo_config.fast_period, apo_config.slow_period, apo_config.ma_type.clone() as i32);
+                    let lookback = TA_APO_Lookback(
+                        apo_config.fast_period,
+                        apo_config.slow_period,
+                        apo_config.ma_type.clone() as i32,
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::AROON(aroon_config) => {
@@ -126,17 +136,21 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::MACD(macd_config) => {
-                    let lookback = TA_MACD_Lookback(macd_config.fast_period, macd_config.slow_period, macd_config.signal_period);
+                    let lookback = TA_MACD_Lookback(
+                        macd_config.fast_period,
+                        macd_config.slow_period,
+                        macd_config.signal_period,
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::MACDEXT(macdext_config) => {
                     let lookback = TA_MACDEXT_Lookback(
-                        macdext_config.fast_period, 
-                        macdext_config.fast_ma_type.clone() as i32, 
-                        macdext_config.slow_period, 
-                        macdext_config.slow_ma_type.clone() as i32, 
-                        macdext_config.signal_period, 
-                        macdext_config.signal_ma_type.clone() as i32
+                        macdext_config.fast_period,
+                        macdext_config.fast_ma_type.clone() as i32,
+                        macdext_config.slow_period,
+                        macdext_config.slow_ma_type.clone() as i32,
+                        macdext_config.signal_period,
+                        macdext_config.signal_ma_type.clone() as i32,
                     );
                     return lookback as usize;
                 }
@@ -169,7 +183,11 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::PPO(ppo_config) => {
-                    let lookback = TA_PPO_Lookback(ppo_config.fast_period, ppo_config.slow_period, ppo_config.ma_type.clone() as i32);
+                    let lookback = TA_PPO_Lookback(
+                        ppo_config.fast_period,
+                        ppo_config.slow_period,
+                        ppo_config.ma_type.clone() as i32,
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::ROC(roc_config) => {
@@ -194,28 +212,28 @@ impl TALib {
                 }
                 IndicatorConfig::STOCH(stoch_config) => {
                     let lookback = TA_STOCH_Lookback(
-                        stoch_config.fast_k_period, 
-                        stoch_config.slow_k_period, 
+                        stoch_config.fast_k_period,
+                        stoch_config.slow_k_period,
                         stoch_config.slow_k_ma_type.clone() as i32,
-                        stoch_config.slow_d_period, 
-                        stoch_config.slow_d_ma_type.clone() as i32
+                        stoch_config.slow_d_period,
+                        stoch_config.slow_d_ma_type.clone() as i32,
                     );
                     return lookback as usize;
                 }
                 IndicatorConfig::STOCHF(stochf_config) => {
                     let lookback = TA_STOCHF_Lookback(
-                        stochf_config.fast_k_period, 
-                        stochf_config.fast_d_period, 
-                        stochf_config.fast_d_ma_type.clone() as i32
+                        stochf_config.fast_k_period,
+                        stochf_config.fast_d_period,
+                        stochf_config.fast_d_ma_type.clone() as i32,
                     );
                     return lookback as usize;
                 }
                 IndicatorConfig::STOCHRSI(stochrsi_config) => {
                     let lookback = TA_STOCHRSI_Lookback(
-                        stochrsi_config.time_period, 
-                        stochrsi_config.fast_k_period, 
-                        stochrsi_config.fast_d_period, 
-                        stochrsi_config.fast_d_ma_type.clone() as i32
+                        stochrsi_config.time_period,
+                        stochrsi_config.fast_k_period,
+                        stochrsi_config.fast_d_period,
+                        stochrsi_config.fast_d_ma_type.clone() as i32,
                     );
                     return lookback as usize;
                 }
@@ -225,9 +243,9 @@ impl TALib {
                 }
                 IndicatorConfig::ULTOSC(ultosc_config) => {
                     let lookback = TA_ULTOSC_Lookback(
-                        ultosc_config.time_period1, 
-                        ultosc_config.time_period2, 
-                        ultosc_config.time_period3
+                        ultosc_config.time_period1,
+                        ultosc_config.time_period2,
+                        ultosc_config.time_period3,
                     );
                     return lookback as usize;
                 }
@@ -242,14 +260,15 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::ADOSC(adosc_config) => {
-                    let lookback = TA_ADOSC_Lookback(adosc_config.fast_period, adosc_config.slow_period);
+                    let lookback =
+                        TA_ADOSC_Lookback(adosc_config.fast_period, adosc_config.slow_period);
                     return lookback as usize;
                 }
                 IndicatorConfig::OBV(obv_config) => {
                     let lookback = TA_OBV_Lookback();
                     return lookback as usize;
                 }
-                // Cycle    
+                // Cycle
                 IndicatorConfig::HtDcperiod(ht_dcperiod_config) => {
                     let lookback = TA_HT_DCPERIOD_Lookback();
                     return lookback as usize;
@@ -320,7 +339,8 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLABANDONEDBABY(cdlabandonedbaby_config) => {
-                    let lookback = TA_CDLABANDONEDBABY_Lookback(cdlabandonedbaby_config.penetration.into());
+                    let lookback =
+                        TA_CDLABANDONEDBABY_Lookback(cdlabandonedbaby_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLADVANCEBLOCK(cdladvanceblock_config) => {
@@ -348,7 +368,8 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLDARKCLOUDCOVER(cdldarkcloudcover_config) => {
-                    let lookback = TA_CDLDARKCLOUDCOVER_Lookback(cdldarkcloudcover_config.penetration.into());
+                    let lookback =
+                        TA_CDLDARKCLOUDCOVER_Lookback(cdldarkcloudcover_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLDOJI(cdldoji_config) => {
@@ -364,11 +385,14 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLEVENINGDOJISTAR(cdleveningdojistar_config) => {
-                    let lookback = TA_CDLEVENINGDOJISTAR_Lookback(cdleveningdojistar_config.penetration.into());
+                    let lookback = TA_CDLEVENINGDOJISTAR_Lookback(
+                        cdleveningdojistar_config.penetration.into(),
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLEVENINGSTAR(cdleveningstar_config) => {
-                    let lookback = TA_CDLEVENINGSTAR_Lookback(cdleveningstar_config.penetration.into());
+                    let lookback =
+                        TA_CDLEVENINGSTAR_Lookback(cdleveningstar_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLGAPSIDESIDEWHITE(cdlgapsidesidewhite_config) => {
@@ -411,7 +435,7 @@ impl TALib {
                     let lookback = TA_CDLKICKING_Lookback();
                     return lookback as usize;
                 }
-                
+
                 // 补充所有缺失的 CDL 指标
                 IndicatorConfig::CDL3LINESTRIKE(cdl3linestrike_config) => {
                     let lookback = TA_CDL3LINESTRIKE_Lookback();
@@ -474,11 +498,14 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLMORNINGDOJISTAR(cdlmorningdojistar_config) => {
-                    let lookback = TA_CDLMORNINGDOJISTAR_Lookback(cdlmorningdojistar_config.penetration.into());
+                    let lookback = TA_CDLMORNINGDOJISTAR_Lookback(
+                        cdlmorningdojistar_config.penetration.into(),
+                    );
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLMORNINGSTAR(cdlmorningstar_config) => {
-                    let lookback = TA_CDLMORNINGSTAR_Lookback(cdlmorningstar_config.penetration.into());
+                    let lookback =
+                        TA_CDLMORNINGSTAR_Lookback(cdlmorningstar_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLONNECK(cdlonneck_config) => {

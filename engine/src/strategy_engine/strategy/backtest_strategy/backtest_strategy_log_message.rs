@@ -1,9 +1,6 @@
-use serde::{Serialize, Deserialize};
 use crate::log_message;
 use crate::strategy_engine::log_message::*;
-
-
-
+use serde::{Deserialize, Serialize};
 
 log_message!(
     StrategyStateLogMsg,

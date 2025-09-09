@@ -1,16 +1,12 @@
-
 pub mod mutation;
 pub mod query;
 
-
-
+use log::LevelFilter;
+use migration::Migrator;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
+use sea_orm_migration::MigratorTrait;
 use std::env;
 use std::path::PathBuf;
-use sea_orm_migration::MigratorTrait;
-use migration::Migrator;
-use log::LevelFilter;
-
 
 #[derive(Debug)]
 pub struct DatabaseManager {
@@ -19,7 +15,6 @@ pub struct DatabaseManager {
 }
 
 impl DatabaseManager {
-
     pub async fn new() -> Self {
         let path = Self::get_database_path().unwrap();
         tracing::info!("get_database_path数据库路径: {}", path.display());
@@ -32,7 +27,7 @@ impl DatabaseManager {
         let pending_migrations = Migrator::get_pending_migrations(conn).await.unwrap();
         if !pending_migrations.is_empty() {
             tracing::info!("发现 {} 个待应用的迁移", pending_migrations.len());
-            
+
             // 应用迁移
             Migrator::up(conn, None).await.unwrap();
             tracing::info!("所有迁移已成功应用");
@@ -44,7 +39,6 @@ impl DatabaseManager {
     pub fn get_conn(&self) -> DatabaseConnection {
         self.conn.clone()
     }
-
 
     // 获取数据库路径
     fn get_database_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -66,8 +60,6 @@ impl DatabaseManager {
             let db_path = PathBuf::from(&exe_path);
             Ok(db_path)
         }
-
-
     }
 
     pub async fn create_database(path: &PathBuf) -> Result<DatabaseConnection, DbErr> {
@@ -78,9 +70,10 @@ impl DatabaseManager {
         tracing::info!("path: {}", path.display());
         let database_url = format!("sqlite:{}?mode=rwc", path.display());
         tracing::info!("数据库路径: {}", database_url);
-        
+
         let mut opt = ConnectOptions::new(database_url);
-        opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);
+        opt.sqlx_logging(false)
+            .sqlx_logging_level(LevelFilter::Debug);
         let conn = Database::connect(opt).await.unwrap();
         Self::migrate(&conn).await;
         Ok(conn)

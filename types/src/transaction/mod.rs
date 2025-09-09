@@ -1,12 +1,11 @@
 pub mod virtual_transaction;
 
-
-use serde::{Serialize, Deserialize};
 use crate::market::Exchange;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
-use strum::{EnumString, Display};
+use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
 // 交易明细类型
@@ -17,7 +16,6 @@ pub enum TransactionType {
     #[strum(serialize = "CLOSE")]
     Close, // 平仓
 }
-
 
 // 交易方向
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
@@ -31,8 +29,6 @@ pub enum TransactionSide {
     #[strum(serialize = "CLOSE_SHORT")]
     CloseShort, // 空头平仓
 }
-
-
 
 //交易明细
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,8 +47,7 @@ pub struct Transaction {
     pub extra_info: Option<serde_json::Value>, // 额外信息
 }
 
-
-pub trait OriginalTransaction : Debug +Send + Sync + 'static {
+pub trait OriginalTransaction: Debug + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
     fn clone_box(&self) -> Box<dyn OriginalTransaction>;
     fn get_transaction_id(&self) -> i64;
@@ -68,11 +63,8 @@ pub trait OriginalTransaction : Debug +Send + Sync + 'static {
     fn get_exchange_transaction_id(&self) -> i64;
 }
 
-
 impl Clone for Box<dyn OriginalTransaction> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
 }
-
-

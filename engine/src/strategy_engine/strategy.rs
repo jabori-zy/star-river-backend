@@ -1,15 +1,12 @@
 // pub mod live_strategy;
 pub mod backtest_strategy;
 
-
-use std::collections::HashMap;
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use types::custom_type::NodeId;
-use event_center::command::backtest_strategy_command::StrategyCommandSender;
 use event_center::command::backtest_strategy_command::StrategyCommand;
-
-
+use event_center::command::backtest_strategy_command::StrategyCommandSender;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use types::custom_type::NodeId;
 
 #[derive(Clone, Debug)]
 pub struct StrategyCommandPublisher {
@@ -18,7 +15,9 @@ pub struct StrategyCommandPublisher {
 
 impl StrategyCommandPublisher {
     pub fn new() -> Self {
-        Self { channels: Arc::new(Mutex::new(HashMap::new())) }
+        Self {
+            channels: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     // 添加节点命令发送器
@@ -31,20 +30,13 @@ impl StrategyCommandPublisher {
     pub async fn send(&self, command: StrategyCommand) -> Result<(), String> {
         let node_id = command.node_id();
         let channels = self.channels.lock().await;
-        let sender = channels.get(node_id)
+        let sender = channels
+            .get(node_id)
             .ok_or(format!("Node id {} not found", node_id))?;
-        sender.send(command).await.map_err(|e| 
-            format!("Failed to send command: {}", e)
-        )?;
+        sender
+            .send(command)
+            .await
+            .map_err(|e| format!("Failed to send command: {}", e))?;
         Ok(())
     }
-    
 }
-
-
-
-    
-
-
-
-

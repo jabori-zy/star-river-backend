@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use types::strategy::SelectedAccount;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,9 +10,7 @@ pub enum PositionOperationType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OperationConfig {
-    
-}
+pub struct OperationConfig {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionOperationConfig {
@@ -23,7 +21,6 @@ pub struct PositionOperationConfig {
     #[serde(rename = "operationName")]
     operation_name: String, // 操作名称
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionNodeLiveConfig {

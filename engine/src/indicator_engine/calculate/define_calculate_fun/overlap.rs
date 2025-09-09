@@ -1,11 +1,10 @@
-
-use types::indicator::Indicator;
-use std::sync::Arc;
-use types::cache::CacheValue;
+use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::talib::TALib;
 use crate::{calculate_fn, calculate_fn_snake};
+use std::sync::Arc;
+use types::cache::CacheValue;
 use types::indicator::indicator_define::overlap::*;
-use crate::indicator_engine::calculate::CalculateIndicatorFunction;
+use types::indicator::Indicator;
 
 impl CalculateIndicatorFunction {
     // Bollinger Bands #�&
@@ -34,7 +33,7 @@ impl CalculateIndicatorFunction {
 
     // Hilbert Transform - Instantaneous Trendline #/y�����
     calculate_fn_snake!(HtTrendline,
-        talib_params => [] 
+        talib_params => []
     );
 
     // KAMA - Kaufman Adaptive Moving Average #a+�����sG�

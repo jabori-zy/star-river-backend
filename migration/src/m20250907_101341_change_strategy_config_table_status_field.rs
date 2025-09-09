@@ -7,7 +7,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // SQLite 不支持直接修改列类型，需要采用重建表的方式
-        
+
         // 1. 创建新的临时表，status 字段为 string 类型
         manager
             .create_table(
@@ -21,17 +21,46 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(StrategyConfigNew::Name).string().not_null())
-                    .col(ColumnDef::new(StrategyConfigNew::Description).string().not_null())
-                    .col(ColumnDef::new(StrategyConfigNew::Status).string().not_null().default("stopped"))
-                    .col(ColumnDef::new(StrategyConfigNew::IsDeleted).boolean().not_null().default(false))
-                    .col(ColumnDef::new(StrategyConfigNew::TradeMode).string().not_null().default("backtest"))
+                    .col(
+                        ColumnDef::new(StrategyConfigNew::Description)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigNew::Status)
+                            .string()
+                            .not_null()
+                            .default("stopped"),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigNew::IsDeleted)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigNew::TradeMode)
+                            .string()
+                            .not_null()
+                            .default("backtest"),
+                    )
                     .col(ColumnDef::new(StrategyConfigNew::Config).json())
                     .col(ColumnDef::new(StrategyConfigNew::Nodes).json())
                     .col(ColumnDef::new(StrategyConfigNew::Edges).json())
                     .col(ColumnDef::new(StrategyConfigNew::LiveChartConfig).json())
                     .col(ColumnDef::new(StrategyConfigNew::BacktestChartConfig).json())
-                    .col(ColumnDef::new(StrategyConfigNew::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(StrategyConfigNew::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(StrategyConfigNew::CreatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigNew::UpdatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -72,7 +101,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // 回滚：将 status 字段从 string 改回 integer 类型
-        
+
         // 1. 创建新的临时表，status 字段为 integer 类型
         manager
             .create_table(
@@ -86,17 +115,46 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(StrategyConfigOld::Name).string().not_null())
-                    .col(ColumnDef::new(StrategyConfigOld::Description).string().not_null())
-                    .col(ColumnDef::new(StrategyConfigOld::Status).integer().not_null().default(0))
-                    .col(ColumnDef::new(StrategyConfigOld::IsDeleted).boolean().not_null().default(false))
-                    .col(ColumnDef::new(StrategyConfigOld::TradeMode).string().not_null().default("backtest"))
+                    .col(
+                        ColumnDef::new(StrategyConfigOld::Description)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigOld::Status)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigOld::IsDeleted)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigOld::TradeMode)
+                            .string()
+                            .not_null()
+                            .default("backtest"),
+                    )
                     .col(ColumnDef::new(StrategyConfigOld::Config).json())
                     .col(ColumnDef::new(StrategyConfigOld::Nodes).json())
                     .col(ColumnDef::new(StrategyConfigOld::Edges).json())
                     .col(ColumnDef::new(StrategyConfigOld::LiveChartConfig).json())
                     .col(ColumnDef::new(StrategyConfigOld::BacktestChartConfig).json())
-                    .col(ColumnDef::new(StrategyConfigOld::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(StrategyConfigOld::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(StrategyConfigOld::CreatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(StrategyConfigOld::UpdatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .to_owned(),
             )
             .await?;

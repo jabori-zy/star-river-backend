@@ -1,22 +1,28 @@
-use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::position_management_node_types::*;
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use sea_orm::DatabaseConnection;
-use heartbeat::Heartbeat;
-use std::any::Any;
-use async_trait::async_trait;
-use event_center::Event;
-use types::strategy::node_event::BacktestNodeEvent;
+use crate::strategy_engine::node::node_context::{
+    BacktestBaseNodeContext, BacktestNodeContextTrait,
+};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use async_trait::async_trait;
+use event_center::command::backtest_strategy_command::StrategyCommand;
+use event_center::Event;
+use heartbeat::Heartbeat;
+use sea_orm::DatabaseConnection;
+use std::any::Any;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use types::strategy::node_event::backtest_node_event::position_management_node_event::{
+    PositionClosedEvent, PositionCreatedEvent, PositionManagementNodeEvent, PositionUpdatedEvent,
+};
+use types::strategy::node_event::BacktestNodeEvent;
+use types::strategy::node_event::ExecuteOverEvent;
 use types::strategy::node_event::SignalEvent;
 use types::strategy::strategy_inner_event::StrategyInnerEvent;
+use types::virtual_trading_system::event::{
+    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,
+};
 use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
-use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent, PositionManagementNodeEvent};
-use types::strategy::node_event::ExecuteOverEvent;
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -36,15 +42,12 @@ impl Clone for PositionNodeContext {
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
             virtual_trading_system: self.virtual_trading_system.clone(),
-            virtual_trading_system_event_receiver: self.virtual_trading_system_event_receiver.resubscribe(),
+            virtual_trading_system_event_receiver: self
+                .virtual_trading_system_event_receiver
+                .resubscribe(),
         }
     }
 }
-
-
-
-
-
 
 #[async_trait]
 impl BacktestNodeContextTrait for PositionNodeContext {
@@ -67,7 +70,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
     fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
         &mut self.base_context
     }
-    
+
     async fn handle_event(&mut self, event: Event) {
         // match event {
         //     Event::Response(response_event) => {
@@ -75,41 +78,52 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         //     }
         //     _ => {}
         // }
-        
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handles.get(&format!("position_node_update_output")).unwrap().clone()
+        self.base_context
+            .output_handles
+            .get(&format!("position_node_update_output"))
+            .unwrap()
+            .clone()
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
 
         match node_event {
-            BacktestNodeEvent::Signal(signal_event) => {
-                match signal_event {
-                    SignalEvent::BacktestConditionNotMatch(_) => {
-                        tracing::debug!("{}: 条件不匹配，不获取仓位信息。节点是否是叶子节点: {}", self.get_node_name(), self.is_leaf_node());
-                        if self.is_leaf_node() {
-                            let execute_over_event = ExecuteOverEvent {
-                                from_node_id: self.get_node_id().clone(),
-                                from_node_name: self.get_node_name().clone(),
-                                from_node_handle_id: self.get_node_id().clone(),
-                                play_index: self.get_play_index(),
-                                timestamp: get_utc8_timestamp_millis(),
-                            };
-                            let strategy_output_handle = self.get_strategy_output_handle();
-                            strategy_output_handle.send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(execute_over_event))).unwrap();
-                        }
+            BacktestNodeEvent::Signal(signal_event) => match signal_event {
+                SignalEvent::BacktestConditionNotMatch(_) => {
+                    tracing::debug!(
+                        "{}: 条件不匹配，不获取仓位信息。节点是否是叶子节点: {}",
+                        self.get_node_name(),
+                        self.is_leaf_node()
+                    );
+                    if self.is_leaf_node() {
+                        let execute_over_event = ExecuteOverEvent {
+                            from_node_id: self.get_node_id().clone(),
+                            from_node_name: self.get_node_name().clone(),
+                            from_node_handle_id: self.get_node_id().clone(),
+                            play_index: self.get_play_index(),
+                            timestamp: get_utc8_timestamp_millis(),
+                        };
+                        let strategy_output_handle = self.get_strategy_output_handle();
+                        strategy_output_handle
+                            .send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(
+                                execute_over_event,
+                            )))
+                            .unwrap();
                     }
-                    _ => {}
-                    
-                    
                 }
-            }
+                _ => {}
+            },
 
             BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
-                tracing::debug!("{}: 收到订单事件: {:?}", self.get_node_name(), futures_order_node_event);
+                tracing::debug!(
+                    "{}: 收到订单事件: {:?}",
+                    self.get_node_name(),
+                    futures_order_node_event
+                );
                 if self.is_leaf_node() {
                     let execute_over_event = ExecuteOverEvent {
                         from_node_id: self.get_node_id().clone(),
@@ -119,13 +133,16 @@ impl BacktestNodeContextTrait for PositionNodeContext {
                         timestamp: get_utc8_timestamp_millis(),
                     };
                     let strategy_output_handle = self.get_strategy_output_handle();
-                    strategy_output_handle.send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(execute_over_event))).unwrap();
+                    strategy_output_handle
+                        .send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(
+                            execute_over_event,
+                        )))
+                        .unwrap();
                 }
             }
 
             _ => {}
         }
-        
     }
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
@@ -143,56 +160,57 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         //         }));
         //         self.get_strategy_output_handle().send(signal).unwrap();
         //     }
-        //     _ => {}  
+        //     _ => {}
         // }
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
-        
     }
-
-
-
 }
 
-
 impl PositionNodeContext {
-    pub async fn handle_virtual_trading_system_event(&mut self, virtual_trading_system_event: VirtualTradingSystemEvent) -> Result<(), String> {
-
+    pub async fn handle_virtual_trading_system_event(
+        &mut self,
+        virtual_trading_system_event: VirtualTradingSystemEvent,
+    ) -> Result<(), String> {
         let from_node_id = self.get_node_id().clone();
         let from_node_name = self.get_node_name().clone();
         let from_handle_id = self.get_node_id().clone();
 
-        let position_event: Option<PositionManagementNodeEvent> = match virtual_trading_system_event {
+        let position_event: Option<PositionManagementNodeEvent> = match virtual_trading_system_event
+        {
             VirtualTradingSystemEvent::PositionCreated(position) => {
-                let position_created_event = PositionManagementNodeEvent::PositionCreated(PositionCreatedEvent {
-                    from_node_id: from_node_id.clone(),
-                    from_node_name: from_node_name.clone(),
-                    from_handle_id: from_handle_id.clone(),
-                    virtual_position: position,
-                    timestamp: get_utc8_timestamp_millis(),
-                });
+                let position_created_event =
+                    PositionManagementNodeEvent::PositionCreated(PositionCreatedEvent {
+                        from_node_id: from_node_id.clone(),
+                        from_node_name: from_node_name.clone(),
+                        from_handle_id: from_handle_id.clone(),
+                        virtual_position: position,
+                        timestamp: get_utc8_timestamp_millis(),
+                    });
                 Some(position_created_event)
             }
             VirtualTradingSystemEvent::PositionUpdated(position) => {
-                let position_updated_event = PositionManagementNodeEvent::PositionUpdated(PositionUpdatedEvent {
-                    from_node_id: from_node_id.clone(),
-                    from_node_name: from_node_name.clone(),
-                    from_handle_id: from_handle_id.clone(),
-                    virtual_position: position,
-                    timestamp: get_utc8_timestamp_millis(),
-                });
+                let position_updated_event =
+                    PositionManagementNodeEvent::PositionUpdated(PositionUpdatedEvent {
+                        from_node_id: from_node_id.clone(),
+                        from_node_name: from_node_name.clone(),
+                        from_handle_id: from_handle_id.clone(),
+                        virtual_position: position,
+                        timestamp: get_utc8_timestamp_millis(),
+                    });
                 Some(position_updated_event)
             }
             VirtualTradingSystemEvent::PositionClosed(position) => {
-                let position_closed_event = PositionManagementNodeEvent::PositionClosed(PositionClosedEvent {
-                    from_node_id: from_node_id.clone(),
-                    from_node_name: from_node_name.clone(),
-                    from_handle_id: from_handle_id.clone(),
-                    virtual_position: position,
-                    timestamp: get_utc8_timestamp_millis(),
-                });
+                let position_closed_event =
+                    PositionManagementNodeEvent::PositionClosed(PositionClosedEvent {
+                        from_node_id: from_node_id.clone(),
+                        from_node_name: from_node_name.clone(),
+                        from_handle_id: from_handle_id.clone(),
+                        virtual_position: position,
+                        timestamp: get_utc8_timestamp_millis(),
+                    });
                 Some(position_closed_event)
             }
             _ => None,
@@ -200,7 +218,9 @@ impl PositionNodeContext {
 
         if let Some(position_event) = position_event {
             let strategy_output_handle = self.get_strategy_output_handle();
-            strategy_output_handle.send(BacktestNodeEvent::PositionManagementNode(position_event)).unwrap();
+            strategy_output_handle
+                .send(BacktestNodeEvent::PositionManagementNode(position_event))
+                .unwrap();
         }
 
         Ok(())
@@ -235,7 +255,7 @@ impl PositionNodeContext {
     // async fn get_position(&mut self, order: Order) -> Result<(), String> {
     //     // 订单已完成，获取持仓
     //     tracing::info!("订单已完成，获取持仓: {:?}", order);
-        
+
     //     // 使用 as_ref().ok_or() 代替 unwrap
     //     let account_id = self.backtest_config.selected_account.account_id;
 
@@ -256,13 +276,13 @@ impl PositionNodeContext {
     //             tracing::info!("获取持仓: {:?}", position);
     //             // // 入库
     //             let position = PositionMutation::insert_position(
-    //                 &self.database, 
-    //                 order.strategy_id.clone() as i64, 
-    //                 order.node_id.clone(), 
-    //                 account_id, 
+    //                 &self.database,
+    //                 order.strategy_id.clone() as i64,
+    //                 order.node_id.clone(),
+    //                 account_id,
     //                 position.clone()
     //             ).await;
-                
+
     //             // // 使用 map 和 ? 操作符而不是 unwrap
     //             let position = position.map_err(|e| {
     //                 tracing::error!("仓位信息入库失败: {:?}", e);
@@ -280,10 +300,7 @@ impl PositionNodeContext {
     //             tracing::warn!("仓位已关闭: {:?}", order.exchange_order_id);
     //         }
     //     }
-        
-        
 
     //     Ok(())
     // }
 }
-

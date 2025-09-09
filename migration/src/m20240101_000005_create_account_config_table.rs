@@ -23,14 +23,40 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(AccountConfig::AccountName).string().not_null())
+                    .col(
+                        ColumnDef::new(AccountConfig::AccountName)
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(AccountConfig::Exchange).string().not_null())
-                    .col(ColumnDef::new(AccountConfig::IsAvailable).boolean().not_null())
+                    .col(
+                        ColumnDef::new(AccountConfig::IsAvailable)
+                            .boolean()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(AccountConfig::IsDelete).boolean().not_null())
-                    .col(ColumnDef::new(AccountConfig::SortIndex).integer().not_null())
-                    .col(ColumnDef::new(AccountConfig::AccountConfig).json().not_null())
-                    .col(ColumnDef::new(AccountConfig::CreateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(AccountConfig::UpdateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(AccountConfig::SortIndex)
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AccountConfig::AccountConfig)
+                            .json()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AccountConfig::CreateTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(AccountConfig::UpdateTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     // .foreign_key(
                     //     ForeignKey::create()
                     //         .name("fk-strategy_info-bakery_id")
@@ -54,13 +80,13 @@ impl MigrationTrait for Migration {
 #[derive(Iden)]
 pub enum AccountConfig {
     Table,
-    Id, // 主键
-    AccountName, // 账户名称
-    Exchange, // 交易所
-    IsAvailable, // 是否可用
-    IsDelete, // 是否删除
-    SortIndex, // 排序索引
+    Id,            // 主键
+    AccountName,   // 账户名称
+    Exchange,      // 交易所
+    IsAvailable,   // 是否可用
+    IsDelete,      // 是否删除
+    SortIndex,     // 排序索引
     AccountConfig, // 账户配置
-    CreateTime,//创建时间
-    UpdateTime,//更新时间
+    CreateTime,    //创建时间
+    UpdateTime,    //更新时间
 }

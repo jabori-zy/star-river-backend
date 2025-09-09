@@ -1,13 +1,12 @@
-use snafu::{Snafu, Backtrace};
-use std::collections::HashMap;
-use crate::error::ErrorCode;
 use crate::error::error_trait::{Language, StarRiverErrorTrait};
+use crate::error::ErrorCode;
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum KlineNodeError {
-
     #[snafu(display("kline node [{node_name}({node_id})] register exchange error"))]
     RegisterExchange {
         node_id: String,
@@ -35,29 +34,30 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
     fn get_prefix(&self) -> &'static str {
         "KLINE_NODE"
     }
-    
-    fn error_code(&self) -> ErrorCode {
-            let prefix = self.get_prefix();
-            let code = match self {
-                // HTTP and JSON errors (1001-1004)
-                KlineNodeError::RegisterExchange { .. } => 1001,
-                KlineNodeError::ConfigFieldValueNull { .. } => 1002,
-                KlineNodeError::ConfigDeserializationFailed { .. } => 1003,
-            };   
 
-            format!("{}_{:04}", prefix, code)
+    fn error_code(&self) -> ErrorCode {
+        let prefix = self.get_prefix();
+        let code = match self {
+            // HTTP and JSON errors (1001-1004)
+            KlineNodeError::RegisterExchange { .. } => 1001,
+            KlineNodeError::ConfigFieldValueNull { .. } => 1002,
+            KlineNodeError::ConfigDeserializationFailed { .. } => 1003,
+        };
+
+        format!("{}_{:04}", prefix, code)
     }
 
     fn context(&self) -> HashMap<&'static str, String> {
         let ctx = HashMap::new();
-        ctx 
+        ctx
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(self,
-            KlineNodeError::RegisterExchange { .. } |
-            KlineNodeError::ConfigFieldValueNull { .. } |
-            KlineNodeError::ConfigDeserializationFailed { .. }
+        matches!(
+            self,
+            KlineNodeError::RegisterExchange { .. }
+                | KlineNodeError::ConfigFieldValueNull { .. }
+                | KlineNodeError::ConfigDeserializationFailed { .. }
         )
     }
 
@@ -72,10 +72,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 chain.push(self.error_code());
                 chain
             },
-            
             // For errors with external sources or no source
             KlineNodeError::ConfigFieldValueNull { .. } |
-            
             // For errors with external sources that don't implement our trait
             KlineNodeError::ConfigDeserializationFailed { .. }  => vec![self.error_code()],
         }
@@ -83,20 +81,18 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    KlineNodeError::RegisterExchange { node_name, node_id, .. } => {
-                        format!("K线节点 [{}({})] 注册交易所错误", node_name, node_id)
-                    },
-                    KlineNodeError::ConfigFieldValueNull { field_name, .. } => {
-                        format!("K线节点配置字段 [{}] 值为空", field_name)
-                    },
-                    KlineNodeError::ConfigDeserializationFailed { source, .. } => {
-                        format!("K线节点回测配置反序列化失败，原因: [{}]", source)
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                KlineNodeError::RegisterExchange {
+                    node_name, node_id, ..
+                } => {
+                    format!("K线节点 [{}({})] 注册交易所错误", node_name, node_id)
+                }
+                KlineNodeError::ConfigFieldValueNull { field_name, .. } => {
+                    format!("K线节点配置字段 [{}] 值为空", field_name)
+                }
+                KlineNodeError::ConfigDeserializationFailed { source, .. } => {
+                    format!("K线节点回测配置反序列化失败，原因: [{}]", source)
                 }
             },
         }

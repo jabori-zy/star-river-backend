@@ -1,10 +1,12 @@
-use serde::{Deserialize, Serialize};
-use strum::{EnumString, Display};
-use utoipa::ToSchema;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
+use utoipa::ToSchema;
 
 // 本地化
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display, ToSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display, ToSchema,
+)]
 pub enum Localization {
     #[serde(rename = "zh-CN")]
     #[strum(serialize = "zh-CN")]
@@ -14,13 +16,11 @@ pub enum Localization {
     English, // 英文
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SystemConfigUpdateParams {
     /// 本地化
     pub localization: Localization,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SystemConfig {
@@ -31,5 +31,4 @@ pub struct SystemConfig {
     pub created_time: DateTime<Utc>,
     /// 更新时间
     pub updated_time: DateTime<Utc>,
-
 }

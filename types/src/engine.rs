@@ -1,21 +1,19 @@
-use std::fmt::Debug;
-use strum::{EnumString, Display};
 use serde::{Deserialize, Serialize};
-
-
+use std::fmt::Debug;
+use strum::{Display, EnumString};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Hash, Eq, PartialEq)]
 pub enum EngineName {
-    #[strum(serialize="exchange-engine")]
+    #[strum(serialize = "exchange-engine")]
     ExchangeEngine, // 交易所引擎
-    #[strum(serialize="marekt-engine")]
+    #[strum(serialize = "marekt-engine")]
     MarketEngine, // 市场引擎
-    #[strum(serialize="indicator-engine")]
+    #[strum(serialize = "indicator-engine")]
     IndicatorEngine, // 指标引擎
-    #[strum(serialize="strategy-engine")]
+    #[strum(serialize = "strategy-engine")]
     StrategyEngine, // 策略引擎
-    #[strum(serialize="cache-engine")]
+    #[strum(serialize = "cache-engine")]
     CacheEngine, // 缓存引擎
-    #[strum(serialize="account-engine")]
+    #[strum(serialize = "account-engine")]
     AccountEngine, // 账户引擎
 }

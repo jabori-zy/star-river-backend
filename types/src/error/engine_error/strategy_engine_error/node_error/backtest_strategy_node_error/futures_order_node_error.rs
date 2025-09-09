@@ -1,23 +1,24 @@
-use snafu::{Snafu, Backtrace};
-use std::collections::HashMap;
-use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
+use crate::error::ErrorCode;
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum FuturesOrderNodeError {
-
     #[snafu(display("futures order node backtest config field value is null: {field_name}"))]
     ConfigFieldValueNull {
         field_name: String,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("futures order node backtest config deserialization failed. reason: {source}"))]
+    #[snafu(display(
+        "futures order node backtest config deserialization failed. reason: {source}"
+    ))]
     ConfigDeserializationFailed {
         source: serde_json::Error,
         backtrace: Backtrace,
-    }
+    },
 }
 
 // Implement the StarRiverErrorTrait for FuturesOrderNodeError
@@ -42,9 +43,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(self,
-            FuturesOrderNodeError::ConfigFieldValueNull { .. } |
-            FuturesOrderNodeError::ConfigDeserializationFailed { .. }
+        matches!(
+            self,
+            FuturesOrderNodeError::ConfigFieldValueNull { .. }
+                | FuturesOrderNodeError::ConfigDeserializationFailed { .. }
         )
     }
 
@@ -56,20 +58,15 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    FuturesOrderNodeError::ConfigFieldValueNull { field_name, .. } => {
-                        format!("期货订单节点回测配置字段值为空: {}", field_name)
-                    },
-                    FuturesOrderNodeError::ConfigDeserializationFailed { source, .. } => {
-                        format!("期货订单节点回测配置反序列化失败，原因: {}", source)
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                FuturesOrderNodeError::ConfigFieldValueNull { field_name, .. } => {
+                    format!("期货订单节点回测配置字段值为空: {}", field_name)
+                }
+                FuturesOrderNodeError::ConfigDeserializationFailed { source, .. } => {
+                    format!("期货订单节点回测配置反序列化失败，原因: {}", source)
                 }
             },
         }
     }
-
 }

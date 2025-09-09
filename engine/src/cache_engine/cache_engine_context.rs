@@ -1,30 +1,35 @@
-use event_center::Event;
-use event_center::exchange_event::ExchangeEvent;
-use event_center::indicator_event::IndicatorEvent;
-use std::fmt::Debug;
-use std::sync::Arc;
-use tokio::sync::broadcast;
-use event_center::EventPublisher;
-use tokio::sync::RwLock;
 use crate::EngineContext;
 use crate::EngineName;
-use std::any::Any;
 use async_trait::async_trait;
-use std::collections::HashMap;
-use types::cache::{Key, CacheValue};
-use types::cache::key::KlineKey;
-use event_center::command::Command;
-use event_center::command::cache_engine_command::CacheEngineCommand;
-use std::time::Duration;
-use event_center::response::cache_engine_response::{GetCacheDataResponse, GetCacheDataMultiResponse, GetCacheLengthMultiResponse};
 use chrono::Utc;
-use event_center::response::Response;
-use event_center::response::cache_engine_response::CacheEngineResponse;
-use types::cache::{CacheEntry, cache_entry::{KlineCacheEntry, IndicatorCacheEntry}};
-use event_center::{EventReceiver, CommandPublisher, CommandReceiver};
-use tokio::sync::Mutex;
+use event_center::command::cache_engine_command::CacheEngineCommand;
+use event_center::command::Command;
+use event_center::exchange_event::ExchangeEvent;
+use event_center::indicator_event::IndicatorEvent;
 use event_center::response::cache_engine_response::AddCacheKeyResponse;
+use event_center::response::cache_engine_response::CacheEngineResponse;
+use event_center::response::cache_engine_response::{
+    GetCacheDataMultiResponse, GetCacheDataResponse, GetCacheLengthMultiResponse,
+};
+use event_center::response::Response;
+use event_center::Event;
+use event_center::EventPublisher;
+use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use std::any::Any;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::broadcast;
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use tracing::instrument;
+use types::cache::key::KlineKey;
+use types::cache::{
+    cache_entry::{IndicatorCacheEntry, KlineCacheEntry},
+    CacheEntry,
+};
+use types::cache::{CacheValue, Key};
 
 #[derive(Debug)]
 pub struct CacheEngineContext {
@@ -55,7 +60,6 @@ impl EngineContext for CacheEngineContext {
         Box::new(self.clone())
     }
 
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -67,7 +71,6 @@ impl EngineContext for CacheEngineContext {
     fn get_engine_name(&self) -> EngineName {
         self.engine_name.clone()
     }
-
 
     async fn handle_event(&mut self, event: Event) {
         match event {
@@ -87,22 +90,29 @@ impl EngineContext for CacheEngineContext {
                 match command {
                     // 添加缓存
                     CacheEngineCommand::AddCacheKey(params) => {
-                        self.add_key(params.key.clone(), params.max_size, params.duration).await.unwrap();
+                        self.add_key(params.key.clone(), params.max_size, params.duration)
+                            .await
+                            .unwrap();
                         let response = AddCacheKeyResponse::success(params.key);
-                        let response_event = Response::CacheEngine(CacheEngineResponse::AddCacheKey(response));
+                        let response_event =
+                            Response::CacheEngine(CacheEngineResponse::AddCacheKey(response));
 
                         params.responder.send(response_event.into()).unwrap();
                     }
-                    
+
                     // 处理获取缓存数据命令
                     CacheEngineCommand::GetCache(params) => {
-                        let data = self.get_cache(&params.key, params.index, params.limit).await;
+                        let data = self
+                            .get_cache(&params.key, params.index, params.limit)
+                            .await;
                         let response = GetCacheDataResponse::success(params.key, data);
                         let response = CacheEngineResponse::GetCacheData(response);
                         params.responder.send(response.into()).unwrap();
                     }
                     CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self.get_cache_multi(&params.keys, params.index, params.limit).await;
+                        let multi_data = self
+                            .get_cache_multi(&params.keys, params.index, params.limit)
+                            .await;
                         let response = GetCacheDataMultiResponse::success(multi_data);
                         let response = CacheEngineResponse::GetCacheDataMulti(response);
                         params.responder.send(response.into()).unwrap();
@@ -113,8 +123,11 @@ impl EngineContext for CacheEngineContext {
                             length_result.insert(key.clone(), self.get_cache_length(key).await);
                         }
 
-                        let get_cache_length_multi_response = GetCacheLengthMultiResponse::success(length_result);
-                        let response = CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response);
+                        let get_cache_length_multi_response =
+                            GetCacheLengthMultiResponse::success(length_result);
+                        let response = CacheEngineResponse::GetCacheLengthMulti(
+                            get_cache_length_multi_response,
+                        );
                         params.responder.send(response.into()).unwrap();
                     }
                     _ => {}
@@ -134,7 +147,7 @@ impl CacheEngineContext {
             //     // 更新缓存
             //     self.update_cache(cache_key, event.kline.into()).await;
             // }
-            // 
+            //
             // ExchangeEvent::ExchangeKlineSeriesUpdate(event) => {
             //     tracing::debug!("处理k线系列更新事件");
             //     // 更新cache_key对应的数据
@@ -146,14 +159,19 @@ impl CacheEngineContext {
             ExchangeEvent::ExchangeKlineHistoryUpdate(event) => {
                 // 更新cache_key对应的数据
                 let key = KlineKey::new(
-                    event.exchange, 
-                    event.symbol, 
+                    event.exchange,
+                    event.symbol,
                     event.interval,
-                    Some(event.time_range.start_date.to_string()), 
-                    Some(event.time_range.end_date.to_string()))
-                    .into();
+                    Some(event.time_range.start_date.to_string()),
+                    Some(event.time_range.end_date.to_string()),
+                )
+                .into();
                 tracing::debug!("更新历史k线缓存: {:?}", key);
-                let cache_series = event.kline_history.into_iter().map(|kline| kline.into()).collect();
+                let cache_series = event
+                    .kline_history
+                    .into_iter()
+                    .map(|kline| kline.into())
+                    .collect();
                 self.initialize_cache(key, cache_series).await;
             }
             _ => {}
@@ -165,7 +183,12 @@ impl CacheEngineContext {
     }
 
     // 获取缓存数据
-    pub async fn get_cache(&self, key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
+    pub async fn get_cache(
+        &self,
+        key: &Key,
+        index: Option<u32>,
+        limit: Option<u32>,
+    ) -> Vec<Arc<CacheValue>> {
         let cache = self.cache.read().await;
         let cache_entry = cache.get(key);
         if cache_entry.is_none() {
@@ -173,7 +196,6 @@ impl CacheEngineContext {
             return vec![];
         }
         cache_entry.unwrap().get_cache_data(index, limit)
-
     }
 
     async fn get_cache_length(&self, key: &Key) -> u32 {
@@ -188,7 +210,12 @@ impl CacheEngineContext {
     }
 
     // 获取多个缓存数据
-    pub async fn get_cache_multi(&self, keys: &Vec<Key>, index: Option<u32>, limit: Option<u32>) -> HashMap<Key, Vec<Arc<CacheValue>>> {
+    pub async fn get_cache_multi(
+        &self,
+        keys: &Vec<Key>,
+        index: Option<u32>,
+        limit: Option<u32>,
+    ) -> HashMap<Key, Vec<Arc<CacheValue>>> {
         let cache = self.cache.read().await;
         let mut cache_data = HashMap::new();
         for key in keys {
@@ -198,63 +225,72 @@ impl CacheEngineContext {
                 cache_data.insert(key.clone(), vec![]);
                 continue;
             }
-            cache_data.insert(key.clone(), cache_entry.unwrap().get_cache_data(index, limit));
+            cache_data.insert(
+                key.clone(),
+                cache_entry.unwrap().get_cache_data(index, limit),
+            );
         }
         cache_data
     }
 
-    pub async fn add_key(&mut self, key: Key, max_size: Option<u32>, ttl: Duration) -> Result<(), String>{
-        let is_contain = {
-            self.cache.read().await.contains_key(&key)
-        };
-        
+    pub async fn add_key(
+        &mut self,
+        key: Key,
+        max_size: Option<u32>,
+        ttl: Duration,
+    ) -> Result<(), String> {
+        let is_contain = { self.cache.read().await.contains_key(&key) };
+
         // 如果缓存键已存在，则不插入
         if !is_contain {
             match key.clone() {
                 Key::Kline(backtest_kline_cache_key) => {
                     let mut cache = self.cache.write().await;
-                    let cache_entry = KlineCacheEntry::new(backtest_kline_cache_key.clone(), max_size, ttl);
+                    let cache_entry =
+                        KlineCacheEntry::new(backtest_kline_cache_key.clone(), max_size, ttl);
                     cache.insert(key, cache_entry.into());
                 }
                 Key::Indicator(history_indicator_cache_key) => {
                     let mut cache = self.cache.write().await;
-                    let cache_entry = IndicatorCacheEntry::new(history_indicator_cache_key.clone(), max_size, ttl);
+                    let cache_entry = IndicatorCacheEntry::new(
+                        history_indicator_cache_key.clone(),
+                        max_size,
+                        ttl,
+                    );
                     cache.insert(key, cache_entry.into());
-                }
-                // Key::Indicator(indicator_cache_key) => {
-                //     let is_contain = {
-                //         self.cache.read().await.contains_key(&indicator_cache_key.clone().into())
-                //     };
-                //     // 如果缓存键已存在，则不插入
-                //     if !is_contain {
-                //         // 1. 判断需要计算的k线的是否存在
-                //         // 创建这个指标对应的k线缓存键
-                //         let kline_cache_key = Key::Kline(KlineKey::new(indicator_cache_key.exchange.clone(), indicator_cache_key.symbol.clone(), indicator_cache_key.interval.clone()));
-                //         // 判断是否存在
-                //         let is_contain = {
-                //             self.cache.read().await.contains_key(&kline_cache_key)
-                //         };
-                //         // 如果k线缓存不存在，则不插入,并报错
-                //         if !is_contain {
-                //             tracing::error!("计算指标缓存键的k线缓存不存在: {:?}", kline_cache_key);
-                //             return Err("k线缓存不存在".to_string());
-                //         }
-                //         // 2. 如果存在，则获取K线缓存的max_size
-                //         let max_size = {
-                //             self.cache.read().await.get(&kline_cache_key).unwrap().get_max_size()
-                //         };
-                //         // 3. 插入指标缓存键，最大max_size使用k线缓存的max_size
-                //         let cache_entry = IndicatorCacheEntry::new(indicator_cache_key.clone(), max_size, Duration::from_secs(10));
-                //         tracing::info!("插入指标缓存键: {:?}", indicator_cache_key);
-                //         let mut cache = self.cache.write().await;
-                //         cache.insert(indicator_cache_key.into(), cache_entry.into());
-                //     }
-                // }
+                } // Key::Indicator(indicator_cache_key) => {
+                  //     let is_contain = {
+                  //         self.cache.read().await.contains_key(&indicator_cache_key.clone().into())
+                  //     };
+                  //     // 如果缓存键已存在，则不插入
+                  //     if !is_contain {
+                  //         // 1. 判断需要计算的k线的是否存在
+                  //         // 创建这个指标对应的k线缓存键
+                  //         let kline_cache_key = Key::Kline(KlineKey::new(indicator_cache_key.exchange.clone(), indicator_cache_key.symbol.clone(), indicator_cache_key.interval.clone()));
+                  //         // 判断是否存在
+                  //         let is_contain = {
+                  //             self.cache.read().await.contains_key(&kline_cache_key)
+                  //         };
+                  //         // 如果k线缓存不存在，则不插入,并报错
+                  //         if !is_contain {
+                  //             tracing::error!("计算指标缓存键的k线缓存不存在: {:?}", kline_cache_key);
+                  //             return Err("k线缓存不存在".to_string());
+                  //         }
+                  //         // 2. 如果存在，则获取K线缓存的max_size
+                  //         let max_size = {
+                  //             self.cache.read().await.get(&kline_cache_key).unwrap().get_max_size()
+                  //         };
+                  //         // 3. 插入指标缓存键，最大max_size使用k线缓存的max_size
+                  //         let cache_entry = IndicatorCacheEntry::new(indicator_cache_key.clone(), max_size, Duration::from_secs(10));
+                  //         tracing::info!("插入指标缓存键: {:?}", indicator_cache_key);
+                  //         let mut cache = self.cache.write().await;
+                  //         cache.insert(indicator_cache_key.into(), cache_entry.into());
+                  //     }
+                  // }
             }
         }
         Ok(())
     }
-
 
     #[instrument(skip(self, cache_series), fields(key=?key, cache_series_length=cache_series.len()))]
     pub async fn initialize_cache(&mut self, key: Key, cache_series: Vec<CacheValue>) {

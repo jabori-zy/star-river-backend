@@ -1,14 +1,14 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
-use types::custom_type::{StrategyId, NodeId};
-use std::fmt::Debug;
-use types::market::{Exchange, KlineInterval};
-use uuid::Uuid;
-use types::indicator::IndicatorConfig;
-use types::cache::key::KlineKey;
+use super::CommandTrait;
 use crate::command::Command;
 use crate::Responder;
-use super::CommandTrait;
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use strum::Display;
+use types::cache::key::KlineKey;
+use types::custom_type::{NodeId, StrategyId};
+use types::indicator::IndicatorConfig;
+use types::market::{Exchange, KlineInterval};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub enum IndicatorEngineCommand {
@@ -36,7 +36,6 @@ impl CommandTrait for IndicatorEngineCommand {
             IndicatorEngineCommand::CalculateBacktestIndicator(params) => params.sender.clone(),
         }
     }
-    
 }
 
 impl From<IndicatorEngineCommand> for Command {
@@ -45,18 +44,17 @@ impl From<IndicatorEngineCommand> for Command {
     }
 }
 
-
 #[derive(Debug)]
 pub struct RegisterIndicatorParams {
-    pub strategy_id: StrategyId, // 策略ID
-    pub node_id: NodeId, // 节点ID
-    pub exchange: Exchange, // 交易所
-    pub symbol: String, // 符号
-    pub interval: KlineInterval, // 时间周期
+    pub strategy_id: StrategyId,           // 策略ID
+    pub node_id: NodeId,                   // 节点ID
+    pub exchange: Exchange,                // 交易所
+    pub symbol: String,                    // 符号
+    pub interval: KlineInterval,           // 时间周期
     pub indicator_config: IndicatorConfig, // 指标配置
-    pub sender: String, // 发送者
-    pub command_timestamp:i64, // 命令时间戳
-    pub responder: Responder, // 响应者
+    pub sender: String,                    // 发送者
+    pub command_timestamp: i64,            // 命令时间戳
+    pub responder: Responder,              // 响应者
 }
 
 #[derive(Debug)]
@@ -67,6 +65,6 @@ pub struct CalculateBacktestIndicatorParams {
     pub kline_key: KlineKey, // 回测K线缓存键
     pub indicator_config: IndicatorConfig,
     pub sender: String,
-    pub command_timestamp:i64,
+    pub command_timestamp: i64,
     pub responder: Responder,
 }

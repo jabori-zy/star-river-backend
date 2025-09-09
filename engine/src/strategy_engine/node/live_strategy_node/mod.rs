@@ -1,5 +1,3 @@
-
-
 pub mod get_variable_node;
 pub mod if_else_node;
 pub mod indicator_node;

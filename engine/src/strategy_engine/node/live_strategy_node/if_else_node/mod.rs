@@ -1,30 +1,32 @@
-mod if_else_node_state_machine;
-mod if_else_node_context;
 pub mod condition;
+mod if_else_node_context;
+mod if_else_node_state_machine;
 pub mod if_else_node_type;
 
+use super::if_else_node::if_else_node_state_machine::{
+    IfElseNodeStateAction, IfElseNodeStateManager,
+};
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
+use crate::strategy_engine::node::node_state_machine::*;
+use crate::strategy_engine::node::node_types::{DefaultOutputHandleId, NodeType};
+use crate::strategy_engine::node::{LiveNodeTrait, NodeOutputHandle};
+use async_trait::async_trait;
+use event_center::EventPublisher;
+use event_center::{CommandPublisher, CommandReceiver};
+use if_else_node_context::IfElseNodeContext;
+use if_else_node_type::*;
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::any::Any;
-use std::vec;
-use async_trait::async_trait;
-use tokio::sync::broadcast;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use types::strategy::node_event::BacktestNodeEvent;
-use event_center::EventPublisher;
-use crate::strategy_engine::node::node_state_machine::*;
 use std::time::Duration;
-use super::if_else_node::if_else_node_state_machine::{IfElseNodeStateManager,IfElseNodeStateAction};
-use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
-use crate::strategy_engine::node::node_types::{NodeType,DefaultOutputHandleId};
-use if_else_node_context::IfElseNodeContext;
-use crate::strategy_engine::node::{NodeOutputHandle,LiveNodeTrait};
-use types::strategy::TradeMode;
-use if_else_node_type::*;
-use event_center::{CommandPublisher, CommandReceiver};
+use std::vec;
+use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use types::strategy::node_command::NodeCommandSender;
+use types::strategy::node_event::BacktestNodeEvent;
+use types::strategy::TradeMode;
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -33,10 +35,9 @@ pub struct IfElseNode {
 }
 
 impl IfElseNode {
-
     pub fn new(
         strategy_id: i32,
-        node_id: String, 
+        node_id: String,
         node_name: String,
         live_config: IfElseNodeLiveConfig,
         event_publisher: EventPublisher,
@@ -53,7 +54,11 @@ impl IfElseNode {
             vec![],
             command_publisher,
             command_receiver,
-            Box::new(IfElseNodeStateManager::new(LiveNodeRunState::Created, node_id, node_name)),
+            Box::new(IfElseNodeStateManager::new(
+                LiveNodeRunState::Created,
+                node_id,
+                node_name,
+            )),
             strategy_command_sender,
         );
         Self {
@@ -65,7 +70,6 @@ impl IfElseNode {
                 received_message: HashMap::new(),
                 live_config,
             }))),
-            
         }
     }
 
@@ -77,8 +81,7 @@ impl IfElseNode {
             let cancel_token = context_guard.get_cancel_token().clone();
             (node_id, cancel_token)
         };
-        
-        
+
         let context = self.context.clone();
         tokio::spawn(async move {
             loop {
@@ -101,11 +104,11 @@ impl IfElseNode {
                                     // 重置标记位
                                     for flag in if_else_node_context.received_flag.values_mut() {
                                         *flag = false;
-                                    
+
                                 }
                                 true
                             }
-                        
+
                         };
 
                         if should_evaluate {
@@ -120,15 +123,11 @@ impl IfElseNode {
                 }
             }
         });
-
     }
-
 }
-
 
 #[async_trait]
 impl LiveNodeTrait for IfElseNode {
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -150,11 +149,14 @@ impl LiveNodeTrait for IfElseNode {
         let node_id = self.get_node_id().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
 
-        self.add_output_handle(DefaultOutputHandleId::IfElseNodeElseOutput.to_string(), tx).await;
+        self.add_output_handle(DefaultOutputHandleId::IfElseNodeElseOutput.to_string(), tx)
+            .await;
 
         let context = self.get_context();
         let mut state_guard = context.write().await;
-        if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
+        if let Some(if_else_node_context) =
+            state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>()
+        {
             let cases = if_else_node_context.live_config.cases.clone();
 
             for case in cases {
@@ -166,119 +168,168 @@ impl LiveNodeTrait for IfElseNode {
                     connect_count: 0,
                 };
 
-                if_else_node_context.get_all_output_handle_mut().insert(format!("if_else_node_case_{}_output", case.case_id), handle);
+                if_else_node_context
+                    .get_all_output_handle_mut()
+                    .insert(format!("if_else_node_case_{}_output", case.case_id), handle);
             }
         }
-        tracing::debug!("{}: 设置节点默认出口成功: {}", node_id, DefaultOutputHandleId::IfElseNodeElseOutput.to_string());
+        tracing::debug!(
+            "{}: 设置节点默认出口成功: {}",
+            node_id,
+            DefaultOutputHandleId::IfElseNodeElseOutput.to_string()
+        );
     }
 
-
     async fn init(&mut self) -> Result<(), String> {
-        tracing::info!("================={}====================", self.context.read().await.get_node_name());
+        tracing::info!(
+            "================={}====================",
+            self.context.read().await.get_node_name()
+        );
         tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
         // 开始初始化 created -> Initialize
-        self.update_node_state(LiveNodeStateTransitionEvent::Initialize).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Initialize)
+            .await
+            .unwrap();
 
-        tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
+        tracing::info!(
+            "{:?}: 初始化完成",
+            self.context
+                .read()
+                .await
+                .get_state_machine()
+                .current_state()
+        );
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete).await?;
-
+        self.update_node_state(LiveNodeStateTransitionEvent::InitializeComplete)
+            .await?;
 
         Ok(())
-        
     }
 
     async fn start(&mut self) -> Result<(), String> {
         let state = self.context.clone();
         tracing::info!("{}: 开始启动", state.read().await.get_node_id());
         // 切换为starting状态
-        self.update_node_state(LiveNodeStateTransitionEvent::Start).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Start)
+            .await
+            .unwrap();
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         // 切换为running状态
-        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::StartComplete)
+            .await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), String> {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_node_state(LiveNodeStateTransitionEvent::Stop).await.unwrap();
+        self.update_node_state(LiveNodeStateTransitionEvent::Stop)
+            .await
+            .unwrap();
         // 等待所有任务结束
         self.cancel_task().await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete).await?;
+        self.update_node_state(LiveNodeStateTransitionEvent::StopComplete)
+            .await?;
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String> {
+    async fn update_node_state(
+        &mut self,
+        event: LiveNodeStateTransitionEvent,
+    ) -> Result<(), String> {
         // 提前获取所有需要的数据，避免在循环中持有引用
         let node_id = self.context.read().await.get_node_id().clone();
-        
+
         // 获取状态管理器并执行转换
         let (transition_result, state_manager) = {
-            let mut state_manager = self.context.read().await.get_state_machine().clone_box();  // 使用读锁获取当前状态
+            let mut state_manager = self.context.read().await.get_state_machine().clone_box(); // 使用读锁获取当前状态
             let transition_result = state_manager.transition(event)?;
             (transition_result, state_manager)
         };
 
-        tracing::info!("{}需要执行的动作: {:?}", node_id, transition_result.get_actions());
+        tracing::info!(
+            "{}需要执行的动作: {:?}",
+            node_id,
+            transition_result.get_actions()
+        );
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() {  // 克隆actions避免移动问题
-            if let Some(if_else_node_state_action) = action.as_any().downcast_ref::<IfElseNodeStateAction>() {
+        for action in transition_result.get_actions() {
+            // 克隆actions避免移动问题
+            if let Some(if_else_node_state_action) =
+                action.as_any().downcast_ref::<IfElseNodeStateAction>()
+            {
                 match if_else_node_state_action {
                     IfElseNodeStateAction::LogTransition => {
-                        let current_state = self.context.read().await.get_state_machine().current_state();
-                        tracing::info!("{}: 状态转换: {:?} -> {:?}", node_id, current_state, transition_result.get_new_state());
-                }
-                IfElseNodeStateAction::LogNodeState => {
-                    let current_state = self.context.read().await.get_state_machine().current_state();
-                    tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
-                }
+                        let current_state = self
+                            .context
+                            .read()
+                            .await
+                            .get_state_machine()
+                            .current_state();
+                        tracing::info!(
+                            "{}: 状态转换: {:?} -> {:?}",
+                            node_id,
+                            current_state,
+                            transition_result.get_new_state()
+                        );
+                    }
+                    IfElseNodeStateAction::LogNodeState => {
+                        let current_state = self
+                            .context
+                            .read()
+                            .await
+                            .get_state_machine()
+                            .current_state();
+                        tracing::info!("{}: 当前状态: {:?}", node_id, current_state);
+                    }
 
-                IfElseNodeStateAction::ListenAndHandleMessage => {
-                    tracing::info!("{}: 开始监听节点传递的message", node_id);
-                    self.listen_message().await?;
-                }
-                IfElseNodeStateAction::InitReceivedFlag => {
-                    tracing::info!("{}: 开始初始化接收标记", node_id);
-                    let context = self.get_context();
-                    let mut state_guard = context.write().await;
-                    if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-                        if_else_node_context.init_received_flag().await;
+                    IfElseNodeStateAction::ListenAndHandleMessage => {
+                        tracing::info!("{}: 开始监听节点传递的message", node_id);
+                        self.listen_message().await?;
                     }
-                }
-                IfElseNodeStateAction::InitReceivedValue => {
-                    tracing::info!("{}: 开始初始化接收值", node_id);
-                    let context = self.get_context();
-                    let mut state_guard = context.write().await;
-                    if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-                        if_else_node_context.init_received_value().await;
+                    IfElseNodeStateAction::InitReceivedFlag => {
+                        tracing::info!("{}: 开始初始化接收标记", node_id);
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(if_else_node_context) =
+                            state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>()
+                        {
+                            if_else_node_context.init_received_flag().await;
+                        }
                     }
+                    IfElseNodeStateAction::InitReceivedValue => {
+                        tracing::info!("{}: 开始初始化接收值", node_id);
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(if_else_node_context) =
+                            state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>()
+                        {
+                            if_else_node_context.init_received_value().await;
+                        }
+                    }
+                    IfElseNodeStateAction::Evaluate => {
+                        tracing::info!("{}: 开始判断条件", node_id);
+                        self.evaluate().await;
+                    }
+                    _ => {} // 所有动作执行完毕后更新节点最新的状态
                 }
-                IfElseNodeStateAction::Evaluate => {
-                    tracing::info!("{}: 开始判断条件", node_id);
-                    self.evaluate().await;
-                }
-                _ => {}
                 // 所有动作执行完毕后更新节点最新的状态
-                
-            }
-            // 所有动作执行完毕后更新节点最新的状态
-            {
-                self.context.write().await.set_state_machine(state_manager.clone_box());
+                {
+                    self.context
+                        .write()
+                        .await
+                        .set_state_machine(state_manager.clone_box());
+                }
             }
         }
-    }
-                    
+
         Ok(())
     }
 }
 
-
 // 比较操作符
-
-

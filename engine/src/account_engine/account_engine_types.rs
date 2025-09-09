@@ -1,4 +1,3 @@
-
 // use types::account::ExchangeAccountConfig;
 // use types::account::ExchangeAccountInfo;
 
@@ -17,7 +16,3 @@
 //     pub account_info: Option<Box<dyn ExchangeAccountInfo>>,
 //     pub exchange_status: ExchangeStatus,
 // }
-
-
-
-

@@ -1,12 +1,11 @@
-
 use crate::calculate_fn;
 use crate::calculate_fn_snake;
-use types::indicator::indicator_define::momentum::*;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
-use types::cache::CacheValue;
-use types::indicator::Indicator;
-use std::sync::Arc;
 use crate::indicator_engine::talib::TALib;
+use std::sync::Arc;
+use types::cache::CacheValue;
+use types::indicator::indicator_define::momentum::*;
+use types::indicator::Indicator;
 
 impl CalculateIndicatorFunction {
     // ADX - Average Directional Movement Index #平均方向性指数
@@ -206,10 +205,10 @@ impl CalculateIndicatorFunction {
     calculate_fn!(STOCH,
         input => [high,low,close],
         talib_params => [
-            (fast_k_period: i32), 
-            (slow_k_period: i32), 
-            (slow_k_ma_type: MAType), 
-            (slow_d_period: i32), 
+            (fast_k_period: i32),
+            (slow_k_period: i32),
+            (slow_k_ma_type: MAType),
+            (slow_d_period: i32),
             (slow_d_ma_type: MAType),
         ]
     );
@@ -218,8 +217,8 @@ impl CalculateIndicatorFunction {
     calculate_fn!(STOCHF,
         input => [high,low,close],
         talib_params => [
-            (fast_k_period: i32), 
-            (fast_d_period: i32), 
+            (fast_k_period: i32),
+            (fast_d_period: i32),
             (fast_d_ma_type: MAType),
         ]
     );
@@ -228,9 +227,9 @@ impl CalculateIndicatorFunction {
     calculate_fn!(STOCHRSI,
         input => [close],
         talib_params => [
-            (time_period: i32), 
-            (fast_k_period: i32), 
-            (fast_d_period: i32), 
+            (time_period: i32),
+            (fast_k_period: i32),
+            (fast_d_period: i32),
             (fast_d_ma_type: MAType),
         ]
     );
@@ -246,7 +245,7 @@ impl CalculateIndicatorFunction {
     calculate_fn!(ULTOSC,
         input => [high,low,close],
         talib_params => [
-            (time_period1: i32), 
+            (time_period1: i32),
             (time_period2: i32),
             (time_period3: i32),
         ]

@@ -1,12 +1,10 @@
-use utoipa::OpenApi;
+use crate::api::account_api::ExchangeType;
+use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
+use crate::api::cache_api::CacheKeyType;
 use crate::api::response::ApiResponse;
 use types::account::AccountConfig;
-use crate::api::account_api::{
-    Mt5AccountConfigParams, AccountConfigType, AddAccountConfigParams,
-};
-use crate::api::cache_api::CacheKeyType;
-use crate::api::account_api::ExchangeType;
 use types::system::system_config::SystemConfigUpdateParams;
+use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -44,15 +42,13 @@ use types::system::system_config::SystemConfigUpdateParams;
         crate::api::account_api::add_account_config,
         crate::api::account_api::delete_account_config,
         crate::api::account_api::update_account_config,
-        crate::api::account_api::update_account_is_available,   
+        crate::api::account_api::update_account_is_available,
         crate::api::account_api::start_mt5_terminal,
         crate::sse::account_sse::account_sse_handler,
-        
         // // 缓存相关路径
         crate::api::cache_api::get_cache_keys,
         crate::api::cache_api::get_cache_value,
         crate::api::cache_api::get_memory_size,
-
         // 市场相关路径
         crate::api::market_api::get_symbol_list,
         crate::api::market_api::get_support_kline_intervals,
@@ -60,11 +56,11 @@ use types::system::system_config::SystemConfigUpdateParams;
         //sse
         crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,
         crate::sse::backtest_strategy_sse::backtest_strategy_sse_handler,
+        crate::sse::backtest_strategy_running_log_sse::backtest_strategy_running_log_sse_handler,
 
         // // 其他路径
         // crate::api::strategy_api::enable_strategy_data_push,
         // crate::api::strategy_api::disable_strategy_data_push,
-        
         // crate::api::strategy_api::pause,
         // crate::api::strategy_api::play_one,
         // crate::api::strategy_api::stop,
@@ -77,12 +73,10 @@ use types::system::system_config::SystemConfigUpdateParams;
         schemas(
             ApiResponse<AccountConfig>,
             ApiResponse<String>,
-            
             // 账户相关类型
             Mt5AccountConfigParams,
             AccountConfigType,
             AddAccountConfigParams,
-            
             // 账户配置
             AccountConfig,
             ExchangeType,

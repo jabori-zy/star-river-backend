@@ -1,26 +1,30 @@
-use std::fmt::Debug;
-use std::any::Any;
-use uuid::Uuid;
-use async_trait::async_trait;
-use event_center::Event;
-use event_center::command::Command;
-use event_center::response::Response;
-use event_center::response::indicator_engine_response::IndicatorEngineResponse;
-use event_center::command::indicator_engine_command::{IndicatorEngineCommand, RegisterIndicatorParams};
-use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::{LiveIndicatorUpdateEvent, BacktestNodeEvent, IndicatorNodeEvent};
-use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::indicator_node_type::IndicatorNodeLiveConfig;
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use async_trait::async_trait;
+use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
+use event_center::command::indicator_engine_command::{
+    IndicatorEngineCommand, RegisterIndicatorParams,
+};
+use event_center::command::Command;
+use event_center::response::cache_engine_response::CacheEngineResponse;
+use event_center::response::indicator_engine_response::IndicatorEngineResponse;
+use event_center::response::Response;
+use event_center::response::ResponseTrait;
+use event_center::Event;
+use std::any::Any;
+use std::fmt::Debug;
 use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
 use types::cache::key::{IndicatorKey, KlineKey};
-use event_center::response::cache_engine_response::CacheEngineResponse;
 use types::cache::CacheValue;
-use tokio::sync::oneshot;
-use event_center::response::ResponseTrait;
+use types::strategy::node_event::{
+    BacktestNodeEvent, IndicatorNodeEvent, LiveIndicatorUpdateEvent,
+};
+use utils::get_utc8_timestamp_millis;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
@@ -28,9 +32,6 @@ pub struct IndicatorNodeContext {
     pub live_config: IndicatorNodeLiveConfig,
     pub is_registered: Arc<RwLock<bool>>, // 是否已经注册指标
 }
-
-
-
 
 #[async_trait]
 impl LiveNodeContextTrait for IndicatorNodeContext {
@@ -55,11 +56,14 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("indicator_node_output")).unwrap().clone()
+        self.base_context
+            .output_handle
+            .get(&format!("indicator_node_output"))
+            .unwrap()
+            .clone()
     }
 
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
-
         // if let Event::Response(response_event) = event {
         //     match response_event {
         //         ResponseEvent::IndicatorEngine(indicator_engine_response) => {
@@ -90,7 +94,7 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
         //                         if get_cache_data_response.code == 0 {
         //                             // 发送指标message
         //                             self.publish_indicator_message(get_cache_data_response.cache_data).await;
-                                    
+
         //                         }
         //                     }
         //                 }
@@ -101,23 +105,28 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
         //     }
         // }
 
-
         Ok(())
     }
 
-    
     async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
             BacktestNodeEvent::KlineSeries(_) => {
                 // 接收到k线数据， 向缓存引擎请求指标数据
                 let indicator_cache_key = IndicatorKey::new(
-                    KlineKey::new(self.live_config.exchange.clone(),self.live_config.symbol.clone(),self.live_config.interval.clone(),None, None),
-                    self.live_config.indicator_config.clone()
+                    KlineKey::new(
+                        self.live_config.exchange.clone(),
+                        self.live_config.symbol.clone(),
+                        self.live_config.interval.clone(),
+                        None,
+                        None,
+                    ),
+                    self.live_config.indicator_config.clone(),
                 );
                 let response = self.get_indicator_cache(indicator_cache_key).await;
                 if let Ok(response) = response {
                     if response.success() {
-                        let cache_engine_response = CacheEngineResponse::try_from(response).unwrap();
+                        let cache_engine_response =
+                            CacheEngineResponse::try_from(response).unwrap();
                         match cache_engine_response {
                             CacheEngineResponse::GetCacheData(get_cache_data_response) => {
                                 let indicator_series = get_cache_data_response.cache_data.clone();
@@ -132,10 +141,18 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
                                     indicator_series,
                                     message_timestamp: get_utc8_timestamp_millis(),
                                 };
-                                tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, indicator_message);
+                                tracing::info!(
+                                    "节点{}收到指标缓存数据: {:?}",
+                                    self.base_context.node_id,
+                                    indicator_message
+                                );
                                 // 发送指标message
                                 let handle = self.get_default_output_handle();
-                                handle.send(BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::LiveIndicatorUpdate(indicator_message))).unwrap();
+                                handle
+                                    .send(BacktestNodeEvent::IndicatorNode(
+                                        IndicatorNodeEvent::LiveIndicatorUpdate(indicator_message),
+                                    ))
+                                    .unwrap();
                             }
                             _ => {}
                         }
@@ -146,12 +163,13 @@ impl LiveNodeContextTrait for IndicatorNodeContext {
         }
         Ok(())
     }
-
 }
 
 impl IndicatorNodeContext {
-
-    async fn get_indicator_cache(&self, indicator_cache_key: IndicatorKey) -> Result<Response, String> {
+    async fn get_indicator_cache(
+        &self,
+        indicator_cache_key: IndicatorKey,
+    ) -> Result<Response, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams {
             strategy_id: self.base_context.strategy_id.clone(),
@@ -164,14 +182,20 @@ impl IndicatorNodeContext {
             responder: resp_tx,
         };
         let get_cache_command = CacheEngineCommand::GetCache(params);
-        self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
+        self.get_command_publisher()
+            .send(get_cache_command.into())
+            .await
+            .unwrap();
 
         // 等待响应
         let get_cache_response = resp_rx.await.unwrap();
-        tracing::info!("节点{}收到指标缓存数据: {:?}", self.base_context.node_id, get_cache_response);
+        tracing::info!(
+            "节点{}收到指标缓存数据: {:?}",
+            self.base_context.node_id,
+            get_cache_response
+        );
         Ok(get_cache_response)
     }
-
 
     // 注册指标（初始化指标）向指标引擎发送注册请求
     pub async fn register_indicator(&self) -> Result<Response, String> {
@@ -187,13 +211,16 @@ impl IndicatorNodeContext {
             command_timestamp: get_utc8_timestamp_millis(),
             responder: resp_tx,
         };
-        let register_indicator_command = Command::IndicatorEngine(IndicatorEngineCommand::RegisterIndicator(register_indicator_params));
-        self.get_command_publisher().send(register_indicator_command).await.unwrap();
+        let register_indicator_command = Command::IndicatorEngine(
+            IndicatorEngineCommand::RegisterIndicator(register_indicator_params),
+        );
+        self.get_command_publisher()
+            .send(register_indicator_command)
+            .await
+            .unwrap();
 
         // 等待响应
         let register_indicator_response = resp_rx.await.unwrap();
         Ok(register_indicator_response)
     }
-    
 }
-

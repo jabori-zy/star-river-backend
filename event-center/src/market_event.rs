@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-use types::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
-use strum::Display;
 use crate::Event;
-
+use serde::{Deserialize, Serialize};
+use strum::Display;
+use types::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]
@@ -24,7 +23,6 @@ impl From<MarketEvent> for Event {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeKlineSeriesEventInfo {
     pub exchange: Exchange,
@@ -33,7 +31,6 @@ pub struct ExchangeKlineSeriesEventInfo {
     pub kline_series: KlineSeries,
     pub event_timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeKlineEventInfo {
@@ -44,19 +41,17 @@ pub struct ExchangeKlineEventInfo {
     pub event_timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineInfo{
+pub struct KlineInfo {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline: Kline,
     pub event_timestamp: i64,
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineSeriesInfo{
+pub struct KlineSeriesInfo {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -66,11 +61,9 @@ pub struct KlineSeriesInfo{
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TickerPriceInfo{
+pub struct TickerPriceInfo {
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,
     pub event_timestamp: i64,
 }
-
-

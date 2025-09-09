@@ -1,9 +1,8 @@
-
-use types::indicator::IndicatorConfig;
+use super::super::kline_node::kline_node_type::SelectedSymbol;
 use serde::{Deserialize, Serialize};
+use types::indicator::IndicatorConfig;
 use types::strategy::TimeRange;
 use types::strategy::{BacktestDataSource, SelectedAccount};
-use super::super::kline_node::kline_node_type::SelectedSymbol;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndicatorNodeBacktestConfig {
@@ -12,12 +11,10 @@ pub struct IndicatorNodeBacktestConfig {
 
     #[serde(rename = "exchangeConfig")]
     pub exchange_mode_config: Option<ExchangeModeConfig>,
-    
+
     #[serde(rename = "fileConfig")]
     pub file_mode_config: Option<FileModeConfig>,
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeModeConfig {
@@ -34,24 +31,19 @@ pub struct ExchangeModeConfig {
     pub time_range: TimeRange,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileModeConfig {
     pub file_path: String,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectedIndicator {
-    #[serde(rename="configId")]
+    #[serde(rename = "configId")]
     pub config_id: i32,
 
-    #[serde(rename="outputHandleId")]
+    #[serde(rename = "outputHandleId")]
     pub output_handle_id: String,
 
     #[serde(rename = "indicatorConfig")]
     pub indicator_config: IndicatorConfig,
 }
-
-
-

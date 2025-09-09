@@ -1,5 +1,3 @@
-
-
 #[macro_export]
 macro_rules! talib_fn {
     (
@@ -58,8 +56,8 @@ macro_rules! talib_fn {
     ) => {
         paste::paste! {
             pub fn [<$indicator_name:lower>](
-                $timestamp_field: $timestamp_type, 
-                $($input_field: $input_type,)* 
+                $timestamp_field: $timestamp_type,
+                $($input_field: $input_type,)*
                 $($param_field: $param_type),*
             ) -> Result<Vec<Indicator>, TalibError> {
 
@@ -121,7 +119,6 @@ macro_rules! talib_fn {
         }
     };
 }
-
 
 #[macro_export]
 macro_rules! talib_snake_fn {
@@ -181,8 +178,8 @@ macro_rules! talib_snake_fn {
     ) => {
         paste::paste! {
             pub fn [<$indicator_name:snake:lower>](
-                $timestamp_field: $timestamp_type, 
-                $($input_field: $input_type,)* 
+                $timestamp_field: $timestamp_type,
+                $($input_field: $input_type,)*
                 $($param_field: $param_type),*
             ) -> Result<Vec<Indicator>, TalibError> {
 
@@ -245,10 +242,6 @@ macro_rules! talib_snake_fn {
     };
 }
 
-
-
-
-
 // #[macro_export]
 // macro_rules! lookback_fn {
 //     ($indicator_name:ident, "snake_upper") => {
@@ -270,7 +263,6 @@ macro_rules! talib_snake_fn {
 //     };
 // }
 
-
 // #[macro_export]
 // macro_rules! ta_fn {
 //     ($indicator_name:ident,"snake_upper") => {
@@ -290,10 +282,7 @@ macro_rules! talib_snake_fn {
 //         }
 //     };
 
-
 // }
-
-
 
 // 内部宏：处理 TA-Lib 函数调用和错误处理的通用逻辑
 #[macro_export]
@@ -340,7 +329,6 @@ macro_rules! execute_talib_function {
         }
     }};
 }
-
 
 #[macro_export]
 macro_rules! execute_talib_function_snake {

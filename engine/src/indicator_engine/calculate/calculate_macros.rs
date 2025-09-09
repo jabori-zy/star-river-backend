@@ -1,5 +1,3 @@
-
-
 #[macro_export]
 macro_rules! calculate_fn {
     (
@@ -22,7 +20,7 @@ macro_rules! calculate_fn {
                     Err(e) => return Err(e.to_string()),
                 };
 
-                Ok(result)   
+                Ok(result)
             }
         }
     };
@@ -35,7 +33,7 @@ macro_rules! calculate_fn {
         paste::paste! {
             pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, String> {
                 let tohlcv = CalculateIndicatorFunction::get_tohlcv(kline_series)?;
-                
+
                 let result = match TALib::[<$indicator_name:lower>](
                     &tohlcv.0, // timestamp_list
                     $($crate::get_ohlcv_field!(tohlcv, $input_field)),*,
@@ -45,7 +43,7 @@ macro_rules! calculate_fn {
                     Err(e) => return Err(e.to_string()),
                 };
 
-                Ok(result)   
+                Ok(result)
             }
         }
     };
@@ -65,7 +63,7 @@ macro_rules! calculate_fn {
                     Err(e) => return Err(e.to_string()),
                 };
 
-                Ok(result)   
+                Ok(result)
             }
         }
     };
@@ -93,7 +91,7 @@ macro_rules! calculate_fn_snake {
                     Err(e) => return Err(e.to_string()),
                 };
 
-                Ok(result)   
+                Ok(result)
             }
         }
     };
@@ -106,7 +104,7 @@ macro_rules! calculate_fn_snake {
         paste::paste! {
             pub fn [<calculate_ $indicator_name:snake:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, String> {
                 let tohlcv = CalculateIndicatorFunction::get_tohlcv(kline_series)?;
-                
+
                 let result = match TALib::[<$indicator_name:snake:lower>](
                     &tohlcv.0, // timestamp_list
                     $($crate::get_ohlcv_field!(tohlcv, $input_field)),*,
@@ -116,12 +114,11 @@ macro_rules! calculate_fn_snake {
                     Err(e) => return Err(e.to_string()),
                 };
 
-                Ok(result)   
+                Ok(result)
             }
         }
     };
 }
-
 
 #[macro_export]
 macro_rules! parse_type {
@@ -141,11 +138,19 @@ macro_rules! parse_type {
 
 #[macro_export]
 macro_rules! get_ohlcv_field {
-    ($tohlcv:ident, open) => { &$tohlcv.1 };
-    ($tohlcv:ident, high) => { &$tohlcv.2 };
-    ($tohlcv:ident, low) => { &$tohlcv.3 };
-    ($tohlcv:ident, close) => { &$tohlcv.4 };
-    ($tohlcv:ident, volume) => { &$tohlcv.5 };
+    ($tohlcv:ident, open) => {
+        &$tohlcv.1
+    };
+    ($tohlcv:ident, high) => {
+        &$tohlcv.2
+    };
+    ($tohlcv:ident, low) => {
+        &$tohlcv.3
+    };
+    ($tohlcv:ident, close) => {
+        &$tohlcv.4
+    };
+    ($tohlcv:ident, volume) => {
+        &$tohlcv.5
+    };
 }
-
-

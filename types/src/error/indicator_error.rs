@@ -1,8 +1,7 @@
-use snafu::{Snafu, Backtrace};
-use std::collections::HashMap;
-use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
-
+use crate::error::ErrorCode;
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -26,7 +25,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorError {
     fn get_prefix(&self) -> &'static str {
         "INDICATOR"
     }
-    
+
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
@@ -35,32 +34,33 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorError {
         };
         format!("{}_{:04}", prefix, code)
     }
-    
+
     fn context(&self) -> HashMap<&'static str, String> {
         let ctx = HashMap::new();
         ctx
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(self,
-            IndicatorError::UnsupportedIndicatorType { .. } |
-            IndicatorError::CreateIndicatorFailed { .. }
+        matches!(
+            self,
+            IndicatorError::UnsupportedIndicatorType { .. }
+                | IndicatorError::CreateIndicatorFailed { .. }
         )
     }
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    IndicatorError::UnsupportedIndicatorType { indicator_type, .. } => {
-                        format!("不支持的指标类型 [{}]", indicator_type)
-                    },
-                    IndicatorError::CreateIndicatorFailed { indicator_type, source, .. } => {
-                        format!("创建指标 [{}] 失败，原因: [{}]", indicator_type, source)
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                IndicatorError::UnsupportedIndicatorType { indicator_type, .. } => {
+                    format!("不支持的指标类型 [{}]", indicator_type)
+                }
+                IndicatorError::CreateIndicatorFailed {
+                    indicator_type,
+                    source,
+                    ..
+                } => {
+                    format!("创建指标 [{}] 失败，原因: [{}]", indicator_type, source)
                 }
             },
         }
@@ -71,11 +71,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorError {
             // CreateIndicatorFailed has source but serde_json::Error doesn't implement our trait
             // So we start the chain here
             IndicatorError::CreateIndicatorFailed { .. } => vec![self.error_code()],
-            
+
             // Other errors have no source - return own error code
             _ => vec![self.error_code()],
         }
     }
 }
-
-

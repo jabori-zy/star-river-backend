@@ -1,19 +1,16 @@
-
-pub mod indicator_engine_command;
+pub mod backtest_strategy_command;
 pub mod cache_engine_command;
 pub mod exchange_engine_command;
+pub mod indicator_engine_command;
 pub mod market_engine_command;
-pub mod backtest_strategy_command;
 
-
-use std::fmt::Debug;
-use cache_engine_command::CacheEngineCommand;
-use indicator_engine_command::IndicatorEngineCommand;
-use exchange_engine_command::ExchangeEngineCommand;
-use market_engine_command::MarketEngineCommand;
-use types::engine::EngineName;
 use crate::Responder;
-
+use cache_engine_command::CacheEngineCommand;
+use exchange_engine_command::ExchangeEngineCommand;
+use indicator_engine_command::IndicatorEngineCommand;
+use market_engine_command::MarketEngineCommand;
+use std::fmt::Debug;
+use types::engine::EngineName;
 
 pub trait CommandTrait {
     fn responder(&self) -> &Responder;
@@ -23,12 +20,11 @@ pub trait CommandTrait {
 
 #[derive(Debug)]
 pub enum Command {
-    CacheEngine(CacheEngineCommand), // 缓存引擎命令
+    CacheEngine(CacheEngineCommand),         // 缓存引擎命令
     IndicatorEngine(IndicatorEngineCommand), // 指标引擎命令
-    ExchangeEngine(ExchangeEngineCommand), // 交易所引擎命令
-    MarketEngine(MarketEngineCommand), // 市场引擎命令 
+    ExchangeEngine(ExchangeEngineCommand),   // 交易所引擎命令
+    MarketEngine(MarketEngineCommand),       // 市场引擎命令
 }
-
 
 impl Command {
     pub fn get_engine_name(&self) -> EngineName {
@@ -67,11 +63,3 @@ impl Command {
         }
     }
 }
-
-
-
-
-
-
-
-

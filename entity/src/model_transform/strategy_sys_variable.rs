@@ -1,5 +1,5 @@
-use types::strategy::sys_varibale::StrategySysVariable;
 use crate::strategy_sys_variable::Model as StrategySysVariableModel;
+use types::strategy::sys_varibale::StrategySysVariable;
 
 impl From<StrategySysVariableModel> for StrategySysVariable {
     fn from(config: StrategySysVariableModel) -> Self {

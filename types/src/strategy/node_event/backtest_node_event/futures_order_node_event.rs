@@ -1,9 +1,8 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
 use crate::order::virtual_order::VirtualOrder;
 use crate::strategy::node_event::BacktestNodeEvent;
 use crate::transaction::virtual_transaction::VirtualTransaction;
-
+use serde::{Deserialize, Serialize};
+use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_type")]
@@ -49,14 +48,11 @@ pub enum FuturesOrderNodeEvent {
     TransactionCreated(TransactionCreatedEvent), // 交易明细已创建
 }
 
-
 impl From<FuturesOrderNodeEvent> for BacktestNodeEvent {
     fn from(event: FuturesOrderNodeEvent) -> Self {
         BacktestNodeEvent::FuturesOrderNode(event)
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuturesOrderCreatedEvent {
@@ -65,7 +61,6 @@ pub struct FuturesOrderCreatedEvent {
 
     #[serde(rename = "fromNodeName")]
     pub from_node_name: String,
-
 
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
@@ -76,7 +71,6 @@ pub struct FuturesOrderCreatedEvent {
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuturesOrderCanceledEvent {
@@ -96,7 +90,6 @@ pub struct FuturesOrderCanceledEvent {
     pub timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuturesOrderFilledEvent {
     #[serde(rename = "fromNodeId")]
@@ -115,11 +108,10 @@ pub struct FuturesOrderFilledEvent {
     pub timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TakeProfitOrderCreatedEvent {
     #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,   
+    pub from_node_id: String,
 
     #[serde(rename = "fromNodeName")]
     pub from_node_name: String,
@@ -134,7 +126,6 @@ pub struct TakeProfitOrderCreatedEvent {
     pub timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopLossOrderCreatedEvent {
     #[serde(rename = "fromNodeId")]
@@ -145,14 +136,13 @@ pub struct StopLossOrderCreatedEvent {
 
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
-    
+
     #[serde(rename = "stopLossOrder")]
     pub stop_loss_order: VirtualOrder,
 
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TakeProfitOrderFilledEvent {
@@ -172,7 +162,6 @@ pub struct TakeProfitOrderFilledEvent {
     pub timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopLossOrderFilledEvent {
     #[serde(rename = "fromNodeId")]
@@ -191,15 +180,13 @@ pub struct StopLossOrderFilledEvent {
     pub timestamp: i64,
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TakeProfitOrderCanceledEvent {
     #[serde(rename = "fromNodeId")]
     pub from_node_id: String,
 
     #[serde(rename = "fromNodeName")]
-    pub from_node_name: String, 
+    pub from_node_name: String,
 
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
@@ -210,7 +197,6 @@ pub struct TakeProfitOrderCanceledEvent {
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopLossOrderCanceledEvent {
@@ -230,8 +216,6 @@ pub struct StopLossOrderCanceledEvent {
     pub timestamp: i64,
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransactionCreatedEvent {
     #[serde(rename = "fromNodeId")]
@@ -239,7 +223,7 @@ pub struct TransactionCreatedEvent {
 
     #[serde(rename = "fromNodeName")]
     pub from_node_name: String,
-    
+
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
 

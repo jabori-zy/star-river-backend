@@ -1,18 +1,16 @@
 use super::BacktestStrategyFunction;
-use crate::strategy_engine::node::BacktestNodeTrait;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use crate::strategy_engine::node::backtest_strategy_node::position_management_node::PositionManagementNode;
-use event_center::EventReceiver;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
-use tokio::sync::mpsc;
+use crate::strategy_engine::node::BacktestNodeTrait;
+use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use event_center::command::backtest_strategy_command::StrategyCommand;
+use event_center::EventReceiver;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use types::error::engine_error::node_error::position_management_node_error::*;
-use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
-
-
+use types::strategy::node_command::NodeCommandSender;
+use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 
 impl BacktestStrategyFunction {
     pub async fn add_position_management_node(
@@ -21,17 +19,32 @@ impl BacktestStrategyFunction {
         node_command_sender: NodeCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), PositionManagementNodeError> {
-        
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
-        
-        let (heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx) = {
+
+        let (
+            heartbeat,
+            virtual_trading_system,
+            virtual_trading_system_event_receiver,
+            database,
+            play_index_watch_rx,
+        ) = {
             let strategy_context_guard = context.read().await;
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
-            let virtual_trading_system_event_receiver = strategy_context_guard.virtual_trading_system.lock().await.get_virtual_trading_system_event_receiver();
+            let virtual_trading_system_event_receiver = strategy_context_guard
+                .virtual_trading_system
+                .lock()
+                .await
+                .get_virtual_trading_system_event_receiver();
             let database = strategy_context_guard.database.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx)
+            (
+                heartbeat,
+                virtual_trading_system,
+                virtual_trading_system_event_receiver,
+                database,
+                play_index_watch_rx,
+            )
         };
 
         let mut node = PositionManagementNode::new(
@@ -51,14 +64,16 @@ impl BacktestStrategyFunction {
 
         let mut strategy_context_guard = context.write().await;
         let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
-        strategy_command_publisher.add_sender(node_id.to_string(), strategy_command_tx).await;
+        strategy_command_publisher
+            .add_sender(node_id.to_string(), strategy_command_tx)
+            .await;
 
         let node = Box::new(node);
 
         let node_index = strategy_context_guard.graph.add_node(node);
-        strategy_context_guard.node_indices.insert(node_id.to_string(), node_index);
+        strategy_context_guard
+            .node_indices
+            .insert(node_id.to_string(), node_index);
         Ok(())
     }
-
-    
 }

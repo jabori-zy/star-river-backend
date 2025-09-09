@@ -1,15 +1,12 @@
 pub mod virtual_position;
 
-
 use crate::market::Exchange;
-use strum::{EnumString, Display};
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
-use chrono::{DateTime, Utc};
+use strum::{Display, EnumString};
 use utoipa::ToSchema;
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionNumberParam {
@@ -17,7 +14,6 @@ pub struct GetPositionNumberParam {
     pub node_id: String,
     pub position_number_request: GetPositionNumberParams,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionParam {
@@ -27,7 +23,6 @@ pub struct GetPositionParam {
     pub position_id: i64,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 // 订单方向
 pub enum PositionSide {
@@ -36,7 +31,6 @@ pub enum PositionSide {
     #[strum(serialize = "short")]
     Short,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum PositionState {
@@ -49,7 +43,6 @@ pub enum PositionState {
     #[strum(serialize = "forced_closed")]
     ForcedClosed, // 强制平仓
 }
-
 
 // 交易所返回的原始仓位信息
 pub trait OriginalPosition: Debug + Send + Sync + Any + 'static {
@@ -69,14 +62,11 @@ pub trait OriginalPosition: Debug + Send + Sync + Any + 'static {
     fn get_update_time(&self) -> DateTime<Utc>;
 }
 
-
 impl Clone for Box<dyn OriginalPosition> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -94,20 +84,11 @@ pub struct Position {
     pub current_price: Option<f64>,
     pub tp: Option<f64>,
     pub sl: Option<f64>,
-    pub unrealized_profit: Option<f64>, // 未实现盈亏
+    pub unrealized_profit: Option<f64>,        // 未实现盈亏
     pub extra_info: Option<serde_json::Value>, // 额外信息
     pub create_time: DateTime<Utc>,
     pub update_time: DateTime<Utc>,
 }
-
-
-
-
-
-
-
-
-
 
 // 订单数
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,12 +98,11 @@ pub struct GetPositionNumberParams {
     pub position_side: Option<PositionSide>,
 }
 
-
 // 仓位数量
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionNumber {
     pub exchange: Exchange,
     pub symbol: String,
     pub position_side: Option<PositionSide>,
-    pub position_number: i32
+    pub position_number: i32,
 }

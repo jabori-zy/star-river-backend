@@ -1,13 +1,12 @@
+use crate::indicator_engine::talib::TALib;
+use crate::indicator_engine::talib_bindings::*;
+use crate::indicator_engine::talib_error::TalibError;
 use crate::talib_fn;
 use crate::talib_snake_fn;
 use types::indicator::indicator_define::momentum::*;
-use crate::indicator_engine::talib::TALib;
 use types::indicator::Indicator;
-use crate::indicator_engine::talib_bindings::*;
-use crate::indicator_engine::talib_error::TalibError;
 
 impl TALib {
-
     //ADX  Average Directional Movement Index #平均方向性指数
     talib_fn!(
         ADX,
@@ -277,5 +276,4 @@ impl TALib {
         talib_params => [(time_period: i32)],
         output => [(willr: f64)],
     );
-
 }

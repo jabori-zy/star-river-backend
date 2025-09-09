@@ -1,4 +1,3 @@
-
 pub type StrategyId = i32;
 pub type AccountId = i32;
 pub type NodeId = String;
@@ -10,7 +9,6 @@ pub type HandleId = String;
 
 pub type InputHandleId = String;
 pub type OutputHandleId = String;
-
 
 pub type PositionId = i32;
 
@@ -29,7 +27,6 @@ pub type Tp = f64; // 止盈价格
 pub type Sl = f64; // 止损价格
 
 pub type Price = f64; // 价格
-
 
 // 保证金相关
 pub type Margin = f64; // 保证金

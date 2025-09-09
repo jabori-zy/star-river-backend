@@ -4,15 +4,10 @@ use std::{convert::Infallible, time::Duration};
 use tokio_stream::StreamExt;
 
 use crate::StarRiver;
-use axum::extract::{State};
-use event_center::Channel;
 use async_stream::stream;
+use axum::extract::State;
+use event_center::Channel;
 use event_center::EventCenterSingleton;
-
-
-
-
-
 
 #[utoipa::path(
     get,
@@ -22,7 +17,7 @@ use event_center::EventCenterSingleton;
     description = "建立 Server-Sent Events (SSE) 连接，实时接收账户相关事件推送，包括账户配置变更、状态更新等信息",
     responses(
         (
-            status = 200, 
+            status = 200,
             description = "SSE连接建立成功，开始推送账户事件数据",
             content_type = "text/event-stream",
             headers(
@@ -40,27 +35,31 @@ use event_center::EventCenterSingleton;
     params(),
     security()
 )]
-pub async fn account_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn account_sse_handler(
+    State(star_river): State<StarRiver>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Account SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;
-    let account_event_receiver = EventCenterSingleton::subscribe(&Channel::Account).await.expect("订阅Account通道失败");
-    
+    let account_event_receiver = EventCenterSingleton::subscribe(&Channel::Account)
+        .await
+        .expect("订阅Account通道失败");
+
     // 使用 Guard 在连接断开时记录日志
     struct Guard {
         channel_name: &'static str,
     }
-    
+
     impl Drop for Guard {
         fn drop(&mut self) {
             tracing::info!("{} SSE连接已断开", self.channel_name);
         }
     }
-    
+
     let stream = stream! {
         let _guard = Guard { channel_name: "Account" };
         let mut stream = tokio_stream::wrappers::BroadcastStream::new(account_event_receiver);
-        
+
         while let Some(result) = stream.next().await {
             let event = result.map(|event| {
                 let json = serde_json::to_string(&event).unwrap();
@@ -69,7 +68,7 @@ pub async fn account_sse_handler(State(star_river): State<StarRiver>) -> Sse<imp
             .unwrap_or_else(|e| {
                 Event::default().data(format!("Error: {}", e))
             });
-            
+
             yield Ok(event);
         }
         // _guard 在这里被丢弃，触发断开连接日志

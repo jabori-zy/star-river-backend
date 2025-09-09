@@ -8,7 +8,12 @@ fn build_ta_lib() {
     // let lib_path = PathBuf::from("./src-tauri/libs/ta-lib/lib");
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("无法获取 CARGO_MANIFEST_DIR");
     let manifest_dir = PathBuf::from(manifest_dir);
-    let lib_path = manifest_dir.join("src").join("indicator_engine").join("libs").join("ta-lib").join("lib");
+    let lib_path = manifest_dir
+        .join("src")
+        .join("indicator_engine")
+        .join("libs")
+        .join("ta-lib")
+        .join("lib");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
 
     // 链接 TA-Lib
@@ -16,7 +21,12 @@ fn build_ta_lib() {
 
     // 设置头文件路径
     // let include_path = PathBuf::from("./src-tauri/libs/ta-lib/include");
-    let include_path = manifest_dir.join("src").join("indicator_engine").join("libs").join("ta-lib").join("include");
+    let include_path = manifest_dir
+        .join("src")
+        .join("indicator_engine")
+        .join("libs")
+        .join("ta-lib")
+        .join("include");
     println!("头文件路径: {}", include_path.display());
 
     // // 设置重新运行的条件
@@ -50,14 +60,8 @@ fn build_ta_lib() {
 
     println!("绑定文件已生成在: {}", binding_path.display());
     println!("=== Build Script Ending ===");
-
-
-
 }
-
-
 
 fn main() {
     build_ta_lib();
-
 }

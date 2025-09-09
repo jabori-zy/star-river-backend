@@ -1,7 +1,5 @@
 use strum::Display;
 
-
-
 #[derive(Display, Debug, Clone)]
 pub(crate) enum Mt5HttpUrl {
     #[strum(serialize = "http://localhost")]
@@ -34,10 +32,8 @@ pub(crate) enum Mt5HttpUrl {
     GetAccountInfo,
 }
 
-
 #[derive(Display, Debug, Clone)]
 pub(crate) enum Mt5WsUrl {
     #[strum(serialize = "ws://localhost")]
     BaseUrl,
 }
-

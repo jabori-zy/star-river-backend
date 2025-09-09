@@ -1,16 +1,12 @@
-use tokio::sync::broadcast;
-use std::fmt::Debug;
-use tokio::sync::broadcast::error::SendError;
-use std::error::Error;
-use serde::{Deserialize, Serialize};
-use types::strategy::node_event::BacktestNodeEvent;
 use sea_orm::prelude::*;
-use strum_macros::Display;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt::Debug;
 use std::str::FromStr;
-
-
-
-
+use strum_macros::Display;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::SendError;
+use types::strategy::node_event::BacktestNodeEvent;
 
 // 节点类型
 #[derive(Debug, Clone, Serialize, Deserialize, Display, PartialEq, Eq, Hash)]
@@ -58,12 +54,10 @@ impl FromStr for NodeType {
             "get_variable_node" => Ok(NodeType::GetVariableNode),
             "order_node" => Ok(NodeType::OrderNode),
             "variable_node" => Ok(NodeType::VariableNode),
-            _ => Err(format!("Unknown node type: {}", s))
+            _ => Err(format!("Unknown node type: {}", s)),
         }
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum DefaultOutputHandleId {
@@ -81,10 +75,7 @@ pub enum DefaultOutputHandleId {
     PositionNodeUpdateOutput,
     #[strum(serialize = "get_variable_node_output")]
     GetVariableNodeOutput,
-
 }
-
-
 
 #[derive(Debug)]
 pub struct NodeInputHandle {
@@ -99,10 +90,15 @@ impl NodeInputHandle {
     pub fn new(
         from_node_id: String,
         from_handle_id: String,
-        input_handle_id: String, 
-        receiver: broadcast::Receiver<BacktestNodeEvent>
+        input_handle_id: String,
+        receiver: broadcast::Receiver<BacktestNodeEvent>,
     ) -> Self {
-        Self { from_node_id, from_handle_id, input_handle_id, receiver }
+        Self {
+            from_node_id,
+            from_handle_id,
+            input_handle_id,
+            receiver,
+        }
     }
 
     pub fn get_receiver(&self) -> broadcast::Receiver<BacktestNodeEvent> {
@@ -110,21 +106,16 @@ impl NodeInputHandle {
     }
 }
 
-
 impl Clone for NodeInputHandle {
     fn clone(&self) -> Self {
-        Self { 
-            from_node_id: self.from_node_id.clone(), 
+        Self {
+            from_node_id: self.from_node_id.clone(),
             from_handle_id: self.from_handle_id.clone(),
             input_handle_id: self.input_handle_id.clone(),
-            receiver: self.receiver.resubscribe()
+            receiver: self.receiver.resubscribe(),
         }
     }
 }
-
-
-
-
 
 #[derive(Clone, Debug)]
 pub struct Edge {
@@ -144,10 +135,18 @@ pub struct NodeOutputHandle {
 impl NodeOutputHandle {
     pub fn send(&self, event: BacktestNodeEvent) -> Result<usize, String> {
         if self.connect_count > 0 {
-            self.node_event_sender.send(event).map_err(|e| format!("节点{}的出口{}发送消息失败: {}", self.node_id, self.output_handle_id, e))
+            self.node_event_sender.send(event).map_err(|e| {
+                format!(
+                    "节点{}的出口{}发送消息失败: {}",
+                    self.node_id, self.output_handle_id, e
+                )
+            })
         } else {
             // 如果connect_count为1(默认的一个是连接到策略的)，则不发送消息
-            Err(format!("output handle have no connection, node_id:{}, output_handle_id:{}", self.node_id, self.output_handle_id))
+            Err(format!(
+                "output handle have no connection, node_id:{}, output_handle_id:{}",
+                self.node_id, self.output_handle_id
+            ))
         }
     }
 
@@ -155,4 +154,3 @@ impl NodeOutputHandle {
         self.node_event_sender.subscribe()
     }
 }
-

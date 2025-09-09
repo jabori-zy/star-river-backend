@@ -1,9 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use serde::{Serialize, Deserialize};
 use strum::EnumString;
 use strum_macros::Display;
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 pub enum ComparisonOperator {
@@ -41,7 +39,7 @@ pub struct Variable {
     pub node_id: Option<String>,
     #[serde(rename = "varType")]
     pub var_type: VarType,
-    #[serde(rename = "varibale")]  // 注意：保持与 JSON 中的拼写一致
+    #[serde(rename = "varibale")] // 注意：保持与 JSON 中的拼写一致
     pub variable: String,
 }
 

@@ -1,8 +1,8 @@
+pub mod backtest_strategy_response;
 pub mod cache_engine_response;
 pub mod exchange_engine_response;
-pub mod market_engine_response;
 pub mod indicator_engine_response;
-pub mod backtest_strategy_response;
+pub mod market_engine_response;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -13,13 +13,11 @@ use indicator_engine_response::IndicatorEngineResponse;
 use market_engine_response::MarketEngineResponse;
 use types::error::error_trait::StarRiverErrorTrait;
 
-
 pub trait ResponseTrait {
     fn success(&self) -> bool;
     fn error(&self) -> Arc<dyn StarRiverErrorTrait>;
     fn response_timestamp(&self) -> i64;
 }
-
 
 #[derive(Debug)]
 pub enum Response {
@@ -28,7 +26,6 @@ pub enum Response {
     MarketEngine(MarketEngineResponse),
     ExchangeEngine(ExchangeEngineResponse),
 }
-
 
 impl Response {
     pub fn success(&self) -> bool {

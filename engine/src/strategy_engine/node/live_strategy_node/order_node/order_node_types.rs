@@ -1,7 +1,7 @@
-use types::order::{OrderType, FuturesOrderSide};
+use serde::{Deserialize, Serialize};
+use types::order::{deserialize_futures_order_side, deserialize_order_type};
+use types::order::{FuturesOrderSide, OrderType};
 use types::strategy::SelectedAccount;
-use serde::{Serialize, Deserialize};
-use types::order::{deserialize_order_type, deserialize_futures_order_side};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderConfig {
@@ -18,7 +18,6 @@ pub struct OrderConfig {
     pub sl: Option<f64>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderNodeLiveConfig {
     #[serde(rename = "selectedLiveAccount")]
@@ -26,7 +25,3 @@ pub struct OrderNodeLiveConfig {
     #[serde(rename = "orderConfig")]
     pub order_config: OrderConfig,
 }
-
-
-
-

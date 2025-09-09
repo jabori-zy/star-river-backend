@@ -1,12 +1,11 @@
-
-use types::market::{Exchange, KlineInterval};
-use types::indicator::IndicatorConfig;
-use types::custom_type::{StrategyId, NodeId};
 use crate::response::{Response, ResponseTrait};
-use types::cache::Key;
-use utils::get_utc8_timestamp;
 use std::sync::Arc;
+use types::cache::Key;
+use types::custom_type::{NodeId, StrategyId};
 use types::error::error_trait::StarRiverErrorTrait;
+use types::indicator::IndicatorConfig;
+use types::market::{Exchange, KlineInterval};
+use utils::get_utc8_timestamp;
 
 #[derive(Debug)]
 pub enum IndicatorEngineResponse {
@@ -24,15 +23,21 @@ impl ResponseTrait for IndicatorEngineResponse {
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            IndicatorEngineResponse::RegisterIndicator(response) => response.error.as_ref().unwrap().clone(),
-            IndicatorEngineResponse::CalculateBacktestIndicator(response) => response.error.as_ref().unwrap().clone(),
+            IndicatorEngineResponse::RegisterIndicator(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
+            IndicatorEngineResponse::CalculateBacktestIndicator(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
         }
     }
 
     fn response_timestamp(&self) -> i64 {
         match self {
             IndicatorEngineResponse::RegisterIndicator(response) => response.response_timestamp,
-            IndicatorEngineResponse::CalculateBacktestIndicator(response) => response.response_timestamp,
+            IndicatorEngineResponse::CalculateBacktestIndicator(response) => {
+                response.response_timestamp
+            }
         }
     }
 }
@@ -43,7 +48,6 @@ impl From<IndicatorEngineResponse> for Response {
     }
 }
 
-
 #[derive(Debug)]
 pub struct CalculateBacktestIndicatorResponse {
     pub success: bool,
@@ -51,7 +55,6 @@ pub struct CalculateBacktestIndicatorResponse {
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
-
 
 impl CalculateBacktestIndicatorResponse {
     pub fn success(backtest_indicator_key: Key) -> Self {
@@ -66,10 +69,11 @@ impl CalculateBacktestIndicatorResponse {
 
 impl From<CalculateBacktestIndicatorResponse> for Response {
     fn from(response: CalculateBacktestIndicatorResponse) -> Self {
-        Response::IndicatorEngine(IndicatorEngineResponse::CalculateBacktestIndicator(response))
+        Response::IndicatorEngine(IndicatorEngineResponse::CalculateBacktestIndicator(
+            response,
+        ))
     }
 }
-
 
 #[derive(Debug)]
 pub struct RegisterIndicatorResponse {
@@ -85,7 +89,14 @@ pub struct RegisterIndicatorResponse {
 }
 
 impl RegisterIndicatorResponse {
-    pub fn success(strategy_id: StrategyId, node_id: NodeId, exchange: Exchange, symbol: String, interval: KlineInterval, indicator: IndicatorConfig) -> Self {
+    pub fn success(
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        exchange: Exchange,
+        symbol: String,
+        interval: KlineInterval,
+        indicator: IndicatorConfig,
+    ) -> Self {
         Self {
             success: true,
             strategy_id,

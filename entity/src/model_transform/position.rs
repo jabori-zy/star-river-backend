@@ -1,9 +1,7 @@
-use types::position::{Position, PositionSide, PositionState};
 use crate::position::Model as PositionModel;
-use types::market::Exchange;
 use std::str::FromStr;
-
-
+use types::market::Exchange;
+use types::position::{Position, PositionSide, PositionState};
 
 impl From<PositionModel> for Position {
     fn from(position: PositionModel) -> Self {
@@ -15,8 +13,10 @@ impl From<PositionModel> for Position {
             account_id: position.account_id,
             exchange_position_id: position.exchange_position_id as i64,
             symbol: position.symbol,
-            position_side: PositionSide::from_str(&position.position_side).expect("Invalid position side"),
-            position_state: PositionState::from_str(&position.position_state).expect("Invalid position state"),
+            position_side: PositionSide::from_str(&position.position_side)
+                .expect("Invalid position side"),
+            position_state: PositionState::from_str(&position.position_state)
+                .expect("Invalid position state"),
             quantity: position.quantity,
             open_price: position.open_price,
             current_price: None,

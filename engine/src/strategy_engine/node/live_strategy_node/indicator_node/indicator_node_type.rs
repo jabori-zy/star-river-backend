@@ -1,7 +1,6 @@
-
+use serde::{Deserialize, Serialize};
 use types::indicator::IndicatorConfig;
 use types::market::{Exchange, KlineInterval};
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndicatorNodeLiveConfig {
@@ -10,8 +9,6 @@ pub struct IndicatorNodeLiveConfig {
     pub interval: KlineInterval,
     pub exchange: Exchange,
 }
-
-
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeSimulateConfig {

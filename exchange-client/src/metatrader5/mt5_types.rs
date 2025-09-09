@@ -1,19 +1,19 @@
-use serde::{Serialize, Deserialize};
-use types::position::GetPositionNumberParams;
+use chrono::TimeZone;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::any::Any;
+use strum::{Display, EnumString};
+use types::market::KlineInterval;
 use types::market::{Exchange, MT5Server};
-use types::position::PositionSide;
-use strum::{EnumString, Display};
+use types::order::CreateOrderParams;
 use types::order::OrderStatus;
 use types::order::OriginalOrder;
-use std::any::Any;
-use types::order::{OrderType, FuturesOrderSide};
-use chrono::{DateTime, Utc};
-use chrono::TimeZone;
-use types::market::KlineInterval;
+use types::order::{FuturesOrderSide, OrderType};
+use types::position::GetPositionNumberParams;
 use types::position::OriginalPosition;
+use types::position::PositionSide;
 use types::transaction::OriginalTransaction;
-use types::transaction::{TransactionType, TransactionSide};
-use types::order::CreateOrderParams;
+use types::transaction::{TransactionSide, TransactionType};
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum Mt5KlineInterval {
@@ -86,7 +86,6 @@ impl From<KlineInterval> for Mt5KlineInterval {
             KlineInterval::Days1 => Mt5KlineInterval::Days1,
             KlineInterval::Weeks1 => Mt5KlineInterval::Weeks1,
             KlineInterval::Months1 => Mt5KlineInterval::Months1,
-
         }
     }
 }
@@ -151,7 +150,7 @@ impl Mt5KlineInterval {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Mt5CreateOrderParams{
+pub struct Mt5CreateOrderParams {
     pub symbol: String,
     pub order_type: String,
     pub order_side: String,
@@ -175,8 +174,6 @@ impl From<CreateOrderParams> for Mt5CreateOrderParams {
     }
 }
 
-
-
 #[derive(Debug, Serialize)]
 pub struct Mt5GetPositionNumberParams {
     pub exchange: Exchange,
@@ -189,14 +186,10 @@ impl From<GetPositionNumberParams> for Mt5GetPositionNumberParams {
         Mt5GetPositionNumberParams {
             exchange: value.exchange,
             symbol: value.symbol,
-            position_side: value.position_side
+            position_side: value.position_side,
         }
-        
     }
-
 }
-
-
 
 // mt5 订单状态
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
@@ -231,7 +224,6 @@ impl From<Mt5OrderState> for OrderStatus {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
@@ -269,7 +261,7 @@ impl From<Mt5OrderType> for OrderType {
             Mt5OrderType::OrderTypeSellStopLimit => OrderType::TakeProfitMarket,
             Mt5OrderType::OrderTypeCloseBy => {
                 tracing::warn!("遇到不支持的订单类型 OrderTypeCloseBy, 将转换为默认市价单类型");
-                OrderType::Market  // 设置默认转换为市价单
+                OrderType::Market // 设置默认转换为市价单
             }
         }
     }
@@ -290,7 +282,6 @@ impl From<Mt5OrderType> for FuturesOrderSide {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -370,21 +361,21 @@ impl OriginalOrder for Mt5Order {
     }
     fn get_created_time(&self) -> DateTime<Utc> {
         // 把时间戳转换为日期时间
-        let created_time = Utc.timestamp_millis_opt(self.time_setup_msc).single().expect("时间戳转换为日期时间失败");
+        let created_time = Utc
+            .timestamp_millis_opt(self.time_setup_msc)
+            .single()
+            .expect("时间戳转换为日期时间失败");
         created_time
     }
 
     fn get_updated_time(&self) -> DateTime<Utc> {
-        let updated_time = Utc.timestamp_millis_opt(self.time_done_msc).single().expect("时间戳转换为日期时间失败");
+        let updated_time = Utc
+            .timestamp_millis_opt(self.time_done_msc)
+            .single()
+            .expect("时间戳转换为日期时间失败");
         updated_time
     }
-    
-    
-    
-    
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
@@ -465,7 +456,6 @@ impl OriginalPosition for Mt5Position {
         Some(self.profit)
     }
 
-
     fn get_extra_info(&self) -> Option<serde_json::Value> {
         Some(serde_json::json!({
             "magic": self.magic,
@@ -476,17 +466,16 @@ impl OriginalPosition for Mt5Position {
         }))
     }
     fn get_create_time(&self) -> DateTime<Utc> {
-        Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
+        Utc.timestamp_millis_opt(self.time_msc)
+            .single()
+            .expect("时间戳转换为日期时间失败")
     }
     fn get_update_time(&self) -> DateTime<Utc> {
-        Utc.timestamp_millis_opt(self.time_update_msc).single().expect("时间戳转换为日期时间失败")
+        Utc.timestamp_millis_opt(self.time_update_msc)
+            .single()
+            .expect("时间戳转换为日期时间失败")
     }
-    
-    
-    
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "lowercase")]
@@ -497,7 +486,6 @@ pub enum Mt5DealType {
     Sell,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "lowercase")]
 pub enum Mt5DealEntry {
@@ -506,7 +494,6 @@ pub enum Mt5DealEntry {
     #[strum(serialize = "out")]
     Out,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -531,7 +518,6 @@ pub struct Mt5Deal {
     pub comment: String,
     pub external_id: String,
 }
-
 
 impl OriginalTransaction for Mt5Deal {
     fn as_any(&self) -> &dyn Any {
@@ -562,7 +548,9 @@ impl OriginalTransaction for Mt5Deal {
         self.price
     }
     fn get_create_time(&self) -> DateTime<Utc> {
-        Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
+        Utc.timestamp_millis_opt(self.time_msc)
+            .single()
+            .expect("时间戳转换为日期时间失败")
     }
     fn get_symbol(&self) -> String {
         self.symbol.clone()
@@ -579,10 +567,7 @@ impl OriginalTransaction for Mt5Deal {
     fn get_exchange_transaction_id(&self) -> i64 {
         self.deal_id
     }
-    
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Mt5Response<T> {
@@ -592,5 +577,3 @@ pub struct Mt5Response<T> {
     pub code: Option<i64>,
     pub details: Option<String>,
 }
-
-

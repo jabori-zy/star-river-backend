@@ -2,9 +2,9 @@
 // pub mod ma;
 // pub mod macd;
 // pub mod bbands;
-pub mod talib_macros;
 pub mod lookback;
 pub mod talib_fn_define;
+pub mod talib_macros;
 
 use crate::indicator_engine::talib_bindings::*;
 use crate::indicator_engine::talib_error::TalibError;
@@ -15,9 +15,7 @@ use types::indicator::Indicator;
 #[derive(Clone)]
 pub struct TALib;
 
-
 impl TALib {
-
     pub fn init() -> Result<Self, String> {
         unsafe {
             let ret = TA_Initialize();
@@ -28,7 +26,6 @@ impl TALib {
 
         Ok(Self)
     }
-
 
     pub fn shutdown() {
         unsafe {

@@ -1,12 +1,12 @@
-pub mod mt5_error;
 pub mod data_processor_error;
+pub mod mt5_error;
 
-pub use mt5_error::*;
-pub use data_processor_error::*;
-use snafu::{Snafu, Backtrace};
-use std::collections::HashMap;
-use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
+use crate::error::ErrorCode;
+pub use data_processor_error::*;
+pub use mt5_error::*;
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -16,31 +16,31 @@ pub enum ExchangeClientError {
         source: Mt5Error,
         backtrace: Backtrace,
     },
-    
+
     #[snafu(transparent)]
     DataProcessor {
         source: DataProcessorError,
         backtrace: Backtrace,
     },
-    
+
     #[snafu(display("Binance error: {message}"))]
     Binance {
         message: String,
         backtrace: Backtrace,
     },
-    
+
     #[snafu(display("Authentication error: {message}"))]
     Authentication {
         message: String,
         backtrace: Backtrace,
     },
-    
+
     #[snafu(display("Rate limit exceeded: {message}"))]
     RateLimit {
         message: String,
         backtrace: Backtrace,
     },
-    
+
     #[snafu(display("Internal error: {message}"))]
     Internal {
         message: String,
@@ -58,13 +58,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
             _ => "EXCHANGE_CLIENT",
         }
     }
-    
+
     fn error_code(&self) -> ErrorCode {
         match self {
             // For nested errors, delegate to the inner error's code
             ExchangeClientError::MetaTrader5 { source, .. } => source.error_code(),
             ExchangeClientError::DataProcessor { source, .. } => source.error_code(),
-            
+
             // For direct exchange client errors, use EXCHANGE_CLIENT prefix
             _ => {
                 let prefix = "EXCHANGE_CLIENT";
@@ -73,10 +73,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
                     ExchangeClientError::Authentication { .. } => 1002,
                     ExchangeClientError::RateLimit { .. } => 1003,
                     ExchangeClientError::Internal { .. } => 1004,
-                    
+
                     // This should never happen due to outer match, but needed for completeness
-                    ExchangeClientError::MetaTrader5 { .. } |
-                    ExchangeClientError::DataProcessor { .. } => unreachable!(),
+                    ExchangeClientError::MetaTrader5 { .. }
+                    | ExchangeClientError::DataProcessor { .. } => unreachable!(),
                 };
                 format!("{}_{:04}", prefix, code)
             }
@@ -95,43 +95,39 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
             // For nested errors, delegate to the inner error's recoverability
             ExchangeClientError::MetaTrader5 { source, .. } => source.is_recoverable(),
             ExchangeClientError::DataProcessor { source, .. } => source.is_recoverable(),
-            
+
             // Recoverable errors (network, connection, temporary issues, trading operations)
-            _ => matches!(self,
+            _ => matches!(
+                self,
                 // Network-related errors are usually recoverable
                 ExchangeClientError::RateLimit { .. } |
-                
                 // Binance-specific errors may be recoverable
                 ExchangeClientError::Binance { .. }
-            )
+            ),
         }
     }
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    ExchangeClientError::MetaTrader5 { source, .. } => {
-                        format!("MetaTrader5错误: {}", source.get_error_message(language))
-                    },
-                    ExchangeClientError::DataProcessor { source, .. } => {
-                        format!("数据处理器错误: {}", source.get_error_message(language))
-                    },
-                    ExchangeClientError::Binance { message, .. } => {
-                        format!("币安错误: {}", message)
-                    },
-                    ExchangeClientError::Authentication { message, .. } => {
-                        format!("认证错误: {}", message)
-                    },
-                    ExchangeClientError::RateLimit { message, .. } => {
-                        format!("频率限制超过: {}", message)
-                    },
-                    ExchangeClientError::Internal { message, .. } => {
-                        format!("内部错误: {}", message)
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                ExchangeClientError::MetaTrader5 { source, .. } => {
+                    format!("MetaTrader5错误: {}", source.get_error_message(language))
+                }
+                ExchangeClientError::DataProcessor { source, .. } => {
+                    format!("数据处理器错误: {}", source.get_error_message(language))
+                }
+                ExchangeClientError::Binance { message, .. } => {
+                    format!("币安错误: {}", message)
+                }
+                ExchangeClientError::Authentication { message, .. } => {
+                    format!("认证错误: {}", message)
+                }
+                ExchangeClientError::RateLimit { message, .. } => {
+                    format!("频率限制超过: {}", message)
+                }
+                ExchangeClientError::Internal { message, .. } => {
+                    format!("内部错误: {}", message)
                 }
             },
         }
@@ -142,7 +138,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
             // transparent errors - delegate to source
             ExchangeClientError::MetaTrader5 { source, .. } => source.error_code_chain(),
             ExchangeClientError::DataProcessor { source, .. } => source.error_code_chain(),
-            
+
             // non-transparent errors - return own error code
             _ => vec![self.error_code()],
         }

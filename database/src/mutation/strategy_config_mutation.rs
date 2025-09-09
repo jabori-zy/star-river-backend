@@ -1,11 +1,9 @@
-use sea_orm::*;
 use ::entity::{strategy_config, strategy_config::Entity as StrategyConfigEntity};
 use chrono::Utc;
+use sea_orm::*;
 use types::strategy::StrategyConfig;
 
-
 pub struct StrategyConfigMutation;
-
 
 impl StrategyConfigMutation {
     pub async fn create_strategy(
@@ -64,11 +62,7 @@ impl StrategyConfigMutation {
         Ok(strategy_config_model.into())
     }
 
-
-    pub async fn delete_strategy(
-        db: &DbConn,
-        strategy_id: i32,
-    ) -> Result<(), DbErr> {
+    pub async fn delete_strategy(db: &DbConn, strategy_id: i32) -> Result<(), DbErr> {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
@@ -85,9 +79,6 @@ impl StrategyConfigMutation {
         .await?;
 
         Ok(())
-
-
-
     }
 
     // 更新回测图表配置
@@ -110,9 +101,10 @@ impl StrategyConfigMutation {
         }
         .update(db)
         .await?;
-        Ok(strategy_config_model.backtest_chart_config.unwrap_or(JsonValue::Null))
+        Ok(strategy_config_model
+            .backtest_chart_config
+            .unwrap_or(JsonValue::Null))
     }
-
 
     pub async fn update_strategy_status(
         db: &DbConn,
@@ -135,6 +127,4 @@ impl StrategyConfigMutation {
         .await?;
         Ok(strategy_config_model.into())
     }
-        
 }
-

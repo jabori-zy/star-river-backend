@@ -1,12 +1,11 @@
-use crate::talib_fn;
-use types::indicator::indicator_define::volatility::*;
 use crate::indicator_engine::talib::TALib;
-use types::indicator::Indicator;
 use crate::indicator_engine::talib_bindings::*;
 use crate::indicator_engine::talib_error::TalibError;
+use crate::talib_fn;
+use types::indicator::indicator_define::volatility::*;
+use types::indicator::Indicator;
 
 impl TALib {
-
     // ATR                  Average True Range #平均真实波幅 #平均真实波幅
     talib_fn!(
         ATR,

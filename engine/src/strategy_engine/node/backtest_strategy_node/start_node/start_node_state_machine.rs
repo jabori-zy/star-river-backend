@@ -1,30 +1,30 @@
 use crate::strategy_engine::node::node_state_machine::*;
 use std::any::Any;
-use types::error::engine_error::strategy_engine_error::node_error::*;
 use strum::Display;
+use types::error::engine_error::strategy_engine_error::node_error::*;
 
 // 状态转换后需要执行的动作
 #[derive(Debug, Clone, Display)]
 pub enum StartNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
-    ListenAndHandleExternalEvents,   // 处理外部事件
+    ListenAndHandleExternalEvents, // 处理外部事件
     #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents,      // 处理内部事件
+    ListenAndHandleInnerEvents, // 处理内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
-    ListenAndHandleStrategyCommand,  // 处理策略命令
-    ListenAndHandlePlayIndex,        // 处理播放索引
+    ListenAndHandleStrategyCommand, // 处理策略命令
+    ListenAndHandlePlayIndex, // 处理播放索引
     #[strum(serialize = "InitVirtualTradingSystem")]
-    InitVirtualTradingSystem,        // 初始化虚拟交易系统
+    InitVirtualTradingSystem, // 初始化虚拟交易系统
     #[strum(serialize = "InitStrategyStats")]
-    InitStrategyStats,               // 初始化策略统计
+    InitStrategyStats, // 初始化策略统计
     #[strum(serialize = "LogNodeState")]
-    LogNodeState,    // 记录节点状态
+    LogNodeState, // 记录节点状态
     #[strum(serialize = "LogTransition")]
-    LogTransition,          // 记录状态转换
+    LogTransition, // 记录状态转换
     #[strum(serialize = "LogError")]
-    LogError(String),       // 记录错误
+    LogError(String), // 记录错误
     #[strum(serialize = "CancelAsyncTask")]
-    CancelAsyncTask,        // 取消异步任务
+    CancelAsyncTask, // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for StartNodeStateAction {
@@ -50,12 +50,12 @@ impl BacktestStateChangeActions for StartNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+        self.actions
+            .iter()
+            .map(|action| action.clone_box())
+            .collect()
     }
-
-
 }
-
 
 // 状态管理器
 #[derive(Debug, Clone)]
@@ -73,12 +73,9 @@ impl StartNodeStateMachine {
             node_name,
         }
     }
-
 }
 
-
 impl BacktestNodeStateMachine for StartNodeStateMachine {
-    
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -91,7 +88,10 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
+    fn transition(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -101,22 +101,28 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                 Ok(Box::new(StartNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
-                        Box::new(StartNodeStateAction::LogTransition), 
+                        Box::new(StartNodeStateAction::LogTransition),
                         Box::new(StartNodeStateAction::ListenAndHandleInnerEvents), // 处理内部事件
                         Box::new(StartNodeStateAction::ListenAndHandleStrategyCommand), // 处理策略命令
                         Box::new(StartNodeStateAction::ListenAndHandlePlayIndex), // 处理播放索引
                         Box::new(StartNodeStateAction::InitVirtualTradingSystem), // 初始化虚拟交易系统
-                        Box::new(StartNodeStateAction::InitStrategyStats), // 初始化策略统计
-                        ],
+                        Box::new(StartNodeStateAction::InitStrategyStats),        // 初始化策略统计
+                    ],
                 }))
             }
             // 初始化完成，进入Ready状态
-            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
+            (
+                BacktestNodeRunState::Initializing,
+                BacktestNodeStateTransitionEvent::InitializeComplete,
+            ) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(StartNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Ready,
-                    actions: vec![Box::new(StartNodeStateAction::LogTransition), Box::new(StartNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(StartNodeStateAction::LogTransition),
+                        Box::new(StartNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从Ready状态开始停止
@@ -128,7 +134,7 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                     actions: vec![
                         Box::new(StartNodeStateAction::LogTransition),
                         Box::new(StartNodeStateAction::CancelAsyncTask),
-                        ],
+                    ],
                 }))
             }
             // 停止完成，进入Stopped状态
@@ -137,7 +143,10 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Stopped;
                 Ok(Box::new(StartNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopped,
-                    actions: vec![Box::new(StartNodeStateAction::LogTransition), Box::new(StartNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(StartNodeStateAction::LogTransition),
+                        Box::new(StartNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从任何状态都可以失败
@@ -146,7 +155,10 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(StartNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Failed,
-                    actions: vec![Box::new(StartNodeStateAction::LogTransition), Box::new(StartNodeStateAction::LogError(error))],
+                    actions: vec![
+                        Box::new(StartNodeStateAction::LogTransition),
+                        Box::new(StartNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换
@@ -157,11 +169,9 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                     from_state: state.to_string(),
                     to_state: event.to_string(),
                     event: event.to_string(),
-                }.fail()?
+                }
+                .fail()?
             }
-
         }
     }
-
-
 }

@@ -1,10 +1,8 @@
-
 // 通用日志消息 - 多个节点共同使用的日志消息
 pub mod common_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
-    
+    use serde::{Deserialize, Serialize};
 
     // 所有节点都有的通用状态日志
     log_message!(
@@ -62,7 +60,7 @@ pub mod common_log_message {
         zh: "{node_name} ({node_id}) 开始监听外部事件"
     );
 
-    // 监听虚拟交易系统事件 - 部分节点有 
+    // 监听虚拟交易系统事件 - 部分节点有
     log_message!(
         ListenVirtualTradingSystemEventMsg,
         params: (
@@ -165,12 +163,11 @@ pub mod common_log_message {
     );
 }
 
-
 // StartNode 独特的日志消息
 pub mod start_node_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
 
     log_message!(
         ListenPlayIndexChangeMsg,
@@ -290,12 +287,11 @@ pub mod start_node_log_message {
     );
 }
 
-
 // IndicatorNode 独特的日志消息
 pub mod indicator_node_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
 
     log_message!(
         RegisterIndicatorCacheKeyMsg,
@@ -421,16 +417,14 @@ pub mod indicator_node_log_message {
         en: "Indicator Node [{node_name}({node_id})] indicator event sending failed - Type: {indicator_type}, Output: {output_handle_id}, Error: {error}",
         zh: "{node_name} ({node_id}) 指标事件发送失败 - 类型: {indicator_type}, 输出: {output_handle_id}, 错误: {error}"
     );
-
 }
-
 
 // KlineNode 独特的日志消息
 pub mod kline_node_log_message {
-    use serde::{Serialize, Deserialize};
-    use types::market::Exchange;
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
+    use types::market::Exchange;
 
     log_message!(
         StartRegisterExchangeMsg,
@@ -546,12 +540,11 @@ pub mod kline_node_log_message {
     );
 }
 
-
 // IfElseNode 独特的日志消息
 pub mod if_else_node_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
 
     log_message!(
         ListenStrategySignalMsg,
@@ -595,113 +588,21 @@ pub mod if_else_node_log_message {
     );
 
     log_message!(
-        AllValuesReceivedMsg,
-        params: (
-            node_id: String,
-            node_name: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] all values received, starting evaluation",
-        zh: "{node_name} ({node_id}) 所有值已接收，开始评估"
-    );
-
-    log_message!(
-        ConditionEvaluationStartMsg,
-        params: (
-            node_id: String,
-            node_name: String,
-            case_count: usize
-        ),
-        en: "IfElse Node [{node_name}({node_id})] evaluating {case_count} conditions",
-        zh: "{node_name} ({node_id}) 开始评估 {case_count} 个条件"
-    );
-
-    log_message!(
-        ConditionEvaluationResultMsg,
-        params: (
-            node_id: String,
-            node_name: String,
-            case_index: usize,
-            condition_result: bool,
-            comparison: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] condition {case_index} evaluation result: {condition_result} - {comparison}",
-        zh: "{node_name} ({node_id}) 条件 {case_index} 评估结果: {condition_result} - {comparison}"
-    );
-
-    log_message!(
         ConditionMatchedMsg,
         params: (
-            node_id: String,
             node_name: String,
-            case_index: usize,
-            output_handle_id: String
+            case_index: i32,
         ),
-        en: "IfElse Node [{node_name}({node_id})] condition {case_index} matched, sending to output: {output_handle_id}",
-        zh: "{node_name} ({node_id}) 条件 {case_index} 匹配，发送到输出: {output_handle_id}"
-    );
-
-    log_message!(
-        NoConditionMatchedMsg,
-        params: (
-            node_id: String,
-            node_name: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] no conditions matched, using else branch",
-        zh: "{node_name} ({node_id}) 没有条件匹配，使用else分支"
-    );
-
-    log_message!(
-        ReceivedValueMsg,
-        params: (
-            node_id: String,
-            node_name: String,
-            from_node_id: String,
-            value: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] received value from node: {from_node_id}, Value: {value}",
-        zh: "{node_name} ({node_id}) 从节点接收到值: {from_node_id}, 值: {value}"
-    );
-
-    log_message!(
-        VariableComparisonMsg,
-        params: (
-            node_id: String,
-            node_name: String,
-            left_value: String,
-            operator: String,
-            right_value: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] comparing: {left_value} {operator} {right_value}",
-        zh: "{node_name} ({node_id}) 比较: {left_value} {operator} {right_value}"
-    );
-
-    log_message!(
-        ConditionProcessTerminatedMsg,
-        params: (
-            node_id: String,
-            node_name: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] condition evaluation process terminated",
-        zh: "{node_name} ({node_id}) 条件评估进程已终止"
-    );
-
-    log_message!(
-        ResetReceivedFlagMsg,
-        params: (
-            node_id: String,
-            node_name: String
-        ),
-        en: "IfElse Node [{node_name}({node_id})] resetting received flags",
-        zh: "{node_name} ({node_id}) 重置接收标记"
+        en: "[{node_name}] Case [{case_index}] matched",
+        zh: "[{node_name}] 分支 [{case_index}] 已匹配"
     );
 }
 
-
 // PositionManagementNode 特有的日志消息
 pub mod position_management_node_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
 
     log_message!(
         ExecutePositionOperationMsg,
@@ -838,12 +739,11 @@ pub mod position_management_node_log_message {
     );
 }
 
-
 // VariableNode 特有的日志消息
 pub mod variable_node_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
 
     log_message!(
         GetVariableMsg,
@@ -1000,12 +900,11 @@ pub mod variable_node_log_message {
     );
 }
 
-
 // FuturesOrderNode 特有的日志消息
 pub mod futures_order_node_log_message {
-    use serde::{Serialize, Deserialize};
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
+    use serde::{Deserialize, Serialize};
 
     log_message!(
         MonitorUnfilledOrderMsg,
@@ -1191,12 +1090,7 @@ pub mod futures_order_node_log_message {
     );
 }
 
-
 // OrderNode 特有的日志消息 (保留以便未来扩展)
 pub mod order_node_log_message {
     // 暂时空置，等待OrderNode实现
 }
-
-
-
-

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::condition::Case;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IfElseNodeLiveConfig {
@@ -15,8 +15,3 @@ pub struct IfElseNodeBacktestConfig {
 pub struct IfElseNodeSimulateConfig {
     pub cases: Vec<Case>,
 }
-
-
-
-
-

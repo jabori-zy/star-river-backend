@@ -1,7 +1,5 @@
 use std::fmt;
 
-
-
 /// 语言枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
@@ -24,7 +22,7 @@ pub trait LogParams: Clone + fmt::Debug {
 /// 日志消息trait - 统一的日志消息接口
 pub trait LogMessage: fmt::Debug + Clone + Send + Sync {
     type Params: LogParams;
-    
+
     /// 获取消息模板
     fn template(&self) -> &'static LogTemplate;
     /// 获取消息参数
@@ -53,7 +51,7 @@ impl LogTemplate {
     pub const fn new(en: &'static str, zh: &'static str) -> Self {
         Self { en, zh }
     }
-    
+
     /// 根据语言选择模板
     pub fn get_template(&self, lang: Language) -> &'static str {
         match lang {
@@ -61,7 +59,7 @@ impl LogTemplate {
             Language::Chinese => self.zh,
         }
     }
-    
+
     /// 使用参数格式化模板
     pub fn format<P: LogParams>(&self, lang: Language, params: &P) -> String {
         let template = self.get_template(lang);
@@ -79,15 +77,15 @@ impl<M: LogMessage> LazyLogMessage<M> {
     pub fn new(message: M, lang: Language) -> Self {
         Self { message, lang }
     }
-    
+
     pub fn english(message: M) -> Self {
         Self::new(message, Language::English)
     }
-    
+
     pub fn chinese(message: M) -> Self {
         Self::new(message, Language::Chinese)
     }
-    
+
     /// 强制格式化消息
     pub fn format(&self) -> String {
         self.message.format_with_lang(self.lang)
@@ -120,32 +118,36 @@ impl FastFormatter {
             buffer: String::with_capacity(256),
         }
     }
-    
+
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: String::with_capacity(capacity),
         }
     }
-    
+
     /// 使用预分配缓冲区格式化模板
-    pub fn format_template(&mut self, template: &str, replacements: &[(&str, &dyn fmt::Display)]) -> String {
+    pub fn format_template(
+        &mut self,
+        template: &str,
+        replacements: &[(&str, &dyn fmt::Display)],
+    ) -> String {
         self.buffer.clear();
-        
+
         let mut chars = template.chars().peekable();
-        
+
         while let Some(ch) = chars.next() {
             if ch == '{' {
                 if chars.peek() == Some(&'{') {
-                    // 转义的 {{ 
+                    // 转义的 {{
                     chars.next(); // 消费第二个 {
                     self.buffer.push('{');
                     continue;
                 }
-                
+
                 // 寻找闭合括号 - 使用字符串池优化
                 let mut key = get_pooled_string();
                 let mut found_closing = false;
-                
+
                 while let Some(ch) = chars.next() {
                     if ch == '}' {
                         found_closing = true;
@@ -153,7 +155,7 @@ impl FastFormatter {
                     }
                     key.push(ch);
                 }
-                
+
                 if found_closing {
                     // 查找并替换参数
                     if let Some((_, value)) = replacements.iter().find(|(k, _)| *k == key) {
@@ -170,7 +172,7 @@ impl FastFormatter {
                     self.buffer.push('{');
                     self.buffer.push_str(&key);
                 }
-                
+
                 // 将key字符串返回给池以重用
                 return_pooled_string(key);
             } else if ch == '}' && chars.peek() == Some(&'}') {
@@ -181,7 +183,7 @@ impl FastFormatter {
                 self.buffer.push(ch);
             }
         }
-        
+
         self.buffer.clone()
     }
 }
@@ -205,7 +207,7 @@ impl StringPool {
             max_capacity,
         }
     }
-    
+
     pub fn get(&self) -> String {
         self.pool
             .lock()
@@ -213,12 +215,13 @@ impl StringPool {
             .pop()
             .unwrap_or_else(|| String::with_capacity(256))
     }
-    
+
     pub fn return_string(&self, mut s: String) {
         if s.capacity() <= self.max_capacity {
             s.clear();
             if let Ok(mut pool) = self.pool.lock() {
-                if pool.len() < 32 { // 限制池大小
+                if pool.len() < 32 {
+                    // 限制池大小
                     pool.push(s);
                 }
             }
@@ -227,7 +230,7 @@ impl StringPool {
 }
 
 /// 全局字符串池实例
-static STRING_POOL: once_cell::sync::Lazy<StringPool> = 
+static STRING_POOL: once_cell::sync::Lazy<StringPool> =
     once_cell::sync::Lazy::new(|| StringPool::new(1024));
 
 /// 便捷函数：从池中获取字符串
@@ -253,7 +256,7 @@ macro_rules! log_message {
         pub struct $name {
             $(pub $param: $param_type,)*
         }
-        
+
         impl LogParams for $name {
             fn apply_to_template(&self, template: &str) -> String {
                 let mut formatter = FastFormatter::new();
@@ -263,45 +266,45 @@ macro_rules! log_message {
                 formatter.format_template(template, replacements)
             }
         }
-        
+
         paste::paste! {
             pub const [<$name:upper _TEMPLATE>]: LogTemplate = LogTemplate::new($en_template, $zh_template);
         }
-        
+
         impl LogMessage for $name {
             type Params = Self;
-            
+
             fn template(&self) -> &'static LogTemplate {
                 paste::paste! { &[<$name:upper _TEMPLATE>] }
             }
-            
+
             fn params(&self) -> &Self::Params {
                 self
             }
-            
+
             fn format_with_lang(&self, lang: Language) -> String {
                 paste::paste! {
                     [<$name:upper _TEMPLATE>].format(lang, self)
                 }
             }
         }
-        
+
         impl $name {
             pub fn new($($param: $param_type),*) -> Self {
                 Self { $($param),* }
             }
-            
+
             /// 创建惰性英文消息
             pub fn lazy_en(self) -> LazyLogMessage<Self> {
                 LazyLogMessage::english(self)
             }
-            
+
             /// 创建惰性中文消息
             pub fn lazy_zh(self) -> LazyLogMessage<Self> {
                 LazyLogMessage::chinese(self)
             }
         }
-        
+
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.to_english())

@@ -1,27 +1,20 @@
-use serde::{Serialize, Deserialize};
+use crate::{Event, StrategyEvent};
+use serde::{Deserialize, Serialize};
 use strum::Display;
-use types::strategy::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;
-use types::strategy::node_event::IndicatorUpdateEvent;
-use crate::{StrategyEvent, Event};
 use types::strategy::node_event::backtest_node_event::futures_order_node_event::{
-    FuturesOrderCreatedEvent, 
-    FuturesOrderCanceledEvent, 
-    FuturesOrderFilledEvent, 
-    TakeProfitOrderCreatedEvent, 
-    TakeProfitOrderFilledEvent, 
-    TakeProfitOrderCanceledEvent, 
-    StopLossOrderCreatedEvent, 
-    StopLossOrderFilledEvent, 
-    StopLossOrderCanceledEvent,
-    TransactionCreatedEvent
+    FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent,
+    StopLossOrderCanceledEvent, StopLossOrderCreatedEvent, StopLossOrderFilledEvent,
+    TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent, TakeProfitOrderFilledEvent,
+    TransactionCreatedEvent,
 };
-use types::strategy::node_event::backtest_node_event::position_management_node_event::{PositionCreatedEvent, PositionUpdatedEvent, PositionClosedEvent};
+use types::strategy::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;
+use types::strategy::node_event::backtest_node_event::position_management_node_event::{
+    PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent,
+};
+use types::strategy::node_event::{
+    IndicatorUpdateEvent, LogLevel, NodeStateLogEvent, StrategyRunningLogEvent,
+};
 use types::strategy_stats::event::StrategyStatsUpdatedEvent;
-use types::strategy::node_event::NodeStateLogEvent;
-use types::strategy::node_event::LogLevel;
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
@@ -82,7 +75,6 @@ pub enum BacktestStrategyEvent {
     #[serde(rename = "position-closed")]
     PositionClosed(PositionClosedEvent), // 仓位关闭事件
 
-
     #[strum(serialize = "strategy-stats-updated")]
     #[serde(rename = "strategy-stats-updated")]
     StrategyStatsUpdated(StrategyStatsUpdatedEvent), // 策略统计更新事件
@@ -91,13 +83,17 @@ pub enum BacktestStrategyEvent {
     #[serde(rename = "transaction-created")]
     TransactionCreated(TransactionCreatedEvent), // 交易明细创建事件
 
-    #[strum(serialize = "node-state-log")]
-    #[serde(rename = "node-state-log")]
+    #[strum(serialize = "node-state-log-update")]
+    #[serde(rename = "node-state-log-update")]
     NodeStateLog(NodeStateLogEvent), // 节点状态日志事件
 
-    #[strum(serialize = "strategy-state-log")]
-    #[serde(rename = "strategy-state-log")]
+    #[strum(serialize = "strategy-state-log-update")]
+    #[serde(rename = "strategy-state-log-update")]
     StrategyStateLog(StrategyStateLogEvent), // 策略状态日志事件
+
+    #[strum(serialize = "strategy-running-log-update")]
+    #[serde(rename = "strategy-running-log-update")]
+    RunningLog(StrategyRunningLogEvent), // 运行日志事件
 }
 
 impl From<BacktestStrategyEvent> for Event {
@@ -105,11 +101,6 @@ impl From<BacktestStrategyEvent> for Event {
         StrategyEvent::BacktestStrategy(event).into()
     }
 }
-
-
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategyStateLogEvent {
@@ -136,10 +127,8 @@ pub struct StrategyStateLogEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code_chain: Option<Vec<String>>,
 
-
     #[serde(rename = "message")]
     pub message: String,
-
 
     #[serde(rename = "timestamp")]
     pub timestamp: i64,

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use thiserror::Error;
+use utoipa::ToSchema;
 
 use super::Exchange;
 
@@ -16,10 +16,10 @@ pub struct Symbol {
 pub enum SymbolError {
     #[error("Invalid symbol format")]
     InvalidFormat,
-    
+
     #[error("Unknown symbol pair: {0}")]
     UnknownPair(String),
-    
+
     #[error("Parse error: {0}")]
     ParseError(String),
 }
@@ -28,7 +28,7 @@ impl SymbolError {
     pub fn unknown_pair<S: Into<String>>(pair: S) -> Self {
         Self::UnknownPair(pair.into())
     }
-    
+
     pub fn parse_error<S: Into<String>>(message: S) -> Self {
         Self::ParseError(message.into())
     }

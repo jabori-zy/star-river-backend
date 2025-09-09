@@ -1,12 +1,11 @@
-use heartbeat::Heartbeat;
-use database::DatabaseManager;
-use tokio::sync::Mutex;
-use std::sync::Arc;
 use axum::extract::State;
+use database::DatabaseManager;
 use engine::engine_manager::EngineManager;
-use tracing::instrument;
 use event_center::EventCenterSingleton;
-
+use heartbeat::Heartbeat;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::instrument;
 
 #[derive(Clone, Debug)]
 pub struct StarRiver {
@@ -18,10 +17,9 @@ pub struct StarRiver {
 
 impl StarRiver {
     pub async fn new() -> Self {
-
         // 系统心跳间隔为100毫秒
-        let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100))); 
-        
+        let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100)));
+
         // let mut event_center = EventCenter::new().init_channel().await;
         EventCenterSingleton::init().await.unwrap();
         // 初始化数据库
@@ -32,8 +30,9 @@ impl StarRiver {
         let engine_manager = EngineManager::new(
             // &mut event_center,
             database.get_conn(),
-            heartbeat.clone()
-        ).await;
+            heartbeat.clone(),
+        )
+        .await;
 
         Self {
             heartbeat: heartbeat.clone(),
@@ -51,7 +50,6 @@ pub async fn init_app(State(app_state): State<StarRiver>) {
     start_engine_manager(State(app_state.clone())).await;
 }
 
-
 async fn start_heartbeat(star_river: State<StarRiver>) {
     let heartbeat = star_river.heartbeat.clone();
     tokio::spawn(async move {
@@ -60,7 +58,6 @@ async fn start_heartbeat(star_river: State<StarRiver>) {
         tracing::info!("心跳已启动");
     });
 }
-
 
 async fn start_engine_manager(star_river: State<StarRiver>) {
     let engine_manager = star_river.engine_manager.clone();

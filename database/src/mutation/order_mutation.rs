@@ -1,12 +1,9 @@
-
-use types::{market::Exchange, order::OriginalOrder};
-use sea_orm::*;
 use ::entity::{order, order::Entity as Order};
+use sea_orm::*;
 use types::order::Order as TypeOrder;
-
+use types::{market::Exchange, order::OriginalOrder};
 
 pub struct OrderMutation;
-
 
 impl OrderMutation {
     pub async fn insert_order(
@@ -14,7 +11,7 @@ impl OrderMutation {
         strategy_id: i64,
         node_id: String,
         account_id: i32,
-        original_order: Box<dyn OriginalOrder>
+        original_order: Box<dyn OriginalOrder>,
     ) -> Result<TypeOrder, DbErr> {
         match original_order.get_exchange() {
             Exchange::Metatrader5(_) => {
@@ -36,23 +33,19 @@ impl OrderMutation {
                     extra_info: Set(original_order.get_extra_info()),
                     created_time: Set(original_order.get_created_time()),
                     updated_time: Set(original_order.get_updated_time()),
-                }.insert(db).await.unwrap();
+                }
+                .insert(db)
+                .await
+                .unwrap();
                 Ok(order_model.into())
             }
-            _ => {
-                Err(DbErr::Custom("Unsupported exchange.".to_owned()))
-            }
-
+            _ => Err(DbErr::Custom("Unsupported exchange.".to_owned())),
         }
 
-         // 将数据库模型转换系统模型
-
+        // 将数据库模型转换系统模型
     }
 
-    pub async fn update_order(
-        db: &DbConn,
-        latest_order: TypeOrder,
-    ) -> Result<TypeOrder, DbErr> {
+    pub async fn update_order(db: &DbConn, latest_order: TypeOrder) -> Result<TypeOrder, DbErr> {
         let order: order::ActiveModel = Order::find_by_id(latest_order.order_id as i32)
             .one(db)
             .await?
@@ -78,9 +71,9 @@ impl OrderMutation {
             ..Default::default()
         }
         .update(db)
-        .await.unwrap();
+        .await
+        .unwrap();
 
         Ok(order_model.into())
-
     }
 }

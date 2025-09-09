@@ -1,8 +1,7 @@
+use crate::position::virtual_position::VirtualPosition;
+use crate::strategy::node_event::BacktestNodeEvent;
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use crate::strategy::node_event::BacktestNodeEvent;
-use crate::position::virtual_position::VirtualPosition;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_type")]
@@ -20,14 +19,11 @@ pub enum PositionManagementNodeEvent {
     PositionClosed(PositionClosedEvent),
 }
 
-
 impl From<PositionManagementNodeEvent> for BacktestNodeEvent {
     fn from(event: PositionManagementNodeEvent) -> Self {
         BacktestNodeEvent::PositionManagementNode(event)
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionCreatedEvent {
@@ -36,7 +32,6 @@ pub struct PositionCreatedEvent {
 
     #[serde(rename = "fromNodeName")]
     pub from_node_name: String,
-
 
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,
@@ -47,7 +42,6 @@ pub struct PositionCreatedEvent {
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionUpdatedEvent {
@@ -66,7 +60,6 @@ pub struct PositionUpdatedEvent {
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionClosedEvent {

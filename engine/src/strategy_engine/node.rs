@@ -1,23 +1,23 @@
-pub mod live_strategy_node;
 pub mod backtest_strategy_node;
+pub mod live_strategy_node;
 
-pub mod node_types;
 pub mod node_context;
 pub mod node_functions;
 pub mod node_state_machine;
+pub mod node_types;
 
-use std::fmt::Debug;
-use std::any::Any;
-use async_trait::async_trait;
-use types::strategy::node_event::BacktestNodeEvent;
-use tokio::sync::broadcast;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use super::node::node_functions::{LiveNodeFunction, BacktestNodeFunction};
-use super::node::node_context::{LiveNodeContextTrait, BacktestNodeContextTrait};
+use super::node::node_context::{BacktestNodeContextTrait, LiveNodeContextTrait};
+use super::node::node_functions::{BacktestNodeFunction, LiveNodeFunction};
 use super::node::node_state_machine::*;
+use async_trait::async_trait;
 use node_types::*;
+use std::any::Any;
+use std::fmt::Debug;
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tokio::sync::RwLock;
 use types::error::engine_error::strategy_engine_error::node_error::BacktestStrategyNodeError;
+use types::strategy::node_event::BacktestNodeEvent;
 
 #[async_trait]
 pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
@@ -37,7 +37,6 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_from_node_id().clone()
     }
 
-    
     // 获取节点id
     async fn get_node_id(&self) -> String {
         let context = self.get_context();
@@ -66,7 +65,11 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     async fn get_all_output_handles(&self) -> Vec<NodeOutputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_all_output_handle().values().cloned().collect()
+        context_guard
+            .get_all_output_handle()
+            .values()
+            .cloned()
+            .collect()
     }
 
     async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
@@ -88,8 +91,6 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         let context_guard = context.read().await;
         context_guard.get_node_type().clone()
     }
-
-
 
     // 设置节点的出口
     async fn set_output_handle(&mut self) {
@@ -114,17 +115,26 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
             _ => return,
         };
 
-        self.add_output_handle(default_output_handle_id.to_string(), tx).await;
-        tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
+        self.add_output_handle(default_output_handle_id.to_string(), tx)
+            .await;
+        tracing::debug!(
+            "{}: 设置节点默认出口成功: {}",
+            node_name,
+            default_output_handle_id.to_string()
+        );
     }
 
     async fn add_message_receiver(&mut self, receiver: NodeInputHandle) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
         context_guard.get_message_receivers_mut().push(receiver);
-    } 
+    }
     // 添加出口
-    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<BacktestNodeEvent>) {
+    async fn add_output_handle(
+        &mut self,
+        handle_id: String,
+        sender: broadcast::Sender<BacktestNodeEvent>,
+    ) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
             output_handle_id: handle_id.clone(),
@@ -134,13 +144,19 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
 
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_all_output_handle_mut().insert(handle_id, node_output_handle);
+        context_guard
+            .get_all_output_handle_mut()
+            .insert(handle_id, node_output_handle);
     }
     // 增加handle的连接计数
     async fn add_output_handle_connect_count(&mut self, handle_id: String) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_all_output_handle_mut().get_mut(&handle_id).unwrap().connect_count += 1;
+        context_guard
+            .get_all_output_handle_mut()
+            .get_mut(&handle_id)
+            .unwrap()
+            .connect_count += 1;
     }
     // 添加from_node_id
     async fn add_from_node_id(&mut self, from_node_id: String) {
@@ -150,7 +166,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 初始化节点
-    async fn init(&mut self) -> Result<(), String>; 
+    async fn init(&mut self) -> Result<(), String>;
     // 启动节点
     async fn start(&mut self) -> Result<(), String>;
     // 停止节点
@@ -161,14 +177,14 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         let mut context_guard = context.write().await;
         context_guard.set_enable_event_publish(true);
         Ok(())
-    } 
+    }
     // 禁用节点事件推送
     async fn disable_node_event_push(&mut self) -> Result<(), String> {
         let context = self.get_context();
         let mut context_guard = context.write().await;
         context_guard.set_enable_event_publish(false);
         Ok(())
-    } 
+    }
     // 监听外部事件
     async fn listen_external_events(&self) -> Result<(), String> {
         let context = self.get_context();
@@ -189,7 +205,10 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 更新节点状态
-    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String>;
+    async fn update_node_state(
+        &mut self,
+        event: LiveNodeStateTransitionEvent,
+    ) -> Result<(), String>;
 }
 
 impl Clone for Box<dyn LiveNodeTrait> {
@@ -197,11 +216,6 @@ impl Clone for Box<dyn LiveNodeTrait> {
         self.clone_box()
     }
 }
-
-
-
-
-
 
 #[async_trait]
 pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
@@ -227,7 +241,6 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_strategy_id().clone()
     }
 
-    
     // 获取节点id
     async fn get_node_id(&self) -> String {
         let context = self.get_context();
@@ -256,10 +269,17 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     async fn get_all_output_handles(&self) -> Vec<NodeOutputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard.get_all_output_handles().values().cloned().collect()
+        context_guard
+            .get_all_output_handles()
+            .values()
+            .cloned()
+            .collect()
     }
 
-    async fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
+    async fn get_node_event_sender(
+        &self,
+        handle_id: String,
+    ) -> broadcast::Sender<BacktestNodeEvent> {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_node_event_sender(handle_id).clone()
@@ -305,8 +325,6 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_strategy_output_handle().clone()
     }
 
-
-
     // 设置节点的出口
     async fn set_output_handle(&mut self) {
         tracing::debug!("{}: 设置节点默认出口", self.get_node_name().await);
@@ -331,17 +349,26 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
             _ => return,
         };
 
-        self.add_output_handle(default_output_handle_id.to_string(), tx).await;
-        tracing::debug!("{}: 设置节点默认出口成功: {}", node_name, default_output_handle_id.to_string());
+        self.add_output_handle(default_output_handle_id.to_string(), tx)
+            .await;
+        tracing::debug!(
+            "{}: 设置节点默认出口成功: {}",
+            node_name,
+            default_output_handle_id.to_string()
+        );
     }
 
     async fn add_message_receiver(&mut self, receiver: NodeInputHandle) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
         context_guard.get_all_input_handles_mut().push(receiver);
-    } 
+    }
     // 添加出口
-    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<BacktestNodeEvent>) {
+    async fn add_output_handle(
+        &mut self,
+        handle_id: String,
+        sender: broadcast::Sender<BacktestNodeEvent>,
+    ) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
             output_handle_id: handle_id.clone(),
@@ -351,13 +378,19 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
 
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_all_output_handle_mut().insert(handle_id, node_output_handle);
+        context_guard
+            .get_all_output_handle_mut()
+            .insert(handle_id, node_output_handle);
     }
     // 增加handle的连接计数
     async fn add_output_handle_connect_count(&mut self, handle_id: &String) {
         let context = self.get_context();
         let mut context_guard = context.write().await;
-        context_guard.get_all_output_handle_mut().get_mut(handle_id).unwrap().connect_count += 1;
+        context_guard
+            .get_all_output_handle_mut()
+            .get_mut(handle_id)
+            .unwrap()
+            .connect_count += 1;
     }
     // 添加from_node_id
     async fn add_from_node_id(&mut self, from_node_id: String) {
@@ -367,12 +400,10 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 初始化节点
-    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError>; 
+    async fn init(&mut self) -> Result<(), BacktestStrategyNodeError>;
 
     // 停止节点
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError>;
-    
-
 
     // 监听外部事件
     async fn listen_external_events(&self) {
@@ -380,13 +411,11 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         BacktestNodeFunction::listen_external_event(context).await;
     }
 
-
     // 监听节点传递过来的message
     async fn listen_node_events(&self) {
         let context = self.get_context();
         BacktestNodeFunction::listen_node_events(context).await;
     }
-
 
     // 监听内部事件
     async fn listen_strategy_inner_events(&self) {
@@ -414,7 +443,10 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 更新节点状态
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError>;
+    async fn update_node_state(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<(), BacktestStrategyNodeError>;
 }
 
 impl Clone for Box<dyn BacktestNodeTrait> {
@@ -422,6 +454,3 @@ impl Clone for Box<dyn BacktestNodeTrait> {
         self.clone_box()
     }
 }
-
-
-

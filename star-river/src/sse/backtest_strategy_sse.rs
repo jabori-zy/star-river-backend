@@ -3,21 +3,17 @@ use futures::stream::Stream;
 use std::{convert::Infallible, time::Duration};
 use tokio_stream::StreamExt;
 
-use event_center::Channel;
 use async_stream::stream;
-use event_center::strategy_event::StrategyEvent;
-use event_center::Event as EventCenterEvent;
 use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use event_center::strategy_event::StrategyEvent;
+use event_center::Channel;
+use event_center::Event as EventCenterEvent;
 use event_center::EventCenterSingleton;
-
-
-
-
 
 #[utoipa::path(
     get,
     path = "/api/v1/sse/strategy/backtest",
-    tag = "Strategy Management",
+    tag = "Backtest Strategy",
     summary = "Backtest Strategy SSE",
     responses(
         (status = 200, description = "Backtest Strategy SSE connection successful")
@@ -26,7 +22,9 @@ use event_center::EventCenterSingleton;
 pub async fn backtest_strategy_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Backtest Strategy SSE connection successful");
     // let event_center = star_river.event_center.lock().await;
-    let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
+    let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy)
+        .await
+        .expect("订阅Strategy通道失败");
     // let strategy_event_receiver = event_center.subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
     // 使用 Guard 在连接断开时记录日志
     struct Guard {

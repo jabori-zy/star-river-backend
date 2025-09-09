@@ -1,5 +1,5 @@
-use types::indicator::IndicatorConfig;
 use serde_json;
+use types::indicator::IndicatorConfig;
 
 fn main() {
     // 你提供的 JSON 数据
@@ -22,13 +22,16 @@ fn main() {
     let parsed: serde_json::Value = serde_json::from_str(json_data).unwrap();
     let indicator_config_json = &parsed["indicatorConfig"];
     let indicator_type = parsed["indicatorType"].as_str().unwrap();
-    
+
     println!("指标类型: {}", indicator_type);
-    println!("指标配置: {}", serde_json::to_string_pretty(indicator_config_json).unwrap());
-    
+    println!(
+        "指标配置: {}",
+        serde_json::to_string_pretty(indicator_config_json).unwrap()
+    );
+
     // 尝试创建 IndicatorConfig
     match IndicatorConfig::new(indicator_type, indicator_config_json) {
         Ok(config) => println!("成功创建配置: {:?}", config),
         Err(e) => println!("失败: {}", e),
     }
-} 
+}

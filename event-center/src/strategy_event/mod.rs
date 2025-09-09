@@ -1,12 +1,11 @@
 pub mod backtest_strategy_event;
 
-
-use types::strategy::node_event::BacktestNodeEvent;
-use serde::{Serialize, Deserialize};
-use strum::Display;
-use std::collections::HashMap;
 use crate::Event;
 use backtest_strategy_event::BacktestStrategyEvent;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use strum::Display;
+use types::strategy::node_event::BacktestNodeEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "eventType")]
@@ -32,7 +31,6 @@ impl From<StrategyEvent> for Event {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategyData {
     pub strategy_id: i32,
@@ -47,10 +45,3 @@ pub struct BacktestStrategyData {
     pub data: Vec<f64>,
     pub timestamp: i64,
 }
-
-
-
-
-
-
-

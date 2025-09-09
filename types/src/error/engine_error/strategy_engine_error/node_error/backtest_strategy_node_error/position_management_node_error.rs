@@ -1,23 +1,26 @@
-use snafu::{Snafu, Backtrace};
-use std::collections::HashMap;
-use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
+use crate::error::ErrorCode;
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum PositionManagementNodeError {
-
-    #[snafu(display("position management node backtest config field value is null: {field_name}"))]
+    #[snafu(display(
+        "position management node backtest config field value is null: {field_name}"
+    ))]
     ConfigFieldValueNull {
         field_name: String,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("position management node backtest config deserialization failed. reason: {source}"))]
+    #[snafu(display(
+        "position management node backtest config deserialization failed. reason: {source}"
+    ))]
     ConfigDeserializationFailed {
         source: serde_json::Error,
         backtrace: Backtrace,
-    }
+    },
 }
 
 // Implement the StarRiverErrorTrait for PositionManagementNodeError
@@ -43,9 +46,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for PositionManagementNodeEr
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(self,
-            PositionManagementNodeError::ConfigFieldValueNull { .. } |
-            PositionManagementNodeError::ConfigDeserializationFailed { .. }
+        matches!(
+            self,
+            PositionManagementNodeError::ConfigFieldValueNull { .. }
+                | PositionManagementNodeError::ConfigDeserializationFailed { .. }
         )
     }
 
@@ -57,17 +61,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for PositionManagementNodeEr
 
     fn get_error_message(&self, language: Language) -> String {
         match language {
-            Language::English => {
-                self.to_string()
-            },
-            Language::Chinese => {
-                match self {
-                    PositionManagementNodeError::ConfigFieldValueNull { field_name, .. } => {
-                        format!("仓位管理节点回测配置字段值为空: {}", field_name)
-                    },
-                    PositionManagementNodeError::ConfigDeserializationFailed { source, .. } => {
-                        format!("仓位管理节点回测配置反序列化失败，原因: {}", source)
-                    },
+            Language::English => self.to_string(),
+            Language::Chinese => match self {
+                PositionManagementNodeError::ConfigFieldValueNull { field_name, .. } => {
+                    format!("仓位管理节点回测配置字段值为空: {}", field_name)
+                }
+                PositionManagementNodeError::ConfigDeserializationFailed { source, .. } => {
+                    format!("仓位管理节点回测配置反序列化失败，原因: {}", source)
                 }
             },
         }

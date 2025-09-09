@@ -1,13 +1,13 @@
 use crate::calculate_fn;
-use types::indicator::indicator_define::volume::*;
-use types::cache::CacheValue;
-use types::indicator::Indicator;
-use std::sync::Arc;
-use crate::indicator_engine::talib::TALib;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
+use crate::indicator_engine::talib::TALib;
+use std::sync::Arc;
+use types::cache::CacheValue;
+use types::indicator::indicator_define::volume::*;
+use types::indicator::Indicator;
 
 impl CalculateIndicatorFunction {
-    // AD - Chaikin A/D Line #钱德动量线 
+    // AD - Chaikin A/D Line #钱德动量线
     calculate_fn!(AD,
         input => [high,low,close,volume]
     );

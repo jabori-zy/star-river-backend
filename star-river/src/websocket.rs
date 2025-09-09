@@ -1,26 +1,28 @@
-use std::net::SocketAddr;
-use std::ops::ControlFlow;
 use axum::body::Bytes;
-use axum::extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade, CloseFrame};
 use axum::extract::connect_info::ConnectInfo;
+use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use futures::{sink::SinkExt, stream::StreamExt};
+use std::net::SocketAddr;
+use std::ops::ControlFlow;
 
-pub async fn ws_handler(ws: WebSocketUpgrade, ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| {
-        handle_socket(socket, addr)
-    })
-
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, addr))
 }
 
 async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
     tracing::info!("Client connected: {}", addr);
 
-    if socket.send(Message::Ping(Bytes::from_static(&[1, 2, 3])))
-    .await.is_ok() {
+    if socket
+        .send(Message::Ping(Bytes::from_static(&[1, 2, 3])))
+        .await
+        .is_ok()
+    {
         tracing::info!("Ping {}", addr)
-    }
-    else {
+    } else {
         tracing::error!("Failed to send ping to {}", addr);
         return;
     }
@@ -30,7 +32,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
             if process_message(msg, addr).is_break() {
                 return;
             }
-        }else {
+        } else {
             println!("client {addr} abruptly disconnected");
             return;
         }
@@ -38,16 +40,15 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
 
     for i in 1..5 {
         if socket
-        .send(Message::Text(format!("Hi {i} times!").into()))
-        .await
-        .is_err() {
+            .send(Message::Text(format!("Hi {i} times!").into()))
+            .await
+            .is_err()
+        {
             println!("client {addr} abruptly disconnected");
             return;
-
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-
 
     let (mut sender, mut receiver) = socket.split();
     let mut send_task = tokio::spawn(async move {
@@ -108,9 +109,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
     }
 
     println!("Websocket context {addr} destroyed");
-
 }
-
 
 fn process_message(msg: Message, addr: SocketAddr) -> ControlFlow<(), ()> {
     match msg {
@@ -140,5 +139,3 @@ fn process_message(msg: Message, addr: SocketAddr) -> ControlFlow<(), ()> {
     }
     ControlFlow::Continue(())
 }
-
-

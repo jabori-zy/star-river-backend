@@ -1,8 +1,8 @@
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
-use crate::order::{FuturesOrderSide,OrderType,OrderStatus,TpslType};
-use crate::market::Exchange;
 use crate::custom_type::*;
+use crate::market::Exchange;
+use crate::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -49,7 +49,7 @@ pub struct VirtualOrder {
 
     #[serde(rename = "sl")]
     pub sl: Option<f64>, // 止损
-    
+
     #[serde(rename = "createTime")]
     pub create_time: DateTime<Utc>, // 创建时间
 
@@ -96,7 +96,12 @@ impl VirtualOrder {
         }
     }
 
-    fn calculate_tp(open_price: f64, tp:Option<f64>, tp_type: &Option<TpslType> , order_side: &FuturesOrderSide) -> Option<f64> {
+    fn calculate_tp(
+        open_price: f64,
+        tp: Option<f64>,
+        tp_type: &Option<TpslType>,
+        order_side: &FuturesOrderSide,
+    ) -> Option<f64> {
         // 止盈
         if let Some(tp) = tp {
             if let Some(tp_type) = tp_type.clone() {
@@ -104,17 +109,15 @@ impl VirtualOrder {
                     TpslType::Price => {
                         return Some(tp);
                     }
-                    TpslType::Percentage => {
-                        match order_side {
-                            FuturesOrderSide::OpenLong => {
-                                return Some(open_price * (1.0 + tp/100.0));
-                            }
-                            FuturesOrderSide::OpenShort => {
-                                return Some(open_price * (1.0 - tp/100.0));
-                            }
-                            _ => return None,
+                    TpslType::Percentage => match order_side {
+                        FuturesOrderSide::OpenLong => {
+                            return Some(open_price * (1.0 + tp / 100.0));
                         }
-                    }
+                        FuturesOrderSide::OpenShort => {
+                            return Some(open_price * (1.0 - tp / 100.0));
+                        }
+                        _ => return None,
+                    },
                 }
             }
             return None;
@@ -122,8 +125,12 @@ impl VirtualOrder {
         None
     }
 
-
-    fn calculate_sl(open_price: f64, sl:Option<f64>, sl_type: &Option<TpslType> , order_side: &FuturesOrderSide) -> Option<f64> {
+    fn calculate_sl(
+        open_price: f64,
+        sl: Option<f64>,
+        sl_type: &Option<TpslType>,
+        order_side: &FuturesOrderSide,
+    ) -> Option<f64> {
         // 止损
         if let Some(sl) = sl {
             if let Some(sl_type) = sl_type.clone() {
@@ -131,23 +138,19 @@ impl VirtualOrder {
                     TpslType::Price => {
                         return Some(sl);
                     }
-                    TpslType::Percentage => {
-                        match order_side {
-                            FuturesOrderSide::OpenLong => {
-                                return Some(open_price * (1.0 - sl / 100.0));
-                            }
-                            FuturesOrderSide::OpenShort => {
-                                return Some(open_price * (1.0 + sl / 100.0));
-                            }
-                            _ => return None,
+                    TpslType::Percentage => match order_side {
+                        FuturesOrderSide::OpenLong => {
+                            return Some(open_price * (1.0 - sl / 100.0));
                         }
-                    }
+                        FuturesOrderSide::OpenShort => {
+                            return Some(open_price * (1.0 + sl / 100.0));
+                        }
+                        _ => return None,
+                    },
                 }
             }
             return None;
         }
         None
     }
-
 }
-

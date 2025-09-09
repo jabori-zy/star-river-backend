@@ -1,10 +1,10 @@
 use crate::cache::Key;
-use std::collections::VecDeque;
-use std::time::Duration;
-use utils::get_utc8_timestamp_millis;
 use crate::cache::*;
 use deepsize::DeepSizeOf;
+use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::Duration;
+use utils::get_utc8_timestamp_millis;
 
 // #[derive(Debug, Clone)]
 // pub struct KlineCacheEntry {
@@ -293,7 +293,6 @@ use std::sync::Arc;
 //     }
 // }
 
-
 // #[derive(Debug, Clone)]
 // pub struct HistoryKlineCacheEntry {
 //     pub key: HistoryKlineCacheKey, // 缓存键
@@ -305,13 +304,11 @@ use std::sync::Arc;
 //     pub ttl: Duration, // 过期时间 time to live
 // }
 
-
 // impl From<HistoryKlineCacheEntry> for CacheEntry {
 //     fn from(entry: HistoryKlineCacheEntry) -> Self {
 //         CacheEntry::HistoryKline(entry)
 //     }
 // }
-
 
 // impl HistoryKlineCacheEntry {
 //     pub fn new(key: HistoryKlineCacheKey, max_size: u32, ttl: Duration) -> Self {
@@ -368,7 +365,7 @@ use std::sync::Arc;
 //         if limit as usize >= self.data.len() {
 //             return self.get_all_cache_data();
 //         }
-        
+
 //         // 从后往前取limit条数据
 //         let start = self.data.len().saturating_sub(limit as usize);
 //         self.data.range(start..).cloned().collect()
@@ -403,10 +400,6 @@ use std::sync::Arc;
 //     }
 // }
 
-
-
-
-
 // #[derive(Debug, Clone)]
 // pub struct HistoryIndicatorCacheEntry {
 //     pub key: HistoryIndicatorCacheKey, // 缓存键
@@ -424,7 +417,6 @@ use std::sync::Arc;
 //     }
 // }
 
-
 // impl HistoryIndicatorCacheEntry {
 //     pub fn new(key: HistoryIndicatorCacheKey, max_size: u32, ttl: Duration) -> Self {
 //         Self {
@@ -437,7 +429,7 @@ use std::sync::Arc;
 //             ttl,
 //         }
 //     }
-    
+
 // }
 
 // impl CacheEntryTrait for HistoryIndicatorCacheEntry {
@@ -482,7 +474,7 @@ use std::sync::Arc;
 //         if limit as usize >= self.data.len() {
 //             return self.get_all_cache_data();
 //         }
-        
+
 //         // 从后往前取limit条数据
 //         let start = self.data.len().saturating_sub(limit as usize);
 //         self.data.range(start..).cloned().collect()
@@ -517,20 +509,16 @@ use std::sync::Arc;
 //     }
 // }
 
-
-
 #[derive(Debug, Clone)]
 pub struct GenericCacheEntry<K: Clone + Debug + Into<Key>> {
     pub key: K,
-    pub data: VecDeque<Arc<CacheValue>>, 
+    pub data: VecDeque<Arc<CacheValue>>,
     pub create_time: i64,
     pub update_time: i64,
     pub max_size: Option<u32>, // 如果为None，则表示无限缓存
-    pub is_fresh: bool, 
+    pub is_fresh: bool,
     pub ttl: Duration,
 }
-
-
 
 impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
     fn initialize(&mut self, data: Vec<CacheValue>) {
@@ -579,14 +567,14 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
         } else {
             self.data.len() as u32
         };
-        
+
         // 处理index参数
         if let Some(idx) = index {
             // 确保索引在有效范围内
             if idx as usize >= self.data.len() {
                 return Vec::new();
             }
-            
+
             // 计算从索引开始向前取limit个元素
             let end = idx as usize + 1; // 索引位置加1（包含索引位置）
             let start = if limit as usize >= end {
@@ -594,7 +582,7 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
             } else {
                 end - limit as usize // 否则取索引前的limit个元素
             };
-            
+
             return self.data.range(start..end).cloned().collect();
         } else {
             // 没有指定index，使用原来的逻辑，从后往前取limit条数据
@@ -602,7 +590,7 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
             if limit as usize >= self.data.len() {
                 return self.get_all_cache_data();
             }
-            
+
             // 从后往前取limit条数据
             let start = self.data.len().saturating_sub(limit as usize);
             return self.data.range(start..).cloned().collect();
@@ -637,10 +625,12 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
     }
 
     fn get_memory_size(&self) -> u32 {
-        self.data.iter().map(|value| value.deep_size_of() as u32).sum()
+        self.data
+            .iter()
+            .map(|value| value.deep_size_of() as u32)
+            .sum()
     }
 }
-
 
 pub type KlineCacheEntry = GenericCacheEntry<KlineKey>;
 
@@ -666,7 +656,6 @@ impl From<KlineCacheEntry> for CacheEntry {
 
 pub type IndicatorCacheEntry = GenericCacheEntry<IndicatorKey>;
 
-
 impl From<IndicatorCacheEntry> for CacheEntry {
     fn from(entry: IndicatorCacheEntry) -> Self {
         CacheEntry::HistoryIndicator(entry)
@@ -686,5 +675,3 @@ impl IndicatorCacheEntry {
         }
     }
 }
-
-

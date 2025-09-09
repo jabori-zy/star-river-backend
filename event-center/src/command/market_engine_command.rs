@@ -1,15 +1,15 @@
+use super::CommandTrait;
+use crate::{command::Command, Responder};
 use std::fmt::Debug;
+use types::custom_type::{AccountId, StrategyId};
 use types::market::{Exchange, KlineInterval};
 use types::strategy::TimeRange;
-use types::custom_type::{StrategyId, AccountId};
-use crate::{command::Command, Responder};
-use super::CommandTrait;
 
 #[derive(Debug)]
 pub enum MarketEngineCommand {
     SubscribeKlineStream(SubscribeKlineStreamParams), // 订阅K线流
     UnsubscribeKlineStream(UnsubscribeKlineStreamParams), // 取消订阅K线流
-    GetKlineHistory(GetKlineHistoryParams), // 获取K线历史数据
+    GetKlineHistory(GetKlineHistoryParams),           // 获取K线历史数据
 }
 
 impl CommandTrait for MarketEngineCommand {
@@ -36,14 +36,11 @@ impl CommandTrait for MarketEngineCommand {
     }
 }
 
-
 impl From<MarketEngineCommand> for Command {
     fn from(command: MarketEngineCommand) -> Self {
         Command::MarketEngine(command)
     }
 }
-
-
 
 #[derive(Debug)]
 pub struct SubscribeKlineStreamParams {
@@ -56,10 +53,9 @@ pub struct SubscribeKlineStreamParams {
     pub frequency: u32,
     pub cache_size: u32,
     pub sender: String,
-    pub timestamp:i64,
+    pub timestamp: i64,
     pub responder: Responder,
 }
-
 
 #[derive(Debug)]
 pub struct UnsubscribeKlineStreamParams {
@@ -71,10 +67,9 @@ pub struct UnsubscribeKlineStreamParams {
     pub interval: KlineInterval,
     pub frequency: u32,
     pub sender: String,
-    pub timestamp:i64,
+    pub timestamp: i64,
     pub responder: Responder,
 }
-
 
 #[derive(Debug)]
 pub struct GetKlineHistoryParams {
@@ -86,8 +81,6 @@ pub struct GetKlineHistoryParams {
     pub interval: KlineInterval,
     pub time_range: TimeRange, // 时间范围
     pub sender: String,
-    pub timestamp:i64,
+    pub timestamp: i64,
     pub responder: Responder,
 }
-
-

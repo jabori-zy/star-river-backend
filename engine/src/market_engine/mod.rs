@@ -1,16 +1,18 @@
 mod market_engine_context;
 mod market_engine_type;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::{exchange_engine::ExchangeEngine, market_engine::market_engine_context::MarketEngineContext};
+use crate::EngineName;
+use crate::{
+    exchange_engine::ExchangeEngine, market_engine::market_engine_context::MarketEngineContext,
+};
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
-use crate::EngineName;
-use tokio::sync::Mutex;
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use types::custom_type::AccountId;
-use types::market::{Symbol, KlineInterval};
+use types::market::{KlineInterval, Symbol};
 
 #[derive(Clone, Debug)]
 pub struct MarketEngine {
@@ -36,16 +38,15 @@ impl Engine for MarketEngine {
     }
 }
 
-
-impl MarketEngine{
+impl MarketEngine {
     pub fn new(exchange_engine: Arc<Mutex<ExchangeEngine>>) -> Self {
         let context = MarketEngineContext {
             engine_name: EngineName::MarketEngine,
             exchange_engine,
-            subscribe_klines: Arc::new(Mutex::new(HashMap::new()))
+            subscribe_klines: Arc::new(Mutex::new(HashMap::new())),
         };
         Self {
-            context: Arc::new(RwLock::new(Box::new(context)))
+            context: Arc::new(RwLock::new(Box::new(context))),
         }
     }
 
@@ -55,7 +56,10 @@ impl MarketEngine{
             .as_any()
             .downcast_ref::<MarketEngineContext>()
             .unwrap();
-        let symbol_list = market_engine_context_guard.get_symbol_list(account_id).await.unwrap();
+        let symbol_list = market_engine_context_guard
+            .get_symbol_list(account_id)
+            .await
+            .unwrap();
         Ok(symbol_list)
     }
 
@@ -65,8 +69,9 @@ impl MarketEngine{
             .as_any()
             .downcast_ref::<MarketEngineContext>()
             .unwrap();
-        let support_kline_intervals = market_engine_context_guard.get_support_kline_intervals(account_id).await;
+        let support_kline_intervals = market_engine_context_guard
+            .get_support_kline_intervals(account_id)
+            .await;
         support_kline_intervals
     }
 }
-

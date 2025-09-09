@@ -1,11 +1,10 @@
-use chrono::{Utc, FixedOffset};
+use chrono::{FixedOffset, Utc};
 use serde::Deserialize;
 
 // 获取utc+8的时间戳
 pub fn get_utc8_timestamp() -> i64 {
     let china_timezone = FixedOffset::east_opt(8 * 3600).unwrap();
     Utc::now().with_timezone(&china_timezone).timestamp_millis()
-
 }
 
 // 将字符串转换为f64

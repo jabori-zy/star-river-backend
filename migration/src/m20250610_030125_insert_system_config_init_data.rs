@@ -1,8 +1,8 @@
-use sea_orm_migration::{prelude::*};
-use sea_orm_migration::sea_orm::{entity::*, query::*};
 use ::entity::system_config::Entity as SystemConfig;
 use ::types::system::system_config::Localization;
 use chrono::Utc;
+use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::{entity::*, query::*};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -30,7 +30,9 @@ impl MigrationTrait for Migration {
 
         // 删除插入的初始数据
         SystemConfig::delete_many()
-            .filter(::entity::system_config::Column::Localization.eq(Localization::English.to_string()))
+            .filter(
+                ::entity::system_config::Column::Localization.eq(Localization::English.to_string()),
+            )
             .exec(db)
             .await?;
 

@@ -1,22 +1,22 @@
-use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
 use super::position_node_types::*;
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use crate::exchange_engine::ExchangeEngine;
-use sea_orm::DatabaseConnection;
-use heartbeat::Heartbeat;
-use std::any::Any;
-use async_trait::async_trait;
-use event_center::Event;
-use types::strategy::node_event::{BacktestNodeEvent, OrderEvent};
-use types::order::Order;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
-use exchange_client::ExchangeClient;
+use crate::exchange_engine::ExchangeEngine;
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::Engine;
+use async_trait::async_trait;
 use database::mutation::position_mutation::PositionMutation;
+use event_center::Event;
+use exchange_client::ExchangeClient;
+use heartbeat::Heartbeat;
+use sea_orm::DatabaseConnection;
+use std::any::Any;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use types::order::Order;
 use types::position::GetPositionParam;
 use types::strategy::node_event::PositionEvent;
-use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use types::strategy::node_event::{BacktestNodeEvent, OrderEvent};
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeContext {
@@ -26,9 +26,6 @@ pub struct PositionNodeContext {
     pub database: DatabaseConnection,
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 持仓, 策略id作为key
 }
-
-
-
 
 #[async_trait]
 impl LiveNodeContextTrait for PositionNodeContext {
@@ -51,7 +48,7 @@ impl LiveNodeContextTrait for PositionNodeContext {
     fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext {
         &mut self.base_context
     }
-    
+
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
         // match event {
         //     Event::Response(response_event) => {
@@ -63,31 +60,29 @@ impl LiveNodeContextTrait for PositionNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("position_node_update_output")).unwrap().clone()
+        self.base_context
+            .output_handle
+            .get(&format!("position_node_update_output"))
+            .unwrap()
+            .clone()
     }
 
     async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String> {
         match message {
-            BacktestNodeEvent::Order(order_message) => {
-                match order_message {
-                    OrderEvent::OrderFilled(order) => {
-                        tracing::debug!("{}: 收到订单已完成信息: {:?}", self.get_node_name(), order);
-                        if let Err(e) = self.get_position(order).await {
-                            tracing::error!("{}: 获取仓位信息失败: {:?}", self.get_node_name(), e);
-                        }
+            BacktestNodeEvent::Order(order_message) => match order_message {
+                OrderEvent::OrderFilled(order) => {
+                    tracing::debug!("{}: 收到订单已完成信息: {:?}", self.get_node_name(), order);
+                    if let Err(e) = self.get_position(order).await {
+                        tracing::error!("{}: 获取仓位信息失败: {:?}", self.get_node_name(), e);
                     }
-                    _ => {}
-                    
-                    
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
         Ok(())
     }
-
 }
-
 
 impl PositionNodeContext {
     async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
@@ -120,7 +115,7 @@ impl PositionNodeContext {
     async fn get_position(&mut self, order: Order) -> Result<(), String> {
         // 订单已完成，获取持仓
         tracing::info!("订单已完成，获取持仓: {:?}", order);
-        
+
         // 使用 as_ref().ok_or() 代替 unwrap
         let account_id = self.live_config.selected_live_account.account_id;
 
@@ -141,13 +136,14 @@ impl PositionNodeContext {
                 tracing::info!("获取持仓: {:?}", position);
                 // // 入库
                 let position = PositionMutation::insert_position(
-                    &self.database, 
-                    order.strategy_id.clone() as i64, 
-                    order.node_id.clone(), 
-                    account_id, 
-                    position.clone()
-                ).await;
-                
+                    &self.database,
+                    order.strategy_id.clone() as i64,
+                    order.node_id.clone(),
+                    account_id,
+                    position.clone(),
+                )
+                .await;
+
                 // // 使用 map 和 ? 操作符而不是 unwrap
                 let position = position.map_err(|e| {
                     tracing::error!("仓位信息入库失败: {:?}", e);
@@ -155,20 +151,26 @@ impl PositionNodeContext {
                 })?;
 
                 // 发送仓位更新消息
-                let output_handle = self.get_all_output_handle().get("position_node_update_output").unwrap();
+                let output_handle = self
+                    .get_all_output_handle()
+                    .get("position_node_update_output")
+                    .unwrap();
 
                 let position_message = PositionEvent::PositionUpdated(position);
-                tracing::debug!("{}: 发送仓位更新消息: {:?}", self.get_node_name(), position_message);
-                output_handle.send(BacktestNodeEvent::Position(position_message)).unwrap();
+                tracing::debug!(
+                    "{}: 发送仓位更新消息: {:?}",
+                    self.get_node_name(),
+                    position_message
+                );
+                output_handle
+                    .send(BacktestNodeEvent::Position(position_message))
+                    .unwrap();
             }
             Err(_) => {
                 tracing::warn!("仓位已关闭: {:?}", order.exchange_order_id);
             }
         }
-        
-        
 
         Ok(())
     }
 }
-

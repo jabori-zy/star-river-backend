@@ -1,41 +1,38 @@
+pub mod account_event;
+pub mod command;
+pub mod database_event;
+pub mod event_center_error;
+pub mod exchange_event;
+pub mod indicator_event;
 pub mod market_event;
 pub mod order_event;
 pub mod position_event;
-pub mod database_event;
-pub mod command;
 pub mod response;
-pub mod strategy_event;
-pub mod indicator_event;
-pub mod exchange_event;
-pub mod account_event;
 pub mod singleton;
-pub mod event_center_error;
+pub mod strategy_event;
 
-
-
-use crate::market_event::MarketEvent;
+use crate::account_event::AccountEvent;
 use crate::command::Command;
 use crate::exchange_event::ExchangeEvent;
-use crate::response::Response;
-use crate::strategy_event::StrategyEvent;
 use crate::indicator_event::IndicatorEvent;
+use crate::market_event::MarketEvent;
 use crate::order_event::OrderEvent;
 use crate::position_event::PositionEvent;
-use crate::account_event::AccountEvent;
+use crate::response::Response;
+use crate::strategy_event::StrategyEvent;
 
 pub use singleton::EventCenterSingleton;
 
+use crate::event_center_error::*;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::collections::HashMap;
+use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
-use tokio::sync::{broadcast,mpsc,oneshot};
-use std::sync::Arc;
-use types::engine::EngineName;
 use tokio::sync::Mutex;
-use crate::event_center_error::*;
-
+use tokio::sync::{broadcast, mpsc, oneshot};
+use types::engine::EngineName;
 
 pub type EventSender = broadcast::Sender<Event>;
 pub type EventReceiver = broadcast::Receiver<Event>;
@@ -43,24 +40,17 @@ pub type CommandSender = mpsc::Sender<Command>; // 命令发送器
 pub type CommandReceiver = mpsc::Receiver<Command>; // 命令接收器
 pub type Responder = oneshot::Sender<Response>; // 响应
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, Display, Eq, Hash, PartialEq)]
 pub enum Channel {
-    Market, // 市场通道
-    Exchange, // 交易所的原始数据通道
-    Trade, // 交易通道
-    Order, // 订单通道
-    Position, // 仓位通道
+    Market,    // 市场通道
+    Exchange,  // 交易所的原始数据通道
+    Trade,     // 交易通道
+    Order,     // 订单通道
+    Position,  // 仓位通道
     Indicator, // 指标通道
-    Strategy, // 策略的数据通过这个通道发送
-    Account, // 账户通道
+    Strategy,  // 策略的数据通过这个通道发送
+    Account,   // 账户通道
 }
-
-
-
-
-
 
 impl Channel {
     pub fn get_all_channels() -> Vec<Channel> {
@@ -114,8 +104,6 @@ impl Event {
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct EventCenter {
     pub(crate) broadcast_channels: HashMap<Channel, EventSender>,
@@ -134,7 +122,7 @@ impl EventCenter {
         event_center
     }
 
-    pub async fn init_channel(mut self) -> Self{
+    pub async fn init_channel(mut self) -> Self {
         let channels = Channel::get_all_channels();
         for channel in channels.iter() {
             let (tx, rx) = broadcast::channel::<Event>(100);
@@ -145,7 +133,7 @@ impl EventCenter {
 
         // 初始化所有引擎的命令通道
         self.init_command_channels();
-        
+
         self
     }
 
@@ -159,11 +147,12 @@ impl EventCenter {
             EngineName::StrategyEngine,
             EngineName::AccountEngine,
         ];
-        
+
         for engine_name in engines.iter() {
             let (tx, rx) = mpsc::channel::<Command>(100);
             // 成对保存发送器和接收器
-            self.command_channels.insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
+            self.command_channels
+                .insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
             tracing::debug!("Command channel initialized for engine: {:?}", engine_name);
         }
     }
@@ -176,20 +165,24 @@ impl EventCenter {
         &self,
         channel: &Channel,
     ) -> Result<broadcast::Receiver<Event>, EventCenterError> {
-        let sender = self.broadcast_channels.get(channel)
-            .ok_or(ChannelNotFoundSnafu {
+        let sender = self.broadcast_channels.get(channel).ok_or(
+            ChannelNotFoundSnafu {
                 channel: channel.to_string(),
-            }.build())?;
+            }
+            .build(),
+        )?;
 
         Ok(sender.subscribe())
     }
 
     pub async fn publish(&self, event: Event) -> Result<(), EventCenterError> {
         let event_channel = event.get_channel();
-        let sender = self.broadcast_channels.get(&event_channel)
-            .ok_or(ChannelNotInitializedSnafu {
+        let sender = self.broadcast_channels.get(&event_channel).ok_or(
+            ChannelNotInitializedSnafu {
                 channel: event_channel.to_string(),
-            }.build())?;
+            }
+            .build(),
+        )?;
 
         tracing::debug!("事件发布成功: {:?}", event);
 
@@ -213,35 +206,47 @@ impl EventCenter {
 
     pub fn get_command_publisher(&self) -> CommandPublisher {
         // 提取所有的 CommandSender
-        let command_senders: HashMap<EngineName, CommandSender> = self.command_channels
+        let command_senders: HashMap<EngineName, CommandSender> = self
+            .command_channels
             .iter()
             .map(|(name, (sender, _receiver))| (name.clone(), sender.clone()))
             .collect();
-        
+
         CommandPublisher::new(Arc::new(Mutex::new(command_senders)))
     }
 
     // 获取指定引擎的命令接收器
-    pub async fn get_command_receiver(&self, engine_name: &EngineName) -> Result<Arc<Mutex<CommandReceiver>>, EventCenterError> {
-        self.command_channels.get(engine_name)
+    pub async fn get_command_receiver(
+        &self,
+        engine_name: &EngineName,
+    ) -> Result<Arc<Mutex<CommandReceiver>>, EventCenterError> {
+        self.command_channels
+            .get(engine_name)
             .map(|(_sender, receiver)| receiver.clone())
-            .ok_or(EngineCommandReceiverNotFoundSnafu {
-                engine_name: engine_name.to_string(),
-            }.build())
+            .ok_or(
+                EngineCommandReceiverNotFoundSnafu {
+                    engine_name: engine_name.to_string(),
+                }
+                .build(),
+            )
     }
 
     // 获取指定引擎的命令发送器
-    pub fn get_command_sender(&self, engine_name: EngineName) -> Result<CommandSender, EventCenterError> {
-        self.command_channels.get(&engine_name)
+    pub fn get_command_sender(
+        &self,
+        engine_name: EngineName,
+    ) -> Result<CommandSender, EventCenterError> {
+        self.command_channels
+            .get(&engine_name)
             .map(|(sender, _receiver)| sender.clone())
-            .ok_or(EngineCommandSenderNotFoundSnafu {
-                engine_name: engine_name.to_string(),
-            }.build())
+            .ok_or(
+                EngineCommandSenderNotFoundSnafu {
+                    engine_name: engine_name.to_string(),
+                }
+                .build(),
+            )
     }
-
-
 }
-
 
 #[derive(Clone, Debug)]
 pub struct EventPublisher {
@@ -257,10 +262,12 @@ impl EventPublisher {
         let channel = event.get_channel();
         // 使用 get 而不是 get_channel() 来避免额外的匹配开销
         let channels = self.channels.lock().await;
-        let sender = channels.get(&channel)
-            .ok_or(ChannelNotFoundSnafu {
+        let sender = channels.get(&channel).ok_or(
+            ChannelNotFoundSnafu {
                 channel: channel.to_string(),
-            }.build())?;
+            }
+            .build(),
+        )?;
 
         // match event.clone() {
         //     Event::Strategy(strategy_event) => {
@@ -270,14 +277,12 @@ impl EventPublisher {
         //         // tracing::debug!("发布事件: 事件通道: {:?}, 事件: {:?}", channel, event);
         //     }
         // }
-        
+
         sender.send(event)?;
 
-        
         Ok(())
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct CommandPublisher {
@@ -292,13 +297,13 @@ impl CommandPublisher {
     pub async fn send(&self, command: Command) -> Result<(), EventCenterError> {
         let engine_name = command.get_engine_name();
         let channels = self.channels.lock().await;
-        let sender = channels.get(&engine_name)
-            .ok_or(EngineCommandSenderNotFoundSnafu {
+        let sender = channels.get(&engine_name).ok_or(
+            EngineCommandSenderNotFoundSnafu {
                 engine_name: engine_name.to_string(),
-            }.build())?;
+            }
+            .build(),
+        )?;
         sender.send(command).await?;
         Ok(())
     }
-    
 }
-

@@ -4,14 +4,14 @@ use std::any::Any;
 // 状态转换后需要执行的动作
 #[derive(Debug, Clone)]
 pub enum IfElseNodeStateAction {
-    ListenAndHandleStrategySignal,   // 处理策略信号
+    ListenAndHandleStrategySignal, // 处理策略信号
     ListenAndHandleMessage,
     InitReceivedFlag,
     InitReceivedValue,
     Evaluate,
-    LogNodeState,    // 记录节点状态
-    LogTransition,          // 记录状态转换
-    LogError(String),       // 记录错误
+    LogNodeState,     // 记录节点状态
+    LogTransition,    // 记录状态转换
+    LogError(String), // 记录错误
 }
 
 impl LiveNodeTransitionAction for IfElseNodeStateAction {
@@ -37,10 +37,12 @@ impl LiveStateChangeActions for IfElseNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn LiveNodeTransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+        self.actions
+            .iter()
+            .map(|action| action.clone_box())
+            .collect()
     }
 }
-
 
 // 状态管理器
 #[derive(Debug, Clone)]
@@ -58,10 +60,7 @@ impl IfElseNodeStateManager {
             node_name,
         }
     }
-
 }
-
-
 
 impl LiveNodeStateMachine for IfElseNodeStateManager {
     fn as_any(&self) -> &dyn Any {
@@ -71,14 +70,16 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
     fn clone_box(&self) -> Box<dyn LiveNodeStateMachine> {
         Box::new(self.clone())
     }
-  
 
     // 获取当前状态
     fn current_state(&self) -> LiveNodeRunState {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: LiveNodeStateTransitionEvent) -> Result<Box<dyn LiveStateChangeActions>, String> {
+    fn transition(
+        &mut self,
+        event: LiveNodeStateTransitionEvent,
+    ) -> Result<Box<dyn LiveStateChangeActions>, String> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -88,11 +89,12 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Initializing,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal), 
-                        Box::new(IfElseNodeStateAction::ListenAndHandleMessage), 
-                        Box::new(IfElseNodeStateAction::InitReceivedFlag), 
-                        Box::new(IfElseNodeStateAction::InitReceivedValue)],
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal),
+                        Box::new(IfElseNodeStateAction::ListenAndHandleMessage),
+                        Box::new(IfElseNodeStateAction::InitReceivedFlag),
+                        Box::new(IfElseNodeStateAction::InitReceivedValue),
+                    ],
                 }))
             }
             // 初始化完成，进入Ready状态
@@ -102,7 +104,7 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Ready,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
+                        Box::new(IfElseNodeStateAction::LogTransition),
                         Box::new(IfElseNodeStateAction::LogNodeState),
                     ],
                 }))
@@ -114,8 +116,9 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Starting,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::Evaluate)],
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::Evaluate),
+                    ],
                 }))
             }
             // 启动完成，进入Running状态
@@ -125,8 +128,9 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Running,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::LogNodeState)],
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从Running状态开始停止
@@ -136,8 +140,9 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Stopping,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::LogNodeState)],
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 停止完成，进入Stopped状态
@@ -147,8 +152,9 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Stopped,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::LogNodeState)],
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从任何状态都可以失败
@@ -158,19 +164,20 @@ impl LiveNodeStateMachine for IfElseNodeStateManager {
                 Ok(Box::new(IfElseNodeStateChangeActions {
                     new_state: LiveNodeRunState::Failed,
                     actions: vec![
-                        Box::new(IfElseNodeStateAction::LogTransition), 
-                        Box::new(IfElseNodeStateAction::LogError(error))],
+                        Box::new(IfElseNodeStateAction::LogTransition),
+                        Box::new(IfElseNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换
             (state, event) => {
                 // 修改manager的状态
                 self.current_state = LiveNodeRunState::Failed;
-                Err(format!("节点 {} 无效的状态转换: {:?} -> {:?}", self.node_id, state, event))
+                Err(format!(
+                    "节点 {} 无效的状态转换: {:?} -> {:?}",
+                    self.node_id, state, event
+                ))
             }
-
         }
     }
-
-
 }

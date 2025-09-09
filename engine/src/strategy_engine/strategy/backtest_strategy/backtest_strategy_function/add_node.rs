@@ -1,14 +1,14 @@
 use super::BacktestStrategyFunction;
+use crate::strategy_engine::node::node_types::NodeType;
+use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use serde_json::Value;
 use snafu::Report;
 use std::str::FromStr;
-use crate::strategy_engine::node::node_types::NodeType;
 use std::sync::Arc;
+use tokio::sync::RwLock;
+use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
 use types::strategy::node_command::NodeCommandSender;
 use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
-use tokio::sync::RwLock;
-use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
-use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -25,10 +25,11 @@ impl BacktestStrategyFunction {
             NodeType::StartNode => {
                 Self::add_start_node(
                     context,
-                    node_config, 
-                    node_command_sender, 
+                    node_config,
+                    node_command_sender,
                     strategy_inner_event_receiver,
-                ).await?;
+                )
+                .await?;
                 Ok(())
             }
             // k线节点
@@ -38,22 +39,23 @@ impl BacktestStrategyFunction {
                     node_config,
                     node_command_sender,
                     strategy_inner_event_receiver,
-                ).await?;
+                )
+                .await?;
                 Ok(())
             }
-                
+
             // // 指标节点
             NodeType::IndicatorNode => {
                 Self::add_indicator_node(
-                    context, 
+                    context,
                     node_config,
-                    node_command_sender, 
-                    strategy_inner_event_receiver
-                ).await?;
+                    node_command_sender,
+                    strategy_inner_event_receiver,
+                )
+                .await?;
                 Ok(())
-                
             }
-            
+
             // // 条件分支节点
             NodeType::IfElseNode => {
                 Self::add_if_else_node(
@@ -61,7 +63,8 @@ impl BacktestStrategyFunction {
                     node_config,
                     node_command_sender,
                     strategy_inner_event_receiver,
-                ).await?;
+                )
+                .await?;
                 Ok(())
             }
             // // 订单节点
@@ -69,9 +72,10 @@ impl BacktestStrategyFunction {
                 Self::add_futures_order_node(
                     context,
                     node_config,
-                    node_command_sender, 
-                    strategy_inner_event_receiver, 
-                ).await?;
+                    node_command_sender,
+                    strategy_inner_event_receiver,
+                )
+                .await?;
                 Ok(())
             }
             // // 持仓节点
@@ -79,37 +83,34 @@ impl BacktestStrategyFunction {
                 Self::add_position_management_node(
                     context,
                     node_config,
-                    node_command_sender, 
+                    node_command_sender,
                     strategy_inner_event_receiver,
-                ).await?;
+                )
+                .await?;
                 Ok(())
-                
             }
-                
+
             // }
             // // 获取变量节点
             NodeType::VariableNode => {
                 Self::add_variable_node(
                     context,
                     node_config,
-                    node_command_sender, 
+                    node_command_sender,
                     strategy_inner_event_receiver,
-                ).await?;
+                )
+                .await?;
                 Ok(())
             }
             _ => {
-                let error = UnsupportedNodeTypeSnafu { node_type: node_type_str}.build();
+                let error = UnsupportedNodeTypeSnafu {
+                    node_type: node_type_str,
+                }
+                .build();
                 let report = Report::from_error(&error);
                 tracing::error!("{}", report);
                 Err(error)
             }
-            
         }
-
     }
-
-
-
-    
-    
 }

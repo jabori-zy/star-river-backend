@@ -1,7 +1,7 @@
-use types::indicator::SMAIndicator;
-use strum::Display;
-use serde::{Deserialize, Serialize};
 use crate::Event;
+use serde::{Deserialize, Serialize};
+use strum::Display;
+use types::indicator::SMAIndicator;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 pub enum IndicatorEvent {

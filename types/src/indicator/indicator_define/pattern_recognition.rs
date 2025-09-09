@@ -1,4 +1,4 @@
-use crate::{define_indicator};
+use crate::define_indicator;
 
 // K线形态识别指标 (Pattern Recognition Indicators)
 // 1. CDL2CROWS            Two Crows #两只乌鸦

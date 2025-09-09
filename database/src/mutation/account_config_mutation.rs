@@ -1,22 +1,19 @@
-use types::account::AccountConfig;
-use sea_orm::*;
 use ::entity::account_config;
 use chrono::Utc;
+use sea_orm::*;
+use types::account::AccountConfig;
 use types::market::Exchange;
-
 
 pub struct AccountConfigMutation;
 
-
 impl AccountConfigMutation {
-
     pub async fn insert_account_config(
         db: &DbConn,
         account_name: String,
         exchange: Exchange,
         account_config: serde_json::Value,
     ) -> Result<AccountConfig, DbErr> {
-            // 获取最大sort_index
+        // 获取最大sort_index
         let max_sort_index = account_config::Entity::find()
             .order_by(account_config::Column::SortIndex, Order::Desc)
             .one(db)
@@ -33,7 +30,9 @@ impl AccountConfigMutation {
             account_config: Set(account_config),
             create_time: Set(Utc::now()),
             update_time: Set(Utc::now()),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
         Ok(account_config_model.into())
     }
 
@@ -46,11 +45,12 @@ impl AccountConfigMutation {
         sort_index: i32,
     ) -> Result<AccountConfig, DbErr> {
         // 获取mt5账户配置
-        let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
-            .one(db)
-            .await?
-            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
-            .map(Into::into)?;
+        let account_config_active_model: account_config::ActiveModel =
+            account_config::Entity::find_by_id(id)
+                .one(db)
+                .await?
+                .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+                .map(Into::into)?;
 
         let account_config_model = account_config::ActiveModel {
             id: account_config_active_model.id,
@@ -61,21 +61,21 @@ impl AccountConfigMutation {
             sort_index: Set(sort_index),
             update_time: Set(Utc::now()),
             ..Default::default()
-        }.update(db).await.unwrap();
+        }
+        .update(db)
+        .await
+        .unwrap();
 
         Ok(account_config_model.into())
     }
 
-
-    pub async fn delete_account_config(
-        db: &DbConn,
-        id: i32,
-    ) -> Result<(), DbErr> {
-        let account_config_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
-            .one(db)
-            .await?
-            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
-            .map(Into::into)?;
+    pub async fn delete_account_config(db: &DbConn, id: i32) -> Result<(), DbErr> {
+        let account_config_model: account_config::ActiveModel =
+            account_config::Entity::find_by_id(id)
+                .one(db)
+                .await?
+                .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+                .map(Into::into)?;
 
         account_config::ActiveModel {
             id: account_config_model.id,
@@ -94,11 +94,12 @@ impl AccountConfigMutation {
         id: i32,
         is_available: bool,
     ) -> Result<AccountConfig, DbErr> {
-        let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
-            .one(db)
-            .await?
-            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
-            .map(Into::into)?;
+        let account_config_active_model: account_config::ActiveModel =
+            account_config::Entity::find_by_id(id)
+                .one(db)
+                .await?
+                .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+                .map(Into::into)?;
 
         let account_config_model = account_config::ActiveModel {
             id: account_config_active_model.id,
@@ -110,6 +111,4 @@ impl AccountConfigMutation {
         .await?;
         Ok(account_config_model.into())
     }
-
 }
-

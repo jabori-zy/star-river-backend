@@ -1,16 +1,15 @@
-use std::sync::Arc;
-use sea_orm::DatabaseConnection;
-use tokio::sync::Mutex;
-use crate::indicator_engine::IndicatorEngine;
-use crate::Engine;
-use crate::market_engine::MarketEngine;
-use crate::exchange_engine::ExchangeEngine;
-use crate::strategy_engine::StrategyEngine;
-use crate::cache_engine::CacheEngine;
 use crate::account_engine::AccountEngine;
+use crate::cache_engine::CacheEngine;
+use crate::exchange_engine::ExchangeEngine;
+use crate::indicator_engine::IndicatorEngine;
+use crate::market_engine::MarketEngine;
+use crate::strategy_engine::StrategyEngine;
+use crate::Engine;
 use crate::EngineName;
 use heartbeat::Heartbeat;
-
+use sea_orm::DatabaseConnection;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct EngineManager {
@@ -23,10 +22,7 @@ pub struct EngineManager {
 }
 
 impl EngineManager {
-    pub async fn new(
-        database: DatabaseConnection,
-        heartbeat: Arc<Mutex<Heartbeat>>
-    ) -> Self {
+    pub async fn new(database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
         // 缓存引擎
         let cache_engine = Arc::new(Mutex::new(CacheEngine::new()));
 
@@ -35,19 +31,17 @@ impl EngineManager {
 
         // 市场引擎
         let market_engine = MarketEngine::new(exchange_engine.clone());
-        
+
         // 指标引擎
-        let indicator_engine = IndicatorEngine::new( heartbeat.clone(),cache_engine.clone());
+        let indicator_engine = IndicatorEngine::new(heartbeat.clone(), cache_engine.clone());
 
         // 策略引擎
-        let strategy_engine = StrategyEngine::new(
-            database.clone(),
-            exchange_engine.clone(),
-            heartbeat.clone()
-        );
+        let strategy_engine =
+            StrategyEngine::new(database.clone(), exchange_engine.clone(), heartbeat.clone());
 
         // 账户引擎
-        let account_engine = AccountEngine::new(exchange_engine.clone(),database.clone(),heartbeat.clone());
+        let account_engine =
+            AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());
 
         Self {
             exchange_engine,
@@ -67,7 +61,7 @@ impl EngineManager {
         self.start_cache_engine().await;
         self.start_account_engine().await;
     }
-    
+
     // 启动交易所引擎并等待完成
     async fn start_exchange_engine(&self) {
         let engine = self.exchange_engine.clone();
@@ -76,7 +70,7 @@ impl EngineManager {
             engine.start().await;
         });
     }
-    
+
     // 启动市场引擎并等待完成
     async fn start_market_engine(&self) {
         let engine = self.market_engine.clone();
@@ -85,7 +79,7 @@ impl EngineManager {
             engine.start().await
         });
     }
-    
+
     // 启动指标引擎并等待完成
     async fn start_indicator_engine(&self) {
         let engine = self.indicator_engine.clone();
@@ -94,8 +88,7 @@ impl EngineManager {
             engine.start().await
         });
     }
-    
-    
+
     // 启动策略引擎并等待完成
     async fn start_strategy_engine(&self) {
         let engine = self.strategy_engine.clone();
@@ -137,7 +130,4 @@ impl EngineManager {
     pub async fn get_cache_engine(&self) -> Arc<Mutex<CacheEngine>> {
         self.cache_engine.clone()
     }
-
-
-
 }

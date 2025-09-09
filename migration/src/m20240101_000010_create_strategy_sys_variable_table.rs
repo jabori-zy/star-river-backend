@@ -23,10 +23,29 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(StrategySysVariable::StrategyId).integer().not_null()) //策略id
-                    .col(ColumnDef::new(StrategySysVariable::PositionNumber).integer().not_null().default(0)) //持仓数量
-                    .col(ColumnDef::new(StrategySysVariable::CreateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(StrategySysVariable::UpdateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(StrategySysVariable::StrategyId)
+                            .integer()
+                            .not_null(),
+                    ) //策略id
+                    .col(
+                        ColumnDef::new(StrategySysVariable::PositionNumber)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    ) //持仓数量
+                    .col(
+                        ColumnDef::new(StrategySysVariable::CreateTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(StrategySysVariable::UpdateTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     .to_owned(),
             )
             .await

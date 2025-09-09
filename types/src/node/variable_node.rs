@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
 use crate::strategy::sys_varibale::SysVariable;
 use crate::strategy::SelectedAccount;
-use crate::strategy::{BacktestDataSource,DataSourceExchange,TimeRange};
-
+use crate::strategy::{BacktestDataSource, DataSourceExchange, TimeRange};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TimeUnit {
@@ -42,7 +41,6 @@ impl TimerConfig {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VariableConfig {
     #[serde(rename = "configId")]
@@ -69,7 +67,6 @@ pub struct VariableConfig {
     pub variable: SysVariable, // 变量类型，使用StrategySysVariable的值
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VariableNodeLiveConfig {
     #[serde(rename = "selectedLiveAccount")]
@@ -82,24 +79,19 @@ pub struct VariableNodeLiveConfig {
     pub timer_config: Option<TimerConfig>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetVariableNodeSimulateConfig {
     pub variables: Vec<VariableConfig>,
 }
 
-
-
 // 回测配置
-
 
 //交易所模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VariableNodeExchangeModeConfig {
     #[serde(rename = "selectedAccount")]
-    pub selected_account : SelectedAccount,
+    pub selected_account: SelectedAccount,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VariableNodeBacktestConfig {

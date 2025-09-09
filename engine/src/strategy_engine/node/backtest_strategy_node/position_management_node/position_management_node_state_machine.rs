@@ -7,23 +7,23 @@ use types::error::engine_error::strategy_engine_error::node_error::*;
 #[derive(Debug, Clone, Display)]
 pub enum PositionManagementNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
-    ListenAndHandleExternalEvents,   // 处理外部事件
+    ListenAndHandleExternalEvents, // 处理外部事件
     #[strum(serialize = "ListenAndHandleNodeEvents")]
-    ListenAndHandleNodeEvents,         // 处理消息
+    ListenAndHandleNodeEvents, // 处理消息
     #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents,         // 处理内部事件
+    ListenAndHandleInnerEvents, // 处理内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     #[strum(serialize = "ListenAndHandleVirtualTradingSystemEvent")]
     ListenAndHandleVirtualTradingSystemEvent, // 处理虚拟交易系统事件
     #[strum(serialize = "RegisterTask")]
-    RegisterTask,        // 注册任务
+    RegisterTask, // 注册任务
     #[strum(serialize = "LogNodeState")]
-    LogNodeState,    // 记录节点状态
+    LogNodeState, // 记录节点状态
     #[strum(serialize = "LogTransition")]
-    LogTransition,          // 记录状态转换
+    LogTransition, // 记录状态转换
     #[strum(serialize = "LogError")]
-    LogError(String),       // 记录错误
+    LogError(String), // 记录错误
 }
 
 impl BacktestNodeTransitionAction for PositionManagementNodeStateAction {
@@ -49,10 +49,12 @@ impl BacktestStateChangeActions for PositionNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+        self.actions
+            .iter()
+            .map(|action| action.clone_box())
+            .collect()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeStateMachine {
@@ -84,7 +86,10 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
+    fn transition(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -94,8 +99,8 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
                 Ok(Box::new(PositionNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
-                        Box::new(PositionManagementNodeStateAction::LogTransition), 
-                        Box::new(PositionManagementNodeStateAction::ListenAndHandleExternalEvents), 
+                        Box::new(PositionManagementNodeStateAction::LogTransition),
+                        Box::new(PositionManagementNodeStateAction::ListenAndHandleExternalEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleStrategyCommand),
@@ -104,12 +109,18 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
                 }))
             }
             // 初始化完成，进入Ready状态
-            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
+            (
+                BacktestNodeRunState::Initializing,
+                BacktestNodeStateTransitionEvent::InitializeComplete,
+            ) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(PositionNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Ready,
-                    actions: vec![Box::new(PositionManagementNodeStateAction::LogTransition), Box::new(PositionManagementNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(PositionManagementNodeStateAction::LogTransition),
+                        Box::new(PositionManagementNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从Ready状态开始启动
@@ -136,7 +147,10 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(PositionNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Failed,
-                    actions: vec![Box::new(PositionManagementNodeStateAction::LogTransition), Box::new(PositionManagementNodeStateAction::LogError(error))],
+                    actions: vec![
+                        Box::new(PositionManagementNodeStateAction::LogTransition),
+                        Box::new(PositionManagementNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换
@@ -147,11 +161,9 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
                     from_state: state.to_string(),
                     to_state: event.to_string(),
                     event: event.to_string(),
-                }.fail()?
+                }
+                .fail()?;
             }
-
         }
     }
-
-
 }

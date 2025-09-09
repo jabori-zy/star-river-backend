@@ -1,9 +1,9 @@
-use crate::{calculate_fn, calculate_fn_snake};
-use types::cache::CacheValue;
-use types::indicator::Indicator;
-use types::indicator::indicator_define::cycle::*;
-use std::sync::Arc;
 use crate::indicator_engine::talib::TALib;
+use crate::{calculate_fn, calculate_fn_snake};
+use std::sync::Arc;
+use types::cache::CacheValue;
+use types::indicator::indicator_define::cycle::*;
+use types::indicator::Indicator;
 
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 

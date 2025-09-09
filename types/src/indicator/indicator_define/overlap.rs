@@ -1,11 +1,13 @@
-use crate::{define_indicator, indicator::{MAType, PriceSource}};
+use crate::{
+    define_indicator,
+    indicator::{MAType, PriceSource},
+};
 
 //Bollinger Bands #布林带
 define_indicator!(BBANDS,
     params => [(time_period: i32), (dev_up: f64), (dev_down: f64), (ma_type: MAType), (price_source: PriceSource)],
     output => [(timestamp: i64), (upper: f64), (middle: f64), (lower: f64)],
 );
-
 
 //Double Exponential Moving Average #双指数移动平均线
 define_indicator!(DEMA,
@@ -18,7 +20,6 @@ define_indicator!(EMA,
     params => [(time_period: i32), (price_source: PriceSource)],
     output => [(timestamp: i64), (ema: f64)],
 );
-
 
 //Hilbert Transform - Instantaneous Trendline #希尔伯特瞬时趋势线
 define_indicator!(HtTrendline,
@@ -38,8 +39,7 @@ define_indicator!(MA,
     output => [(timestamp: i64), (ma: f64)],
 );
 
-
-//MAMA                 MESA Adaptive Moving Average #梅萨自适应移动平均线 
+//MAMA                 MESA Adaptive Moving Average #梅萨自适应移动平均线
 define_indicator!(MAMA,
     params => [(fast_limit: f64), (slow_limit: f64), (price_source: PriceSource)],
     output => [(timestamp: i64), (mama: f64), (fama: f64)],
@@ -72,13 +72,13 @@ define_indicator!(SAR,
 //SAREXT               Parabolic SAR - Extended #抛物线转向扩展
 define_indicator!(SAREXT,
     params => [
-        (start_value: f64), 
-        (offset_on_reverse: f64), 
-        (acceleration_init_long: f64), 
-        (acceleration_long: f64), 
-        (acceleration_max_long: f64), 
-        (acceleration_init_short: f64), 
-        (acceleration_short: f64), 
+        (start_value: f64),
+        (offset_on_reverse: f64),
+        (acceleration_init_long: f64),
+        (acceleration_long: f64),
+        (acceleration_max_long: f64),
+        (acceleration_init_short: f64),
+        (acceleration_short: f64),
         (acceleration_max_short: f64)],
     output => [(timestamp: i64), (sarext: f64)],
 );
@@ -112,8 +112,3 @@ define_indicator!(WMA,
     params => [(time_period: i32), (price_source: PriceSource)],
     output => [(timestamp: i64), (wma: f64)],
 );
-
-
-
-
-

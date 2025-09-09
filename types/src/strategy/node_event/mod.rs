@@ -1,32 +1,29 @@
-pub mod variable_event;
 pub mod backtest_node_event;
+pub mod variable_event;
 
-
-use crate::market::{Kline, KlineSeries};
-use crate::indicator::{IndicatorConfig, Indicator};
+use crate::cache::key::IndicatorKey;
+use crate::cache::key::KlineKey;
+use crate::cache::CacheValue;
+use crate::cache::KeyTrait;
+use crate::custom_type::PlayIndex;
+use crate::error::error_trait::{Language, StarRiverErrorTrait};
+use crate::indicator::{Indicator, IndicatorConfig};
 use crate::market::{Exchange, KlineInterval};
-use serde::{Deserialize, Serialize};
-use strum::Display;
+use crate::market::{Kline, KlineSeries};
+use crate::order::virtual_order::VirtualOrder;
 use crate::order::Order;
 use crate::position::Position;
-use crate::cache::CacheValue;
-use crate::cache::key::KlineKey;
-use std::sync::Arc;
-use variable_event::PositionNumberUpdateEvent;
-use crate::order::virtual_order::VirtualOrder;
-use backtest_node_event::kline_node_event::KlineNodeEvent;
-use crate::cache::key::IndicatorKey;
-use crate::cache::KeyTrait;
-use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use crate::strategy::sys_varibale::SysVariable;
+use backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
+use backtest_node_event::if_else_node_event::IfElseNodeEvent;
+use backtest_node_event::kline_node_event::KlineNodeEvent;
+use backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use backtest_node_event::variable_node_event::VariableNodeEvent;
-use crate::custom_type::PlayIndex;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use strum::Display;
 use utils::get_utc8_timestamp_millis;
-use crate::error::error_trait::{StarRiverErrorTrait, Language};
-
-
-
+use variable_event::PositionNumberUpdateEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "node_type")]
@@ -67,9 +64,10 @@ pub enum BacktestNodeEvent {
     #[serde(rename = "position_management_node")]
     PositionManagementNode(PositionManagementNodeEvent),
 
-
+    #[strum(serialize = "if_else_node")]
+    #[serde(rename = "if_else_node")]
+    IfElseNode(IfElseNodeEvent),
 }
-
 
 // k线系列消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,11 +145,14 @@ pub struct IndicatorUpdateEvent {
     #[serde(rename = "playIndex")]
     pub play_index: i32,
 
-    #[serde(rename = "timestamp")] 
+    #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
 
-fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &IndicatorKey, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_indicator_cache_key<'de, S>(
+    indicator_cache_key: &IndicatorKey,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -159,22 +160,25 @@ where
     serializer.serialize_str(&indicator_cache_key_str)
 }
 
-fn serialize_indicator_data<S>(indicator_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_indicator_data<S>(
+    indicator_data: &Vec<Arc<CacheValue>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     use serde::ser::SerializeSeq;
-    
+
     let mut seq = serializer.serialize_seq(Some(indicator_data.len()))?;
-    indicator_data.iter().map(|indicator_value| {
-        let json_value = indicator_value.to_json();
-        seq.serialize_element(&json_value)
-    }).collect::<Result<(), S::Error>>()?;
+    indicator_data
+        .iter()
+        .map(|indicator_value| {
+            let json_value = indicator_value.to_json();
+            seq.serialize_element(&json_value)
+        })
+        .collect::<Result<(), S::Error>>()?;
     seq.end()
 }
-
-
-
 
 // 信号类型
 // #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,7 +189,6 @@ where
 //     // KlineTick(u32), // K线跳动(信号计数:根据这个值去请求缓存的下标)
 // }
 
-
 // 信号消息
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // pub struct SignalMessage {
@@ -195,7 +198,6 @@ where
 //     pub signal_type: SignalType,
 //     pub message_timestamp: i64,
 // }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "message_type")]
@@ -214,10 +216,6 @@ pub enum OrderEvent {
     OrderFilled(Order),
 }
 
-
-
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_type")]
 pub enum PositionEvent {
@@ -225,7 +223,6 @@ pub enum PositionEvent {
     #[serde(rename = "position-updated")]
     PositionUpdated(Position),
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "message_type")]
@@ -238,7 +235,6 @@ pub struct VariableMessage {
     pub variable_value: f64,
     pub message_timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "message_type")]
@@ -254,27 +250,18 @@ impl VariableEvent {
             VariableEvent::PositionNumberUpdate(event) => event.from_node_id.clone(),
         }
     }
-
 }
-
-
-
-
-
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SignalEvent {
     LiveConditionMatch(LiveConditionMatchEvent), // 实盘条件匹配
     BacktestConditionMatch(BacktestConditionMatchEvent), // 回测条件匹配
     BacktestConditionNotMatch(BacktestConditionNotMatchEvent), // 回测条件不匹配
-    KlinePlayFinished(KlinePlayFinishedEvent), // k线播放完毕
-    KlinePlay(KlinePlayEvent), // K线跳动(信号计数:根据这个值去请求缓存的下标)
-    ExecuteOver(ExecuteOverEvent), // 执行完毕
+    KlinePlayFinished(KlinePlayFinishedEvent),   // k线播放完毕
+    KlinePlay(KlinePlayEvent),                   // K线跳动(信号计数:根据这个值去请求缓存的下标)
+    ExecuteOver(ExecuteOverEvent),               // 执行完毕
+    RunningLog(StrategyRunningLogEvent),         // 回测条件匹配日志
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveConditionMatchEvent {
@@ -283,7 +270,6 @@ pub struct LiveConditionMatchEvent {
     pub from_node_handle_id: String,
     pub message_timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BacktestConditionMatchEvent {
@@ -303,7 +289,6 @@ pub struct BacktestConditionNotMatchEvent {
     pub timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlinePlayEvent {
     pub from_node_id: String,
@@ -312,7 +297,6 @@ pub struct KlinePlayEvent {
     pub play_index: i32,
     pub message_timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlinePlayFinishedEvent {
@@ -333,12 +317,15 @@ pub struct ExecuteOverEvent {
 }
 
 // 通用的序列化函数
-fn serialize_cache_value_vec<S>(data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_cache_value_vec<S>(
+    data: &Vec<Arc<CacheValue>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     use serde::ser::SerializeSeq;
-    
+
     let mut seq = serializer.serialize_seq(Some(data.len()))?;
     for item in data {
         let json_value = item.to_json();
@@ -354,13 +341,12 @@ where
 {
     use serde::de::Error;
     use serde::Deserialize;
-    
+
     // 这里我们简单地跳过反序列化，返回空向量
     // 在实际应用中，你可能需要根据具体需求来实现反序列化逻辑
     let _: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
     Ok(Vec::new())
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(rename_all = "lowercase")]
@@ -372,7 +358,6 @@ pub enum LogLevel {
     Warn,
     Error,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeStateLogEvent {
@@ -408,7 +393,6 @@ pub struct NodeStateLogEvent {
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
 }
-
 
 impl NodeStateLogEvent {
     pub fn success(
@@ -456,11 +440,88 @@ impl NodeStateLogEvent {
     }
 }
 
-
-
-
 impl From<NodeStateLogEvent> for BacktestNodeEvent {
     fn from(event: NodeStateLogEvent) -> Self {
         BacktestNodeEvent::KlineNode(KlineNodeEvent::StartLog(event))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum StrategyRunningLogSource {
+    #[strum(serialize = "node")]
+    #[serde(rename = "Node")]
+    Node,
+    #[strum(serialize = "virtual_trading_system")]
+    #[serde(rename = "VirtualTradingSystem")]
+    VirtualTradingSystem,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum StrategyRunningLogType {
+    #[strum(serialize = "condition_match")]
+    #[serde(rename = "ConditionMatch")]
+    ConditionMatch,
+}
+
+// 策略运行日志
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StrategyRunningLogEvent {
+    #[serde(rename = "strategyId")]
+    pub strategy_id: i32,
+
+    #[serde(rename = "nodeId")]
+    pub node_id: String,
+
+    #[serde(rename = "nodeName")]
+    pub node_name: String,
+
+    #[serde(rename = "source")]
+    pub source: StrategyRunningLogSource,
+
+    #[serde(rename = "logLevel")]
+    pub log_level: LogLevel,
+
+    #[serde(rename = "logType")]
+    pub log_type: StrategyRunningLogType,
+
+    #[serde(rename = "message")]
+    pub message: String,
+
+    #[serde(rename = "detail")]
+    pub detail: serde_json::Value,
+
+    #[serde(rename = "errorCode")]
+    pub error_code: Option<String>,
+
+    #[serde(rename = "errorCodeChain")]
+    pub error_code_chain: Option<Vec<String>>,
+
+    #[serde(rename = "timestamp")]
+    pub timestamp: i64,
+}
+
+impl StrategyRunningLogEvent {
+    pub fn success(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        source: StrategyRunningLogSource,
+        log_type: StrategyRunningLogType,
+        message: String,
+        detail: serde_json::Value,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            source,
+            log_level: LogLevel::Info,
+            log_type,
+            message,
+            detail,
+            error_code: None,
+            error_code_chain: None,
+            timestamp: get_utc8_timestamp_millis(),
+        }
     }
 }

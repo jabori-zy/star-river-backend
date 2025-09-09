@@ -1,6 +1,6 @@
-use std::process::Command;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
+use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
@@ -8,11 +8,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 设置资源目录
     // let resources_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
-    let target_dir = Path::new(&project_root).join("src").join("metatrader5").join("bin").join(match target_os.as_str() {
-        "windows" => "windows",
-        "macos" => "macos",
-        _ => "linux",
-    });
+    let target_dir = Path::new(&project_root)
+        .join("src")
+        .join("metatrader5")
+        .join("bin")
+        .join(match target_os.as_str() {
+            "windows" => "windows",
+            "macos" => "macos",
+            _ => "linux",
+        });
 
     // 创建目录
     fs::create_dir_all(&target_dir).unwrap();
@@ -31,13 +35,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "windows")]
     {
         // 设置script目录路径
-        let script_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
-        
+        let script_dir = Path::new(&project_root)
+            .join("src")
+            .join("metatrader5")
+            .join("script");
+
         // 打包前清理可能影响构建检测的临时文件和目录
         let pycache_dir = script_dir.join("__pycache__");
         let build_dir = script_dir.join("build");
         let dist_dir = script_dir.join("dist");
-        
+
         if pycache_dir.exists() {
             let _ = fs::remove_dir_all(&pycache_dir);
         }
@@ -47,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if dist_dir.exists() {
             let _ = fs::remove_dir_all(&dist_dir);
         }
-        
+
         // 使用uv运行pyinstaller进行打包
         // 完整命令: uv run pyinstaller -c -F --clean --name MetaTrader5-x86_64-pc-windows-msvc --distpath <target_dir> main.py
         let status = Command::new("uv")
@@ -61,9 +68,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "MetaTrader5-x86_64-pc-windows-msvc",
                 "--distpath",
                 target_dir.to_str().unwrap(),
-                "main.py"
+                "main.py",
             ])
-            .current_dir(&script_dir)  // 设置工作目录为script目录
+            .current_dir(&script_dir) // 设置工作目录为script目录
             .status()
             .expect("Failed to execute uv run pyinstaller");
 
@@ -73,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let spec_file = script_dir.join("MetaTrader5-x86_64-pc-windows-msvc.spec");
             let build_dir = script_dir.join("build");
             let dist_dir = script_dir.join("dist");
-            
+
             if spec_file.exists() {
                 let _ = fs::remove_file(spec_file);
             }
@@ -88,6 +95,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    
     Ok(())
 }

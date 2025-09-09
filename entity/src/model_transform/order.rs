@@ -1,7 +1,7 @@
-use types::order::{Order, FuturesOrderSide, OrderType, OrderStatus};
 use crate::order::Model as OrderModel;
-use types::market::Exchange;
 use std::str::FromStr;
+use types::market::Exchange;
+use types::order::{FuturesOrderSide, Order, OrderStatus, OrderType};
 
 impl From<OrderModel> for Order {
     fn from(order: OrderModel) -> Self {
@@ -26,8 +26,3 @@ impl From<OrderModel> for Order {
         }
     }
 }
-
-
-
-
-

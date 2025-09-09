@@ -4,12 +4,12 @@ use std::any::Any;
 // 状态转换后需要执行的动作
 #[derive(Debug, Clone)]
 pub enum PositionNodeStateAction {
-    ListenAndHandleExternalEvents,   // 处理外部事件
-    ListenAndHandleMessage,         // 处理消息
-    RegisterHeartbeatTask,        // 注册心跳任务
-    LogNodeState,    // 记录节点状态
-    LogTransition,          // 记录状态转换
-    LogError(String),       // 记录错误
+    ListenAndHandleExternalEvents, // 处理外部事件
+    ListenAndHandleMessage,        // 处理消息
+    RegisterHeartbeatTask,         // 注册心跳任务
+    LogNodeState,                  // 记录节点状态
+    LogTransition,                 // 记录状态转换
+    LogError(String),              // 记录错误
 }
 
 impl LiveNodeTransitionAction for PositionNodeStateAction {
@@ -35,10 +35,12 @@ impl LiveStateChangeActions for PositionNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn LiveNodeTransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+        self.actions
+            .iter()
+            .map(|action| action.clone_box())
+            .collect()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct PositionNodeStateMachine {
@@ -70,7 +72,10 @@ impl LiveNodeStateMachine for PositionNodeStateMachine {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: LiveNodeStateTransitionEvent) -> Result<Box<dyn LiveStateChangeActions>, String> {
+    fn transition(
+        &mut self,
+        event: LiveNodeStateTransitionEvent,
+    ) -> Result<Box<dyn LiveStateChangeActions>, String> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -80,10 +85,11 @@ impl LiveNodeStateMachine for PositionNodeStateMachine {
                 Ok(Box::new(PositionNodeStateChangeActions {
                     new_state: LiveNodeRunState::Initializing,
                     actions: vec![
-                        Box::new(PositionNodeStateAction::LogTransition), 
-                        Box::new(PositionNodeStateAction::ListenAndHandleExternalEvents), 
+                        Box::new(PositionNodeStateAction::LogTransition),
+                        Box::new(PositionNodeStateAction::ListenAndHandleExternalEvents),
                         Box::new(PositionNodeStateAction::ListenAndHandleMessage),
-                        Box::new(PositionNodeStateAction::RegisterHeartbeatTask)],
+                        Box::new(PositionNodeStateAction::RegisterHeartbeatTask),
+                    ],
                 }))
             }
             // 初始化完成，进入Ready状态
@@ -92,7 +98,10 @@ impl LiveNodeStateMachine for PositionNodeStateMachine {
                 self.current_state = LiveNodeRunState::Ready;
                 Ok(Box::new(PositionNodeStateChangeActions {
                     new_state: LiveNodeRunState::Ready,
-                    actions: vec![Box::new(PositionNodeStateAction::LogTransition), Box::new(PositionNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(PositionNodeStateAction::LogTransition),
+                        Box::new(PositionNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从Ready状态开始启动
@@ -137,18 +146,21 @@ impl LiveNodeStateMachine for PositionNodeStateMachine {
                 self.current_state = LiveNodeRunState::Failed;
                 Ok(Box::new(PositionNodeStateChangeActions {
                     new_state: LiveNodeRunState::Failed,
-                    actions: vec![Box::new(PositionNodeStateAction::LogTransition), Box::new(PositionNodeStateAction::LogError(error))],
+                    actions: vec![
+                        Box::new(PositionNodeStateAction::LogTransition),
+                        Box::new(PositionNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换
             (state, event) => {
                 // 修改manager的状态
                 self.current_state = LiveNodeRunState::Failed;
-                Err(format!("节点 {} 无效的状态转换: {:?} -> {:?}", self.node_id, state, event))
+                Err(format!(
+                    "节点 {} 无效的状态转换: {:?} -> {:?}",
+                    self.node_id, state, event
+                ))
             }
-
         }
     }
-
-
 }

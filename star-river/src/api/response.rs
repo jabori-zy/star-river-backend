@@ -1,10 +1,10 @@
-use serde::Serialize;
-use utoipa::ToSchema;
 use chrono::Utc;
+use serde::Serialize;
+use snafu::Report;
 use std::error::Error;
 use types::error::error_trait::StarRiverErrorTrait;
 use types::error::ErrorCode;
-use snafu::Report;
+use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
 pub struct ApiResponse<T> {
@@ -12,7 +12,6 @@ pub struct ApiResponse<T> {
     pub message: String,
     pub data: Option<T>,
 }
-
 
 #[derive(Serialize, ToSchema)]
 pub struct NewApiResponse<T> {
@@ -27,7 +26,6 @@ pub struct NewApiResponse<T> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code_chain: Option<Vec<ErrorCode>>,
 }
-
 
 impl<T> NewApiResponse<T> {
     pub fn success(data: T) -> Self {
@@ -52,5 +50,4 @@ impl<T> NewApiResponse<T> {
             message: Some(report.to_string()),
         }
     }
-    
 }

@@ -1,10 +1,10 @@
+use crate::indicator_engine::talib::TALib;
+use crate::indicator_engine::talib_bindings::*;
+use crate::indicator_engine::talib_error::TalibError;
 use crate::talib_fn;
 use crate::talib_snake_fn;
 use types::indicator::indicator_define::overlap::*;
-use crate::indicator_engine::talib::TALib;
 use types::indicator::Indicator;
-use crate::indicator_engine::talib_bindings::*;
-use crate::indicator_engine::talib_error::TalibError;
 
 impl TALib {
     //Bollinger Bands #布林带
@@ -170,11 +170,10 @@ impl TALib {
 
     //WMA                  Weighted Moving Average #加权移动平均线
     talib_fn!(
-        WMA,
-        timestamp => (timestamp_list: &[i64]),
-        input => [(data: &[f64])],
-        talib_params => [(time_period: i32)],
-            output => [(wma: f64)],
-        );
-
+    WMA,
+    timestamp => (timestamp_list: &[i64]),
+    input => [(data: &[f64])],
+    talib_params => [(time_period: i32)],
+        output => [(wma: f64)],
+    );
 }

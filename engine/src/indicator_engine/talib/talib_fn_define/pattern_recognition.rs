@@ -1,12 +1,11 @@
-use crate::talib_fn;
-use types::indicator::indicator_define::pattern_recognition::*;
 use crate::indicator_engine::talib::TALib;
-use types::indicator::Indicator;
 use crate::indicator_engine::talib_bindings::*;
 use crate::indicator_engine::talib_error::TalibError;
+use crate::talib_fn;
+use types::indicator::indicator_define::pattern_recognition::*;
+use types::indicator::Indicator;
 
 impl TALib {
-
     // CDL2CROWS            Two Crows #两只乌鸦
     talib_fn!(
         CDL2CROWS,
@@ -555,5 +554,4 @@ impl TALib {
         talib_params => [],
         output => [(xside_gap_three_methods: i32)],
     );
-
 }

@@ -1,22 +1,22 @@
-use event_center::Event;
-use sea_orm::DatabaseConnection;
-use database::query::strategy_config_query::StrategyConfigQuery;
-use std::collections::{HashMap, HashSet};
+use crate::exchange_engine::ExchangeEngine;
+use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
-use crate::EngineContext;
+use database::query::strategy_config_query::StrategyConfigQuery;
+use event_center::Event;
+use heartbeat::Heartbeat;
+use sea_orm::DatabaseConnection;
 use std::any::Any;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::exchange_engine::ExchangeEngine;
-use heartbeat::Heartbeat;
 // use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
-use types::strategy::{StrategyConfig, TradeMode};
-use types::custom_type::StrategyId;
 use event_center::command::Command;
-use types::error::engine_error::strategy_engine_error::*;
 use snafu::Report;
+use types::custom_type::StrategyId;
+use types::error::engine_error::strategy_engine_error::*;
+use types::strategy::{StrategyConfig, TradeMode};
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
@@ -28,7 +28,6 @@ pub struct StrategyEngineContext {
     pub backtest_strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>,
     pub initializing_strategies: Arc<Mutex<HashSet<StrategyId>>>,
 }
-
 
 impl Clone for StrategyEngineContext {
     fn clone(&self) -> Self {
@@ -43,14 +42,11 @@ impl Clone for StrategyEngineContext {
     }
 }
 
-
 #[async_trait]
 impl EngineContext for StrategyEngineContext {
-
     fn clone_box(&self) -> Box<dyn EngineContext> {
         Box::new(self.clone())
     }
-
 
     fn as_any(&self) -> &dyn Any {
         self
@@ -71,11 +67,9 @@ impl EngineContext for StrategyEngineContext {
     async fn handle_command(&mut self, command: Command) {
         let _command = command;
     }
-
 }
 
 impl StrategyEngineContext {
-
     // pub async fn get_live_strategy_instance(&self, strategy_id: StrategyId) -> Result<&LiveStrategy, String> {
     //     if let Some(strategy) = self.live_strategy_list.get(&strategy_id) {
     //         Ok(strategy)
@@ -92,14 +86,15 @@ impl StrategyEngineContext {
     //     }
     // }
 
-    pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, StrategyEngineError> {
+    pub async fn get_backtest_strategy_instance(
+        &self,
+        strategy_id: StrategyId,
+    ) -> Result<BacktestStrategy, StrategyEngineError> {
         let backtest_strategy_list = self.backtest_strategy_list.lock().await;
         if let Some(strategy) = backtest_strategy_list.get(&strategy_id) {
             Ok(strategy.clone())
         } else {
-            let error = StrategyInstanceNotFoundSnafu {
-                strategy_id,
-            }.build();
+            let error = StrategyInstanceNotFoundSnafu { strategy_id }.build();
             let report = Report::from_error(&error);
             tracing::error!("{}", report);
             Err(error)
@@ -113,7 +108,9 @@ impl StrategyEngineContext {
     // }
 
     pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, String> {
-        let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id).await.unwrap_or(None);
+        let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id)
+            .await
+            .unwrap_or(None);
         if let Some(strategy) = strategy {
             Ok(strategy)
         } else {
@@ -122,14 +119,21 @@ impl StrategyEngineContext {
         }
     }
 
-    pub async fn remove_strategy_instance(&mut self, trade_mode: TradeMode, strategy_id: i32) -> Result<(), String> {
+    pub async fn remove_strategy_instance(
+        &mut self,
+        trade_mode: TradeMode,
+        strategy_id: i32,
+    ) -> Result<(), String> {
         match trade_mode {
             // TradeMode::Live => {
             //     self.live_strategy_list.remove(&strategy_id);
             //     tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
             // }
             TradeMode::Backtest => {
-                self.backtest_strategy_list.lock().await.remove(&strategy_id);
+                self.backtest_strategy_list
+                    .lock()
+                    .await
+                    .remove(&strategy_id);
                 tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);
             }
             _ => {
@@ -146,11 +150,11 @@ impl StrategyEngineContext {
     //         TradeMode::Live => {
     //             let strategy_id = strategy.id;
     //             let strategy = LiveStrategy::new(
-    //                 strategy, 
+    //                 strategy,
     //                 self.event_publisher.clone(),
     //                 self.command_publisher.clone(),
     //                 self.command_receiver.clone(),
-    //                 self.market_event_receiver.resubscribe(), 
+    //                 self.market_event_receiver.resubscribe(),
     //                 self.response_event_receiver.resubscribe(),
     //                 self.exchange_engine.clone(),
     //                 self.database.clone(),
@@ -180,11 +184,6 @@ impl StrategyEngineContext {
     //         }
     //     }
     // }
-
-
-    
-
-
 
     // 初始化策略
     // pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
@@ -216,10 +215,6 @@ impl StrategyEngineContext {
     //     }
     // }
 
-    
-
-
-
     // 获取回测策略的缓存键
     // pub async fn get_strategy_cache_keys(&self, trade_mode: TradeMode, strategy_id: i32) -> Vec<CacheKey> {
     //     match trade_mode {
@@ -237,5 +232,4 @@ impl StrategyEngineContext {
     //         }
     //     }
     // }
-
 }

@@ -1,12 +1,12 @@
 pub mod virtual_order;
 
 use crate::market::Exchange;
-use strum::{EnumString, Display};
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
 use std::str::FromStr;
+use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,8 +37,6 @@ pub struct GetTransactionDetailParams {
     pub order_id: Option<i64>,
 }
 
-
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum FuturesOrderSide {
     #[strum(serialize = "OPEN_LONG")]
@@ -66,18 +64,20 @@ pub enum TpslType {
     Percentage,
 }
 
-
 pub fn deserialize_futures_order_side<'de, D>(deserializer: D) -> Result<FuturesOrderSide, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     // 将字符串反序列化为String
     let s = String::deserialize(deserializer)?;
-    
+
     // 使用as_str()方法获取&str，然后传递给from_str
     match FuturesOrderSide::from_str(s.as_str()) {
         Ok(order_side) => Ok(order_side),
-        Err(e) => Err(serde::de::Error::custom(format!("无法解析OrderSide: {}", e)))
+        Err(e) => Err(serde::de::Error::custom(format!(
+            "无法解析OrderSide: {}",
+            e
+        ))),
     }
 }
 
@@ -109,16 +109,16 @@ where
 {
     // 将字符串反序列化为String
     let s = String::deserialize(deserializer)?;
-    
+
     // 使用as_str()方法获取&str，然后传递给from_str
     match OrderType::from_str(s.as_str()) {
         Ok(order_type) => Ok(order_type),
-        Err(e) => Err(serde::de::Error::custom(format!("无法解析OrderType: {}", e)))
+        Err(e) => Err(serde::de::Error::custom(format!(
+            "无法解析OrderType: {}",
+            e
+        ))),
     }
 }
-
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum OrderStatus {
@@ -151,28 +151,26 @@ pub enum OrderStatus {
     Rejected,
 }
 
-
-
 // 系统级别的订单
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
-    pub order_id: i32, // 订单ID
-    pub strategy_id: i32, // 策略ID
-    pub node_id: String, // 节点ID
-    pub exchange_order_id: i64, // 交易所订单ID
-    pub account_id: i32, // 账户ID
-    pub exchange: Exchange, // 交易所
-    pub symbol: String, // 交易对
-    pub order_side: FuturesOrderSide, // 订单方向
-    pub order_type: OrderType, // 订单类型
-    pub order_status: OrderStatus, // 订单状态
-    pub quantity: f64, // 数量
-    pub open_price: f64, // 开仓价格
-    pub tp: Option<f64>, // 止盈价格
-    pub sl: Option<f64>, // 止损价格
+    pub order_id: i32,                         // 订单ID
+    pub strategy_id: i32,                      // 策略ID
+    pub node_id: String,                       // 节点ID
+    pub exchange_order_id: i64,                // 交易所订单ID
+    pub account_id: i32,                       // 账户ID
+    pub exchange: Exchange,                    // 交易所
+    pub symbol: String,                        // 交易对
+    pub order_side: FuturesOrderSide,          // 订单方向
+    pub order_type: OrderType,                 // 订单类型
+    pub order_status: OrderStatus,             // 订单状态
+    pub quantity: f64,                         // 数量
+    pub open_price: f64,                       // 开仓价格
+    pub tp: Option<f64>,                       // 止盈价格
+    pub sl: Option<f64>,                       // 止损价格
     pub extra_info: Option<serde_json::Value>, // 额外信息
-    pub created_time: DateTime<Utc>, // 创建时间
-    pub updated_time: DateTime<Utc>, // 更新时间
+    pub created_time: DateTime<Utc>,           // 创建时间
+    pub updated_time: DateTime<Utc>,           // 更新时间
 }
 
 pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
@@ -191,8 +189,6 @@ pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
     fn get_extra_info(&self) -> Option<serde_json::Value>;
     fn get_created_time(&self) -> DateTime<Utc>;
     fn get_updated_time(&self) -> DateTime<Utc>;
-
-
 }
 
 impl Clone for Box<dyn OriginalOrder> {
@@ -200,5 +196,3 @@ impl Clone for Box<dyn OriginalOrder> {
         self.clone_box()
     }
 }
-
-

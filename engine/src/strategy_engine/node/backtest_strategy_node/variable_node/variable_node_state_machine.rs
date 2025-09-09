@@ -7,21 +7,21 @@ use types::error::engine_error::strategy_engine_error::node_error::*;
 #[derive(Debug, Clone, Display)]
 pub enum VariableNodeStateAction {
     #[strum(serialize = "ListenAndHandleNodeEvents")]
-    ListenAndHandleNodeEvents,         // 处理消息
+    ListenAndHandleNodeEvents, // 处理消息
     #[strum(serialize = "ListenAndHandleStrategyInnerEvents")]
     ListenAndHandleStrategyInnerEvents, // 处理策略内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     #[strum(serialize = "RegisterTask")]
-    RegisterTask,                   // 注册任务
+    RegisterTask, // 注册任务
     #[strum(serialize = "LogNodeState")]
-    LogNodeState,    // 记录节点状态
+    LogNodeState, // 记录节点状态
     #[strum(serialize = "LogTransition")]
-    LogTransition,          // 记录状态转换
+    LogTransition, // 记录状态转换
     #[strum(serialize = "LogError")]
-    LogError(String),       // 记录错误
+    LogError(String), // 记录错误
     #[strum(serialize = "CancelAsyncTask")]
-    CancelAsyncTask,        // 取消异步任务
+    CancelAsyncTask, // 取消异步任务
 }
 
 impl BacktestNodeTransitionAction for VariableNodeStateAction {
@@ -47,10 +47,12 @@ impl BacktestStateChangeActions for VariableNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions.iter().map(|action| action.clone_box()).collect()
+        self.actions
+            .iter()
+            .map(|action| action.clone_box())
+            .collect()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct VariableNodeStateMachine {
@@ -82,7 +84,10 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
         self.current_state.clone()
     }
 
-    fn transition(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
+    fn transition(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<Box<dyn BacktestStateChangeActions>, BacktestNodeStateMachineError> {
         // 根据当前状态和事件确定新状态和需要执行的动作
         match (self.current_state.clone(), event) {
             // 从created状态开始初始化。执行初始化需要的方法
@@ -92,7 +97,7 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                 Ok(Box::new(VariableNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
-                        Box::new(VariableNodeStateAction::LogTransition),  
+                        Box::new(VariableNodeStateAction::LogTransition),
                         Box::new(VariableNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(VariableNodeStateAction::ListenAndHandleStrategyInnerEvents),
                         Box::new(VariableNodeStateAction::ListenAndHandleStrategyCommand),
@@ -100,12 +105,18 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                 }))
             }
             // 初始化完成，进入Ready状态
-            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
+            (
+                BacktestNodeRunState::Initializing,
+                BacktestNodeStateTransitionEvent::InitializeComplete,
+            ) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(VariableNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Ready,
-                    actions: vec![Box::new(VariableNodeStateAction::LogTransition), Box::new(VariableNodeStateAction::LogNodeState)],
+                    actions: vec![
+                        Box::new(VariableNodeStateAction::LogTransition),
+                        Box::new(VariableNodeStateAction::LogNodeState),
+                    ],
                 }))
             }
             // 从Ready状态开始启动
@@ -114,7 +125,8 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Stopping;
                 Ok(Box::new(VariableNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Stopping,
-                    actions: vec![Box::new(VariableNodeStateAction::LogTransition),
+                    actions: vec![
+                        Box::new(VariableNodeStateAction::LogTransition),
                         Box::new(VariableNodeStateAction::RegisterTask),
                         Box::new(VariableNodeStateAction::CancelAsyncTask),
                     ],
@@ -135,7 +147,10 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                 self.current_state = BacktestNodeRunState::Failed;
                 Ok(Box::new(VariableNodeStateChangeActions {
                     new_state: BacktestNodeRunState::Failed,
-                    actions: vec![Box::new(VariableNodeStateAction::LogTransition), Box::new(VariableNodeStateAction::LogError(error))],
+                    actions: vec![
+                        Box::new(VariableNodeStateAction::LogTransition),
+                        Box::new(VariableNodeStateAction::LogError(error)),
+                    ],
                 }))
             }
             // 处理无效的状态转换
@@ -146,11 +161,9 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                     from_state: state.to_string(),
                     to_state: event.to_string(),
                     event: event.to_string(),
-                }.fail()?
+                }
+                .fail()?;
             }
-
         }
     }
-
-
 }

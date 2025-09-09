@@ -1,12 +1,17 @@
-use types::account::AccountConfig;
 use crate::account_config::Model as AccountConfigModel;
-use types::market::Exchange;
 use std::str::FromStr;
+use types::account::AccountConfig;
+use types::market::Exchange;
 
 impl From<AccountConfigModel> for AccountConfig {
     fn from(config: AccountConfigModel) -> Self {
         let exchange = match config.exchange.as_str() {
-            "metatrader5" => Exchange::Metatrader5(config.account_config["server"].as_str().unwrap_or("").to_string()),
+            "metatrader5" => Exchange::Metatrader5(
+                config.account_config["server"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string(),
+            ),
             _ => Exchange::from_str(config.exchange.as_str()).unwrap(),
         };
         AccountConfig {
@@ -22,7 +27,6 @@ impl From<AccountConfigModel> for AccountConfig {
         }
     }
 }
-
 
 // impl From<Mt5AccountConfigModel> for Mt5AccountConfig {
 //     fn from(config: Mt5AccountConfigModel) -> Self {
@@ -41,7 +45,6 @@ impl From<AccountConfigModel> for AccountConfig {
 //         }
 //     }
 // }
-
 
 // impl From<Mt5AccountInfoModel> for Mt5AccountInfo {
 //     fn from(info: Mt5AccountInfoModel) -> Self {
@@ -83,7 +86,3 @@ impl From<AccountConfigModel> for AccountConfig {
 //         }
 //     }
 // }
-
-
-
-

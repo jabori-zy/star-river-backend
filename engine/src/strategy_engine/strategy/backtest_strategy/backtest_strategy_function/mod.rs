@@ -1,23 +1,22 @@
 mod add_edge;
-mod add_node;
-mod add_start_node;
-mod add_kline_node;
-mod add_if_else_node;
-mod add_indicator_node;
 mod add_futures_order_node;
 mod add_get_variable_node;
+mod add_if_else_node;
+mod add_indicator_node;
+mod add_kline_node;
+mod add_node;
 mod add_position_management_node;
+mod add_start_node;
 
-use petgraph::{Direction, graph::NodeIndex};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use futures::stream::select_all;
 use futures::StreamExt;
+use petgraph::{graph::NodeIndex, Direction};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tokio_stream::wrappers::BroadcastStream;
 
 pub struct BacktestStrategyFunction;
-
 
 impl BacktestStrategyFunction {
     // 将所有节点的strategy_output_handle添加到策略中
@@ -54,15 +53,14 @@ impl BacktestStrategyFunction {
         }
 
         // 创建一个流，用于接收节点传递过来的event
-        let streams: Vec<_> = receivers.iter()
+        let streams: Vec<_> = receivers
+            .iter()
             .map(|output_handle| BroadcastStream::new(output_handle.node_event_sender.subscribe()))
             .collect();
 
         let mut combined_stream = select_all(streams);
-        
-        let context_clone = context.clone();
 
-        
+        let context_clone = context.clone();
 
         // 节点接收数据
         tokio::spawn(async move {
@@ -94,14 +92,12 @@ impl BacktestStrategyFunction {
         });
     }
 
-
     pub async fn listen_node_command(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (strategy_name, command_receiver) = {
             let context_guard = context.read().await;
             let strategy_name = context_guard.get_strategy_name();
             let command_receiver = context_guard.get_node_command_receiver();
             (strategy_name, command_receiver)
-
         };
         tracing::debug!("{}: 开始监听节点命令", strategy_name);
         tokio::spawn(async move {
@@ -124,18 +120,17 @@ impl BacktestStrategyFunction {
                 // 然后再获取context的写锁处理命令
                 let mut context_guard = context.write().await;
                 context_guard.handle_node_command(command).await.unwrap();
-                
             }
         });
     }
-
 
     pub async fn listen_strategy_stats_event(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (strategy_name, cancel_token, strategy_stats_event_receiver) = {
             let context_guard = context.read().await;
             let strategy_name = context_guard.get_strategy_name();
             let cancel_token = context_guard.get_cancel_task_token();
-            let strategy_stats_event_receiver = context_guard.strategy_stats_event_receiver.resubscribe();
+            let strategy_stats_event_receiver =
+                context_guard.strategy_stats_event_receiver.resubscribe();
             (strategy_name, cancel_token, strategy_stats_event_receiver)
         };
 
@@ -168,10 +163,10 @@ impl BacktestStrategyFunction {
         });
     }
 
-
     pub async fn set_leaf_nodes(context: Arc<RwLock<BacktestStrategyContext>>) {
         let mut context_guard = context.write().await;
-        let leaf_nodes: Vec<NodeIndex> = context_guard.graph.externals(Direction::Outgoing).collect();
+        let leaf_nodes: Vec<NodeIndex> =
+            context_guard.graph.externals(Direction::Outgoing).collect();
         let mut leaf_node_ids = Vec::new();
         for node_index in leaf_nodes {
             let node = context_guard.graph.node_weight_mut(node_index).unwrap();

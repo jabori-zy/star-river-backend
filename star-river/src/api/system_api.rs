@@ -1,15 +1,14 @@
-use database::mutation::system_config_mutation::SystemConfigMutation;
-use axum::http::StatusCode;
-use axum::extract::State;
-use axum::extract::Json;
-use crate::star_river::StarRiver;
 use crate::api::response::ApiResponse;
-use types::system::system_config::SystemConfig;
+use crate::star_river::StarRiver;
+use axum::extract::Json;
+use axum::extract::State;
+use axum::http::StatusCode;
+use database::mutation::system_config_mutation::SystemConfigMutation;
 use database::query::system_config_query::SystemConfigQuery;
-use serde::{Serialize, Deserialize};
-use utoipa::ToSchema;
+use serde::{Deserialize, Serialize};
+use types::system::system_config::SystemConfig;
 use types::system::system_config::SystemConfigUpdateParams;
-
+use utoipa::ToSchema;
 
 #[utoipa::path(
     put,
@@ -29,28 +28,29 @@ pub async fn update_system_config(
     let conn = &database.conn;
 
     tracing::debug!("更新系统配置: {:?}", system_config_params);
-    
-    let update_result = SystemConfigMutation::update_system_config(conn, system_config_params).await;
+
+    let update_result =
+        SystemConfigMutation::update_system_config(conn, system_config_params).await;
 
     match update_result {
-        Ok(system_config) => {
-            (StatusCode::OK, Json(ApiResponse {
+        Ok(system_config) => (
+            StatusCode::OK,
+            Json(ApiResponse {
                 code: 0,
                 message: "更新系统配置成功".to_string(),
                 data: Some(system_config),
-            }))
-        }
-        Err(e) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse {
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse {
                 code: -1,
                 message: e.to_string(),
                 data: None,
-            }))
-        }
+            }),
+        ),
     }
 }
-
-
 
 #[utoipa::path(
     get,
@@ -69,19 +69,21 @@ pub async fn get_system_config(
 
     let system_config = SystemConfigQuery::get_system_config(conn).await;
     match system_config {
-        Ok(system_config) => {
-            (StatusCode::OK, Json(ApiResponse {
+        Ok(system_config) => (
+            StatusCode::OK,
+            Json(ApiResponse {
                 code: 0,
                 message: "获取系统配置成功".to_string(),
                 data: Some(system_config),
-            }))
-        }
-        Err(e) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse {
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse {
                 code: -1,
                 message: e.to_string(),
                 data: None,
-            }))
-        }
+            }),
+        ),
     }
 }

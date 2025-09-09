@@ -1,20 +1,20 @@
 pub mod mt5_account;
 
-use serde::{Deserialize, Serialize};
+use crate::market::Exchange;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
-use crate::market::Exchange;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExchangeStatus {
-    NotRegist, // 未注册
-    Registing, // 注册中
-    Registed, // 已注册
+    NotRegist,      // 未注册
+    Registing,      // 注册中
+    Registed,       // 已注册
     RegisterFailed, // 注册失败
-    Error, // 错误
+    Error,          // 错误
 }
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,8 +31,16 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(config: AccountConfig, info: Option<AccountInfo>, exchange_status: ExchangeStatus) -> Self {
-        Self { account_config: config, account_info: info, exchange_status }
+    pub fn new(
+        config: AccountConfig,
+        info: Option<AccountInfo>,
+        exchange_status: ExchangeStatus,
+    ) -> Self {
+        Self {
+            account_config: config,
+            account_info: info,
+            exchange_status,
+        }
     }
 
     pub fn get_account_id(&self) -> i32 {
@@ -74,19 +82,18 @@ impl Account {
     pub fn set_account_config(&mut self, account_config: AccountConfig) {
         self.account_config = account_config;
     }
-    
 }
 
 //系统的账户配置
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AccountConfig {
-    pub id: i32, // 账户id
-    pub account_name: String, // 账户名称
-    pub exchange: Exchange, // 交易所
-    pub config: serde_json::Value, // 账户配置
-    pub is_available: bool, // 是否可用
-    pub is_deleted: bool, // 是否删除
-    pub sort_index: i32, // 排序索引
+    pub id: i32,                    // 账户id
+    pub account_name: String,       // 账户名称
+    pub exchange: Exchange,         // 交易所
+    pub config: serde_json::Value,  // 账户配置
+    pub is_available: bool,         // 是否可用
+    pub is_deleted: bool,           // 是否删除
+    pub sort_index: i32,            // 排序索引
     pub create_time: DateTime<Utc>, // 创建时间
     pub update_time: DateTime<Utc>, // 更新时间
 }
@@ -95,15 +102,14 @@ pub struct AccountConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
     pub id: i32,
-    pub account_id: i32, // 配置id
-    pub info: serde_json::Value, // 账户信息
+    pub account_id: i32,            // 配置id
+    pub info: serde_json::Value,    // 账户信息
     pub create_time: DateTime<Utc>, // 创建时间
     pub update_time: DateTime<Utc>, // 更新时间
 }
 
-
 // 原始账户
-pub trait AccountTrait : Debug + Send + Sync + Any + 'static {
+pub trait AccountTrait: Debug + Send + Sync + Any + 'static {
     fn clone_box(&self) -> Box<dyn AccountTrait>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -118,18 +124,11 @@ pub trait AccountTrait : Debug + Send + Sync + Any + 'static {
     fn set_account_info(&mut self, account_info: AccountInfo); // 设置账户信息
 }
 
-
 impl Clone for Box<dyn AccountTrait> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
 }
-
-
-
-
-
-
 
 // binance 账户配置
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -160,14 +159,8 @@ pub trait OriginalAccountInfo: Debug + Send + Sync + Any + 'static {
     fn to_json(&self) -> serde_json::Value; // 转换为json
 }
 
-
 impl Clone for Box<dyn OriginalAccountInfo> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
 }
-
-
-
-
-

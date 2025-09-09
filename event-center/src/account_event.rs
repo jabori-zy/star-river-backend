@@ -1,9 +1,8 @@
+use crate::Event;
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use crate::Event;
 use types::account::Account;
 use types::account::AccountConfig;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]
@@ -20,12 +19,9 @@ pub enum AccountEvent {
     #[serde(rename = "account-config-updated")]
     AccountConfigUpdated(AccountConfig), // 账户配置已更新
 
-
     #[strum(serialize = "account-updated")]
     #[serde(rename = "account-updated")]
     AccountUpdated(Account), // 账户信息更新
-
-
 }
 
 impl From<AccountEvent> for Event {
@@ -33,9 +29,3 @@ impl From<AccountEvent> for Event {
         Event::Account(event)
     }
 }
-
-
-
-
-
-

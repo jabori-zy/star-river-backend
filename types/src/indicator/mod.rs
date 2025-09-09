@@ -1,35 +1,29 @@
-
-
-pub mod utils;
 pub mod indicator_macros;
+pub mod utils;
 // pub mod indicator;
 pub mod indicator_define;
 
-
+use crate::cache::{CacheItem, CacheValue};
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fmt::Debug;
 use std::any::Any;
 use std::collections::HashMap;
-use crate::cache::{CacheItem, CacheValue};
+use std::fmt::Debug;
 // use crate::indicator::indicator::*;
-use deepsize::DeepSizeOf;
-use strum::{EnumString, Display};
-use crate::{impl_indicator, impl_indicator_config};
-use crate::indicator::indicator_define::overlap::*;
-use crate::indicator::indicator_define::momentum::*;
-use crate::indicator::indicator_define::volume::*;
 use crate::indicator::indicator_define::cycle::*;
+use crate::indicator::indicator_define::momentum::*;
+use crate::indicator::indicator_define::overlap::*;
+use crate::indicator::indicator_define::pattern_recognition::*;
 use crate::indicator::indicator_define::price_transform::*;
 use crate::indicator::indicator_define::volatility::*;
-use crate::indicator::indicator_define::pattern_recognition::*;
+use crate::indicator::indicator_define::volume::*;
+use crate::{impl_indicator, impl_indicator_config};
+use deepsize::DeepSizeOf;
+use strum::{Display, EnumString};
 
 use crate::error::indicator_error::*;
 use snafu::ResultExt;
-
-
-
 
 // 价格来源
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display)]
@@ -48,7 +42,7 @@ pub enum PriceSource {
     Low,
 }
 
-#[derive(Debug, Clone, Hash, Eq,PartialEq, Serialize, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, EnumString, Display)]
 pub enum MAType {
     #[strum(serialize = "SMA")]
     #[serde(rename = "SMA")]
@@ -79,9 +73,10 @@ pub enum MAType {
     T3, // Triple Exponential Moving Average (T3) 三重指数移动平均线
 }
 
-
 pub trait IndicatorConfigTrait {
-    fn new(config: &Value) -> Result<Self, serde_json::Error> where Self: Sized; // 创建指标配置,有可能失败
+    fn new(config: &Value) -> Result<Self, serde_json::Error>
+    where
+        Self: Sized; // 创建指标配置,有可能失败
 }
 
 pub trait IndicatorTrait {
@@ -118,7 +113,6 @@ pub enum IndicatorConfig {
 
     // #[serde(rename = "mavp")]
     // MAVP(MAVPConfig),
-
     #[serde(rename = "midpoint")]
     MIDPOINT(MIDPOINTConfig),
 
@@ -369,14 +363,10 @@ pub enum IndicatorConfig {
     CDLUPSIDEGAP2CROWS(CDLUPSIDEGAP2CROWSConfig),
     #[serde(rename = "xside_gap_3_methods")]
     CDLXSIDEGAP3METHODS(CDLXSIDEGAP3METHODSConfig),
-
-
-
-
-
 }
 
-impl_indicator_config!(IndicatorConfig,
+impl_indicator_config!(
+    IndicatorConfig,
     (
         // Overlap
         BBANDS,
@@ -396,7 +386,6 @@ impl_indicator_config!(IndicatorConfig,
         TEMA,
         TRIMA,
         WMA,
-
         // Momentum
         ADX,
         ADXR,
@@ -428,30 +417,25 @@ impl_indicator_config!(IndicatorConfig,
         TRIX,
         ULTOSC,
         WILLR,
-
         // Volume
         AD,
         ADOSC,
         OBV,
-
         // Cycle
         HtDcperiod,
         HtDcphase,
         HtPhasor,
         HtSine,
         HtTrendmode,
-
         // Price Transform
         AVGPRICE,
         MEDPRICE,
         TYPPRICE,
         WCLPRICE,
-
         // Volatility
         ATR,
         NATR,
         TRANGE,
-
         // Pattern Recognition
         CDL2CROWS,
         CDL3BLACKCROWS,
@@ -517,16 +501,9 @@ impl_indicator_config!(IndicatorConfig,
     )
 );
 
-
-
-
-
-
-
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub enum Indicator {
-
     // Overlap
     BBANDS(BBANDS),
     DEMA(DEMA),
@@ -662,13 +639,12 @@ pub enum Indicator {
     CDLTRISTAR(CDLTRISTAR),
     CDLUNIQUE3RIVER(CDLUNIQUE3RIVER),
     CDLUPSIDEGAP2CROWS(CDLUPSIDEGAP2CROWS),
-    CDLXSIDEGAP3METHODS(CDLXSIDEGAP3METHODS)
+    CDLXSIDEGAP3METHODS(CDLXSIDEGAP3METHODS),
 }
 
 // 使用宏自动生成所有重复的match实现
 impl_indicator!(
-    Indicator, 
-
+    Indicator,
     // Overlap
     BBANDS,
     DEMA,
@@ -687,7 +663,6 @@ impl_indicator!(
     TEMA,
     TRIMA,
     WMA,
-
     // Momentum
     ADX,
     ADXR,
@@ -719,30 +694,25 @@ impl_indicator!(
     TRIX,
     ULTOSC,
     WILLR,
-
     // Volume
     AD,
     ADOSC,
     OBV,
-
     // Cycle
     HtDcperiod,
     HtDcphase,
     HtPhasor,
     HtSine,
     HtTrendmode,
-
     // Price Transform
     AVGPRICE,
     MEDPRICE,
     TYPPRICE,
     WCLPRICE,
-
     // Volatility
     ATR,
     NATR,
     TRANGE,
-
     // Pattern Recognition
     CDL2CROWS,
     CDL3BLACKCROWS,
@@ -807,8 +777,7 @@ impl_indicator!(
     CDLXSIDEGAP3METHODS
 );
 
-
-impl From<Indicator> for CacheValue {   
+impl From<Indicator> for CacheValue {
     fn from(indicator: Indicator) -> Self {
         CacheValue::Indicator(indicator)
     }
@@ -834,9 +803,6 @@ pub struct IndicatorValue {
     pub value: f64,
 }
 
-
-
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SMAIndicator {
     pub exchange: Exchange,
@@ -858,9 +824,12 @@ impl IndicatorData for SMAIndicator {
         self.indicator_value.clone()
     }
     fn get_latest_indicator_value(&self) -> HashMap<String, IndicatorValue> {
-        self.indicator_value.iter().map(|(key, value)| {
-            let latest_value = value.last().unwrap();
-            (key.clone(), latest_value.clone())
-        }).collect()
+        self.indicator_value
+            .iter()
+            .map(|(key, value)| {
+                let latest_value = value.last().unwrap();
+                (key.clone(), latest_value.clone())
+            })
+            .collect()
     }
 }

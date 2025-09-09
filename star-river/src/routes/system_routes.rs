@@ -1,9 +1,9 @@
+use crate::api::system_api::{get_system_config, update_system_config};
+use crate::star_river::StarRiver;
 use axum::{
-    routing::{put, get},
+    routing::{get, put},
     Router,
 };
-use crate::star_river::StarRiver;
-use crate::api::system_api::{update_system_config, get_system_config};
 
 pub fn create_system_routes() -> Router<StarRiver> {
     Router::new()

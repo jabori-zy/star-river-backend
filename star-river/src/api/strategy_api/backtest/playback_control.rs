@@ -1,10 +1,10 @@
-use crate::star_river::StarRiver;
-use axum::http::StatusCode;
-use axum::extract::State;
-use axum::extract::{Json,Path};
 use crate::api::response::ApiResponse;
-use types::engine::EngineName;
+use crate::star_river::StarRiver;
+use axum::extract::State;
+use axum::extract::{Json, Path};
+use axum::http::StatusCode;
 use engine::strategy_engine::StrategyEngine;
+use types::engine::EngineName;
 
 #[utoipa::path(
     post,
@@ -18,17 +18,26 @@ use engine::strategy_engine::StrategyEngine;
         (status = 200, description = "播放策略成功")
     )
 )]
-pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn play(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     strategy_engine.play(strategy_id).await.unwrap();
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: None,
+        }),
+    )
 }
 
 #[utoipa::path(
@@ -44,26 +53,38 @@ pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i
         (status = 400, description = "播放单个K线失败")
     )
 )]
-pub async fn play_one(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
+pub async fn play_one(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     let played_signal_count = strategy_engine.play_one_kline(strategy_id).await;
     if let Ok(played_signal_count) = played_signal_count {
-        (StatusCode::OK, Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: Some(serde_json::json!({
-                "played_signal_count": played_signal_count
-            })),
-        }))
+        (
+            StatusCode::OK,
+            Json(ApiResponse {
+                code: 0,
+                message: "success".to_string(),
+                data: Some(serde_json::json!({
+                    "played_signal_count": played_signal_count
+                })),
+            }),
+        )
     } else {
-        (StatusCode::BAD_REQUEST, Json(ApiResponse {
-            code: -1,
-            message: "failed".to_string(),
-            data: None,
-        }))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                code: -1,
+                message: "failed".to_string(),
+                data: None,
+            }),
+        )
     }
 }
 
@@ -80,17 +101,26 @@ pub async fn play_one(State(star_river): State<StarRiver>, Path(strategy_id): Pa
         (status = 400, description = "暂停策略失败")
     )
 )]
-pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn pause(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     strategy_engine.pause(strategy_id).await.unwrap();
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: None,
+        }),
+    )
 }
 
 #[utoipa::path(
@@ -106,26 +136,38 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
         (status = 400, description = "获取播放索引失败")
     )
 )]
-pub async fn get_play_index(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
+pub async fn get_play_index(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     let play_index = strategy_engine.get_play_index(strategy_id).await;
     if let Ok(play_index) = play_index {
-        (StatusCode::OK, Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: Some(serde_json::json!({
-                "play_index": play_index
-            })),
-        }))
+        (
+            StatusCode::OK,
+            Json(ApiResponse {
+                code: 0,
+                message: "success".to_string(),
+                data: Some(serde_json::json!({
+                    "play_index": play_index
+                })),
+            }),
+        )
     } else {
-        (StatusCode::BAD_REQUEST, Json(ApiResponse {
-            code: -1,
-            message: "failed".to_string(),
-            data: None,
-        }))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                code: -1,
+                message: "failed".to_string(),
+                data: None,
+            }),
+        )
     }
 }
 
@@ -142,15 +184,24 @@ pub async fn get_play_index(State(star_river): State<StarRiver>, Path(strategy_i
         (status = 400, description = "重置策略失败")
     )
 )]
-pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn reset(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
     strategy_engine.reset(strategy_id).await.unwrap();
-    (StatusCode::OK, Json(ApiResponse {
-        code: 0,
-        message: "success".to_string(),
-        data: None,
-    }))
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            code: 0,
+            message: "success".to_string(),
+            data: None,
+        }),
+    )
 }

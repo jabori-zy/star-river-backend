@@ -1,12 +1,11 @@
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 use crate::custom_type::*;
 use crate::market::Exchange;
-use crate::position::{PositionSide, PositionState};
 use crate::order::virtual_order::VirtualOrder;
 use crate::order::FuturesOrderSide;
+use crate::position::{PositionSide, PositionState};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VirtualPosition {
@@ -76,11 +75,12 @@ impl VirtualPosition {
         position_id: PositionId,
         position_side: PositionSide,
         virtual_order: &VirtualOrder,
-        current_price: Price, 
+        current_price: Price,
         force_price: Price,
         margin: Margin,
         margin_ratio: MarginRatio,
-        timestamp: i64) -> Self {
+        timestamp: i64,
+    ) -> Self {
         Self {
             position_id,
             order_id: virtual_order.order_id,
@@ -106,12 +106,12 @@ impl VirtualPosition {
     }
 
     pub fn update(
-        &mut self, 
+        &mut self,
         current_price: Price,
         timestamp: i64,
         margin: Margin,
         margin_ratio: MarginRatio,
-        force_price: Price
+        force_price: Price,
     ) {
         self.current_price = current_price;
         self.update_time = DateTime::from_timestamp_millis(timestamp).unwrap();

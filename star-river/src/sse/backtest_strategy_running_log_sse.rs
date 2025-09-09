@@ -12,16 +12,16 @@ use event_center::EventCenterSingleton;
 
 #[utoipa::path(
     get,
-    path = "/api/v1/sse/strategy/backtest/state-log",
+    path = "/api/v1/sse/strategy/backtest/running-log",
     tag = "Backtest Strategy",
-    summary = "Backtest Strategy State Log SSE",
+    summary = "Backtest Strategy Running Log SSE",
     responses(
-        (status = 200, description = "Backtest Strategy State Log SSE connection successful")
+        (status = 200, description = "Backtest Strategy Running Log SSE connection successful")
     )
 )]
-pub async fn backtest_strategy_state_log_sse_handler(
+pub async fn backtest_strategy_running_log_sse_handler(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    tracing::info!("Backtest Strategy State Log SSE connection successful");
+    tracing::info!("Backtest Strategy Running Log SSE connection successful");
     // let event_center = star_river.event_center.lock().await;
     let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy)
         .await
@@ -34,14 +34,14 @@ pub async fn backtest_strategy_state_log_sse_handler(
     impl Drop for Guard {
         fn drop(&mut self) {
             tracing::info!(
-                "{} Backtest Strategy State Log SSE connection disconnected",
+                "{} Backtest Strategy Running Log SSE connection disconnected",
                 self.channel_name
             );
         }
     }
 
     let stream = stream! {
-        let _guard = Guard { channel_name: "Backtest Strategy State Log" };
+        let _guard = Guard { channel_name: "Backtest Strategy Running Log" };
         let mut stream = tokio_stream::wrappers::BroadcastStream::new(strategy_event_receiver);
         while let Some(result) = stream.next().await {
             // 过滤事件
@@ -49,8 +49,7 @@ pub async fn backtest_strategy_state_log_sse_handler(
                 Ok(EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(_))) => {
                     let event = result.as_ref().unwrap();
                     match event {
-                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::NodeStateLog(_))) |
-                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::StrategyStateLog(_))) => {
+                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::RunningLog(_))) => {
                             let json = serde_json::to_string(event).unwrap();
                             // tracing::debug!("backtest-strategy-sse: {:?}", json);
                             // tracing::debug!("序列化后的 JSON: {}", json); // 添加这行
@@ -70,6 +69,6 @@ pub async fn backtest_strategy_state_log_sse_handler(
     Sse::new(stream).keep_alive(
         axum::response::sse::KeepAlive::new()
             .interval(Duration::from_secs(1))
-            .text("backtest-strategy-state-log-channel-keep-alive"),
+            .text("backtest-strategy-running-log-channel-keep-alive"),
     )
 }

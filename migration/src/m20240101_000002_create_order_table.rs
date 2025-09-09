@@ -25,7 +25,11 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Order::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Order::NodeId).string().not_null())
-                    .col(ColumnDef::new(Order::ExchangeOrderId).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(Order::ExchangeOrderId)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Order::AccountId).integer().not_null())
                     .col(ColumnDef::new(Order::Exchange).string().not_null())
                     .col(ColumnDef::new(Order::Symbol).string().not_null())
@@ -37,8 +41,18 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Order::Sl).double())
                     .col(ColumnDef::new(Order::Tp).double())
                     .col(ColumnDef::new(Order::ExtraInfo).json())
-                    .col(ColumnDef::new(Order::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(Order::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(
+                        ColumnDef::new(Order::CreatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
+                    .col(
+                        ColumnDef::new(Order::UpdatedTime)
+                            .timestamp()
+                            .not_null()
+                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                    )
                     // .foreign_key(
                     //     ForeignKey::create()
                     //         .name("fk-strategy_info-bakery_id")
@@ -62,21 +76,21 @@ impl MigrationTrait for Migration {
 #[derive(Iden)]
 pub enum Order {
     Table,
-    Id, // 主键
-    StrategyId, // 策略ID
+    Id,              // 主键
+    StrategyId,      // 策略ID
     ExchangeOrderId, // 交易所订单ID
-    NodeId, // 节点ID
-    AccountId, // 账户ID
-    Exchange, // 交易所
-    Symbol, // 交易对
-    OrderSide, // 订单方向
-    OrderType, // 订单类型
-    OrderStatus, // 订单状态
-    Quantity, // 数量
-    Price, // 价格
-    Tp, // 止盈
-    Sl, // 止损
-    ExtraInfo, // 额外信息
-    CreatedTime,//创建时间
-    UpdatedTime,//更新时间
+    NodeId,          // 节点ID
+    AccountId,       // 账户ID
+    Exchange,        // 交易所
+    Symbol,          // 交易对
+    OrderSide,       // 订单方向
+    OrderType,       // 订单类型
+    OrderStatus,     // 订单状态
+    Quantity,        // 数量
+    Price,           // 价格
+    Tp,              // 止盈
+    Sl,              // 止损
+    ExtraInfo,       // 额外信息
+    CreatedTime,     //创建时间
+    UpdatedTime,     //更新时间
 }

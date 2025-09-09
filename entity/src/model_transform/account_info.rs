@@ -1,5 +1,5 @@
-use types::account::AccountInfo;
 use crate::account_info::Model as AccountInfoModel;
+use types::account::AccountInfo;
 
 impl From<AccountInfoModel> for AccountInfo {
     fn from(info: AccountInfoModel) -> Self {

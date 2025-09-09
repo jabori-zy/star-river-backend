@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
 use crate::strategy::node_event::BacktestNodeEvent;
 use crate::strategy::sys_varibale::SysVariable;
+use serde::{Deserialize, Serialize};
+use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_type")]
@@ -11,14 +11,11 @@ pub enum VariableNodeEvent {
     SysVariableUpdated(SysVariableUpdatedEvent), // 系统变量更新
 }
 
-
 impl From<VariableNodeEvent> for BacktestNodeEvent {
     fn from(event: VariableNodeEvent) -> Self {
         BacktestNodeEvent::Variable(event)
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SysVariableUpdatedEvent {
@@ -27,7 +24,6 @@ pub struct SysVariableUpdatedEvent {
 
     #[serde(rename = "fromNodeName")]
     pub from_node_name: String,
-
 
     #[serde(rename = "fromHandleId")]
     pub from_handle_id: String,

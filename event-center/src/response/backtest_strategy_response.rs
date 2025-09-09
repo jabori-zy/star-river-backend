@@ -1,38 +1,44 @@
-use types::strategy::BacktestStrategyConfig;
 use types::custom_type::NodeId;
+use types::strategy::BacktestStrategyConfig;
 
 #[derive(Debug)]
 pub enum StrategyResponse {
     GetStartNodeConfig(GetStartNodeConfigResponse),
 }
 
-
 impl StrategyResponse {
     pub fn code(&self) -> i32 {
         match self {
-            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => get_start_node_config_response.code,
+            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => {
+                get_start_node_config_response.code
+            }
         }
     }
 
     pub fn node_id(&self) -> &str {
         match self {
-            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => &get_start_node_config_response.node_id,
+            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => {
+                &get_start_node_config_response.node_id
+            }
         }
     }
 
     pub fn message(&self) -> String {
         match self {
-            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => get_start_node_config_response.message.clone(),
+            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => {
+                get_start_node_config_response.message.clone()
+            }
         }
     }
 
     pub fn response_timestamp(&self) -> i64 {
         match self {
-            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => get_start_node_config_response.response_timestamp,
+            StrategyResponse::GetStartNodeConfig(get_start_node_config_response) => {
+                get_start_node_config_response.response_timestamp
+            }
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct GetStartNodeConfigResponse {
@@ -42,7 +48,3 @@ pub struct GetStartNodeConfigResponse {
     pub backtest_strategy_config: BacktestStrategyConfig,
     pub response_timestamp: i64,
 }
-
-
-
-

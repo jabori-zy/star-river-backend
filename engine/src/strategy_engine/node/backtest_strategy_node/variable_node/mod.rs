@@ -1,22 +1,24 @@
 mod variable_node_context;
 mod variable_node_state_machine;
 
-use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use variable_node_context::VariableNodeContext;
-use variable_node_state_machine::{VariableNodeStateAction,VariableNodeStateMachine};
-use crate::strategy_engine::node::{BacktestNodeTrait, NodeType};
+use crate::strategy_engine::node::node_context::{
+    BacktestBaseNodeContext, BacktestNodeContextTrait,
+};
 use crate::strategy_engine::node::node_state_machine::BacktestNodeStateTransitionEvent;
-use std::any::Any;
+use crate::strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
-use std::time::Duration;
-use types::strategy::node_event::BacktestNodeEvent;
+use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use snafu::ResultExt;
-use heartbeat::Heartbeat;
-use types::node::variable_node::*;
+use std::any::Any;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast;
+use tokio::sync::RwLock;
+use types::node::variable_node::*;
+use types::strategy::node_event::BacktestNodeEvent;
+use variable_node_context::VariableNodeContext;
+use variable_node_state_machine::{VariableNodeStateAction, VariableNodeStateMachine};
 
 use tokio::sync::Mutex;
 use event_center::{command::backtest_strategy_command::StrategyCommandReceiver};
@@ -30,12 +32,10 @@ use types::error::engine_error::strategy_engine_error::node_error::backtest_stra
 use super::node_message::common_log_message::*;
 use types::strategy::node_event::NodeStateLogEvent;
 
-
 #[derive(Debug, Clone)]
 pub struct VariableNode {
     pub context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>,
 }
-
 
 impl VariableNode {
     pub fn new(
@@ -52,7 +52,8 @@ impl VariableNode {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, GetVariableNodeError> {
-        let (strategy_id, node_id, node_name, backtest_config) = Self::check_get_variable_node_config(node_config)?;
+        let (strategy_id, node_id, node_name, backtest_config) =
+            Self::check_get_variable_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -77,36 +78,65 @@ impl VariableNode {
                 virtual_trading_system,
             }))),
         })
-        
     }
 
-
-    fn check_get_variable_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, VariableNodeBacktestConfig), GetVariableNodeError> {
+    fn check_get_variable_node_config(
+        node_config: serde_json::Value,
+    ) -> Result<(StrategyId, NodeId, NodeName, VariableNodeBacktestConfig), GetVariableNodeError>
+    {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "id".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
         let node_data = node_config
             .get("data")
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "data".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
         let node_name = node_data
             .get("nodeName")
             .and_then(|name| name.as_str())
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "nodeName".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
         let strategy_id = node_data
             .get("strategyId")
             .and_then(|id| id.as_i64())
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "strategyId".to_string(),
+                }
+                .build()
+            })?
             .to_owned() as StrategyId;
 
-        let backtest_config_json = node_data.get("backtestConfig")
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+        let backtest_config_json = node_data
+            .get("backtestConfig")
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "backtestConfig".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
 
-        let backtest_config = serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+        let backtest_config =
+            serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json)
+                .context(ConfigDeserializationFailedSnafu {})?;
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 }
@@ -129,7 +159,6 @@ impl BacktestNodeTrait for VariableNode {
     }
 
     async fn set_output_handle(&mut self) {
-
         tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
@@ -147,10 +176,16 @@ impl BacktestNodeTrait for VariableNode {
         let variable_configs = {
             let context = self.get_context();
             let context_guard = context.read().await;
-            let variable_node_context = context_guard.as_any().downcast_ref::<VariableNodeContext>().unwrap();
-            variable_node_context.backtest_config.variable_configs.clone()
+            let variable_node_context = context_guard
+                .as_any()
+                .downcast_ref::<VariableNodeContext>()
+                .unwrap();
+            variable_node_context
+                .backtest_config
+                .variable_configs
+                .clone()
         };
-            
+
         for variable in variable_configs {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let output_handle_id = format!("{}_output_{}", node_id, variable.config_id);
@@ -161,50 +196,73 @@ impl BacktestNodeTrait for VariableNode {
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("================={}====================", self.get_node_name().await);
+        tracing::info!(
+            "================={}====================",
+            self.get_node_name().await
+        );
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize)
+            .await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        tracing::info!(
+            "{:?}: 初始化完成",
+            self.get_state_machine().await.current_state()
+        );
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete)
+            .await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop)
+            .await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete)
+            .await?;
         Ok(())
     }
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
+    async fn update_node_state(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let strategy_id = self.get_strategy_id().await;
         let strategy_output_handle = self.get_strategy_output_handle().await;
-        
+
         // 获取状态管理器并执行转换
         let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {
-            if let Some(variable_node_state_action) = action.as_any().downcast_ref::<VariableNodeStateAction>() {
+            if let Some(variable_node_state_action) =
+                action.as_any().downcast_ref::<VariableNodeStateAction>()
+            {
                 let current_state = state_machine.current_state();
                 match variable_node_state_action {
                     VariableNodeStateAction::LogTransition => {
-                        tracing::info!("[{node_name}({node_id})] state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
-                        
+                        tracing::info!(
+                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            current_state,
+                            transition_result.get_new_state()
+                        );
+
                         // 发送状态转换日志事件
-                        let log_message = format!("状态转换: {:?} -> {:?}", current_state, transition_result.get_new_state());
+                        let log_message = format!(
+                            "状态转换: {:?} -> {:?}",
+                            current_state,
+                            transition_result.get_new_state()
+                        );
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -216,10 +274,17 @@ impl BacktestNodeTrait for VariableNode {
                         let _ = strategy_output_handle.send(log_event.into());
                     }
                     VariableNodeStateAction::LogNodeState => {
-                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
-                        
+                        tracing::info!(
+                            "[{node_name}({node_id})] current state: {:?}",
+                            current_state
+                        );
+
                         // 发送节点状态日志事件
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                        let log_message = NodeStateLogMsg::new(
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                        );
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -231,7 +296,9 @@ impl BacktestNodeTrait for VariableNode {
                         let _ = strategy_output_handle.send(log_event.into());
                     }
                     VariableNodeStateAction::RegisterTask => {
-                        tracing::info!("[{node_name}({node_id})] registering variable retrieval task");
+                        tracing::info!(
+                            "[{node_name}({node_id})] registering variable retrieval task"
+                        );
                         let log_message = RegisterTaskMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
@@ -242,7 +309,7 @@ impl BacktestNodeTrait for VariableNode {
                             log_message.to_string(),
                         );
                         let _ = strategy_output_handle.send(log_event.into());
-                        
+
                         // 注册任务的具体实现(当前已注释)
                         // let context = self.get_context();
                         // let mut state_guard = context.write().await;
@@ -257,7 +324,8 @@ impl BacktestNodeTrait for VariableNode {
                     }
                     VariableNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_message =
+                            ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -270,8 +338,11 @@ impl BacktestNodeTrait for VariableNode {
                         self.listen_node_events().await;
                     }
                     VariableNodeStateAction::ListenAndHandleStrategyInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!(
+                            "[{node_name}({node_id})] starting to listen strategy inner events"
+                        );
+                        let log_message =
+                            ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -284,8 +355,11 @@ impl BacktestNodeTrait for VariableNode {
                         self.listen_strategy_inner_events().await;
                     }
                     VariableNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
-                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!(
+                            "[{node_name}({node_id})] starting to listen strategy command"
+                        );
+                        let log_message =
+                            ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -307,10 +381,12 @@ impl BacktestNodeTrait for VariableNode {
                 }
             }
         }
-        
+
         // 所有动作执行完毕后更新节点最新的状态
-        self.context.write().await.set_state_machine(state_machine.clone_box());
+        self.context
+            .write()
+            .await
+            .set_state_machine(state_machine.clone_box());
         Ok(())
     }
 }
-

@@ -1,10 +1,9 @@
+use crate::Event;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use strum::Display;
 use types::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
 use types::strategy::TimeRange;
-use strum::Display;
-use crate::Event;
-use std::sync::Arc;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 // 交易所事件
@@ -29,7 +28,6 @@ impl From<ExchangeEvent> for Event {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeKlineSeriesUpdateEvent {
     pub exchange: Exchange,
@@ -38,7 +36,6 @@ pub struct ExchangeKlineSeriesUpdateEvent {
     pub kline_series: Vec<Kline>,
     pub event_timestamp: i64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeKlineHistoryUpdateEvent {
@@ -59,9 +56,8 @@ pub struct ExchangeKlineUpdateEvent {
     pub event_timestamp: i64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExchangeTickerPriceUpdateEvent{
+pub struct ExchangeTickerPriceUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,

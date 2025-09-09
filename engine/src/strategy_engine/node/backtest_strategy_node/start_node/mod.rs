@@ -1,5 +1,5 @@
-pub mod start_node_state_machine;
 pub mod start_node_context;
+pub mod start_node_state_machine;
 
 use tokio::sync::RwLock;
 use std::sync::Arc;
@@ -26,13 +26,13 @@ use types::error::engine_error::strategy_engine_error::node_error::backtest_stra
 use types::custom_type::{StrategyId, NodeId, NodeName};
 use snafu::ResultExt;
 // use start_node_log_message::*;
-use super::node_message::start_node_log_message::*;
 use super::node_message::common_log_message::*;
+use super::node_message::start_node_log_message::*;
 use types::strategy::node_event::NodeStateLogEvent;
 
 #[derive(Debug)]
 pub struct StartNode {
-    pub context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>
+    pub context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>,
 }
 
 impl Clone for StartNode {
@@ -54,19 +54,22 @@ impl StartNode {
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
     ) -> Result<Self, StartNodeError> {
-
-        let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(start_node_config)?;
+        let (strategy_id, node_id, node_name, backtest_strategy_config) =
+            Self::check_start_node_config(start_node_config)?;
 
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::StartNode,
-            Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
+            Box::new(StartNodeStateMachine::new(
+                node_id.clone(),
+                node_name.clone(),
+            )),
             node_command_sender,
             strategy_command_receiver,
             strategy_inner_event_receiver,
-            play_index_watch_rx
+            play_index_watch_rx,
         );
         Ok(StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
@@ -79,56 +82,97 @@ impl StartNode {
         })
     }
 
-
-    fn check_start_node_config(node_config: serde_json::Value) -> Result<(StrategyId, NodeId, NodeName, BacktestStrategyConfig), StartNodeError> {
+    fn check_start_node_config(
+        node_config: serde_json::Value,
+    ) -> Result<(StrategyId, NodeId, NodeName, BacktestStrategyConfig), StartNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "id".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "id".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
         let node_data = node_config
             .get("data")
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "data".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "data".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
         let node_name = node_data
             .get("nodeName")
             .and_then(|name| name.as_str())
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "nodeName".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "nodeName".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
         let strategy_id = node_data
             .get("strategyId")
             .and_then(|id| id.as_i64())
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "strategyId".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "strategyId".to_string(),
+                }
+                .build()
+            })?
             .to_owned() as StrategyId;
         let backtest_config_json = node_data
             .get("backtestConfig")
-            .ok_or_else(|| ConfigFieldValueNullSnafu {field_name: "backtestConfig".to_string()}.build())?
+            .ok_or_else(|| {
+                ConfigFieldValueNullSnafu {
+                    field_name: "backtestConfig".to_string(),
+                }
+                .build()
+            })?
             .to_owned();
 
-        let backtest_strategy_config = serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json)
-            .context(ConfigDeserializationFailedSnafu {})?;
+        let backtest_strategy_config =
+            serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json)
+                .context(ConfigDeserializationFailedSnafu {})?;
 
         // check initial balance (> 0)
         if backtest_strategy_config.initial_balance <= 0.0 {
-            return ValueNotGreaterThanZeroSnafu {node_name: node_name.clone(), node_id: node_id.clone(), config_name: "initial balance".to_string(), config_value: backtest_strategy_config.initial_balance}.fail();
+            return ValueNotGreaterThanZeroSnafu {
+                node_name: node_name.clone(),
+                node_id: node_id.clone(),
+                config_name: "initial balance".to_string(),
+                config_value: backtest_strategy_config.initial_balance,
+            }
+            .fail();
         }
 
         // check leverage (> 0)
         if backtest_strategy_config.leverage <= 0 {
-            return ValueNotGreaterThanZeroSnafu {node_name: node_name.clone(), node_id: node_id.clone(), config_name: "leverage".to_string(), config_value: backtest_strategy_config.leverage as f64}.fail();
+            return ValueNotGreaterThanZeroSnafu {
+                node_name: node_name.clone(),
+                node_id: node_id.clone(),
+                config_name: "leverage".to_string(),
+                config_value: backtest_strategy_config.leverage as f64,
+            }
+            .fail();
         }
 
         // check fee rate (>= 0)
         if backtest_strategy_config.fee_rate < 0.0 {
-            return ValueNotGreaterThanOrEqualToZeroSnafu {node_name: node_name.clone(), node_id: node_id.clone(), config_name: "fee rate".to_string(), config_value: backtest_strategy_config.fee_rate}.fail();
+            return ValueNotGreaterThanOrEqualToZeroSnafu {
+                node_name: node_name.clone(),
+                node_id: node_id.clone(),
+                config_name: "fee rate".to_string(),
+                config_value: backtest_strategy_config.fee_rate,
+            }
+            .fail();
         }
 
         Ok((strategy_id, node_id, node_name, backtest_strategy_config))
-
     }
-
-    
-
 }
 
 #[async_trait]
@@ -149,7 +193,6 @@ impl BacktestNodeTrait for StartNode {
         self.context.clone()
     }
 
-
     async fn add_from_node_id(&mut self, from_node_id: String) {
         let _from_node_id = from_node_id;
     }
@@ -160,20 +203,20 @@ impl BacktestNodeTrait for StartNode {
         tracing::info!(node_id = %node_id, node_name = %node_name, "=================init start node====================");
         tracing::info!(node_id = %node_id, node_name = %node_name, "start init");
         // 开始初始化 created -> Initialize
-        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::Initialize)
+            .await?;
 
         // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete)
+            .await?;
         Ok(())
     }
 
     // 设置节点默认出口
     async fn set_output_handle(&mut self) {
-        
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
-        
-        
+
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
@@ -187,44 +230,55 @@ impl BacktestNodeTrait for StartNode {
         self.add_output_handle(default_output_handle_id, tx).await;
     }
 
-    
-
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         let state = self.context.clone();
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await.unwrap();
-        
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop)
+            .await
+            .unwrap();
+
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
-        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await.unwrap();
+        self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete)
+            .await
+            .unwrap();
         Ok(())
     }
 
     async fn listen_node_events(&self) {}
 
-    async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-
+    async fn update_node_state(
+        &mut self,
+        event: BacktestNodeStateTransitionEvent,
+    ) -> Result<(), BacktestStrategyNodeError> {
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let strategy_id = self.get_strategy_id().await;
         let strategy_output_handle = self.get_strategy_output_handle().await;
-        
+
         let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
-            
 
         // 执行转换后需要执行的动作
-        for action in transition_result.get_actions() { // 克隆actions避免移动问题
+        for action in transition_result.get_actions() {
+            // 克隆actions避免移动问题
             if let Some(start_action) = action.as_any().downcast_ref::<StartNodeStateAction>() {
                 let current_state = state_machine.current_state();
                 match start_action {
                     StartNodeStateAction::LogTransition => {
-                        tracing::debug!("[{node_name}({node_id})] state transition: {:?} -> {:?}", current_state, transition_result.get_new_state());
+                        tracing::debug!(
+                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            current_state,
+                            transition_result.get_new_state()
+                        );
                     }
                     StartNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!(
+                            "[{node_name}({node_id})] starting to listen strategy inner events"
+                        );
+                        let log_message =
+                            ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -237,8 +291,11 @@ impl BacktestNodeTrait for StartNode {
                         self.listen_strategy_inner_events().await;
                     }
                     StartNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
-                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!(
+                            "[{node_name}({node_id})] starting to listen strategy command"
+                        );
+                        let log_message =
+                            ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -251,8 +308,11 @@ impl BacktestNodeTrait for StartNode {
                         self.listen_strategy_command().await;
                     }
                     StartNodeStateAction::ListenAndHandlePlayIndex => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen play index change");
-                        let log_message = ListenPlayIndexChangeMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!(
+                            "[{node_name}({node_id})] starting to listen play index change"
+                        );
+                        let log_message =
+                            ListenPlayIndexChangeMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -265,8 +325,11 @@ impl BacktestNodeTrait for StartNode {
                         self.listen_play_index_change().await;
                     }
                     StartNodeStateAction::InitVirtualTradingSystem => {
-                        tracing::info!("[{node_name}({node_id})] start to init virtual trading system");
-                        let log_message = InitVirtualTradingSystemMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!(
+                            "[{node_name}({node_id})] start to init virtual trading system"
+                        );
+                        let log_message =
+                            InitVirtualTradingSystemMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -278,13 +341,16 @@ impl BacktestNodeTrait for StartNode {
                         let _ = strategy_output_handle.send(log_event.into());
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
-                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                        if let Some(start_node_context) =
+                            state_guard.as_any_mut().downcast_mut::<StartNodeContext>()
+                        {
                             start_node_context.init_virtual_trading_system().await;
                         }
                     }
                     StartNodeStateAction::InitStrategyStats => {
                         tracing::info!("[{node_name}({node_id})] start to init strategy stats");
-                        let log_message = InitStrategyStatsMsg::new(node_id.clone(), node_name.clone());
+                        let log_message =
+                            InitStrategyStatsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -296,12 +362,18 @@ impl BacktestNodeTrait for StartNode {
                         let _ = strategy_output_handle.send(log_event.into());
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
-                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                        if let Some(start_node_context) =
+                            state_guard.as_any_mut().downcast_mut::<StartNodeContext>()
+                        {
                             start_node_context.init_strategy_stats().await;
                         }
                     }
                     StartNodeStateAction::LogNodeState => {
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
+                        let log_message = NodeStateLogMsg::new(
+                            node_id.clone(),
+                            node_name.clone(),
+                            current_state.to_string(),
+                        );
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -317,20 +389,18 @@ impl BacktestNodeTrait for StartNode {
                         self.cancel_task().await;
                     }
                     _ => {}
+                }
+                // 更新状态
+                {
+                    let mut state_guard = self.context.write().await;
+                    state_guard.set_state_machine(state_machine.clone_box());
+                }
             }
-            // 更新状态
-            {
-                let mut state_guard = self.context.write().await;
-                state_guard.set_state_machine(state_machine.clone_box());
-            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
         }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-
-    }
         Ok(())
     }
 }
-
 
 impl StartNode {
     // pub async fn send_play_signal(&self) {
@@ -341,14 +411,15 @@ impl StartNode {
     //     }
     // }
 
-    pub async fn send_finish_signal(&self, signal_index : i32) {
+    pub async fn send_finish_signal(&self, signal_index: i32) {
         let context = self.get_context();
         let mut state_guard = context.write().await;
-        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+        if let Some(start_node_context) =
+            state_guard.as_any_mut().downcast_mut::<StartNodeContext>()
+        {
             start_node_context.send_finish_signal(signal_index).await;
         }
     }
-
 
     pub async fn listen_play_index_change(&self) {
         let (mut play_index_watch_rx, cancel_token, node_id) = {
@@ -389,6 +460,4 @@ impl StartNode {
             }
         });
     }
-
-
 }

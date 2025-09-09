@@ -1,22 +1,21 @@
-
-use crate::strategy_engine::node::node_context::{LiveBaseNodeContext,LiveNodeContextTrait};
-use heartbeat::Heartbeat;
-use tokio::sync::Mutex;
-use std::sync::Arc;
+use super::get_variable_node_types::*;
 use crate::exchange_engine::ExchangeEngine;
+use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
+use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use async_trait::async_trait;
+use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
+use event_center::Event;
+use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use std::any::Any;
-use async_trait::async_trait;
-use event_center::Event;
-use super::get_variable_node_types::*;
-use types::strategy::sys_varibale::SysVariable;
-use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
-use types::strategy::node_event::VariableMessage;
-use utils::get_utc8_timestamp_millis;
-use types::strategy::node_event::BacktestNodeEvent;
-use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use types::strategy::node_event::BacktestNodeEvent;
 use types::strategy::node_event::SignalEvent;
+use types::strategy::node_event::VariableMessage;
+use types::strategy::sys_varibale::SysVariable;
+use utils::get_utc8_timestamp_millis;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {
@@ -26,7 +25,6 @@ pub struct GetVariableNodeContext {
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub database: DatabaseConnection,
 }
-
 
 #[async_trait]
 impl LiveNodeContextTrait for GetVariableNodeContext {
@@ -51,9 +49,13 @@ impl LiveNodeContextTrait for GetVariableNodeContext {
     }
 
     fn get_default_output_handle(&self) -> NodeOutputHandle {
-        self.base_context.output_handle.get(&format!("get_variable_node_output")).unwrap().clone()
+        self.base_context
+            .output_handle
+            .get(&format!("get_variable_node_output"))
+            .unwrap()
+            .clone()
     }
-    
+
     async fn handle_event(&mut self, event: Event) -> Result<(), String> {
         // match event {
         //     Event::Response(response_event) => {
@@ -80,7 +82,6 @@ impl LiveNodeContextTrait for GetVariableNodeContext {
         }
         Ok(())
     }
-
 }
 
 impl GetVariableNodeContext {
@@ -95,29 +96,33 @@ impl GetVariableNodeContext {
         let all_output_handle = self.get_all_output_handle().clone();
 
         let mut heartbeat = self.heartbeat.lock().await;
-        heartbeat.register_async_task(format!("{}: 注册处理变量任务", node_name),
-        move || {
-            let strategy_id = strategy_id.clone();
-            let node_id = node_id.clone();
-            let node_name = node_name.clone();
-            let variables = variables.clone();
-            let database = database.clone();
-            let all_output_handle = all_output_handle.clone();
-            async move {
-                Self::process_variable(
-                    strategy_id, 
-                    node_id,
-                    node_name, 
-                    variables, 
-                    database, 
-                    all_output_handle).await
-                }
-            },
-            timer_config.get_millisecond()/100
-        ).await;
+        heartbeat
+            .register_async_task(
+                format!("{}: 注册处理变量任务", node_name),
+                move || {
+                    let strategy_id = strategy_id.clone();
+                    let node_id = node_id.clone();
+                    let node_name = node_name.clone();
+                    let variables = variables.clone();
+                    let database = database.clone();
+                    let all_output_handle = all_output_handle.clone();
+                    async move {
+                        Self::process_variable(
+                            strategy_id,
+                            node_id,
+                            node_name,
+                            variables,
+                            database,
+                            all_output_handle,
+                        )
+                        .await
+                    }
+                },
+                timer_config.get_millisecond() / 100,
+            )
+            .await;
     }
 
-    
     pub async fn get_variable(&mut self) {
         let variables = self.live_config.variables.clone();
 
@@ -126,51 +131,58 @@ impl GetVariableNodeContext {
             match variable_type {
                 SysVariable::PositionNumber => {
                     Self::get_position_number(
-                        &self.database, 
-                        self.get_strategy_id().clone(), 
-                        self.get_node_id().clone(), 
-                        self.get_node_name().clone(), 
-                        var, 
-                        &self.get_all_output_handle()
-                    ).await.unwrap();
+                        &self.database,
+                        self.get_strategy_id().clone(),
+                        self.get_node_id().clone(),
+                        self.get_node_name().clone(),
+                        var,
+                        &self.get_all_output_handle(),
+                    )
+                    .await
+                    .unwrap();
                 }
                 _ => {}
             }
         }
     }
-    
+
     async fn process_variable(
         strategy_id: i32,
         node_id: String,
-        node_name: String, 
-        variables: Vec<GetVariableConfig>, 
+        node_name: String,
+        variables: Vec<GetVariableConfig>,
         database: DatabaseConnection,
         output_handle: HashMap<String, NodeOutputHandle>,
-
     ) {
-        
         for var in variables {
             let variable_type = var.variable.clone();
             match variable_type {
                 SysVariable::PositionNumber => {
-                    Self::get_position_number(&database, strategy_id, node_id.clone(), node_name.clone(), var, &output_handle).await;
+                    Self::get_position_number(
+                        &database,
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        var,
+                        &output_handle,
+                    )
+                    .await;
                 }
                 _ => {}
             }
         }
-        
-        
     }
 
     async fn get_position_number(
-        database: &DatabaseConnection, 
+        database: &DatabaseConnection,
         strategy_id: i32,
         node_id: String,
         node_name: String,
         variable: GetVariableConfig,
         output_handle: &HashMap<String, NodeOutputHandle>,
     ) -> Result<(), String> {
-        let position_numeber = StrategySysVariableQuery::get_strategy_position_number(database, strategy_id).await;
+        let position_numeber =
+            StrategySysVariableQuery::get_strategy_position_number(database, strategy_id).await;
         match position_numeber {
             Ok(position_number) => {
                 // let variable_message = VariableMessage {
@@ -193,4 +205,3 @@ impl GetVariableNodeContext {
         }
     }
 }
-

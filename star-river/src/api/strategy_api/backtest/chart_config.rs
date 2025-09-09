@@ -1,14 +1,14 @@
-use crate::star_river::StarRiver;
-use axum::http::StatusCode;
-use axum::extract::State;
-use serde::{Serialize, Deserialize};
-use axum::extract::{Json,Path};
 use crate::api::response::ApiResponse;
-use utoipa::{IntoParams, ToSchema};
+use crate::star_river::StarRiver;
+use axum::extract::State;
+use axum::extract::{Json, Path};
+use axum::http::StatusCode;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use types::strategy::StrategyConfig;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -48,28 +48,43 @@ pub async fn update_backtest_chart_config(
     Path(strategy_id): Path<i32>,
     Json(params): Json<UpdateBacktestChartConfigParams>,
 ) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
-    
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyConfigMutation::update_backtest_chart_config(conn, strategy_id, params.backtest_chart_config).await {
+    match StrategyConfigMutation::update_backtest_chart_config(
+        conn,
+        strategy_id,
+        params.backtest_chart_config,
+    )
+    .await
+    {
         Ok(backtest_chart_config) => {
-            tracing::info!(strategy_id = strategy_id, "update backtest chart config success");
-            (StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(backtest_chart_config),
-            }),
-        )
-        },
+            tracing::info!(
+                strategy_id = strategy_id,
+                "update backtest chart config success"
+            );
+            (
+                StatusCode::OK,
+                Json(ApiResponse {
+                    code: 0,
+                    message: "success".to_string(),
+                    data: Some(backtest_chart_config),
+                }),
+            )
+        }
         Err(e) => {
-            tracing::error!(strategy_id = strategy_id, "update backtest chart config error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse {
-                code: 1,
-                message: e.to_string(),
-                data: None,
-            }))
+            tracing::error!(
+                strategy_id = strategy_id,
+                "update backtest chart config error: {}",
+                e
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    code: 1,
+                    message: e.to_string(),
+                    data: None,
+                }),
+            )
         }
     }
 }
@@ -93,22 +108,33 @@ pub async fn get_backtest_chart_config(
     let conn = &database.conn;
     match StrategyConfigQuery::get_backtest_chart_config_by_strategy_id(conn, strategy_id).await {
         Ok(backtest_chart_config) => {
-            tracing::info!(strategy_id = strategy_id, "get backtest chart config success");
-            (StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(backtest_chart_config),
-            }))
-        },
+            tracing::info!(
+                strategy_id = strategy_id,
+                "get backtest chart config success"
+            );
+            (
+                StatusCode::OK,
+                Json(ApiResponse {
+                    code: 0,
+                    message: "success".to_string(),
+                    data: Some(backtest_chart_config),
+                }),
+            )
+        }
         Err(e) => {
-            tracing::error!(strategy_id = strategy_id, "get backtest chart config error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse {
-                code: 1,
-                message: e.to_string(),
-                data: None,
-            }))
+            tracing::error!(
+                strategy_id = strategy_id,
+                "get backtest chart config error: {}",
+                e
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    code: 1,
+                    message: e.to_string(),
+                    data: None,
+                }),
+            )
         }
     }
 }

@@ -1,10 +1,10 @@
-use types::custom_type::{StrategyId, NodeId};
-use types::cache::{CacheValue, Key};
-use std::sync::Arc;
-use std::collections::HashMap;
 use crate::response::{Response, ResponseTrait};
-use utils::get_utc8_timestamp;
+use std::collections::HashMap;
+use std::sync::Arc;
+use types::cache::{CacheValue, Key};
+use types::custom_type::{NodeId, StrategyId};
 use types::error::error_trait::StarRiverErrorTrait;
+use utils::get_utc8_timestamp;
 
 #[derive(Debug)]
 pub enum CacheEngineResponse {
@@ -27,16 +27,23 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::GetCacheLengthMulti(response) => response.success,
         }
     }
-    
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            CacheEngineResponse::AddCacheKey(response) =>  response.error.as_ref().unwrap().clone(),
-            CacheEngineResponse::AddIndicatorCacheKey(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::AddCacheKey(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::AddIndicatorCacheKey(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
             CacheEngineResponse::GetCacheData(response) => response.error.as_ref().unwrap().clone(),
-            CacheEngineResponse::GetCacheDataMulti(response) => response.error.as_ref().unwrap().clone(),
-            CacheEngineResponse::GetCacheLength(response) => response.error.as_ref().unwrap().clone(),
-            CacheEngineResponse::GetCacheLengthMulti(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheDataMulti(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
+            CacheEngineResponse::GetCacheLength(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
+            CacheEngineResponse::GetCacheLengthMulti(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
         }
     }
 
@@ -76,7 +83,6 @@ pub struct AddCacheKeyResponse {
     pub response_timestamp: i64,
 }
 
-
 impl AddCacheKeyResponse {
     pub fn success(key: Key) -> Self {
         Self {
@@ -94,10 +100,6 @@ impl From<AddCacheKeyResponse> for Response {
     }
 }
 
-
-
-
-
 #[derive(Debug)]
 pub struct GetCacheDataResponse {
     pub success: bool,
@@ -106,7 +108,6 @@ pub struct GetCacheDataResponse {
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
-
 
 impl GetCacheDataResponse {
     pub fn success(key: Key, cache_data: Vec<Arc<CacheValue>>) -> Self {
@@ -126,9 +127,6 @@ impl From<GetCacheDataResponse> for Response {
     }
 }
 
-
-
-
 #[derive(Debug)]
 pub struct GetCacheDataMultiResponse {
     pub success: bool,
@@ -137,12 +135,21 @@ pub struct GetCacheDataMultiResponse {
     pub response_timestamp: i64,
 }
 
-
 impl GetCacheDataMultiResponse {
     pub fn success(cache_data: HashMap<Key, Vec<Arc<CacheValue>>>) -> Self {
         Self {
             success: true,
-            cache_data: cache_data.into_iter().map(|(cache_key, data)| (cache_key.get_key(), data.into_iter().map(|cache_value| cache_value.to_list()).collect())).collect(),
+            cache_data: cache_data
+                .into_iter()
+                .map(|(cache_key, data)| {
+                    (
+                        cache_key.get_key(),
+                        data.into_iter()
+                            .map(|cache_value| cache_value.to_list())
+                            .collect(),
+                    )
+                })
+                .collect(),
             error: None,
             response_timestamp: get_utc8_timestamp(),
         }
@@ -155,26 +162,22 @@ impl From<GetCacheDataMultiResponse> for Response {
     }
 }
 
-
-
-
-
-
-
-
-
 #[derive(Debug)]
 pub struct AddIndicatorCacheKeyResponse {
-    pub success: bool,  
+    pub success: bool,
     pub requested_strategy_id: StrategyId, // 请求的策略id
-    pub requested_node_id: NodeId, // 请求的节点id
+    pub requested_node_id: NodeId,         // 请求的节点id
     pub indicator_key: Key,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
 
 impl AddIndicatorCacheKeyResponse {
-    pub fn success(requested_strategy_id: StrategyId, requested_node_id: NodeId, indicator_key: Key) -> Self {
+    pub fn success(
+        requested_strategy_id: StrategyId,
+        requested_node_id: NodeId,
+        indicator_key: Key,
+    ) -> Self {
         Self {
             success: true,
             requested_strategy_id,
@@ -186,14 +189,11 @@ impl AddIndicatorCacheKeyResponse {
     }
 }
 
-
 impl From<AddIndicatorCacheKeyResponse> for Response {
     fn from(response: AddIndicatorCacheKeyResponse) -> Self {
         Response::CacheEngine(CacheEngineResponse::AddIndicatorCacheKey(response))
     }
 }
-
-
 
 #[derive(Debug)]
 pub struct GetCacheLengthResponse {
@@ -204,9 +204,7 @@ pub struct GetCacheLengthResponse {
     pub response_timestamp: i64,
 }
 
-
 impl GetCacheLengthResponse {
-
     pub fn success(cache_key: Key, cache_length: u32) -> Self {
         Self {
             success: true,
@@ -219,12 +217,10 @@ impl GetCacheLengthResponse {
 }
 
 impl From<GetCacheLengthResponse> for Response {
-
     fn from(response: GetCacheLengthResponse) -> Self {
         Response::CacheEngine(CacheEngineResponse::GetCacheLength(response))
     }
 }
-
 
 #[derive(Debug)]
 pub struct GetCacheLengthMultiResponse {
@@ -233,7 +229,6 @@ pub struct GetCacheLengthMultiResponse {
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub response_timestamp: i64,
 }
-
 
 impl GetCacheLengthMultiResponse {
     pub fn success(cache_length: HashMap<Key, u32>) -> Self {

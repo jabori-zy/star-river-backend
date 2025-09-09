@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use types::market::KlineInterval;
-use types::strategy::{BacktestDataSource, SelectedAccount};
 use types::strategy::TimeRange;
+use types::strategy::{BacktestDataSource, SelectedAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlineNodeBacktestConfig {
@@ -13,14 +13,11 @@ pub struct KlineNodeBacktestConfig {
     pub exchange_mode_config: Option<KlineNodeExchangeModeConfig>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileConfig {
     #[serde(rename = "filePath")]
     pub file_path: String,
 }
- 
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlineNodeExchangeModeConfig {
@@ -34,18 +31,17 @@ pub struct KlineNodeExchangeModeConfig {
     pub time_range: TimeRange,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectedSymbol {
-    #[serde(rename="configId")]
+    #[serde(rename = "configId")]
     pub config_id: i32,
 
-    #[serde(rename="outputHandleId")]
+    #[serde(rename = "outputHandleId")]
     pub output_handle_id: String,
 
-    #[serde(rename="symbol")]
+    #[serde(rename = "symbol")]
     pub symbol: String,
 
-    #[serde(rename="interval")]
+    #[serde(rename = "interval")]
     pub interval: KlineInterval,
 }
