@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use types::market::KlineInterval;
-use types::strategy::TimeRange;
-use types::strategy::{BacktestDataSource, SelectedAccount};
+use star_river_core::market::KlineInterval;
+use star_river_core::strategy::TimeRange;
+use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlineNodeBacktestConfig {

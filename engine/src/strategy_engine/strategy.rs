@@ -1,12 +1,11 @@
 // pub mod live_strategy;
 pub mod backtest_strategy;
 
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::command::backtest_strategy_command::StrategyCommandSender;
+use event_center::communication::strategy::{StrategyCommand, StrategyCommandSender};
+use star_river_core::custom_type::NodeId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use types::custom_type::NodeId;
 
 #[derive(Clone, Debug)]
 pub struct StrategyCommandPublisher {

@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use types::indicator::indicator_define::cycle::*;
-use types::indicator::{IndicatorTrait, PriceSource};
+use star_river_core::indicator::indicator_define::cycle::*;
+use star_river_core::indicator::{IndicatorTrait, PriceSource};
 
 /// 测试所有Cycle指标
 pub fn test_cycle_indicators() {
@@ -23,7 +23,7 @@ pub fn test_cycle_indicators() {
 }
 
 /// 测试HT_DCPERIOD指标
-fn test_ht_dcperiod(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ht_dcperiod(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = HtDcperiodConfig {
         price_source: PriceSource::Close,
     };
@@ -42,7 +42,7 @@ fn test_ht_dcperiod(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试HT_DCPHASE指标
-fn test_ht_dcphase(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ht_dcphase(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = HtDcphaseConfig {
         price_source: PriceSource::Close,
     };
@@ -61,7 +61,7 @@ fn test_ht_dcphase(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试HT_PHASOR指标
-fn test_ht_phasor(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ht_phasor(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = HtPhasorConfig {
         price_source: PriceSource::Close,
     };
@@ -80,7 +80,7 @@ fn test_ht_phasor(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试HT_SINE指标
-fn test_ht_sine(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ht_sine(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = HtSineConfig {
         price_source: PriceSource::Close,
     };
@@ -99,7 +99,7 @@ fn test_ht_sine(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试HT_TRENDMODE指标
-fn test_ht_trendmode(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ht_trendmode(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = HtTrendmodeConfig {
         price_source: PriceSource::Close,
     };

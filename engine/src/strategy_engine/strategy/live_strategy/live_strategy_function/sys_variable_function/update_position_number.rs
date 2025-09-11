@@ -3,7 +3,7 @@ use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutat
 use database::query::position_query::PositionQuery;
 use sea_orm::DatabaseConnection;
 use sea_orm::DbErr;
-use types::strategy::sys_varibale::StrategySysVariable;
+use star_river_core::strategy::sys_varibale::StrategySysVariable;
 
 // 更新持仓数量
 impl SysVariableFunction {

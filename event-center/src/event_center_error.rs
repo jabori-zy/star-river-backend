@@ -1,8 +1,9 @@
-use crate::{Command, Event};
+use crate::communication::engine::EngineCommand;
+use crate::Event;
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::error_trait::Language;
+use star_river_core::error::ErrorCode;
 use std::collections::HashMap;
-use types::error::error_trait::Language;
-use types::error::ErrorCode;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -39,7 +40,7 @@ pub enum EventCenterError {
 
     #[snafu(transparent)]
     CommandSendError {
-        source: tokio::sync::mpsc::error::SendError<Command>,
+        source: tokio::sync::mpsc::error::SendError<EngineCommand>,
         backtrace: Backtrace,
     },
 
@@ -50,7 +51,7 @@ pub enum EventCenterError {
     EventCenterInstanceNotInitialized { backtrace: Backtrace },
 }
 
-impl types::error::error_trait::StarRiverErrorTrait for EventCenterError {
+impl star_river_core::error::error_trait::StarRiverErrorTrait for EventCenterError {
     fn get_prefix(&self) -> &'static str {
         "EVENT_CENTER"
     }

@@ -1,10 +1,10 @@
 use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::Event;
+use event_center::event::Event;
 use std::any::Any;
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::LiveStrategyConfig;
+use star_river_core::strategy::node_event::BacktestNodeEvent;
+use star_river_core::strategy::LiveStrategyConfig;
 
 #[derive(Debug, Clone)]
 pub struct StartNodeContext {

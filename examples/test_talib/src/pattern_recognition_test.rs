@@ -1,8 +1,8 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
 use ordered_float::OrderedFloat;
-use types::indicator::indicator_define::pattern_recognition::*;
-use types::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::pattern_recognition::*;
+use star_river_core::indicator::IndicatorTrait;
 
 /// 测试K线形态识别指标
 pub fn test_pattern_recognition_indicators() {
@@ -79,7 +79,7 @@ pub fn test_pattern_recognition_indicators() {
 }
 
 /// 测试CDL2CROWS指标
-fn test_cdl2crows(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl2crows(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl2crows(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL2CROWS: 成功计算 {} 个结果", results.len());
@@ -94,7 +94,7 @@ fn test_cdl2crows(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDL3BLACKCROWS指标
-fn test_cdl3blackcrows(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl3blackcrows(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl3blackcrows(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL3BLACKCROWS: 成功计算 {} 个结果", results.len());
@@ -109,7 +109,7 @@ fn test_cdl3blackcrows(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDL3INSIDE指标
-fn test_cdl3inside(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl3inside(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl3inside(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL3INSIDE: 成功计算 {} 个结果", results.len());
@@ -124,7 +124,7 @@ fn test_cdl3inside(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDL3LINESTRIKE指标
-fn test_cdl3linestrike(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl3linestrike(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl3linestrike(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL3LINESTRIKE: 成功计算 {} 个结果", results.len());
@@ -139,7 +139,7 @@ fn test_cdl3linestrike(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDL3OUTSIDE指标
-fn test_cdl3outside(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl3outside(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl3outside(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL3OUTSIDE: 成功计算 {} 个结果", results.len());
@@ -154,7 +154,7 @@ fn test_cdl3outside(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDL3STARSINSOUTH指标
-fn test_cdl3starsinsouth(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl3starsinsouth(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl3starsinsouth(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL3STARSINSOUTH: 成功计算 {} 个结果", results.len());
@@ -169,7 +169,7 @@ fn test_cdl3starsinsouth(kline_series: &[std::sync::Arc<types::cache::CacheValue
 }
 
 /// 测试CDL3WHITESOLDIERS指标
-fn test_cdl3whitesoldiers(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdl3whitesoldiers(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdl3whitesoldiers(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDL3WHITESOLDIERS: 成功计算 {} 个结果", results.len());
@@ -184,7 +184,7 @@ fn test_cdl3whitesoldiers(kline_series: &[std::sync::Arc<types::cache::CacheValu
 }
 
 /// 测试CDLABANDONEDBABY指标
-fn test_cdlabandonedbaby(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlabandonedbaby(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLABANDONEDBABYConfig {
         penetration: OrderedFloat(0.3),
     };
@@ -203,7 +203,7 @@ fn test_cdlabandonedbaby(kline_series: &[std::sync::Arc<types::cache::CacheValue
 }
 
 /// 测试CDLADVANCEBLOCK指标
-fn test_cdladvanceblock(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdladvanceblock(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdladvanceblock(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLADVANCEBLOCK: 成功计算 {} 个结果", results.len());
@@ -218,7 +218,7 @@ fn test_cdladvanceblock(kline_series: &[std::sync::Arc<types::cache::CacheValue>
 }
 
 /// 测试CDLBELTHOLD指标
-fn test_cdlbelthold(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlbelthold(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlbelthold(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLBELTHOLD: 成功计算 {} 个结果", results.len());
@@ -233,7 +233,7 @@ fn test_cdlbelthold(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLBREAKAWAY指标
-fn test_cdlbreakaway(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlbreakaway(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlbreakaway(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLBREAKAWAY: 成功计算 {} 个结果", results.len());
@@ -248,7 +248,7 @@ fn test_cdlbreakaway(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) 
 }
 
 /// 测试CDLCLOSINGMARUBOZU指标
-fn test_cdlclosingmarubozu(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlclosingmarubozu(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlclosingmarubozu(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLCLOSINGMARUBOZU: 成功计算 {} 个结果", results.len());
@@ -263,7 +263,7 @@ fn test_cdlclosingmarubozu(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLCONCEALBABYSWALL指标
-fn test_cdlconcealbabyswall(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlconcealbabyswall(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlconcealbabyswall(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLCONCEALBABYSWALL: 成功计算 {} 个结果", results.len());
@@ -278,7 +278,7 @@ fn test_cdlconcealbabyswall(kline_series: &[std::sync::Arc<types::cache::CacheVa
 }
 
 /// 测试CDLCOUNTERATTACK指标
-fn test_cdlcounterattack(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlcounterattack(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlcounterattack(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLCOUNTERATTACK: 成功计算 {} 个结果", results.len());
@@ -293,7 +293,7 @@ fn test_cdlcounterattack(kline_series: &[std::sync::Arc<types::cache::CacheValue
 }
 
 /// 测试CDLDARKCLOUDCOVER指标
-fn test_cdldarkcloudcover(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdldarkcloudcover(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLDARKCLOUDCOVERConfig {
         penetration: OrderedFloat(0.5),
     };
@@ -312,7 +312,7 @@ fn test_cdldarkcloudcover(kline_series: &[std::sync::Arc<types::cache::CacheValu
 }
 
 /// 测试CDLDOJI指标
-fn test_cdldoji(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdldoji(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdldoji(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLDOJI: 成功计算 {} 个结果", results.len());
@@ -327,7 +327,7 @@ fn test_cdldoji(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLDOJISTAR指标
-fn test_cdldojistar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdldojistar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdldojistar(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLDOJISTAR: 成功计算 {} 个结果", results.len());
@@ -342,7 +342,7 @@ fn test_cdldojistar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLDRAGONFLYDOJI指标
-fn test_cdldragonflydoji(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdldragonflydoji(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdldragonflydoji(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLDRAGONFLYDOJI: 成功计算 {} 个结果", results.len());
@@ -357,7 +357,7 @@ fn test_cdldragonflydoji(kline_series: &[std::sync::Arc<types::cache::CacheValue
 }
 
 /// 测试CDLENGULFING指标
-fn test_cdlengulfing(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlengulfing(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlengulfing(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLENGULFING: 成功计算 {} 个结果", results.len());
@@ -372,7 +372,7 @@ fn test_cdlengulfing(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) 
 }
 
 /// 测试CDLEVENINGDOJISTAR指标
-fn test_cdleveningdojistar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdleveningdojistar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLEVENINGDOJISTARConfig {
         penetration: OrderedFloat(0.3),
     };
@@ -391,7 +391,7 @@ fn test_cdleveningdojistar(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLEVENINGSTAR指标
-fn test_cdleveningstar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdleveningstar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLEVENINGSTARConfig {
         penetration: OrderedFloat(0.3),
     };
@@ -410,7 +410,7 @@ fn test_cdleveningstar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDLGAPSIDESIDEWHITE指标
-fn test_cdlgapsidesidewhite(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlgapsidesidewhite(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlgapsidesidewhite(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLGAPSIDESIDEWHITE: 成功计算 {} 个结果", results.len());
@@ -425,7 +425,7 @@ fn test_cdlgapsidesidewhite(kline_series: &[std::sync::Arc<types::cache::CacheVa
 }
 
 /// 测试CDLGRAVESTONEDOJI指标
-fn test_cdlgravestonedoji(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlgravestonedoji(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlgravestonedoji(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLGRAVESTONEDOJI: 成功计算 {} 个结果", results.len());
@@ -440,7 +440,7 @@ fn test_cdlgravestonedoji(kline_series: &[std::sync::Arc<types::cache::CacheValu
 }
 
 /// 测试CDLHAMMER指标
-fn test_cdlhammer(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlhammer(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlhammer(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHAMMER: 成功计算 {} 个结果", results.len());
@@ -455,7 +455,7 @@ fn test_cdlhammer(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLHANGINGMAN指标
-fn test_cdlhangingman(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlhangingman(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlhangingman(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHANGINGMAN: 成功计算 {} 个结果", results.len());
@@ -470,7 +470,7 @@ fn test_cdlhangingman(kline_series: &[std::sync::Arc<types::cache::CacheValue>])
 }
 
 /// 测试CDLHARAMI指标
-fn test_cdlharami(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlharami(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlharami(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHARAMI: 成功计算 {} 个结果", results.len());
@@ -485,7 +485,7 @@ fn test_cdlharami(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLHARAMICROSS指标
-fn test_cdlharamicross(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlharamicross(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlharamicross(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHARAMICROSS: 成功计算 {} 个结果", results.len());
@@ -500,7 +500,7 @@ fn test_cdlharamicross(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDLHIGHWAVE指标
-fn test_cdlhighwave(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlhighwave(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlhighwave(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHIGHWAVE: 成功计算 {} 个结果", results.len());
@@ -515,7 +515,7 @@ fn test_cdlhighwave(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLHIKKAKE指标
-fn test_cdlhikkake(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlhikkake(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlhikkake(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHIKKAKE: 成功计算 {} 个结果", results.len());
@@ -530,7 +530,7 @@ fn test_cdlhikkake(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLHIKKAKEMOD指标
-fn test_cdlhikkakemod(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlhikkakemod(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlhikkakemod(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHIKKAKEMOD: 成功计算 {} 个结果", results.len());
@@ -545,7 +545,7 @@ fn test_cdlhikkakemod(kline_series: &[std::sync::Arc<types::cache::CacheValue>])
 }
 
 /// 测试CDLHOMINGPIGEON指标
-fn test_cdlhomingpigeon(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlhomingpigeon(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlhomingpigeon(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLHOMINGPIGEON: 成功计算 {} 个结果", results.len());
@@ -560,7 +560,7 @@ fn test_cdlhomingpigeon(kline_series: &[std::sync::Arc<types::cache::CacheValue>
 }
 
 /// 测试CDLIDENTICAL3CROWS指标
-fn test_cdlidentical3crows(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlidentical3crows(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlidentical3crows(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLIDENTICAL3CROWS: 成功计算 {} 个结果", results.len());
@@ -575,7 +575,7 @@ fn test_cdlidentical3crows(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLINNECK指标
-fn test_cdlinneck(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlinneck(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlinneck(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLINNECK: 成功计算 {} 个结果", results.len());
@@ -590,7 +590,7 @@ fn test_cdlinneck(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLINVERTEDHAMMER指标
-fn test_cdlinvertedhammer(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlinvertedhammer(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlinvertedhammer(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLINVERTEDHAMMER: 成功计算 {} 个结果", results.len());
@@ -605,7 +605,7 @@ fn test_cdlinvertedhammer(kline_series: &[std::sync::Arc<types::cache::CacheValu
 }
 
 /// 测试CDLKICKING指标
-fn test_cdlkicking(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlkicking(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlkicking(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLKICKING: 成功计算 {} 个结果", results.len());
@@ -620,7 +620,7 @@ fn test_cdlkicking(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLKICKINGBYLENGTH指标
-fn test_cdlkickingbylength(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlkickingbylength(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlkickingbylength(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLKICKINGBYLENGTH: 成功计算 {} 个结果", results.len());
@@ -635,7 +635,7 @@ fn test_cdlkickingbylength(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLLADDERBOTTOM指标
-fn test_cdlladderbottom(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlladderbottom(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlladderbottom(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLLADDERBOTTOM: 成功计算 {} 个结果", results.len());
@@ -650,7 +650,7 @@ fn test_cdlladderbottom(kline_series: &[std::sync::Arc<types::cache::CacheValue>
 }
 
 /// 测试CDLLONGLEGGEDDOJI指标
-fn test_cdllongleggeddoji(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdllongleggeddoji(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdllongleggeddoji(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLLONGLEGGEDDOJI: 成功计算 {} 个结果", results.len());
@@ -665,7 +665,7 @@ fn test_cdllongleggeddoji(kline_series: &[std::sync::Arc<types::cache::CacheValu
 }
 
 /// 测试CDLLONGLINE指标
-fn test_cdllongline(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdllongline(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdllongline(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLLONGLINE: 成功计算 {} 个结果", results.len());
@@ -680,7 +680,7 @@ fn test_cdllongline(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLMARUBOZU指标
-fn test_cdlmarubozu(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlmarubozu(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlmarubozu(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLMARUBOZU: 成功计算 {} 个结果", results.len());
@@ -695,7 +695,7 @@ fn test_cdlmarubozu(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLMATCHINGLOW指标
-fn test_cdlmatchinglow(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlmatchinglow(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlmatchinglow(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLMATCHINGLOW: 成功计算 {} 个结果", results.len());
@@ -710,7 +710,7 @@ fn test_cdlmatchinglow(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDLMATHOLD指标
-fn test_cdlmathold(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlmathold(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLMATHOLDConfig {
         penetration: OrderedFloat(0.5),
     };
@@ -729,7 +729,7 @@ fn test_cdlmathold(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLMORNINGDOJISTAR指标
-fn test_cdlmorningdojistar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlmorningdojistar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLMORNINGDOJISTARConfig {
         penetration: OrderedFloat(0.3),
     };
@@ -748,7 +748,7 @@ fn test_cdlmorningdojistar(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLMORNINGSTAR指标
-fn test_cdlmorningstar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlmorningstar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = CDLMORNINGSTARConfig {
         penetration: OrderedFloat(0.3),
     };
@@ -767,7 +767,7 @@ fn test_cdlmorningstar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDLONNECK指标
-fn test_cdlonneck(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlonneck(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlonneck(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLONNECK: 成功计算 {} 个结果", results.len());
@@ -782,7 +782,7 @@ fn test_cdlonneck(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLPIERCING指标
-fn test_cdlpiercing(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlpiercing(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlpiercing(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLPIERCING: 成功计算 {} 个结果", results.len());
@@ -797,7 +797,7 @@ fn test_cdlpiercing(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLRICKSHAWMAN指标
-fn test_cdlrickshawman(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlrickshawman(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlrickshawman(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLRICKSHAWMAN: 成功计算 {} 个结果", results.len());
@@ -812,7 +812,7 @@ fn test_cdlrickshawman(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDLRISEFALL3METHODS指标
-fn test_cdlrisefall3methods(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlrisefall3methods(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlrisefall3methods(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLRISEFALL3METHODS: 成功计算 {} 个结果", results.len());
@@ -827,7 +827,7 @@ fn test_cdlrisefall3methods(kline_series: &[std::sync::Arc<types::cache::CacheVa
 }
 
 /// 测试CDLSEPARATINGLINES指标
-fn test_cdlseparatinglines(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlseparatinglines(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlseparatinglines(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLSEPARATINGLINES: 成功计算 {} 个结果", results.len());
@@ -842,7 +842,7 @@ fn test_cdlseparatinglines(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLSHOOTINGSTAR指标
-fn test_cdlshootingstar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlshootingstar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlshootingstar(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLSHOOTINGSTAR: 成功计算 {} 个结果", results.len());
@@ -857,7 +857,7 @@ fn test_cdlshootingstar(kline_series: &[std::sync::Arc<types::cache::CacheValue>
 }
 
 /// 测试CDLSHORTLINE指标
-fn test_cdlshortline(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlshortline(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlshortline(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLSHORTLINE: 成功计算 {} 个结果", results.len());
@@ -872,7 +872,7 @@ fn test_cdlshortline(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) 
 }
 
 /// 测试CDLSPINNINGTOP指标
-fn test_cdlspinningtop(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlspinningtop(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlspinningtop(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLSPINNINGTOP: 成功计算 {} 个结果", results.len());
@@ -887,7 +887,7 @@ fn test_cdlspinningtop(kline_series: &[std::sync::Arc<types::cache::CacheValue>]
 }
 
 /// 测试CDLSTALLEDPATTERN指标
-fn test_cdlstalledpattern(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlstalledpattern(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlstalledpattern(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLSTALLEDPATTERN: 成功计算 {} 个结果", results.len());
@@ -902,7 +902,7 @@ fn test_cdlstalledpattern(kline_series: &[std::sync::Arc<types::cache::CacheValu
 }
 
 /// 测试CDLSTICKSANDWICH指标
-fn test_cdlsticksandwich(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlsticksandwich(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlsticksandwich(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLSTICKSANDWICH: 成功计算 {} 个结果", results.len());
@@ -917,7 +917,7 @@ fn test_cdlsticksandwich(kline_series: &[std::sync::Arc<types::cache::CacheValue
 }
 
 /// 测试CDLTAKURI指标
-fn test_cdltakuri(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdltakuri(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdltakuri(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLTAKURI: 成功计算 {} 个结果", results.len());
@@ -932,7 +932,7 @@ fn test_cdltakuri(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLTASUKIGAP指标
-fn test_cdltasukigap(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdltasukigap(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdltasukigap(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLTASUKIGAP: 成功计算 {} 个结果", results.len());
@@ -947,7 +947,7 @@ fn test_cdltasukigap(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) 
 }
 
 /// 测试CDLTHRUSTING指标
-fn test_cdlthrusting(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlthrusting(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlthrusting(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLTHRUSTING: 成功计算 {} 个结果", results.len());
@@ -962,7 +962,7 @@ fn test_cdlthrusting(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) 
 }
 
 /// 测试CDLTRISTAR指标
-fn test_cdltristar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdltristar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdltristar(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLTRISTAR: 成功计算 {} 个结果", results.len());
@@ -977,7 +977,7 @@ fn test_cdltristar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试CDLUNIQUE3RIVER指标
-fn test_cdlunique3river(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlunique3river(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlunique3river(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLUNIQUE3RIVER: 成功计算 {} 个结果", results.len());
@@ -992,7 +992,7 @@ fn test_cdlunique3river(kline_series: &[std::sync::Arc<types::cache::CacheValue>
 }
 
 /// 测试CDLUPSIDEGAP2CROWS指标
-fn test_cdlupsidegap2crows(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlupsidegap2crows(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlupsidegap2crows(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLUPSIDEGAP2CROWS: 成功计算 {} 个结果", results.len());
@@ -1007,7 +1007,7 @@ fn test_cdlupsidegap2crows(kline_series: &[std::sync::Arc<types::cache::CacheVal
 }
 
 /// 测试CDLXSIDEGAP3METHODS指标
-fn test_cdlxsidegap3methods(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_cdlxsidegap3methods(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_cdlxsidegap3methods(kline_series.to_vec()) {
         Ok(results) => {
             println!("  CDLXSIDEGAP3METHODS: 成功计算 {} 个结果", results.len());

@@ -1,28 +1,24 @@
 use super::node_types::*;
 use crate::strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::command::backtest_strategy_command::StrategyCommandReceiver;
-use event_center::Event;
+use event_center::communication::strategy::{
+    NodeCommandSender, StrategyCommand, StrategyCommandReceiver,
+};
+use event_center::event::Event;
 use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{event::EventReceiver, CommandPublisher};
+
+use event_center::event::node_event::BacktestNodeEvent;
+use star_river_core::custom_type::PlayIndex;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
-use types::custom_type::PlayIndex;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::strategy::strategy_inner_event::{
-    StrategyInnerEventPublisher, StrategyInnerEventReceiver,
-};
-use types::strategy::TradeMode;
-use types::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 #[async_trait]
 pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
@@ -61,7 +57,7 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_command_publisher(&self) -> &CommandPublisher {
         &self.get_base_context().command_publisher
     }
-    fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>> {
+    fn get_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
         self.get_base_context().command_receiver.clone()
     }
 
@@ -154,7 +150,7 @@ pub struct LiveBaseNodeContext {
     pub event_publisher: EventPublisher,
     pub event_receivers: Vec<EventReceiver>, // 事件接收器
     pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<CommandReceiver>>,
+    pub command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
     pub message_receivers: Vec<NodeInputHandle>,
     pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub is_enable_event_publish: bool,                      // 是否启用事件发布
@@ -198,7 +194,7 @@ impl LiveBaseNodeContext {
         event_publisher: EventPublisher,
         event_receivers: Vec<EventReceiver>,
         command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<CommandReceiver>>,
+        command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         state_machine: Box<dyn LiveNodeStateMachine>,
         strategy_command_sender: NodeCommandSender,
     ) -> Self {
@@ -389,10 +385,6 @@ pub struct BacktestBaseNodeContext {
     pub node_name: String,
     is_leaf_node: bool, // 是否是叶子节点
     pub cancel_token: CancellationToken,
-    // pub event_publisher: EventPublisher,
-    // pub event_receivers:Vec<EventReceiver>, // 事件接收器
-    // pub command_publisher: CommandPublisher,
-    // pub command_receiver: Arc<Mutex<CommandReceiver>>,
     pub input_handles: Vec<NodeInputHandle>, // 节点事件接收器
     pub output_handles: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
@@ -413,9 +405,7 @@ impl Clone for BacktestBaseNodeContext {
             node_name: self.node_name.clone(),
             is_leaf_node: self.is_leaf_node.clone(),
             cancel_token: self.cancel_token.clone(),
-            // event_publisher: self.event_publisher.clone(),
             input_handles: self.input_handles.clone(),
-            // event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
             output_handles: self.output_handles.clone(),
             is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),

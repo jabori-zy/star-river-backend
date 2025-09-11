@@ -1,7 +1,7 @@
 use crate::strategy_config::Model as StrategyConfigModel;
+use star_river_core::strategy::StrategyConfig;
+use star_river_core::strategy::TradeMode;
 use std::str::FromStr;
-use types::strategy::StrategyConfig;
-use types::strategy::TradeMode;
 
 impl From<StrategyConfigModel> for StrategyConfig {
     fn from(config: StrategyConfigModel) -> Self {

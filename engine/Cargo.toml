@@ -7,7 +7,7 @@ edition.workspace = true
 build = "build.rs"
 
 [dependencies]
-types = {path = "../types"}
+star-river-core = { path = "../star-river-core" }
 utils = { path = "../utils" }
 event-center = {path = "../event-center"}
 exchange-client = {path = "../exchange-client"}
@@ -33,7 +33,6 @@ rust-embed = "8.7.2"
 tempfile = "3.19.1"
 chrono.workspace=true
 deepsize = "0.2.0"
-thiserror.workspace = true
 virtual-trading = { path = "../virtual-trading"}
 strategy-stats = { path = "../strategy-stats"}
 paste = "1.0.15"

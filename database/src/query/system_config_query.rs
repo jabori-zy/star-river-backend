@@ -1,6 +1,6 @@
 use ::entity::system_config::Entity as SystemConfigEntity;
 use sea_orm::*;
-use types::system::system_config::SystemConfig;
+use star_river_core::system::system_config::SystemConfig;
 
 pub struct SystemConfigQuery;
 

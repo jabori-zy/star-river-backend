@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::any::Any;
 use std::fmt::Debug;
 
+use star_river_core::error::engine_error::strategy_engine_error::node_error::BacktestNodeStateMachineError;
 use strum::Display;
-use types::error::engine_error::strategy_engine_error::node_error::BacktestNodeStateMachineError;
 
 /// 状态管理器特征，定义所有状态管理器必须实现的方法
 #[async_trait]

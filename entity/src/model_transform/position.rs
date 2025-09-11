@@ -1,7 +1,7 @@
 use crate::position::Model as PositionModel;
+use star_river_core::market::Exchange;
+use star_river_core::position::{Position, PositionSide, PositionState};
 use std::str::FromStr;
-use types::market::Exchange;
-use types::position::{Position, PositionSide, PositionState};
 
 impl From<PositionModel> for Position {
     fn from(position: PositionModel) -> Self {

@@ -1,10 +1,10 @@
 use crate::indicator_engine::talib::TALib;
 use crate::indicator_engine::talib_bindings::*;
-use crate::indicator_engine::talib_error::TalibError;
+// use crate::indicator_engine::talib_error::TalibError;
 use crate::talib_fn;
 use crate::talib_snake_fn;
-use types::indicator::indicator_define::overlap::*;
-use types::indicator::Indicator;
+use star_river_core::indicator::indicator_define::overlap::*;
+use star_river_core::indicator::Indicator;
 
 impl TALib {
     //Bollinger Bands #布林带

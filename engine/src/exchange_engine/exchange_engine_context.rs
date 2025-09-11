@@ -2,23 +2,21 @@ use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
 use database::query::account_config_query::AccountConfigQuery;
-use event_center::command::exchange_engine_command::ExchangeEngineCommand;
-use event_center::command::exchange_engine_command::UnregisterExchangeParams;
-use event_center::command::Command;
-use event_center::response::exchange_engine_response::RegisterExchangeResponse;
-use event_center::Event;
+use event_center::communication::engine::exchange_engine::*;
+use event_center::communication::engine::EngineCommand;
+use event_center::event::Event;
 use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::ExchangeClient;
 use sea_orm::DatabaseConnection;
 use snafu::{Report, ResultExt};
+use star_river_core::account::AccountConfig;
+use star_river_core::custom_type::AccountId;
+use star_river_core::error::engine_error::*;
+use star_river_core::error::exchange_client_error::*;
+use star_river_core::market::Exchange;
 use std::any::Any;
 use std::collections::HashMap;
 use tracing::instrument;
-use types::account::AccountConfig;
-use types::custom_type::AccountId;
-use types::error::engine_error::*;
-use types::error::exchange_client_error::*;
-use types::market::Exchange;
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -63,9 +61,9 @@ impl EngineContext for ExchangeEngineContext {
         let _event = event;
     }
 
-    async fn handle_command(&mut self, command: Command) {
+    async fn handle_command(&mut self, command: EngineCommand) {
         match command {
-            Command::ExchangeEngine(exchange_engine_command) => {
+            EngineCommand::ExchangeEngine(exchange_engine_command) => {
                 match exchange_engine_command {
                     ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
                         let result = self

@@ -4,12 +4,12 @@ use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeCo
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::strategy_event::StrategyEvent;
-use event_center::Event;
+use event_center::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
-use types::strategy::node_event::{
+use star_river_core::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
+use star_river_core::strategy::node_event::{
     BacktestNodeEvent, IndicatorNodeEvent, LiveConditionMatchEvent, SignalEvent,
 };
 use utils::get_utc8_timestamp;

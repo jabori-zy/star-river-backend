@@ -1,7 +1,7 @@
+use star_river_core::cache::CacheValue;
+use star_river_core::indicator::Indicator;
+use star_river_core::market::Kline;
 use std::sync::Arc;
-use types::cache::CacheValue;
-use types::indicator::Indicator;
-use types::market::Kline;
 
 /// 生成指定长度的CacheValue向量，包含模拟的Kline数据
 ///

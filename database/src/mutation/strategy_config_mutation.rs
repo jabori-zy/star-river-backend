@@ -1,7 +1,7 @@
 use ::entity::{strategy_config, strategy_config::Entity as StrategyConfigEntity};
 use chrono::Utc;
 use sea_orm::*;
-use types::strategy::StrategyConfig;
+use star_river_core::strategy::StrategyConfig;
 
 pub struct StrategyConfigMutation;
 

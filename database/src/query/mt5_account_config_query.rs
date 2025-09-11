@@ -1,6 +1,6 @@
 use sea_orm::*;
 use crate::entities::{mt5_account_config, mt5_account_config::Entity as Mt5AccountConfig};
-use types::account::mt5_account::Mt5AccountConfig as Mt5AccountConfigType;
+use star_river_core::account::mt5_account::Mt5AccountConfig as Mt5AccountConfigType;
 
 
 

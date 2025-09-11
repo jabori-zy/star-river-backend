@@ -1,9 +1,9 @@
 use crate::indicator_engine::talib::TALib;
 use crate::indicator_engine::talib_bindings::*;
-use crate::indicator_engine::talib_error::TalibError;
+// use crate::indicator_engine::talib_error::TalibError;
 use crate::talib_fn;
-use types::indicator::indicator_define::pattern_recognition::*;
-use types::indicator::Indicator;
+use star_river_core::indicator::indicator_define::pattern_recognition::*;
+use star_river_core::indicator::Indicator;
 
 impl TALib {
     // CDL2CROWS            Two Crows #两只乌鸦

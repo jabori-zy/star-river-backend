@@ -424,7 +424,7 @@ pub mod kline_node_log_message {
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
     use serde::{Deserialize, Serialize};
-    use types::market::Exchange;
+    use star_river_core::market::Exchange;
 
     log_message!(
         StartRegisterExchangeMsg,

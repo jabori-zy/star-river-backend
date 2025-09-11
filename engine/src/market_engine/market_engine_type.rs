@@ -1,5 +1,5 @@
-use types::cache::key::KlineKey;
-use types::market::{Exchange, KlineInterval};
+use star_river_core::cache::key::KlineKey;
+use star_river_core::market::{Exchange, KlineInterval};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KlineSubKey {

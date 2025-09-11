@@ -3,16 +3,16 @@ use super::StrategyEngineContext;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
+use event_center::event::strategy_event::StrategyRunningLogEvent;
 use snafu::{Report, ResultExt};
-use types::cache::Key;
-use types::error::engine_error::strategy_engine_error::*;
-use types::error::engine_error::strategy_error::*;
-use types::order::virtual_order::VirtualOrder;
-use types::position::virtual_position::VirtualPosition;
-use types::strategy::node_event::StrategyRunningLogEvent;
-use types::strategy::TradeMode;
-use types::strategy_stats::StatsSnapshot;
-use types::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::cache::Key;
+use star_river_core::error::engine_error::strategy_engine_error::*;
+use star_river_core::error::engine_error::strategy_error::*;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::TradeMode;
+use star_river_core::strategy_stats::StatsSnapshot;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 
 /*
     回测策略控制
@@ -43,7 +43,7 @@ impl StrategyEngineContext {
             .lock()
             .await
             .insert(strategy_id);
-        let strategy_config: types::strategy::StrategyConfig =
+        let strategy_config: star_river_core::strategy::StrategyConfig =
             self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
         let strategy_list = self.backtest_strategy_list.clone();

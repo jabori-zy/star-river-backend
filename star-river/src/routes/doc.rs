@@ -2,8 +2,8 @@ use crate::api::account_api::ExchangeType;
 use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
 use crate::api::cache_api::CacheKeyType;
 use crate::api::response::ApiResponse;
-use types::account::AccountConfig;
-use types::system::system_config::SystemConfigUpdateParams;
+use star_river_core::account::AccountConfig;
+use star_river_core::system::system_config::SystemConfigUpdateParams;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]

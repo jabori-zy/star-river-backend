@@ -1,6 +1,6 @@
 use ::entity::{strategy_config, strategy_config::Entity as StrategyConfigEntity};
 use sea_orm::*;
-use types::strategy::StrategyConfig;
+use star_river_core::strategy::StrategyConfig;
 
 pub struct StrategyConfigQuery;
 

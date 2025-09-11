@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum::extract::{Json, Path};
 use axum::http::StatusCode;
 use engine::strategy_engine::StrategyEngine;
-use types::engine::EngineName;
+use star_river_core::engine::EngineName;
 
 #[utoipa::path(
     post,

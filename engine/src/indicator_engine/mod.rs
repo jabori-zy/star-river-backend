@@ -3,7 +3,7 @@ pub mod indicator_engine_context;
 pub mod indicator_engine_type;
 pub mod talib;
 pub mod talib_bindings;
-pub mod talib_error;
+// pub mod talib_error;
 
 use crate::cache_engine::CacheEngine;
 use crate::indicator_engine::indicator_engine_context::IndicatorEngineContext;

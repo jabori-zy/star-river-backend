@@ -8,12 +8,13 @@ pub mod cache_engine;
 pub mod strategy_engine; // 策略引擎
 
 use async_trait::async_trait;
-use event_center::command::Command;
+use event_center::communication::engine::EngineCommand;
+use event_center::event::Event;
 use event_center::Channel;
-use event_center::Event;
 use event_center::EventCenterSingleton;
 use futures::stream::select_all;
 use futures::StreamExt;
+use star_river_core::engine::EngineName;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -21,7 +22,6 @@ use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::BroadcastStream;
-use types::engine::EngineName;
 
 #[async_trait]
 pub trait EngineContext: Debug + Send + Sync + 'static {
@@ -43,7 +43,7 @@ pub trait EngineContext: Debug + Send + Sync + 'static {
 
     async fn handle_event(&mut self, event: Event);
 
-    async fn handle_command(&mut self, command: Command);
+    async fn handle_command(&mut self, command: EngineCommand);
 }
 
 impl Clone for Box<dyn EngineContext> {

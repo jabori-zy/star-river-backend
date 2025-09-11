@@ -1,9 +1,9 @@
 use chrono::Utc;
 use serde::Serialize;
 use snafu::Report;
+use star_river_core::error::error_trait::StarRiverErrorTrait;
+use star_river_core::error::ErrorCode;
 use std::error::Error;
-use types::error::error_trait::StarRiverErrorTrait;
-use types::error::ErrorCode;
 use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]

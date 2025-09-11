@@ -1,8 +1,8 @@
 use ::entity::account_config;
 use chrono::Utc;
 use sea_orm::*;
-use types::account::AccountConfig;
-use types::market::Exchange;
+use star_river_core::account::AccountConfig;
+use star_river_core::market::Exchange;
 
 pub struct AccountConfigMutation;
 

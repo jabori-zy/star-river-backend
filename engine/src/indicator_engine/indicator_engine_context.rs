@@ -3,24 +3,21 @@ use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
 use crate::{EngineContext, EngineName};
 use async_trait::async_trait;
-use event_center::command::indicator_engine_command::IndicatorEngineCommand;
-use event_center::command::Command;
-use event_center::exchange_event::ExchangeEvent;
-use event_center::exchange_event::ExchangeKlineUpdateEvent;
-use event_center::response::indicator_engine_response::{
-    CalculateBacktestIndicatorResponse, IndicatorEngineResponse, RegisterIndicatorResponse,
-};
-use event_center::Event;
+use event_center::communication::engine::indicator_engine::*;
+use event_center::communication::engine::EngineCommand;
+use event_center::event::exchange_event::ExchangeKlineUpdateEvent;
+use event_center::event::Event;
+use event_center::event::ExchangeEvent;
 use heartbeat::Heartbeat;
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::custom_type::{NodeId, StrategyId};
+use star_river_core::indicator::IndicatorConfig;
+use star_river_core::market::{Exchange, KlineInterval};
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use types::cache::key::{IndicatorKey, KlineKey};
-use types::custom_type::{NodeId, StrategyId};
-use types::indicator::IndicatorConfig;
-use types::market::{Exchange, KlineInterval};
 
 #[derive(Debug)]
 pub struct IndicatorEngineContext {
@@ -73,9 +70,9 @@ impl EngineContext for IndicatorEngineContext {
         }
     }
 
-    async fn handle_command(&mut self, command: Command) {
+    async fn handle_command(&mut self, command: EngineCommand) {
         match command {
-            Command::IndicatorEngine(indicator_engine_command) => {
+            EngineCommand::IndicatorEngine(indicator_engine_command) => {
                 match indicator_engine_command {
                     // 注册指标, 并且初始化
                     IndicatorEngineCommand::RegisterIndicator(register_indicator_params) => {

@@ -8,6 +8,6 @@ edition.workspace = true
 [dependencies]
 engine = { path = "../../engine" }
 paste = "1.0.15"
-types = { path = "../../types" }
+star-river-core = { path = "../../star-river-core" }
 ordered-float.workspace = true
 serde_json.workspace = true

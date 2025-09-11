@@ -8,4 +8,4 @@ edition.workspace = true
 [dependencies]
 sea-orm.workspace = true
 serde.workspace = true
-types = {path = "../types" }
+star-river-core = { path = "../star-river-core" }

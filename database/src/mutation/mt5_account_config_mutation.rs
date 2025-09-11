@@ -1,8 +1,8 @@
-use types::account::mt5_account::Mt5AccountConfig as TypeMt5AccountConfig;
+use star_river_core::account::mt5_account::Mt5AccountConfig as TypeMt5AccountConfig;
 use sea_orm::*;
 use crate::entities::mt5_account_config;
 use chrono::Utc;
-use types::market::Exchange;
+use star_river_core::market::Exchange;
 
 
 pub struct Mt5AccountConfigMutation;

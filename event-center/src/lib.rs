@@ -1,44 +1,33 @@
-pub mod account_event;
-pub mod command;
-pub mod database_event;
+// pub mod response;
+pub mod event;
 pub mod event_center_error;
-pub mod exchange_event;
-pub mod indicator_event;
-pub mod market_event;
-pub mod order_event;
-pub mod position_event;
-pub mod response;
 pub mod singleton;
-pub mod strategy_event;
 
-use crate::account_event::AccountEvent;
-use crate::command::Command;
-use crate::exchange_event::ExchangeEvent;
-use crate::indicator_event::IndicatorEvent;
-use crate::market_event::MarketEvent;
-use crate::order_event::OrderEvent;
-use crate::position_event::PositionEvent;
-use crate::response::Response;
-use crate::strategy_event::StrategyEvent;
+pub mod communication;
+
+use crate::communication::engine::EngineCommand;
+use crate::event::account_event::AccountEvent;
+use crate::event::exchange_event::ExchangeEvent;
+use crate::event::indicator_event::IndicatorEvent;
+use crate::event::market_event::MarketEvent;
+use crate::event::order_event::OrderEvent;
+use crate::event::position_event::PositionEvent;
+use crate::event::strategy_event::StrategyEvent;
 
 pub use singleton::EventCenterSingleton;
 
+use crate::communication::engine::{EngineCommandReceiver, EngineCommandSender};
 use crate::event_center_error::*;
 use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
+use star_river_core::engine::EngineName;
 use std::collections::HashMap;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use tokio::sync::Mutex;
-use tokio::sync::{broadcast, mpsc, oneshot};
-use types::engine::EngineName;
+use tokio::sync::{broadcast, mpsc};
 
-pub type EventSender = broadcast::Sender<Event>;
-pub type EventReceiver = broadcast::Receiver<Event>;
-pub type CommandSender = mpsc::Sender<Command>; // 命令发送器
-pub type CommandReceiver = mpsc::Receiver<Command>; // 命令接收器
-pub type Responder = oneshot::Sender<Response>; // 响应
+use crate::event::{Event, EventReceiver, EventSender};
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, Display, Eq, Hash, PartialEq)]
 pub enum Channel {
@@ -58,56 +47,11 @@ impl Channel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
-#[serde(tag = "channel")]
-pub enum Event {
-    #[strum(serialize = "exchange")]
-    #[serde(rename = "exchange")]
-    Exchange(ExchangeEvent),
-
-    #[strum(serialize = "market")]
-    #[serde(rename = "market")]
-    Market(MarketEvent),
-
-    #[strum(serialize = "indicator")]
-    #[serde(rename = "indicator")]
-    Indicator(IndicatorEvent),
-
-    #[strum(serialize = "strategy")]
-    #[serde(rename = "strategy")]
-    Strategy(StrategyEvent),
-
-    #[strum(serialize = "order")]
-    #[serde(rename = "order")]
-    Order(OrderEvent),
-
-    #[strum(serialize = "position")]
-    #[serde(rename = "position")]
-    Position(PositionEvent),
-
-    #[strum(serialize = "account")]
-    #[serde(rename = "account")]
-    Account(AccountEvent),
-}
-
-impl Event {
-    pub fn get_channel(&self) -> Channel {
-        match self {
-            Event::Market(_) => Channel::Market,
-            Event::Indicator(_) => Channel::Indicator,
-            Event::Exchange(_) => Channel::Exchange,
-            Event::Strategy(_) => Channel::Strategy,
-            Event::Order(_) => Channel::Order,
-            Event::Position(_) => Channel::Position,
-            Event::Account(_) => Channel::Account,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct EventCenter {
     pub(crate) broadcast_channels: HashMap<Channel, EventSender>,
-    pub(crate) command_channels: HashMap<EngineName, (CommandSender, Arc<Mutex<CommandReceiver>>)>, // 成对保存发送器和接收器
+    pub(crate) command_channels:
+        HashMap<EngineName, (EngineCommandSender, Arc<Mutex<EngineCommandReceiver>>)>, // 成对保存发送器和接收器
     black_hole: HashMap<Channel, EventReceiver>, // 黑洞通道，用于接收所有事件，但不进行处理
 }
 
@@ -149,7 +93,7 @@ impl EventCenter {
         ];
 
         for engine_name in engines.iter() {
-            let (tx, rx) = mpsc::channel::<Command>(100);
+            let (tx, rx) = mpsc::channel::<EngineCommand>(100);
             // 成对保存发送器和接收器
             self.command_channels
                 .insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
@@ -206,7 +150,7 @@ impl EventCenter {
 
     pub fn get_command_publisher(&self) -> CommandPublisher {
         // 提取所有的 CommandSender
-        let command_senders: HashMap<EngineName, CommandSender> = self
+        let command_senders: HashMap<EngineName, EngineCommandSender> = self
             .command_channels
             .iter()
             .map(|(name, (sender, _receiver))| (name.clone(), sender.clone()))
@@ -219,7 +163,7 @@ impl EventCenter {
     pub async fn get_command_receiver(
         &self,
         engine_name: &EngineName,
-    ) -> Result<Arc<Mutex<CommandReceiver>>, EventCenterError> {
+    ) -> Result<Arc<Mutex<EngineCommandReceiver>>, EventCenterError> {
         self.command_channels
             .get(engine_name)
             .map(|(_sender, receiver)| receiver.clone())
@@ -235,7 +179,7 @@ impl EventCenter {
     pub fn get_command_sender(
         &self,
         engine_name: EngineName,
-    ) -> Result<CommandSender, EventCenterError> {
+    ) -> Result<EngineCommandSender, EventCenterError> {
         self.command_channels
             .get(&engine_name)
             .map(|(sender, _receiver)| sender.clone())
@@ -286,15 +230,15 @@ impl EventPublisher {
 
 #[derive(Clone, Debug)]
 pub struct CommandPublisher {
-    channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>,
+    channels: Arc<Mutex<HashMap<EngineName, EngineCommandSender>>>,
 }
 
 impl CommandPublisher {
-    pub fn new(channels: Arc<Mutex<HashMap<EngineName, CommandSender>>>) -> Self {
+    pub fn new(channels: Arc<Mutex<HashMap<EngineName, EngineCommandSender>>>) -> Self {
         Self { channels }
     }
 
-    pub async fn send(&self, command: Command) -> Result<(), EventCenterError> {
+    pub async fn send(&self, command: EngineCommand) -> Result<(), EventCenterError> {
         let engine_name = command.get_engine_name();
         let channels = self.channels.lock().await;
         let sender = channels.get(&engine_name).ok_or(

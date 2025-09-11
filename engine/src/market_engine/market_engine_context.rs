@@ -4,31 +4,28 @@ use crate::market_engine::market_engine_type::KlineSubKey;
 use crate::EngineName;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
-use event_center::command::cache_engine_command::AddCacheKeyParams;
-use event_center::command::cache_engine_command::CacheEngineCommand;
-use event_center::command::market_engine_command::MarketEngineCommand;
-use event_center::command::Command;
-use event_center::exchange_event::{
-    ExchangeEvent, ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent,
+use event_center::communication::engine::cache_engine::*;
+use event_center::communication::engine::market_engine::*;
+use event_center::communication::engine::EngineCommand;
+use event_center::event::Event;
+use event_center::event::{
+    exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
+    ExchangeEvent,
 };
-use event_center::response::market_engine_response::{
-    GetKlineHistoryResponse, SubscribeKlineStreamResponse, UnsubscribeKlineStreamResponse,
-};
-use event_center::Event;
 use event_center::EventCenterSingleton;
+use star_river_core::cache::{key::KlineKey, Key};
+use star_river_core::custom_type::{AccountId, StrategyId};
+use star_river_core::market::Exchange;
+use star_river_core::market::Kline;
+use star_river_core::market::KlineInterval;
+use star_river_core::market::Symbol;
+use star_river_core::strategy::TimeRange;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
-use types::cache::{key::KlineKey, Key};
-use types::custom_type::{AccountId, StrategyId};
-use types::market::Exchange;
-use types::market::Kline;
-use types::market::KlineInterval;
-use types::market::Symbol;
-use types::strategy::TimeRange;
 use utils::get_utc8_timestamp_millis;
 
 #[derive(Debug)]
@@ -70,9 +67,11 @@ impl EngineContext for MarketEngineContext {
         let _event = event;
     }
 
-    async fn handle_command(&mut self, command: Command) {
+    async fn handle_command(&mut self, command: EngineCommand) {
         match command {
-            Command::MarketEngine(MarketEngineCommand::SubscribeKlineStream(command_params)) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(
+                command_params,
+            )) => {
                 self.subscribe_kline_stream(
                     command_params.strategy_id,
                     command_params.account_id,
@@ -101,7 +100,9 @@ impl EngineContext for MarketEngineContext {
                     .unwrap();
             }
 
-            Command::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(command_params)) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(
+                command_params,
+            )) => {
                 self.unsubscribe_kline_stream(
                     command_params.strategy_id,
                     command_params.account_id,
@@ -122,7 +123,7 @@ impl EngineContext for MarketEngineContext {
                     .send(unsubscribe_kline_stream_response.into())
                     .unwrap();
             }
-            Command::MarketEngine(MarketEngineCommand::GetKlineHistory(params)) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::GetKlineHistory(params)) => {
                 let kline_history = self
                     .get_kline_history(
                         params.strategy_id,
@@ -136,16 +137,15 @@ impl EngineContext for MarketEngineContext {
                     .unwrap();
 
                 // 发布k线历史更新事件
+                let exchange_kline_history_update_event = ExchangeKlineHistoryUpdateEvent::new(
+                    params.exchange.clone(),
+                    params.symbol.clone(),
+                    params.interval.clone(),
+                    params.time_range.clone(),
+                    kline_history,
+                );
                 let exchange_kline_history_update_event =
-                    ExchangeEvent::ExchangeKlineHistoryUpdate(ExchangeKlineHistoryUpdateEvent {
-                        exchange: params.exchange.clone(),
-                        symbol: params.symbol.clone(),
-                        interval: params.interval.clone(),
-                        time_range: params.time_range.clone(),
-                        kline_history: kline_history,
-                        event_timestamp: get_utc8_timestamp_millis(),
-                    });
-                // self.get_event_publisher().publish(exchange_kline_history_update_event.into()).await.unwrap();
+                    ExchangeEvent::ExchangeKlineHistoryUpdate(exchange_kline_history_update_event);
                 EventCenterSingleton::publish(exchange_kline_history_update_event.into())
                     .await
                     .unwrap();
@@ -185,15 +185,14 @@ impl MarketEngineContext {
             end_time,
         });
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = AddCacheKeyParams {
+        let params = AddCacheKeyParams::new(
             strategy_id,
             key,
-            max_size: Some(max_size),
-            duration: Duration::from_millis(10),
-            sender: format!("strategy_{}", strategy_id),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+            Some(max_size),
+            Duration::from_millis(10),
+            format!("strategy_{}", strategy_id),
+            resp_tx,
+        );
 
         let add_key_command = CacheEngineCommand::AddCacheKey(params);
 
@@ -225,15 +224,14 @@ impl MarketEngineContext {
             end_time: Some(time_range.end_date.to_string()),
         });
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = AddCacheKeyParams {
+        let params = AddCacheKeyParams::new(
             strategy_id,
             key,
-            max_size: None,
-            duration: Duration::from_millis(10),
-            sender: format!("strategy_{}", strategy_id),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+            None,
+            Duration::from_millis(10),
+            format!("strategy_{}", strategy_id),
+            resp_tx,
+        );
 
         let add_key_command = CacheEngineCommand::AddCacheKey(params);
 
@@ -307,16 +305,14 @@ impl MarketEngineContext {
             .get_kline_series(&symbol, interval.clone(), cache_size)
             .await
             .map_err(|e| e.to_string())?;
-        let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent {
-            exchange: exchange,
-            event_timestamp: get_utc8_timestamp_millis(),
-            symbol: symbol.to_string(),
-            interval: interval.clone().into(),
-            kline_series: initail_kline_series.clone(),
-        };
+        let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent::new(
+            exchange,
+            symbol.to_string(),
+            interval.clone().into(),
+            initail_kline_series.clone(),
+        );
         let exchange_klineseries_update_event =
             ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
-        // self.get_event_publisher().publish(exchange_klineseries_update_event.into()).await.unwrap();
         EventCenterSingleton::publish(exchange_klineseries_update_event.into())
             .await
             .unwrap();
@@ -329,7 +325,6 @@ impl MarketEngineContext {
         // 获取socket流
         exchange_client.get_socket_stream().await.unwrap();
 
-        // self.get_event_publisher().publish(response_event.clone().into()).unwrap();
         Ok(())
     }
 

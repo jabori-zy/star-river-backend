@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use types::strategy::sys_varibale::SysVariable;
-use types::strategy::SelectedAccount;
+use star_river_core::strategy::sys_varibale::SysVariable;
+use star_river_core::strategy::SelectedAccount;
 
 // 获取变量的方式
 #[derive(Debug, Clone, Serialize, Deserialize)]

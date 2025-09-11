@@ -4,24 +4,21 @@ use crate::EngineName;
 use async_trait::async_trait;
 use database::mutation::account_info_mutation::AccountInfoMutation;
 use database::query::account_config_query::AccountConfigQuery;
-use event_center::account_event::AccountEvent;
-use event_center::command::exchange_engine_command::ExchangeEngineCommand;
-use event_center::command::exchange_engine_command::RegisterExchangeParams;
-use event_center::command::exchange_engine_command::UnregisterExchangeParams;
-use event_center::command::Command;
-use event_center::response::exchange_engine_response::ExchangeEngineResponse;
-use event_center::Event;
+use event_center::communication::engine::exchange_engine::*;
+use event_center::communication::engine::EngineCommand;
+use event_center::event::account_event::AccountEvent;
+use event_center::event::Event;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
+use star_river_core::account::Account;
+use star_river_core::account::ExchangeStatus;
+use star_river_core::market::Exchange;
 use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::account::Account;
-use types::account::ExchangeStatus;
-use types::market::Exchange;
 
 #[derive(Debug)]
 pub struct AccountEngineContext {
@@ -81,7 +78,7 @@ impl EngineContext for AccountEngineContext {
         }
     }
 
-    async fn handle_command(&mut self, command: Command) {
+    async fn handle_command(&mut self, command: EngineCommand) {
         let _command = command;
     }
 }
@@ -101,12 +98,8 @@ impl AccountEngineContext {
         accounts.remove(index);
         // 同时向exchange_engine发送注销交易所的命令
         let (resp_tx, resp_rx) = oneshot::channel();
-        let unregister_params = UnregisterExchangeParams {
-            account_id: account_id,
-            sender: "account_engine".to_string(),
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            responder: resp_tx,
-        };
+        let unregister_params =
+            UnregisterExchangeParams::new(account_id, "account_engine".to_string(), resp_tx);
         let command_event = ExchangeEngineCommand::UnregisterExchange(unregister_params);
         // self.get_command_publisher().send(command_event.into()).await.unwrap();
         EventCenterSingleton::send_command(command_event.into())
@@ -343,13 +336,13 @@ impl AccountEngineContext {
             AccountConfigQuery::get_account_config_by_id(&self.database, account_id)
                 .await
                 .unwrap();
-        let register_params = RegisterExchangeParams {
-            account_id: account_config.id,
-            exchange: account_config.exchange,
-            sender: "account_engine".to_string(),
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            responder: resp_tx,
-        };
+        let register_params = RegisterExchangeParams::new(
+            account_config.id,
+            account_config.exchange,
+            "account_engine".to_string(),
+            resp_tx,
+        );
+
         let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_params);
         // self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
         EventCenterSingleton::send_command(register_exchange_command.into())

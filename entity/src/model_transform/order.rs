@@ -1,7 +1,7 @@
 use crate::order::Model as OrderModel;
+use star_river_core::market::Exchange;
+use star_river_core::order::{FuturesOrderSide, Order, OrderStatus, OrderType};
 use std::str::FromStr;
-use types::market::Exchange;
-use types::order::{FuturesOrderSide, Order, OrderStatus, OrderType};
 
 impl From<OrderModel> for Order {
     fn from(order: OrderModel) -> Self {

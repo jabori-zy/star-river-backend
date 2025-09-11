@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use types::order::{deserialize_futures_order_side, deserialize_order_type};
-use types::order::{FuturesOrderSide, OrderType};
-use types::strategy::SelectedAccount;
+use star_river_core::order::{deserialize_futures_order_side, deserialize_order_type};
+use star_river_core::order::{FuturesOrderSide, OrderType};
+use star_river_core::strategy::SelectedAccount;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderConfig {

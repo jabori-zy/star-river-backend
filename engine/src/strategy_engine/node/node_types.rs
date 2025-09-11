@@ -1,3 +1,4 @@
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use sea_orm::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -5,8 +6,6 @@ use std::fmt::Debug;
 use std::str::FromStr;
 use strum_macros::Display;
 use tokio::sync::broadcast;
-use tokio::sync::broadcast::error::SendError;
-use types::strategy::node_event::BacktestNodeEvent;
 
 // 节点类型
 #[derive(Debug, Clone, Serialize, Deserialize, Display, PartialEq, Eq, Hash)]

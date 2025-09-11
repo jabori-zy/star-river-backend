@@ -1,10 +1,10 @@
 use crate::calculate_fn;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::talib::TALib;
+use star_river_core::cache::CacheValue;
+use star_river_core::indicator::indicator_define::pattern_recognition::*;
+use star_river_core::indicator::Indicator;
 use std::sync::Arc;
-use types::cache::CacheValue;
-use types::indicator::indicator_define::pattern_recognition::*;
-use types::indicator::Indicator;
 
 impl CalculateIndicatorFunction {
     // CDL2CROWS - Two Crows #两只乌鸦

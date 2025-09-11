@@ -21,5 +21,5 @@ entity = { path = "../entity" }
 sea-orm-migration = {version="1.1.14", features = ["sqlx-sqlite","runtime-tokio"]}
 event-center = { path = "../event-center" }
 utils = { path = "../utils" }
-types = {path = "../types" }
+star-river-core = { path = "../star-river-core" }
 log = "0.4.26"

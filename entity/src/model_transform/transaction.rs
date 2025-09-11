@@ -1,9 +1,9 @@
 use crate::transaction::Model as TransactionModel;
+use star_river_core::market::Exchange;
+use star_river_core::transaction::Transaction;
+use star_river_core::transaction::TransactionSide;
+use star_river_core::transaction::TransactionType;
 use std::str::FromStr;
-use types::market::Exchange;
-use types::transaction::Transaction;
-use types::transaction::TransactionSide;
-use types::transaction::TransactionType;
 
 impl From<TransactionModel> for Transaction {
     fn from(transaction: TransactionModel) -> Self {

@@ -12,7 +12,7 @@ use crate::strategy_engine::node::node_types::{DefaultOutputHandleId, NodeType};
 use crate::strategy_engine::node::{LiveNodeTrait, NodeOutputHandle};
 use async_trait::async_trait;
 use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver};
+use event_center::{CommandPublisher, EngineCommandReceiver};
 use if_else_node_context::IfElseNodeContext;
 use if_else_node_type::*;
 use std::any::Any;
@@ -24,9 +24,9 @@ use std::vec;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::TradeMode;
+use star_river_core::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_event::BacktestNodeEvent;
+use star_river_core::strategy::TradeMode;
 
 // 条件分支节点
 #[derive(Debug, Clone)]

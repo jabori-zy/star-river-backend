@@ -6,9 +6,9 @@ use snafu::Report;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
+use event_center::communication::strategy::NodeCommandSender;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(

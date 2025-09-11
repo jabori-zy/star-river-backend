@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use types::indicator::indicator_define::volatility::*;
-use types::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::volatility::*;
+use star_river_core::indicator::IndicatorTrait;
 /// 测试所有波动率指标
 pub fn test_volatility_indicators() {
     println!("=== 波动率指标测试 ===");
@@ -20,7 +20,7 @@ pub fn test_volatility_indicators() {
 }
 
 /// 测试ATR指标
-fn test_atr(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_atr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = ATRConfig { time_period: 14 };
 
     match CalculateIndicatorFunction::calculate_atr(kline_series.to_vec(), &config) {
@@ -37,7 +37,7 @@ fn test_atr(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试NATR指标
-fn test_natr(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_natr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = NATRConfig { time_period: 14 };
 
     match CalculateIndicatorFunction::calculate_natr(kline_series.to_vec(), &config) {
@@ -54,7 +54,7 @@ fn test_natr(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试TRANGE指标
-fn test_trange(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_trange(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_trange(kline_series.to_vec()) {
         Ok(results) => {
             println!("  TRANGE: 成功计算 {} 个结果", results.len());

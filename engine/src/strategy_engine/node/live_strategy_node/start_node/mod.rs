@@ -8,13 +8,13 @@ use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEve
 use crate::strategy_engine::node::{LiveNodeTrait, NodeType};
 use crate::*;
 use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver};
+use event_center::{CommandPublisher, EngineCommandReceiver};
 use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::{BacktestStrategyConfig, LiveStrategyConfig, SimulatedConfig, TradeMode};
+use star_river_core::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::{BacktestStrategyConfig, LiveStrategyConfig, SimulatedConfig, TradeMode};
 
 #[derive(Debug)]
 pub struct StartNode {

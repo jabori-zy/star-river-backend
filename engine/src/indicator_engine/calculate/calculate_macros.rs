@@ -17,7 +17,7 @@ macro_rules! calculate_fn {
                     $($crate::parse_type!(config, $param_field, $param_type)),*
                 ) {
                     Ok(result) => result,
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => return Err("calculate indicator error".to_string()),
                 };
 
                 Ok(result)
@@ -40,7 +40,7 @@ macro_rules! calculate_fn {
                     $($crate::parse_type!(config, $param_field, $param_type)),*
                 ) {
                     Ok(result) => result,
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => return Err("calculate indicator error".to_string()),
                 };
 
                 Ok(result)
@@ -60,7 +60,7 @@ macro_rules! calculate_fn {
                     $($crate::get_ohlcv_field!(tohlcv, $input_field)),*,
                 ) {
                     Ok(result) => result,
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => return Err("calculate indicator error".to_string()),
                 };
 
                 Ok(result)
@@ -88,7 +88,7 @@ macro_rules! calculate_fn_snake {
                     $($crate::parse_type!(config, $param_field, $param_type)),*
                 ) {
                     Ok(result) => result,
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => return Err("calculate indicator error".to_string()),
                 };
 
                 Ok(result)
@@ -111,7 +111,7 @@ macro_rules! calculate_fn_snake {
                     $($crate::parse_type!(config, $param_field, $param_type)),*
                 ) {
                     Ok(result) => result,
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => return Err("calculate indicator error".to_string()),
                 };
 
                 Ok(result)

@@ -3,14 +3,12 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::strategy_engine::node::backtest_strategy_node::variable_node::VariableNode;
-use event_center::EventReceiver;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use tokio::sync::mpsc;
-use event_center::command::backtest_strategy_command::StrategyCommand;
+use event_center::communication::strategy::{StrategyCommand, NodeCommandSender};
 use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
-use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
 
 impl BacktestStrategyFunction {
     pub async fn add_variable_node(

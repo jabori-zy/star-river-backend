@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use types::indicator::indicator_define::volume::*;
-use types::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::volume::*;
+use star_river_core::indicator::IndicatorTrait;
 
 /// 测试所有成交量指标
 pub fn test_volume_indicators() {
@@ -21,7 +21,7 @@ pub fn test_volume_indicators() {
 }
 
 /// 测试AD指标 (Chaikin A/D Line - 钱德累积/派发线)
-fn test_ad(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ad(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_ad(kline_series.to_vec()) {
         Ok(results) => {
             println!("  AD: 成功计算 {} 个结果", results.len());
@@ -36,7 +36,7 @@ fn test_ad(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试ADOSC指标 (Chaikin A/D Oscillator - 钱德累积/派发振荡器)
-fn test_adosc(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_adosc(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = ADOSCConfig {
         fast_period: 3,
         slow_period: 10,
@@ -56,7 +56,7 @@ fn test_adosc(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试OBV指标 (On Balance Volume - 能量潮)
-fn test_obv(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_obv(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_obv(kline_series.to_vec()) {
         Ok(results) => {
             println!("  OBV: 成功计算 {} 个结果", results.len());

@@ -7,7 +7,7 @@ use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::{LiveNodeTrait, NodeType};
 use async_trait::async_trait;
 use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, EngineCommandReceiver, EventReceiver};
 use indicator_node_context::IndicatorNodeContext;
 use indicator_node_state_machine::{IndicatorNodeStateAction, IndicatorNodeStateManager};
 use indicator_node_type::IndicatorNodeLiveConfig;
@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_command::NodeCommandSender;
 
 // 指标节点
 #[derive(Debug, Clone)]

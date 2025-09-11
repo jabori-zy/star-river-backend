@@ -1,6 +1,6 @@
 
 use std::str::FromStr;
-use types::market::{Kline, Exchange, KlineSeries};
+use star_river_core::market::{Kline, Exchange, KlineSeries};
 use crate::binance::BinanceKlineInterval;
 use strum::Display;
 use strum::EnumString;

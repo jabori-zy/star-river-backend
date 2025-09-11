@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use types::strategy::SelectedAccount;
+use star_river_core::strategy::SelectedAccount;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PositionOperationType {

@@ -1,7 +1,7 @@
 use ::entity::system_config;
 use chrono::Utc;
 use sea_orm::*;
-use types::system::system_config::{SystemConfig, SystemConfigUpdateParams};
+use star_river_core::system::system_config::{SystemConfig, SystemConfigUpdateParams};
 
 pub struct SystemConfigMutation;
 

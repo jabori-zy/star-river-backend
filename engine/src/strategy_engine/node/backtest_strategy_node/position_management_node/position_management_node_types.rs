@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
+use star_river_core::strategy::SelectedAccount;
 use strum::{Display, EnumString};
-use types::strategy::SelectedAccount;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString)]
 pub enum PositionOperation {

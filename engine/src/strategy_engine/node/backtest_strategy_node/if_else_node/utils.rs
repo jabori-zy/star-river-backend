@@ -1,10 +1,10 @@
 use super::condition::*;
 use super::if_else_node_context::ConfigId;
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
+use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IndicatorNodeEvent};
+use star_river_core::custom_type::NodeId;
 use std::collections::HashMap;
-use types::custom_type::NodeId;
-use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
-use types::strategy::node_event::{BacktestNodeEvent, IndicatorNodeEvent};
 
 // 获取变量值
 pub fn get_variable_value(
@@ -69,7 +69,7 @@ pub fn get_variable_value(
                 None
             }
         }
-        BacktestNodeEvent::Variable(variable_node_event) => {
+        BacktestNodeEvent::VariableNode(variable_node_event) => {
             if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
                 variable_node_event
             {

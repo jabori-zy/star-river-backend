@@ -6,7 +6,7 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
-use types::strategy::TradeMode;
+use star_river_core::strategy::TradeMode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
@@ -15,7 +15,7 @@ use heartbeat::Heartbeat;
 use crate::strategy_engine::node::live_strategy_node::position_node::PositionNode;
 use crate::strategy_engine::node::live_strategy_node::position_node::position_node_types::*;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-use types::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_position_node(

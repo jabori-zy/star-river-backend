@@ -1,33 +1,37 @@
+use async_trait::async_trait;
+use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
+use event_center::event::node_event::backtest_node_event::signal_event::{
+    BacktestConditionMatchEvent, BacktestConditionNotMatchEvent, ExecuteOverEvent, SignalEvent,
+};
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::Event;
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::any::Any;
-use async_trait::async_trait;
 use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
-use event_center::Event;
-use types::strategy::node_event::{
-    SignalEvent, BacktestNodeEvent, BacktestConditionMatchEvent, IndicatorNodeEvent,
-    BacktestConditionNotMatchEvent, StrategyRunningLogEvent, StrategyRunningLogType
-};
+
+use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogType};
 use tokio::sync::oneshot;
-use types::strategy::node_command::NodeCommand;
-use types::strategy::node_command::GetCurrentTimeParams;
 use super::if_else_node_type::IfElseNodeBacktestConfig;
 use crate::strategy_engine::node::backtest_strategy_node::node_message::if_else_node_log_message::ConditionMatchedMsg;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::condition::*;
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::custom_type::NodeId;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+use star_river_core::custom_type::NodeId;
 use super::utils::{get_condition_variable_value};
-use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use types::strategy::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
-use types::strategy::node_event::StrategyRunningLogSource;
-use types::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::communication::strategy::{StrategyCommand, NodeResponse, BacktestNodeResponse};
+use event_center::communication::strategy::backtest_strategy::GetCurrentTimeParams;
+use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
+use event_center::event::strategy_event::StrategyRunningLogSource;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use snafu::ResultExt;
-use types::strategy::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
-use types::strategy::node_event::ExecuteOverEvent;
-use types::strategy::node_response::NodeResponse;
+use event_center::event::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
+use chrono::{DateTime, FixedOffset};
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 
 pub type ConfigId = i32;
 
@@ -106,7 +110,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                     }
                 }
             }
-            BacktestNodeEvent::Variable(variable_event) => {
+            BacktestNodeEvent::VariableNode(variable_event) => {
                 let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
                     variable_event;
                 tracing::debug!(
@@ -174,7 +178,17 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
-        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        match strategy_command {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
+                node_reset_params,
+            )) => {
+                if self.get_node_id() == &node_reset_params.node_id {
+                    let response = NodeResetResponse::success(self.get_node_id().clone());
+                    node_reset_params.responder.send(response.into()).unwrap();
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -194,7 +208,7 @@ impl IfElseNodeContext {
                     return;
                 }
             }
-            BacktestNodeEvent::Variable(variable_event) => {
+            BacktestNodeEvent::VariableNode(variable_event) => {
                 let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
                     variable_event;
                 (
@@ -324,7 +338,7 @@ impl IfElseNodeContext {
                         StrategyRunningLogType::ConditionMatch,
                         message.to_string(),
                         condition_result_json,
-                        current_time,
+                        current_time.timestamp(),
                     );
                     (signal_event, Some(log_event))
                 } else {
@@ -514,23 +528,19 @@ impl IfElseNodeContext {
         (result, condition_results)
     }
 
-    async fn get_current_time(&self) -> Result<i64, String> {
+    async fn get_current_time(&self) -> Result<DateTime<FixedOffset>, String> {
         let (tx, rx) = oneshot::channel();
-        let node_command = NodeCommand::GetCurrentTime(GetCurrentTimeParams {
-            node_id: self.get_node_id().clone(),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: tx,
-        });
+        let get_current_time_params = GetCurrentTimeParams::new(self.get_node_id().clone(), tx);
         self.get_node_command_sender()
-            .send(node_command)
+            .send(get_current_time_params.into())
             .await
             .unwrap();
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::GetCurrentTime(get_current_time_response) => {
-                return Ok(get_current_time_response.current_time)
-            }
+            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(
+                get_current_time_response,
+            )) => return Ok(get_current_time_response.current_time),
             _ => return Err("获取当前时间失败".to_string()),
         }
     }

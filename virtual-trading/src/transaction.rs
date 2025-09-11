@@ -1,6 +1,6 @@
 use super::VirtualTradingSystem;
-use types::custom_type::*;
-use types::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::custom_type::*;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 
 impl VirtualTradingSystem {
     pub fn get_transaction_id(&self) -> TransactionId {

@@ -1,5 +1,5 @@
 use serde_json;
-use types::indicator::IndicatorConfig;
+use star_river_core::indicator::IndicatorConfig;
 
 fn main() {
     let indicator_type = "ht_dcperiod";

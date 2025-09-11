@@ -4,11 +4,11 @@ use petgraph::graph::NodeIndex;
 use std::collections::HashMap;
 use crate::strategy_engine::node::live_strategy_node::start_node::StartNode;
 use crate::strategy_engine::node::LiveNodeTrait;
-use types::strategy::{LiveStrategyConfig, BacktestStrategyConfig, SimulatedConfig, TradeMode};
+use star_river_core::strategy::{LiveStrategyConfig, BacktestStrategyConfig, SimulatedConfig, TradeMode};
 use event_center::{CommandPublisher, CommandReceiver, EventPublisher, EventReceiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use types::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_start_node(

@@ -1,6 +1,6 @@
 use ::entity::position;
 use sea_orm::*;
-use types::position::Position;
+use star_river_core::position::Position;
 
 pub struct PositionQuery;
 

@@ -1,6 +1,6 @@
 use ::entity::{account_config, account_config::Entity as AccountConfigEntity};
 use sea_orm::*;
-use types::{account::AccountConfig, custom_type::AccountId, market::Exchange};
+use star_river_core::{account::AccountConfig, custom_type::AccountId, market::Exchange};
 
 pub struct AccountConfigQuery;
 

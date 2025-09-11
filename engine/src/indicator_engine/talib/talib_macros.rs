@@ -8,7 +8,7 @@ macro_rules! talib_fn {
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
-            pub fn [<$indicator_name:lower>]($timestamp_field: $timestamp_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, TalibError> {
+            pub fn [<$indicator_name:lower>]($timestamp_field: $timestamp_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
                 let input_size = $input_field.len();
                 let lookback = unsafe {
                     [<TA_ $indicator_name:upper _Lookback>]
@@ -17,11 +17,12 @@ macro_rules! talib_fn {
                     ) as usize
                 };
                 if input_size <= lookback {
-                    return Err(TalibError::DataLessThenLookbackError {
-                        indicator_name: stringify!($indicator_name).to_string(),
-                        lookback,
-                        data_length: input_size,
-                    });
+                    // return Err(TalibError::DataLessThenLookbackError {
+                    //     indicator_name: stringify!($indicator_name).to_string(),
+                    //     lookback,
+                    //     data_length: input_size,
+                    // });
+                    return Err("data less than lookback".to_string());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function!(
@@ -59,7 +60,7 @@ macro_rules! talib_fn {
                 $timestamp_field: $timestamp_type,
                 $($input_field: $input_type,)*
                 $($param_field: $param_type),*
-            ) -> Result<Vec<Indicator>, TalibError> {
+            ) -> Result<Vec<Indicator>, String> {
 
                 let mut input_size = Vec::new();
                 // 计算每一个输入的长度
@@ -71,10 +72,11 @@ macro_rules! talib_fn {
                 let first_size = &input_size[0];
                 for size in &input_size {
                     if size != first_size {
-                        return Err(TalibError::DataLengthNotEqualError {
-                            indicator_name: stringify!($indicator_name).to_string(),
-                            data_length: input_size.clone(),
-                        });
+                        // return Err(TalibError::DataLengthNotEqualError {
+                        //     indicator_name: stringify!($indicator_name).to_string(),
+                        //     data_length: input_size.clone(),
+                        // });
+                        return Err("data length not equal".to_string());
                     }
                 }
 
@@ -89,11 +91,12 @@ macro_rules! talib_fn {
                 };
 
                 if input_size <= lookback {
-                    return Err(TalibError::DataLessThenLookbackError {
-                        indicator_name: stringify!($indicator_name).to_string(),
-                        lookback,
-                        data_length: input_size,
-                    });
+                    // return Err(TalibError::DataLessThenLookbackError {
+                    //     indicator_name: stringify!($indicator_name).to_string(),
+                    //     lookback,
+                    //     data_length: input_size,
+                    // });
+                    return Err("data less than lookback".to_string());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function!(
@@ -130,7 +133,7 @@ macro_rules! talib_snake_fn {
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
-            pub fn [<$indicator_name:snake:lower>]($timestamp_field: $timestamp_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, TalibError> {
+            pub fn [<$indicator_name:snake:lower>]($timestamp_field: $timestamp_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
                 let input_size = $input_field.len();
                 let lookback = unsafe {
                     [<TA_ $indicator_name:snake:upper _Lookback>]
@@ -139,11 +142,12 @@ macro_rules! talib_snake_fn {
                     ) as usize
                 };
                 if input_size <= lookback {
-                    return Err(TalibError::DataLessThenLookbackError {
-                        indicator_name: stringify!($indicator_name).to_string(),
-                        lookback,
-                        data_length: input_size,
-                    });
+                    // return Err(TalibError::DataLessThenLookbackError {
+                    //     indicator_name: stringify!($indicator_name).to_string(),
+                    //     lookback,
+                    //     data_length: input_size,
+                    // });
+                    return Err("data less than lookback".to_string());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function_snake!(
@@ -181,7 +185,7 @@ macro_rules! talib_snake_fn {
                 $timestamp_field: $timestamp_type,
                 $($input_field: $input_type,)*
                 $($param_field: $param_type),*
-            ) -> Result<Vec<Indicator>, TalibError> {
+            ) -> Result<Vec<Indicator>, String> {
 
                 let mut input_size = Vec::new();
                 // 计算每一个输入的长度
@@ -193,10 +197,11 @@ macro_rules! talib_snake_fn {
                 let first_size = &input_size[0];
                 for size in &input_size {
                     if size != first_size {
-                        return Err(TalibError::DataLengthNotEqualError {
-                            indicator_name: stringify!($indicator_name).to_string(),
-                            data_length: input_size.clone(),
-                        });
+                        // return Err(TalibError::DataLengthNotEqualError {
+                        //     indicator_name: stringify!($indicator_name).to_string(),
+                        //     data_length: input_size.clone(),
+                        // });
+                        return Err("data length not equal".to_string());
                     }
                 }
 
@@ -211,11 +216,12 @@ macro_rules! talib_snake_fn {
                 };
 
                 if input_size <= lookback {
-                    return Err(TalibError::DataLessThenLookbackError {
-                        indicator_name: stringify!($indicator_name).to_string(),
-                        lookback,
-                        data_length: input_size,
-                    });
+                    //  return Err(TalibError::DataLessThenLookbackError {
+                    //     indicator_name: stringify!($indicator_name).to_string(),
+                    //     lookback,
+                    //     data_length: input_size,
+                    // });
+                    return Err("data less than lookback".to_string());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function_snake!(
@@ -320,9 +326,10 @@ macro_rules! execute_talib_function {
             };
 
             if ret != TA_RetCode_TA_SUCCESS {
-                return Err(TalibError::GenericCalculationError {
-                    error: format!("TA-Lib error code: {:?}", ret)
-                });
+                // return Err(TalibError::GenericCalculationError {
+                //     error: format!("TA-Lib error code: {:?}", ret)
+                // });
+                return Err("TA-Lib error code: {:?}".to_string());
             }
 
             ($(([<out_ $output_name>]),)*)
@@ -365,9 +372,10 @@ macro_rules! execute_talib_function_snake {
             };
 
             if ret != TA_RetCode_TA_SUCCESS {
-                return Err(TalibError::GenericCalculationError {
-                    error: format!("TA-Lib error code: {:?}", ret)
-                });
+                // return Err(TalibError::GenericCalculationError {
+                //     error: format!("TA-Lib error code: {:?}", ret)
+                // });
+                return Err("TA-Lib error code: {:?}".to_string());
             }
 
             ($(([<out_ $output_name>]),)*)

@@ -8,14 +8,14 @@ use tokio::sync::broadcast;
 use event_center::{Event, EventPublisher};
 use crate::strategy_engine::node::live_strategy_node::order_node::order_node_types::*;
 use crate::strategy_engine::node::live_strategy_node::order_node::OrderNode;
-use types::strategy::TradeMode;
+use star_river_core::strategy::TradeMode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::exchange_engine::ExchangeEngine;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
-use types::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_order_node(

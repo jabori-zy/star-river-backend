@@ -5,9 +5,9 @@ use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeCo
 use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::{LiveNodeTrait, NodeType};
 use async_trait::async_trait;
-use event_center::Event;
+use event_center::event::Event;
 use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, EngineCommandReceiver, EventReceiver};
 use heartbeat::Heartbeat;
 use kline_node_context::{KlineNodeContext, KlineNodeLiveConfig};
 use kline_node_state_machine::{KlineNodeStateAction, KlineNodeStateMachine};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_command::NodeCommandSender;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {

@@ -1,7 +1,7 @@
 use ::entity::account_info;
 use chrono::Utc;
 use sea_orm::*;
-use types::account::AccountInfo;
+use star_river_core::account::AccountInfo;
 
 pub struct AccountInfoMutation;
 

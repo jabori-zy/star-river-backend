@@ -3,20 +3,20 @@ mod utils;
 pub mod metatrader5;
 
 use async_trait::async_trait;
-use std::any::Any;
-use std::fmt::Debug;
-use types::account::OriginalAccountInfo;
-use types::error::exchange_client_error::ExchangeClientError;
-use types::market::KlineInterval;
-use types::market::Symbol;
-use types::market::{Exchange, Kline};
-use types::order::{CreateOrderParams, GetTransactionDetailParams};
-use types::order::{Order, OriginalOrder};
-use types::position::{
+use star_river_core::account::OriginalAccountInfo;
+use star_river_core::error::exchange_client_error::ExchangeClientError;
+use star_river_core::market::KlineInterval;
+use star_river_core::market::Symbol;
+use star_river_core::market::{Exchange, Kline};
+use star_river_core::order::{CreateOrderParams, GetTransactionDetailParams};
+use star_river_core::order::{Order, OriginalOrder};
+use star_river_core::position::{
     GetPositionNumberParams, GetPositionParam, OriginalPosition, Position, PositionNumber,
 };
-use types::strategy::TimeRange;
-use types::transaction::{OriginalTransaction, Transaction};
+use star_river_core::strategy::TimeRange;
+use star_river_core::transaction::{OriginalTransaction, Transaction};
+use std::any::Any;
+use std::fmt::Debug;
 
 #[async_trait]
 pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {

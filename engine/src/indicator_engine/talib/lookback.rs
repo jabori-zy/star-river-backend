@@ -1,6 +1,6 @@
 use super::TALib;
 use crate::indicator_engine::talib_bindings::*;
-use types::indicator::IndicatorConfig;
+use star_river_core::indicator::IndicatorConfig;
 
 impl TALib {
     pub fn lookback(config: &IndicatorConfig) -> usize {

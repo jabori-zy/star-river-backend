@@ -1,6 +1,6 @@
-use types::cache::key::{IndicatorKey, KlineKey};
-use types::indicator::IndicatorConfig;
-use types::market::{Exchange, KlineInterval};
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::indicator::IndicatorConfig;
+use star_river_core::market::{Exchange, KlineInterval};
 
 // 指标的订阅键
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

@@ -17,9 +17,9 @@ use tokio_stream::StreamExt;
 use crate::StarRiver;
 use async_stream::stream;
 use axum::extract::{Query, State};
-use event_center::strategy_event::StrategyEvent;
+use event_center::event::Event as EventCenterEvent;
+use event_center::event::StrategyEvent;
 use event_center::Channel;
-use event_center::Event as EventCenterEvent;
 use event_center::EventCenterSingleton;
 
 pub async fn market_sse_handler(

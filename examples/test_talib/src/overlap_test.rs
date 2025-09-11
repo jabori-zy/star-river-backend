@@ -1,8 +1,8 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
 use ordered_float::OrderedFloat;
-use types::indicator::indicator_define::overlap::*;
-use types::indicator::{IndicatorTrait, MAType, PriceSource};
+use star_river_core::indicator::indicator_define::overlap::*;
+use star_river_core::indicator::{IndicatorTrait, MAType, PriceSource};
 
 /// 测试所有重叠指标
 pub fn test_overlap_indicators() {
@@ -34,7 +34,7 @@ pub fn test_overlap_indicators() {
 }
 
 /// 测试BBands指标
-fn test_bbands(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_bbands(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = BBANDSConfig {
         time_period: 20,
         dev_up: OrderedFloat(2.0),
@@ -57,7 +57,7 @@ fn test_bbands(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试DEMA指标
-fn test_dema(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_dema(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = DEMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -77,7 +77,7 @@ fn test_dema(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试EMA指标
-fn test_ema(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ema(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = EMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -97,7 +97,7 @@ fn test_ema(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试HtTrendline指标
-fn test_ht_trendline(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ht_trendline(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = HtTrendlineConfig {
         price_source: PriceSource::Close,
     };
@@ -116,7 +116,7 @@ fn test_ht_trendline(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) 
 }
 
 /// 测试KAMA指标
-fn test_kama(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_kama(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = KAMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -136,7 +136,7 @@ fn test_kama(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试MA指标
-fn test_ma(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_ma(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = MAConfig {
         time_period: 14,
         ma_type: MAType::SMA,
@@ -157,7 +157,7 @@ fn test_ma(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试MAMA指标
-fn test_mama(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_mama(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = MAMAConfig {
         fast_limit: OrderedFloat(0.5),
         slow_limit: OrderedFloat(0.05),
@@ -178,7 +178,7 @@ fn test_mama(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试MIDPOINT指标
-fn test_midpoint(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_midpoint(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = MIDPOINTConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -198,7 +198,7 @@ fn test_midpoint(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试MIDPRICE指标
-fn test_midprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_midprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = MIDPRICEConfig { time_period: 14 };
 
     match CalculateIndicatorFunction::calculate_midprice(kline_series.to_vec(), &config) {
@@ -215,7 +215,7 @@ fn test_midprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试SAR指标
-fn test_sar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_sar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = SARConfig {
         acceleration: OrderedFloat(0.02),
         maximum: OrderedFloat(0.2),
@@ -235,7 +235,7 @@ fn test_sar(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试SAREXT指标
-fn test_sarext(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_sarext(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = SAREXTConfig {
         start_value: OrderedFloat(0.0),
         offset_on_reverse: OrderedFloat(0.0),
@@ -261,7 +261,7 @@ fn test_sarext(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试SMA指标
-fn test_sma(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_sma(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = SMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -281,7 +281,7 @@ fn test_sma(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试T3指标
-fn test_t3(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_t3(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = T3Config {
         time_period: 14,
         v_factor: OrderedFloat(0.7),
@@ -302,7 +302,7 @@ fn test_t3(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试TEMA指标
-fn test_tema(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_tema(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = TEMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -322,7 +322,7 @@ fn test_tema(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试TRIMA指标
-fn test_trima(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_trima(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = TRIMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,
@@ -342,7 +342,7 @@ fn test_trima(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试WMA指标
-fn test_wma(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_wma(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     let config = WMAConfig {
         time_period: 14,
         price_source: PriceSource::Close,

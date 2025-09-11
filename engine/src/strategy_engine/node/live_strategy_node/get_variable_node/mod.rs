@@ -7,9 +7,9 @@ use crate::strategy_engine::node::node_context::{LiveBaseNodeContext, LiveNodeCo
 use crate::strategy_engine::node::node_state_machine::LiveNodeStateTransitionEvent;
 use crate::strategy_engine::node::{LiveNodeTrait, NodeOutputHandle, NodeType};
 use async_trait::async_trait;
-use event_center::Event;
+use event_center::event::Event;
 use event_center::EventPublisher;
-use event_center::{CommandPublisher, CommandReceiver, EventReceiver};
+use event_center::{CommandPublisher, EngineCommandReceiver, EventReceiver};
 use get_variable_node_context::GetVariableNodeContext;
 use get_variable_node_state_machine::{GetVariableNodeStateAction, GetVariableNodeStateMachine};
 use get_variable_node_types::*;
@@ -21,8 +21,8 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::strategy::node_command::NodeCommandSender;
-use types::strategy::node_event::BacktestNodeEvent;
+use star_river_core::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_event::BacktestNodeEvent;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNode {

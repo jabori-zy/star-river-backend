@@ -2,19 +2,19 @@ use crate::metatrader5::mt5_types::Mt5Deal;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
 use chrono::{TimeZone, Utc};
-use event_center::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
+use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
 use event_center::EventCenterSingleton;
 use snafu::{OptionExt, ResultExt};
-use types::account::mt5_account::OriginalMt5AccountInfo;
-use types::account::OriginalAccountInfo;
-use types::error::exchange_client_error::*;
-use types::market::Symbol;
-use types::market::{Exchange, Kline, MT5Server};
-use types::order::Order;
-use types::order::OriginalOrder;
-use types::position::PositionNumber;
-use types::position::{OriginalPosition, Position};
-use types::transaction::OriginalTransaction;
+use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
+use star_river_core::account::OriginalAccountInfo;
+use star_river_core::error::exchange_client_error::*;
+use star_river_core::market::Symbol;
+use star_river_core::market::{Exchange, Kline, MT5Server};
+use star_river_core::order::Order;
+use star_river_core::order::OriginalOrder;
+use star_river_core::position::PositionNumber;
+use star_river_core::position::{OriginalPosition, Position};
+use star_river_core::transaction::OriginalTransaction;
 use utils::get_utc8_timestamp_millis;
 
 #[derive(Debug)]
@@ -111,14 +111,12 @@ impl Mt5DataProcessor {
             close,
             volume,
         };
-
-        let exchange_kline_update_event = ExchangeKlineUpdateEvent {
-            exchange: Exchange::Metatrader5(self.server.clone()),
-            symbol: symbol.to_string(),
-            interval: interval_str.clone().into(),
+        let exchange_kline_update_event = ExchangeKlineUpdateEvent::new(
+            Exchange::Metatrader5(self.server.clone()),
+            symbol.to_string(),
+            interval_str.clone().into(),
             kline,
-            event_timestamp: get_utc8_timestamp_millis(),
-        };
+        );
 
         let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event).into();
 

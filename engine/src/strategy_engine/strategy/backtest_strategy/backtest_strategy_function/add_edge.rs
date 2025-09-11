@@ -1,9 +1,9 @@
 use super::BacktestStrategyFunction;
 use crate::strategy_engine::node::node_types::NodeInputHandle;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
+use star_river_core::error::engine_error::strategy_error::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use types::error::engine_error::strategy_error::*;
 
 impl BacktestStrategyFunction {
     pub async fn add_edge(

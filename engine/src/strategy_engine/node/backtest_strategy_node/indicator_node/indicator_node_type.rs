@@ -1,8 +1,8 @@
 use super::super::kline_node::kline_node_type::SelectedSymbol;
 use serde::{Deserialize, Serialize};
-use types::indicator::IndicatorConfig;
-use types::strategy::TimeRange;
-use types::strategy::{BacktestDataSource, SelectedAccount};
+use star_river_core::indicator::IndicatorConfig;
+use star_river_core::strategy::TimeRange;
+use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndicatorNodeBacktestConfig {

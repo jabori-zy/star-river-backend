@@ -1,7 +1,7 @@
 use super::node_context::{BacktestNodeContextTrait, LiveNodeContextTrait};
 use crate::{strategy_engine::node::node_types::NodeType, EngineName};
+use event_center::event::Event;
 use event_center::Channel;
-use event_center::Event;
 use event_center::EventCenterSingleton;
 use futures::stream::select_all;
 use futures::StreamExt;

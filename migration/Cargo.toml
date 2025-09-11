@@ -11,7 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 tokio.workspace = true
 entity = { path = "../entity" }
-types = { path = "../types" }
+star-river-core = { path = "../star-river-core" }
 chrono.workspace = true
 
 

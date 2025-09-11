@@ -1,7 +1,7 @@
 use ::entity::{order, order::Entity as Order};
 use sea_orm::*;
-use types::order::Order as TypeOrder;
-use types::{market::Exchange, order::OriginalOrder};
+use star_river_core::order::Order as TypeOrder;
+use star_river_core::{market::Exchange, order::OriginalOrder};
 
 pub struct OrderMutation;
 

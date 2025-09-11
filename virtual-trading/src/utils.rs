@@ -1,8 +1,8 @@
 use super::VirtualTradingSystem;
-use types::custom_type::{Balance, Leverage, Margin, MarginRatio, Price};
-use types::order::{virtual_order::VirtualOrder, FuturesOrderSide};
-use types::position::virtual_position::VirtualPosition;
-use types::position::PositionSide;
+use star_river_core::custom_type::{Balance, Leverage, Margin, MarginRatio, Price};
+use star_river_core::order::{virtual_order::VirtualOrder, FuturesOrderSide};
+use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::position::PositionSide;
 
 pub struct Formula;
 

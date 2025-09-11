@@ -6,8 +6,8 @@ use axum::http::StatusCode;
 use database::mutation::system_config_mutation::SystemConfigMutation;
 use database::query::system_config_query::SystemConfigQuery;
 use serde::{Deserialize, Serialize};
-use types::system::system_config::SystemConfig;
-use types::system::system_config::SystemConfigUpdateParams;
+use star_river_core::system::system_config::SystemConfig;
+use star_river_core::system::system_config::SystemConfigUpdateParams;
 use utoipa::ToSchema;
 
 #[utoipa::path(

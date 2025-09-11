@@ -1,28 +1,30 @@
-use crate::exchange_engine::ExchangeEngine;
 use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use database::query::strategy_sys_variable_query::StrategySysVariableQuery;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::Event;
+use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
+use event_center::communication::strategy::StrategyCommand;
+use event_center::event::node_event::backtest_node_event::signal_event::{
+    BacktestConditionNotMatchEvent, SignalEvent,
+};
+use event_center::event::node_event::backtest_node_event::variable_node_event::{
+    SysVariableUpdatedEvent, VariableNodeEvent,
+};
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::Event;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
+use star_river_core::node::variable_node::GetVariableType;
+use star_river_core::node::variable_node::*;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+use star_river_core::strategy::sys_varibale::SysVariable;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use types::custom_type::PlayIndex;
-use types::node::variable_node::GetVariableType;
-use types::node::variable_node::*;
-use types::strategy::node_event::backtest_node_event::variable_node_event::{
-    SysVariableUpdatedEvent, VariableNodeEvent,
-};
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::node_event::{BacktestConditionNotMatchEvent, SignalEvent, VariableMessage};
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::strategy::sys_varibale::SysVariable;
 use utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 
@@ -113,7 +115,17 @@ impl BacktestNodeContextTrait for VariableNodeContext {
     async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
-        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        match strategy_command {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
+                node_reset_params,
+            )) => {
+                if self.get_node_id() == &node_reset_params.node_id {
+                    let response = NodeResetResponse::success(self.get_node_id().clone());
+                    node_reset_params.responder.send(response.into()).unwrap();
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -175,17 +187,17 @@ impl VariableNodeContext {
                         self.get_node_id(),
                         sys_variable_updated_event
                     );
-                    let _ = output_handle.send(BacktestNodeEvent::Variable(
+                    let _ = output_handle.send(BacktestNodeEvent::VariableNode(
                         VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone()),
                     ));
 
                     let default_output_handle = self.get_default_output_handle();
-                    let _ = default_output_handle.send(BacktestNodeEvent::Variable(
+                    let _ = default_output_handle.send(BacktestNodeEvent::VariableNode(
                         VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone()),
                     ));
 
                     let strategy_output_handle = self.get_strategy_output_handle();
-                    let _ = strategy_output_handle.send(BacktestNodeEvent::Variable(
+                    let _ = strategy_output_handle.send(BacktestNodeEvent::VariableNode(
                         VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone()),
                     ));
                 }

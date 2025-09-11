@@ -1,7 +1,7 @@
 use crate::account_config::Model as AccountConfigModel;
+use star_river_core::account::AccountConfig;
+use star_river_core::market::Exchange;
 use std::str::FromStr;
-use types::account::AccountConfig;
-use types::market::Exchange;
 
 impl From<AccountConfigModel> for AccountConfig {
     fn from(config: AccountConfigModel) -> Self {

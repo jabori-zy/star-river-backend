@@ -2,12 +2,12 @@ use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::url::Mt5HttpUrl;
 use serde::Serialize;
 use snafu::prelude::*;
-use types::error::exchange_client_error::*;
+use star_river_core::error::exchange_client_error::*;
 
 use super::mt5_types::Mt5CreateOrderParams;
 use super::mt5_types::Mt5GetPositionNumberParams;
+use star_river_core::strategy::TimeRange;
 use tracing::instrument;
-use types::strategy::TimeRange;
 
 #[derive(Debug)]
 pub struct Mt5HttpClient {

@@ -7,14 +7,14 @@ mod tests {
     use std::sync::Arc;
     use std::collections::HashMap;
     use tracing_subscriber;
-    use types::market::{Exchange, KlineInterval, Symbol};
-    use types::order::{CreateOrderParams, FuturesOrderSide, OrderType, GetTransactionDetailParams};
-    use types::position::{GetPositionParam, GetPositionNumberParams, PositionSide};
-    use types::strategy::TimeRange;
+    use star_river_core::market::{Exchange, KlineInterval, Symbol};
+    use star_river_core::order::{CreateOrderParams, FuturesOrderSide, OrderType, GetTransactionDetailParams};
+    use star_river_core::position::{GetPositionParam, GetPositionNumberParams, PositionSide};
+    use star_river_core::strategy::TimeRange;
     use std::any::Any;
     use tracing::Level;
-    use types::error::exchange_client_error::ExchangeClientError;
-    use types::error::exchange_client_error::Mt5Error;
+    use star_river_core::error::exchange_client_error::ExchangeClientError;
+    use star_river_core::error::exchange_client_error::Mt5Error;
 
 
     const TEST_SYMBOL: &str = "BTCUSDm";

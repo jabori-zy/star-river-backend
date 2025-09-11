@@ -14,7 +14,7 @@ use petgraph::{Graph, Directed};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::RwLock;
-use event_center::Event;
+use event_center::event::Event;
 use futures::stream::select_all;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::StreamExt;

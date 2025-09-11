@@ -6,7 +6,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-types = {path = "../types"}
+star-river-core = { path = "../star-river-core" }
 utils = {path = "../utils"}
 serde.workspace = true
 serde_json.workspace = true
@@ -19,3 +19,4 @@ reqwest.workspace = true
 uuid.workspace = true
 sea-orm.workspace = true
 snafu.workspace = true
+utoipa.workspace = true

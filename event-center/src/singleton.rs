@@ -1,13 +1,12 @@
-use crate::command::Command;
+use crate::communication::engine::{EngineCommand, EngineCommandReceiver, EngineCommandSender};
 use crate::event_center_error::*;
 use crate::{
-    Channel, CommandPublisher, CommandReceiver, CommandSender, Event, EventCenter,
-    EventCenterError, EventPublisher, EventReceiver,
+    Channel, CommandPublisher, Event, EventCenter, EventCenterError, EventPublisher, EventReceiver,
 };
+use star_river_core::engine::EngineName;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex, RwLock};
-use types::engine::EngineName;
 
 /// 全局事件中心单例
 static EVENT_CENTER_INSTANCE: OnceLock<Arc<RwLock<EventCenter>>> = OnceLock::new();
@@ -98,7 +97,7 @@ impl EventCenterSingleton {
     }
 
     /// 直接发送命令（便捷方法）
-    pub async fn send_command(command: Command) -> Result<(), EventCenterError> {
+    pub async fn send_command(command: EngineCommand) -> Result<(), EventCenterError> {
         let instance = EVENT_CENTER_INSTANCE
             .get()
             .ok_or_else(|| EventCenterInstanceNotInitializedSnafu {}.build())?;
@@ -121,7 +120,7 @@ impl EventCenterSingleton {
     /// 获取指定引擎的命令接收器
     pub async fn get_command_receiver(
         engine_name: &EngineName,
-    ) -> Result<Arc<Mutex<CommandReceiver>>, EventCenterError> {
+    ) -> Result<Arc<Mutex<EngineCommandReceiver>>, EventCenterError> {
         let instance = EVENT_CENTER_INSTANCE
             .get()
             .ok_or_else(|| EventCenterInstanceNotInitializedSnafu {}.build())?;
@@ -133,7 +132,7 @@ impl EventCenterSingleton {
     /// 获取指定引擎的命令发送器
     pub async fn get_command_sender(
         engine_name: EngineName,
-    ) -> Result<CommandSender, EventCenterError> {
+    ) -> Result<EngineCommandSender, EventCenterError> {
         let instance = EVENT_CENTER_INSTANCE
             .get()
             .ok_or_else(|| EventCenterInstanceNotInitializedSnafu {}.build())?;

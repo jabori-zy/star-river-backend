@@ -1,5 +1,5 @@
-use types::account::mt5_account::OriginalMt5AccountInfo;
-use types::account::mt5_account::Mt5AccountInfo;
+use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
+use star_river_core::account::mt5_account::Mt5AccountInfo;
 use crate::entities::mt5_account_info::Model as Mt5AccountInfoModel;
 use crate::entities::mt5_account_info;
 use sea_orm::*;

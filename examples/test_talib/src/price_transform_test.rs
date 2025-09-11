@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use types::indicator::indicator_define::price_transform::*;
-use types::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::price_transform::*;
+use star_river_core::indicator::IndicatorTrait;
 
 /// 测试所有价格转换指标
 pub fn test_price_transform_indicators() {
@@ -21,7 +21,7 @@ pub fn test_price_transform_indicators() {
 }
 
 /// 测试AVGPRICE指标
-fn test_avgprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_avgprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_avgprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  AVGPRICE: 成功计算 {} 个结果", results.len());
@@ -36,7 +36,7 @@ fn test_avgprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试MEDPRICE指标
-fn test_medprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_medprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_medprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  MEDPRICE: 成功计算 {} 个结果", results.len());
@@ -51,7 +51,7 @@ fn test_medprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试TYPPRICE指标
-fn test_typprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_typprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_typprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  TYPPRICE: 成功计算 {} 个结果", results.len());
@@ -66,7 +66,7 @@ fn test_typprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
 }
 
 /// 测试WCLPRICE指标
-fn test_wclprice(kline_series: &[std::sync::Arc<types::cache::CacheValue>]) {
+fn test_wclprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) {
     match CalculateIndicatorFunction::calculate_wclprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  WCLPRICE: 成功计算 {} 个结果", results.len());

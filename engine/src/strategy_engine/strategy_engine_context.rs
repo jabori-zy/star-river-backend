@@ -5,7 +5,7 @@ use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use event_center::Event;
+use event_center::event::Event;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use std::any::Any;
@@ -14,11 +14,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 // use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
-use event_center::command::Command;
+use event_center::communication::engine::EngineCommand;
 use snafu::Report;
-use types::custom_type::StrategyId;
-use types::error::engine_error::strategy_engine_error::*;
-use types::strategy::{StrategyConfig, TradeMode};
+use star_river_core::custom_type::StrategyId;
+use star_river_core::error::engine_error::strategy_engine_error::*;
+use star_river_core::strategy::{StrategyConfig, TradeMode};
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
@@ -66,7 +66,7 @@ impl EngineContext for StrategyEngineContext {
         let _event = event;
     }
 
-    async fn handle_command(&mut self, command: Command) {
+    async fn handle_command(&mut self, command: EngineCommand) {
         let _command = command;
     }
 }

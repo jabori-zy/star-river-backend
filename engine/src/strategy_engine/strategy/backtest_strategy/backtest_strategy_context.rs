@@ -4,15 +4,12 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use event_center::command::backtest_strategy_command::{GetStartNodeConfigParams, StrategyCommand};
-use event_center::command::cache_engine_command::GetCacheLengthMultiParams;
-use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
-use event_center::command::Command;
-use event_center::response::backtest_strategy_response::StrategyResponse;
-use event_center::response::cache_engine_response::CacheEngineResponse;
+use event_center::communication::strategy::{StrategyCommand, NodeCommandReceiver, BacktestStrategyResponse};
+use event_center::communication::engine::cache_engine::{CacheEngineCommand, CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
+use event_center::communication::strategy::StrategyResponse;
 use event_center::singleton::EventCenterSingleton;
-use event_center::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
-use event_center::Event;
+use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use event_center::event::Event;
 use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
@@ -28,28 +25,29 @@ use tokio::sync::{Mutex, Notify, RwLock};
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use types::cache::Key;
-use types::custom_type::{NodeId, PlayIndex, StrategyId};
-use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use types::order::virtual_order::VirtualOrder;
-use types::position::virtual_position::VirtualPosition;
-use types::strategy::node_command::{NodeCommand, NodeCommandReceiver};
-use types::strategy::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use types::strategy::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
-use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use types::strategy::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
-use types::strategy::node_event::IndicatorNodeEvent;
-use types::strategy::node_event::{BacktestNodeEvent, SignalEvent, StrategyRunningLogEvent};
-use types::strategy::node_response::NodeResponse;
-use types::strategy::node_response::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse};
-use types::strategy::strategy_inner_event::StrategyInnerEventPublisher;
-use types::strategy::{BacktestStrategyConfig, StrategyConfig};
-use types::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
-use types::strategy_stats::StatsSnapshot;
-use types::transaction::virtual_transaction::VirtualTransaction;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::cache::Key;
+use star_river_core::custom_type::{NodeId, PlayIndex, StrategyId};
+use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::position::virtual_position::VirtualPosition;
+use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
+use event_center::event::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
+use event_center::event::node_event::backtest_node_event::IndicatorNodeEvent;
+use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, SignalEvent};
+use event_center::event::strategy_event::StrategyRunningLogEvent;
+use event_center::communication::strategy::{NodeResponse, NodeCommand, BacktestNodeCommand, BacktestNodeResponse};
+use event_center::communication::strategy::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse, GetStartNodeConfigParams};
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
+use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
+use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
+use star_river_core::strategy_stats::StatsSnapshot;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use utils::{get_utc8_datetime, timestamp_to_utc8_datetime};
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
+use chrono::{DateTime, FixedOffset};
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -83,7 +81,7 @@ pub struct BacktestStrategyContext {
     pub leaf_node_ids: Vec<NodeId>,           // 叶子节点id
     pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
     pub execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
-    pub current_time: Arc<RwLock<i64>>,       // 当前时间
+    pub current_time: Arc<RwLock<DateTime<FixedOffset>>>, // 当前时间
     pub batch_id: Uuid,                       // 回测批次id
     pub running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
 }
@@ -151,7 +149,7 @@ impl BacktestStrategyContext {
             play_index_watch_rx,
             leaf_node_ids: vec![],
             execute_over_node_ids: Arc::new(RwLock::new(vec![])),
-            current_time: Arc::new(RwLock::new(0)),
+            current_time: Arc::new(RwLock::new(get_utc8_datetime())),
             batch_id: Uuid::new_v4(),
             running_log: Arc::new(RwLock::new(vec![])),
         }
@@ -195,11 +193,11 @@ impl BacktestStrategyContext {
         self.strategy_inner_event_publisher = Some(strategy_inner_event_publisher);
     }
 
-    pub async fn get_current_time(&self) -> i64 {
+    pub async fn get_current_time(&self) -> DateTime<FixedOffset> {
         self.current_time.read().await.clone()
     }
 
-    pub async fn set_current_time(&mut self, current_time: i64) {
+    pub async fn set_current_time(&mut self, current_time: DateTime<FixedOffset>) {
         *self.current_time.write().await = current_time;
     }
 
@@ -237,32 +235,24 @@ impl BacktestStrategyContext {
 
     pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
         match command {
-            NodeCommand::GetStrategyCacheKeys(get_strategy_cache_keys_command) => {
+            NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyCacheKeys(
+                get_strategy_cache_keys_command,
+            )) => {
                 let keys = self.get_keys().await;
-                let get_strategy_cache_keys_response =
-                    NodeResponse::GetStrategyCacheKeys(GetStrategyCacheKeysResponse {
-                        code: 0,
-                        message: "success".to_string(),
-                        keys,
-                        response_timestamp: get_utc8_timestamp_millis(),
-                    });
+                let get_strategy_cache_keys_response = GetStrategyCacheKeysResponse::success(keys);
                 get_strategy_cache_keys_command
                     .responder
-                    .send(get_strategy_cache_keys_response)
+                    .send(get_strategy_cache_keys_response.into())
                     .unwrap();
             }
-            NodeCommand::GetCurrentTime(get_current_time_command) => {
+            NodeCommand::BacktestNode(BacktestNodeCommand::GetCurrentTime(
+                get_current_time_command,
+            )) => {
                 let current_time = self.get_current_time().await;
-                let get_current_time_response =
-                    NodeResponse::GetCurrentTime(GetCurrentTimeResponse {
-                        code: 0,
-                        message: "success".to_string(),
-                        current_time,
-                        response_timestamp: get_utc8_timestamp_millis(),
-                    });
+                let get_current_time_response = GetCurrentTimeResponse::success(current_time);
                 get_current_time_command
                     .responder
-                    .send(get_current_time_response)
+                    .send(get_current_time_response.into())
                     .unwrap();
             }
             _ => {}
@@ -333,7 +323,8 @@ impl BacktestStrategyContext {
                 }
                 KlineNodeEvent::TimeUpdate(time_update_event) => {
                     // 更新策略的全局时间
-                    self.set_current_time(time_update_event.current_time).await;
+                    let current_time = timestamp_to_utc8_datetime(time_update_event.current_time);
+                    self.set_current_time(current_time).await;
                 }
                 _ => {}
             }
@@ -546,19 +537,16 @@ impl BacktestStrategyContext {
     ) {
         let cache_keys_clone = cache_keys.read().await.clone();
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetCacheMultiParams {
-            strategy_id: strategy_id,
-            keys: cache_keys_clone,
-            index: None,
-            limit: Some(1), // 只获取最新的一条数据
-            sender: strategy_name,
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+        let params = GetCacheMultiParams::new(
+            strategy_id,
+            cache_keys_clone,
+            None,
+            None,
+            strategy_name,
+            resp_tx,
+        );
 
-        let get_cache_multi_command =
-            Command::CacheEngine(CacheEngineCommand::GetCacheMulti(params));
-        let _ = EventCenterSingleton::send_command(get_cache_multi_command)
+        let _ = EventCenterSingleton::send_command(params.into())
             .await
             .unwrap();
 
@@ -769,17 +757,15 @@ impl BacktestStrategyContext {
             .map(|cache_key| cache_key.clone())
             .collect();
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_cache_length_params = GetCacheLengthMultiParams {
-            strategy_id: self.strategy_id,
-            keys: kline_cache_keys,
-            timestamp: get_utc8_timestamp_millis(),
-            sender: self.strategy_name.clone(),
-            responder: resp_tx,
-        };
-        let cache_engine_command = CacheEngineCommand::GetCacheLengthMulti(get_cache_length_params);
+        let get_cache_length_params = GetCacheLengthMultiParams::new(
+            self.strategy_id,
+            kline_cache_keys,
+            self.strategy_name.clone(),
+            resp_tx,
+        );
         // 向缓存引擎发送命令
         // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(cache_engine_command.into())
+        EventCenterSingleton::send_command(get_cache_length_params.into())
             .await
             .unwrap();
         let response = resp_rx.await.unwrap();
@@ -812,20 +798,19 @@ impl BacktestStrategyContext {
     // 获取start节点配置
     pub async fn get_start_node_config(&self) -> Result<BacktestStrategyConfig, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_start_node_config_command =
-            StrategyCommand::GetStartNodeConfig(GetStartNodeConfigParams {
-                node_id: "start_node".to_string(),
-                timestamp: get_utc8_timestamp_millis(),
-                responder: resp_tx,
-            });
+        let get_start_node_config_params =
+            GetStartNodeConfigParams::new("start_node".to_string(), resp_tx);
         self.strategy_command_publisher
-            .send(get_start_node_config_command)
+            .send(get_start_node_config_params.into())
             .await
             .unwrap();
         // EventCenterSingleton::send_command(get_start_node_config_command).await.unwrap();
         let response = resp_rx.await.unwrap();
-        if response.code() == 0 {
-            if let StrategyResponse::GetStartNodeConfig(get_start_node_config_response) = response {
+        if response.success() {
+            if let StrategyResponse::BacktestStrategy(
+                BacktestStrategyResponse::GetStartNodeConfig(get_start_node_config_response),
+            ) = response
+            {
                 Ok(get_start_node_config_response.backtest_strategy_config)
             } else {
                 Err("get start node config failed".to_string())

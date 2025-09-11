@@ -1,8 +1,8 @@
 use ::entity::system_config::Entity as SystemConfig;
-use ::types::system::system_config::Localization;
 use chrono::Utc;
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::sea_orm::{entity::*, query::*};
+use star_river_core::system::system_config::Localization;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;

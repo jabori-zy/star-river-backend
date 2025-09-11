@@ -4,29 +4,30 @@ pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
 
-use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use event_center::response::cache_engine_response::CacheEngineResponse;
+use event_center::communication::engine::cache_engine::{
+    CacheEngineCommand, CacheEngineResponse, GetCacheParams,
+};
+use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::Key;
+use star_river_core::custom_type::*;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::order::OrderType;
+use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
-use types::cache::key::KlineKey;
-use types::cache::Key;
-use types::custom_type::*;
-use types::order::virtual_order::VirtualOrder;
-use types::order::OrderType;
-use types::position::virtual_position::VirtualPosition;
-use types::transaction::virtual_transaction::VirtualTransaction;
 // 外部的utils，不是当前crate的utils
 use ::utils::get_utc8_timestamp_millis;
 use event_center::EventCenterSingleton;
+use star_river_core::custom_type::PlayIndex;
+use star_river_core::market::Exchange;
+use star_river_core::market::Kline;
+use star_river_core::virtual_trading_system::event::{
+    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use types::custom_type::PlayIndex;
-use types::market::Exchange;
-use types::market::Kline;
-use types::virtual_trading_system::event::{
-    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender,
-};
 
 /// 虚拟交易系统
 ///
@@ -327,16 +328,15 @@ impl VirtualTradingSystem {
     // 从缓存引擎获取k线数据
     async fn get_close_price(&self, kline_cache_key: Key) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetCacheParams {
-            strategy_id: -1,
-            node_id: "virtual_trading_system".to_string(),
-            key: kline_cache_key,
-            index: Some(self.get_play_index() as u32),
-            limit: Some(1),
-            sender: "virtual_trading_system".to_string(),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+        let params = GetCacheParams::new(
+            -1,
+            "virtual_trading_system".to_string(),
+            kline_cache_key,
+            Some(self.get_play_index() as u32),
+            Some(1),
+            "virtual_trading_system".to_string(),
+            resp_tx,
+        );
 
         let get_cache_command = CacheEngineCommand::GetCache(params);
         // self.command_publisher.send(get_cache_command.into()).await.unwrap();

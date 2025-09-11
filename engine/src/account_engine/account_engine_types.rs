@@ -1,5 +1,5 @@
-// use types::account::ExchangeAccountConfig;
-// use types::account::ExchangeAccountInfo;
+// use star_river_core::account::ExchangeAccountConfig;
+// use star_river_core::account::ExchangeAccountInfo;
 
 // #[derive(Debug, Clone)]
 // pub enum ExchangeStatus {

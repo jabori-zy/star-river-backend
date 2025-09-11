@@ -8,7 +8,7 @@ use crate::binance::url::BinanceHttpUrl;
 use crate::utils::deserialize_string_to_f64;
 // 导入lib.rs中的Kline和TickerPrice
 use crate::binance::{BinanceKlineInterval, BinanceKline, BinanceTickerPrice};
-use types::market::{Kline, TickerPrice};
+use star_river_core::market::{Kline, TickerPrice};
 
 #[derive(Clone, Debug)]
 

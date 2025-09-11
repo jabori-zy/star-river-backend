@@ -4,14 +4,37 @@ use crate::strategy_engine::node::node_context::{
 };
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use chrono::Utc;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use event_center::response::cache_engine_response::CacheEngineResponse;
-use event_center::response::Response;
-use event_center::{Event, EventCenterSingleton};
+use event_center::communication::engine::cache_engine::CacheEngineResponse;
+use event_center::communication::engine::cache_engine::GetCacheParams;
+use event_center::communication::engine::EngineResponse;
+use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
+use event_center::communication::strategy::backtest_strategy::GetStrategyCacheKeysParams;
+use event_center::communication::strategy::{BacktestNodeResponse, NodeResponse, StrategyCommand};
+use event_center::event::node_event::backtest_node_event::futures_order_node_event::*;
+use event_center::event::node_event::backtest_node_event::signal_event::{
+    BacktestConditionNotMatchEvent, SignalEvent,
+};
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::Event;
+use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
+use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::CacheValue;
+use star_river_core::cache::Key;
+use star_river_core::custom_type::InputHandleId;
+use star_river_core::custom_type::OrderId;
+use star_river_core::market::KlineInterval;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::order::OrderStatus;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::virtual_trading_system::event::{
+    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,
+};
+
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -19,30 +42,6 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use types::cache::key::KlineKey;
-use types::cache::CacheValue;
-use types::cache::Key;
-use types::custom_type::InputHandleId;
-use types::custom_type::OrderId;
-use types::market::KlineInterval;
-use types::order::virtual_order::VirtualOrder;
-use types::order::OrderStatus;
-use types::strategy::node_command::{GetStrategyCacheKeysParams, NodeCommand};
-use types::strategy::node_event::backtest_node_event::futures_order_node_event::{
-    FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent,
-    FuturesOrderNodeEvent, StopLossOrderCanceledEvent, StopLossOrderCreatedEvent,
-    StopLossOrderFilledEvent, TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent,
-    TakeProfitOrderFilledEvent, TransactionCreatedEvent,
-};
-use types::strategy::node_event::BacktestConditionNotMatchEvent;
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::node_event::SignalEvent;
-use types::strategy::node_response::NodeResponse;
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
-use types::transaction::virtual_transaction::VirtualTransaction;
-use types::virtual_trading_system::event::{
-    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,
-};
 use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 use virtual_trading::VirtualTradingSystem;
 
@@ -483,22 +482,19 @@ impl FuturesOrderNodeContext {
 
     async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
-        let node_command = NodeCommand::GetStrategyCacheKeys(GetStrategyCacheKeysParams {
-            node_id: self.get_node_id().clone(),
-            timestamp: Utc::now().timestamp_millis(),
-            responder: tx,
-        });
+        let get_strategy_cache_keys_params =
+            GetStrategyCacheKeysParams::new(self.get_node_id().clone(), tx);
 
         self.get_node_command_sender()
-            .send(node_command)
+            .send(get_strategy_cache_keys_params.into())
             .await
             .unwrap();
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
-                return Ok(get_strategy_cache_keys_response.keys)
-            }
+            NodeResponse::BacktestNode(BacktestNodeResponse::GetStrategyCacheKeys(
+                get_strategy_cache_keys_response,
+            )) => return Ok(get_strategy_cache_keys_response.keys),
             _ => return Err("获取策略缓存键失败".to_string()),
         }
     }
@@ -563,26 +559,24 @@ impl FuturesOrderNodeContext {
             let play_index = self.get_play_index() as u32;
 
             let (tx, rx) = oneshot::channel();
-            let get_cache_params = GetCacheParams {
-                strategy_id: self.base_context.strategy_id.clone(),
-                node_id: self.base_context.node_id.clone(),
-                key: cache_key.clone().into(),
-                index: Some(play_index),
-                limit: Some(1),
-                sender: self.base_context.node_id.clone(),
-                timestamp: get_utc8_timestamp_millis(),
-                responder: tx,
-            };
-            let get_cache_command = CacheEngineCommand::GetCache(get_cache_params);
+            let get_cache_params = GetCacheParams::new(
+                self.base_context.strategy_id.clone(),
+                self.base_context.node_id.clone(),
+                cache_key.clone().into(),
+                Some(play_index),
+                Some(1),
+                self.base_context.node_id.clone(),
+                tx,
+            );
 
             // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
-            EventCenterSingleton::send_command(get_cache_command.into())
+            EventCenterSingleton::send_command(get_cache_params.into())
                 .await
                 .unwrap();
 
             let reponse = rx.await.unwrap();
             match reponse {
-                Response::CacheEngine(CacheEngineResponse::GetCacheData(
+                EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(
                     get_cache_data_response,
                 )) => {
                     // tracing::info!("{}: 获取K线缓存数据成功: {:?}", self.get_node_id(), get_cache_data_response.cache_data);
@@ -783,6 +777,16 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
-        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        match strategy_command {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
+                node_reset_params,
+            )) => {
+                if self.get_node_id() == &node_reset_params.node_id {
+                    let response = NodeResetResponse::success(self.get_node_id().clone());
+                    node_reset_params.responder.send(response.into()).unwrap();
+                }
+            }
+            _ => {}
+        }
     }
 }

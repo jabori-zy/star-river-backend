@@ -4,28 +4,32 @@ use crate::strategy_engine::node::node_context::{
 };
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::command::cache_engine_command::{
-    AddCacheKeyParams, CacheEngineCommand, GetCacheParams,
+use event_center::communication::engine::cache_engine::CacheEngineResponse;
+use event_center::communication::engine::cache_engine::{AddCacheKeyParams, GetCacheParams};
+use event_center::communication::engine::indicator_engine::CalculateBacktestIndicatorParams;
+use event_center::communication::strategy::StrategyCommand;
+use event_center::event::node_event::backtest_node_event::indicator_node_event::{
+    IndicatorNodeEvent, IndicatorUpdateEvent,
 };
-use event_center::command::indicator_engine_command::CalculateBacktestIndicatorParams;
-use event_center::command::indicator_engine_command::IndicatorEngineCommand;
-use event_center::command::Command;
-use event_center::response::cache_engine_response::CacheEngineResponse;
-use event_center::{Event, EventCenterSingleton};
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::event::node_event::backtest_node_event::signal_event::{
+    ExecuteOverEvent, SignalEvent,
+};
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::{event::Event, EventCenterSingleton};
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::cache::{CacheValue, KeyTrait};
+
+use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::RwLock;
 use tokio::time::Duration;
-use types::cache::key::{IndicatorKey, KlineKey};
-use types::cache::{CacheValue, KeyTrait};
-use types::strategy::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use types::strategy::node_event::{
-    BacktestNodeEvent, ExecuteOverEvent, IndicatorNodeEvent, IndicatorUpdateEvent, SignalEvent,
-};
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use utils::get_utc8_timestamp_millis;
 
 #[derive(Debug, Clone)]
@@ -239,8 +243,18 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
         }
     }
 
-    async fn handle_strategy_command(&mut self, _strategy_command: StrategyCommand) {
-        // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
+        match strategy_command {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
+                node_reset_params,
+            )) => {
+                if self.get_node_id() == &node_reset_params.node_id {
+                    let response = NodeResetResponse::success(self.get_node_id().clone());
+                    node_reset_params.responder.send(response.into()).unwrap();
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -252,19 +266,16 @@ impl IndicatorNodeContext {
         for indicator_cache_key in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
 
-            let register_indicator_params = AddCacheKeyParams {
-                strategy_id: self.base_context.strategy_id.clone(),
-                key: indicator_cache_key.clone().into(),
-                max_size: None,
-                duration: Duration::from_secs(30),
-                sender: self.base_context.node_id.to_string(),
-                timestamp: get_utc8_timestamp_millis(),
-                responder: resp_tx,
-            };
-            let register_indicator_command =
-                Command::CacheEngine(CacheEngineCommand::AddCacheKey(register_indicator_params));
+            let register_indicator_params = AddCacheKeyParams::new(
+                self.base_context.strategy_id.clone(),
+                indicator_cache_key.clone().into(),
+                None,
+                Duration::from_secs(30),
+                self.base_context.node_id.to_string(),
+                resp_tx,
+            );
             // self.get_command_publisher().send(register_indicator_command).await.unwrap();
-            EventCenterSingleton::send_command(register_indicator_command)
+            EventCenterSingleton::send_command(register_indicator_params.into())
                 .await
                 .unwrap();
             let response = resp_rx.await.unwrap();
@@ -284,20 +295,17 @@ impl IndicatorNodeContext {
         play_index: i32,
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetCacheParams {
-            strategy_id: self.base_context.strategy_id.clone(),
-            node_id: self.base_context.node_id.clone(),
-            key: indicator_cache_key.clone().into(),
-            index: Some(play_index as u32),
-            limit: Some(1),
-            sender: self.base_context.node_id.clone(),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
-
-        let get_cache_command = CacheEngineCommand::GetCache(params);
+        let get_cache_params = GetCacheParams::new(
+            self.base_context.strategy_id.clone(),
+            self.base_context.node_id.clone(),
+            indicator_cache_key.clone().into(),
+            Some(play_index as u32),
+            Some(1),
+            self.base_context.node_id.clone(),
+            resp_tx,
+        );
         // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(get_cache_command.into())
+        EventCenterSingleton::send_command(get_cache_params.into())
             .await
             .unwrap();
 
@@ -336,20 +344,15 @@ impl IndicatorNodeContext {
             .iter()
         {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let params = CalculateBacktestIndicatorParams {
-                strategy_id: self.base_context.strategy_id.clone(),
-                node_id: self.base_context.node_id.clone(),
-                kline_key: self.kline_key.clone().into(),
-                indicator_config: ind.indicator_config.clone(),
-                sender: self.base_context.node_id.clone(),
-                command_timestamp: get_utc8_timestamp_millis(),
-                responder: resp_tx,
-            };
-            let calculate_indicator_command = Command::IndicatorEngine(
-                IndicatorEngineCommand::CalculateBacktestIndicator(params),
+            let calculate_backtest_indicator_params = CalculateBacktestIndicatorParams::new(
+                self.base_context.strategy_id.clone(),
+                self.base_context.node_id.clone(),
+                self.kline_key.clone().into(),
+                ind.indicator_config.clone(),
+                self.base_context.node_id.clone(),
+                resp_tx,
             );
-            // self.get_command_publisher().send(calculate_indicator_command).await.unwrap();
-            EventCenterSingleton::send_command(calculate_indicator_command)
+            EventCenterSingleton::send_command(calculate_backtest_indicator_params.into())
                 .await
                 .unwrap();
             let response = resp_rx.await.unwrap();

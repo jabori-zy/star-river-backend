@@ -1,7 +1,7 @@
 use crate::system_config::Model as SystemConfigModel;
+use star_river_core::system::system_config::Localization;
+use star_river_core::system::system_config::SystemConfig;
 use std::str::FromStr;
-use types::system::system_config::Localization;
-use types::system::system_config::SystemConfig;
 
 impl From<SystemConfigModel> for SystemConfig {
     fn from(config: SystemConfigModel) -> Self {

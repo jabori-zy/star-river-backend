@@ -10,9 +10,9 @@ use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutat
 use database::query::strategy_config_query::StrategyConfigQuery;
 use engine::strategy_engine::StrategyEngine;
 use serde::{Deserialize, Serialize};
+use star_river_core::engine::EngineName;
+use star_river_core::strategy::StrategyConfig;
 use tracing::instrument;
-use types::engine::EngineName;
-use types::strategy::StrategyConfig;
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]

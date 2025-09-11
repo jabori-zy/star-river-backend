@@ -9,7 +9,7 @@ use crate::strategy_engine::node::LiveNodeTrait;
 use crate::strategy_engine::node::live_strategy_node::if_else_node::condition::Case;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use types::strategy::node_command::NodeCommandSender;
+use star_river_core::strategy::node_command::NodeCommandSender;
 
 impl LiveStrategyFunction {
     pub async fn add_if_else_node(

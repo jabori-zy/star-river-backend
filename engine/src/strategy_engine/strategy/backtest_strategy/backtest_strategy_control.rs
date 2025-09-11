@@ -5,14 +5,15 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use std::sync::Arc;
 use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
-use types::custom_type::PlayIndex;
-use types::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use types::strategy::strategy_inner_event::{
-    PlayIndexUpdateEvent, StrategyInnerEvent, StrategyInnerEventPublisher,
-};
+use star_river_core::custom_type::PlayIndex;
+use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::strategy::strategy_inner_event::{StrategyInnerEvent, StrategyInnerEventPublisher};
+use event_center::communication::strategy::StrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use utils::get_utc8_timestamp_millis;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
+use tokio::sync::oneshot;
 
 #[derive(Debug)]
 struct PlayContext {
@@ -393,15 +394,16 @@ impl BacktestStrategyContext {
     // }
 
     pub(crate) async fn send_reset_node_event(&self) {
-        let event = StrategyInnerEvent::NodeReset;
-        if let Some(strategy_inner_event_publisher) = self.strategy_inner_event_publisher.clone() {
-            if let Err(e) = strategy_inner_event_publisher.send(event) {
-                tracing::error!(
-                    "{}: 发送策略内部事件失败: {}",
-                    self.strategy_name.clone(),
-                    e
-                );
-            }
+        let nodes = self.topological_sort();
+        for node in nodes {
+            let (resp_tx, resp_rx) = oneshot::channel();
+            let node_reset_params = NodeResetParams::new(node.get_node_id().await, resp_tx);
+            self.strategy_command_publisher
+                .send(node_reset_params.into())
+                .await
+                .unwrap();
+            let response = resp_rx.await.unwrap();
+            tracing::info!("{}: 收到节点重置响应", response.node_id());
         }
     }
 }

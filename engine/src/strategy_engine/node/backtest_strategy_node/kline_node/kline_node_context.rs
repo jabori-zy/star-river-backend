@@ -6,16 +6,30 @@ use crate::strategy_engine::node::node_context::{
 };
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::command::backtest_strategy_command::StrategyCommand;
-use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheParams};
-use event_center::command::exchange_engine_command::ExchangeEngineCommand;
-use event_center::command::exchange_engine_command::RegisterExchangeParams;
-use event_center::command::market_engine_command::{GetKlineHistoryParams, MarketEngineCommand};
-use event_center::response::cache_engine_response::CacheEngineResponse;
-use event_center::response::Response;
-use event_center::Event;
+use event_center::communication::engine::cache_engine::CacheEngineResponse;
+use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetCacheParams};
+use event_center::communication::engine::exchange_engine::ExchangeEngineCommand;
+use event_center::communication::engine::exchange_engine::RegisterExchangeParams;
+use event_center::communication::engine::market_engine::{
+    GetKlineHistoryParams, MarketEngineCommand,
+};
+use event_center::communication::engine::EngineResponse;
+use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
+use event_center::communication::strategy::StrategyCommand;
+use event_center::event::node_event::backtest_node_event::kline_node_event::{
+    KlineNodeEvent, KlineUpdateEvent, TimeUpdateEvent,
+};
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::SignalEvent;
+use event_center::event::strategy_event::{LogLevel, NodeStateLogEvent};
+use event_center::event::Event;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
+use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::CacheValue;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -23,15 +37,6 @@ use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use types::cache::key::KlineKey;
-use types::cache::CacheValue;
-use types::strategy::node_event::backtest_node_event::kline_node_event::{
-    KlineNodeEvent, KlineUpdateEvent, TimeUpdateEvent,
-};
-use types::strategy::node_event::BacktestNodeEvent;
-use types::strategy::node_event::SignalEvent;
-use types::strategy::node_event::{LogLevel, NodeStateLogEvent};
-use types::strategy::strategy_inner_event::StrategyInnerEvent;
 use utils::get_utc8_timestamp_millis;
 
 #[derive(Debug, Clone)]
@@ -247,13 +252,24 @@ impl BacktestNodeContextTrait for KlineNodeContext {
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
+        match strategy_command {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
+                node_reset_params,
+            )) => {
+                if self.get_node_id() == &node_reset_params.node_id {
+                    let response = NodeResetResponse::success(self.get_node_id().clone());
+                    node_reset_params.responder.send(response.into()).unwrap();
+                }
+            }
+            _ => {}
+        }
     }
 }
 
 impl KlineNodeContext {
     // 注册交易所
     #[instrument(skip(self))]
-    pub async fn register_exchange(&mut self) -> Result<Response, String> {
+    pub async fn register_exchange(&mut self) -> Result<EngineResponse, String> {
         let account_id = self
             .backtest_config
             .exchange_mode_config
@@ -282,17 +298,9 @@ impl KlineNodeContext {
             "start to register exchange.");
 
         let (resp_tx, resp_rx) = oneshot::channel();
-        let register_param = RegisterExchangeParams {
-            account_id: account_id,
-            exchange: exchange,
-            sender: node_id,
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+        let register_param = RegisterExchangeParams::new(account_id, exchange, node_id, resp_tx);
 
-        let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_param);
-        // self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(register_exchange_command.into())
+        EventCenterSingleton::send_command(register_param.into())
             .await
             .unwrap();
 
@@ -318,41 +326,35 @@ impl KlineNodeContext {
         // 遍历每一个symbol，从交易所获取k线历史
         for symbol in selected_symbols.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let params = GetKlineHistoryParams {
-                strategy_id: self.base_context.strategy_id.clone(),
-                node_id: self.base_context.node_id.clone(),
-                account_id: self
-                    .backtest_config
+            let geet_kline_history_params = GetKlineHistoryParams::new(
+                self.base_context.strategy_id.clone(),
+                self.base_context.node_id.clone(),
+                self.backtest_config
                     .exchange_mode_config
                     .as_ref()
                     .unwrap()
                     .selected_account
                     .account_id
                     .clone(),
-                exchange: self
-                    .backtest_config
+                self.backtest_config
                     .exchange_mode_config
                     .as_ref()
                     .unwrap()
                     .selected_account
                     .exchange
                     .clone(),
-                symbol: symbol.symbol.clone(),
-                interval: symbol.interval.clone(),
-                time_range: self
-                    .backtest_config
+                symbol.symbol.clone(),
+                symbol.interval.clone(),
+                self.backtest_config
                     .exchange_mode_config
                     .as_ref()
                     .unwrap()
                     .time_range
                     .clone(),
-                sender: self.base_context.node_id.clone(),
-                timestamp: get_utc8_timestamp_millis(),
-                responder: resp_tx,
-            };
-            let get_kline_history_command = MarketEngineCommand::GetKlineHistory(params);
-            // self.get_command_publisher().send(get_kline_history_command.into()).await.unwrap();
-            EventCenterSingleton::send_command(get_kline_history_command.into())
+                self.base_context.node_id.clone(),
+                resp_tx,
+            );
+            EventCenterSingleton::send_command(geet_kline_history_params.into())
                 .await
                 .unwrap();
 
@@ -372,20 +374,17 @@ impl KlineNodeContext {
         play_index: i32, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetCacheParams {
-            strategy_id: self.get_strategy_id().clone(),
-            node_id: self.get_node_id().clone(),
-            key: kline_key.clone().into(),
-            index: Some(play_index as u32),
-            limit: Some(1),
-            sender: self.get_node_id().clone(),
-            timestamp: get_utc8_timestamp_millis(),
-            responder: resp_tx,
-        };
+        let get_cache_params = GetCacheParams::new(
+            self.get_strategy_id().clone(),
+            self.get_node_id().clone(),
+            kline_key.clone().into(),
+            Some(play_index as u32),
+            Some(1),
+            self.get_node_id().clone(),
+            resp_tx,
+        );
 
-        let get_cache_command = CacheEngineCommand::GetCache(params);
-        // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(get_cache_command.into())
+        EventCenterSingleton::send_command(get_cache_params.into())
             .await
             .unwrap();
 

@@ -2,14 +2,14 @@ use super::VirtualTradingSystem;
 use crate::utils::Formula;
 use chrono::DateTime;
 use event_center::Channel::Position;
-use types::custom_type::*;
-use types::order::virtual_order::VirtualOrder;
-use types::order::OrderStatus;
-use types::order::{FuturesOrderSide, OrderType, TpslType};
-use types::position::virtual_position::VirtualPosition;
-use types::position::{PositionSide, PositionState};
-use types::transaction::virtual_transaction::VirtualTransaction;
-use types::virtual_trading_system::event::VirtualTradingSystemEvent;
+use star_river_core::custom_type::*;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::order::OrderStatus;
+use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
+use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::position::{PositionSide, PositionState};
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 
 impl VirtualTradingSystem {
     pub fn generate_position_id(&self) -> PositionId {

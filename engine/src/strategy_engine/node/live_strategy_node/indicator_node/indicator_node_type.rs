@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use types::indicator::IndicatorConfig;
-use types::market::{Exchange, KlineInterval};
+use star_river_core::indicator::IndicatorConfig;
+use star_river_core::market::{Exchange, KlineInterval};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndicatorNodeLiveConfig {
