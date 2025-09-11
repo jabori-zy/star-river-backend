@@ -8,17 +8,17 @@ use utils::get_utc8_datetime;
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]
 pub enum MarketEvent {
-    #[strum(serialize = "kline-update")]
-    #[serde(rename = "kline-update")]
-    KlineUpdate(KlineInfo),
+    #[strum(serialize = "kline-update-event")]
+    #[serde(rename = "kline-update-event")]
+    KlineUpdate(KlineUpdateEvent),
 
-    #[strum(serialize = "kline-series-update")]
-    #[serde(rename = "kline-series-update")]
-    KlineSeriesUpdate(KlineSeriesInfo),
+    #[strum(serialize = "kline-series-update-event")]
+    #[serde(rename = "kline-series-update-event")]
+    KlineSeriesUpdate(KlineSeriesUpdateEvent),
 
-    #[strum(serialize = "ticker-price-update")]
-    #[serde(rename = "ticker-price-update")]
-    TickerPriceUpdate(TickerPriceInfo),
+    #[strum(serialize = "ticker-price-update-event")]
+    #[serde(rename = "ticker-price-update-event")]
+    TickerPriceUpdate(TickerPriceUpdateEvent),
 }
 
 impl From<MarketEvent> for Event {
@@ -75,7 +75,7 @@ impl ExchangeKlineEventInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineInfo {
+pub struct KlineUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -84,7 +84,7 @@ pub struct KlineInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KlineSeriesInfo {
+pub struct KlineSeriesUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
@@ -93,7 +93,7 @@ pub struct KlineSeriesInfo {
     pub batch_id: String,
 }
 
-impl KlineSeriesInfo {
+impl KlineSeriesUpdateEvent {
     pub fn new(
         exchange: Exchange,
         symbol: String,
@@ -112,14 +112,14 @@ impl KlineSeriesInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TickerPriceInfo {
+pub struct TickerPriceUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,
     pub datetime: DateTime<FixedOffset>,
 }
 
-impl TickerPriceInfo {
+impl TickerPriceUpdateEvent {
     pub fn new(exchange: Exchange, symbol: String, ticker_price: TickerPrice) -> Self {
         Self {
             exchange,
