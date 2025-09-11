@@ -1,10 +1,12 @@
+use super::super::NodeEvent;
 use super::BacktestNodeEvent;
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use strum::Display;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event_type")]
 pub enum FuturesOrderNodeEvent {
     #[strum(serialize = "futures-order-created")]
@@ -48,188 +50,135 @@ pub enum FuturesOrderNodeEvent {
     TransactionCreated(TransactionCreatedEvent), // 交易明细已创建
 }
 
-impl From<FuturesOrderNodeEvent> for BacktestNodeEvent {
-    fn from(event: FuturesOrderNodeEvent) -> Self {
-        BacktestNodeEvent::FuturesOrderNode(event)
+// 类型别名 - 每个事件都有唯一的载荷类型
+pub type FuturesOrderCreatedEvent = NodeEvent<FuturesOrderCreatedPayload>;
+pub type FuturesOrderCanceledEvent = NodeEvent<FuturesOrderCanceledPayload>;
+pub type FuturesOrderFilledEvent = NodeEvent<FuturesOrderFilledPayload>;
+pub type TakeProfitOrderCreatedEvent = NodeEvent<TakeProfitOrderCreatedPayload>;
+pub type TakeProfitOrderFilledEvent = NodeEvent<TakeProfitOrderFilledPayload>;
+pub type TakeProfitOrderCanceledEvent = NodeEvent<TakeProfitOrderCanceledPayload>;
+pub type StopLossOrderCreatedEvent = NodeEvent<StopLossOrderCreatedPayload>;
+pub type StopLossOrderFilledEvent = NodeEvent<StopLossOrderFilledPayload>;
+pub type StopLossOrderCanceledEvent = NodeEvent<StopLossOrderCanceledPayload>;
+pub type TransactionCreatedEvent = NodeEvent<TransactionCreatedPayload>;
+
+// 载荷类型定义 - 每个事件都有唯一的载荷类型（避免From trait冲突）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FuturesOrderCreatedPayload {
+    #[serde(rename = "futuresOrder")]
+    pub futures_order: VirtualOrder,
+}
+
+impl FuturesOrderCreatedPayload {
+    pub fn new(futures_order: VirtualOrder) -> Self {
+        Self { futures_order }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FuturesOrderCreatedEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct FuturesOrderCanceledPayload {
     #[serde(rename = "futuresOrder")]
     pub futures_order: VirtualOrder,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl FuturesOrderCanceledPayload {
+    pub fn new(futures_order: VirtualOrder) -> Self {
+        Self { futures_order }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FuturesOrderCanceledEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct FuturesOrderFilledPayload {
     #[serde(rename = "futuresOrder")]
     pub futures_order: VirtualOrder,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl FuturesOrderFilledPayload {
+    pub fn new(futures_order: VirtualOrder) -> Self {
+        Self { futures_order }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FuturesOrderFilledEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
-    #[serde(rename = "futuresOrder")]
-    pub futures_order: VirtualOrder,
-
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TakeProfitOrderCreatedEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct TakeProfitOrderCreatedPayload {
     #[serde(rename = "takeProfitOrder")]
     pub take_profit_order: VirtualOrder,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl TakeProfitOrderCreatedPayload {
+    pub fn new(take_profit_order: VirtualOrder) -> Self {
+        Self { take_profit_order }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StopLossOrderCreatedEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
-    #[serde(rename = "stopLossOrder")]
-    pub stop_loss_order: VirtualOrder,
-
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TakeProfitOrderFilledEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct TakeProfitOrderFilledPayload {
     #[serde(rename = "takeProfitOrder")]
     pub take_profit_order: VirtualOrder,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl TakeProfitOrderFilledPayload {
+    pub fn new(take_profit_order: VirtualOrder) -> Self {
+        Self { take_profit_order }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StopLossOrderFilledEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
-    #[serde(rename = "stopLossOrder")]
-    pub stop_loss_order: VirtualOrder,
-
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TakeProfitOrderCanceledEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct TakeProfitOrderCanceledPayload {
     #[serde(rename = "takeProfitOrder")]
     pub take_profit_order: VirtualOrder,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl TakeProfitOrderCanceledPayload {
+    pub fn new(take_profit_order: VirtualOrder) -> Self {
+        Self { take_profit_order }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StopLossOrderCanceledEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct StopLossOrderCreatedPayload {
     #[serde(rename = "stopLossOrder")]
     pub stop_loss_order: VirtualOrder,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl StopLossOrderCreatedPayload {
+    pub fn new(stop_loss_order: VirtualOrder) -> Self {
+        Self { stop_loss_order }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TransactionCreatedEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
+pub struct StopLossOrderFilledPayload {
+    #[serde(rename = "stopLossOrder")]
+    pub stop_loss_order: VirtualOrder,
+}
 
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
+impl StopLossOrderFilledPayload {
+    pub fn new(stop_loss_order: VirtualOrder) -> Self {
+        Self { stop_loss_order }
+    }
+}
 
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StopLossOrderCanceledPayload {
+    #[serde(rename = "stopLossOrder")]
+    pub stop_loss_order: VirtualOrder,
+}
 
+impl StopLossOrderCanceledPayload {
+    pub fn new(stop_loss_order: VirtualOrder) -> Self {
+        Self { stop_loss_order }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionCreatedPayload {
     #[serde(rename = "transaction")]
     pub transaction: VirtualTransaction,
+}
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+impl TransactionCreatedPayload {
+    pub fn new(transaction: VirtualTransaction) -> Self {
+        Self { transaction }
+    }
 }

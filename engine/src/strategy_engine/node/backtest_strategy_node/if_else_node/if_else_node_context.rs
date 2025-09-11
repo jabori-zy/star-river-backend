@@ -1,9 +1,11 @@
 use async_trait::async_trait;
 use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
 use event_center::event::node_event::backtest_node_event::signal_event::{
-    BacktestConditionMatchEvent, BacktestConditionNotMatchEvent, ExecuteOverEvent, SignalEvent,
+    ConditionMatchEvent, ConditionMatchPayload, ConditionNotMatchEvent, ConditionNotMatchPayload,
+    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::NodeEventTrait;
 use event_center::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
@@ -87,12 +89,6 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             )) => {
                 // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if self.get_play_index() == indicator_update_event.play_index {
-                    tracing::debug!(
-                        "{}: 接收到指标更新事件。事件的play_index: {}，节点的play_index: {}",
-                        self.base_context.node_id,
-                        indicator_update_event.play_index,
-                        self.get_play_index()
-                    );
                     self.update_received_event(node_event);
                 }
             }
@@ -100,33 +96,24 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
                     if self.get_play_index() == kline_update_event.play_index {
-                        tracing::debug!(
-                            "{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}",
-                            self.base_context.node_id,
-                            kline_update_event.play_index,
-                            self.get_play_index()
-                        );
                         self.update_received_event(node_event);
                     }
                 }
             }
             BacktestNodeEvent::VariableNode(variable_event) => {
-                let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
+                if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
+                    variable_event
+                {
                     variable_event;
-                tracing::debug!(
-                    "{}: 收到变量更新事件。 事件的play_index: {}，节点的play_index: {}",
-                    self.get_node_id(),
-                    sys_variable_updated_event.play_index,
-                    self.get_play_index()
-                );
-                self.update_received_event(node_event);
+                    self.update_received_event(node_event);
+                }
             }
             BacktestNodeEvent::Signal(signal_event) => match signal_event {
-                SignalEvent::BacktestConditionNotMatch(_) => {
-                    tracing::debug!(
-                        "{}: 接收到条件不匹配事件。 不需要逻辑判断",
-                        self.get_node_id()
-                    );
+                SignalEvent::ConditionNotMatch(_) => {
+                    // tracing::debug!(
+                    //     "{}: 接收到条件不匹配事件。 不需要逻辑判断",
+                    //     self.get_node_id()
+                    // );
 
                     let all_output_handles = self.get_all_output_handles();
                     for (handle_id, handle) in all_output_handles.iter() {
@@ -135,18 +122,17 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                         }
 
                         if handle.connect_count > 0 {
-                            let condition_not_match_event = SignalEvent::BacktestConditionNotMatch(
-                                BacktestConditionNotMatchEvent {
-                                    from_node_id: self.get_node_id().clone(),
-                                    from_node_name: self.get_node_name().clone(),
-                                    from_node_handle_id: handle_id.clone(),
-                                    play_index: self.get_play_index(),
-                                    timestamp: get_utc8_timestamp(),
-                                },
-                            );
+                            let payload = ConditionNotMatchPayload::new(self.get_play_index());
+                            let condition_not_match_event: SignalEvent =
+                                ConditionNotMatchEvent::new(
+                                    self.get_node_id().clone(),
+                                    self.get_node_name().clone(),
+                                    handle_id.clone(),
+                                    payload,
+                                )
+                                .into();
 
-                            let _ =
-                                handle.send(BacktestNodeEvent::Signal(condition_not_match_event));
+                            let _ = handle.send(condition_not_match_event.into());
                         }
                     }
                 }
@@ -200,8 +186,7 @@ impl IfElseNodeContext {
                 if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) =
                     indicator_message
                 {
-                    let from_node_id = indicator_update_event.from_node_id.clone();
-                    // let from_handle_id = indicator_update_event.from_handle_id.clone();
+                    let from_node_id = indicator_update_event.from_node_id().clone();
                     let from_variable_id = indicator_update_event.config_id;
                     (from_node_id, from_variable_id)
                 } else {
@@ -209,17 +194,20 @@ impl IfElseNodeContext {
                 }
             }
             BacktestNodeEvent::VariableNode(variable_event) => {
-                let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
-                    variable_event;
-                (
-                    sys_variable_updated_event.from_node_id.clone(),
-                    sys_variable_updated_event.variable_config_id,
-                )
+                if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
+                    variable_event
+                {
+                    let from_node_id = sys_variable_updated_event.from_node_id().clone();
+                    let from_variable_id = sys_variable_updated_event.variable_config_id;
+                    (from_node_id, from_variable_id)
+                } else {
+                    return;
+                }
             }
             BacktestNodeEvent::KlineNode(kline_event) => {
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
                     (
-                        kline_update_event.from_node_id.clone(),
+                        kline_update_event.from_node_id().clone(),
                         kline_update_event.config_id,
                     )
                 } else {
@@ -315,15 +303,15 @@ impl IfElseNodeContext {
                 let play_index = self.get_play_index();
                 let timestamp = get_utc8_timestamp();
                 if case_result.0 {
+                    let payload = ConditionMatchPayload::new(play_index);
                     // 匹配事件
-                    let signal_event =
-                        SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
-                            from_node_id: from_node_id.clone(),
-                            from_node_name: from_node_name.clone(),
-                            from_node_handle_id: case_output_handle_id.clone(),
-                            play_index,
-                            timestamp,
-                        });
+                    let signal_event: SignalEvent = ConditionMatchEvent::new(
+                        from_node_id.clone(),
+                        from_node_name.clone(),
+                        case_output_handle_id.clone(),
+                        payload,
+                    )
+                    .into();
 
                     // 日志事件
                     let condition_result = case_result.1;
@@ -342,16 +330,15 @@ impl IfElseNodeContext {
                     );
                     (signal_event, Some(log_event))
                 } else {
-                    (
-                        SignalEvent::BacktestConditionNotMatch(BacktestConditionNotMatchEvent {
-                            from_node_id,
-                            from_node_name,
-                            from_node_handle_id: case_output_handle_id.clone(),
-                            play_index,
-                            timestamp,
-                        }),
-                        None,
+                    let payload = ConditionNotMatchPayload::new(play_index);
+                    let condition_not_match_event: SignalEvent = ConditionNotMatchEvent::new(
+                        from_node_id.clone(),
+                        from_node_name.clone(),
+                        case_output_handle_id.clone(),
+                        payload,
                     )
+                    .into();
+                    (condition_not_match_event, None)
                 }
             };
 
@@ -362,16 +349,15 @@ impl IfElseNodeContext {
             }
 
             if self.is_leaf_node() {
-                let execute_over_event = ExecuteOverEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: self.get_node_id().clone(),
-                    play_index: self.get_play_index(),
-                    timestamp: get_utc8_timestamp_millis(),
-                };
-                let _ = strategy_output_handle.send(BacktestNodeEvent::Signal(
-                    SignalEvent::ExecuteOver(execute_over_event),
-                ));
+                let payload = ExecuteOverPayload::new(self.get_play_index());
+                let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                    self.get_node_id().clone(),
+                    self.get_node_name().clone(),
+                    self.get_node_id().clone(),
+                    payload,
+                )
+                .into();
+                let _ = strategy_output_handle.send(execute_over_event.into());
             } else {
                 let _ = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
             }
@@ -383,29 +369,28 @@ impl IfElseNodeContext {
         if !case_matched {
             // tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
             if self.is_leaf_node() {
-                let execute_over_event = ExecuteOverEvent {
-                    from_node_id: self.get_node_id().clone(),
-                    from_node_name: self.get_node_name().clone(),
-                    from_node_handle_id: self.get_node_id().clone(),
-                    play_index: self.get_play_index(),
-                    timestamp: get_utc8_timestamp_millis(),
-                };
+                let payload = ExecuteOverPayload::new(self.get_play_index());
+                let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                    self.get_node_id().clone(),
+                    self.get_node_name().clone(),
+                    self.get_node_id().clone(),
+                    payload,
+                )
+                .into();
                 let strategy_output_handle = self.get_strategy_output_handle();
-                let _ = strategy_output_handle.send(BacktestNodeEvent::Signal(
-                    SignalEvent::ExecuteOver(execute_over_event),
-                ));
-            } else {
-                let else_output_handle = self.get_default_output_handle(); // 获取else的输出句柄
-                let signal_event =
-                    SignalEvent::BacktestConditionMatch(BacktestConditionMatchEvent {
-                        from_node_id: self.get_node_id().clone(),
-                        from_node_name: self.get_node_name().clone(),
-                        from_node_handle_id: else_output_handle.output_handle_id.clone(),
-                        play_index: self.get_play_index(),
-                        timestamp: get_utc8_timestamp(),
-                    });
-                let _ = else_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
+                let _ = strategy_output_handle.send(execute_over_event.into());
             }
+        } else {
+            let else_output_handle = self.get_default_output_handle(); // 获取else的输出句柄
+            let payload = ConditionMatchPayload::new(self.get_play_index());
+            let signal_event: SignalEvent = ConditionMatchEvent::new(
+                self.get_node_id().clone(),
+                self.get_node_name().clone(),
+                else_output_handle.output_handle_id.clone(),
+                payload,
+            )
+            .into();
+            let _ = else_output_handle.send(signal_event.into());
         }
         Ok(())
     }
@@ -419,14 +404,6 @@ impl IfElseNodeContext {
 
     // 评估单个条件
     fn evaluate_single_condition(&self, condition: &Condition) -> ConditionResult {
-        tracing::debug!(
-            "{}: 开始评估case: 左变量名：{:?}, 右变量名：{:?}, 符号:{:?}, 当前的play_index: {}",
-            self.get_node_id(),
-            condition.left_variable.variable,
-            condition.right_variable.variable,
-            condition.comparison_symbol,
-            self.get_play_index()
-        );
         let received_value = &self.received_message;
 
         // 获取左值
@@ -469,7 +446,7 @@ impl IfElseNodeContext {
                 condition_result: condition_result,
             }
         } else {
-            tracing::error!(
+            tracing::warn!(
                 "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前play_index: {}",
                 left_value,
                 right_value,

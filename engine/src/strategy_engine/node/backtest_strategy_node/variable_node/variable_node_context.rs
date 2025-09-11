@@ -8,10 +8,10 @@ use event_center::communication::strategy::backtest_strategy::command::NodeReset
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::event::node_event::backtest_node_event::signal_event::{
-    BacktestConditionNotMatchEvent, SignalEvent,
+    ConditionNotMatchEvent, ConditionNotMatchPayload, SignalEvent,
 };
 use event_center::event::node_event::backtest_node_event::variable_node_event::{
-    SysVariableUpdatedEvent, VariableNodeEvent,
+    SysVariableUpdatedEvent, SysVariableUpdatedPayload, VariableNodeEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
@@ -80,7 +80,7 @@ impl BacktestNodeContextTrait for VariableNodeContext {
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         match node_event {
-            BacktestNodeEvent::Signal(SignalEvent::BacktestConditionMatch(_)) => {
+            BacktestNodeEvent::Signal(SignalEvent::ConditionMatch(_)) => {
                 // 判断当前节点的模式
                 // 如果是条件触发模式，则获取变量
                 if self
@@ -93,19 +93,19 @@ impl BacktestNodeContextTrait for VariableNodeContext {
                     self.get_variable().await;
                 }
             }
-            BacktestNodeEvent::Signal(SignalEvent::BacktestConditionNotMatch(_)) => {
+            BacktestNodeEvent::Signal(SignalEvent::ConditionNotMatch(_)) => {
                 tracing::debug!("{}: 条件不触发模式，不获取变量", self.get_node_name());
+                let payload = ConditionNotMatchPayload::new(self.get_play_index());
+                let condition_not_match_event: SignalEvent = ConditionNotMatchEvent::new(
+                    self.base_context.node_id.clone(),
+                    self.base_context.node_name.clone(),
+                    self.get_default_output_handle().output_handle_id.clone(),
+                    payload,
+                )
+                .into();
                 // 获取默认output_handle
                 let default_output_handle = self.get_default_output_handle();
-                let _ = default_output_handle.send(BacktestNodeEvent::Signal(
-                    SignalEvent::BacktestConditionNotMatch(BacktestConditionNotMatchEvent {
-                        from_node_id: self.get_node_id().clone(),
-                        from_node_name: self.get_node_name().clone(),
-                        from_node_handle_id: default_output_handle.output_handle_id.clone(),
-                        play_index: self.get_play_index(),
-                        timestamp: get_utc8_timestamp_millis(),
-                    }),
-                ));
+                let _ = default_output_handle.send(condition_not_match_event.into());
             }
 
             _ => {}
@@ -171,35 +171,34 @@ impl VariableNodeContext {
             match variable_type {
                 SysVariable::PositionNumber => {
                     let position_number = self.get_position_number(&var_config).await;
-                    let sys_variable_updated_event = SysVariableUpdatedEvent {
-                        from_node_id: self.get_node_id().clone(),
-                        from_node_name: self.get_node_name().clone(),
-                        from_handle_id: var_config.output_handle_id.clone(),
-                        play_index: self.get_play_index(),
-                        variable_config_id: var_config.config_id,
-                        variable: var_config.variable.clone(),
-                        variable_value: position_number as f64,
-                        timestamp: get_utc8_timestamp_millis(),
-                    };
+                    let payload = SysVariableUpdatedPayload::new(
+                        self.get_play_index(),
+                        var_config.config_id,
+                        var_config.variable.clone(),
+                        position_number as f64,
+                    );
+                    let sys_variable_updated_event: VariableNodeEvent =
+                        SysVariableUpdatedEvent::new(
+                            self.base_context.node_id.clone(),
+                            self.base_context.node_name.clone(),
+                            var_config.output_handle_id.clone(),
+                            payload,
+                        )
+                        .into();
+
                     let output_handle = self.get_output_handle(&var_config.output_handle_id);
                     tracing::debug!(
                         "{}: 发送仓位数量更新事件: {:?}",
                         self.get_node_id(),
                         sys_variable_updated_event
                     );
-                    let _ = output_handle.send(BacktestNodeEvent::VariableNode(
-                        VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone()),
-                    ));
+                    let _ = output_handle.send(sys_variable_updated_event.clone().into());
 
                     let default_output_handle = self.get_default_output_handle();
-                    let _ = default_output_handle.send(BacktestNodeEvent::VariableNode(
-                        VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone()),
-                    ));
+                    let _ = default_output_handle.send(sys_variable_updated_event.clone().into());
 
                     let strategy_output_handle = self.get_strategy_output_handle();
-                    let _ = strategy_output_handle.send(BacktestNodeEvent::VariableNode(
-                        VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event.clone()),
-                    ));
+                    let _ = strategy_output_handle.send(sys_variable_updated_event.into());
                 }
                 _ => {}
             }

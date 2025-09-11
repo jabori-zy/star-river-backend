@@ -9,10 +9,11 @@ use event_center::communication::strategy::backtest_strategy::command::NodeReset
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::event::node_event::backtest_node_event::position_management_node_event::{
-    PositionClosedEvent, PositionCreatedEvent, PositionManagementNodeEvent, PositionUpdatedEvent,
+    PositionClosedEvent, PositionClosedPayload, PositionCreatedEvent, PositionCreatedPayload,
+    PositionManagementNodeEvent, PositionUpdatedEvent, PositionUpdatedPayload,
 };
 use event_center::event::node_event::backtest_node_event::signal_event::{
-    ExecuteOverEvent, SignalEvent,
+    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
@@ -97,25 +98,23 @@ impl BacktestNodeContextTrait for PositionNodeContext {
 
         match node_event {
             BacktestNodeEvent::Signal(signal_event) => match signal_event {
-                SignalEvent::BacktestConditionNotMatch(_) => {
+                SignalEvent::ConditionNotMatch(_) => {
                     tracing::debug!(
                         "{}: 条件不匹配，不获取仓位信息。节点是否是叶子节点: {}",
                         self.get_node_name(),
                         self.is_leaf_node()
                     );
                     if self.is_leaf_node() {
-                        let execute_over_event = ExecuteOverEvent {
-                            from_node_id: self.get_node_id().clone(),
-                            from_node_name: self.get_node_name().clone(),
-                            from_node_handle_id: self.get_node_id().clone(),
-                            play_index: self.get_play_index(),
-                            timestamp: get_utc8_timestamp_millis(),
-                        };
-                        let strategy_output_handle = self.get_strategy_output_handle();
-                        strategy_output_handle
-                            .send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(
-                                execute_over_event,
-                            )))
+                        let payload = ExecuteOverPayload::new(self.get_play_index());
+                        let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                            self.get_node_id().clone(),
+                            self.get_node_name().clone(),
+                            self.get_node_id().clone(),
+                            payload,
+                        )
+                        .into();
+                        self.get_strategy_output_handle()
+                            .send(execute_over_event.into())
                             .unwrap();
                     }
                 }
@@ -129,18 +128,16 @@ impl BacktestNodeContextTrait for PositionNodeContext {
                     futures_order_node_event
                 );
                 if self.is_leaf_node() {
-                    let execute_over_event = ExecuteOverEvent {
-                        from_node_id: self.get_node_id().clone(),
-                        from_node_name: self.get_node_name().clone(),
-                        from_node_handle_id: self.get_node_id().clone(),
-                        play_index: self.get_play_index(),
-                        timestamp: get_utc8_timestamp_millis(),
-                    };
-                    let strategy_output_handle = self.get_strategy_output_handle();
-                    strategy_output_handle
-                        .send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(
-                            execute_over_event,
-                        )))
+                    let payload = ExecuteOverPayload::new(self.get_play_index());
+                    let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                        self.get_node_id().clone(),
+                        self.get_node_name().clone(),
+                        self.get_node_id().clone(),
+                        payload,
+                    )
+                    .into();
+                    self.get_strategy_output_handle()
+                        .send(execute_over_event.into())
                         .unwrap();
                 }
             }
@@ -196,45 +193,46 @@ impl PositionNodeContext {
         let position_event: Option<PositionManagementNodeEvent> = match virtual_trading_system_event
         {
             VirtualTradingSystemEvent::PositionCreated(position) => {
-                let position_created_event =
-                    PositionManagementNodeEvent::PositionCreated(PositionCreatedEvent {
-                        from_node_id: from_node_id.clone(),
-                        from_node_name: from_node_name.clone(),
-                        from_handle_id: from_handle_id.clone(),
-                        virtual_position: position,
-                        timestamp: get_utc8_timestamp_millis(),
-                    });
+                let payload = PositionCreatedPayload::new(position.clone());
+                let position_created_event: PositionManagementNodeEvent =
+                    PositionCreatedEvent::new(
+                        from_node_id.clone(),
+                        from_node_name.clone(),
+                        from_handle_id.clone(),
+                        payload,
+                    )
+                    .into();
                 Some(position_created_event)
             }
             VirtualTradingSystemEvent::PositionUpdated(position) => {
-                let position_updated_event =
-                    PositionManagementNodeEvent::PositionUpdated(PositionUpdatedEvent {
-                        from_node_id: from_node_id.clone(),
-                        from_node_name: from_node_name.clone(),
-                        from_handle_id: from_handle_id.clone(),
-                        virtual_position: position,
-                        timestamp: get_utc8_timestamp_millis(),
-                    });
+                let payload = PositionUpdatedPayload::new(position.clone());
+                let position_updated_event: PositionManagementNodeEvent =
+                    PositionUpdatedEvent::new(
+                        from_node_id.clone(),
+                        from_node_name.clone(),
+                        from_handle_id.clone(),
+                        payload,
+                    )
+                    .into();
                 Some(position_updated_event)
             }
             VirtualTradingSystemEvent::PositionClosed(position) => {
-                let position_closed_event =
-                    PositionManagementNodeEvent::PositionClosed(PositionClosedEvent {
-                        from_node_id: from_node_id.clone(),
-                        from_node_name: from_node_name.clone(),
-                        from_handle_id: from_handle_id.clone(),
-                        virtual_position: position,
-                        timestamp: get_utc8_timestamp_millis(),
-                    });
+                let payload = PositionClosedPayload::new(position.clone());
+                let position_closed_event: PositionManagementNodeEvent = PositionClosedEvent::new(
+                    from_node_id.clone(),
+                    from_node_name.clone(),
+                    from_handle_id.clone(),
+                    payload,
+                )
+                .into();
                 Some(position_closed_event)
             }
             _ => None,
         };
 
         if let Some(position_event) = position_event {
-            let strategy_output_handle = self.get_strategy_output_handle();
-            strategy_output_handle
-                .send(BacktestNodeEvent::PositionManagementNode(position_event))
+            self.get_strategy_output_handle()
+                .send(position_event.into())
                 .unwrap();
         }
 

@@ -14,12 +14,13 @@ pub use position_management_node_event::PositionManagementNodeEvent;
 pub use signal_event::SignalEvent;
 pub use variable_node_event::VariableNodeEvent;
 
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::cache::CacheValue;
 use std::sync::Arc;
 use strum::Display;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "node_type")]
 pub enum BacktestNodeEvent {
     #[strum(serialize = "indicator_node")]
@@ -52,6 +53,7 @@ pub enum BacktestNodeEvent {
 }
 
 // 通用的序列化函数
+#[allow(dead_code)]
 fn serialize_cache_value_vec<S>(
     data: &Vec<Arc<CacheValue>>,
     serializer: S,
@@ -70,6 +72,7 @@ where
 }
 
 // 通用的反序列化函数
+#[allow(dead_code)]
 fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Arc<CacheValue>>, D::Error>
 where
     D: serde::Deserializer<'de>,

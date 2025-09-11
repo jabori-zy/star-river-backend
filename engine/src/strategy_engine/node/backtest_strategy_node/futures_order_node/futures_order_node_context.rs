@@ -14,7 +14,7 @@ use event_center::communication::strategy::backtest_strategy::GetStrategyCacheKe
 use event_center::communication::strategy::{BacktestNodeResponse, NodeResponse, StrategyCommand};
 use event_center::event::node_event::backtest_node_event::futures_order_node_event::*;
 use event_center::event::node_event::backtest_node_event::signal_event::{
-    BacktestConditionNotMatchEvent, SignalEvent,
+    ConditionNotMatchEvent, ConditionNotMatchPayload, SignalEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
@@ -225,7 +225,7 @@ impl FuturesOrderNodeContext {
         match node_event {
             BacktestNodeEvent::Signal(signal_event) => {
                 match signal_event {
-                    SignalEvent::BacktestConditionMatch(backtest_condition_match_event) => {
+                    SignalEvent::ConditionMatch(backtest_condition_match_event) => {
                         if backtest_condition_match_event.play_index == self.get_play_index() {
                             // 根据input_handle_id获取订单配置
                             let order_config = {
@@ -242,7 +242,7 @@ impl FuturesOrderNodeContext {
                             tracing::warn!("{}: 当前k线缓存索引不匹配, 跳过", self.get_node_id());
                         }
                     }
-                    SignalEvent::BacktestConditionNotMatch(backtest_condition_not_match_event) => {
+                    SignalEvent::ConditionNotMatch(backtest_condition_not_match_event) => {
                         if backtest_condition_not_match_event.play_index == self.get_play_index() {
                             tracing::debug!("{}: 条件不匹配，不创建订单", self.get_node_name());
                             let all_output_handles = self.get_all_output_handles();
@@ -252,23 +252,22 @@ impl FuturesOrderNodeContext {
                                 }
 
                                 if handle.connect_count > 0 {
-                                    let condition_not_match_event =
-                                        SignalEvent::BacktestConditionNotMatch(
-                                            BacktestConditionNotMatchEvent {
-                                                from_node_id: self.get_node_id().clone(),
-                                                from_node_name: self.get_node_name().clone(),
-                                                from_node_handle_id: handle_id.clone(),
-                                                play_index: self.get_play_index(),
-                                                timestamp: get_utc8_timestamp(),
-                                            },
-                                        );
+                                    let payload =
+                                        ConditionNotMatchPayload::new(self.get_play_index());
+                                    let condition_not_match_event = ConditionNotMatchEvent::new(
+                                        self.get_node_id().clone(),
+                                        self.get_node_name().clone(),
+                                        handle_id.clone(),
+                                        payload,
+                                    );
                                     tracing::debug!(
                                         "{}: 发送条件不匹配事件: {:?}",
                                         self.get_node_id(),
                                         handle_id
                                     );
-                                    let _ = handle
-                                        .send(BacktestNodeEvent::Signal(condition_not_match_event));
+                                    let _ = handle.send(BacktestNodeEvent::Signal(
+                                        condition_not_match_event.into(),
+                                    ));
                                 }
                             }
                         }
@@ -307,94 +306,102 @@ impl FuturesOrderNodeContext {
         let node_id = self.get_node_id().clone();
         let node_name = self.get_node_name().clone();
         let handle_id = output_handle_id.clone();
-        let timestamp = get_utc8_timestamp_millis();
 
-        let order_event = match event_type {
+        let order_event: FuturesOrderNodeEvent = match event_type {
             // 期货订单事件
             VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
-                FuturesOrderNodeEvent::FuturesOrderCreated(FuturesOrderCreatedEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    futures_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = FuturesOrderCreatedPayload::new(virtual_order.clone());
+                FuturesOrderCreatedEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
             VirtualTradingSystemEvent::FuturesOrderFilled(_) => {
-                FuturesOrderNodeEvent::FuturesOrderFilled(FuturesOrderFilledEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    futures_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = FuturesOrderFilledPayload::new(virtual_order.clone());
+                FuturesOrderFilledEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
             VirtualTradingSystemEvent::FuturesOrderCanceled(_) => {
-                FuturesOrderNodeEvent::FuturesOrderCanceled(FuturesOrderCanceledEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    futures_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = FuturesOrderCanceledPayload::new(virtual_order.clone());
+                FuturesOrderCanceledEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
 
             // 止盈订单事件
             VirtualTradingSystemEvent::TakeProfitOrderCreated(_) => {
-                FuturesOrderNodeEvent::TakeProfitOrderCreated(TakeProfitOrderCreatedEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    take_profit_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = TakeProfitOrderCreatedPayload::new(virtual_order.clone());
+                TakeProfitOrderCreatedEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
             VirtualTradingSystemEvent::TakeProfitOrderFilled(_) => {
-                FuturesOrderNodeEvent::TakeProfitOrderFilled(TakeProfitOrderFilledEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    take_profit_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = TakeProfitOrderFilledPayload::new(virtual_order.clone());
+                TakeProfitOrderFilledEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
             VirtualTradingSystemEvent::TakeProfitOrderCanceled(_) => {
-                FuturesOrderNodeEvent::TakeProfitOrderCanceled(TakeProfitOrderCanceledEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    take_profit_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = TakeProfitOrderCanceledPayload::new(virtual_order.clone());
+                TakeProfitOrderCanceledEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
 
             // 止损订单事件
             VirtualTradingSystemEvent::StopLossOrderCreated(_) => {
-                FuturesOrderNodeEvent::StopLossOrderCreated(StopLossOrderCreatedEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    stop_loss_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = StopLossOrderCreatedPayload::new(virtual_order.clone());
+                StopLossOrderCreatedEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
             VirtualTradingSystemEvent::StopLossOrderFilled(_) => {
-                FuturesOrderNodeEvent::StopLossOrderFilled(StopLossOrderFilledEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    stop_loss_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = StopLossOrderFilledPayload::new(virtual_order.clone());
+                StopLossOrderFilledEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
             VirtualTradingSystemEvent::StopLossOrderCanceled(_) => {
-                FuturesOrderNodeEvent::StopLossOrderCanceled(StopLossOrderCanceledEvent {
-                    from_node_id: node_id.clone(),
-                    from_node_name: node_name.clone(),
-                    from_handle_id: handle_id.clone(),
-                    stop_loss_order: virtual_order.clone(),
-                    timestamp: timestamp,
-                })
+                let payload = StopLossOrderCanceledPayload::new(virtual_order.clone());
+                StopLossOrderCanceledEvent::new(
+                    node_id.clone(),
+                    node_name.clone(),
+                    handle_id.clone(),
+                    payload,
+                )
+                .into()
             }
 
             _ => return, // 其他事件类型不处理
@@ -669,14 +676,14 @@ impl FuturesOrderNodeContext {
                 );
                 self.add_virtual_transaction_history(&input_handle_id, transaction.clone())
                     .await;
-                let transaction_event =
-                    FuturesOrderNodeEvent::TransactionCreated(TransactionCreatedEvent {
-                        from_node_id: self.get_node_id().clone(),
-                        from_node_name: self.get_node_name().clone(),
-                        from_handle_id: input_handle_id.clone(),
-                        transaction: transaction.clone(),
-                        timestamp: get_utc8_timestamp_millis(),
-                    });
+                let payload = TransactionCreatedPayload::new(transaction.clone());
+                let transaction_event: FuturesOrderNodeEvent = TransactionCreatedEvent::new(
+                    self.get_node_id().clone(),
+                    self.get_node_name().clone(),
+                    input_handle_id.clone(),
+                    payload,
+                )
+                .into();
                 let strategy_output_handle = self.get_strategy_output_handle();
                 let _ = strategy_output_handle.send(transaction_event.into());
             }

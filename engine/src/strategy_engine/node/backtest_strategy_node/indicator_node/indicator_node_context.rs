@@ -9,11 +9,11 @@ use event_center::communication::engine::cache_engine::{AddCacheKeyParams, GetCa
 use event_center::communication::engine::indicator_engine::CalculateBacktestIndicatorParams;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::event::node_event::backtest_node_event::indicator_node_event::{
-    IndicatorNodeEvent, IndicatorUpdateEvent,
+    IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::signal_event::{
-    ExecuteOverEvent, SignalEvent,
+    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::{event::Event, EventCenterSingleton};
@@ -110,7 +110,6 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     let time_range = exchange_config.time_range.clone();
                     let node_id = self.get_node_id().clone();
                     let node_name = self.get_node_name().clone();
-                    let timestamp = get_utc8_timestamp_millis();
 
                     // 遍历指标缓存键，计算指标
                     for ind_config in exchange_config.selected_indicators.iter() {
@@ -150,26 +149,25 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                             |handle_id: String,
                              output_handle: NodeOutputHandle,
                              data: Vec<Arc<CacheValue>>| {
-                                let indicator_update_event = IndicatorUpdateEvent {
-                                    from_node_id: node_id.clone(),
-                                    from_node_name: node_name.clone(),
-                                    from_handle_id: handle_id,
-                                    exchange: indicator_key.get_exchange(),
-                                    symbol: indicator_key.get_symbol(),
-                                    interval: indicator_key.get_interval(),
-                                    config_id: ind_config.config_id,
-                                    indicator_config: indicator_key.get_indicator_config(),
-                                    indicator_key: indicator_key.clone(),
-                                    indicator_series: data,
-                                    play_index: kline_update_event.play_index,
-                                    timestamp: timestamp,
-                                };
-
-                                let event = BacktestNodeEvent::IndicatorNode(
-                                    IndicatorNodeEvent::IndicatorUpdate(indicator_update_event),
+                                let payload = IndicatorUpdatePayload::new(
+                                    indicator_key.get_exchange(),
+                                    indicator_key.get_symbol(),
+                                    indicator_key.get_interval(),
+                                    ind_config.config_id,
+                                    indicator_key.get_indicator_config(),
+                                    indicator_key.clone(),
+                                    data,
+                                    kline_update_event.play_index,
                                 );
-                                // tracing::debug!("indicator-node-event: {:?}", serde_json::to_string(&event).unwrap());
-                                let _ = output_handle.send(event);
+                                let indicator_update_event: IndicatorNodeEvent =
+                                    IndicatorUpdateEvent::new(
+                                        node_id.clone(),
+                                        node_name.clone(),
+                                        handle_id,
+                                        payload,
+                                    )
+                                    .into();
+                                let _ = output_handle.send(indicator_update_event.into());
                             };
 
                         // 发送到指标特定的输出handle
@@ -201,18 +199,17 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     }
                     // 如果节点是叶子节点，则发送执行完毕事件
                     if self.is_leaf_node() {
-                        let execute_over_event = ExecuteOverEvent {
-                            from_node_id: self.get_node_id().clone(),
-                            from_node_name: self.get_node_name().clone(),
-                            from_node_handle_id: self.get_node_id().clone(),
-                            play_index: self.get_play_index(),
-                            timestamp: get_utc8_timestamp_millis(),
-                        };
+                        let payload = ExecuteOverPayload::new(self.get_play_index());
+                        let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                            self.get_node_id().clone(),
+                            self.get_node_name().clone(),
+                            self.get_node_id().clone(),
+                            payload,
+                        )
+                        .into();
                         let strategy_output_handle = self.get_strategy_output_handle();
                         strategy_output_handle
-                            .send(BacktestNodeEvent::Signal(SignalEvent::ExecuteOver(
-                                execute_over_event,
-                            )))
+                            .send(execute_over_event.into())
                             .unwrap();
                     }
                 }

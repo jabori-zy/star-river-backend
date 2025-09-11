@@ -232,7 +232,7 @@ impl StrategyEngineContext {
                 .await
                 .context(DatabaseSnafu {})?;
 
-        let status = ["running", "playing", "ready", "pausing"];
+        let status = ["initializing", "running", "playing", "ready", "pausing"];
         if is_initializing || has_instance {
             // 正在初始化或有实例，返回数据库中的状态
             Ok(strategy_status)

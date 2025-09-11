@@ -1,29 +1,21 @@
-use super::kline_node_state_machine::KlineNodeStateAction;
 use super::kline_node_type::KlineNodeBacktestConfig;
-use crate::strategy_engine::log_message::LogMessage;
 use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::engine::cache_engine::CacheEngineResponse;
-use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetCacheParams};
-use event_center::communication::engine::exchange_engine::ExchangeEngineCommand;
+use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheParams};
 use event_center::communication::engine::exchange_engine::RegisterExchangeParams;
-use event_center::communication::engine::market_engine::{
-    GetKlineHistoryParams, MarketEngineCommand,
-};
+use event_center::communication::engine::market_engine::GetKlineHistoryParams;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::event::node_event::backtest_node_event::kline_node_event::{
-    KlineNodeEvent, KlineUpdateEvent, TimeUpdateEvent,
+    KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload, TimeUpdateEvent, TimeUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::SignalEvent;
-use event_center::event::strategy_event::{LogLevel, NodeStateLogEvent};
 use event_center::event::Event;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
@@ -37,7 +29,6 @@ use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use utils::get_utc8_timestamp_millis;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -151,17 +142,16 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
                             if pre_kline_timestamp != kline_timestamp && pre_kline_timestamp == 0 {
                                 pre_kline_timestamp = kline_timestamp;
-                                let time_update_event = TimeUpdateEvent {
-                                    from_node_id: self.get_node_id().clone(),
-                                    from_node_name: self.get_node_name().clone(),
-                                    from_node_handle_id: self.get_node_id().clone(),
-                                    current_time: kline_timestamp,
-                                    message_timestamp: get_utc8_timestamp_millis(),
-                                };
+                                let payload = TimeUpdatePayload::new(kline_timestamp);
+                                let time_update_event: KlineNodeEvent = TimeUpdateEvent::new(
+                                    self.get_node_id().clone(),
+                                    self.get_node_name().clone(),
+                                    self.get_node_id().clone(),
+                                    payload,
+                                )
+                                .into();
                                 self.get_strategy_output_handle()
-                                    .send(BacktestNodeEvent::KlineNode(KlineNodeEvent::TimeUpdate(
-                                        time_update_event,
-                                    )))
+                                    .send(time_update_event.into())
                                     .unwrap();
                             }
                             // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳不为0，说明有错误，同一批k线的时间戳不一致
@@ -411,15 +401,15 @@ impl KlineNodeContext {
         index: i32, // 缓存索引
         kline_data: Vec<Arc<CacheValue>>,
     ) -> KlineNodeEvent {
-        KlineNodeEvent::KlineUpdate(KlineUpdateEvent {
-            from_node_id: self.get_node_id().clone(),
-            from_node_name: self.get_node_name().clone(),
-            from_handle_id: handle_id,
-            config_id: config_id,
-            play_index: index,
-            kline_key: kline_key.clone(),
-            kline: kline_data,
-            timestamp: get_utc8_timestamp_millis(),
-        })
+        let payload = KlineUpdatePayload::new(config_id, index, kline_key.clone(), kline_data);
+        KlineNodeEvent::KlineUpdate(
+            KlineUpdateEvent::new(
+                self.get_node_id().clone(),
+                self.get_node_name().clone(),
+                handle_id,
+                payload,
+            )
+            .into(),
+        )
     }
 }

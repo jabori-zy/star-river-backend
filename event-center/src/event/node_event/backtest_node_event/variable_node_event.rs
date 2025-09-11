@@ -1,33 +1,30 @@
+use super::super::NodeEvent;
 use super::BacktestNodeEvent;
+use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::market::Exchange;
 use star_river_core::strategy::sys_varibale::SysVariable;
 use strum::Display;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event_type")]
 pub enum VariableNodeEvent {
     #[strum(serialize = "sys-variable-updated")]
     #[serde(rename = "sys-variable-updated")]
     SysVariableUpdated(SysVariableUpdatedEvent), // 系统变量更新
+
+    #[strum(serialize = "position-number-updated")]
+    #[serde(rename = "position-number-updated")]
+    PositionNumberUpdated(PositionNumberUpdateEvent), // 仓位数量更新
 }
 
-impl From<VariableNodeEvent> for BacktestNodeEvent {
-    fn from(event: VariableNodeEvent) -> Self {
-        BacktestNodeEvent::VariableNode(event)
-    }
-}
+// 类型别名
+pub type SysVariableUpdatedEvent = NodeEvent<SysVariableUpdatedPayload>;
+pub type PositionNumberUpdateEvent = NodeEvent<PositionNumberUpdatePayload>;
 
+// 载荷类型定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SysVariableUpdatedEvent {
-    #[serde(rename = "fromNodeId")]
-    pub from_node_id: String,
-
-    #[serde(rename = "fromNodeName")]
-    pub from_node_name: String,
-
-    #[serde(rename = "fromHandleId")]
-    pub from_handle_id: String,
-
+pub struct SysVariableUpdatedPayload {
     #[serde(rename = "playIndex")]
     pub play_index: i32,
 
@@ -39,21 +36,51 @@ pub struct SysVariableUpdatedEvent {
 
     #[serde(rename = "variableValue")]
     pub variable_value: f64,
-
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
 }
 
-use star_river_core::market::Exchange;
+impl SysVariableUpdatedPayload {
+    pub fn new(
+        play_index: i32,
+        variable_config_id: i32,
+        variable: SysVariable,
+        variable_value: f64,
+    ) -> Self {
+        Self {
+            play_index,
+            variable_config_id,
+            variable,
+            variable_value,
+        }
+    }
+}
 
-// 仓位数量更新
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PositionNumberUpdateEvent {
-    pub from_node_id: String,
-    pub from_node_name: String,
-    pub from_node_handle_id: String,
+pub struct PositionNumberUpdatePayload {
+    #[serde(rename = "exchange")]
     pub exchange: Option<Exchange>,
+
+    #[serde(rename = "symbol")]
     pub symbol: Option<String>,
+
+    #[serde(rename = "positionNumber")]
     pub position_number: u32,
+
+    #[serde(rename = "eventTimestamp")]
     pub event_timestamp: i64,
+}
+
+impl PositionNumberUpdatePayload {
+    pub fn new(
+        exchange: Option<Exchange>,
+        symbol: Option<String>,
+        position_number: u32,
+        event_timestamp: i64,
+    ) -> Self {
+        Self {
+            exchange,
+            symbol,
+            position_number,
+            event_timestamp,
+        }
+    }
 }

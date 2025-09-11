@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::{BacktestStrategyCommand, GetStartNodeConfigResponse};
 use event_center::event::node_event::backtest_node_event::signal_event::{
-    KlinePlayEvent, KlinePlayFinishedEvent, SignalEvent,
+    KlinePlayEvent, KlinePlayFinishedEvent, KlinePlayFinishedPayload, KlinePlayPayload, SignalEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
@@ -123,38 +123,32 @@ impl BacktestNodeContextTrait for StartNodeContext {
 impl StartNodeContext {
     // 发送k线跳动信号
     pub async fn send_play_signal(&self) {
-        let kline_tick_event = KlinePlayEvent {
-            from_node_id: self.base_context.node_id.clone(),
-            from_node_name: self.base_context.node_name.clone(),
-            from_node_handle_id: "start_node_default_output".to_string(),
-            play_index: self.get_play_index(),
-            message_timestamp: chrono::Utc::now().timestamp_millis(),
-        };
-
-        let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlay(kline_tick_event.clone()));
-        // 通过default出口，给节点发送信号
-        tracing::debug!("=============={}==================", self.get_play_index());
-        tracing::debug!(
-            "{}: 发送k线播放信号。play_index: {}",
-            self.base_context.node_id,
-            self.get_play_index()
-        );
-        self.get_default_output_handle().send(signal).unwrap();
+        let payload = KlinePlayPayload::new(self.get_play_index());
+        let kline_play_event: SignalEvent = KlinePlayEvent::new(
+            self.base_context.node_id.clone(),
+            self.base_context.node_name.clone(),
+            self.get_default_output_handle().output_handle_id.clone(),
+            payload,
+        )
+        .into();
+        self.get_default_output_handle()
+            .send(kline_play_event.into())
+            .unwrap();
     }
 
     // 发送k线播放完毕信号
     pub async fn send_finish_signal(&self, play_index: i32) {
-        let default_output_handle = self.get_default_output_handle();
-        let finish_signal = KlinePlayFinishedEvent {
-            from_node_id: self.get_node_id().clone(),
-            from_node_name: self.get_node_name().clone(),
-            from_node_handle_id: default_output_handle.output_handle_id.clone(),
-            play_index,
-            message_timestamp: get_utc8_timestamp_millis(),
-        };
-
-        let signal = BacktestNodeEvent::Signal(SignalEvent::KlinePlayFinished(finish_signal));
-        default_output_handle.send(signal.clone()).unwrap();
+        let payload = KlinePlayFinishedPayload::new(play_index);
+        let kline_play_finished_event: SignalEvent = KlinePlayFinishedEvent::new(
+            self.base_context.node_id.clone(),
+            self.base_context.node_name.clone(),
+            self.get_default_output_handle().output_handle_id.clone(),
+            payload,
+        )
+        .into();
+        self.get_default_output_handle()
+            .send(kline_play_finished_event.into())
+            .unwrap();
     }
 
     pub async fn init_virtual_trading_system(&self) {

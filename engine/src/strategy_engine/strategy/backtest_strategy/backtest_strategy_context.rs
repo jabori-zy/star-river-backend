@@ -7,6 +7,7 @@ use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::strategy::{StrategyCommand, NodeCommandReceiver, BacktestStrategyResponse};
 use event_center::communication::engine::cache_engine::{CacheEngineCommand, CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
 use event_center::communication::strategy::StrategyResponse;
+use event_center::event::node_event::NodeEventTrait;
 use event_center::singleton::EventCenterSingleton;
 use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
 use event_center::event::Event;
@@ -283,8 +284,8 @@ impl BacktestStrategyContext {
                     // tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
                     // tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
                     let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
-                    if !execute_over_node_ids.contains(&execute_over_event.from_node_id) {
-                        execute_over_node_ids.push(execute_over_event.from_node_id.clone());
+                    if !execute_over_node_ids.contains(&execute_over_event.from_node_id()) {
+                        execute_over_node_ids.push(execute_over_event.from_node_id().clone());
                     }
 
                     // 如果所有叶子节点都执行完毕，则通知等待的线程
