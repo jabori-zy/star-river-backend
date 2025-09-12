@@ -11,3 +11,4 @@ paste = "1.0.15"
 star-river-core = { path = "../../star-river-core" }
 ordered-float.workspace = true
 serde_json.workspace = true
+chrono.workspace = true

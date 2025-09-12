@@ -1,5 +1,5 @@
 use super::VirtualTradingSystem;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::*;
 use star_river_core::market::Exchange;
@@ -43,7 +43,7 @@ impl VirtualTradingSystem {
                     // 获取当前价格
                     let current_kline = self.kline_price.get(&kline_key).unwrap();
                     let current_price = current_kline.close;
-                    let current_timestamp = current_kline.timestamp;
+                    let current_datetime = current_kline.datetime;
                     // 市价单忽略创建订单时的价格，而是使用最新的价格
                     let market_order = VirtualOrder::new(
                         None,
@@ -61,7 +61,7 @@ impl VirtualTradingSystem {
                         sl,
                         tp_type,
                         sl_type,
-                        current_timestamp,
+                        current_datetime,
                     );
                     tracing::debug!("市价订单创建成功: {:?}", market_order);
 
@@ -73,7 +73,7 @@ impl VirtualTradingSystem {
                     self.orders.push(market_order.clone());
 
                     // 创建完成后，直接成交订单
-                    self.execute_order(&market_order, current_price, current_timestamp)
+                    self.execute_order(&market_order, current_price, current_datetime)
                         .unwrap();
                 }
                 // 限价单
@@ -95,13 +95,13 @@ impl VirtualTradingSystem {
         &mut self,
         order_id: OrderId,
         order_status: OrderStatus,
-        timestamp: i64,
+        datetime: DateTime<FixedOffset>,
     ) -> Result<VirtualOrder, String> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             // 更新订单状态
             order.order_status = order_status;
             // 更新订单更新时间
-            order.update_time = DateTime::from_timestamp_millis(timestamp).unwrap();
+            order.update_time = datetime;
             Ok(order.clone())
         } else {
             Err(format!("订单不存在: {:?}", order_id))
@@ -112,11 +112,11 @@ impl VirtualTradingSystem {
         &mut self,
         order_id: OrderId,
         position_id: PositionId,
-        timestamp: i64,
+        datetime: DateTime<FixedOffset>,
     ) -> Result<(), String> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             order.position_id = Some(position_id);
-            order.update_time = DateTime::from_timestamp_millis(timestamp).unwrap();
+            order.update_time = datetime;
             Ok(())
         } else {
             Err(format!("订单不存在: {:?}", order_id))
@@ -146,7 +146,7 @@ impl VirtualTradingSystem {
         for order in unfilled_orders {
             if let Some(kline_key) = self.get_kline_key(&order.exchange, &order.symbol) {
                 if let Some(current_kline) = self.kline_price.get(&kline_key) {
-                    let current_timestamp = current_kline.timestamp;
+                    let current_datetime = current_kline.datetime;
                     let high_price = current_kline.high;
                     let low_price = current_kline.low;
 
@@ -156,14 +156,14 @@ impl VirtualTradingSystem {
                                 FuturesOrderSide::OpenLong => {
                                     // 限价开多：最低价格 <= 订单价格时执行
                                     if low_price <= order.open_price {
-                                        self.execute_order(&order, low_price, self.timestamp)
+                                        self.execute_order(&order, low_price, self.current_datetime)
                                             .unwrap();
                                     }
                                 }
                                 FuturesOrderSide::OpenShort => {
                                     // 限价开空：最高价格 >= 订单价格时执行
                                     if high_price >= order.open_price {
-                                        self.execute_order(&order, high_price, self.timestamp)
+                                        self.execute_order(&order, high_price, self.current_datetime)
                                             .unwrap();
                                     }
                                 }
@@ -237,7 +237,7 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
-                self.timestamp,
+                self.current_datetime,
             );
             return Some(tp_order);
         }
@@ -270,7 +270,7 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
-                self.timestamp,
+                self.current_datetime,
             );
             return Some(sl_order);
         }

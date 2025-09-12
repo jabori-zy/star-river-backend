@@ -15,7 +15,7 @@ use star_river_core::order::OriginalOrder;
 use star_river_core::position::PositionNumber;
 use star_river_core::position::{OriginalPosition, Position};
 use star_river_core::transaction::OriginalTransaction;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::timestamp_to_utc8_datetime;
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -62,7 +62,7 @@ impl Mt5DataProcessor {
                     to: "Mt5KlineInterval".to_string(),
                 })?;
 
-        // Extract and validate timestamp
+        // 10位
         let timestamp = kline_data["timestamp"]
             .as_i64()
             .context(MissingFieldSnafu {
@@ -104,7 +104,7 @@ impl Mt5DataProcessor {
         })?;
 
         let kline = Kline {
-            timestamp,
+            datetime: timestamp_to_utc8_datetime(timestamp)?,
             open,
             high,
             low,
@@ -251,7 +251,7 @@ impl Mt5DataProcessor {
             })?;
 
             klines.push(Kline {
-                timestamp,
+                datetime: timestamp_to_utc8_datetime(timestamp)?,
                 open,
                 high,
                 low,

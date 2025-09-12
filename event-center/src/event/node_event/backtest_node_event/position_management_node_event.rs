@@ -1,4 +1,4 @@
-use super::super::{BacktestNodeEvent, NodeEvent};
+use super::super::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::position::virtual_position::VirtualPosition;
@@ -7,16 +7,16 @@ use strum::Display;
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event_type")]
 pub enum PositionManagementNodeEvent {
-    #[strum(serialize = "position-created")]
-    #[serde(rename = "position-created")]
+    #[strum(serialize = "position-created-event")]
+    #[serde(rename = "position-created-event")]
     PositionCreated(PositionCreatedEvent),
 
-    #[strum(serialize = "position-updated")]
-    #[serde(rename = "position-updated")]
+    #[strum(serialize = "position-updated-event")]
+    #[serde(rename = "position-updated-event")]
     PositionUpdated(PositionUpdatedEvent),
 
-    #[strum(serialize = "position-closed")]
-    #[serde(rename = "position-closed")]
+    #[strum(serialize = "position-closed-event")]
+    #[serde(rename = "position-closed-event")]
     PositionClosed(PositionClosedEvent),
 }
 

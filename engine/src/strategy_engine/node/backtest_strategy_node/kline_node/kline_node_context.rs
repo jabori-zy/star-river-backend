@@ -142,7 +142,8 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                             // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
                             if pre_kline_timestamp != kline_timestamp && pre_kline_timestamp == 0 {
                                 pre_kline_timestamp = kline_timestamp;
-                                let payload = TimeUpdatePayload::new(kline_timestamp);
+                                let kline_datetime = kline_cache_value.last().unwrap().get_datetime();
+                                let payload = TimeUpdatePayload::new(kline_datetime);
                                 let time_update_event: KlineNodeEvent = TimeUpdateEvent::new(
                                     self.get_node_id().clone(),
                                     self.get_node_name().clone(),

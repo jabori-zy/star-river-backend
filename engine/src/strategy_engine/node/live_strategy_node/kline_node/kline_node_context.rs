@@ -29,7 +29,7 @@ use star_river_core::cache::{key::KlineKey, Key};
 use star_river_core::market::KlineInterval;
 use star_river_core::strategy::node_event::{BacktestNodeEvent, KlineSeriesMessage};
 use star_river_core::strategy::SelectedAccount;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

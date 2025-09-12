@@ -42,7 +42,7 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
+use star_river_core::utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug)]

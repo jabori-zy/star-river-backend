@@ -4,7 +4,7 @@ use super::super::{
 };
 use chrono::{DateTime, FixedOffset};
 use star_river_core::custom_type::NodeId;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug)]
 pub enum BacktestStrategyCommand {

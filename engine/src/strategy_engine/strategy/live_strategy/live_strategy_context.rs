@@ -28,7 +28,7 @@ use star_river_core::cache::Key;
 use uuid::Uuid;
 use event_center::command::cache_engine_command::{CacheEngineCommand, GetCacheMultiParams};
 use event_center::response::cache_engine_response::CacheEngineResponse;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use event_center::command::Command;
 use event_center::strategy_event::{StrategyEvent, StrategyData};
 use event_center::{CommandPublisher, CommandReceiver, EventReceiver};

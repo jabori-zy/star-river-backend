@@ -1,6 +1,7 @@
 pub mod event;
 
 use crate::custom_type::{Balance, Equity};
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -8,8 +9,8 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StatsSnapshot {
     /// 时间戳（毫秒）
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+    #[serde(rename = "datetime")]
+    pub datetime: DateTime<FixedOffset>,
 
     /// 播放索引（回测进度）
     #[serde(rename = "playIndex")]
@@ -47,7 +48,7 @@ pub struct StatsSnapshot {
 impl StatsSnapshot {
     /// 创建新的资产快照
     pub fn new(
-        timestamp: i64,
+        datetime: DateTime<FixedOffset>,
         play_index: i32,
         initial_balance: Balance,
         balance: Balance,
@@ -65,7 +66,7 @@ impl StatsSnapshot {
         };
 
         Self {
-            timestamp,
+            datetime,
             play_index,
             balance,
             available_balance,
@@ -111,7 +112,7 @@ impl StatsSnapshotHistory {
         // 按时间戳顺序插入
         let insert_pos = self
             .snapshots
-            .binary_search_by_key(&snapshot.timestamp, |s| s.timestamp)
+            .binary_search_by_key(&snapshot.datetime, |s| s.datetime)
             .unwrap_or_else(|pos| pos);
 
         self.snapshots.insert(insert_pos, snapshot);
@@ -141,10 +142,10 @@ impl StatsSnapshotHistory {
     }
 
     /// 获取时间范围内的快照
-    pub fn get_snapshots_in_range(&self, start_time: i64, end_time: i64) -> Vec<&StatsSnapshot> {
+    pub fn get_snapshots_in_range(&self, start_time: DateTime<FixedOffset>, end_time: DateTime<FixedOffset>) -> Vec<&StatsSnapshot> {
         self.snapshots
             .iter()
-            .filter(|snapshot| snapshot.timestamp >= start_time && snapshot.timestamp <= end_time)
+            .filter(|snapshot| snapshot.datetime >= start_time && snapshot.datetime <= end_time)
             .collect()
     }
 

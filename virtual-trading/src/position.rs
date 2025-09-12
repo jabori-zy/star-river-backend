@@ -10,6 +10,7 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::position::{PositionSide, PositionState};
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
+use chrono::FixedOffset;
 
 impl VirtualTradingSystem {
     pub fn generate_position_id(&self) -> PositionId {
@@ -57,7 +58,7 @@ impl VirtualTradingSystem {
             force_price,
             margin,
             margin_ratio,
-            self.timestamp,
+            self.current_datetime,
         );
         tracing::info!(
             "仓位创建成功: 仓位id: {:?}, 开仓价格: {:?}, 开仓数量: {:?}, 止盈: {:?}, 止损: {:?}",
@@ -77,7 +78,7 @@ impl VirtualTradingSystem {
         &mut self,
         order: &VirtualOrder,
         current_price: f64,
-        execute_timestamp: i64,
+        execute_datetime: DateTime<FixedOffset>,
     ) -> Result<PositionId, String> {
         tracing::info!("执行开仓订单: {:?}, 成交价格: {:?}", order, current_price);
 
@@ -87,7 +88,7 @@ impl VirtualTradingSystem {
         self.update_order_position_id(
             order.order_id,
             virtual_position.position_id,
-            execute_timestamp,
+            execute_datetime,
         )
         .unwrap();
 
@@ -118,7 +119,7 @@ impl VirtualTradingSystem {
         // 生成交易明细
         let transaction_id = self.get_transaction_id();
         let virtual_transaction =
-            VirtualTransaction::new(transaction_id, &order, &virtual_position, execute_timestamp);
+            VirtualTransaction::new(transaction_id, &order, &virtual_position, execute_datetime);
 
         // 发送交易明细创建事件
         let transaction_created_event =
@@ -126,7 +127,7 @@ impl VirtualTradingSystem {
         let _ = self.event_publisher.send(transaction_created_event);
 
         // 修改订单的状态
-        self.update_order_status(order.order_id, OrderStatus::Filled, execute_timestamp)
+        self.update_order_status(order.order_id, OrderStatus::Filled, execute_datetime)
             .unwrap();
 
         // 将交易明细添加到交易明细列表中
@@ -176,7 +177,7 @@ impl VirtualTradingSystem {
                     let position = &mut self.current_positions[i];
                     position.update(
                         current_price_val,
-                        self.timestamp,
+                        self.current_datetime,
                         margin,
                         margin_ratio,
                         force_price,
@@ -237,7 +238,7 @@ impl VirtualTradingSystem {
 
                 position.unrealized_profit = unrealized_profit;
                 position.current_price = execute_price;
-                position.update_time = DateTime::from_timestamp_millis(self.timestamp).unwrap();
+                position.update_time = self.current_datetime;
                 position.position_state = PositionState::Closed;
                 // 清空其他信息
                 position.force_price = 0.0;
@@ -259,7 +260,7 @@ impl VirtualTradingSystem {
                 // 生成交易明细
                 let transaction_id = self.get_transaction_id();
                 let virtual_transaction =
-                    VirtualTransaction::new(transaction_id, tp_order, &position, self.timestamp);
+                    VirtualTransaction::new(transaction_id, tp_order, &position, self.current_datetime);
                 self.transactions.push(virtual_transaction.clone());
                 // 发送交易明细创建事件
                 let transaction_created_event =
@@ -268,7 +269,7 @@ impl VirtualTradingSystem {
 
                 // 修改止盈订单状态
                 let updated_tp_order = self
-                    .update_order_status(tp_order.order_id, OrderStatus::Filled, self.timestamp)
+                    .update_order_status(tp_order.order_id, OrderStatus::Filled, self.current_datetime)
                     .unwrap();
                 // 发送止盈订单成交事件
                 let tp_order_filled_event =
@@ -282,7 +283,7 @@ impl VirtualTradingSystem {
                         .update_order_status(
                             sl_order.order_id,
                             OrderStatus::Canceled,
-                            self.timestamp,
+                            self.current_datetime,
                         )
                         .unwrap();
                     // 发送止损订单取消事件
@@ -322,7 +323,7 @@ impl VirtualTradingSystem {
 
                 position.unrealized_profit = unrealized_profit;
                 position.current_price = execute_price;
-                position.update_time = DateTime::from_timestamp_millis(self.timestamp).unwrap();
+                position.update_time = self.current_datetime;
                 position.position_state = PositionState::Closed;
                 // 清空其他信息
                 position.force_price = 0.0;
@@ -344,7 +345,7 @@ impl VirtualTradingSystem {
                 // 生成交易明细
                 let transaction_id = self.get_transaction_id();
                 let virtual_transaction =
-                    VirtualTransaction::new(transaction_id, sl_order, &position, self.timestamp);
+                    VirtualTransaction::new(transaction_id, sl_order, &position, self.current_datetime);
                 self.transactions.push(virtual_transaction.clone());
                 // 发送交易明细创建事件
                 let transaction_created_event =
@@ -353,7 +354,7 @@ impl VirtualTradingSystem {
 
                 // 修改止损订单状态
                 let updated_sl_order = self
-                    .update_order_status(sl_order.order_id, OrderStatus::Filled, self.timestamp)
+                    .update_order_status(sl_order.order_id, OrderStatus::Filled, self.current_datetime)
                     .unwrap();
                 // 发送止损订单成交事件
                 let sl_order_filled_event =
@@ -367,7 +368,7 @@ impl VirtualTradingSystem {
                         .update_order_status(
                             tp_order.order_id,
                             OrderStatus::Canceled,
-                            self.timestamp,
+                            self.current_datetime,
                         )
                         .unwrap();
                     // 发送止盈订单取消事件

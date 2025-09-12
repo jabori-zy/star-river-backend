@@ -1,5 +1,4 @@
 use super::super::super::strategy_event::StrategyRunningLogEvent;
-use super::BacktestNodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use strum::Display;

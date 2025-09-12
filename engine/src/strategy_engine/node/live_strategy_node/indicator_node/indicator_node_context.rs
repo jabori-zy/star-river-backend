@@ -23,7 +23,7 @@ use star_river_core::cache::CacheValue;
 use star_river_core::strategy::node_event::{
     BacktestNodeEvent, IndicatorNodeEvent, LiveIndicatorUpdateEvent,
 };
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]

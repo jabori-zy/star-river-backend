@@ -26,7 +26,7 @@ use star_river_core::virtual_trading_system::event::{
 use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug)]

@@ -15,7 +15,7 @@ use star_river_core::strategy::node_event::BacktestNodeEvent;
 use star_river_core::strategy::node_event::SignalEvent;
 use star_river_core::strategy::node_event::VariableMessage;
 use star_river_core::strategy::sys_varibale::SysVariable;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 
 #[derive(Debug, Clone)]
 pub struct GetVariableNodeContext {

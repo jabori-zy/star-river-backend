@@ -45,7 +45,7 @@ use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
-use utils::{get_utc8_datetime, timestamp_to_utc8_datetime};
+use star_river_core::utils::{get_utc8_datetime, timestamp_to_utc8_datetime};
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 use chrono::{DateTime, FixedOffset};
@@ -324,8 +324,7 @@ impl BacktestStrategyContext {
                 }
                 KlineNodeEvent::TimeUpdate(time_update_event) => {
                     // 更新策略的全局时间
-                    let current_time = timestamp_to_utc8_datetime(time_update_event.current_time);
-                    self.set_current_time(current_time).await;
+                    self.set_current_time(time_update_event.current_time).await;
                 }
                 _ => {}
             }
@@ -342,7 +341,6 @@ impl BacktestStrategyContext {
                         .await
                         .unwrap();
                 }
-                _ => {}
             }
         }
 

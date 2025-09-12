@@ -5,7 +5,7 @@ use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug)]
 pub enum CacheEngineResponse {

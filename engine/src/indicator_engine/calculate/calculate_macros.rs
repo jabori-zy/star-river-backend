@@ -6,7 +6,7 @@ macro_rules! calculate_fn {
     ) => {
         paste::paste! {
             pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, String> {
-                let (timestamp_list, price_source) = CalculateIndicatorFunction::get_price_source_and_timestamp(
+                let (timestamp_list, price_source) = CalculateIndicatorFunction::get_price_source_and_datetime(
                     &config.price_source,
                     kline_series
                 )?;
@@ -77,7 +77,7 @@ macro_rules! calculate_fn_snake {
     ) => {
         paste::paste! {
             pub fn [<calculate_ $indicator_name:snake:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, String> {
-                let (timestamp_list, price_source) = CalculateIndicatorFunction::get_price_source_and_timestamp(
+                let (timestamp_list, price_source) = CalculateIndicatorFunction::get_price_source_and_datetime(
                     &config.price_source,
                     kline_series
                 )?;

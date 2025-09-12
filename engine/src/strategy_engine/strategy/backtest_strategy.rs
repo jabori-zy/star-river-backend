@@ -38,7 +38,7 @@ use star_river_core::{
     error::engine_error::strategy_error::NodeConfigNullSnafu,
     position::virtual_position::VirtualPosition,
 };
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug, Clone)]

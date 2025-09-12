@@ -687,7 +687,6 @@ dependencies = [
  "star-river-core",
  "tokio",
  "tracing",
- "utils",
 ]
 
 [[package]]
@@ -696,6 +695,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1cdb987ec36f6bf7bfbea3f928b75590b736fc42af8e54d97592481351b2b96c"
 dependencies = [
+ "chrono",
  "deepsize_derive",
 ]
 
@@ -733,18 +733,18 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "1.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
 dependencies = [
  "derive_more-impl",
 ]
 
 [[package]]
 name = "derive_more-impl"
-version = "1.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -831,7 +831,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "typetag",
- "utils",
  "uuid",
  "virtual-trading",
  "windows 0.61.1",
@@ -899,7 +898,6 @@ dependencies = [
  "strum_macros",
  "tokio",
  "tracing",
- "utils",
  "utoipa",
  "uuid",
 ]
@@ -938,7 +936,6 @@ dependencies = [
  "tokio-tungstenite 0.27.0",
  "tracing",
  "tracing-subscriber",
- "utils",
  "windows 0.62.0",
 ]
 
@@ -3273,7 +3270,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "utils",
  "utoipa",
  "utoipa-scalar",
 ]
@@ -3310,7 +3306,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "typetag",
- "utils",
  "utoipa",
  "uuid",
 ]
@@ -3325,6 +3320,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "strategy-stats"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "event-center",
  "star-river-core",
  "tokio",
@@ -3332,7 +3328,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "utils",
  "virtual-trading",
 ]
 
@@ -3480,6 +3475,7 @@ dependencies = [
 name = "test_talib"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "engine",
  "ordered-float 5.0.0",
  "paste",
@@ -4010,14 +4006,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
-name = "utils"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "rand 0.9.2",
-]
-
-[[package]]
 name = "utoipa"
 version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4092,7 +4080,6 @@ dependencies = [
  "star-river-core",
  "tokio",
  "tracing",
- "utils",
 ]
 
 [[package]]

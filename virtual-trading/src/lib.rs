@@ -16,7 +16,7 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
-use ::utils::get_utc8_timestamp_millis;
+use star_river_core::utils::{get_utc8_datetime, get_utc8_timestamp_millis};
 use event_center::EventCenterSingleton;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Exchange;
@@ -28,12 +28,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use chrono::{DateTime, FixedOffset};
 
 /// 虚拟交易系统
 ///
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
-    timestamp: i64, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
+    current_datetime: DateTime<FixedOffset>, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
     // pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
@@ -72,7 +73,7 @@ impl VirtualTradingSystem {
         let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) =
             broadcast::channel::<VirtualTradingSystemEvent>(100);
         Self {
-            timestamp: 0,
+            current_datetime: get_utc8_datetime(),
             kline_price: HashMap::new(),
             initial_balance: 0.0,
             balance: 0.0,
@@ -127,7 +128,7 @@ impl VirtualTradingSystem {
                     self.kline_price.insert(
                         kline_key,
                         Kline {
-                            timestamp: 0,
+                            datetime: get_utc8_datetime(),
                             open: 0.0,
                             high: 0.0,
                             low: 0.0,
@@ -149,7 +150,7 @@ impl VirtualTradingSystem {
                 self.kline_price.insert(
                     kline_key,
                     Kline {
-                        timestamp: 0,
+                        datetime: get_utc8_datetime(),
                         open: 0.0,
                         high: 0.0,
                         low: 0.0,
@@ -161,8 +162,8 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn get_timestamp(&self) -> i64 {
-        self.timestamp
+    pub fn get_datetime(&self) -> DateTime<FixedOffset> {
+        self.current_datetime
     }
 
     pub fn get_balance(&self) -> Balance {
@@ -233,7 +234,7 @@ impl VirtualTradingSystem {
                 .get_close_price(kline_key.clone().into())
                 .await
                 .unwrap();
-            timestamp_list.push(kline.timestamp);
+            timestamp_list.push(kline.datetime);
             self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
         }
 
@@ -252,12 +253,12 @@ impl VirtualTradingSystem {
         // 获取所有k线的时间戳
         let mut timestamp_list = vec![];
         self.kline_price.iter().for_each(|(_, kline)| {
-            timestamp_list.push(kline.timestamp);
+            timestamp_list.push(kline.datetime);
         });
 
         let min_timestamp = timestamp_list.iter().min();
         if let Some(min_timestamp) = min_timestamp {
-            self.timestamp = *min_timestamp;
+            self.current_datetime = *min_timestamp;
         }
     }
 

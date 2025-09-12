@@ -45,7 +45,7 @@ macro_rules! define_indicator_output {
                 fn to_list(&self) -> Vec<f64> {
                     let mut result = Vec::new();
                     $(
-                        $crate::add_field_to_vec!(result, self.$output_field, $output_type);
+                        $crate::add_field_to_vec_dispatch!(result, self.$output_field);
                     )*
                     result
                 }
@@ -61,6 +61,10 @@ macro_rules! define_indicator_output {
             }
 
             impl crate::cache::CacheItem for $indicator_name {
+                fn get_datetime(&self) -> DateTime<FixedOffset> {
+                    self.datetime
+                }
+
                 fn to_json(&self) -> serde_json::Value {
                     crate::indicator::IndicatorTrait::to_json(self)
                 }
@@ -70,7 +74,7 @@ macro_rules! define_indicator_output {
                 }
 
                 fn get_timestamp(&self) -> i64 {
-                    self.timestamp
+                    self.datetime.timestamp_millis()
                 }
 
                 fn to_json_with_time(&self) -> serde_json::Value {
@@ -217,14 +221,52 @@ macro_rules! add_field_to_vec {
     ($vec:expr, $field:expr, i64) => {
         $vec.push($field as f64);
     };
+    ($vec:expr, $field:expr, i32) => {
+        $vec.push($field as f64);
+    };
     ($vec:expr, $field:expr, f64) => {
         $vec.push($field);
     };
     ($vec:expr, $field:expr, f32) => {
         $vec.push($field as f64);
     };
-    ($vec:expr, $field:expr, $other_type:ty) => {
-        $vec.push($field as f64);
+    ($vec:expr, $field:expr, chrono::DateTime<chrono::FixedOffset>) => {
+        $vec.push($field.timestamp_millis() as f64);
+    };
+    ($vec:expr, $field:expr, chrono::DateTime<FixedOffset>) => {
+        $vec.push($field.timestamp_millis() as f64);
+    };
+    ($vec:expr, $field:expr, crate::time::Utc8DateTime) => {
+        $vec.push($field.timestamp_millis() as f64);
+    };
+    ($vec:expr, $field:expr, DateTime<FixedOffset>) => {
+        $vec.push($field.timestamp_millis() as f64);
+    };
+}
+
+
+// 辅助宏：通过类型推断将字段添加到Vec中
+#[macro_export] 
+macro_rules! add_field_to_vec_dispatch {
+    ($vec:expr, $field:expr) => {
+        // 使用匿名函数来处理不同类型的转换
+        let convert_value = |field: &dyn std::any::Any| -> f64 {
+            if let Some(val) = field.downcast_ref::<i64>() {
+                *val as f64
+            } else if let Some(val) = field.downcast_ref::<i32>() {
+                *val as f64  
+            } else if let Some(val) = field.downcast_ref::<f64>() {
+                *val
+            } else if let Some(val) = field.downcast_ref::<f32>() {
+                *val as f64
+            } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::FixedOffset>>() {
+                val.timestamp_millis() as f64
+            } else {
+                // 对于无法识别的类型，使用默认值
+                0.0
+            }
+        };
+        $vec.push(convert_value(&$field));
     };
 }
 
@@ -233,13 +275,22 @@ macro_rules! add_field_to_vec {
 macro_rules! format_field_with_time {
     ($field:expr, $field_name:expr, i64) => {
         if $field_name == "timestamp" {
-            serde_json::Value::String(utils::timestamp_to_utc8($field))
+            serde_json::Value::String(crate::utils::timestamp_to_utc8($field))
         } else {
             serde_json::Value::from($field)
         }
     };
+    ($field:expr, $field_name:expr, chrono::DateTime<chrono::FixedOffset>) => {
+        serde_json::Value::String($field.to_string())
+    };
+    ($field:expr, $field_name:expr, crate::time::Utc8DateTime) => {
+        serde_json::Value::String($field.to_string())
+    };
+    ($field:expr, $field_name:expr, DateTime<FixedOffset>) => {
+        serde_json::Value::String($field.to_string())
+    };
     ($field:expr, $field_name:expr, $other_type:ty) => {
-        serde_json::Value::from($field)
+        serde_json::to_value($field).unwrap()
     };
 }
 
@@ -373,10 +424,18 @@ macro_rules! impl_indicator {
         }
 
         impl CacheItem for $enum_name {
+            fn get_datetime(&self) -> DateTime<FixedOffset> {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => inner.datetime,
+                    )+
+                }
+            }
+
             fn get_timestamp(&self) -> i64 {
                 match self {
                     $(
-                        $enum_name::$variant(inner) => inner.timestamp,
+                        $enum_name::$variant(inner) => inner.datetime.timestamp_millis(),
                     )+
                 }
             }

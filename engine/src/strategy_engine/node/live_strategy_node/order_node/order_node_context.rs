@@ -26,7 +26,7 @@ use star_river_core::strategy::node_event::BacktestNodeEvent;
 use star_river_core::strategy::node_event::OrderEvent;
 use star_river_core::strategy::node_event::SignalEvent;
 use star_river_core::strategy::TradeMode;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]

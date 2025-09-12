@@ -2,7 +2,7 @@ use crate::custom_type::*;
 use crate::market::Exchange;
 use crate::order::virtual_order::VirtualOrder;
 use crate::position::{PositionSide, PositionState};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -63,10 +63,10 @@ pub struct VirtualPosition {
     pub margin_ratio: MarginRatio, // 保证金率
 
     #[serde(rename = "createTime")]
-    pub create_time: DateTime<Utc>,
+    pub create_time: DateTime<FixedOffset>,
 
     #[serde(rename = "updateTime")]
-    pub update_time: DateTime<Utc>,
+    pub update_time: DateTime<FixedOffset>,
 }
 
 impl VirtualPosition {
@@ -78,7 +78,7 @@ impl VirtualPosition {
         force_price: Price,
         margin: Margin,
         margin_ratio: MarginRatio,
-        timestamp: i64,
+        datetime: DateTime<FixedOffset>,
     ) -> Self {
         Self {
             position_id,
@@ -99,21 +99,21 @@ impl VirtualPosition {
             force_price,
             margin,
             margin_ratio,
-            create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
-            update_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
+            create_time: datetime,
+            update_time: datetime,
         }
     }
 
     pub fn update(
         &mut self,
         current_price: Price,
-        timestamp: i64,
+        datetime: DateTime<FixedOffset>,
         margin: Margin,
         margin_ratio: MarginRatio,
         force_price: Price,
     ) {
         self.current_price = current_price;
-        self.update_time = DateTime::from_timestamp_millis(timestamp).unwrap();
+        self.update_time = datetime;
         self.unrealized_profit = match self.position_side {
             PositionSide::Long => self.quantity * (current_price - self.open_price),
             PositionSide::Short => self.quantity * (self.open_price - current_price),

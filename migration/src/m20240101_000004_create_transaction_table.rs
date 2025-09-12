@@ -65,13 +65,6 @@ impl MigrationTrait for Migration {
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
                     )
                     .col(ColumnDef::new(Transaction::ExtraInfo).json())
-                    // .col(ColumnDef::new(Position::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    // .foreign_key(
-                    //     ForeignKey::create()
-                    //         .name("fk-strategy_info-bakery_id")
-                    //         .from(StrategyInfo::Table, StrategyInfo::BakeryId)
-                    //         .to(Bakery::Table, Bakery::Id),
-                    // )
                     .to_owned(),
             )
             .await

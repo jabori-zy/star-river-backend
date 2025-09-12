@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
 use std::fmt::Display;
 use std::str::FromStr;
+use chrono::{DateTime, FixedOffset};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
@@ -222,7 +223,7 @@ pub trait MarketData: Serialize + Clone + Debug {
 
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct Kline {
-    pub timestamp: i64, // 时间戳，单位为毫秒
+    pub datetime: DateTime<FixedOffset>, // 时间戳，单位为毫秒
     pub open: f64,
     pub high: f64,
     pub low: f64,
@@ -232,30 +233,23 @@ pub struct Kline {
 
 impl From<Kline> for CacheValue {
     fn from(kline: Kline) -> Self {
-        // 将timestamp转换为毫秒
-        let timestamp = utils::seconds_to_millis(kline.timestamp);
-        CacheValue::Kline(Kline { timestamp, ..kline })
+        CacheValue::Kline(kline)
     }
 }
 
 impl Kline {
-    pub fn close_to_json_with_time(&self) -> serde_json::Value {
-        json!(
-            {
-                "timestamp": utils::timestamp_to_utc8(self.timestamp),
-                "close": self.close
-            }
-        )
-    }
-
     pub fn close(&self) -> f64 {
         self.close
     }
 }
 
 impl CacheItem for Kline {
+    fn get_datetime(&self) -> DateTime<FixedOffset> {
+        self.datetime
+    }
+
     fn get_timestamp(&self) -> i64 {
-        self.timestamp
+        self.datetime.timestamp_millis() //13位毫秒时间戳
     }
 
     fn to_json(&self) -> serde_json::Value {
@@ -263,7 +257,7 @@ impl CacheItem for Kline {
     }
     fn to_list(&self) -> Vec<f64> {
         vec![
-            self.timestamp as f64,
+            self.datetime.timestamp_millis() as f64,
             self.open,
             self.high,
             self.low,
@@ -274,7 +268,7 @@ impl CacheItem for Kline {
     fn to_json_with_time(&self) -> serde_json::Value {
         json!(
             {
-                "timestamp": utils::timestamp_to_utc8(self.timestamp),
+                "timestamp": self.datetime.to_string(),
                 "open": self.open,
                 "high": self.high,
                 "low": self.low,

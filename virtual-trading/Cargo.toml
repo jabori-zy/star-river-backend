@@ -7,7 +7,6 @@ edition.workspace = true
 
 [dependencies]
 star-river-core = { path = "../star-river-core" }
-utils = { path = "../utils" }
 event-center = {path = "../event-center" }
 chrono.workspace = true
 tracing.workspace = true

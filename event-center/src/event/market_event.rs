@@ -3,7 +3,7 @@ use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use star_river_core::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
 use strum::Display;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]

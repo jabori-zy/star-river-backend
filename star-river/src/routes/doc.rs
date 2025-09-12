@@ -56,7 +56,7 @@ use utoipa::OpenApi;
 
         //sse
         crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,
-        crate::sse::backtest_strategy_sse::backtest_strategy_sse_handler,
+        crate::sse::backtest_strategy_event_sse::backtest_strategy_event_sse_handler,
         crate::sse::backtest_strategy_running_log_sse::backtest_strategy_running_log_sse_handler,
 
         // // 其他路径

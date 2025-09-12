@@ -5,7 +5,7 @@ use star_river_core::custom_type::NodeId;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::strategy::BacktestStrategyConfig;
 use std::sync::Arc;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug)]
 pub enum BacktestStrategyResponse {

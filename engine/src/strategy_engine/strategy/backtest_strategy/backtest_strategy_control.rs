@@ -10,7 +10,7 @@ use star_river_core::error::engine_error::strategy_engine_error::strategy_error:
 use star_river_core::strategy::strategy_inner_event::{StrategyInnerEvent, StrategyInnerEventPublisher};
 use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 use tokio::sync::oneshot;

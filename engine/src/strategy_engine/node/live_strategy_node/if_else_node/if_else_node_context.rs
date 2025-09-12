@@ -12,7 +12,7 @@ use star_river_core::strategy::node_event::backtest_node_event::variable_node_ev
 use star_river_core::strategy::node_event::{
     BacktestNodeEvent, IndicatorNodeEvent, LiveConditionMatchEvent, SignalEvent,
 };
-use utils::get_utc8_timestamp;
+use star_river_core::utils::get_utc8_timestamp;
 
 #[derive(Debug, Clone)]
 pub struct IfElseNodeContext {

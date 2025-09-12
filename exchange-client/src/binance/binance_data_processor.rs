@@ -5,9 +5,9 @@ use crate::binance::BinanceKlineInterval;
 use strum::Display;
 use strum::EnumString;
 use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEvent, ExchangeKlineUpdateEvent};
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use event_center::EventPublisher;
-use utils::generate_batch_id;
+use star_river_core::utils::generate_batch_id;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {

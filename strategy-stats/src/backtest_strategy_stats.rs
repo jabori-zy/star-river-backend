@@ -13,6 +13,8 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use virtual_trading::VirtualTradingSystem;
+use star_river_core::utils::get_utc8_datetime;
+use chrono::{DateTime, FixedOffset};
 
 #[derive(Debug)]
 pub struct BacktestStrategyStats {
@@ -23,7 +25,7 @@ pub struct BacktestStrategyStats {
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     cancel_token: CancellationToken,
     asset_snapshot_history: Arc<RwLock<StatsSnapshotHistory>>, // 资产快照历史
-    timestamp: i64,
+    datetime: DateTime<FixedOffset>,
 }
 
 impl BacktestStrategyStats {
@@ -40,7 +42,7 @@ impl BacktestStrategyStats {
             strategy_stats_event_sender,
             cancel_token: CancellationToken::new(),
             asset_snapshot_history: Arc::new(RwLock::new(StatsSnapshotHistory::new(None))),
-            timestamp: 0,
+            datetime: get_utc8_datetime(),
             play_index_watch_rx,
         }
     }
@@ -49,8 +51,8 @@ impl BacktestStrategyStats {
         self.initial_balance = initial_balance;
     }
 
-    pub fn set_timestamp(&mut self, timestamp: i64) {
-        self.timestamp = timestamp;
+    pub fn set_datetime(&mut self, datetime: DateTime<FixedOffset>) {
+        self.datetime = datetime;
     }
 
     pub async fn handle_virtual_trading_system_events(
@@ -123,7 +125,7 @@ impl BacktestStrategyStats {
         let trading_system_play_index = trading_system.get_play_index();
 
         if play_index == trading_system_play_index {
-            let timestamp = trading_system.get_timestamp(); // 时间戳
+            let datetime = trading_system.get_datetime(); // 时间戳
             let balance = trading_system.get_balance(); // 账户余额
             let available_balance = trading_system.get_available_balance(); // 可用余额
             let positions = trading_system.get_current_positions_ref(); // 当前持仓
@@ -136,7 +138,7 @@ impl BacktestStrategyStats {
 
             // 创建资产快照
             let snapshot = StatsSnapshot::new(
-                timestamp,
+                datetime,
                 play_index,
                 self.initial_balance,
                 balance,
@@ -150,7 +152,7 @@ impl BacktestStrategyStats {
             let strategy_stats_updated_event = StrategyStatsUpdatedEvent {
                 strategy_id: self.strategy_id,
                 stats_snapshot: snapshot.clone(),
-                timestamp: timestamp,
+                datetime,
             };
 
             let _ =

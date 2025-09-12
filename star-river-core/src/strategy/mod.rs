@@ -7,7 +7,7 @@ pub mod sys_varibale; // 图表消息
 use crate::custom_type::FeeRate;
 use crate::market::deserialize_exchange;
 use crate::market::Exchange;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;

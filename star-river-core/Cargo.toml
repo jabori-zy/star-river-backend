@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-utils = { path = "../utils" }
 serde.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
@@ -21,7 +20,7 @@ tokio-stream.workspace = true
 futures.workspace = true
 chrono.workspace = true
 petgraph = "0.8.1"
-deepsize = "0.2.0"
+deepsize = { version = "0.2.0", features=["chrono"]}
 utoipa.workspace = true
 ordered-float = {version = "5.0.0", features=["serde"]}
 paste = "1.0.15"

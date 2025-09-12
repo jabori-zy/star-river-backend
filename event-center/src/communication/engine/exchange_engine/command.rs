@@ -2,7 +2,7 @@ use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
 use chrono::{DateTime, FixedOffset};
 use star_river_core::market::Exchange;
 use std::fmt::Debug;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug)]
 pub enum ExchangeEngineCommand {

@@ -10,7 +10,7 @@ use event_center::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
+use star_river_core::utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogType};
 use tokio::sync::oneshot;
@@ -301,7 +301,6 @@ impl IfElseNodeContext {
                 let from_node_id = self.get_node_id().clone();
                 let from_node_name = self.get_node_name().clone();
                 let play_index = self.get_play_index();
-                let timestamp = get_utc8_timestamp();
                 if case_result.0 {
                     let payload = ConditionMatchPayload::new(play_index);
                     // 匹配事件
@@ -326,7 +325,7 @@ impl IfElseNodeContext {
                         StrategyRunningLogType::ConditionMatch,
                         message.to_string(),
                         condition_result_json,
-                        current_time.timestamp(),
+                        current_time,
                     );
                     (signal_event, Some(log_event))
                 } else {

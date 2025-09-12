@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use star_river_core::market::{Exchange, Kline, KlineInterval, TickerPrice};
 use star_river_core::strategy::TimeRange;
 use strum::Display;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 // 交易所事件

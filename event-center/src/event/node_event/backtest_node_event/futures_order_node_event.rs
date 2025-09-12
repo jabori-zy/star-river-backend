@@ -9,44 +9,44 @@ use strum::Display;
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event_type")]
 pub enum FuturesOrderNodeEvent {
-    #[strum(serialize = "futures-order-created")]
-    #[serde(rename = "futures-order-created")]
+    #[strum(serialize = "futures-order-created-event")]
+    #[serde(rename = "futures-order-created-event")]
     FuturesOrderCreated(FuturesOrderCreatedEvent), // 订单已创建
 
-    #[strum(serialize = "futures-order-canceled")]
-    #[serde(rename = "futures-order-canceled")]
+    #[strum(serialize = "futures-order-canceled-event")]
+    #[serde(rename = "futures-order-canceled-event")]
     FuturesOrderCanceled(FuturesOrderCanceledEvent), // 订单已取消
 
-    #[strum(serialize = "futures-order-filled")]
-    #[serde(rename = "futures-order-filled")]
+    #[strum(serialize = "futures-order-filled-event")]
+    #[serde(rename = "futures-order-filled-event")]
     FuturesOrderFilled(FuturesOrderFilledEvent), // 订单已成交
 
-    #[strum(serialize = "take-profit-order-created")]
-    #[serde(rename = "take-profit-order-created")]
+    #[strum(serialize = "take-profit-order-created-event")]
+    #[serde(rename = "take-profit-order-created-event")]
     TakeProfitOrderCreated(TakeProfitOrderCreatedEvent), // 止盈订单已创建
 
-    #[strum(serialize = "take-profit-order-filled")]
-    #[serde(rename = "take-profit-order-filled")]
+    #[strum(serialize = "take-profit-order-filled-event")]
+    #[serde(rename = "take-profit-order-filled-event")]
     TakeProfitOrderFilled(TakeProfitOrderFilledEvent), // 止盈订单已成交
 
-    #[strum(serialize = "take-profit-order-canceled")]
-    #[serde(rename = "take-profit-order-canceled")]
+    #[strum(serialize = "take-profit-order-canceled-event")]
+    #[serde(rename = "take-profit-order-canceled-event")]
     TakeProfitOrderCanceled(TakeProfitOrderCanceledEvent), // 止盈订单已取消
 
-    #[strum(serialize = "stop-loss-order-created")]
-    #[serde(rename = "stop-loss-order-created")]
+    #[strum(serialize = "stop-loss-order-created-event")]
+    #[serde(rename = "stop-loss-order-created-event")]
     StopLossOrderCreated(StopLossOrderCreatedEvent), // 止损订单已创建
 
-    #[strum(serialize = "stop-loss-order-filled")]
-    #[serde(rename = "stop-loss-order-filled")]
+    #[strum(serialize = "stop-loss-order-filled-event")]
+    #[serde(rename = "stop-loss-order-filled-event")]
     StopLossOrderFilled(StopLossOrderFilledEvent), // 止损订单已成交
 
-    #[strum(serialize = "stop-loss-order-canceled")]
-    #[serde(rename = "stop-loss-order-canceled")]
+    #[strum(serialize = "stop-loss-order-canceled-event")]
+    #[serde(rename = "stop-loss-order-canceled-event")]
     StopLossOrderCanceled(StopLossOrderCanceledEvent), // 止损订单已取消
 
-    #[strum(serialize = "transaction-created")]
-    #[serde(rename = "transaction-created")]
+    #[strum(serialize = "transaction-created-event")]
+    #[serde(rename = "transaction-created-event")]
     TransactionCreated(TransactionCreatedEvent), // 交易明细已创建
 }
 

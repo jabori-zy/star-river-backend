@@ -9,12 +9,12 @@ use strum::Display;
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event_type")]
 pub enum VariableNodeEvent {
-    #[strum(serialize = "sys-variable-updated")]
-    #[serde(rename = "sys-variable-updated")]
+    #[strum(serialize = "sys-variable-updated-event")]
+    #[serde(rename = "sys-variable-updated-event")]
     SysVariableUpdated(SysVariableUpdatedEvent), // 系统变量更新
 
-    #[strum(serialize = "position-number-updated")]
-    #[serde(rename = "position-number-updated")]
+    #[strum(serialize = "position-number-updated-event")]
+    #[serde(rename = "position-number-updated-event")]
     PositionNumberUpdated(PositionNumberUpdateEvent), // 仓位数量更新
 }
 

@@ -2,6 +2,7 @@ use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+use crate::error::datetime_error::DateTimeError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -142,6 +143,12 @@ pub enum DataProcessorError {
         message: String,
         backtrace: Backtrace,
     },
+
+    #[snafu(transparent)]
+    DateTime {
+        source: DateTimeError,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for DataProcessorError
@@ -179,6 +186,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
 
             // Internal errors (1017)
             DataProcessorError::Internal { .. } => 1017,
+            DataProcessorError::DateTime { .. } => 1018,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -251,6 +259,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     ctx.insert("timestamp", ts.to_string());
                 }
             }
+            DataProcessorError::DateTime { source, .. } => {
+                ctx.insert("source", source.to_string());
+            }
             _ => {}
         }
         ctx
@@ -268,7 +279,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                 | DataProcessorError::DealDataParsing { .. }
                 | DataProcessorError::AccountInfoParsing { .. }
                 | DataProcessorError::StreamDataFormat { .. }
-                | DataProcessorError::TimestampConversion { .. } // JSON parsing, missing fields, type conversions, etc. are typically not recoverable
+                | DataProcessorError::TimestampConversion { .. }
+                | DataProcessorError::DateTime { .. } // JSON parsing, missing fields, type conversions, etc. are typically not recoverable
         )
     }
 
@@ -447,6 +459,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                 }
                 DataProcessorError::Internal { message, .. } => {
                     format!("数据处理内部错误: {}", message)
+                }
+                DataProcessorError::DateTime { source, .. } => {
+                    format!("时间戳转换失败: {}", source)
                 }
             },
         }

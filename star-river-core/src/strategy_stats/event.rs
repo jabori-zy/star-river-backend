@@ -1,5 +1,6 @@
 use crate::custom_type::StrategyId;
 use crate::strategy_stats::StatsSnapshot;
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use tokio::sync::broadcast;
@@ -23,6 +24,6 @@ pub struct StrategyStatsUpdatedEvent {
     #[serde(rename = "statsSnapshot")]
     pub stats_snapshot: StatsSnapshot,
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+    #[serde(rename = "datetime")]
+    pub datetime: DateTime<FixedOffset>,
 }

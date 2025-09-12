@@ -9,7 +9,6 @@ build = "build.rs"
 [dependencies]
 star-river-core = { path = "../star-river-core" }
 event-center = {path = "../event-center"}
-utils = {path = "../utils"}
 
 strum.workspace = true
 strum_macros.workspace = true

@@ -1,29 +1,29 @@
 use super::super::super::strategy_event::{NodeStateLogEvent, StrategyRunningLogEvent};
 use super::super::NodeEvent;
-use super::BacktestNodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::cache::{key::KlineKey, CacheValue, KeyTrait};
 use std::sync::Arc;
 use strum::Display;
+use chrono::{DateTime, FixedOffset};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
 pub enum KlineNodeEvent {
-    #[strum(serialize = "kline-update")]
-    #[serde(rename = "kline-update")]
+    #[strum(serialize = "kline-update-event")]
+    #[serde(rename = "kline-update-event")]
     KlineUpdate(KlineUpdateEvent),
 
-    #[strum(serialize = "state-log")]
-    #[serde(rename = "state-log")]
+    #[strum(serialize = "state-log-event")]
+    #[serde(rename = "state-log-event")]
     StateLog(NodeStateLogEvent),
 
-    #[strum(serialize = "running-log")]
-    #[serde(rename = "running-log")]
+    #[strum(serialize = "running-log-event")]
+    #[serde(rename = "running-log-event")]
     RunningLog(StrategyRunningLogEvent),
 
-    #[strum(serialize = "time-update")]
-    #[serde(rename = "time-update")]
+    #[strum(serialize = "time-update-event")]
+    #[serde(rename = "time-update-event")]
     TimeUpdate(TimeUpdateEvent),
 }
 
@@ -107,11 +107,11 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeUpdatePayload {
     #[serde(rename = "currentTime")]
-    pub current_time: i64,
+    pub current_time: DateTime<FixedOffset>,
 }
 
 impl TimeUpdatePayload {
-    pub fn new(current_time: i64) -> Self {
+    pub fn new(current_time: DateTime<FixedOffset>) -> Self {
         Self { current_time }
     }
 }

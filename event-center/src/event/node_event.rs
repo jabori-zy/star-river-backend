@@ -5,6 +5,7 @@ pub use backtest_node_event::BacktestNodeEvent;
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use star_river_core::utils::get_utc8_datetime;
 
 // 泛型事件结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,7 +80,7 @@ impl NodeEventBase {
             from_node_id,
             from_node_name,
             from_node_handle_id,
-            datetime: utils::get_utc8_datetime(),
+            datetime: get_utc8_datetime(),
         }
     }
 }

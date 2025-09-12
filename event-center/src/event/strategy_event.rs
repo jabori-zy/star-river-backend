@@ -6,9 +6,10 @@ use crate::Event;
 use backtest_strategy_event::BacktestStrategyEvent;
 use serde::{Deserialize, Serialize};
 use star_river_core::error::error_trait::{Language, StarRiverErrorTrait};
+use chrono::{DateTime, FixedOffset};
 use std::collections::HashMap;
 use strum::Display;
-use utils::get_utc8_timestamp_millis;
+use star_river_core::utils::get_utc8_datetime;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -85,8 +86,8 @@ pub struct NodeStateLogEvent {
     #[serde(rename = "message")]
     pub message: String,
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+    #[serde(rename = "datetime")]
+    pub datetime: DateTime<FixedOffset>,
 }
 
 impl NodeStateLogEvent {
@@ -108,7 +109,7 @@ impl NodeStateLogEvent {
             message,
             error_code: None,
             error_code_chain: None,
-            timestamp: get_utc8_timestamp_millis(),
+            datetime: get_utc8_datetime(),
         }
     }
 
@@ -130,7 +131,7 @@ impl NodeStateLogEvent {
             message: error.get_error_message(Language::Chinese),
             error_code: Some(error.error_code().to_string()),
             error_code_chain: Some(error.error_code_chain()),
-            timestamp: get_utc8_timestamp_millis(),
+            datetime: get_utc8_datetime(),
         }
     }
 }
@@ -191,8 +192,8 @@ pub struct StrategyRunningLogEvent {
     #[serde(rename = "errorCodeChain")]
     pub error_code_chain: Option<Vec<String>>,
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+    #[serde(rename = "datetime")]
+    pub datetime: DateTime<FixedOffset>,
 }
 
 impl StrategyRunningLogEvent {
@@ -204,7 +205,7 @@ impl StrategyRunningLogEvent {
         log_type: StrategyRunningLogType,
         message: String,
         detail: serde_json::Value,
-        current_time: i64,
+        datetime: DateTime<FixedOffset>,
     ) -> Self {
         Self {
             strategy_id,
@@ -217,7 +218,7 @@ impl StrategyRunningLogEvent {
             detail,
             error_code: None,
             error_code_chain: None,
-            timestamp: current_time,
+            datetime,
         }
     }
 }

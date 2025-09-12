@@ -19,80 +19,80 @@ use strum::Display;
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
 pub enum BacktestStrategyEvent {
-    #[strum(serialize = "kline-update")]
-    #[serde(rename = "kline-update")]
+    #[strum(serialize = "kline-update-event")]
+    #[serde(rename = "kline-update-event")]
     KlineUpdate(KlineUpdateEvent), // 回测K线更新事件
 
-    #[strum(serialize = "indicator-update")]
-    #[serde(rename = "indicator-update")]
+    #[strum(serialize = "indicator-update-event")]
+    #[serde(rename = "indicator-update-event")]
     IndicatorUpdate(IndicatorUpdateEvent), // 回测指标更新事件
 
-    #[strum(serialize = "futures-order-filled")]
-    #[serde(rename = "futures-order-filled")]
+    #[strum(serialize = "futures-order-filled-event")]
+    #[serde(rename = "futures-order-filled-event")]
     FuturesOrderFilled(FuturesOrderFilledEvent), // 期货订单成交事件
 
-    #[strum(serialize = "futures-order-created")]
-    #[serde(rename = "futures-order-created")]
+    #[strum(serialize = "futures-order-created-event")]
+    #[serde(rename = "futures-order-created-event")]
     FuturesOrderCreated(FuturesOrderCreatedEvent), // 期货订单创建事件
 
-    #[strum(serialize = "futures-order-canceled")]
-    #[serde(rename = "futures-order-canceled")]
+    #[strum(serialize = "futures-order-canceled-event")]
+    #[serde(rename = "futures-order-canceled-event")]
     FuturesOrderCanceled(FuturesOrderCanceledEvent), // 期货订单取消事件
 
-    #[strum(serialize = "take-profit-order-created")]
-    #[serde(rename = "take-profit-order-created")]
+    #[strum(serialize = "take-profit-order-created-event")]
+    #[serde(rename = "take-profit-order-created-event")]
     TakeProfitOrderCreated(TakeProfitOrderCreatedEvent), // 止盈订单创建事件
 
-    #[strum(serialize = "take-profit-order-filled")]
-    #[serde(rename = "take-profit-order-filled")]
+    #[strum(serialize = "take-profit-order-filled-event")]
+    #[serde(rename = "take-profit-order-filled-event")]
     TakeProfitOrderFilled(TakeProfitOrderFilledEvent), // 止盈订单成交事件
 
-    #[strum(serialize = "take-profit-order-canceled")]
-    #[serde(rename = "take-profit-order-canceled")]
+    #[strum(serialize = "take-profit-order-canceled-event")]
+    #[serde(rename = "take-profit-order-canceled-event")]
     TakeProfitOrderCanceled(TakeProfitOrderCanceledEvent), // 止盈订单取消事件
 
-    #[strum(serialize = "stop-loss-order-created")]
-    #[serde(rename = "stop-loss-order-created")]
+    #[strum(serialize = "stop-loss-order-created-event")]
+    #[serde(rename = "stop-loss-order-created-event")]
     StopLossOrderCreated(StopLossOrderCreatedEvent), // 止损订单创建事件
 
-    #[strum(serialize = "stop-loss-order-filled")]
-    #[serde(rename = "stop-loss-order-filled")]
+    #[strum(serialize = "stop-loss-order-filled-event")]
+    #[serde(rename = "stop-loss-order-filled-event")]
     StopLossOrderFilled(StopLossOrderFilledEvent), // 止损订单成交事件
 
-    #[strum(serialize = "stop-loss-order-canceled")]
-    #[serde(rename = "stop-loss-order-canceled")]
+    #[strum(serialize = "stop-loss-order-canceled-event")]
+    #[serde(rename = "stop-loss-order-canceled-event")]
     StopLossOrderCanceled(StopLossOrderCanceledEvent), // 止损订单取消事件
 
-    #[strum(serialize = "position-created")]
-    #[serde(rename = "position-created")]
+    #[strum(serialize = "position-created-event")]
+    #[serde(rename = "position-created-event")]
     PositionCreated(PositionCreatedEvent), // 仓位创建事件
 
-    #[strum(serialize = "position-updated")]
-    #[serde(rename = "position-updated")]
+    #[strum(serialize = "position-updated-event")]
+    #[serde(rename = "position-updated-event")]
     PositionUpdated(PositionUpdatedEvent), // 仓位更新事件
 
-    #[strum(serialize = "position-closed")]
-    #[serde(rename = "position-closed")]
+    #[strum(serialize = "position-closed-event")]
+    #[serde(rename = "position-closed-event")]
     PositionClosed(PositionClosedEvent), // 仓位关闭事件
 
-    #[strum(serialize = "strategy-stats-updated")]
-    #[serde(rename = "strategy-stats-updated")]
+    #[strum(serialize = "strategy-stats-updated-event")]
+    #[serde(rename = "strategy-stats-updated-event")]
     StrategyStatsUpdated(StrategyStatsUpdatedEvent), // 策略统计更新事件
 
-    #[strum(serialize = "transaction-created")]
-    #[serde(rename = "transaction-created")]
+    #[strum(serialize = "transaction-created-event")]
+    #[serde(rename = "transaction-created-event")]
     TransactionCreated(TransactionCreatedEvent), // 交易明细创建事件
 
-    #[strum(serialize = "node-state-log-update")]
-    #[serde(rename = "node-state-log-update")]
+    #[strum(serialize = "node-state-log-update-event")]
+    #[serde(rename = "node-state-log-update-event")]
     NodeStateLog(NodeStateLogEvent), // 节点状态日志事件
 
-    #[strum(serialize = "strategy-state-log-update")]
-    #[serde(rename = "strategy-state-log-update")]
+    #[strum(serialize = "strategy-state-log-update-event")]
+    #[serde(rename = "strategy-state-log-update-event")]
     StrategyStateLog(StrategyStateLogEvent), // 策略状态日志事件
 
-    #[strum(serialize = "strategy-running-log-update")]
-    #[serde(rename = "strategy-running-log-update")]
+    #[strum(serialize = "strategy-running-log-update-event")]
+    #[serde(rename = "strategy-running-log-update-event")]
     RunningLog(StrategyRunningLogEvent), // 运行日志事件
 }
 

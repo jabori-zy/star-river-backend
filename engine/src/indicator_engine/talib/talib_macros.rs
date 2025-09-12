@@ -2,13 +2,13 @@
 macro_rules! talib_fn {
     (
         $indicator_name:ident,
-        timestamp => ($timestamp_field:ident: $timestamp_type:ty),
+        datetime => ($datetime_field:ident: $datetime_type:ty),
         input => [($input_field:ident: $input_type:ty)], // 单个输入
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
-            pub fn [<$indicator_name:lower>]($timestamp_field: $timestamp_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
+            pub fn [<$indicator_name:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
                 let input_size = $input_field.len();
                 let lookback = unsafe {
                     [<TA_ $indicator_name:upper _Lookback>]
@@ -36,7 +36,7 @@ macro_rules! talib_fn {
 
                 let result: Vec<Indicator> = (0..input_size)
                     .map(|i| $indicator_name {
-                        timestamp: $timestamp_field[i],
+                        datetime: $datetime_field[i],
                         $(
                             $output_name: [<out_ $output_name>][i],
                         )*
@@ -50,14 +50,14 @@ macro_rules! talib_fn {
 
     (
         $indicator_name:ident,
-        timestamp => ($timestamp_field:ident: $timestamp_type:ty),
+        datetime => ($datetime_field:ident: $datetime_type:ty),
         input => [$(($input_field:ident: $input_type:ty)),* $(,)?], // 多个输入
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
             pub fn [<$indicator_name:lower>](
-                $timestamp_field: $timestamp_type,
+                $datetime_field: $datetime_type,
                 $($input_field: $input_type,)*
                 $($param_field: $param_type),*
             ) -> Result<Vec<Indicator>, String> {
@@ -110,7 +110,7 @@ macro_rules! talib_fn {
 
                 let result: Vec<Indicator> = (0..input_size)
                     .map(|i| $indicator_name {
-                        timestamp: $timestamp_field[i],
+                        datetime: $datetime_field[i],
                         $(
                             $output_name: [<out_ $output_name>][i],
                         )*
@@ -127,13 +127,13 @@ macro_rules! talib_fn {
 macro_rules! talib_snake_fn {
     (
         $indicator_name:ident,
-        timestamp => ($timestamp_field:ident: $timestamp_type:ty),
+        datetime => ($datetime_field:ident: $datetime_type:ty),
         input => [($input_field:ident: $input_type:ty)],
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
-            pub fn [<$indicator_name:snake:lower>]($timestamp_field: $timestamp_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
+            pub fn [<$indicator_name:snake:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
                 let input_size = $input_field.len();
                 let lookback = unsafe {
                     [<TA_ $indicator_name:snake:upper _Lookback>]
@@ -161,7 +161,7 @@ macro_rules! talib_snake_fn {
 
                 let result: Vec<Indicator> = (0..input_size)
                     .map(|i| $indicator_name {
-                        timestamp: $timestamp_field[i],
+                        datetime: $datetime_field[i],
                         $(
                             $output_name: [<out_ $output_name>][i],
                         )*
@@ -175,14 +175,14 @@ macro_rules! talib_snake_fn {
 
     (
         $indicator_name:ident,
-        timestamp => ($timestamp_field:ident: $timestamp_type:ty),
+        datetime => ($datetime_field:ident: $datetime_type:ty),
         input => [$(($input_field:ident: $input_type:ty)),* $(,)?],
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
             pub fn [<$indicator_name:snake:lower>](
-                $timestamp_field: $timestamp_type,
+                $datetime_field: $datetime_type,
                 $($input_field: $input_type,)*
                 $($param_field: $param_type),*
             ) -> Result<Vec<Indicator>, String> {
@@ -235,7 +235,7 @@ macro_rules! talib_snake_fn {
 
                 let result: Vec<Indicator> = (0..input_size)
                     .map(|i| $indicator_name {
-                        timestamp: $timestamp_field[i],
+                        datetime: $datetime_field[i],
                         $(
                             $output_name: [<out_ $output_name>][i],
                         )*

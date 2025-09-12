@@ -4,7 +4,7 @@ use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::{Exchange, KlineInterval};
 use star_river_core::strategy::TimeRange;
 use std::fmt::Debug;
-use utils::get_utc8_datetime;
+use star_river_core::utils::get_utc8_datetime;
 
 #[derive(Debug)]
 pub enum MarketEngineCommand {

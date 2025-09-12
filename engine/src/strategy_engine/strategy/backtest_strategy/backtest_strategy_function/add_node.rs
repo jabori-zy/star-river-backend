@@ -9,6 +9,7 @@ use tokio::sync::RwLock;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
 use event_center::communication::strategy::NodeCommandSender;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use star_river_core::utils::camel_to_snake;
 
 impl BacktestStrategyFunction {
     pub async fn add_node(
@@ -18,7 +19,7 @@ impl BacktestStrategyFunction {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), BacktestStrategyNodeError> {
         // 获取节点类型
-        let node_type_str = utils::camel_to_snake(node_config["type"].as_str().unwrap_or_default());
+        let node_type_str = camel_to_snake(node_config["type"].as_str().unwrap_or_default());
         let node_type = NodeType::from_str(&node_type_str).unwrap();
         // 根据节点类型，添加节点
         match node_type {

@@ -1,7 +1,7 @@
 use crate::custom_type::*;
 use crate::market::Exchange;
 use crate::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -51,10 +51,10 @@ pub struct VirtualOrder {
     pub sl: Option<f64>, // 止损
 
     #[serde(rename = "createTime")]
-    pub create_time: DateTime<Utc>, // 创建时间
+    pub create_time: DateTime<FixedOffset>, // 创建时间
 
     #[serde(rename = "updateTime")]
-    pub update_time: DateTime<Utc>, // 更新时间
+    pub update_time: DateTime<FixedOffset>, // 更新时间
 }
 
 impl VirtualOrder {
@@ -74,7 +74,7 @@ impl VirtualOrder {
         sl: Option<f64>,
         tp_type: Option<TpslType>,
         sl_type: Option<TpslType>,
-        timestamp: i64,
+        datetime: DateTime<FixedOffset>,
     ) -> Self {
         Self {
             position_id,
@@ -91,8 +91,8 @@ impl VirtualOrder {
             tp: Self::calculate_tp(open_price, tp, &tp_type, &order_side),
             sl: Self::calculate_sl(open_price, sl, &sl_type, &order_side),
             order_status: OrderStatus::Created,
-            create_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
-            update_time: DateTime::from_timestamp_millis(timestamp).unwrap(),
+            create_time: datetime,
+            update_time: datetime,
         }
     }
 

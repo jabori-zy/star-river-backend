@@ -9,7 +9,6 @@ members = [
     "heartbeat",
     "migration",
     "star-river-core",
-    "utils", 
     "engine", 
     "virtual-trading", 
     "entity", "strategy-stats"]

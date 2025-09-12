@@ -8,7 +8,6 @@ build = "build.rs"
 
 [dependencies]
 star-river-core = { path = "../star-river-core" }
-utils = { path = "../utils" }
 event-center = {path = "../event-center"}
 exchange-client = {path = "../exchange-client"}
 database = { path = "../database" }

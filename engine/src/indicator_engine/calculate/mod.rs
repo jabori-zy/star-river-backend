@@ -12,6 +12,7 @@ use star_river_core::indicator::IndicatorConfig;
 use star_river_core::indicator::PriceSource;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use chrono::{DateTime, FixedOffset};
 
 pub struct CalculateIndicatorFunction;
 
@@ -448,63 +449,63 @@ impl CalculateIndicatorFunction {
         }
     }
 
-    fn get_price_source_and_timestamp(
+    fn get_price_source_and_datetime(
         price_source: &PriceSource,
         kline_series: Vec<Arc<CacheValue>>,
-    ) -> Result<(Vec<i64>, Vec<f64>), String> {
+    ) -> Result<(Vec<DateTime<FixedOffset>>, Vec<f64>), String> {
         let (timestamp_list, price_list) = match price_source {
             PriceSource::Close => {
-                let (timestamp_list, close_list): (Vec<i64>, Vec<f64>) = kline_series
+                let (timestamp_list, close_list): (Vec<DateTime<FixedOffset>>, Vec<f64>) = kline_series
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
                         v.as_kline()
                             .ok_or_else(|| format!("Invalid kline data at index {}", i))
-                            .map(|kline| (kline.timestamp, kline.close))
+                            .map(|kline| (kline.datetime, kline.close))
                     })
-                    .collect::<Result<Vec<(i64, f64)>, _>>()?
+                    .collect::<Result<Vec<(DateTime<FixedOffset>, f64)>, _>>()?
                     .into_iter()
                     .unzip();
                 (timestamp_list, close_list)
             }
             PriceSource::Open => {
-                let (timestamp_list, open_list): (Vec<i64>, Vec<f64>) = kline_series
+                let (timestamp_list, open_list): (Vec<DateTime<FixedOffset>>, Vec<f64>) = kline_series
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
                         v.as_kline()
                             .ok_or_else(|| format!("Invalid kline data at index {}", i))
-                            .map(|kline| (kline.timestamp, kline.open))
+                            .map(|kline| (kline.datetime, kline.open))
                     })
-                    .collect::<Result<Vec<(i64, f64)>, _>>()?
+                    .collect::<Result<Vec<(DateTime<FixedOffset>, f64)>, _>>()?
                     .into_iter()
                     .unzip();
                 (timestamp_list, open_list)
             }
             PriceSource::High => {
-                let (timestamp_list, high_list): (Vec<i64>, Vec<f64>) = kline_series
+                let (timestamp_list, high_list): (Vec<DateTime<FixedOffset>>, Vec<f64>) = kline_series
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
                         v.as_kline()
                             .ok_or_else(|| format!("Invalid kline data at index {}", i))
-                            .map(|kline| (kline.timestamp, kline.high))
+                            .map(|kline| (kline.datetime, kline.high))
                     })
-                    .collect::<Result<Vec<(i64, f64)>, _>>()?
+                    .collect::<Result<Vec<(DateTime<FixedOffset>, f64)>, _>>()?
                     .into_iter()
                     .unzip();
                 (timestamp_list, high_list)
             }
             PriceSource::Low => {
-                let (timestamp_list, low_list): (Vec<i64>, Vec<f64>) = kline_series
+                let (timestamp_list, low_list): (Vec<DateTime<FixedOffset>>, Vec<f64>) = kline_series
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
                         v.as_kline()
                             .ok_or_else(|| format!("Invalid kline data at index {}", i))
-                            .map(|kline| (kline.timestamp, kline.low))
+                            .map(|kline| (kline.datetime, kline.low))
                     })
-                    .collect::<Result<Vec<(i64, f64)>, _>>()?
+                    .collect::<Result<Vec<(DateTime<FixedOffset>, f64)>, _>>()?
                     .into_iter()
                     .unzip();
                 (timestamp_list, low_list)
@@ -517,7 +518,7 @@ impl CalculateIndicatorFunction {
     // 获取高开低收+时间戳
     fn get_tohlcv(
         kline_series: Vec<Arc<CacheValue>>,
-    ) -> Result<(Vec<i64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>), String> {
+    ) -> Result<(Vec<DateTime<FixedOffset>>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>), String> {
         let mut timestamp_list = Vec::new();
         let mut open_list = Vec::new();
         let mut high_list = Vec::new();
@@ -529,7 +530,7 @@ impl CalculateIndicatorFunction {
             let kline = v
                 .as_kline()
                 .ok_or_else(|| format!("Invalid kline data at index {}", i))?;
-            timestamp_list.push(kline.timestamp);
+            timestamp_list.push(kline.datetime);
             open_list.push(kline.open);
             high_list.push(kline.high);
             low_list.push(kline.low);

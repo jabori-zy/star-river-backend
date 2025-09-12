@@ -25,7 +25,6 @@ time.workspace = true
 heartbeat = { path = "../heartbeat" }
 exchange-client = { path = "../exchange-client" }
 star-river-core = { path = "../star-river-core" }
-utils = { path = "../utils" }
 event-center = {path = "../event-center"}
 database = { path = "../database" }
 migration = { path = "../migration" }

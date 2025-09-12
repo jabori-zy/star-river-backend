@@ -1,7 +1,13 @@
 use star_river_core::cache::CacheValue;
-use star_river_core::indicator::Indicator;
 use star_river_core::market::Kline;
+use chrono::{DateTime, FixedOffset, Duration};
 use std::sync::Arc;
+
+fn fixed_offset_time_from_millis(ms: i64) -> DateTime<FixedOffset> {
+    let utc_dt = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms)
+        .expect("invalid unix millis timestamp");
+    utc_dt.with_timezone(&FixedOffset::east_opt(0).expect("invalid fixed offset"))
+}
 
 /// 生成指定长度的CacheValue向量，包含模拟的Kline数据
 ///
@@ -16,7 +22,7 @@ use std::sync::Arc;
 /// * `Vec<Arc<CacheValue>>` - 包含Kline数据的CacheValue向量
 pub fn generate_kline_cache_values(
     length: usize,
-    start_timestamp: i64,
+    start_timestamp: DateTime<FixedOffset>,
     interval_ms: i64,
     base_price: f64,
     price_variation: f64,
@@ -24,7 +30,7 @@ pub fn generate_kline_cache_values(
     let mut cache_values = Vec::with_capacity(length);
 
     for i in 0..length {
-        let timestamp = start_timestamp + (i as i64 * interval_ms);
+        let datetime = start_timestamp + Duration::milliseconds(i as i64 * interval_ms);   
 
         // 生成模拟的价格数据
         let price_multiplier = 1.0 + (i as f64 * price_variation / length as f64);
@@ -35,7 +41,7 @@ pub fn generate_kline_cache_values(
         let volume = 1000.0 + (i as f64 * 100.0); // 递增的成交量
 
         let kline = Kline {
-            timestamp,
+            datetime,
             open,
             high,
             low,
@@ -60,10 +66,10 @@ pub fn generate_kline_cache_values(
 /// * `Vec<Arc<CacheValue>>` - 包含Kline数据的CacheValue向量
 pub fn generate_simple_kline_series(
     length: usize,
-    start_timestamp: Option<i64>,
+    start_timestamp: Option<DateTime<FixedOffset>>,
     base_price: Option<f64>,
 ) -> Vec<Arc<CacheValue>> {
-    let start_ts = start_timestamp.unwrap_or(1622534400000); // 2021-06-01 12:00:00
+    let start_ts = start_timestamp.unwrap_or_else(|| fixed_offset_time_from_millis(1622534400000)); // 2021-06-01 12:00:00
     let base = base_price.unwrap_or(100.0);
     let interval = 60000; // 1分钟间隔
 
@@ -80,12 +86,12 @@ pub fn generate_simple_kline_series(
 /// * `Vec<Arc<CacheValue>>` - 包含趋势Kline数据的CacheValue向量
 pub fn generate_trending_kline_series(length: usize, trend_factor: f64) -> Vec<Arc<CacheValue>> {
     let mut cache_values = Vec::with_capacity(length);
-    let start_timestamp = 1622534400000; // 2021-06-01 12:00:00
+    let start_timestamp = fixed_offset_time_from_millis(1622534400000); // 2021-06-01 12:00:00
     let interval = 60000; // 1分钟间隔
     let base_price = 100.0;
 
     for i in 0..length {
-        let timestamp = start_timestamp + (i as i64 * interval);
+        let datetime = start_timestamp + Duration::milliseconds(i as i64 * interval);
 
         // 应用趋势因子
         let trend_adjustment = i as f64 * trend_factor;
@@ -96,7 +102,7 @@ pub fn generate_trending_kline_series(length: usize, trend_factor: f64) -> Vec<A
         let volume = 1000.0 + (i as f64 * 50.0);
 
         let kline = Kline {
-            timestamp,
+            datetime,
             open,
             high,
             low,
@@ -145,13 +151,13 @@ mod tests {
 
     #[test]
     fn test_generate_kline_cache_values() {
-        let values = generate_kline_cache_values(5, 1622534400000, 60000, 100.0, 0.1);
+        let values = generate_kline_cache_values(5, fixed_offset_time_from_millis(1622534400000), 60000, 100.0, 0.1);
         assert_eq!(values.len(), 5);
 
         // 验证第一个值
         if let Some(first_value) = values.first() {
             if let Some(kline) = first_value.as_kline() {
-                assert_eq!(kline.timestamp, 1622534400000);
+                assert_eq!(kline.datetime, fixed_offset_time_from_millis(1622534400000));
                 assert!(kline.open > 0.0);
                 assert!(kline.high >= kline.open);
                 assert!(kline.low <= kline.open);

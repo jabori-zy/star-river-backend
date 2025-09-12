@@ -1,4 +1,5 @@
 use super::super::NodeEvent;
+#[allow(unused_imports)]
 use super::{deserialize_cache_value_vec, serialize_cache_value_vec};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
@@ -12,8 +13,8 @@ use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 pub enum IndicatorNodeEvent {
-    #[strum(serialize = "indicator_update")]
-    #[serde(rename = "indicator_update")]
+    #[strum(serialize = "indicator-update-event")]
+    #[serde(rename = "indicator-update-event")]
     IndicatorUpdate(IndicatorUpdateEvent),
 }
 

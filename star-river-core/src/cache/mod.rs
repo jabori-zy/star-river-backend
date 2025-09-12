@@ -15,6 +15,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use chrono::{DateTime, FixedOffset};
 
 pub trait KeyTrait {
     fn get_key_str(&self) -> String;
@@ -92,6 +93,7 @@ pub trait CacheItem: Clone + Debug + DeepSizeOf {
     fn to_json_with_time(&self) -> serde_json::Value;
     fn to_list(&self) -> Vec<f64>;
     fn get_timestamp(&self) -> i64;
+    fn get_datetime(&self) -> DateTime<FixedOffset>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
@@ -120,6 +122,13 @@ impl CacheValue {
         match self {
             CacheValue::Kline(value) => value.to_list(),
             CacheValue::Indicator(value) => value.to_list(),
+        }
+    }
+
+    pub fn get_datetime(&self) -> DateTime<FixedOffset> {
+        match self {
+            CacheValue::Kline(value) => value.get_datetime(),
+            CacheValue::Indicator(value) => value.get_datetime(),
         }
     }
 
