@@ -14,6 +14,8 @@ mod m20240101_000010_create_strategy_sys_variable_table;
 mod m20250610_024732_create_system_config_table;
 mod m20250610_030125_insert_system_config_init_data;
 mod m20250907_101341_change_strategy_config_table_status_field;
+mod m20250912_095258_add_system_config_table_field_timezone;
+
 
 pub struct Migrator;
 
@@ -33,6 +35,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250610_024732_create_system_config_table::Migration),
             Box::new(m20250610_030125_insert_system_config_init_data::Migration),
             Box::new(m20250907_101341_change_strategy_config_table_status_field::Migration),
+            Box::new(m20250912_095258_add_system_config_table_field_timezone::Migration),
         ]
     }
 }

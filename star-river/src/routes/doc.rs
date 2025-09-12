@@ -3,7 +3,7 @@ use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5Acco
 use crate::api::cache_api::CacheKeyType;
 use crate::api::response::ApiResponse;
 use star_river_core::account::AccountConfig;
-use star_river_core::system::system_config::SystemConfigUpdateParams;
+use crate::api::system_api::SystemConfigUpdateParams;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -69,6 +69,7 @@ use utoipa::OpenApi;
         // 系统配置相关路径
         crate::api::system_api::update_system_config,
         crate::api::system_api::get_system_config,
+        crate::api::system_api::get_timezones,
     ),
     components(
         schemas(

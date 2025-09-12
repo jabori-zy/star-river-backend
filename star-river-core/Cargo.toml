@@ -19,6 +19,7 @@ tracing-subscriber.workspace = true
 tokio-stream.workspace = true
 futures.workspace = true
 chrono.workspace = true
+chrono-tz.workspace = true
 petgraph = "0.8.1"
 deepsize = { version = "0.2.0", features=["chrono"]}
 utoipa.workspace = true

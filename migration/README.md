@@ -39,3 +39,18 @@
     ```sh
     cargo run -- status
     ```
+use chrono::Utc;
+
+let current_time = Utc::now();
+ColumnDef::new(SystemConfig::CreatedTime)
+    .timestamp()
+    .not_null()
+    .default(SimpleExpr::Value(current_time.into())),
+
+
+use sea_orm_migration::prelude::*;
+
+ColumnDef::new(SystemConfig::CreatedTime)
+    .timestamp()
+    .not_null()
+    .default(Expr::current_timestamp()),

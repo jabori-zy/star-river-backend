@@ -11,6 +11,7 @@ pub struct Model {
     pub localization: String,
     pub created_time: DateTimeUtc,
     pub updated_time: DateTimeUtc,
+    pub timezone: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

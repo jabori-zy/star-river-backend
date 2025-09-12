@@ -3,5 +3,6 @@ pub mod error_trait;
 pub mod exchange_client_error;
 pub mod indicator_error;
 pub mod datetime_error;
+pub mod system_error;
 
 pub type ErrorCode = String;

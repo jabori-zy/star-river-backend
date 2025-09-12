@@ -2,7 +2,7 @@ use super::data_processor_error::DataProcessorError;
 use crate::custom_type::AccountId;
 use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
-use snafu::{Backtrace, GenerateImplicitData, Snafu};
+use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
 pub type MT5ErrorCode = i64;

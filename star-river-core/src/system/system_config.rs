@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use chrono_tz::Tz;
 
 // 本地化
 #[derive(
@@ -17,16 +18,15 @@ pub enum Localization {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct SystemConfigUpdateParams {
-    /// 本地化
-    pub localization: Localization,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SystemConfig {
     pub id: i32,
     /// 本地化
     pub localization: Localization,
+
+    /// 时区
+    #[schema(value_type = String, example = "Asia/Shanghai")]
+    pub timezone: Tz,
+
     /// 创建时间
     pub created_time: DateTime<Utc>,
     /// 更新时间

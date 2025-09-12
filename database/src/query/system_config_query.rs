@@ -10,7 +10,7 @@ impl SystemConfigQuery {
             .limit(1)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find system config.".to_owned()))?;
+            .ok_or(DbErr::RecordNotFound("Cannot find system config.".to_owned()))?;
 
         Ok(system_config.into())
     }

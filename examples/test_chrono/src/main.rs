@@ -1,17 +1,16 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
-// 注意: 需要在 Cargo.toml 中添加 chrono-tz = "0.8"
-// use chrono_tz::{Asia::Shanghai, US::Eastern, Europe::London};
 
 fn main() {
     println!("=== 时间戳与时区对比测试 ===\n");
 
-    test_timestamp_basics();
-    test_timezone_conversion();
-    test_storage_formats();
-    test_parsing_formatting();
-    test_utc8_to_utc_conversion();
+    // test_timestamp_basics();
+    // test_timezone_conversion();
+    // test_storage_formats();
+    // test_parsing_formatting();
+    // test_utc8_to_utc_conversion();
     demonstrate_chrono_tz_benefits();
-    test_current_utc8_time();
+    simple_timezone_demo();
+    // test_current_utc8_time();
 }
 
 /// 测试时间戳基础概念
@@ -163,75 +162,115 @@ fn test_utc8_to_utc_conversion() {
     println!();
 }
 
-/// 实用转换函数示例
-fn convert_utc8_to_utc_string(utc8_str: &str) -> Result<String, chrono::ParseError> {
-    let utc8_time = DateTime::parse_from_rfc3339(utc8_str)?;
-    let utc_time = utc8_time.with_timezone(&Utc);
-    Ok(utc_time.to_rfc3339())
-}
-
-fn convert_utc8_to_utc_timestamp(utc8_str: &str) -> Result<i64, chrono::ParseError> {
-    let utc8_time = DateTime::parse_from_rfc3339(utc8_str)?;
-    Ok(utc8_time.timestamp_millis())
-}
-
-/// 演示 chrono-tz 的优势
+/// 演示 chrono-tz 的实际功能
 fn demonstrate_chrono_tz_benefits() {
-    println!("6. chrono-tz 库的优势演示:");
-    println!("  (需要添加依赖: chrono-tz = \"0.8\")");
-
-    // FixedOffset 的局限性
-    println!("  FixedOffset 的局限性:");
-    let fixed_offset = FixedOffset::east_opt(8 * 3600).unwrap();
-    println!("    - 只能处理固定偏移: +08:00");
-    println!("    - 不知道具体时区名称");
-    println!("    - 无法处理夏令时变化");
-    println!("    - 示例: {}", Utc::now().with_timezone(&fixed_offset));
-
-    // chrono-tz 的优势 (注释掉的代码，需要依赖)
-    println!("  chrono-tz 的优势:");
-    println!("    - 支持真正的时区 (如 Asia/Shanghai)");
-    println!("    - 自动处理夏令时");
-    println!("    - 支持历史时区变化");
-    println!("    - 提供时区名称信息");
-
-    // 如果添加了 chrono-tz 依赖，可以取消注释这部分代码
-    use chrono_tz::{Asia::Shanghai, Europe, Europe::London, US, US::Eastern};
-
+    // chrono-tz 实际功能演示
+    use chrono_tz::{Asia::Shanghai, Europe::London, US::Eastern, US::Pacific, Australia::Sydney, Tz};
+    
     let now = Utc::now();
+    
+    println!("=== chrono-tz 实际功能演示 ===");
+    
+    // 1. 夏令时自动处理演示
+    println!("1. 夏令时自动处理:");
+    
+    // 美东时间：冬季 EST (UTC-5)，夏季 EDT (UTC-4)
+    let winter_date = Eastern.with_ymd_and_hms(2025, 1, 15, 12, 0, 0).unwrap();
+    let summer_date = Eastern.with_ymd_and_hms(2025, 7, 15, 12, 0, 0).unwrap();
+    
+    println!("   美东冬季: {} (偏移: {})", winter_date, winter_date.offset());
+    println!("   美东夏季: {} (偏移: {})", summer_date, summer_date.offset());
+    
+    // 伦敦时间：冬季 GMT (UTC+0)，夏季 BST (UTC+1)
+    let london_winter = London.with_ymd_and_hms(2025, 1, 15, 12, 0, 0).unwrap();
+    let london_summer = London.with_ymd_and_hms(2025, 7, 15, 12, 0, 0).unwrap();
+    
+    println!("   伦敦冬季: {} (偏移: {})", london_winter, london_winter.offset());
+    println!("   伦敦夏季: {} (偏移: {})", london_summer, london_summer.offset());
+    
+    // 2. 全球同一时刻对比
+    println!("2. 同一UTC时刻的全球时间:");
+    let utc_moment = Utc.with_ymd_and_hms(2025, 7, 15, 14, 30, 0).unwrap();
+    
+    let timezones = vec![
+        ("上海", Shanghai as Tz),
+        ("纽约", Eastern),
+        ("伦敦", London),
+        ("洛杉矶", Pacific),
+        ("悉尼", Sydney),
+    ];
+    
+    println!("   UTC: {}", utc_moment);
+    for (name, tz) in timezones {
+        let local_time = utc_moment.with_timezone(&tz);
+        println!("   {}: {} ({})", name, local_time.format("%H:%M"), tz);
+    }
+    
+    // 3. 跨时区业务场景
+    println!("3. 业务场景 - 北京上午9点开盘:");
+    let beijing_open = Shanghai.with_ymd_and_hms(2025, 7, 15, 9, 0, 0).unwrap();
+    let ny_time = beijing_open.with_timezone(&Eastern);
+    let london_time = beijing_open.with_timezone(&London);
+    
+    println!("   北京: {} {}", beijing_open.format("%H:%M"), Shanghai);
+    println!("   纽约: {} {}", ny_time.format("%H:%M"), Eastern);
+    println!("   伦敦: {} {}", london_time.format("%H:%M"), London);
+    
+    // 4. 时区标识符解析
+    println!("4. 时区字符串解析:");
+    let tz_names = vec!["Asia/Shanghai", "America/New_York", "Europe/London"];
+    
+    for name in tz_names {
+        if let Ok(tz) = name.parse::<Tz>() {
+            let local_time = now.with_timezone(&tz);
+            println!("   {} -> {}", name, local_time.format("%H:%M %Z"));
+        }
+    }
 
-    // 真正的时区支持
-    let shanghai_time = now.with_timezone(&Shanghai);
-    let eastern_time = now.with_timezone(&US::Eastern);
-    let london_time = now.with_timezone(&Europe::London);
+    println!();
+}
 
-    println!("    上海时间: {}", shanghai_time);
-    println!("    美东时间: {}", eastern_time); // 自动处理夏令时
-    println!("    伦敦时间: {}", london_time); // 自动处理夏令时
-
-    // 时区名称
-    println!("    上海时区名: {}", Shanghai);
-    println!("    美东时区名: {}", US::Eastern);
-
-    // 夏令时处理示例
-    let summer = Shanghai.with_ymd_and_hms(2025, 7, 15, 12, 0, 0).unwrap();
-    let winter = Shanghai.with_ymd_and_hms(2025, 1, 15, 12, 0, 0).unwrap();
-
-    println!("    夏季时间: {}", summer);
-    println!("    冬季时间: {}", winter);
-
-    println!("  应用场景对比:");
-    println!("    FixedOffset 适用于:");
-    println!("      - 简单的固定偏移(如 UTC+8)");
-    println!("      - 不需要时区名称的场景");
-    println!("      - 轻量级应用");
-
-    println!("    chrono-tz 适用于:");
-    println!("      - 全球化应用");
-    println!("      - 需要处理夏令时的地区");
-    println!("      - 需要时区名称显示");
-    println!("      - 历史时间数据处理");
-
+/// 简单的时区演示
+fn simple_timezone_demo() {
+    use chrono_tz::{TZ_VARIANTS, Tz};
+    
+    println!("=== chrono-tz 支持的所有时区 ===");
+    println!("总计: {} 个时区\n", TZ_VARIANTS.len());
+    
+    // 显示常用时区及其当前时间
+    println!("常用时区当前时间:");
+    let common_timezones = vec![
+        ("北京", "Asia/Shanghai"),
+        ("东京", "Asia/Tokyo"), 
+        ("纽约", "America/New_York"),
+        ("洛杉矶", "America/Los_Angeles"),
+        ("伦敦", "Europe/London"),
+        ("悉尼", "Australia/Sydney"),
+    ];
+    
+    let now = chrono::Utc::now();
+    for (city, tz_name) in common_timezones {
+        if let Ok(tz) = tz_name.parse::<Tz>() {
+            let local_time = now.with_timezone(&tz);
+            println!("   {:<6}: {} {} ({})", 
+                city,
+                local_time.format("%m-%d %H:%M"),
+                local_time.format("%Z"),
+                local_time.format("%z")
+            );
+        }
+    }
+    
+    println!("\n前20个时区名称:");
+    for (i, tz) in TZ_VARIANTS.iter().take(20).enumerate() {
+        println!("   {:<2}. {}", i + 1, tz.name());
+    }
+    
+    println!("\n使用方法:");
+    println!("   use chrono_tz::{{TZ_VARIANTS, Tz}};");
+    println!("   let tz: Tz = \"Asia/Shanghai\".parse().unwrap();");
+    println!("   let now = Utc::now().with_timezone(&tz);");
+    
     println!();
 }
 

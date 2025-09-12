@@ -1,4 +1,5 @@
 use sea_orm_migration::prelude::*;
+use chrono::{DateTime, Utc};
 
 pub struct Migration;
 
@@ -49,7 +50,7 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(Position::CreatedTime)
                             .timestamp()
                             .not_null()
-                            .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
+                            .default(Expr::current_timestamp()),
                     )
                     .col(
                         ColumnDef::new(Position::UpdatedTime)
