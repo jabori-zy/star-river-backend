@@ -1,6 +1,6 @@
-use ::entity::{order, order::Entity as Order};
+use ::entity::{order, order::Entity as OrderModel};
 use sea_orm::*;
-use star_river_core::order::Order as TypeOrder;
+use star_river_core::order::Order;
 use star_river_core::{market::Exchange, order::OriginalOrder};
 
 pub struct OrderMutation;
@@ -12,7 +12,7 @@ impl OrderMutation {
         node_id: String,
         account_id: i32,
         original_order: Box<dyn OriginalOrder>,
-    ) -> Result<TypeOrder, DbErr> {
+    ) -> Result<Order, DbErr> {
         match original_order.get_exchange() {
             Exchange::Metatrader5(_) => {
                 let order_model = order::ActiveModel {
@@ -31,8 +31,8 @@ impl OrderMutation {
                     sl: Set(original_order.get_sl()),
                     tp: Set(original_order.get_tp()),
                     extra_info: Set(original_order.get_extra_info()),
-                    created_time: Set(original_order.get_created_time()),
-                    updated_time: Set(original_order.get_updated_time()),
+                    created_time: Set(original_order.get_created_time().to_utc()),
+                    updated_time: Set(original_order.get_updated_time().to_utc()),
                 }
                 .insert(db)
                 .await
@@ -45,8 +45,8 @@ impl OrderMutation {
         // 将数据库模型转换系统模型
     }
 
-    pub async fn update_order(db: &DbConn, latest_order: TypeOrder) -> Result<TypeOrder, DbErr> {
-        let order: order::ActiveModel = Order::find_by_id(latest_order.order_id as i32)
+    pub async fn update_order(db: &DbConn, latest_order: Order) -> Result<Order, DbErr> {
+        let order: order::ActiveModel = OrderModel::find_by_id(latest_order.order_id as i32)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find order.".to_owned()))
@@ -66,8 +66,8 @@ impl OrderMutation {
             price: Set(latest_order.open_price),
             sl: Set(latest_order.sl),
             tp: Set(latest_order.tp),
-            created_time: Set(latest_order.created_time),
-            updated_time: Set(latest_order.updated_time),
+            created_time: Set(latest_order.created_time.to_utc()),
+            updated_time: Set(latest_order.updated_time.to_utc()),
             ..Default::default()
         }
         .update(db)

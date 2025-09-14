@@ -12,9 +12,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
 use std::fmt::Display;
 use std::str::FromStr;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use crate::system::DateTimeUtc;
+
 
 pub type MT5Server = String;
 
@@ -223,7 +225,7 @@ pub trait MarketData: Serialize + Clone + Debug {
 
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct Kline {
-    pub datetime: DateTime<FixedOffset>, // 时间戳，单位为毫秒
+    pub datetime: DateTimeUtc, // 时间戳，单位为毫秒
     pub open: f64,
     pub high: f64,
     pub low: f64,
@@ -244,7 +246,7 @@ impl Kline {
 }
 
 impl CacheItem for Kline {
-    fn get_datetime(&self) -> DateTime<FixedOffset> {
+    fn get_datetime(&self) -> DateTimeUtc {
         self.datetime
     }
 

@@ -30,6 +30,6 @@ impl SystemConfigMutation {
         .update(db)
         .await?;
 
-        Ok(system_config_model.into())
+        Ok(SystemConfig::from_model(system_config_model).await)
     }
 }

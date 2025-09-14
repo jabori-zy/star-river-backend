@@ -29,3 +29,4 @@ reqwest.workspace = true
 tokio-tungstenite.workspace = true
 sea-orm.workspace = true
 snafu.workspace = true
+entity = { path = "../entity"}

@@ -33,8 +33,8 @@ impl PositionMutation {
                     sl: Set(exchange_position.get_sl()),
                     tp: Set(exchange_position.get_tp()),
                     extra_info: Set(extra_info),
-                    created_time: Set(exchange_position.get_create_time()),
-                    updated_time: Set(exchange_position.get_update_time()),
+                    created_time: Set(exchange_position.get_create_time().to_utc()),
+                    updated_time: Set(exchange_position.get_update_time().to_utc()),
                 }
                 .insert(db)
                 .await?;
@@ -66,8 +66,8 @@ impl PositionMutation {
             sl: Set(latest_position.sl),
             tp: Set(latest_position.tp),
             extra_info: Set(latest_position.extra_info),
-            created_time: Set(latest_position.create_time),
-            updated_time: Set(latest_position.update_time),
+            created_time: Set(latest_position.create_time.to_utc()),
+            updated_time: Set(latest_position.update_time.to_utc()),
             ..Default::default()
         }
         .update(db)

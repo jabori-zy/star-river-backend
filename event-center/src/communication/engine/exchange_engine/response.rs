@@ -1,10 +1,10 @@
 use super::super::{EngineResponse, ResponseTrait};
-use chrono::{DateTime, FixedOffset};
 use star_river_core::error::engine_error::*;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::market::Exchange;
 use std::sync::Arc;
-use star_river_core::utils::get_utc8_datetime;
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum ExchangeEngineResponse {
@@ -26,7 +26,7 @@ impl ResponseTrait for ExchangeEngineResponse {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             ExchangeEngineResponse::RegisterExchange(response) => response.datetime,
         }
@@ -57,7 +57,7 @@ pub struct RegisterExchangeResponse {
     pub account_id: i32,
     pub exchange: Exchange,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl From<RegisterExchangeResponse> for EngineResponse {
@@ -73,7 +73,7 @@ impl RegisterExchangeResponse {
             account_id,
             exchange,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 
@@ -83,7 +83,7 @@ impl RegisterExchangeResponse {
             account_id,
             exchange,
             error: Some(Arc::new(error)),
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }

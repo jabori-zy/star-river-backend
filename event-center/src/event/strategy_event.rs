@@ -6,11 +6,11 @@ use crate::Event;
 use backtest_strategy_event::BacktestStrategyEvent;
 use serde::{Deserialize, Serialize};
 use star_river_core::error::error_trait::{Language, StarRiverErrorTrait};
-use chrono::{DateTime, FixedOffset};
 use std::collections::HashMap;
 use strum::Display;
-use star_river_core::utils::get_utc8_datetime;
 use utoipa::ToSchema;
+use star_river_core::system::DateTimeUtc;
+use chrono::Utc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "eventType")]
@@ -87,7 +87,7 @@ pub struct NodeStateLogEvent {
     pub message: String,
 
     #[serde(rename = "datetime")]
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl NodeStateLogEvent {
@@ -109,7 +109,7 @@ impl NodeStateLogEvent {
             message,
             error_code: None,
             error_code_chain: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 
@@ -131,7 +131,7 @@ impl NodeStateLogEvent {
             message: error.get_error_message(Language::Chinese),
             error_code: Some(error.error_code().to_string()),
             error_code_chain: Some(error.error_code_chain()),
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -193,7 +193,8 @@ pub struct StrategyRunningLogEvent {
     pub error_code_chain: Option<Vec<String>>,
 
     #[serde(rename = "datetime")]
-    pub datetime: DateTime<FixedOffset>,
+    #[schema(value_type = String, example = "2024-01-01T12:00:00Z")]
+    pub datetime: DateTimeUtc,
 }
 
 impl StrategyRunningLogEvent {
@@ -205,7 +206,7 @@ impl StrategyRunningLogEvent {
         log_type: StrategyRunningLogType,
         message: String,
         detail: serde_json::Value,
-        datetime: DateTime<FixedOffset>,
+        datetime: DateTimeUtc,
     ) -> Self {
         Self {
             strategy_id,

@@ -1,13 +1,16 @@
 pub mod virtual_order;
 
 use crate::market::Exchange;
-use chrono::{DateTime, Utc};
+use tokio::sync::{mpsc, oneshot};
+use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
 use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use entity::order::Model as OrderModel;
+use crate::system::system_config::SystemConfigManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {
@@ -169,8 +172,33 @@ pub struct Order {
     pub tp: Option<f64>,                       // 止盈价格
     pub sl: Option<f64>,                       // 止损价格
     pub extra_info: Option<serde_json::Value>, // 额外信息
-    pub created_time: DateTime<Utc>,           // 创建时间
-    pub updated_time: DateTime<Utc>,           // 更新时间
+    pub created_time: DateTimeUtc,           // 创建时间
+    pub updated_time: DateTimeUtc,           // 更新时间
+}
+
+
+impl From<OrderModel> for Order {
+    fn from(model: OrderModel) -> Self {
+        Self {
+            order_id: model.id,
+            strategy_id: model.strategy_id as i32,
+            node_id: model.node_id,
+            exchange_order_id: model.exchange_order_id,
+            account_id: model.account_id,
+            exchange: Exchange::from_str(&model.exchange).unwrap(),
+            symbol: model.symbol,
+            order_side: FuturesOrderSide::from_str(&model.order_side).unwrap(),
+            order_type: OrderType::from_str(&model.order_type).unwrap(),
+            order_status: OrderStatus::from_str(&model.order_status).unwrap(),
+            quantity: model.quantity,
+            open_price: model.price,
+            tp: model.tp,
+            sl: model.sl,
+            extra_info: model.extra_info,
+            created_time: model.created_time,
+            updated_time: model.updated_time,
+        }
+    }
 }
 
 pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
@@ -187,8 +215,8 @@ pub trait OriginalOrder: Debug + Send + Sync + Any + 'static {
     fn get_tp(&self) -> Option<f64>;
     fn get_sl(&self) -> Option<f64>;
     fn get_extra_info(&self) -> Option<serde_json::Value>;
-    fn get_created_time(&self) -> DateTime<Utc>;
-    fn get_updated_time(&self) -> DateTime<Utc>;
+    fn get_created_time(&self) -> DateTimeUtc;
+    fn get_updated_time(&self) -> DateTimeUtc;
 }
 
 impl Clone for Box<dyn OriginalOrder> {

@@ -1,5 +1,5 @@
 use super::VirtualTradingSystem;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Utc};
 use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::*;
 use star_river_core::market::Exchange;
@@ -95,7 +95,7 @@ impl VirtualTradingSystem {
         &mut self,
         order_id: OrderId,
         order_status: OrderStatus,
-        datetime: DateTime<FixedOffset>,
+        datetime: DateTime<Utc>,
     ) -> Result<VirtualOrder, String> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             // 更新订单状态
@@ -112,7 +112,7 @@ impl VirtualTradingSystem {
         &mut self,
         order_id: OrderId,
         position_id: PositionId,
-        datetime: DateTime<FixedOffset>,
+        datetime: DateTime<Utc>,
     ) -> Result<(), String> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             order.position_id = Some(position_id);

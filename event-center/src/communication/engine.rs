@@ -4,7 +4,8 @@ pub mod indicator_engine;
 pub mod market_engine;
 
 use cache_engine::{CacheEngineCommand, CacheEngineResponse};
-use chrono::{DateTime, FixedOffset};
+use tokio::sync::{mpsc, oneshot};
+use star_river_core::system::DateTimeUtc;
 use exchange_engine::{ExchangeEngineCommand, ExchangeEngineResponse};
 use indicator_engine::{IndicatorEngineCommand, IndicatorEngineResponse};
 use market_engine::{MarketEngineCommand, MarketEngineResponse};
@@ -12,7 +13,6 @@ use star_river_core::engine::EngineName;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot};
 
 pub type EngineCommandSender = mpsc::Sender<EngineCommand>; // 命令发送器
 pub type EngineCommandReceiver = mpsc::Receiver<EngineCommand>; // 命令接收器
@@ -20,7 +20,7 @@ pub type EngineResponder = oneshot::Sender<EngineResponse>; // 响应
 
 pub trait EngineCommandTrait {
     fn responder(&self) -> &EngineResponder;
-    fn datetime(&self) -> DateTime<FixedOffset>;
+    fn datetime(&self) -> DateTimeUtc;
     fn sender(&self) -> String;
 }
 
@@ -51,7 +51,7 @@ impl EngineCommand {
         }
     }
 
-    pub fn datetime(&self) -> DateTime<FixedOffset> {
+    pub fn datetime(&self) -> DateTimeUtc {
         match self {
             EngineCommand::CacheEngine(command) => command.datetime(),
             EngineCommand::IndicatorEngine(command) => command.datetime(),
@@ -73,7 +73,7 @@ impl EngineCommand {
 pub trait ResponseTrait {
     fn success(&self) -> bool;
     fn error(&self) -> Arc<dyn StarRiverErrorTrait>;
-    fn datetime(&self) -> DateTime<FixedOffset>;
+    fn datetime(&self) -> DateTimeUtc;
 }
 
 #[derive(Debug)]
@@ -103,7 +103,7 @@ impl EngineResponse {
         }
     }
 
-    pub fn datetime(&self) -> DateTime<FixedOffset> {
+    pub fn datetime(&self) -> DateTimeUtc {
         match self {
             EngineResponse::CacheEngine(response) => response.datetime(),
             EngineResponse::IndicatorEngine(response) => response.datetime(),

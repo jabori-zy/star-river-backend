@@ -12,7 +12,7 @@ use super::super::node_event::backtest_node_event::position_management_node_even
 use super::super::strategy_event::{LogLevel, NodeStateLogEvent, StrategyRunningLogEvent};
 use crate::{event::Event, StrategyEvent};
 use serde::{Deserialize, Serialize};
-
+use star_river_core::system::DateTimeUtc;
 use star_river_core::strategy_stats::event::StrategyStatsUpdatedEvent;
 use strum::Display;
 
@@ -130,6 +130,6 @@ pub struct StrategyStateLogEvent {
     #[serde(rename = "message")]
     pub message: String,
 
-    #[serde(rename = "timestamp")]
-    pub timestamp: i64,
+    #[serde(rename = "datetime")]
+    pub datetime: DateTimeUtc,
 }

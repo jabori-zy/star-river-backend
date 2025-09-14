@@ -4,7 +4,8 @@ use crate::account::AccountTrait;
 use crate::account::ExchangeStatus;
 use crate::account::OriginalAccountInfo;
 use crate::market::Exchange;
-use chrono::{DateTime, Utc};
+use tokio::sync::{mpsc, oneshot};
+use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::str::FromStr;
@@ -21,8 +22,8 @@ pub struct Mt5AccountConfig {
     pub terminal_path: String,
     pub is_available: bool, // 是否可用
     pub sort_index: i32,
-    pub create_time: DateTime<Utc>, // 创建时间
-    pub update_time: DateTime<Utc>, // 更新时间
+    pub create_time: DateTimeUtc, // 创建时间
+    pub update_time: DateTimeUtc, // 更新时间
 }
 
 // 将AccountConfig转换为Mt5AccountConfig
@@ -140,8 +141,8 @@ pub struct Mt5AccountInfo {
     pub server: String,
     pub currency: String,
     pub company: String,
-    pub create_time: DateTime<Utc>, // 创建时间
-    pub update_time: DateTime<Utc>, // 更新时间
+    pub create_time: DateTimeUtc, // 创建时间
+    pub update_time: DateTimeUtc, // 更新时间
 }
 
 impl From<AccountInfo> for Mt5AccountInfo {

@@ -12,6 +12,6 @@ impl SystemConfigQuery {
             .await?
             .ok_or(DbErr::RecordNotFound("Cannot find system config.".to_owned()))?;
 
-        Ok(system_config.into())
+        Ok(SystemConfig::from_model(system_config).await)
     }
 }

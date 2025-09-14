@@ -1,12 +1,14 @@
 pub mod virtual_transaction;
 
 use crate::market::Exchange;
-use chrono::{DateTime, Utc};
+use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use entity::transaction::Model as TransactionModel;
+use std::str::FromStr;
 
 // 交易明细类型
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema, PartialEq, Eq)]
@@ -43,8 +45,28 @@ pub struct Transaction {
     pub transaction_side: TransactionSide,
     pub quantity: f64,
     pub price: f64,
-    pub create_time: DateTime<Utc>,
+    pub create_time: DateTimeUtc,
     pub extra_info: Option<serde_json::Value>, // 额外信息
+}
+
+
+impl From<TransactionModel> for Transaction {
+    fn from(model: TransactionModel) -> Self {
+        Self {
+            transaction_id: model.id,
+            symbol: model.symbol,
+            exchange: Exchange::from_str(&model.exchange).unwrap(),
+            exchange_order_id: model.exchange_order_id,
+            exchange_position_id: model.exchange_position_id,
+            exchange_transaction_id: model.exchange_transaction_id,
+            transaction_type: TransactionType::from_str(&model.transaction_type).unwrap(),
+            transaction_side: TransactionSide::from_str(&model.transaction_side).unwrap(),
+            quantity: model.quantity,
+            price: model.price,
+            create_time: model.created_time,
+            extra_info: model.extra_info,
+        }
+    }
 }
 
 pub trait OriginalTransaction: Debug + Send + Sync + 'static {
@@ -55,7 +77,7 @@ pub trait OriginalTransaction: Debug + Send + Sync + 'static {
     fn get_transaction_side(&self) -> TransactionSide;
     fn get_quantity(&self) -> f64;
     fn get_price(&self) -> f64;
-    fn get_create_time(&self) -> DateTime<Utc>;
+    fn get_create_time(&self) -> DateTimeUtc;
     fn get_symbol(&self) -> String;
     fn get_exchange(&self) -> Exchange;
     fn get_exchange_order_id(&self) -> i64;

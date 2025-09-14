@@ -8,5 +8,4 @@ edition.workspace = true
 [dependencies]
 sea-orm.workspace = true
 serde.workspace = true
-star-river-core = { path = "../star-river-core" }
 chrono-tz.workspace = true

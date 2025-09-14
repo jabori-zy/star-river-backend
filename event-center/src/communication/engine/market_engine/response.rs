@@ -1,9 +1,10 @@
 use super::super::{EngineResponse, ResponseTrait};
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::market::{Exchange, KlineInterval};
 use std::sync::Arc;
-use star_river_core::utils::get_utc8_datetime;
+
 
 #[derive(Debug)]
 pub enum MarketEngineResponse {
@@ -35,7 +36,7 @@ impl ResponseTrait for MarketEngineResponse {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             MarketEngineResponse::SubscribeKlineStream(response) => response.datetime,
             MarketEngineResponse::UnsubscribeKlineStream(response) => response.datetime,
@@ -68,7 +69,7 @@ pub struct SubscribeKlineStreamResponse {
     pub symbol: String,
     pub interval: KlineInterval,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl SubscribeKlineStreamResponse {
@@ -79,7 +80,7 @@ impl SubscribeKlineStreamResponse {
             symbol,
             interval,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -97,7 +98,7 @@ pub struct UnsubscribeKlineStreamResponse {
     pub symbol: String,
     pub interval: KlineInterval,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl UnsubscribeKlineStreamResponse {
@@ -108,7 +109,7 @@ impl UnsubscribeKlineStreamResponse {
             symbol,
             interval,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -126,7 +127,7 @@ pub struct GetKlineHistoryResponse {
     pub symbol: String,
     pub interval: KlineInterval,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetKlineHistoryResponse {
@@ -137,7 +138,7 @@ impl GetKlineHistoryResponse {
             symbol,
             interval,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }

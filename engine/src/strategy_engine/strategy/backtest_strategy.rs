@@ -40,6 +40,7 @@ use star_river_core::{
 };
 use star_river_core::utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
+use chrono::Utc;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -316,7 +317,7 @@ impl BacktestStrategy {
                             error_code: Some(e.error_code()),
                             error_code_chain: Some(e.error_code_chain()),
                             message: error_message,
-                            timestamp: get_utc8_timestamp_millis(),
+                            datetime: Utc::now(),
                             log_level: LogLevel::Error,
                         };
                         let backtest_strategy_event =
@@ -419,7 +420,7 @@ impl BacktestStrategy {
                         error_code: None,
                         error_code_chain: None,
                         message: log_message.to_string(),
-                        timestamp: get_utc8_timestamp_millis(),
+                        datetime: Utc::now(),
                     };
                     let backtest_strategy_event =
                         BacktestStrategyEvent::StrategyStateLog(log_event.clone());

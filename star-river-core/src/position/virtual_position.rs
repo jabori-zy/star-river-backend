@@ -2,7 +2,7 @@ use crate::custom_type::*;
 use crate::market::Exchange;
 use crate::order::virtual_order::VirtualOrder;
 use crate::position::{PositionSide, PositionState};
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -63,10 +63,10 @@ pub struct VirtualPosition {
     pub margin_ratio: MarginRatio, // 保证金率
 
     #[serde(rename = "createTime")]
-    pub create_time: DateTime<FixedOffset>,
+    pub create_time: DateTime<Utc>,
 
     #[serde(rename = "updateTime")]
-    pub update_time: DateTime<FixedOffset>,
+    pub update_time: DateTime<Utc>,
 }
 
 impl VirtualPosition {
@@ -78,7 +78,7 @@ impl VirtualPosition {
         force_price: Price,
         margin: Margin,
         margin_ratio: MarginRatio,
-        datetime: DateTime<FixedOffset>,
+        datetime: DateTime<Utc>,
     ) -> Self {
         Self {
             position_id,
@@ -107,7 +107,7 @@ impl VirtualPosition {
     pub fn update(
         &mut self,
         current_price: Price,
-        datetime: DateTime<FixedOffset>,
+        datetime: DateTime<Utc>,
         margin: Margin,
         margin_ratio: MarginRatio,
         force_price: Price,

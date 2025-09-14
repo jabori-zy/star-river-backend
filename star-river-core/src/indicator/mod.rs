@@ -21,7 +21,7 @@ use crate::indicator::indicator_define::volume::*;
 use crate::{impl_indicator, impl_indicator_config};
 use deepsize::DeepSizeOf;
 use strum::{Display, EnumString};
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 
 use crate::error::indicator_error::*;
 use snafu::ResultExt;

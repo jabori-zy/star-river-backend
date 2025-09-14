@@ -1,10 +1,11 @@
 use crate::Event;
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use star_river_core::market::{Exchange, Kline, KlineInterval, TickerPrice};
 use star_river_core::strategy::TimeRange;
 use strum::Display;
-use star_river_core::utils::get_utc8_datetime;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 // 交易所事件
@@ -38,7 +39,7 @@ pub struct ExchangeKlineSeriesUpdateEvent {
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline_series: Vec<Kline>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl ExchangeKlineSeriesUpdateEvent {
@@ -53,7 +54,7 @@ impl ExchangeKlineSeriesUpdateEvent {
             symbol,
             interval,
             kline_series,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -65,7 +66,7 @@ pub struct ExchangeKlineHistoryUpdateEvent {
     pub interval: KlineInterval,
     pub time_range: TimeRange,
     pub kline_history: Vec<Kline>, // 历史k线
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl ExchangeKlineHistoryUpdateEvent {
@@ -82,7 +83,7 @@ impl ExchangeKlineHistoryUpdateEvent {
             interval,
             time_range,
             kline_history,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -93,7 +94,7 @@ pub struct ExchangeKlineUpdateEvent {
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline: Kline,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl ExchangeKlineUpdateEvent {
@@ -103,7 +104,7 @@ impl ExchangeKlineUpdateEvent {
             symbol,
             interval,
             kline,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -113,7 +114,7 @@ pub struct ExchangeTickerPriceUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl ExchangeTickerPriceUpdateEvent {
@@ -122,7 +123,7 @@ impl ExchangeTickerPriceUpdateEvent {
             exchange,
             symbol,
             ticker_price,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }

@@ -1,11 +1,12 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
-use chrono::{DateTime, FixedOffset};
 use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};
 use std::fmt::Debug;
-use star_river_core::utils::get_utc8_datetime;
+use chrono::Utc;
+
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum IndicatorEngineCommand {
@@ -20,7 +21,7 @@ impl EngineCommandTrait for IndicatorEngineCommand {
             IndicatorEngineCommand::CalculateBacktestIndicator(params) => &params.responder,
         }
     }
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => params.datetime,
             IndicatorEngineCommand::CalculateBacktestIndicator(params) => params.datetime,
@@ -50,7 +51,7 @@ pub struct RegisterIndicatorParams {
     pub interval: KlineInterval,           // 时间周期
     pub indicator_config: IndicatorConfig, // 指标配置
     pub sender: String,                    // 发送者
-    pub datetime: DateTime<FixedOffset>,   // 命令时间戳
+    pub datetime: DateTimeUtc,   // 命令时间戳
     pub responder: EngineResponder,        // 响应者
 }
 
@@ -73,7 +74,7 @@ impl RegisterIndicatorParams {
             interval,
             indicator_config,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -87,7 +88,7 @@ pub struct CalculateBacktestIndicatorParams {
     pub kline_key: KlineKey, // 回测K线缓存键
     pub indicator_config: IndicatorConfig,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -106,7 +107,7 @@ impl CalculateBacktestIndicatorParams {
             kline_key,
             indicator_config,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }

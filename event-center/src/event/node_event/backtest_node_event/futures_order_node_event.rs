@@ -1,5 +1,4 @@
 use super::super::NodeEvent;
-use super::BacktestNodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::order::virtual_order::VirtualOrder;

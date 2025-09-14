@@ -1,12 +1,12 @@
 use super::super::{EngineResponse, ResponseTrait};
-use chrono::{DateTime, FixedOffset};
 use star_river_core::cache::Key;
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};
 use std::sync::Arc;
-use star_river_core::utils::get_utc8_datetime;
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum IndicatorEngineResponse {
@@ -33,7 +33,7 @@ impl ResponseTrait for IndicatorEngineResponse {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             IndicatorEngineResponse::RegisterIndicator(response) => response.datetime,
             IndicatorEngineResponse::CalculateBacktestIndicator(response) => response.datetime,
@@ -52,7 +52,7 @@ pub struct CalculateBacktestIndicatorResponse {
     pub success: bool,
     pub backtest_indicator_key: Key,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl CalculateBacktestIndicatorResponse {
@@ -61,7 +61,7 @@ impl CalculateBacktestIndicatorResponse {
             success: true,
             backtest_indicator_key,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -84,7 +84,7 @@ pub struct RegisterIndicatorResponse {
     pub interval: KlineInterval,
     pub indicator: IndicatorConfig,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl RegisterIndicatorResponse {
@@ -105,7 +105,7 @@ impl RegisterIndicatorResponse {
             interval,
             indicator,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }

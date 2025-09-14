@@ -7,10 +7,8 @@ use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use star_river_core::strategy::strategy_inner_event::{StrategyInnerEvent, StrategyInnerEventPublisher};
-use event_center::communication::strategy::StrategyCommand;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
-use star_river_core::utils::get_utc8_timestamp_millis;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 use tokio::sync::oneshot;
@@ -286,6 +284,9 @@ impl BacktestStrategyContext {
         // 更新策略状态为ready
         self.update_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase())
             .await?;
+
+        // 清空日志
+        self.running_log.write().await.clear();
 
         self.cancel_play_token.cancel();
         // 重置信号计数

@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [ 
     "examples/*",
     "star-river",
@@ -17,7 +17,7 @@ members = [
 version = "0.1.0"
 description = "Star River Backend Workspace"
 authors = ["Jabori"]
-edition = "2021"
+edition = "2024"
 
 
 

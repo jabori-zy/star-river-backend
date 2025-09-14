@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use star_river_core::market::KlineInterval;
 use star_river_core::strategy::TimeRange;
 use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
+use star_river_core::strategy::deserialize_time_range;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlineNodeBacktestConfig {
@@ -28,6 +29,7 @@ pub struct KlineNodeExchangeModeConfig {
     pub selected_symbols: Vec<SelectedSymbol>,
 
     #[serde(rename = "timeRange")]
+    #[serde(deserialize_with = "deserialize_time_range")]
     pub time_range: TimeRange,
 }
 

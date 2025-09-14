@@ -2,9 +2,10 @@ use super::super::{
     NodeCommand, NodeCommandTrait, NodeResponder, StrategyCommand, StrategyCommandTrait,
     StrategyResponder,
 };
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use star_river_core::custom_type::NodeId;
-use star_river_core::utils::get_utc8_datetime;
+
 
 #[derive(Debug)]
 pub enum BacktestStrategyCommand {
@@ -20,7 +21,7 @@ impl StrategyCommandTrait for BacktestStrategyCommand {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             BacktestStrategyCommand::GetStartNodeConfig(params) => params.datetime,
             BacktestStrategyCommand::NodeReset(params) => params.datetime,
@@ -38,7 +39,7 @@ impl StrategyCommandTrait for BacktestStrategyCommand {
 #[derive(Debug)]
 pub struct GetStartNodeConfigParams {
     pub node_id: NodeId,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: StrategyResponder,
 }
 
@@ -46,7 +47,7 @@ impl GetStartNodeConfigParams {
     pub fn new(node_id: NodeId, responder: StrategyResponder) -> Self {
         Self {
             node_id,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -61,7 +62,7 @@ impl From<GetStartNodeConfigParams> for StrategyCommand {
 #[derive(Debug)]
 pub struct NodeResetParams {
     pub node_id: NodeId,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: StrategyResponder,
 }
 
@@ -69,7 +70,7 @@ impl NodeResetParams {
     pub fn new(node_id: NodeId, responder: StrategyResponder) -> Self {
         Self {
             node_id,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -97,7 +98,7 @@ impl NodeCommandTrait for BacktestNodeCommand {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             BacktestNodeCommand::GetStrategyCacheKeys(params) => params.datetime,
             BacktestNodeCommand::GetKlineIndex(params) => params.datetime,
@@ -117,7 +118,7 @@ impl NodeCommandTrait for BacktestNodeCommand {
 #[derive(Debug)]
 pub struct GetStrategyCacheKeysParams {
     pub node_id: NodeId,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
 
@@ -125,7 +126,7 @@ impl GetStrategyCacheKeysParams {
     pub fn new(node_id: NodeId, responder: NodeResponder) -> Self {
         Self {
             node_id,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -140,7 +141,7 @@ impl From<GetStrategyCacheKeysParams> for NodeCommand {
 #[derive(Debug)]
 pub struct GetKlineIndexParams {
     pub node_id: NodeId,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
 
@@ -148,7 +149,7 @@ impl GetKlineIndexParams {
     pub fn new(node_id: NodeId, responder: NodeResponder) -> Self {
         Self {
             node_id,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -157,7 +158,7 @@ impl GetKlineIndexParams {
 #[derive(Debug)]
 pub struct GetCurrentTimeParams {
     pub node_id: NodeId,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
 
@@ -165,7 +166,7 @@ impl GetCurrentTimeParams {
     pub fn new(node_id: NodeId, responder: NodeResponder) -> Self {
         Self {
             node_id,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }

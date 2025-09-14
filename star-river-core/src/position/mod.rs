@@ -1,12 +1,15 @@
 pub mod virtual_position;
 
 use crate::market::Exchange;
-use chrono::{DateTime, Utc};
+use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use entity::position::Model as PositionModel;
+use crate::system::system_config::SystemConfigManager;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionNumberParam {
@@ -58,8 +61,8 @@ pub trait OriginalPosition: Debug + Send + Sync + Any + 'static {
     fn get_exchange(&self) -> Exchange;
     fn get_unrealized_profit(&self) -> Option<f64>;
     fn get_extra_info(&self) -> Option<serde_json::Value>;
-    fn get_create_time(&self) -> DateTime<Utc>;
-    fn get_update_time(&self) -> DateTime<Utc>;
+    fn get_create_time(&self) -> DateTimeUtc;
+    fn get_update_time(&self) -> DateTimeUtc;
 }
 
 impl Clone for Box<dyn OriginalPosition> {
@@ -86,8 +89,34 @@ pub struct Position {
     pub sl: Option<f64>,
     pub unrealized_profit: Option<f64>,        // 未实现盈亏
     pub extra_info: Option<serde_json::Value>, // 额外信息
-    pub create_time: DateTime<Utc>,
-    pub update_time: DateTime<Utc>,
+    pub create_time: DateTimeUtc,
+    pub update_time: DateTimeUtc,
+}
+
+
+impl From<PositionModel> for Position {
+    fn from(model: PositionModel) -> Self {
+        Self {
+            position_id: model.id,
+            strategy_id: model.strategy_id as i64,
+            node_id: model.node_id,
+            account_id: model.account_id,
+            exchange: Exchange::from_str(&model.exchange).unwrap(),
+            exchange_position_id: model.exchange_position_id as i64,
+            symbol: model.symbol,
+            position_side: PositionSide::from_str(&model.position_side).unwrap(),
+            position_state: PositionState::from_str(&model.position_state).unwrap(),
+            quantity: model.quantity,
+            open_price: model.open_price,
+            current_price: None,
+            tp: model.tp,
+            sl: model.sl,
+            unrealized_profit: model.unrealized_profit,
+            extra_info: model.extra_info,
+            create_time: model.created_time,
+            update_time: model.updated_time,
+        }
+    }
 }
 
 // 订单数
@@ -106,3 +135,4 @@ pub struct PositionNumber {
     pub position_side: Option<PositionSide>,
     pub position_number: i32,
 }
+

@@ -30,8 +30,7 @@ use event_center::event::strategy_event::StrategyRunningLogSource;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use snafu::ResultExt;
 use event_center::event::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
-use chrono::{DateTime, FixedOffset};
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use star_river_core::system::DateTimeUtc;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 
@@ -504,7 +503,7 @@ impl IfElseNodeContext {
         (result, condition_results)
     }
 
-    async fn get_current_time(&self) -> Result<DateTime<FixedOffset>, String> {
+    async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
         let (tx, rx) = oneshot::channel();
         let get_current_time_params = GetCurrentTimeParams::new(self.get_node_id().clone(), tx);
         self.get_node_command_sender()

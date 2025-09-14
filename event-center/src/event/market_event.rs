@@ -1,9 +1,10 @@
 use crate::Event;
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use star_river_core::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
 use strum::Display;
-use star_river_core::utils::get_utc8_datetime;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]
@@ -33,7 +34,7 @@ pub struct ExchangeKlineSeriesEventInfo {
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline_series: KlineSeries,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl ExchangeKlineSeriesEventInfo {
@@ -48,7 +49,7 @@ impl ExchangeKlineSeriesEventInfo {
             symbol,
             interval,
             kline_series,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -59,7 +60,7 @@ pub struct ExchangeKlineEventInfo {
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline: Kline,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl ExchangeKlineEventInfo {
@@ -69,7 +70,7 @@ impl ExchangeKlineEventInfo {
             symbol,
             interval,
             kline,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }
@@ -80,7 +81,7 @@ pub struct KlineUpdateEvent {
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline: Kline,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,7 +90,7 @@ pub struct KlineSeriesUpdateEvent {
     pub symbol: String,
     pub interval: KlineInterval,
     pub kline_series: KlineSeries,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub batch_id: String,
 }
 
@@ -105,7 +106,7 @@ impl KlineSeriesUpdateEvent {
             symbol,
             interval,
             kline_series,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             batch_id: "".to_string(),
         }
     }
@@ -116,7 +117,7 @@ pub struct TickerPriceUpdateEvent {
     pub exchange: Exchange,
     pub symbol: String,
     pub ticker_price: TickerPrice,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl TickerPriceUpdateEvent {
@@ -125,7 +126,7 @@ impl TickerPriceUpdateEvent {
             exchange,
             symbol,
             ticker_price,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
         }
     }
 }

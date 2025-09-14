@@ -1,6 +1,6 @@
 use crate::custom_type::StrategyId;
 use crate::strategy_stats::StatsSnapshot;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use tokio::sync::broadcast;
@@ -25,5 +25,5 @@ pub struct StrategyStatsUpdatedEvent {
     pub stats_snapshot: StatsSnapshot,
 
     #[serde(rename = "datetime")]
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTime<Utc>,
 }

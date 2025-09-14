@@ -1,4 +1,4 @@
-use super::super::{BacktestNodeEvent, NodeEvent};
+use super::super::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::PlayIndex;

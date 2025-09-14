@@ -13,6 +13,10 @@ use std::collections::HashMap;
 use std::fmt;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use entity::strategy_config::Model as StrategyConfigModel;
+use crate::system::system_config::SystemConfigManager;
+use std::str::FromStr;
+use crate::system::DateTimeUtc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StrategyConfig {
@@ -39,10 +43,37 @@ pub struct StrategyConfig {
     /// 回测图表配置
     pub backtest_chart_config: Option<serde_json::Value>,
     /// 创建时间
-    pub created_time: DateTime<Utc>,
+    #[schema(value_type = String, example = "2021-01-01 00:00:00")]
+    pub created_time: DateTimeUtc,
     /// 更新时间
-    pub updated_time: DateTime<Utc>,
+    #[schema(value_type = String, example = "2021-01-01 00:00:00")]
+    pub updated_time: DateTimeUtc,
 }
+
+impl From<StrategyConfigModel> for StrategyConfig {
+    fn from(model: StrategyConfigModel) -> Self {
+        Self {
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            status: model.status,
+            is_deleted: model.is_deleted,
+            trade_mode: TradeMode::from_str(model.trade_mode.as_str()).unwrap(),
+            config: model.config,
+            nodes: model.nodes,
+            edges: model.edges,
+            live_chart_config: model.live_chart_config,
+            backtest_chart_config: model.backtest_chart_config,
+            created_time: model.created_time,
+            updated_time: model.updated_time,
+        }
+    }
+}
+
+
+
+
+
 
 #[derive(
     Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash, ToSchema,
@@ -111,9 +142,9 @@ pub enum BacktestDataSource {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeRange {
     #[serde(rename = "startDate")]
-    pub start_date: chrono::NaiveDate, // 开始日期
+    pub start_date: DateTimeUtc, // 开始日期
     #[serde(rename = "endDate")]
-    pub end_date: chrono::NaiveDate, // 结束日期
+    pub end_date: DateTimeUtc, // 结束日期
 }
 
 impl fmt::Display for TimeRange {
@@ -122,7 +153,7 @@ impl fmt::Display for TimeRange {
     }
 }
 
-fn deserialize_time_range<'de, D>(deserializer: D) -> Result<TimeRange, D::Error>
+pub fn deserialize_time_range<'de, D>(deserializer: D) -> Result<TimeRange, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -134,21 +165,26 @@ where
 
         if let (Some(start), Some(end)) = (start_date_str, end_date_str) {
             match (
-                chrono::NaiveDate::parse_from_str(start, "%Y-%m-%d"),
-                chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d"),
+                //前端返回的2025-09-13 00:00:00 +08:00格式 自带时区，解析为DateTime<Utc>
+                DateTime::parse_from_str(start, "%Y-%m-%d %H:%M:%S %z"),
+                DateTime::parse_from_str(end, "%Y-%m-%d %H:%M:%S %z"),
             ) {
-                (Ok(start_date), Ok(end_date)) => {
+                (Ok(start_with_tz), Ok(end_with_tz)) => {
+                    // 转换为UTC时区
+                    let start_date = start_with_tz.with_timezone(&Utc);
+                    let end_date = end_with_tz.with_timezone(&Utc);
+                    tracing::info!("start_date: {:?}, end_date: {:?}", start_date, end_date);
                     return Ok(TimeRange {
                         start_date,
                         end_date,
                     });
                 }
-                _ => return Err(serde::de::Error::custom("无法解析日期格式")),
+                _ => return Err(serde::de::Error::custom("can't parse date format, expected format: YYYY-MM-DD HH:MM:SS +TZ:TZ")),
             }
         }
     }
 
-    Err(serde::de::Error::custom("日期格式不正确"))
+    Err(serde::de::Error::custom("date format is incorrect"))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

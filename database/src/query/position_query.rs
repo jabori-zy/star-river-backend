@@ -9,12 +9,18 @@ impl PositionQuery {
         db: &DbConn,
         strategy_id: i32,
     ) -> Result<Vec<Position>, DbErr> {
-        let positions = position::Entity::find()
+        let position_models = position::Entity::find()
             .filter(position::Column::StrategyId.eq(strategy_id))
             .all(db)
             .await?;
-        let result: Vec<Position> = positions.into_iter().map(|p| p.into()).collect();
-        Ok(result)
+            
+        let mut positions = Vec::new();
+        for model in position_models {
+            let position = model.into();
+            positions.push(position);
+        }
+        
+        Ok(positions)
     }
 
     pub async fn get_position_number_by_strategy_id(

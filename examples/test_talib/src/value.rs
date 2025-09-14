@@ -1,12 +1,10 @@
 use star_river_core::cache::CacheValue;
 use star_river_core::market::Kline;
-use chrono::{DateTime, FixedOffset, Duration};
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use std::sync::Arc;
 
-fn fixed_offset_time_from_millis(ms: i64) -> DateTime<FixedOffset> {
-    let utc_dt = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms)
-        .expect("invalid unix millis timestamp");
-    utc_dt.with_timezone(&FixedOffset::east_opt(0).expect("invalid fixed offset"))
+fn fixed_offset_time_from_millis(ms: i64) -> DateTime<Utc> {
+    Utc.timestamp_millis_opt(ms).unwrap()
 }
 
 /// 生成指定长度的CacheValue向量，包含模拟的Kline数据
@@ -22,7 +20,7 @@ fn fixed_offset_time_from_millis(ms: i64) -> DateTime<FixedOffset> {
 /// * `Vec<Arc<CacheValue>>` - 包含Kline数据的CacheValue向量
 pub fn generate_kline_cache_values(
     length: usize,
-    start_timestamp: DateTime<FixedOffset>,
+    start_timestamp: DateTime<Utc>,
     interval_ms: i64,
     base_price: f64,
     price_variation: f64,
@@ -66,7 +64,7 @@ pub fn generate_kline_cache_values(
 /// * `Vec<Arc<CacheValue>>` - 包含Kline数据的CacheValue向量
 pub fn generate_simple_kline_series(
     length: usize,
-    start_timestamp: Option<DateTime<FixedOffset>>,
+    start_timestamp: Option<DateTime<Utc>>,
     base_price: Option<f64>,
 ) -> Vec<Arc<CacheValue>> {
     let start_ts = start_timestamp.unwrap_or_else(|| fixed_offset_time_from_millis(1622534400000)); // 2021-06-01 12:00:00

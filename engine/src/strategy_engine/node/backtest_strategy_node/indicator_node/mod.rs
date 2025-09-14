@@ -32,7 +32,9 @@ use indicator_node_type::{ExchangeModeConfig, SelectedIndicator};
 use snafu::ResultExt;
 use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use star_river_core::indicator::IndicatorConfig;
-use star_river_core::strategy::{BacktestDataSource, SelectedAccount, TimeRange};
+use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
+use star_river_core::strategy::deserialize_time_range;
+use serde::de::IntoDeserializer;
 use std::str::FromStr;
 
 // 指标节点
@@ -174,8 +176,10 @@ impl IndicatorNode {
                 .build()
             })?
             .to_owned();
-        let time_range = serde_json::from_value::<TimeRange>(time_range_json)
+        tracing::debug!("time_range_json: {:?}", time_range_json);
+        let time_range = deserialize_time_range(time_range_json.into_deserializer())
             .context(ConfigDeserializationFailedSnafu {})?;
+        tracing::debug!("time_range: {:?}", time_range);
 
         let data_source = backtest_config_json
             .get("dataSource")
@@ -629,8 +633,7 @@ impl BacktestNodeTrait for IndicatorNode {
                     }
                     IndicatorNodeStateAction::CalculateIndicator => {
                         tracing::info!("[{node_name}({node_id})] starting to calculate indicator");
-                        let log_message =
-                            CalculateIndicatorMsg::new(node_id.clone(), node_name.clone());
+                        let log_message = CalculateIndicatorMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),

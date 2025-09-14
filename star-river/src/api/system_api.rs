@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 use star_river_core::system::system_config::SystemConfig;
 use star_river_core::system::system_config::Localization;
 use utoipa::ToSchema;
-use chrono::Utc;
 use star_river_core::error::system_error::*;
 use snafu::IntoError;
 use tracing::instrument;
+use star_river_core::system::system_config::SystemConfigManager;
 
 
 
@@ -36,7 +36,7 @@ pub struct SystemConfigUpdateParams {
         (status = 200, description = "Update system config success", content_type = "application/json", body = ApiResponse<SystemConfig>),
     )
 )]
-#[instrument(skip(star_river))]
+#[instrument(skip(star_river, system_config_params), fields(localization = ?system_config_params.localization, timezone = %system_config_params.timezone))]
 pub async fn update_system_config(
     State(star_river): State<StarRiver>,
     Json(system_config_params): Json<SystemConfigUpdateParams>,
@@ -44,15 +44,23 @@ pub async fn update_system_config(
     let database = star_river.database.lock().await;
     let conn = &database.conn;
 
-    tracing::info!("update system config. localization: {:?}, timezone: {:?}", system_config_params.localization, system_config_params.timezone);
-
     let update_result = SystemConfigMutation::update_system_config(conn, system_config_params.localization, system_config_params.timezone).await;
 
     match update_result {
-        Ok(system_config) => (
-            StatusCode::OK,
-            Json(NewApiResponse::success(system_config)),
-        ),
+        Ok(system_config) => {
+            // 更新系统配置
+            SystemConfigManager::update_config(system_config.clone());
+            let global_timezone = SystemConfigManager::get_timezone();
+            let global_localization = SystemConfigManager::get_localization();
+            if global_timezone == system_config.timezone || global_localization == system_config.localization {
+                tracing::info!("update system config success. timezone: {:?}, localization: {:?}", global_timezone, global_localization);
+            } else {
+                tracing::error!("update system config failed. timezone: {:?}, localization: {:?}", global_timezone, global_localization);
+            }
+            
+            (StatusCode::OK, Json(NewApiResponse::success(system_config))
+        )
+        },
         Err(e) => {
             let error = UpdateSystemConfigFailedSnafu {}.into_error(e);
             (
@@ -79,7 +87,6 @@ pub async fn get_system_config(
     let conn = &database.conn;
 
     let system_config = SystemConfigQuery::get_system_config(conn).await;
-    tracing::debug!("get system config. system_config: {:?}", system_config);
     match system_config {
         Ok(system_config) => (
             StatusCode::OK,

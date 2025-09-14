@@ -18,30 +18,45 @@ impl StrategyConfigQuery {
             .paginate(db, strategy_per_page);
 
         let num_pages = paginator.num_pages().await?;
-
-        paginator.fetch_page(page - 1).await.map(|p| {
-            (
-                p.into_iter().map(|config| config.into()).collect(),
-                num_pages,
-            )
-        })
+        let models = paginator.fetch_page(page - 1).await?;
+        
+        let mut strategy_configs = Vec::new();
+        for model in models {
+            let strategy_config = model.into();
+            strategy_configs.push(strategy_config);
+        }
+        
+        Ok((strategy_configs, num_pages))
     }
 
     // 获取所有未删除的策略
     pub async fn get_all_strategy(db: &DbConn) -> Result<Vec<StrategyConfig>, DbErr> {
-        let strategies = StrategyConfigEntity::find()
+        let strategy_models = StrategyConfigEntity::find()
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .all(db)
             .await?;
-        Ok(strategies.into_iter().map(|config| config.into()).collect())
+            
+        let mut strategy_configs = Vec::new();
+        for model in strategy_models {
+            let strategy_config = model.into();
+            strategy_configs.push(strategy_config);
+        }
+        
+        Ok(strategy_configs)
     }
 
     pub async fn get_strategy_by_id(db: &DbConn, id: i32) -> Result<Option<StrategyConfig>, DbErr> {
-        let strategy_config = StrategyConfigEntity::find_by_id(id)
+        let strategy_model = StrategyConfigEntity::find_by_id(id)
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .one(db)
             .await?;
-        Ok(strategy_config.map(|config| config.into()))
+            
+        match strategy_model {
+            Some(model) => {
+                Ok(Some(model.into()))
+            }
+            None => Ok(None)
+        }
     }
 
     pub async fn get_backtest_chart_config_by_strategy_id(

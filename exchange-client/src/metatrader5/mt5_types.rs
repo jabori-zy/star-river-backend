@@ -1,5 +1,5 @@
 use chrono::TimeZone;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use star_river_core::market::KlineInterval;
 use star_river_core::market::{Exchange, MT5Server};
@@ -14,6 +14,7 @@ use star_river_core::transaction::OriginalTransaction;
 use star_river_core::transaction::{TransactionSide, TransactionType};
 use std::any::Any;
 use strum::{Display, EnumString};
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum Mt5KlineInterval {
@@ -359,7 +360,7 @@ impl OriginalOrder for Mt5Order {
             "reason": self.reason,
         }))
     }
-    fn get_created_time(&self) -> DateTime<Utc> {
+    fn get_created_time(&self) -> DateTimeUtc {
         // 把时间戳转换为日期时间
         let created_time = Utc
             .timestamp_millis_opt(self.time_setup_msc)
@@ -368,7 +369,7 @@ impl OriginalOrder for Mt5Order {
         created_time
     }
 
-    fn get_updated_time(&self) -> DateTime<Utc> {
+    fn get_updated_time(&self) -> DateTimeUtc {
         let updated_time = Utc
             .timestamp_millis_opt(self.time_done_msc)
             .single()
@@ -465,12 +466,12 @@ impl OriginalPosition for Mt5Position {
             "external_id": self.external_id,
         }))
     }
-    fn get_create_time(&self) -> DateTime<Utc> {
+    fn get_create_time(&self) -> DateTimeUtc {
         Utc.timestamp_millis_opt(self.time_msc)
             .single()
             .expect("时间戳转换为日期时间失败")
     }
-    fn get_update_time(&self) -> DateTime<Utc> {
+    fn get_update_time(&self) -> DateTimeUtc {
         Utc.timestamp_millis_opt(self.time_update_msc)
             .single()
             .expect("时间戳转换为日期时间失败")
@@ -547,7 +548,7 @@ impl OriginalTransaction for Mt5Deal {
     fn get_price(&self) -> f64 {
         self.price
     }
-    fn get_create_time(&self) -> DateTime<Utc> {
+    fn get_create_time(&self) -> DateTimeUtc {
         Utc.timestamp_millis_opt(self.time_msc)
             .single()
             .expect("时间戳转换为日期时间失败")

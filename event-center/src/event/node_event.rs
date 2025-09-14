@@ -2,10 +2,11 @@ pub mod backtest_node_event;
 
 pub use backtest_node_event::BacktestNodeEvent;
 
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use star_river_core::utils::get_utc8_datetime;
+
 
 // 泛型事件结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,7 +58,7 @@ pub trait NodeEventTrait {
     fn from_node_handle_id(&self) -> &String {
         &self.node_event_base().from_node_handle_id
     }
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         self.node_event_base().datetime
     }
 }
@@ -71,7 +72,7 @@ pub struct NodeEventBase {
     #[serde(rename = "fromNodeHandleId")]
     pub from_node_handle_id: String,
     #[serde(rename = "datetime")]
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl NodeEventBase {
@@ -80,7 +81,7 @@ impl NodeEventBase {
             from_node_id,
             from_node_name,
             from_node_handle_id,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }

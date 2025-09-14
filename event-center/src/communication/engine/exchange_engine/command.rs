@@ -1,8 +1,8 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
-use chrono::{DateTime, FixedOffset};
 use star_river_core::market::Exchange;
 use std::fmt::Debug;
-use star_river_core::utils::get_utc8_datetime;
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum ExchangeEngineCommand {
@@ -18,7 +18,7 @@ impl EngineCommandTrait for ExchangeEngineCommand {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             ExchangeEngineCommand::RegisterExchange(params) => params.datetime,
             ExchangeEngineCommand::UnregisterExchange(params) => params.datetime,
@@ -44,7 +44,7 @@ pub struct RegisterExchangeParams {
     pub account_id: i32, // 终端id 和系统的account_config的id一致
     pub exchange: Exchange,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -59,7 +59,7 @@ impl RegisterExchangeParams {
             account_id,
             exchange,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -75,7 +75,7 @@ impl From<RegisterExchangeParams> for EngineCommand {
 pub struct UnregisterExchangeParams {
     pub account_id: i32, // 终端id 和系统的account_config的id一致
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -84,7 +84,7 @@ impl UnregisterExchangeParams {
         Self {
             account_id,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }

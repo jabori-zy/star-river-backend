@@ -1,7 +1,5 @@
 use super::VirtualTradingSystem;
 use crate::utils::Formula;
-use chrono::DateTime;
-use event_center::Channel::Position;
 use star_river_core::custom_type::*;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::OrderStatus;
@@ -10,7 +8,7 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::position::{PositionSide, PositionState};
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
-use chrono::FixedOffset;
+use chrono::{DateTime, Utc};
 
 impl VirtualTradingSystem {
     pub fn generate_position_id(&self) -> PositionId {
@@ -78,7 +76,7 @@ impl VirtualTradingSystem {
         &mut self,
         order: &VirtualOrder,
         current_price: f64,
-        execute_datetime: DateTime<FixedOffset>,
+        execute_datetime: DateTime<Utc>,
     ) -> Result<PositionId, String> {
         tracing::info!("执行开仓订单: {:?}, 成交价格: {:?}", order, current_price);
 

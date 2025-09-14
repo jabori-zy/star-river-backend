@@ -1,11 +1,12 @@
 use super::super::{NodeResponse, NodeResponseTrait, StrategyResponse, StrategyResponseTrait};
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use star_river_core::cache::Key;
 use star_river_core::custom_type::NodeId;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::strategy::BacktestStrategyConfig;
 use std::sync::Arc;
-use star_river_core::utils::get_utc8_datetime;
+use star_river_core::system::DateTimeUtc;
+
 
 #[derive(Debug)]
 pub enum BacktestStrategyResponse {
@@ -49,7 +50,7 @@ impl StrategyResponseTrait for BacktestStrategyResponse {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             BacktestStrategyResponse::GetStartNodeConfig(get_start_node_config_response) => {
                 get_start_node_config_response.datetime
@@ -67,7 +68,7 @@ pub struct GetStartNodeConfigResponse {
     pub node_id: NodeId,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub backtest_strategy_config: BacktestStrategyConfig,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetStartNodeConfigResponse {
@@ -77,7 +78,7 @@ impl GetStartNodeConfigResponse {
             node_id,
             error: None,
             backtest_strategy_config,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -93,7 +94,7 @@ pub struct NodeResetResponse {
     pub node_id: NodeId,
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl NodeResetResponse {
@@ -102,7 +103,7 @@ impl NodeResetResponse {
             node_id,
             success: true,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -146,7 +147,7 @@ impl NodeResponseTrait for BacktestNodeResponse {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             BacktestNodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 get_strategy_cache_keys_response.datetime
@@ -163,7 +164,7 @@ pub struct GetStrategyCacheKeysResponse {
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub keys: Vec<Key>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetStrategyCacheKeysResponse {
@@ -172,7 +173,7 @@ impl GetStrategyCacheKeysResponse {
             success: true,
             error: None,
             keys,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -187,17 +188,17 @@ impl From<GetStrategyCacheKeysResponse> for NodeResponse {
 pub struct GetCurrentTimeResponse {
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub current_time: DateTime<FixedOffset>,
-    pub datetime: DateTime<FixedOffset>,
+    pub current_time: DateTime<Utc>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetCurrentTimeResponse {
-    pub fn success(current_time: DateTime<FixedOffset>) -> Self {
+    pub fn success(current_time: DateTime<Utc>) -> Self {
         Self {
             success: true,
             error: None,
             current_time,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }

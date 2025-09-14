@@ -10,7 +10,7 @@ impl StrategySysVariableMutation {
         db: &DbConn,
         strategy_id: i32,
     ) -> Result<StrategySysVariable, DbErr> {
-        strategy_sys_variable::ActiveModel {
+        let strategy_sys_variable_model = strategy_sys_variable::ActiveModel {
             id: NotSet,
             strategy_id: Set(strategy_id),
             position_number: Set(0),
@@ -20,8 +20,9 @@ impl StrategySysVariableMutation {
         }
         .insert(db)
         .await
-        .map_err(|e| DbErr::Custom(e.to_string()))
-        .map(|model| model.into())
+        .map_err(|e| DbErr::Custom(e.to_string()))?;
+
+        Ok(strategy_sys_variable_model.into())
     }
 
     pub async fn update_position_number(
@@ -36,7 +37,7 @@ impl StrategySysVariableMutation {
                 .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
                 .map(Into::into)?;
 
-        strategy_sys_variable::ActiveModel {
+        let strategy_sys_variable_model = strategy_sys_variable::ActiveModel {
             id: strategy.id,
             strategy_id: Set(strategy_id),
             position_number: Set(position_number),
@@ -45,7 +46,8 @@ impl StrategySysVariableMutation {
         }
         .update(db)
         .await
-        .map_err(|e| DbErr::Custom(e.to_string()))
-        .map(|model| model.into())
+        .map_err(|e| DbErr::Custom(e.to_string()))?;
+
+        Ok(strategy_sys_variable_model.into())
     }
 }

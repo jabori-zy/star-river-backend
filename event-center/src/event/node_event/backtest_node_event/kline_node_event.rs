@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use star_river_core::cache::{key::KlineKey, CacheValue, KeyTrait};
 use std::sync::Arc;
 use strum::Display;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
@@ -107,11 +107,11 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeUpdatePayload {
     #[serde(rename = "currentTime")]
-    pub current_time: DateTime<FixedOffset>,
+    pub current_time: DateTime<Utc>,
 }
 
 impl TimeUpdatePayload {
-    pub fn new(current_time: DateTime<FixedOffset>) -> Self {
+    pub fn new(current_time: DateTime<Utc>) -> Self {
         Self { current_time }
     }
 }

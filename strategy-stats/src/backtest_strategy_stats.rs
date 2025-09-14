@@ -1,20 +1,19 @@
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::custom_type::{Balance, Leverage, StrategyId};
+use star_river_core::custom_type::{Balance, StrategyId};
 use star_river_core::strategy_stats::event::{
     StrategyStatsEvent, StrategyStatsEventSender, StrategyStatsUpdatedEvent,
 };
 use star_river_core::strategy_stats::{StatsSnapshot, StatsSnapshotHistory};
-use star_river_core::virtual_trading_system::event::{
-    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,
-};
+use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use virtual_trading::VirtualTradingSystem;
-use star_river_core::utils::get_utc8_datetime;
-use chrono::{DateTime, FixedOffset};
+
+use star_river_core::system::DateTimeUtc;
+use chrono::Utc;
 
 #[derive(Debug)]
 pub struct BacktestStrategyStats {
@@ -25,7 +24,7 @@ pub struct BacktestStrategyStats {
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     cancel_token: CancellationToken,
     asset_snapshot_history: Arc<RwLock<StatsSnapshotHistory>>, // 资产快照历史
-    datetime: DateTime<FixedOffset>,
+    datetime: DateTimeUtc,
 }
 
 impl BacktestStrategyStats {
@@ -42,7 +41,7 @@ impl BacktestStrategyStats {
             strategy_stats_event_sender,
             cancel_token: CancellationToken::new(),
             asset_snapshot_history: Arc::new(RwLock::new(StatsSnapshotHistory::new(None))),
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             play_index_watch_rx,
         }
     }
@@ -51,7 +50,7 @@ impl BacktestStrategyStats {
         self.initial_balance = initial_balance;
     }
 
-    pub fn set_datetime(&mut self, datetime: DateTime<FixedOffset>) {
+    pub fn set_datetime(&mut self, datetime: DateTimeUtc) {
         self.datetime = datetime;
     }
 

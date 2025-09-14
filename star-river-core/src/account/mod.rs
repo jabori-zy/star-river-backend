@@ -1,11 +1,15 @@
 pub mod mt5_account;
 
 use crate::market::Exchange;
-use chrono::{DateTime, Utc};
+use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
 use utoipa::ToSchema;
+use entity::account_config::Model as AccountConfigModel;
+use entity::account_info::Model as AccountInfoModel;
+use crate::system::system_config::SystemConfigManager;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -94,8 +98,36 @@ pub struct AccountConfig {
     pub is_available: bool,         // 是否可用
     pub is_deleted: bool,           // 是否删除
     pub sort_index: i32,            // 排序索引
-    pub create_time: DateTime<Utc>, // 创建时间
-    pub update_time: DateTime<Utc>, // 更新时间
+    #[schema(value_type = String, example = "2021-01-01 00:00:00")]
+    pub create_time: DateTimeUtc, // 创建时间
+    #[schema(value_type = String, example = "2021-01-01 00:00:00")]
+    pub update_time: DateTimeUtc, // 更新时间
+}
+
+
+impl From<AccountConfigModel> for AccountConfig {
+    fn from(model: AccountConfigModel) -> Self {
+        let exchange = match model.exchange.as_str() {
+            "metatrader5" => Exchange::Metatrader5(
+                model.account_config["server"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string(),
+            ),
+            _ => Exchange::from_str(model.exchange.as_str()).unwrap(),
+        };
+        Self {
+            id: model.id,
+            account_name: model.account_name,
+            exchange,
+            config: model.account_config,
+            is_available: model.is_available,
+            is_deleted: model.is_delete,
+            sort_index: model.sort_index,
+            create_time: model.create_time,
+            update_time: model.update_time
+        }
+    }
 }
 
 // 账户信息
@@ -104,8 +136,21 @@ pub struct AccountInfo {
     pub id: i32,
     pub account_id: i32,            // 配置id
     pub info: serde_json::Value,    // 账户信息
-    pub create_time: DateTime<Utc>, // 创建时间
-    pub update_time: DateTime<Utc>, // 更新时间
+    pub create_time: DateTimeUtc, // 创建时间
+    pub update_time: DateTimeUtc, // 更新时间
+}
+
+
+impl From<AccountInfoModel> for AccountInfo {
+    fn from(model: AccountInfoModel) -> Self {
+        Self {
+            id: model.id,
+            account_id: model.account_id,
+            info: model.info.unwrap(),
+            create_time: model.create_time,
+            update_time: model.update_time,
+        }
+    }
 }
 
 // 原始账户

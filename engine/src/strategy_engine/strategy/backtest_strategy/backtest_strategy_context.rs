@@ -4,8 +4,8 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use event_center::communication::strategy::{StrategyCommand, NodeCommandReceiver, BacktestStrategyResponse};
-use event_center::communication::engine::cache_engine::{CacheEngineCommand, CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
+use event_center::communication::strategy::{NodeCommandReceiver, BacktestStrategyResponse};
+use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
 use event_center::communication::strategy::StrategyResponse;
 use event_center::event::node_event::NodeEventTrait;
 use event_center::singleton::EventCenterSingleton;
@@ -38,17 +38,16 @@ use event_center::event::node_event::backtest_node_event::position_management_no
 use event_center::event::node_event::backtest_node_event::IndicatorNodeEvent;
 use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, SignalEvent};
 use event_center::event::strategy_event::StrategyRunningLogEvent;
-use event_center::communication::strategy::{NodeResponse, NodeCommand, BacktestNodeCommand, BacktestNodeResponse};
+use event_center::communication::strategy::{NodeCommand, BacktestNodeCommand};
 use event_center::communication::strategy::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse, GetStartNodeConfigParams};
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
-use star_river_core::utils::{get_utc8_datetime, timestamp_to_utc8_datetime};
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -82,7 +81,7 @@ pub struct BacktestStrategyContext {
     pub leaf_node_ids: Vec<NodeId>,           // 叶子节点id
     pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
     pub execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
-    pub current_time: Arc<RwLock<DateTime<FixedOffset>>>, // 当前时间
+    pub current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
     pub batch_id: Uuid,                       // 回测批次id
     pub running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
 }
@@ -150,7 +149,7 @@ impl BacktestStrategyContext {
             play_index_watch_rx,
             leaf_node_ids: vec![],
             execute_over_node_ids: Arc::new(RwLock::new(vec![])),
-            current_time: Arc::new(RwLock::new(get_utc8_datetime())),
+            current_time: Arc::new(RwLock::new(Utc::now())),
             batch_id: Uuid::new_v4(),
             running_log: Arc::new(RwLock::new(vec![])),
         }
@@ -194,11 +193,11 @@ impl BacktestStrategyContext {
         self.strategy_inner_event_publisher = Some(strategy_inner_event_publisher);
     }
 
-    pub async fn get_current_time(&self) -> DateTime<FixedOffset> {
+    pub async fn get_current_time(&self) -> DateTime<Utc> {
         self.current_time.read().await.clone()
     }
 
-    pub async fn set_current_time(&mut self, current_time: DateTime<FixedOffset>) {
+    pub async fn set_current_time(&mut self, current_time: DateTime<Utc>) {
         *self.current_time.write().await = current_time;
     }
 

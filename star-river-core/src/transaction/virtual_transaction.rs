@@ -5,7 +5,7 @@ use crate::order::FuturesOrderSide;
 use crate::position::virtual_position::VirtualPosition;
 use crate::transaction::TransactionSide;
 use crate::transaction::TransactionType;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::IntoParams;
 use utoipa::ToSchema;
@@ -52,7 +52,7 @@ pub struct VirtualTransaction {
     pub profit: Option<f64>, // 收益
 
     #[serde(rename = "createTime")]
-    pub create_time: DateTime<FixedOffset>, // 创建时间
+    pub create_time: DateTime<Utc>, // 创建时间
 }
 
 impl VirtualTransaction {
@@ -60,7 +60,7 @@ impl VirtualTransaction {
         transaction_id: TransactionId,
         virtual_order: &VirtualOrder,
         virtual_position: &VirtualPosition,
-        datetime: DateTime<FixedOffset>,
+        datetime: DateTime<Utc>,
     ) -> Self {
         let transaction_type = match virtual_order.order_side {
             FuturesOrderSide::OpenLong => TransactionType::Open,

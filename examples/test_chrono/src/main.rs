@@ -190,7 +190,7 @@ fn demonstrate_chrono_tz_benefits() {
     
     // 2. 全球同一时刻对比
     println!("2. 同一UTC时刻的全球时间:");
-    let utc_moment = Utc.with_ymd_and_hms(2025, 7, 15, 14, 30, 0).unwrap();
+    let utc_moment = Utc::now();
     
     let timezones = vec![
         ("上海", Shanghai as Tz),
@@ -203,7 +203,7 @@ fn demonstrate_chrono_tz_benefits() {
     println!("   UTC: {}", utc_moment);
     for (name, tz) in timezones {
         let local_time = utc_moment.with_timezone(&tz);
-        println!("   {}: {} ({})", name, local_time.format("%H:%M"), tz);
+        println!("   {}: {} ({})", name, local_time, tz);
     }
     
     // 3. 跨时区业务场景
@@ -252,11 +252,16 @@ fn simple_timezone_demo() {
     for (city, tz_name) in common_timezones {
         if let Ok(tz) = tz_name.parse::<Tz>() {
             let local_time = now.with_timezone(&tz);
+            let fixed_offset_time = local_time.fixed_offset();
+            let tz_local_time = local_time.with_timezone(&tz);
+            println!("local_time: {}", local_time);
+            println!("fixed_offset_time: {}", fixed_offset_time);
+            println!("tz_local_time: {}", tz_local_time);
             println!("   {:<6}: {} {} ({})", 
                 city,
                 local_time.format("%m-%d %H:%M"),
-                local_time.format("%Z"),
-                local_time.format("%z")
+                tz_local_time.timezone().name(),
+                fixed_offset_time.offset().to_string()
             );
         }
     }

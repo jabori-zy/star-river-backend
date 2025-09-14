@@ -16,7 +16,6 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
-use star_river_core::utils::{get_utc8_datetime, get_utc8_timestamp_millis};
 use event_center::EventCenterSingleton;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Exchange;
@@ -28,13 +27,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 
 /// 虚拟交易系统
 ///
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
-    current_datetime: DateTime<FixedOffset>, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
+    current_datetime: DateTime<Utc>, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
     // pub command_publisher: CommandPublisher, // 命令发布者
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
@@ -73,7 +72,7 @@ impl VirtualTradingSystem {
         let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) =
             broadcast::channel::<VirtualTradingSystemEvent>(100);
         Self {
-            current_datetime: get_utc8_datetime(),
+            current_datetime: Utc::now(),
             kline_price: HashMap::new(),
             initial_balance: 0.0,
             balance: 0.0,
@@ -128,7 +127,7 @@ impl VirtualTradingSystem {
                     self.kline_price.insert(
                         kline_key,
                         Kline {
-                            datetime: get_utc8_datetime(),
+                            datetime: Utc::now(),
                             open: 0.0,
                             high: 0.0,
                             low: 0.0,
@@ -150,7 +149,7 @@ impl VirtualTradingSystem {
                 self.kline_price.insert(
                     kline_key,
                     Kline {
-                        datetime: get_utc8_datetime(),
+                        datetime: Utc::now(),
                         open: 0.0,
                         high: 0.0,
                         low: 0.0,
@@ -162,7 +161,7 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn get_datetime(&self) -> DateTime<FixedOffset> {
+    pub fn get_datetime(&self) -> DateTime<Utc> {
         self.current_datetime
     }
 

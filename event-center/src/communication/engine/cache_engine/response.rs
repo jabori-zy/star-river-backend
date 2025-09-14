@@ -1,11 +1,11 @@
 use super::super::{EngineResponse, ResponseTrait};
-use chrono::{DateTime, FixedOffset};
 use star_river_core::cache::{CacheValue, Key};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use star_river_core::utils::get_utc8_datetime;
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum CacheEngineResponse {
@@ -48,7 +48,7 @@ impl ResponseTrait for CacheEngineResponse {
         }
     }
 
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             CacheEngineResponse::AddCacheKey(response) => response.datetime,
             CacheEngineResponse::AddIndicatorCacheKey(response) => response.datetime,
@@ -82,7 +82,7 @@ pub struct AddCacheKeyResponse {
     pub success: bool,
     pub key: Key,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl AddCacheKeyResponse {
@@ -91,7 +91,7 @@ impl AddCacheKeyResponse {
             success: true,
             key,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -108,7 +108,7 @@ pub struct GetCacheDataResponse {
     pub key: Key,
     pub cache_data: Vec<Arc<CacheValue>>,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetCacheDataResponse {
@@ -118,7 +118,7 @@ impl GetCacheDataResponse {
             key,
             cache_data,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -134,7 +134,7 @@ pub struct GetCacheDataMultiResponse {
     pub success: bool,
     pub cache_data: HashMap<String, Vec<Vec<f64>>>,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetCacheDataMultiResponse {
@@ -153,7 +153,7 @@ impl GetCacheDataMultiResponse {
                 })
                 .collect(),
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -171,7 +171,7 @@ pub struct AddIndicatorCacheKeyResponse {
     pub requested_node_id: NodeId,         // 请求的节点id
     pub indicator_key: Key,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl AddIndicatorCacheKeyResponse {
@@ -186,7 +186,7 @@ impl AddIndicatorCacheKeyResponse {
             requested_node_id,
             indicator_key,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -203,7 +203,7 @@ pub struct GetCacheLengthResponse {
     pub cache_key: Key,
     pub cache_length: u32,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetCacheLengthResponse {
@@ -213,7 +213,7 @@ impl GetCacheLengthResponse {
             cache_key,
             cache_length,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }
@@ -229,7 +229,7 @@ pub struct GetCacheLengthMultiResponse {
     pub success: bool,
     pub cache_length: HashMap<Key, u32>,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
 }
 
 impl GetCacheLengthMultiResponse {
@@ -238,7 +238,7 @@ impl GetCacheLengthMultiResponse {
             success: true,
             cache_length,
             error: None,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now()
         }
     }
 }

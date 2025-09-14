@@ -1,11 +1,12 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use star_river_core::cache::Key;
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::market::{Exchange, KlineInterval};
 use std::fmt::Debug;
 use tokio::time::Duration;
-use star_river_core::utils::get_utc8_datetime;
+
 
 #[derive(Debug)]
 pub enum CacheEngineCommand {
@@ -26,7 +27,7 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheLengthMulti(params) => &params.responder,
         }
     }
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             CacheEngineCommand::AddCacheKey(params) => params.datetime,
             CacheEngineCommand::GetCache(params) => params.datetime,
@@ -61,7 +62,7 @@ pub struct AddCacheKeyParams {
     pub max_size: Option<u32>,
     pub duration: Duration,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -80,7 +81,7 @@ impl AddCacheKeyParams {
             max_size,
             duration,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -99,7 +100,7 @@ pub struct AddIndicatorCacheKeyParams {
     pub node_id: NodeId,
     pub indicator_cache_key: Key,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -116,7 +117,7 @@ impl AddIndicatorCacheKeyParams {
             node_id,
             indicator_cache_key,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -126,7 +127,7 @@ impl AddIndicatorCacheKeyParams {
 pub struct SubscribeIndicatorParams {
     pub cache_key: Key,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -135,7 +136,7 @@ impl SubscribeIndicatorParams {
         Self {
             cache_key,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -147,7 +148,7 @@ pub struct GetSubscribedIndicatorParams {
     pub symbol: String,
     pub interval: KlineInterval,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -164,7 +165,7 @@ impl GetSubscribedIndicatorParams {
             symbol,
             interval,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -178,7 +179,7 @@ pub struct GetCacheParams {
     pub index: Option<u32>, // 缓存取值索引
     pub limit: Option<u32>, // 获取的缓存数据条数
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -199,7 +200,7 @@ impl GetCacheParams {
             index,
             limit,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -218,7 +219,7 @@ pub struct GetCacheMultiParams {
     pub index: Option<u32>, // 缓存取值索引
     pub limit: Option<u32>,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -237,7 +238,7 @@ impl GetCacheMultiParams {
             index,
             limit,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -254,7 +255,7 @@ pub struct GetCacheLengthParams {
     pub strategy_id: StrategyId,
     pub cache_key: Key,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -269,7 +270,7 @@ impl GetCacheLengthParams {
             strategy_id,
             cache_key,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
@@ -280,7 +281,7 @@ pub struct GetCacheLengthMultiParams {
     pub strategy_id: StrategyId,
     pub keys: Vec<Key>,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -295,7 +296,7 @@ impl GetCacheLengthMultiParams {
             strategy_id,
             keys,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }

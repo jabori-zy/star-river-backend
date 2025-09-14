@@ -844,7 +844,6 @@ dependencies = [
  "chrono-tz",
  "sea-orm",
  "serde",
- "star-river-core",
 ]
 
 [[package]]
@@ -3293,6 +3292,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "deepsize",
+ "entity",
  "futures",
  "ordered-float 5.0.0",
  "paste",

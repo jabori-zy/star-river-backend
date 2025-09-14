@@ -35,10 +35,6 @@ impl BacktestStrategyFunction {
 
         let mut node = IndicatorNode::new(
             node_config,
-            // event_publisher,
-            // command_publisher,
-            // command_receiver,
-            // response_event_receiver,
             node_command_sender,
             Arc::new(Mutex::new(strategy_command_rx)),
             strategy_inner_event_receiver,

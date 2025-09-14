@@ -423,14 +423,18 @@ impl Mt5HttpClient {
     }
 
     // 获取历史
+    #[instrument(skip(self, time_range), fields(
+        start_time = %time_range.start_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string(), 
+        end_time = %time_range.end_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string()))
+        ]
     pub async fn get_kline_history(
         &self,
         symbol: &str,
         interval: Mt5KlineInterval,
         time_range: TimeRange,
     ) -> Result<serde_json::Value, Mt5Error> {
-        let start_time = time_range.start_date.format("%Y-%m-%d").to_string();
-        let end_time = time_range.end_date.format("%Y-%m-%d").to_string();
+        let start_time = time_range.start_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+        let end_time = time_range.end_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string();
 
         let url = format!(
             "{}?symbol={}&interval={}&start_time={}&end_time={}",
@@ -440,7 +444,7 @@ impl Mt5HttpClient {
             start_time,
             end_time
         );
-        tracing::debug!(url = %url, symbol = %symbol, interval = %interval, time_range = %time_range, "Getting kline history");
+        tracing::debug!("get kline history. url: {}", url);
 
         let response = self
             .client

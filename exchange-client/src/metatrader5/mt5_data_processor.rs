@@ -1,7 +1,7 @@
 use crate::metatrader5::mt5_types::Mt5Deal;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
-use chrono::{TimeZone, Utc};
+use chrono::{TimeZone,Utc};
 use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
 use event_center::EventCenterSingleton;
 use snafu::{OptionExt, ResultExt};
@@ -15,7 +15,6 @@ use star_river_core::order::OriginalOrder;
 use star_river_core::position::PositionNumber;
 use star_river_core::position::{OriginalPosition, Position};
 use star_river_core::transaction::OriginalTransaction;
-use star_river_core::utils::timestamp_to_utc8_datetime;
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -104,7 +103,7 @@ impl Mt5DataProcessor {
         })?;
 
         let kline = Kline {
-            datetime: timestamp_to_utc8_datetime(timestamp)?,
+            datetime: Utc.timestamp_opt(timestamp, 0).single().unwrap(),
             open,
             high,
             low,
@@ -219,6 +218,11 @@ impl Mt5DataProcessor {
                 symbol: Some(symbol.to_string()),
                 interval: Some(interval.to_string()),
             })?;
+            //1757649600 10 digits
+            let datetime = Utc.timestamp_opt(timestamp, 0).single().context(TimestampConversionSnafu {
+                message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
+                timestamp: Some(timestamp),
+            })?;
 
             let open = arr[1].as_f64().context(KlineDataParsingSnafu {
                 message: format!("Invalid open price at index {}: {:?}", index, arr[1]),
@@ -251,7 +255,7 @@ impl Mt5DataProcessor {
             })?;
 
             klines.push(Kline {
-                datetime: timestamp_to_utc8_datetime(timestamp)?,
+                datetime,
                 open,
                 high,
                 low,
@@ -424,7 +428,8 @@ impl Mt5DataProcessor {
             .context(TimestampConversionSnafu {
                 message: "Invalid create timestamp".to_string(),
                 timestamp: Some(new_mt_position.time_msc),
-            })?;
+            })?
+            ;
 
         let update_time = Utc
             .timestamp_millis_opt(new_mt_position.time_update_msc)
@@ -432,7 +437,8 @@ impl Mt5DataProcessor {
             .context(TimestampConversionSnafu {
                 message: "Invalid update timestamp".to_string(),
                 timestamp: Some(new_mt_position.time_update_msc),
-            })?;
+            })?
+            ;
 
         let new_position = Position {
             position_id: old_position.position_id,

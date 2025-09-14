@@ -25,7 +25,7 @@ impl TransactionMutation {
             transaction_side: Set(transaction.get_transaction_side().to_string()),
             quantity: Set(transaction.get_quantity()),
             price: Set(transaction.get_price()),
-            created_time: Set(transaction.get_create_time()),
+            created_time: Set(transaction.get_create_time().to_utc()),
             ..Default::default()
         }
         .insert(db)

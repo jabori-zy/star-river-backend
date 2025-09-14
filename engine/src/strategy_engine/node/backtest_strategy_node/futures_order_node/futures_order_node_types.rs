@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::InputHandleId;
 use star_river_core::order::{deserialize_futures_order_side, deserialize_order_type};
+use star_river_core::strategy::deserialize_time_range;
 use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
 use star_river_core::strategy::{
     BacktestDataSource, DataSourceExchange, SelectedAccount, TimeRange,
@@ -56,5 +57,6 @@ pub struct FuturesOrderNodeExchangeModeConfig {
     #[serde(rename = "selectedAccount")]
     pub selected_account: SelectedAccount,
     #[serde(rename = "timeRange")]
+    #[serde(deserialize_with = "deserialize_time_range")]
     pub time_range: TimeRange,
 }

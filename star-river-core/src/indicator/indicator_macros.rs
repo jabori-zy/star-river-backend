@@ -61,7 +61,7 @@ macro_rules! define_indicator_output {
             }
 
             impl crate::cache::CacheItem for $indicator_name {
-                fn get_datetime(&self) -> DateTime<FixedOffset> {
+                fn get_datetime(&self) -> DateTime<Utc> {
                     self.datetime
                 }
 
@@ -233,13 +233,13 @@ macro_rules! add_field_to_vec {
     ($vec:expr, $field:expr, chrono::DateTime<chrono::FixedOffset>) => {
         $vec.push($field.timestamp_millis() as f64);
     };
-    ($vec:expr, $field:expr, chrono::DateTime<FixedOffset>) => {
+    ($vec:expr, $field:expr, chrono::DateTime<Utc>) => {
         $vec.push($field.timestamp_millis() as f64);
     };
     ($vec:expr, $field:expr, crate::time::Utc8DateTime) => {
         $vec.push($field.timestamp_millis() as f64);
     };
-    ($vec:expr, $field:expr, DateTime<FixedOffset>) => {
+    ($vec:expr, $field:expr, DateTime<Utc>) => {
         $vec.push($field.timestamp_millis() as f64);
     };
 }
@@ -286,7 +286,7 @@ macro_rules! format_field_with_time {
     ($field:expr, $field_name:expr, crate::time::Utc8DateTime) => {
         serde_json::Value::String($field.to_string())
     };
-    ($field:expr, $field_name:expr, DateTime<FixedOffset>) => {
+    ($field:expr, $field_name:expr, DateTimeUtc) => {
         serde_json::Value::String($field.to_string())
     };
     ($field:expr, $field_name:expr, $other_type:ty) => {
@@ -424,7 +424,7 @@ macro_rules! impl_indicator {
         }
 
         impl CacheItem for $enum_name {
-            fn get_datetime(&self) -> DateTime<FixedOffset> {
+            fn get_datetime(&self) -> DateTime<Utc> {
                 match self {
                     $(
                         $enum_name::$variant(inner) => inner.datetime,

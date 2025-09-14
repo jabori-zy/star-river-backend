@@ -1,7 +1,5 @@
 use ::entity::{strategy_sys_variable, strategy_sys_variable::Entity as StrategySysVariableEntity};
-use chrono::Utc;
 use sea_orm::*;
-use star_river_core::strategy::sys_varibale::StrategySysVariable;
 
 pub struct StrategySysVariableQuery;
 

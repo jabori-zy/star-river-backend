@@ -2,11 +2,11 @@ pub mod backtest_strategy;
 
 pub use backtest_strategy::*;
 
-use chrono::{DateTime, FixedOffset};
+use tokio::sync::{mpsc, oneshot};
+use star_river_core::system::DateTimeUtc;
 use star_river_core::custom_type::NodeId;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot};
 
 pub type StrategyResponder = oneshot::Sender<StrategyResponse>;
 pub type StrategyCommandSender = mpsc::Sender<StrategyCommand>;
@@ -15,7 +15,7 @@ pub type StrategyCommandReceiver = mpsc::Receiver<StrategyCommand>;
 pub trait StrategyCommandTrait {
     fn node_id(&self) -> &NodeId;
     fn responder(&self) -> &StrategyResponder;
-    fn datetime(&self) -> DateTime<FixedOffset>;
+    fn datetime(&self) -> DateTimeUtc;
 }
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl StrategyCommand {
         }
     }
 
-    pub fn datetime(&self) -> DateTime<FixedOffset> {
+    pub fn datetime(&self) -> DateTimeUtc {
         match self {
             StrategyCommand::BacktestStrategy(command) => command.datetime(),
         }
@@ -47,7 +47,7 @@ pub trait StrategyResponseTrait {
     fn node_id(&self) -> &NodeId;
     fn success(&self) -> bool;
     fn error(&self) -> Arc<dyn StarRiverErrorTrait>;
-    fn datetime(&self) -> DateTime<FixedOffset>;
+    fn datetime(&self) -> DateTimeUtc;
 }
 
 pub type NodeResponder = oneshot::Sender<NodeResponse>;
@@ -72,7 +72,7 @@ impl StrategyResponse {
         }
     }
 
-    pub fn datetime(&self) -> DateTime<FixedOffset> {
+    pub fn datetime(&self) -> DateTimeUtc {
         match self {
             StrategyResponse::BacktestStrategy(response) => response.datetime(),
         }
@@ -87,7 +87,7 @@ impl StrategyResponse {
 
 pub trait NodeCommandTrait {
     fn responder(&self) -> &NodeResponder;
-    fn datetime(&self) -> DateTime<FixedOffset>;
+    fn datetime(&self) -> DateTimeUtc;
     fn node_id(&self) -> &NodeId;
 }
 
@@ -102,7 +102,7 @@ impl NodeCommand {
         }
     }
 
-    pub fn datetime(&self) -> DateTime<FixedOffset> {
+    pub fn datetime(&self) -> DateTimeUtc {
         match self {
             NodeCommand::BacktestNode(command) => command.datetime(),
         }
@@ -118,7 +118,7 @@ impl NodeCommand {
 pub trait NodeResponseTrait {
     fn success(&self) -> bool;
     fn error(&self) -> Arc<dyn StarRiverErrorTrait>;
-    fn datetime(&self) -> DateTime<FixedOffset>;
+    fn datetime(&self) -> DateTimeUtc;
 }
 
 #[derive(Debug)]
@@ -139,7 +139,7 @@ impl NodeResponse {
         }
     }
 
-    pub fn datetime(&self) -> DateTime<FixedOffset> {
+    pub fn datetime(&self) -> DateTimeUtc {
         match self {
             NodeResponse::BacktestNode(response) => response.datetime(),
         }

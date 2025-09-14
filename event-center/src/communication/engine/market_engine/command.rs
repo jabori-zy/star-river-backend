@@ -1,10 +1,11 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
-use chrono::{DateTime, FixedOffset};
+use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::{Exchange, KlineInterval};
 use star_river_core::strategy::TimeRange;
 use std::fmt::Debug;
-use star_river_core::utils::get_utc8_datetime;
+
 
 #[derive(Debug)]
 pub enum MarketEngineCommand {
@@ -21,7 +22,7 @@ impl EngineCommandTrait for MarketEngineCommand {
             MarketEngineCommand::GetKlineHistory(params) => &params.responder,
         }
     }
-    fn datetime(&self) -> DateTime<FixedOffset> {
+    fn datetime(&self) -> DateTimeUtc {
         match self {
             MarketEngineCommand::SubscribeKlineStream(params) => params.datetime,
             MarketEngineCommand::UnsubscribeKlineStream(params) => params.datetime,
@@ -54,7 +55,7 @@ pub struct SubscribeKlineStreamParams {
     pub frequency: u32,
     pub cache_size: u32,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -68,7 +69,7 @@ pub struct UnsubscribeKlineStreamParams {
     pub interval: KlineInterval,
     pub frequency: u32,
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -82,7 +83,7 @@ pub struct GetKlineHistoryParams {
     pub interval: KlineInterval,
     pub time_range: TimeRange, // 时间范围
     pub sender: String,
-    pub datetime: DateTime<FixedOffset>,
+    pub datetime: DateTimeUtc,
     pub responder: EngineResponder,
 }
 
@@ -107,7 +108,7 @@ impl GetKlineHistoryParams {
             interval,
             time_range,
             sender,
-            datetime: get_utc8_datetime(),
+            datetime: Utc::now(),
             responder,
         }
     }
