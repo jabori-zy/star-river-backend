@@ -382,16 +382,14 @@ impl BacktestNodeTrait for IndicatorNode {
 
         // 添加strategy_output_handle
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         self.add_output_handle(strategy_output_handle_id, tx).await;
-
-        tracing::debug!("1111");
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
         self.add_output_handle(default_output_handle_id, tx).await;
 
         // 添加每一个indicator的出口
@@ -412,7 +410,7 @@ impl BacktestNodeTrait for IndicatorNode {
 
         for indicator in selected_indicator.iter() {
             let indicator_output_handle_id = indicator.output_handle_id.clone();
-            tracing::debug!(node_id = %node_id, node_name = %node_name, indicator_output_handle_id = %indicator_output_handle_id, "setting indicator output handle");
+            tracing::debug!("[{node_name}] setting indicator output handle: {}", indicator_output_handle_id);
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(indicator_output_handle_id, tx).await;
         }
@@ -670,7 +668,7 @@ impl BacktestNodeTrait for IndicatorNode {
                         .set_state_machine(state_machine.clone_box());
                 }
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
         Ok(())
     }

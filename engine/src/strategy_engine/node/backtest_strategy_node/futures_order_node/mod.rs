@@ -216,12 +216,11 @@ impl BacktestNodeTrait for FuturesOrderNode {
     }
 
     async fn set_output_handle(&mut self) {
-        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         let futures_order_configs = {
@@ -238,11 +237,21 @@ impl BacktestNodeTrait for FuturesOrderNode {
         };
         // 为每一个订单添加出口
         for order_config in futures_order_configs.iter() {
+
+
+            let all_output_handle_id = format!("{}_all_status_output_{}",node_id, order_config.order_config_id);
+            let (all_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order all output handle: {}", all_output_handle_id);
+            self.add_output_handle(all_output_handle_id, all_tx)
+                .await;
+
+
             let created_output_handle_id = format!(
                 "{}_created_output_{}",
                 node_id, order_config.order_config_id
             );
             let (created_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order created output handle: {}", created_output_handle_id);
             self.add_output_handle(created_output_handle_id, created_tx)
                 .await;
 
@@ -251,6 +260,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
                     let placed_output_handle_id =
                         format!("{}_placed_output_{}", node_id, order_config.order_config_id);
                     let (placed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+                    tracing::debug!("[{node_name}] setting order placed output handle: {}", placed_output_handle_id);
                     self.add_output_handle(placed_output_handle_id, placed_tx)
                         .await;
                 }
@@ -262,12 +272,14 @@ impl BacktestNodeTrait for FuturesOrderNode {
                 node_id, order_config.order_config_id
             );
             let (partial_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order partial output handle: {}", partial_output_handle_id);
             self.add_output_handle(partial_output_handle_id, partial_tx)
                 .await;
 
             let filled_output_handle_id =
                 format!("{}_filled_output_{}", node_id, order_config.order_config_id);
             let (filled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order filled output handle: {}", filled_output_handle_id);
             self.add_output_handle(filled_output_handle_id, filled_tx)
                 .await;
 
@@ -276,6 +288,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
                 node_id, order_config.order_config_id
             );
             let (canceled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order canceled output handle: {}", canceled_output_handle_id);
             self.add_output_handle(canceled_output_handle_id, canceled_tx)
                 .await;
 
@@ -284,6 +297,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
                 node_id, order_config.order_config_id
             );
             let (expired_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order expired output handle: {}", expired_output_handle_id);
             self.add_output_handle(expired_output_handle_id, expired_tx)
                 .await;
 
@@ -292,17 +306,17 @@ impl BacktestNodeTrait for FuturesOrderNode {
                 node_id, order_config.order_config_id
             );
             let (rejected_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order rejected output handle: {}", rejected_output_handle_id);
             self.add_output_handle(rejected_output_handle_id, rejected_tx)
                 .await;
 
             let error_output_handle_id =
                 format!("{}_error_output_{}", node_id, order_config.order_config_id);
             let (error_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting order error output handle: {}", error_output_handle_id);
             self.add_output_handle(error_output_handle_id, error_tx)
                 .await;
         }
-
-        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {

@@ -217,7 +217,7 @@ impl BacktestNodeFunction {
                         match receive_result {
                             Some(Ok(event)) => {
                                 let mut context_guard = context.write().await;
-                                context_guard.handle_event(event).await;
+                                context_guard.handle_engine_event(event).await;
 
                             }
                             Some(Err(e)) => {

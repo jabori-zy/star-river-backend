@@ -1,7 +1,6 @@
 pub mod virtual_order;
 
 use crate::market::Exchange;
-use tokio::sync::{mpsc, oneshot};
 use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -10,7 +9,6 @@ use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 use entity::order::Model as OrderModel;
-use crate::system::system_config::SystemConfigManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {
@@ -42,16 +40,16 @@ pub struct GetTransactionDetailParams {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum FuturesOrderSide {
-    #[strum(serialize = "OPEN_LONG")]
+    #[strum(serialize = "OPEN LONG")]
     #[serde(rename = "OPEN_LONG")]
     OpenLong,
-    #[strum(serialize = "OPEN_SHORT")]
-    #[serde(rename = "OPEN_SHORT")]
+    #[strum(serialize = "OPEN SHORT")]
+    #[serde(rename = "OPEN SHORT")]
     OpenShort,
-    #[strum(serialize = "CLOSE_LONG")]
+    #[strum(serialize = "CLOSE LONG")]
     #[serde(rename = "CLOSE_LONG")]
     CloseLong,
-    #[strum(serialize = "CLOSE_SHORT")]
+    #[strum(serialize = "CLOSE SHORT")]
     #[serde(rename = "CLOSE_SHORT")]
     CloseShort,
 }
@@ -65,23 +63,6 @@ pub enum TpslType {
     #[strum(serialize = "percentage")]
     #[serde(rename = "percentage")]
     Percentage,
-}
-
-pub fn deserialize_futures_order_side<'de, D>(deserializer: D) -> Result<FuturesOrderSide, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    // 将字符串反序列化为String
-    let s = String::deserialize(deserializer)?;
-
-    // 使用as_str()方法获取&str，然后传递给from_str
-    match FuturesOrderSide::from_str(s.as_str()) {
-        Ok(order_side) => Ok(order_side),
-        Err(e) => Err(serde::de::Error::custom(format!(
-            "无法解析OrderSide: {}",
-            e
-        ))),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
@@ -104,23 +85,6 @@ pub enum OrderType {
     #[strum(serialize = "TAKE_PROFIT_MARKET")]
     #[serde(rename = "TAKE_PROFIT_MARKET")]
     TakeProfitMarket,
-}
-
-pub fn deserialize_order_type<'de, D>(deserializer: D) -> Result<OrderType, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    // 将字符串反序列化为String
-    let s = String::deserialize(deserializer)?;
-
-    // 使用as_str()方法获取&str，然后传递给from_str
-    match OrderType::from_str(s.as_str()) {
-        Ok(order_type) => Ok(order_type),
-        Err(e) => Err(serde::de::Error::custom(format!(
-            "无法解析OrderType: {}",
-            e
-        ))),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]

@@ -24,7 +24,7 @@ impl VirtualTradingSystem {
         let margin = Formula::calculate_margin(self.leverage, current_price, order.quantity);
         if margin > self.available_balance {
             return Err(format!(
-                "保证金不足，需要{}，当前余额{}",
+                "margin not enough, need: {}, current balance: {}",
                 margin, self.available_balance
             ));
         }
@@ -59,7 +59,7 @@ impl VirtualTradingSystem {
             self.current_datetime,
         );
         tracing::info!(
-            "仓位创建成功: 仓位id: {:?}, 开仓价格: {:?}, 开仓数量: {:?}, 止盈: {:?}, 止损: {:?}",
+            "position created successfully: position id: {:?}, open price: {:?}, open quantity: {:?}, take profit: {:?}, stop loss: {:?}",
             position_id,
             virtual_position.open_price,
             virtual_position.quantity,
@@ -78,7 +78,7 @@ impl VirtualTradingSystem {
         current_price: f64,
         execute_datetime: DateTime<Utc>,
     ) -> Result<PositionId, String> {
-        tracing::info!("执行开仓订单: {:?}, 成交价格: {:?}", order, current_price);
+        tracing::info!("execute open order: {:?}, execute price: {:?}", order, current_price);
 
         let virtual_position = self.create_position(order, current_price).unwrap();
 
@@ -98,7 +98,7 @@ impl VirtualTradingSystem {
         // 创建止盈止损订单
         let tp_order = self.create_take_profit_order(&virtual_position);
         if let Some(tp_order) = tp_order {
-            tracing::info!("创建止盈订单: {:?}", tp_order);
+            tracing::info!("create take profit order: {:?}", tp_order);
             self.orders.push(tp_order.clone());
             let order_create_event =
                 VirtualTradingSystemEvent::TakeProfitOrderCreated(tp_order.clone());
@@ -107,7 +107,7 @@ impl VirtualTradingSystem {
 
         let sl_order = self.create_stop_loss_order(&virtual_position);
         if let Some(sl_order) = sl_order {
-            tracing::info!("创建止损订单: {:?}", sl_order);
+            tracing::info!("create stop loss order: {:?}", sl_order);
             self.orders.push(sl_order.clone());
             let order_create_event =
                 VirtualTradingSystemEvent::StopLossOrderCreated(sl_order.clone());

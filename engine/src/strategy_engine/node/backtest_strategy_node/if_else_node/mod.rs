@@ -184,8 +184,7 @@ impl IfElseNode {
 
                             // 双重检查，防止竞态条件
                             if if_else_node_context.is_all_value_received() {
-                                tracing::debug!("{}: 所有值已接收，开始评估", node_id);
-                                if_else_node_context.evaluate().await;
+                                let _ = if_else_node_context.evaluate().await;
                                 if_else_node_context.reset_received_flag();
                             }
                         }
@@ -223,7 +222,7 @@ impl BacktestNodeTrait for IfElseNode {
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
@@ -235,7 +234,7 @@ impl BacktestNodeTrait for IfElseNode {
         // 添加else出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let else_output_handle_id = format!("{}_else_output", node_id); // else分支作为默认出口
-        tracing::debug!(node_id = %node_id, node_name = %node_name, else_output_handle_id = %else_output_handle_id, "setting ELSE output handle");
+        tracing::debug!("[{node_name}] setting ELSE output handle: {}, as default output handle", else_output_handle_id);
         self.add_output_handle(else_output_handle_id, tx).await;
 
         let cases = {
@@ -251,9 +250,9 @@ impl BacktestNodeTrait for IfElseNode {
         for case in cases {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let case_output_handle_id = case.output_handle_id.clone();
+            tracing::debug!("[{node_name}] setting case output handle: {}", case_output_handle_id);
             self.add_output_handle(case_output_handle_id, tx).await;
         }
-        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {

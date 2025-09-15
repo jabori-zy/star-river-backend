@@ -157,13 +157,13 @@ impl BacktestNodeTrait for KlineNode {
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
         self.add_output_handle(default_output_handle_id, tx).await;
 
         // 添加每一个symbol的出口
@@ -184,11 +184,10 @@ impl BacktestNodeTrait for KlineNode {
 
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.output_handle_id.clone();
-            tracing::debug!(node_id = %node_id, node_name = %node_name, symbol_output_handle_id = %symbol_output_handle_id, "setting symbol output handle");
+            tracing::debug!("[{node_name}] setting symbol output handle: {}", symbol_output_handle_id);
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(symbol_output_handle_id, tx).await;
         }
-        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
@@ -477,7 +476,7 @@ impl BacktestNodeTrait for KlineNode {
                     .await
                     .set_state_machine(state_machine.clone_box());
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
         Ok(())
     }

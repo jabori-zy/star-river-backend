@@ -36,7 +36,7 @@ use event_center::event::node_event::backtest_node_event::if_else_node_event::If
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use event_center::event::node_event::backtest_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, SignalEvent};
+use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, CommonEvent};
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use event_center::communication::strategy::{NodeCommand, BacktestNodeCommand};
 use event_center::communication::strategy::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse, GetStartNodeConfigParams};
@@ -276,10 +276,10 @@ impl BacktestStrategyContext {
     // 所有节点发送的事件都会汇集到这里
     pub async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // 执行完毕
-        if let BacktestNodeEvent::Signal(signal_event) = &node_event {
+        if let BacktestNodeEvent::Common(signal_event) = &node_event {
             match signal_event {
                 // 执行结束
-                SignalEvent::ExecuteOver(execute_over_event) => {
+                CommonEvent::ExecuteOver(execute_over_event) => {
                     // tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
                     // tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
                     let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
@@ -298,6 +298,14 @@ impl BacktestStrategyContext {
                         // 通知完成后，清空execute_over_node_ids
                         execute_over_node_ids.clear();
                     }
+                }
+                CommonEvent::RunningLog(running_log_event) => {
+                    self.add_running_log(running_log_event.clone()).await;
+                    let backtest_strategy_event: BacktestStrategyEvent = running_log_event.clone().into();
+                    let event: Event = backtest_strategy_event.into();
+                    EventCenterSingleton::publish(event)
+                        .await
+                        .unwrap();
                 }
                 _ => {}
             }
@@ -465,21 +473,6 @@ impl BacktestStrategyContext {
                     let backtest_strategy_event =
                         BacktestStrategyEvent::PositionClosed(position_closed_event.clone());
                     // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-
-        if let BacktestNodeEvent::IfElseNode(if_else_node_event) = &node_event {
-            match if_else_node_event {
-                IfElseNodeEvent::RunningLog(running_log_event) => {
-                    // 添加运行日志
-                    self.add_running_log(running_log_event.clone()).await;
-
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::RunningLog(running_log_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into())
                         .await
                         .unwrap();

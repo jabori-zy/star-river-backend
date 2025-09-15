@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::InputHandleId;
-use star_river_core::order::{deserialize_futures_order_side, deserialize_order_type};
 use star_river_core::strategy::deserialize_time_range;
 use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
 use star_river_core::strategy::{
-    BacktestDataSource, DataSourceExchange, SelectedAccount, TimeRange,
+    BacktestDataSource, SelectedAccount, TimeRange,
 };
 
 // 合约订单配置
@@ -18,11 +17,10 @@ pub struct FuturesOrderConfig {
 
     pub symbol: String,
 
-    #[serde(deserialize_with = "deserialize_order_type")]
     #[serde(rename = "orderType")]
     pub order_type: OrderType,
 
-    #[serde(deserialize_with = "deserialize_futures_order_side")]
+    // #[serde(deserialize_with = "deserialize_futures_order_side")]
     #[serde(rename = "orderSide")]
     pub order_side: FuturesOrderSide,
 

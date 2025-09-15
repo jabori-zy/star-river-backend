@@ -219,13 +219,13 @@ impl BacktestNodeTrait for StartNode {
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting start node default output handle");
+        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
         self.add_output_handle(default_output_handle_id, tx).await;
     }
 
@@ -235,9 +235,6 @@ impl BacktestNodeTrait for StartNode {
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop)
             .await
             .unwrap();
-
-        // 休眠500毫秒
-        tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
         self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete)
             .await
@@ -395,7 +392,7 @@ impl BacktestNodeTrait for StartNode {
                     state_guard.set_state_machine(state_machine.clone_box());
                 }
             }
-            tokio::time::sleep(Duration::from_millis(200)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
         Ok(())
     }

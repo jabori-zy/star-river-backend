@@ -226,7 +226,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait>;
 
-    async fn handle_event(&mut self, event: Event);
+    async fn handle_engine_event(&mut self, event: Event);
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent);
 

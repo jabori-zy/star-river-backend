@@ -15,7 +15,7 @@ use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload, TimeUpdateEvent, TimeUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::backtest_node_event::SignalEvent;
+use event_center::event::node_event::backtest_node_event::CommonEvent;
 use event_center::event::Event;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
@@ -70,7 +70,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
             .clone()
     }
 
-    async fn handle_event(&mut self, event: Event) {
+    async fn handle_engine_event(&mut self, event: Event) {
         let _event = event;
     }
 
@@ -79,9 +79,9 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         // 收到消息之后，获取对应index的k线数据
 
         match node_event {
-            BacktestNodeEvent::Signal(signal_event) => {
+            BacktestNodeEvent::Common(signal_event) => {
                 match signal_event {
-                    SignalEvent::KlinePlay(play_event) => {
+                    CommonEvent::KlinePlay(play_event) => {
                         // 提前获取配置信息，统一错误处理
                         let exchange_config =
                             self.backtest_config.exchange_mode_config.as_ref().unwrap();

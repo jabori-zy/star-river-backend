@@ -12,8 +12,8 @@ use event_center::event::node_event::backtest_node_event::indicator_node_event::
     IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::signal_event::{
-    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
+use event_center::event::node_event::backtest_node_event::common_event::{
+    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::{event::Event, EventCenterSingleton};
@@ -72,7 +72,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
             .clone()
     }
 
-    async fn handle_event(&mut self, event: Event) {}
+    async fn handle_engine_event(&mut self, event: Event) {}
 
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         match message {
@@ -84,12 +84,6 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
 
                 // 如果索引不匹配，提前返回错误日志
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    tracing::debug!(
-                        "{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}",
-                        self.base_context.node_id,
-                        kline_update_event.play_index,
-                        current_play_index
-                    );
                     tracing::debug!("is_leaf_node: {}", self.is_leaf_node());
                     if current_play_index != kline_update_event.play_index {
                         tracing::error!(
@@ -200,7 +194,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                     // 如果节点是叶子节点，则发送执行完毕事件
                     if self.is_leaf_node() {
                         let payload = ExecuteOverPayload::new(self.get_play_index());
-                        let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                        let execute_over_event: CommonEvent = ExecuteOverEvent::new(
                             self.get_node_id().clone(),
                             self.get_node_name().clone(),
                             self.get_node_id().clone(),

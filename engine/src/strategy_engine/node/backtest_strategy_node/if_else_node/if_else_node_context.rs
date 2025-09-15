@@ -1,8 +1,11 @@
 use async_trait::async_trait;
 use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::signal_event::{
-    ConditionMatchEvent, ConditionMatchPayload, ConditionNotMatchEvent, ConditionNotMatchPayload,
-    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
+use event_center::event::node_event::backtest_node_event::common_event::{
+    TriggerEvent, TriggerPayload,
+    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
+};
+use event_center::event::node_event::backtest_node_event::if_else_node_event::{
+    ConditionMatchEvent, ConditionMatchPayload, IfElseNodeEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::NodeEventTrait;
@@ -10,7 +13,6 @@ use event_center::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use star_river_core::utils::{get_utc8_timestamp, get_utc8_timestamp_millis};
 
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogType};
 use tokio::sync::oneshot;
@@ -29,7 +31,6 @@ use event_center::event::node_event::backtest_node_event::variable_node_event::V
 use event_center::event::strategy_event::StrategyRunningLogSource;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use snafu::ResultExt;
-use event_center::event::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
 use star_river_core::system::DateTimeUtc;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
@@ -75,7 +76,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             .clone()
     }
 
-    async fn handle_event(&mut self, event: Event) {
+    async fn handle_engine_event(&mut self, event: Event) {
         let _event = event;
     }
 
@@ -103,12 +104,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                 if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
                     variable_event
                 {
-                    variable_event;
                     self.update_received_event(node_event);
                 }
             }
-            BacktestNodeEvent::Signal(signal_event) => match signal_event {
-                SignalEvent::ConditionNotMatch(_) => {
+            BacktestNodeEvent::Common(signal_event) => match signal_event {
+                CommonEvent::Trigger(_) => {
                     // tracing::debug!(
                     //     "{}: 接收到条件不匹配事件。 不需要逻辑判断",
                     //     self.get_node_id()
@@ -121,9 +121,9 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
                         }
 
                         if handle.connect_count > 0 {
-                            let payload = ConditionNotMatchPayload::new(self.get_play_index());
-                            let condition_not_match_event: SignalEvent =
-                                ConditionNotMatchEvent::new(
+                            let payload = TriggerPayload::new(self.get_play_index());
+                            let condition_not_match_event: CommonEvent =
+                                TriggerEvent::new(
                                     self.get_node_id().clone(),
                                     self.get_node_name().clone(),
                                     handle_id.clone(),
@@ -142,24 +142,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     }
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
-        match strategy_inner_event {
-            // StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-            //     // 更新播放索引
-            //     self.set_play_index(play_index_update_event.play_index).await;
-            //     let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-            //     let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-            //         from_node_id: self.get_node_id().clone(),
-            //         from_node_name: self.get_node_name().clone(),
-            //         from_node_handle_id: strategy_output_handle_id.clone(),
-            //         play_index: self.get_play_index().await,
-            //         message_timestamp: get_utc8_timestamp_millis(),
-            //     }));
-            //     self.get_strategy_output_handle().send(signal).unwrap();
-            // }
-            StrategyInnerEvent::NodeReset => {
-                // tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
-            }
-        }
+
     }
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
@@ -281,116 +264,142 @@ impl IfElseNodeContext {
 
     // 开始评估各个分支
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
-        // 在锁外执行评估
         let mut case_matched = false; // 是否匹配到case
         let current_time = self.get_current_time().await.unwrap();
-        tracing::debug!("current_time: {}", current_time);
 
-        // 遍历case
-        for case in self.backtest_config.cases.iter() {
+        // 遍历case进行条件评估
+        for (index, case) in self.backtest_config.cases.iter().enumerate() {
             let case_result = self.evaluate_case(case).await;
-            // tracing::debug!("{}: case_result: {:?}", self.get_node_id(), case_result);
-            let case_output_handle_id = format!("{}_output_{}", self.get_node_id(), case.case_id);
-            let case_output_handle = self.get_output_handle(&case_output_handle_id);
-            let strategy_output_handle = self.get_strategy_output_handle();
-
-            // 如果为true，则发送消息到下一个节点, 并且后续的case不进行评估
-            let (signal_event, log_event) = {
-                let strategy_id = self.get_strategy_id().clone();
-                let from_node_id = self.get_node_id().clone();
-                let from_node_name = self.get_node_name().clone();
-                let play_index = self.get_play_index();
-                if case_result.0 {
-                    let payload = ConditionMatchPayload::new(play_index);
-                    // 匹配事件
-                    let signal_event: SignalEvent = ConditionMatchEvent::new(
-                        from_node_id.clone(),
-                        from_node_name.clone(),
-                        case_output_handle_id.clone(),
-                        payload,
-                    )
-                    .into();
-
-                    // 日志事件
-                    let condition_result = case_result.1;
-                    let condition_result_json = serde_json::to_value(condition_result)
-                        .context(EvaluateResultSerializationFailedSnafu {})?;
-                    let message = ConditionMatchedMsg::new(from_node_name.clone(), case.case_id);
-                    let log_event = StrategyRunningLogEvent::success(
-                        strategy_id,
-                        from_node_id,
-                        from_node_name,
-                        StrategyRunningLogSource::Node,
-                        StrategyRunningLogType::ConditionMatch,
-                        message.to_string(),
-                        condition_result_json,
-                        current_time,
-                    );
-                    (signal_event, Some(log_event))
-                } else {
-                    let payload = ConditionNotMatchPayload::new(play_index);
-                    let condition_not_match_event: SignalEvent = ConditionNotMatchEvent::new(
-                        from_node_id.clone(),
-                        from_node_name.clone(),
-                        case_output_handle_id.clone(),
-                        payload,
-                    )
-                    .into();
-                    (condition_not_match_event, None)
+            
+            // 如果条件匹配，处理匹配的case
+            if case_result.0 {
+                tracing::debug!("[{}] 条件匹配，处理匹配的case 分支", self.get_node_name());
+                self.handle_matched_case(case, case_result.1, current_time).await?;
+                
+            } 
+            // 如果条件不匹配，并且是最后一个case, 则发送trigger事件
+            else {
+                if index == self.backtest_config.cases.len() - 1 {
+                    tracing::debug!("[{}] 条件不匹配，发送trigger事件", self.get_node_name());
+                    self.handle_not_matched_case(case).await;
                 }
-            };
-
-            if let Some(log_event) = log_event {
-                let _ = strategy_output_handle.send(BacktestNodeEvent::IfElseNode(
-                    IfElseNodeEvent::RunningLog(log_event),
-                ));
-            }
-
-            if self.is_leaf_node() {
-                let payload = ExecuteOverPayload::new(self.get_play_index());
-                let execute_over_event: SignalEvent = ExecuteOverEvent::new(
-                    self.get_node_id().clone(),
-                    self.get_node_name().clone(),
-                    self.get_node_id().clone(),
-                    payload,
-                )
-                .into();
-                let _ = strategy_output_handle.send(execute_over_event.into());
-            } else {
-                let _ = case_output_handle.send(BacktestNodeEvent::Signal(signal_event.clone()));
             }
             case_matched = true;
-            break;
+            break; // 找到匹配的case后立即退出
         }
 
-        // 只有当所有case都为false时才执行else
+        // 如果没有case匹配，处理else分支
         if !case_matched {
-            // tracing::debug!("{}: 发送信号事件: {:?}", self.get_node_id(), signal_event);
-            if self.is_leaf_node() {
-                let payload = ExecuteOverPayload::new(self.get_play_index());
-                let execute_over_event: SignalEvent = ExecuteOverEvent::new(
-                    self.get_node_id().clone(),
-                    self.get_node_name().clone(),
-                    self.get_node_id().clone(),
-                    payload,
-                )
-                .into();
-                let strategy_output_handle = self.get_strategy_output_handle();
-                let _ = strategy_output_handle.send(execute_over_event.into());
-            }
+            tracing::debug!("[{}] 条件不匹配，处理else分支", self.get_node_name());
+            self.handle_else_branch().await;
+        }
+
+        Ok(())
+    }
+
+    // 处理匹配的case
+    async fn handle_matched_case(
+        &self,
+        case: &Case,
+        condition_results: Vec<ConditionResult>,
+        current_time: DateTimeUtc,
+    ) -> Result<(), IfElseNodeError> {
+        let strategy_id = self.get_strategy_id().clone();
+        let from_node_id = self.get_node_id().clone();
+        let from_node_name = self.get_node_name().clone();
+        let play_index = self.get_play_index();
+        
+        let case_output_handle_id = format!("{}_output_{}", self.get_node_id(), case.case_id);
+        let case_output_handle: &NodeOutputHandle = self.get_output_handle(&case_output_handle_id);
+        let strategy_output_handle = self.get_strategy_output_handle();
+
+        // 创建条件匹配事件
+        let payload = ConditionMatchPayload::new(play_index);
+        let condition_match_event: IfElseNodeEvent = ConditionMatchEvent::new(
+            from_node_id.clone(),
+            from_node_name.clone(),
+            case_output_handle_id,
+            payload,
+        )
+        .into();
+
+        // 创建并发送日志事件
+        let condition_result_json = serde_json::to_value(condition_results)
+            .context(EvaluateResultSerializationFailedSnafu {})?;
+        let message = ConditionMatchedMsg::new(from_node_name.clone(), case.case_id);
+        let log_event = StrategyRunningLogEvent::success(
+            strategy_id,
+            from_node_id.clone(),
+            from_node_name.clone(),
+            StrategyRunningLogSource::Node,
+            StrategyRunningLogType::ConditionMatch,
+            message.to_string(),
+            condition_result_json,
+            current_time,
+        );
+        let _ = strategy_output_handle.send(log_event.into());
+
+        // 根据节点类型处理事件发送
+        if self.is_leaf_node() {
+            // 叶子节点：发送执行结束事件
+            self.send_execute_over_event().await;
         } else {
-            let else_output_handle = self.get_default_output_handle(); // 获取else的输出句柄
+            // 非叶子节点：将事件传递给下游节点
+            let _ = case_output_handle.send(condition_match_event.into());
+        }
+
+        Ok(())
+    }
+
+
+    async fn handle_not_matched_case(&self, case: &Case) {
+        let case_output_handle_id = format!("{}_output_{}", self.get_node_id(), case.case_id);
+        let case_output_handle: &NodeOutputHandle = self.get_output_handle(&case_output_handle_id);
+        let payload = TriggerPayload::new(self.get_play_index());
+
+        let condition_not_match_event: CommonEvent = TriggerEvent::new(
+            self.get_node_id().clone(),
+            self.get_node_name().clone(),
+            case_output_handle_id.clone(),
+            payload,
+        )
+        .into();
+        let _ = case_output_handle.send(condition_not_match_event.into());
+
+    }
+
+    // 处理else分支
+    async fn handle_else_branch(&self) {
+        if self.is_leaf_node() {
+            // 叶子节点：发送执行结束事件
+            self.send_execute_over_event().await;
+        } else {
+            // 非叶子节点：发送事件到else输出句柄
+            let else_output_handle = self.get_default_output_handle();
             let payload = ConditionMatchPayload::new(self.get_play_index());
-            let signal_event: SignalEvent = ConditionMatchEvent::new(
+            let else_event: IfElseNodeEvent = ConditionMatchEvent::new(
                 self.get_node_id().clone(),
                 self.get_node_name().clone(),
                 else_output_handle.output_handle_id.clone(),
                 payload,
             )
             .into();
-            let _ = else_output_handle.send(signal_event.into());
+            let _ = else_output_handle.send(else_event.into());
         }
-        Ok(())
+    }
+
+    // 发送执行结束事件的公共方法
+    async fn send_execute_over_event(&self) {
+        let payload = ExecuteOverPayload::new(self.get_play_index());
+        let execute_over_event: CommonEvent = ExecuteOverEvent::new(
+            self.get_node_id().clone(),
+            self.get_node_name().clone(),
+            self.get_node_id().clone(),
+            payload,
+        )
+        .into();
+        let strategy_output_handle = self.get_strategy_output_handle();
+        let _ = strategy_output_handle.send(execute_over_event.into());
     }
 
     pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
