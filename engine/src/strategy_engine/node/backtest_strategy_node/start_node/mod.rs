@@ -399,23 +399,16 @@ impl BacktestNodeTrait for StartNode {
 }
 
 impl StartNode {
-    // pub async fn send_play_signal(&self) {
+
+    // pub async fn send_finish_signal(&self, signal_index: i32) {
     //     let context = self.get_context();
     //     let mut state_guard = context.write().await;
-    //     if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-    //         start_node_context.send_play_signal().await;
+    //     if let Some(start_node_context) =
+    //         state_guard.as_any_mut().downcast_mut::<StartNodeContext>()
+    //     {
+    //         start_node_context.send_finish_signal(signal_index).await;
     //     }
     // }
-
-    pub async fn send_finish_signal(&self, signal_index: i32) {
-        let context = self.get_context();
-        let mut state_guard = context.write().await;
-        if let Some(start_node_context) =
-            state_guard.as_any_mut().downcast_mut::<StartNodeContext>()
-        {
-            start_node_context.send_finish_signal(signal_index).await;
-        }
-    }
 
     pub async fn listen_play_index_change(&self) {
         let (mut play_index_watch_rx, cancel_token, node_id) = {

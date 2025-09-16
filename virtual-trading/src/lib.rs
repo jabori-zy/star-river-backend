@@ -326,12 +326,12 @@ impl VirtualTradingSystem {
     }
 
     // 从缓存引擎获取k线数据
-    async fn get_close_price(&self, kline_cache_key: Key) -> Result<Kline, String> {
+    async fn get_close_price(&self, kline_key: Key) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams::new(
             -1,
             "virtual_trading_system".to_string(),
-            kline_cache_key,
+            kline_key,
             Some(self.get_play_index() as u32),
             Some(1),
             "virtual_trading_system".to_string(),
@@ -347,8 +347,7 @@ impl VirtualTradingSystem {
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.success() {
-            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) =
-                CacheEngineResponse::try_from(response)
+            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) = CacheEngineResponse::try_from(response)
             {
                 let kline = get_cache_data_response.cache_data[0].as_kline().unwrap();
                 return Ok(kline);

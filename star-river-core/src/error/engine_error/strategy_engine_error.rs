@@ -37,6 +37,19 @@ pub enum StrategyEngineError {
 
     #[snafu(display("database error: {}", source))]
     Database { source: DbErr, backtrace: Backtrace },
+
+    #[snafu(display("trade mode {} is unsupported", trade_mode))]
+    UnsupportedTradeMode {
+        trade_mode: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("strategy {strategy_id} config not found"))]
+    StrategyConfigNotFound {
+        strategy_id: i32,
+        source: DbErr,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for StrategyEngineError
@@ -54,6 +67,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             StrategyEngineError::StrategyIsExist { .. } => 1003,
             StrategyEngineError::StrategyInstanceNotFound { .. } => 1004,
             StrategyEngineError::Database { .. } => 1005,
+            StrategyEngineError::UnsupportedTradeMode { .. } => 1006,
+            StrategyEngineError::StrategyConfigNotFound { .. } => 1007,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -71,6 +86,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
                 | StrategyEngineError::StrategyIsExist { .. }
                 | StrategyEngineError::StrategyInstanceNotFound { .. }
                 | StrategyEngineError::Database { .. }
+                | StrategyEngineError::UnsupportedTradeMode { .. }
+                | StrategyEngineError::StrategyConfigNotFound { .. }
         )
     }
 
@@ -83,7 +100,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             StrategyEngineError::UnsupportedStrategyType { .. }
             | StrategyEngineError::StrategyIsExist { .. }
             | StrategyEngineError::StrategyInstanceNotFound { .. }
-            | StrategyEngineError::Database { .. } => vec![self.error_code()],
+            | StrategyEngineError::Database { .. }
+            | StrategyEngineError::UnsupportedTradeMode { .. }
+            | StrategyEngineError::StrategyConfigNotFound { .. } => vec![self.error_code()],
         }
     }
 
@@ -105,6 +124,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
                 }
                 StrategyEngineError::Database { source, .. } => {
                     format!("数据库错误: {}", source)
+                }
+                StrategyEngineError::UnsupportedTradeMode { trade_mode, .. } => {
+                    format!("不支持的交易模式: {}", trade_mode)
+                }
+                StrategyEngineError::StrategyConfigNotFound { strategy_id, source, .. } => {
+                    format!("策略 {} 配置不存在: {}", strategy_id, source)
                 }
             },
         }

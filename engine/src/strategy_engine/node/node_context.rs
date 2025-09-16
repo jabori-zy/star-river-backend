@@ -4,6 +4,10 @@ use async_trait::async_trait;
 use event_center::communication::strategy::{
     NodeCommandSender, StrategyCommand, StrategyCommandReceiver,
 };
+use event_center::event::node_event::backtest_node_event::common_event::{
+    TriggerEvent, TriggerPayload,
+    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
+};
 use event_center::event::Event;
 use event_center::EventPublisher;
 use event_center::{event::EventReceiver, CommandPublisher};
@@ -293,7 +297,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &self.get_base_context().play_index_watch_rx
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle;
+    fn get_default_output_handle(&self) -> &NodeOutputHandle;
 
     // 获取所有输出句柄
     fn get_all_output_handles(&self) -> &HashMap<String, NodeOutputHandle> {
@@ -364,6 +368,19 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     fn get_play_index(&self) -> PlayIndex {
         *self.get_play_index_watch_rx_ref().borrow()
+    }
+
+    async fn send_execute_over_event(&self) {
+        let payload = ExecuteOverPayload::new(self.get_play_index());
+        let execute_over_event: CommonEvent = ExecuteOverEvent::new(
+            self.get_node_id().clone(),
+            self.get_node_name().clone(),
+            self.get_node_id().clone(),
+            payload,
+        )
+        .into();
+        let strategy_output_handle = self.get_strategy_output_handle();
+        let _ = strategy_output_handle.send(execute_over_event.into());
     }
 
     // async fn set_play_index(&mut self, play_index: PlayIndex) {

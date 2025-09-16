@@ -5,20 +5,28 @@ use super::super::node_event::backtest_node_event::futures_order_node_event::{
     TransactionCreatedEvent,
 };
 use super::super::node_event::backtest_node_event::indicator_node_event::IndicatorUpdateEvent;
-use super::super::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;
+use super::super::node_event::backtest_node_event::kline_node_event::{KlineUpdateEvent};
 use super::super::node_event::backtest_node_event::position_management_node_event::{
     PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent,
 };
 use super::super::strategy_event::{LogLevel, NodeStateLogEvent, StrategyRunningLogEvent};
 use crate::{event::Event, StrategyEvent};
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::PlayIndex;
 use star_river_core::system::DateTimeUtc;
 use star_river_core::strategy_stats::event::StrategyStatsUpdatedEvent;
 use strum::Display;
+use chrono::Utc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
 pub enum BacktestStrategyEvent {
+
+    #[strum(serialize = "play-finished-event")]
+    #[serde(rename = "play-finished-event")]
+    PlayFinished(PlayFinishedEvent), // 回测播放完毕事件
+
+
     #[strum(serialize = "kline-update-event")]
     #[serde(rename = "kline-update-event")]
     KlineUpdate(KlineUpdateEvent), // 回测K线更新事件
@@ -132,4 +140,32 @@ pub struct StrategyStateLogEvent {
 
     #[serde(rename = "datetime")]
     pub datetime: DateTimeUtc,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayFinishedEvent {
+    #[serde(rename = "strategyId")]
+    pub strategy_id: i32,
+
+    #[serde(rename = "strategyName")]
+    pub strategy_name: String,
+
+    #[serde(rename = "playIndex")]
+    pub play_index: PlayIndex,
+
+    #[serde(rename = "datetime")]
+    pub datetime: DateTimeUtc,
+}
+
+impl PlayFinishedEvent {
+    pub fn new(strategy_id: i32, strategy_name: String, play_index: PlayIndex) -> Self {
+        Self { strategy_id, strategy_name, play_index, datetime: Utc::now() }
+    }
+}
+
+impl From<PlayFinishedEvent> for Event {
+    fn from(event: PlayFinishedEvent) -> Self {
+        BacktestStrategyEvent::PlayFinished(event).into()
+    }
 }

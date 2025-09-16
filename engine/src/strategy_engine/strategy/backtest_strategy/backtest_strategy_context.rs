@@ -121,8 +121,6 @@ impl BacktestStrategyContext {
             cache_lengths: HashMap::new(),
             graph: Graph::new(),
             node_indices: HashMap::new(),
-            // event_publisher,
-            // event_receivers: vec![response_event_receiver],
             cancel_task_token,
             state_machine: BacktestStrategyStateMachine::new(
                 strategy_id,

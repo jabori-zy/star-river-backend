@@ -67,13 +67,12 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         &mut self.base_context
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         let else_output_handle_id = format!("{}_else_output", self.get_node_id());
         self.base_context
             .output_handles
             .get(&else_output_handle_id)
             .unwrap()
-            .clone()
     }
 
     async fn handle_engine_event(&mut self, event: Event) {
@@ -389,18 +388,18 @@ impl IfElseNodeContext {
     }
 
     // 发送执行结束事件的公共方法
-    async fn send_execute_over_event(&self) {
-        let payload = ExecuteOverPayload::new(self.get_play_index());
-        let execute_over_event: CommonEvent = ExecuteOverEvent::new(
-            self.get_node_id().clone(),
-            self.get_node_name().clone(),
-            self.get_node_id().clone(),
-            payload,
-        )
-        .into();
-        let strategy_output_handle = self.get_strategy_output_handle();
-        let _ = strategy_output_handle.send(execute_over_event.into());
-    }
+    // async fn send_execute_over_event(&self) {
+    //     let payload = ExecuteOverPayload::new(self.get_play_index());
+    //     let execute_over_event: CommonEvent = ExecuteOverEvent::new(
+    //         self.get_node_id().clone(),
+    //         self.get_node_name().clone(),
+    //         self.get_node_id().clone(),
+    //         payload,
+    //     )
+    //     .into();
+    //     let strategy_output_handle = self.get_strategy_output_handle();
+    //     let _ = strategy_output_handle.send(execute_over_event.into());
+    // }
 
     pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
         match case.logical_symbol {

@@ -34,12 +34,11 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         &mut self.base_context
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         self.base_context
             .output_handles
             .get(&format!("{}_default_output", self.get_node_id()))
             .unwrap()
-            .clone()
     }
 
     async fn handle_engine_event(&mut self, event: Event) {

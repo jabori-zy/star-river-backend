@@ -5,6 +5,7 @@ pub mod kline_node_event;
 pub mod position_management_node_event;
 pub mod common_event;
 pub mod variable_node_event;
+pub mod start_node_event;
 
 pub use futures_order_node_event::FuturesOrderNodeEvent;
 pub use if_else_node_event::IfElseNodeEvent;
@@ -13,6 +14,7 @@ pub use kline_node_event::KlineNodeEvent;
 pub use position_management_node_event::PositionManagementNodeEvent;
 pub use common_event::CommonEvent;
 pub use variable_node_event::VariableNodeEvent;
+pub use start_node_event::StartNodeEvent;
 
 use derive_more::From;
 use serde::{Deserialize, Serialize};
@@ -23,6 +25,11 @@ use strum::Display;
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "node_type")]
 pub enum BacktestNodeEvent {
+
+    #[strum(serialize = "start_node")]
+    #[serde(rename = "start_node")]
+    StartNode(StartNodeEvent),
+
     #[strum(serialize = "indicator_node")]
     #[serde(rename = "indicator_node")]
     IndicatorNode(IndicatorNodeEvent),

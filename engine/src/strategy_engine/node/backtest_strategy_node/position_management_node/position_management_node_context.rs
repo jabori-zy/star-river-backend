@@ -83,12 +83,11 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         // }
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         self.base_context
             .output_handles
             .get(&format!("position_node_update_output"))
             .unwrap()
-            .clone()
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {

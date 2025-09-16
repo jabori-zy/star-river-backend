@@ -15,10 +15,11 @@ use tokio::sync::Mutex;
 // use crate::strategy_engine::strategy::live_strategy::LiveStrategy;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategy;
 use event_center::communication::engine::EngineCommand;
-use snafu::Report;
+use snafu::{Report, ResultExt};
 use star_river_core::custom_type::StrategyId;
 use star_river_core::error::engine_error::strategy_engine_error::*;
 use star_river_core::strategy::{StrategyConfig, TradeMode};
+
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
@@ -109,23 +110,18 @@ impl StrategyEngineContext {
     //     // 此方法无法实现，因为无法返回指向 Mutex 保护数据的可变引用
     // }
 
-    pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, String> {
+    pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, StrategyEngineError> {
         let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id)
             .await
-            .unwrap_or(None);
-        if let Some(strategy) = strategy {
-            Ok(strategy)
-        } else {
-            tracing::error!("策略信息不存在");
-            Err("策略信息不存在".to_string())
-        }
+            .context(StrategyConfigNotFoundSnafu { strategy_id: id })?;
+        Ok(strategy)
     }
 
     pub async fn remove_strategy_instance(
         &mut self,
         trade_mode: TradeMode,
         strategy_id: i32,
-    ) -> Result<(), String> {
+    ) -> Result<(), StrategyEngineError> {
         match trade_mode {
             // TradeMode::Live => {
             //     self.live_strategy_list.remove(&strategy_id);
@@ -139,8 +135,8 @@ impl StrategyEngineContext {
                 tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);
             }
             _ => {
-                tracing::error!("不支持的策略类型: {}", trade_mode);
-                return Err("不支持的策略类型".to_string());
+                tracing::error!("不支持的交易模式: {}", trade_mode);
+                return Err(UnsupportedTradeModeSnafu { trade_mode: trade_mode.to_string() }.build());
             }
         }
         Ok(())

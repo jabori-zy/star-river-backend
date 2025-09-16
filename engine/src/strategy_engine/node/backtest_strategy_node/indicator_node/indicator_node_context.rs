@@ -63,13 +63,12 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
         &mut self.base_context
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         let default_output_handle_id = format!("{}_default_output", self.base_context.node_id);
         self.base_context
             .output_handles
             .get(&default_output_handle_id)
             .unwrap()
-            .clone()
     }
 
     async fn handle_engine_event(&mut self, event: Event) {}
@@ -141,7 +140,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                         // 发送指标更新事件的通用函数
                         let send_indicator_event =
                             |handle_id: String,
-                             output_handle: NodeOutputHandle,
+                             output_handle: &NodeOutputHandle,
                              data: Vec<Arc<CacheValue>>| {
                                 let payload = IndicatorUpdatePayload::new(
                                     indicator_key.get_exchange(),
@@ -170,7 +169,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                         {
                             send_indicator_event(
                                 from_handle_id,
-                                output_handle.clone(),
+                                output_handle,
                                 indicator_cache_data.clone(),
                             );
                         }
@@ -187,7 +186,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
                         let strategy_output_handle = self.get_strategy_output_handle();
                         send_indicator_event(
                             strategy_output_handle.output_handle_id.clone(),
-                            strategy_output_handle.clone(),
+                            strategy_output_handle,
                             indicator_cache_data,
                         );
                     }

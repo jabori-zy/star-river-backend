@@ -45,18 +45,14 @@ impl StrategyConfigQuery {
         Ok(strategy_configs)
     }
 
-    pub async fn get_strategy_by_id(db: &DbConn, id: i32) -> Result<Option<StrategyConfig>, DbErr> {
+    pub async fn get_strategy_by_id(db: &DbConn, id: i32) -> Result<StrategyConfig, DbErr> {
         let strategy_model = StrategyConfigEntity::find_by_id(id)
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .one(db)
-            .await?;
+            .await?
+            .ok_or(DbErr::RecordNotFound("Cannot find strategy config.".to_owned()))?;
             
-        match strategy_model {
-            Some(model) => {
-                Ok(Some(model.into()))
-            }
-            None => Ok(None)
-        }
+        Ok(strategy_model.into())
     }
 
     pub async fn get_backtest_chart_config_by_strategy_id(
