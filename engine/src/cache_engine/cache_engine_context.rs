@@ -281,7 +281,7 @@ impl CacheEngineContext {
         Ok(())
     }
 
-    #[instrument(skip(self, cache_series), fields(key=?key, cache_series_length=cache_series.len()))]
+    // #[instrument(skip(self, cache_series), fields(key=?key, cache_series_length=cache_series.len()))]
     pub async fn initialize_cache(&mut self, key: Key, cache_series: Vec<CacheValue>) {
         // 更新cache_key对应的数据
         tracing::info!(key=?key, cache_series_length=cache_series.len(), "initailize cache value");
@@ -290,6 +290,7 @@ impl CacheEngineContext {
         // 初始化数据
         cache_entry.initialize(cache_series);
     }
+
 
     pub async fn update_cache(&mut self, key: Key, cache_value: CacheValue) {
         let mut cache = self.cache.write().await;

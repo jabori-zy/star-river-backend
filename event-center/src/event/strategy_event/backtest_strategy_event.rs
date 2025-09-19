@@ -143,6 +143,13 @@ pub struct StrategyStateLogEvent {
 }
 
 
+impl StrategyStateLogEvent {
+    pub fn new(strategy_id: i32, strategy_name: String, strategy_state: Option<String>, strategy_state_action: Option<String>, log_level: LogLevel, error_code: Option<String>, error_code_chain: Option<Vec<String>>, message: String) -> Self {
+        Self { strategy_id, strategy_name, strategy_state, strategy_state_action, log_level, error_code, error_code_chain, message, datetime: Utc::now() }
+    }
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayFinishedEvent {
     #[serde(rename = "strategyId")]

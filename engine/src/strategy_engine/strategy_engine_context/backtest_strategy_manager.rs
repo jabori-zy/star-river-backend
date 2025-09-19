@@ -14,6 +14,7 @@ use star_river_core::strategy::TradeMode;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::custom_type::PlayIndex;
+use tokio::time::Duration;
 
 /*
     回测策略控制
@@ -56,8 +57,10 @@ impl StrategyEngineContext {
             let strategy_id = strategy_config.id;
             let strategy_name = strategy_config.name.clone();
             let result: Result<(), BacktestStrategyError> = async {
-                let mut strategy =
-                    BacktestStrategy::new(strategy_config, database, heartbeat).await;
+                let mut strategy = BacktestStrategy::new(strategy_config, database, heartbeat).await;
+
+                // 休眠1秒
+                tokio::time::sleep(Duration::from_millis(500)).await;
 
                 strategy.check_strategy().await?;
 

@@ -439,6 +439,27 @@ pub mod kline_node_log_message {
     );
 
     log_message!(
+        InitStrategyKeysSuccessMsg,
+        params: (
+            node_id: String,
+            node_name: String
+        ),
+        en: "Kline Node [{node_name}({node_id})] strategy keys initialization successful",
+        zh: "{node_name} ({node_id}) 策略键初始化成功"
+    );
+
+    log_message!(
+        InitStrategyKeysFailedMsg,
+        params: (
+            node_id: String,
+            node_name: String,
+            error: String
+        ),
+        en: "Kline Node [{node_name}({node_id})] strategy keys initialization failed: {error}",
+        zh: "{node_name} ({node_id}) 策略键初始化失败: {error}"
+    );
+
+    log_message!(
         RegisterExchangeSuccessMsg,
         params: (
             node_id: String,

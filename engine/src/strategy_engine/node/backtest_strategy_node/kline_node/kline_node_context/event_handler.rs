@@ -9,7 +9,11 @@ use event_center::event::node_event::backtest_node_event::CommonEvent;
 use star_river_core::cache::key::KlineKey;
 use event_center::event::node_event::backtest_node_event::start_node_event::KlinePlayEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{ExecuteOverPayload, ExecuteOverEvent};
-
+use star_river_core::cache::Key;
+use event_center::communication::strategy::NodeResponse;
+use event_center::communication::strategy::backtest_strategy::command::GetStrategyKeysParams;
+use event_center::communication::strategy::backtest_strategy::response::BacktestNodeResponse;
+use tokio::sync::oneshot;
 
 
 impl KlineNodeContext {
@@ -148,6 +152,26 @@ impl KlineNodeContext {
 
         
     }
+    }
+
+
+
+    pub async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
+        let (tx, rx) = oneshot::channel();
+        let get_strategy_keys_params = GetStrategyKeysParams::new(self.get_node_id().clone(), tx);
+
+        self.get_node_command_sender()
+            .send(get_strategy_keys_params.into())
+            .await
+            .unwrap();
+
+        let response = rx.await.unwrap();
+        match response {
+            NodeResponse::BacktestNode(BacktestNodeResponse::GetStrategyCacheKeys(
+                get_strategy_keys_response,
+            )) => return Ok(get_strategy_keys_response.keys),
+            _ => return Err("获取策略缓存键失败".to_string()),
+        }
     }
 
 }

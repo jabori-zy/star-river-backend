@@ -84,7 +84,7 @@ impl From<NodeResetParams> for StrategyCommand {
 
 #[derive(Debug)]
 pub enum BacktestNodeCommand {
-    GetStrategyCacheKeys(GetStrategyCacheKeysParams),
+    GetStrategyKeys(GetStrategyKeysParams),
     GetKlineIndex(GetKlineIndexParams),
     GetCurrentTime(GetCurrentTimeParams),
 }
@@ -92,7 +92,7 @@ pub enum BacktestNodeCommand {
 impl NodeCommandTrait for BacktestNodeCommand {
     fn responder(&self) -> &NodeResponder {
         match self {
-            BacktestNodeCommand::GetStrategyCacheKeys(params) => &params.responder,
+            BacktestNodeCommand::GetStrategyKeys(params) => &params.responder,
             BacktestNodeCommand::GetKlineIndex(params) => &params.responder,
             BacktestNodeCommand::GetCurrentTime(params) => &params.responder,
         }
@@ -100,7 +100,7 @@ impl NodeCommandTrait for BacktestNodeCommand {
 
     fn datetime(&self) -> DateTimeUtc {
         match self {
-            BacktestNodeCommand::GetStrategyCacheKeys(params) => params.datetime,
+            BacktestNodeCommand::GetStrategyKeys(params) => params.datetime,
             BacktestNodeCommand::GetKlineIndex(params) => params.datetime,
             BacktestNodeCommand::GetCurrentTime(params) => params.datetime,
         }
@@ -108,7 +108,7 @@ impl NodeCommandTrait for BacktestNodeCommand {
 
     fn node_id(&self) -> &NodeId {
         match self {
-            BacktestNodeCommand::GetStrategyCacheKeys(params) => &params.node_id,
+            BacktestNodeCommand::GetStrategyKeys(params) => &params.node_id,
             BacktestNodeCommand::GetKlineIndex(params) => &params.node_id,
             BacktestNodeCommand::GetCurrentTime(params) => &params.node_id,
         }
@@ -116,13 +116,13 @@ impl NodeCommandTrait for BacktestNodeCommand {
 }
 
 #[derive(Debug)]
-pub struct GetStrategyCacheKeysParams {
+pub struct GetStrategyKeysParams {
     pub node_id: NodeId,
     pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
 
-impl GetStrategyCacheKeysParams {
+impl GetStrategyKeysParams {
     pub fn new(node_id: NodeId, responder: NodeResponder) -> Self {
         Self {
             node_id,
@@ -132,9 +132,9 @@ impl GetStrategyCacheKeysParams {
     }
 }
 
-impl From<GetStrategyCacheKeysParams> for NodeCommand {
-    fn from(params: GetStrategyCacheKeysParams) -> Self {
-        NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyCacheKeys(params))
+impl From<GetStrategyKeysParams> for NodeCommand {
+    fn from(params: GetStrategyKeysParams) -> Self {
+        NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyKeys(params))
     }
 }
 

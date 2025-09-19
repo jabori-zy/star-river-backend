@@ -61,14 +61,9 @@ impl KlineNode {
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );
+        let context = KlineNodeContext::new(base_context, backtest_config, heartbeat);
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(KlineNodeContext {
-                base_context,
-                data_is_loaded: Arc::new(RwLock::new(false)),
-                exchange_is_registered: Arc::new(RwLock::new(false)),
-                backtest_config,
-                heartbeat,
-            }))),
+            context: Arc::new(RwLock::new(Box::new(context))),
         })
     }
 
@@ -348,6 +343,28 @@ impl BacktestNodeTrait for KlineNode {
 
                         self.listen_strategy_inner_events().await;
                     }
+                    KlineNodeStateAction::InitStrategyKeys => {
+                        tracing::info!("[{node_name}({node_id})] start to init strategy keys");
+                        let context = self.get_context();
+                        
+                        let mut context_guard = context.write().await;
+                        if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>(){
+                            let strategy_keys = kline_node_context.get_strategy_keys().await.unwrap();
+                            kline_node_context.set_strategy_keys(strategy_keys);
+                            kline_node_context.init_is_min_interval_symbol();
+                            let log_message = InitStrategyKeysSuccessMsg::new(node_id.clone(), node_name.clone());
+                            let log_event = NodeStateLogEvent::success(
+                                strategy_id.clone(),
+                                node_id.clone(),
+                                node_name.clone(),
+                                current_state.to_string(),
+                                KlineNodeStateAction::InitStrategyKeys.to_string(),
+                                log_message.to_string(),
+                            );
+                            let _ = strategy_output_handle.send(log_event.into());
+                        }
+                    
+                    }
                     KlineNodeStateAction::RegisterExchange => {
                         tracing::info!("[{node_name}({node_id})] start to register exchange");
 
@@ -437,9 +454,9 @@ impl BacktestNodeTrait for KlineNode {
                             "[{node_name}({node_id})] starting to load kline data from exchange"
                         );
                         let context = self.get_context();
-                        let mut state_guard = context.write().await;
+                        let mut context_guard = context.write().await;
                         if let Some(kline_node_context) =
-                            state_guard.as_any_mut().downcast_mut::<KlineNodeContext>()
+                            context_guard.as_any_mut().downcast_mut::<KlineNodeContext>()
                         {
                             let is_all_success = kline_node_context
                                 .load_kline_history_from_exchange()

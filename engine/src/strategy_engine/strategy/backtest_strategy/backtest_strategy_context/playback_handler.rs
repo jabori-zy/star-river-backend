@@ -1,5 +1,5 @@
-use super::backtest_strategy_context::BacktestStrategyContext;
-use super::backtest_strategy_state_machine::BacktestStrategyRunState;
+use super::super::backtest_strategy_context::BacktestStrategyContext;
+use super::super::backtest_strategy_state_machine::BacktestStrategyRunState;
 use crate::strategy_engine::node::backtest_strategy_node::start_node::StartNode;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use std::sync::Arc;
@@ -286,7 +286,7 @@ impl BacktestStrategyContext {
             .await?;
 
         // 清空日志
-        self.running_log.write().await.clear();
+        self.reset_running_log().await;
 
         self.cancel_play_token.cancel();
         // 重置信号计数

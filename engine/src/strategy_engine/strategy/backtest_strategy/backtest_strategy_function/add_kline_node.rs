@@ -77,7 +77,7 @@ impl BacktestStrategyFunction {
                     .selected_symbols
                     .iter()
                 {
-                    let backtest_kline_cache_key = KlineKey::new(
+                    let kline_key = KlineKey::new(
                         exchange.clone(),
                         symbol_config.symbol.clone(),
                         symbol_config.interval.clone(),
@@ -86,10 +86,13 @@ impl BacktestStrategyFunction {
                     );
                     // 添加到策略缓存key列表中
                     let mut strategy_keys_guard = strategy_keys.write().await;
-                    strategy_keys_guard.push(backtest_kline_cache_key.clone().into());
+                    let key: star_river_core::cache::Key = kline_key.clone().into();
+                    if !strategy_keys_guard.contains(&key) {
+                        strategy_keys_guard.push(key);
+                    }
                     // 添加到虚拟交易系统中
                     let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                    virtual_trading_system_guard.add_kline_key(backtest_kline_cache_key);
+                    virtual_trading_system_guard.add_kline_key(kline_key);
                 }
             }
             _ => {}

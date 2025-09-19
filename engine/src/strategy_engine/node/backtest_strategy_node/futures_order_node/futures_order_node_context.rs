@@ -14,7 +14,7 @@ use event_center::communication::engine::cache_engine::GetCacheParams;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::backtest_strategy::GetStrategyCacheKeysParams;
+use event_center::communication::strategy::backtest_strategy::GetStrategyKeysParams;
 use event_center::communication::strategy::{BacktestNodeResponse, NodeResponse, StrategyCommand};
 use event_center::event::node_event::backtest_node_event::futures_order_node_event::*;
 use event_center::event::node_event::backtest_node_event::common_event::{
@@ -243,7 +243,7 @@ impl FuturesOrderNodeContext {
     async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
         let get_strategy_cache_keys_params =
-            GetStrategyCacheKeysParams::new(self.get_node_id().clone(), tx);
+            GetStrategyKeysParams::new(self.get_node_id().clone(), tx);
 
         self.get_node_command_sender()
             .send(get_strategy_cache_keys_params.into())

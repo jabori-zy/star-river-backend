@@ -1,3 +1,5 @@
+pub mod playback_handler;
+
 use super::super::StrategyCommandPublisher;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -32,7 +34,6 @@ use star_river_core::error::engine_error::strategy_engine_error::strategy_error:
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use event_center::event::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
 use event_center::event::node_event::backtest_node_event::IndicatorNodeEvent;
@@ -55,7 +56,6 @@ pub struct BacktestStrategyContext {
     pub strategy_config: StrategyConfig,
     pub strategy_id: i32,
     pub strategy_name: String,                                  // 策略名称
-    pub keys: Arc<RwLock<Vec<Key>>>,                            // 缓存键
     pub cache_lengths: HashMap<Key, u32>,                       // 缓存长度
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (), Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>,               // 节点索引
@@ -76,14 +76,17 @@ pub struct BacktestStrategyContext {
     pub strategy_inner_event_publisher: Option<StrategyInnerEventPublisher>, // 策略内部事件发布器
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>, // 策略统计模块
     pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
-    pub play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
-    pub play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
-    pub leaf_node_ids: Vec<NodeId>,           // 叶子节点id
-    pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
-    pub execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
-    pub current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
-    pub batch_id: Uuid,                       // 回测批次id
-    pub running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
+    pub(super) play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
+    pub(super) play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
+    pub(super) leaf_node_ids: Vec<NodeId>,           // 叶子节点id
+    pub(super) execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
+    pub(super) execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
+    pub(super) current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
+    pub(super) batch_id: Uuid,                       // 回测批次id
+    pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
+    pub(super) keys: Arc<RwLock<Vec<Key>>>,                            // 缓存键
+    pub(super) min_interval_symbols: Vec<Key>,                        // 最小周期交易对
+    
 }
 
 impl BacktestStrategyContext {
@@ -150,6 +153,7 @@ impl BacktestStrategyContext {
             current_time: Arc::new(RwLock::new(Utc::now())),
             batch_id: Uuid::new_v4(),
             running_log: Arc::new(RwLock::new(vec![])),
+            min_interval_symbols: vec![],
         }
     }
 
@@ -208,7 +212,15 @@ impl BacktestStrategyContext {
     }
 
     pub async fn reset_running_log(&mut self) {
-        *self.running_log.write().await = vec![];
+        self.running_log.write().await.clear();
+    }
+
+    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<Key>) {
+        self.min_interval_symbols = min_interval_symbols;
+    }
+
+    pub fn get_min_interval_symbols(&self) -> Vec<Key> {
+        self.min_interval_symbols.clone()
     }
 
     pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
@@ -233,7 +245,7 @@ impl BacktestStrategyContext {
 
     pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
         match command {
-            NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyCacheKeys(
+            NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyKeys(
                 get_strategy_cache_keys_command,
             )) => {
                 let keys = self.get_keys().await;
@@ -599,19 +611,12 @@ impl BacktestStrategyContext {
     // 初始化所有节点的方法，不持有外部锁
     pub async fn init_node(
         context: Arc<RwLock<Self>>,
-    ) -> Result<Vec<Vec<String>>, BacktestStrategyError> {
+    ) -> Result<(), BacktestStrategyError> {
         // 短暂持有锁获取节点列表
         let nodes = {
             let context_guard = context.read().await;
             context_guard.topological_sort()
         }; // 锁立即释放
-
-        let mut node_list = Vec::new();
-        for node in &nodes {
-            let node_name = node.get_node_name().await;
-            let node_id = node.get_node_id().await;
-            node_list.push(vec![node_id, node_name]);
-        }
 
         // 逐个初始化节点，不持有锁
         for node in nodes {
@@ -680,7 +685,7 @@ impl BacktestStrategyContext {
             }
         }
 
-        Ok(node_list)
+        Ok(())
     }
 
     pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
@@ -733,27 +738,65 @@ impl BacktestStrategyContext {
         Err(format!("节点 {} 未能进入Stopped状态", node_id))
     }
 
+    // #[instrument(skip(self))]
+    // // 获取所有k线缓存中的最小长度
+    // pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
+    //     // 过滤出k线缓存key
+    //     let kline_cache_keys = self
+    //         .keys
+    //         .read()
+    //         .await
+    //         .iter()
+    //         .filter(|cache_key| matches!(cache_key, Key::Kline(_)))
+    //         .map(|cache_key| cache_key.clone())
+    //         .collect();
+    //     let (resp_tx, resp_rx) = oneshot::channel();
+    //     let get_cache_length_params = GetCacheLengthMultiParams::new(
+    //         self.strategy_id,
+    //         kline_cache_keys,
+    //         self.strategy_name.clone(),
+    //         resp_tx,
+    //     );
+    //     // 向缓存引擎发送命令
+    //     // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
+    //     EventCenterSingleton::send_command(get_cache_length_params.into())
+    //         .await
+    //         .unwrap();
+    //     let response = resp_rx.await.unwrap();
+    //     if response.success() {
+    //         let cache_engine_response = CacheEngineResponse::try_from(response);
+    //         if let Ok(cache_engine_response) = cache_engine_response {
+    //             match cache_engine_response {
+    //                 CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response) => {
+    //                     tracing::info!(cache_lengths = ?get_cache_length_multi_response.cache_length, "Get cache length successfully!");
+    //                     Ok(get_cache_length_multi_response.cache_length)
+    //                 }
+    //                 _ => Err("get cache length multi failed".to_string()),
+    //             }
+    //         } else {
+    //             Err("try from response failed".to_string())
+    //         }
+    //     } else {
+    //         Err("get cache length multi failed".to_string())
+    //     }
+    // }
+
+    // 初始化信号计数
     #[instrument(skip(self))]
-    // 获取所有k线缓存中的最小长度
-    pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
-        // 过滤出k线缓存key
-        let kline_cache_keys = self
-            .keys
-            .read()
-            .await
-            .iter()
-            .filter(|cache_key| matches!(cache_key, Key::Kline(_)))
-            .map(|cache_key| cache_key.clone())
-            .collect();
+    pub async fn get_signal_count(&mut self) -> Result<i32, String> {
+        // // 初始化信号计数
+        // let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
+        // Ok(min_cache_length as i32)
+        let min_interval_keys = self.get_min_interval_symbols();
+
+        // 1. 从缓存引擎获取每一个symbol的缓存长度
         let (resp_tx, resp_rx) = oneshot::channel();
         let get_cache_length_params = GetCacheLengthMultiParams::new(
             self.strategy_id,
-            kline_cache_keys,
+            min_interval_keys.clone(),
             self.strategy_name.clone(),
             resp_tx,
         );
-        // 向缓存引擎发送命令
-        // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
         EventCenterSingleton::send_command(get_cache_length_params.into())
             .await
             .unwrap();
@@ -763,25 +806,37 @@ impl BacktestStrategyContext {
             if let Ok(cache_engine_response) = cache_engine_response {
                 match cache_engine_response {
                     CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response) => {
-                        tracing::info!(cache_lengths = ?get_cache_length_multi_response.cache_length, "Get cache length successfully!");
-                        Ok(get_cache_length_multi_response.cache_length)
+                        let symbol_cache_lengths = get_cache_length_multi_response.cache_length;
+
+                        // 2. 判断每一个symbol的缓存长度是否相同
+                        if symbol_cache_lengths.is_empty() {
+                            return Err("no symbol cache lengths found".to_string());
+                        }
+
+                        // 获取第一个symbol的缓存长度作为基准
+                        let min_cache_length = symbol_cache_lengths.values().min().cloned().unwrap_or(0);
+
+                        // 检查所有symbol的缓存长度是否都相同
+                        for (key, cache_length) in symbol_cache_lengths.iter() {
+                            if *cache_length != min_cache_length {
+                                return Err(format!("symbol {} cache length {} is not same as min cache length {}", key.get_symbol(), cache_length, min_cache_length));
+                            }
+                        }
+
+                        tracing::debug!("symbol_cache_lengths: {:#?}, min_cache_length: {}", symbol_cache_lengths, min_cache_length);
+
+                        return Ok(min_cache_length as i32);
                     }
-                    _ => Err("get cache length multi failed".to_string()),
+                    _ => {
+                        return Err("get cache length multi failed".to_string());
+                    }
                 }
             } else {
-                Err("try from response failed".to_string())
+                return Err("try from response failed".to_string());
             }
         } else {
-            Err("get cache length multi failed".to_string())
+            return Err("get cache length multi failed".to_string());
         }
-    }
-
-    // 初始化信号计数
-    #[instrument(skip(self))]
-    pub async fn get_signal_count(&mut self) -> Result<i32, String> {
-        // 初始化信号计数
-        let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
-        Ok(min_cache_length as i32)
     }
 
     // 获取start节点配置

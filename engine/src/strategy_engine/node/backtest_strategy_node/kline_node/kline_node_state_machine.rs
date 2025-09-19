@@ -17,6 +17,8 @@ pub enum KlineNodeStateAction {
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     LogNodeState, // 记录节点状态
+    #[strum(serialize = "InitStrategyKeys")]
+    InitStrategyKeys, // 初始化策略键
     #[strum(serialize = "RegisterExchange")]
     RegisterExchange, // 注册交易所
     #[strum(serialize = "LoadHistoryFromExchange")]
@@ -115,6 +117,7 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                                 Box::new(KlineNodeStateAction::ListenAndHandleNodeEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleInnerEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleStrategyCommand),
+                                Box::new(KlineNodeStateAction::InitStrategyKeys), // 初始化策略键
                                 Box::new(KlineNodeStateAction::RegisterExchange), // 注册交易所
                                 Box::new(KlineNodeStateAction::LoadHistoryFromExchange), // 从交易所加载K线历史
                             ],

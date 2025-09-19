@@ -127,8 +127,8 @@ pub struct KlineKey {
 }
 
 impl From<KlineKey> for Key {
-    fn from(history_kline_cache_key: KlineKey) -> Self {
-        Key::Kline(history_kline_cache_key)
+    fn from(kline_key: KlineKey) -> Self {
+        Key::Kline(kline_key)
     }
 }
 
