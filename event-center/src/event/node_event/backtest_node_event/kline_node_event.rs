@@ -6,7 +6,7 @@ use std::sync::Arc;
 use strum::Display;
 use chrono::{DateTime, Utc};
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::cache::{Key, CacheValue};
+use star_river_core::cache::{Key, CacheValue, CacheItem};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]

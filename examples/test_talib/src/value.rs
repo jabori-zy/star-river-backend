@@ -1,4 +1,4 @@
-use star_river_core::cache::CacheValue;
+use star_river_core::cache::{CacheValue, CacheItem};
 use star_river_core::market::Kline;
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use std::sync::Arc;

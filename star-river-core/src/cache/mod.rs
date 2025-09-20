@@ -137,43 +137,46 @@ pub enum CacheValue {
     Indicator(Indicator),
 }
 
-impl CacheValue {
-    pub fn to_json(&self) -> serde_json::Value {
+impl CacheItem for CacheValue {
+    fn to_json(&self) -> serde_json::Value {
         match self {
             CacheValue::Kline(value) => value.to_json(),
             CacheValue::Indicator(value) => value.to_json(),
         }
     }
 
-    pub fn to_json_with_time(&self) -> serde_json::Value {
+    fn to_json_with_time(&self) -> serde_json::Value {
         match self {
             CacheValue::Kline(value) => value.to_json_with_time(),
             CacheValue::Indicator(value) => value.to_json_with_time(),
         }
     }
 
-    pub fn to_list(&self) -> Vec<f64> {
+    fn to_list(&self) -> Vec<f64> {
         match self {
             CacheValue::Kline(value) => value.to_list(),
             CacheValue::Indicator(value) => value.to_list(),
         }
     }
 
-    pub fn get_datetime(&self) -> DateTime<Utc> {
+    fn get_datetime(&self) -> DateTime<Utc> {
         match self {
             CacheValue::Kline(value) => value.get_datetime(),
             CacheValue::Indicator(value) => value.get_datetime(),
         }
     }
 
-    pub fn get_timestamp(&self) -> i64 {
+    fn get_timestamp(&self) -> i64 {
         match self {
             CacheValue::Kline(value) => value.get_timestamp(),
             CacheValue::Indicator(value) => value.get_timestamp(),
         }
     }
+}
 
-    pub fn as_kline_ref(&self) -> Option<&Kline> {
+
+impl CacheValue {
+    fn as_kline_ref(&self) -> Option<&Kline> {
         match self {
             CacheValue::Kline(value) => Some(value),
             _ => None,

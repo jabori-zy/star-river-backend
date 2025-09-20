@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use chrono::Utc;
 use star_river_core::system::DateTimeUtc;
+use star_river_core::cache::CacheItem;
 
 #[derive(Debug)]
 pub enum CacheEngineResponse {

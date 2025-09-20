@@ -3,6 +3,7 @@ use super::if_else_node_context::ConfigId;
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IndicatorNodeEvent};
+use star_river_core::cache::CacheItem;
 use star_river_core::custom_type::NodeId;
 use std::collections::HashMap;
 

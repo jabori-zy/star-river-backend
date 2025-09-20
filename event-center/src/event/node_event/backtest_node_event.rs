@@ -18,7 +18,7 @@ pub use start_node_event::StartNodeEvent;
 
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::CacheValue;
+use star_river_core::cache::{CacheValue, CacheItem};
 use std::sync::Arc;
 use strum::Display;
 

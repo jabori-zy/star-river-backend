@@ -4,7 +4,7 @@ use super::{deserialize_cache_value_vec, serialize_cache_value_vec};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::cache::key::IndicatorKey;
-use star_river_core::cache::CacheValue;
+use star_river_core::cache::{CacheValue, CacheItem};
 use star_river_core::cache::KeyTrait;
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};

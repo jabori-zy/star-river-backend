@@ -22,6 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::instrument;
+use star_river_core::cache::CacheItem;
 
 #[derive(Debug)]
 pub struct CacheEngineContext {
@@ -214,7 +215,7 @@ impl CacheEngineContext {
     }
 
 
-    pub async fn update_cache(&mut self, key: Key, cache_value: CacheValue) {
+    pub async fn update_cache(&mut self, key: Key, cache_calue: CacheValue) {
         // 先检查键是否存在，释放锁
         let key_exists = {
             self.cache.read().await.contains_key(&key)
@@ -230,9 +231,9 @@ impl CacheEngineContext {
         let cache_entry = cache.get_mut(&key).unwrap();
 
         if !key_exists {
-            cache_entry.initialize(vec![cache_value]);
+            cache_entry.initialize(vec![cache_calue]);
         } else {
-            cache_entry.update(cache_value);
+            cache_entry.update(cache_calue);
         }
     }
 }

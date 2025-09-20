@@ -37,6 +37,12 @@ macro_rules! define_indicator_output {
                 }
             }
 
+            impl From<$indicator_name> for crate::cache::CacheValue {
+                fn from(indicator: $indicator_name) -> Self {
+                    crate::cache::CacheValue::Indicator(indicator.into())
+                }
+            }
+
             impl crate::indicator::IndicatorTrait for $indicator_name {
                 fn to_json(&self) -> serde_json::Value {
                     serde_json::to_value(self).unwrap()
@@ -61,6 +67,7 @@ macro_rules! define_indicator_output {
             }
 
             impl crate::cache::CacheItem for $indicator_name {
+
                 fn get_datetime(&self) -> DateTime<Utc> {
                     self.datetime
                 }
@@ -424,6 +431,8 @@ macro_rules! impl_indicator {
         }
 
         impl CacheItem for $enum_name {
+
+
             fn get_datetime(&self) -> DateTime<Utc> {
                 match self {
                     $(

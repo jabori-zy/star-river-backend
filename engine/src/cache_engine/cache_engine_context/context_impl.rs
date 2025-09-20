@@ -88,8 +88,7 @@ impl EngineContext for CacheEngineContext {
                     }
                     // 更新缓存
                     CacheEngineCommand::UpdateCache(params) => {
-                        self.update_cache(params.key.clone(), params.cache_value)
-                            .await;
+                        self.update_cache(params.key.clone(), params.cache_value).await;
                         let response: CacheEngineResponse = UpdateCacheResponse::success(params.key).into();
                         params.responder.send(response.into()).unwrap();
                     }
