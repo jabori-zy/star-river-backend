@@ -147,7 +147,7 @@ impl KlineCacheEntry {
 
 impl From<KlineCacheEntry> for CacheEntry {
     fn from(entry: KlineCacheEntry) -> Self {
-        CacheEntry::HistoryKline(entry)
+        CacheEntry::Kline(entry)
     }
 }
 
@@ -155,7 +155,7 @@ pub type IndicatorCacheEntry = GenericCacheEntry<IndicatorKey>;
 
 impl From<IndicatorCacheEntry> for CacheEntry {
     fn from(entry: IndicatorCacheEntry) -> Self {
-        CacheEntry::HistoryIndicator(entry)
+        CacheEntry::Indicator(entry)
     }
 }
 

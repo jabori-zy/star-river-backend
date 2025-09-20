@@ -152,7 +152,7 @@ impl ExchangeEngineContext {
         }
     }
 
-    #[instrument(skip(self, account_config), fields(login = %account_config.config["login"], server = %account_config.config["server"]))]
+    // #[instrument(skip(self, account_config), fields(login = %account_config.config["login"], server = %account_config.config["server"]))]
     async fn register_mt5_exchange_in_dev(
         &mut self,
         account_config: AccountConfig,

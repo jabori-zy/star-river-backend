@@ -147,6 +147,17 @@ pub struct TimeRange {
     pub end_date: DateTimeUtc, // 结束日期
 }
 
+impl TimeRange {
+    pub fn new(start_date_str: String, end_date_str: String) -> Self {
+        Self {
+            start_date: DateTimeUtc::from_str(&start_date_str).unwrap(),
+            end_date: DateTimeUtc::from_str(&end_date_str).unwrap(),
+        }
+    }
+}
+
+
+
 impl fmt::Display for TimeRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} ~ {}", self.start_date, self.end_date)

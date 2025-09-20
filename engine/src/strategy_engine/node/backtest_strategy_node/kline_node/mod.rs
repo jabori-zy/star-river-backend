@@ -46,6 +46,7 @@ impl KlineNode {
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) =
             Self::check_kline_node_config(node_config)?;
+        
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -343,22 +344,22 @@ impl BacktestNodeTrait for KlineNode {
 
                         self.listen_strategy_inner_events().await;
                     }
-                    KlineNodeStateAction::InitStrategyKeys => {
-                        tracing::info!("[{node_name}({node_id})] start to init strategy keys");
+                    KlineNodeStateAction::GetMinIntervalSymbols => {
+                        tracing::info!("[{node_name}({node_id})] start to get min interval symbols");
                         let context = self.get_context();
                         
                         let mut context_guard = context.write().await;
                         if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>(){
-                            let strategy_keys = kline_node_context.get_strategy_keys().await.unwrap();
-                            kline_node_context.set_strategy_keys(strategy_keys);
-                            kline_node_context.init_is_min_interval_symbol();
-                            let log_message = InitStrategyKeysSuccessMsg::new(node_id.clone(), node_name.clone());
+                            let min_interval_symbols = kline_node_context.get_min_interval_symbols().await.unwrap();
+                            kline_node_context.set_min_interval_symbols(min_interval_symbols);
+
+                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_id.clone(), node_name.clone());
                             let log_event = NodeStateLogEvent::success(
                                 strategy_id.clone(),
                                 node_id.clone(),
                                 node_name.clone(),
                                 current_state.to_string(),
-                                KlineNodeStateAction::InitStrategyKeys.to_string(),
+                                KlineNodeStateAction::GetMinIntervalSymbols.to_string(),
                                 log_message.to_string(),
                             );
                             let _ = strategy_output_handle.send(log_event.into());

@@ -63,7 +63,6 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                     StartNodeEvent::KlinePlay(play_event) => {
                         self.send_kline(play_event).await;
                     }
-                    _ => {}
                 }
             }
             _ => {}

@@ -1,3 +1,6 @@
+mod context_impl;
+
+
 use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
@@ -43,89 +46,7 @@ impl Clone for CacheEngineContext {
     }
 }
 
-#[async_trait]
-impl EngineContext for CacheEngineContext {
-    fn clone_box(&self) -> Box<dyn EngineContext> {
-        Box::new(self.clone())
-    }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn get_engine_name(&self) -> EngineName {
-        self.engine_name.clone()
-    }
-
-    async fn handle_event(&mut self, event: Event) {
-        match event {
-            Event::Exchange(exchange_event) => {
-                self.handle_exchange_event(exchange_event).await;
-            }
-            Event::Indicator(indicator_event) => {
-                self.handle_indicator_event(indicator_event).await;
-            }
-            _ => {}
-        }
-    }
-
-    async fn handle_command(&mut self, command: EngineCommand) {
-        match command {
-            EngineCommand::CacheEngine(command) => {
-                match command {
-                    // 添加缓存
-                    CacheEngineCommand::AddCacheKey(params) => {
-                        self.add_key(params.key.clone(), params.max_size, params.duration)
-                            .await
-                            .unwrap();
-                        let response = AddCacheKeyResponse::success(params.key);
-                        let response_event =
-                            EngineResponse::CacheEngine(CacheEngineResponse::AddCacheKey(response));
-
-                        params.responder.send(response_event.into()).unwrap();
-                    }
-
-                    // 处理获取缓存数据命令
-                    CacheEngineCommand::GetCache(params) => {
-                        let data = self
-                            .get_cache(&params.key, params.index, params.limit)
-                            .await;
-                        let response = GetCacheDataResponse::success(params.key, data);
-                        let response = CacheEngineResponse::GetCacheData(response);
-                        params.responder.send(response.into()).unwrap();
-                    }
-                    CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self
-                            .get_cache_multi(&params.keys, params.index, params.limit)
-                            .await;
-                        let response = GetCacheDataMultiResponse::success(multi_data);
-                        let response = CacheEngineResponse::GetCacheDataMulti(response);
-                        params.responder.send(response.into()).unwrap();
-                    }
-                    CacheEngineCommand::GetCacheLengthMulti(params) => {
-                        let mut length_result = HashMap::new();
-                        for key in params.keys.iter() {
-                            length_result.insert(key.clone(), self.get_cache_length(key).await);
-                        }
-
-                        let get_cache_length_multi_response =
-                            GetCacheLengthMultiResponse::success(length_result);
-                        let response = CacheEngineResponse::GetCacheLengthMulti(
-                            get_cache_length_multi_response,
-                        );
-                        params.responder.send(response.into()).unwrap();
-                    }
-                    _ => {}
-                }
-            }
-            _ => {}
-        }
-    }
-}
 
 impl CacheEngineContext {
     async fn handle_exchange_event(&mut self, exchange_event: ExchangeEvent) {
@@ -247,7 +168,8 @@ impl CacheEngineContext {
                         ttl,
                     );
                     cache.insert(key, cache_entry.into());
-                } // Key::Indicator(indicator_cache_key) => {
+                } 
+                // Key::Indicator(indicator_cache_key) => {
                   //     let is_contain = {
                   //         self.cache.read().await.contains_key(&indicator_cache_key.clone().into())
                   //     };
@@ -293,8 +215,24 @@ impl CacheEngineContext {
 
 
     pub async fn update_cache(&mut self, key: Key, cache_value: CacheValue) {
+        // 先检查键是否存在，释放锁
+        let key_exists = {
+            self.cache.read().await.contains_key(&key)
+        };
+
+        if !key_exists {
+            // 如果缓存键不存在，先添加键
+            self.add_key(key.clone(), None, Duration::from_secs(10)).await.unwrap();
+        }
+
+        // 重新获取锁并更新
         let mut cache = self.cache.write().await;
         let cache_entry = cache.get_mut(&key).unwrap();
-        cache_entry.update(cache_value);
+
+        if !key_exists {
+            cache_entry.initialize(vec![cache_value]);
+        } else {
+            cache_entry.update(cache_value);
+        }
     }
 }

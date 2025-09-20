@@ -15,6 +15,7 @@ pub enum CacheEngineResponse {
     GetCacheDataMulti(GetCacheDataMultiResponse),
     GetCacheLength(GetCacheLengthResponse),
     GetCacheLengthMulti(GetCacheLengthMultiResponse),
+    UpdateCache(UpdateCacheResponse),
 }
 
 impl ResponseTrait for CacheEngineResponse {
@@ -26,6 +27,7 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::GetCacheDataMulti(response) => response.success,
             CacheEngineResponse::GetCacheLength(response) => response.success,
             CacheEngineResponse::GetCacheLengthMulti(response) => response.success,
+            CacheEngineResponse::UpdateCache(response) => response.success,
         }
     }
 
@@ -45,6 +47,9 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::GetCacheLengthMulti(response) => {
                 response.error.as_ref().unwrap().clone()
             }
+            CacheEngineResponse::UpdateCache(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
         }
     }
 
@@ -56,6 +61,7 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::GetCacheDataMulti(response) => response.datetime,
             CacheEngineResponse::GetCacheLength(response) => response.datetime,
             CacheEngineResponse::GetCacheLengthMulti(response) => response.datetime,
+            CacheEngineResponse::UpdateCache(response) => response.datetime,
         }
     }
 }
@@ -145,7 +151,7 @@ impl GetCacheDataMultiResponse {
                 .into_iter()
                 .map(|(cache_key, data)| {
                     (
-                        cache_key.get_key(),
+                        cache_key.get_key_str(),
                         data.into_iter()
                             .map(|cache_value| cache_value.to_list())
                             .collect(),
@@ -243,8 +249,36 @@ impl GetCacheLengthMultiResponse {
     }
 }
 
+
 // impl From<GetCacheLengthMultiResponse> for Response {
 //     fn from(response: GetCacheLengthMultiResponse) -> Self {
 //         Response::CacheEngine(CacheEngineResponse::GetCacheLengthMulti(response))
 //     }
 // }
+
+
+#[derive(Debug)]
+pub struct UpdateCacheResponse {
+    pub success: bool,
+    pub key: Key,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
+    pub datetime: DateTimeUtc,
+}
+
+impl UpdateCacheResponse {
+    pub fn success(key: Key) -> Self {
+        Self {
+            success: true,
+            key,
+            error: None,
+            datetime: Utc::now()
+        }
+    }
+}
+
+
+impl From<UpdateCacheResponse> for CacheEngineResponse {
+    fn from(response: UpdateCacheResponse) -> Self {
+        CacheEngineResponse::UpdateCache(response)
+    }
+}

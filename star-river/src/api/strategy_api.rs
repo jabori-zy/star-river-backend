@@ -436,7 +436,7 @@ pub async fn get_strategy_cache_keys(
     if let Ok(cache_keys) = cache_keys {
         let cache_keys_str = cache_keys
             .iter()
-            .map(|cache_key| cache_key.get_key())
+            .map(|cache_key| cache_key.get_key_str())
             .collect();
         (
             StatusCode::OK,

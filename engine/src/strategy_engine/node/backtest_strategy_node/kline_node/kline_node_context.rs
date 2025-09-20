@@ -1,5 +1,6 @@
 mod context_impl;
 mod event_handler;
+mod utils;
 
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{
@@ -23,8 +24,8 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use star_river_core::cache::Key;
+use star_river_core::custom_type::PlayIndex;
 use std::collections::HashMap;
-use star_river_core::market::KlineInterval;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -33,70 +34,47 @@ pub struct KlineNodeContext {
     pub data_is_loaded: Arc<RwLock<bool>>,
     pub backtest_config: KlineNodeBacktestConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    strategy_keys: Vec<Key>,
-    is_min_interval_symbol: HashMap<Key, bool>,
+    min_interval_symbols: Vec<Key>,
+    selected_symbol_keys: HashMap<Key, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
 }
 
 
 impl KlineNodeContext {
 
     pub fn new(base_context: BacktestBaseNodeContext, backtest_config: KlineNodeBacktestConfig, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
+        
+        let exchange = backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+        let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+
+        let selected_symbol_keys = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.iter().map(|symbol| {
+            let key: Key = KlineKey::new(
+                exchange.clone(),
+                symbol.symbol.clone(),
+                symbol.interval.clone(),
+                Some(time_range.start_date.to_string()),
+                Some(time_range.end_date.to_string()),
+            ).into();
+            (key, (symbol.config_id, symbol.output_handle_id.clone()))
+        }).collect();
+
         Self {
             base_context,
             exchange_is_registered: Arc::new(RwLock::new(false)),
             data_is_loaded: Arc::new(RwLock::new(false)),
             backtest_config,
             heartbeat,
-            strategy_keys: vec![],
-            is_min_interval_symbol: HashMap::new(),
+            min_interval_symbols: vec![],
+            selected_symbol_keys,
         }
     }
 
 
-    pub fn set_strategy_keys(&mut self, strategy_keys: Vec<Key>) {
-        self.strategy_keys = strategy_keys;
+    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<Key>) {
+        self.min_interval_symbols = min_interval_symbols;
     }
 
-    pub fn get_strategy_keys_ref(&self) -> &Vec<Key> {
-        &self.strategy_keys
-    }
-
-    pub fn init_is_min_interval_symbol(&mut self) {
-
-        // 过滤出klineKey中，每个symbol的interval最小的klineKey
-        let mut symbol_groups: HashMap<String, Vec<&Key>> = HashMap::new();
-
-        // tracing::debug!("strategy_keys: {:#?}", self.strategy_keys.iter().map(|key| (key.get_symbol(), key.get_interval())).collect::<Vec<(String, KlineInterval)>>());
-        // 按symbol分组
-        for key in self.strategy_keys.iter() {
-            if matches!(key, Key::Kline(_)) {
-                let symbol = key.get_symbol();
-                symbol_groups.entry(symbol).or_insert_with(Vec::new).push(key);
-            }
-        }
-
-        // 获取每个symbol组内interval最小的key
-        let min_interval_symbol: Vec<&Key> = symbol_groups
-            .values()
-            .filter_map(|keys| {
-                keys.iter().min_by_key(|key| key.get_interval()).copied()
-            })
-            .collect();
-        // tracing::debug!("min_interval_symbol: {:#?}", min_interval_symbol.iter().map(|key| (key.get_symbol(), key.get_interval())).collect::<Vec<(String, KlineInterval)>>());
-        
-        let selected_symbols = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.clone();
-        let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
-        let time_range = self.backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
-        selected_symbols.iter().for_each(|symbol| {
-            let key: Key = KlineKey::new(exchange.clone(), symbol.symbol.clone(), symbol.interval.clone(), Some(time_range.start_date.to_string()), Some(time_range.end_date.to_string())).into();
-
-            // 检查当前key是否在最小interval列表中
-            let is_min_interval = min_interval_symbol.iter().any(|min_interval_key| *min_interval_key == &key);
-            self.is_min_interval_symbol.insert(key, is_min_interval);
-        });
-        // tracing::debug!("is_min_interval_symbol: {:#?}", self.is_min_interval_symbol.iter().map(|(key, is_min_interval)| (key.get_symbol(), key.get_interval(), is_min_interval.clone())).collect::<Vec<(String, KlineInterval, bool)>>());
-
-
+    pub fn get_min_interval_symbols_ref(&self) -> &Vec<Key> {
+        &self.min_interval_symbols
     }
 
 
@@ -122,13 +100,7 @@ impl KlineNodeContext {
         let node_id = self.base_context.node_id.clone();
         let node_name = self.base_context.node_name.clone();
 
-        tracing::info!(
-            node_id = %node_id,
-            node_name = %node_name,
-            account_id = %account_id,
-            exchange = ?exchange,
-            account_id = %account_id,
-            "start to register exchange.");
+        tracing::info!("[{}] start to register exchange [{}]", node_name, exchange);
 
         let (resp_tx, resp_rx) = oneshot::channel();
         let register_param = RegisterExchangeParams::new(account_id, exchange, node_id, resp_tx);
@@ -147,16 +119,6 @@ impl KlineNodeContext {
     pub async fn load_kline_history_from_exchange(&mut self) -> Result<bool, String> {
         tracing::info!("[{}] start to load backtest kline data from exchange", self.base_context.node_name);
 
-
-        // 已配置的symbol
-        // let selected_symbols = self
-        //     .backtest_config
-        //     .exchange_mode_config
-        //     .as_ref()
-        //     .unwrap()
-        //     .selected_symbols
-        //     .clone();
-
         let mut is_all_success = true;
 
         let strategy_id = self.get_strategy_id().clone();
@@ -168,25 +130,12 @@ impl KlineNodeContext {
             .selected_account
             .account_id
             .clone();
-        let exchange = self.backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .exchange
-            .clone();
-        let time_range = self.backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .time_range
-            .clone();
 
         // 遍历每一个symbol，从交易所获取k线历史
-        for (symbol, is_min_interval) in self.is_min_interval_symbol.iter() {
-            // 如果is_min_interval为false，则跳过
-            if !is_min_interval {
-                tracing::warn!("[{}] symbol: {}-{}, is not min interval, skip", self.get_node_name(), symbol.get_symbol(), symbol.get_interval());
+        for (symbol_key, _) in self.selected_symbol_keys.iter() {
+            // 如果key不在最小周期交易对列表中，则跳过
+            if !self.min_interval_symbols.contains(&symbol_key) {
+                tracing::warn!("[{}] symbol: {}-{}, is not min interval, skip", self.get_node_name(), symbol_key.get_symbol(), symbol_key.get_interval());
                 continue;
             }
             let (resp_tx, resp_rx) = oneshot::channel();
@@ -194,10 +143,10 @@ impl KlineNodeContext {
                 strategy_id,
                 node_id.clone(),
                 account_id.clone(),
-                exchange.clone(),
-                symbol.get_symbol().clone(),
-                symbol.get_interval().clone(),
-                time_range.clone(),
+                symbol_key.get_exchange(),
+                symbol_key.get_symbol(),
+                symbol_key.get_interval(),
+                symbol_key.get_time_range().unwrap(),
                 node_id.clone(),
                 resp_tx,
             );
@@ -217,14 +166,14 @@ impl KlineNodeContext {
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(
         &self,
-        kline_key: &KlineKey,
-        play_index: i32, // 缓存索引
+        kline_key: &Key,
+        play_index: PlayIndex, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let get_cache_params = GetCacheParams::new(
             self.get_strategy_id().clone(),
             self.get_node_id().clone(),
-            kline_key.clone().into(),
+            kline_key.clone(),
             Some(play_index as u32),
             Some(1),
             self.get_node_id().clone(),
@@ -254,7 +203,7 @@ impl KlineNodeContext {
         &self,
         handle_id: String,
         config_id: i32,
-        kline_key: &KlineKey,
+        kline_key: &Key,
         index: i32, // 缓存索引
         kline_data: Vec<Arc<CacheValue>>,
     ) -> KlineNodeEvent {

@@ -349,6 +349,9 @@ impl VirtualTradingSystem {
         if response.success() {
             if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) = CacheEngineResponse::try_from(response)
             {
+                if get_cache_data_response.cache_data.is_empty() {
+                    return Err("get cache data response is empty".to_string());
+                }
                 let kline = get_cache_data_response.cache_data[0].as_kline().unwrap();
                 return Ok(kline);
             }

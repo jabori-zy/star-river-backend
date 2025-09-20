@@ -2,10 +2,11 @@ use super::super::super::strategy_event::{NodeStateLogEvent, StrategyRunningLogE
 use super::super::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::{key::KlineKey, CacheValue, KeyTrait};
 use std::sync::Arc;
 use strum::Display;
 use chrono::{DateTime, Utc};
+use star_river_core::custom_type::PlayIndex;
+use star_river_core::cache::{Key, CacheValue};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
@@ -38,11 +39,11 @@ pub struct KlineUpdatePayload {
     pub config_id: i32,
 
     #[serde(rename = "playIndex")]
-    pub play_index: i32,
+    pub play_index: PlayIndex,
 
     #[serde(serialize_with = "serialize_kline_cache_key")]
     #[serde(rename = "klineKey")]
-    pub kline_key: KlineKey,
+    pub kline_key: Key,
 
     #[serde(serialize_with = "serialize_kline_data")]
     #[serde(deserialize_with = "deserialize_cache_value_vec")]
@@ -52,8 +53,8 @@ pub struct KlineUpdatePayload {
 impl KlineUpdatePayload {
     pub fn new(
         config_id: i32,
-        play_index: i32,
-        kline_key: KlineKey,
+        play_index: PlayIndex,
+        kline_key: Key,
         kline: Vec<Arc<CacheValue>>,
     ) -> Self {
         Self {
@@ -65,7 +66,7 @@ impl KlineUpdatePayload {
     }
 }
 
-fn serialize_kline_cache_key<'de, S>(kline_key: &KlineKey, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_kline_cache_key<'de, S>(kline_key: &Key, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

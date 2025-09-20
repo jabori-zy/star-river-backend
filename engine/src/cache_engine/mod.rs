@@ -89,7 +89,7 @@ impl CacheEngine {
                     let keys = cache
                         .keys()
                         .filter(|key| matches!(key, Key::Kline(_)))
-                        .map(|key: &Key| key.get_key())
+                        .map(|key: &Key| key.get_key_str())
                         .collect();
                     Ok(keys)
                 }
@@ -97,14 +97,14 @@ impl CacheEngine {
                     let keys = cache
                         .keys()
                         .filter(|key| matches!(key, Key::Indicator(_)))
-                        .map(|key: &Key| key.get_key())
+                        .map(|key: &Key| key.get_key_str())
                         .collect();
                     Ok(keys)
                 }
                 _ => Err("Invalid cache key type".to_string()),
             }
         } else {
-            let keys = cache.keys().map(|key: &Key| key.get_key()).collect();
+            let keys = cache.keys().map(|key: &Key| key.get_key_str()).collect();
             Ok(keys)
         }
     }
@@ -137,7 +137,7 @@ impl CacheEngine {
         > = cache_engine_context.cache.read().await;
         let mut memory_size = HashMap::new();
         for (key, entry) in cache.iter() {
-            memory_size.insert(key.get_key(), entry.get_memory_size());
+            memory_size.insert(key.get_key_str(), entry.get_memory_size());
         }
         Ok(memory_size)
     }
