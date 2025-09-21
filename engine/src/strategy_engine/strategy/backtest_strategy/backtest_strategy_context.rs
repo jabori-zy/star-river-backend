@@ -10,10 +10,7 @@ use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::strategy::{NodeCommandReceiver, BacktestStrategyResponse};
 use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
 use event_center::communication::strategy::StrategyResponse;
-use event_center::event::node_event::NodeEventTrait;
 use event_center::singleton::EventCenterSingleton;
-use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
-use event_center::event::Event;
 use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
@@ -34,14 +31,7 @@ use star_river_core::custom_type::{NodeId, PlayIndex, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
-use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
-use event_center::event::node_event::backtest_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, CommonEvent};
 use event_center::event::strategy_event::StrategyRunningLogEvent;
-use event_center::communication::strategy::{NodeCommand, BacktestNodeCommand};
-use event_center::communication::strategy::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse, GetStartNodeConfigParams};
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
@@ -50,6 +40,8 @@ use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 use chrono::{DateTime, Utc};
+use star_river_core::cache::key::KlineKey;
+use event_center::communication::strategy::GetStartNodeConfigParams;
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -85,7 +77,7 @@ pub struct BacktestStrategyContext {
     pub(super) batch_id: Uuid,                       // 回测批次id
     pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
     pub(super) keys: Arc<RwLock<Vec<Key>>>,                            // 缓存键
-    pub(super) min_interval_symbols: Vec<Key>,                        // 最小周期交易对
+    pub(super) min_interval_symbols: Vec<KlineKey>,                        // 最小周期交易对
     
 }
 
@@ -214,11 +206,11 @@ impl BacktestStrategyContext {
         self.running_log.write().await.clear();
     }
 
-    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<Key>) {
+    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
         self.min_interval_symbols = min_interval_symbols;
     }
 
-    pub fn get_min_interval_symbols(&self) -> Vec<Key> {
+    pub fn get_min_interval_symbols(&self) -> Vec<KlineKey> {
         self.min_interval_symbols.clone()
     }
 
@@ -522,7 +514,7 @@ impl BacktestStrategyContext {
         // // 初始化信号计数
         // let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
         // Ok(min_cache_length as i32)
-        let min_interval_keys = self.get_min_interval_symbols();
+        let min_interval_keys: Vec<Key> = self.get_min_interval_symbols().iter().map(|key| Key::from(key.clone())).collect();
 
         // 1. 从缓存引擎获取每一个symbol的缓存长度
         let (resp_tx, resp_rx) = oneshot::channel();

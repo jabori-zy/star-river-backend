@@ -6,6 +6,7 @@ use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::strategy::BacktestStrategyConfig;
 use std::sync::Arc;
 use star_river_core::system::DateTimeUtc;
+use star_river_core::cache::key::KlineKey;
 
 
 #[derive(Debug)]
@@ -199,12 +200,12 @@ impl From<GetStrategyCacheKeysResponse> for NodeResponse {
 pub struct GetMinIntervalSymbolsResponse {
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub keys: Vec<Key>,
+    pub keys: Vec<KlineKey>,
     pub datetime: DateTimeUtc,
 }
 
 impl GetMinIntervalSymbolsResponse {
-    pub fn success(keys: Vec<Key>) -> Self {
+    pub fn success(keys: Vec<KlineKey>) -> Self {
         Self {
             success: true,
             error: None,

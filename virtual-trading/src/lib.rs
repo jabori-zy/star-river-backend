@@ -231,10 +231,12 @@ impl VirtualTradingSystem {
         for kline_key in keys {
             let kline = self
                 .get_close_price(kline_key.clone().into())
-                .await
-                .unwrap();
-            timestamp_list.push(kline.datetime);
-            self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
+                .await;
+            if let Ok(kline) = kline {
+                
+                timestamp_list.push(kline.datetime);
+                self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
+            }
         }
 
         // 检查完成后，需要检查所有k线的时间戳是否相同

@@ -17,6 +17,7 @@ pub enum CacheEngineResponse {
     GetCacheLength(GetCacheLengthResponse),
     GetCacheLengthMulti(GetCacheLengthMultiResponse),
     UpdateCache(UpdateCacheResponse),
+    ClearCache(ClearCacheResponse),
 }
 
 impl ResponseTrait for CacheEngineResponse {
@@ -29,6 +30,7 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::GetCacheLength(response) => response.success,
             CacheEngineResponse::GetCacheLengthMulti(response) => response.success,
             CacheEngineResponse::UpdateCache(response) => response.success,
+            CacheEngineResponse::ClearCache(response) => response.success,
         }
     }
 
@@ -51,6 +53,9 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::UpdateCache(response) => {
                 response.error.as_ref().unwrap().clone()
             }
+            CacheEngineResponse::ClearCache(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
         }
     }
 
@@ -63,6 +68,7 @@ impl ResponseTrait for CacheEngineResponse {
             CacheEngineResponse::GetCacheLength(response) => response.datetime,
             CacheEngineResponse::GetCacheLengthMulti(response) => response.datetime,
             CacheEngineResponse::UpdateCache(response) => response.datetime,
+            CacheEngineResponse::ClearCache(response) => response.datetime,
         }
     }
 }
@@ -281,5 +287,30 @@ impl UpdateCacheResponse {
 impl From<UpdateCacheResponse> for CacheEngineResponse {
     fn from(response: UpdateCacheResponse) -> Self {
         CacheEngineResponse::UpdateCache(response)
+    }
+}
+
+#[derive(Debug)]
+pub struct ClearCacheResponse {
+    pub success: bool,
+    pub key: Key,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
+    pub datetime: DateTimeUtc,
+}
+
+impl ClearCacheResponse {
+    pub fn success(key: Key) -> Self {
+        Self {
+            success: true,
+            key,
+            error: None,
+            datetime: Utc::now()
+        }
+    }
+}
+
+impl From<ClearCacheResponse> for CacheEngineResponse {
+    fn from(response: ClearCacheResponse) -> Self {
+        CacheEngineResponse::ClearCache(response)
     }
 }

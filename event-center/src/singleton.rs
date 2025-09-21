@@ -104,8 +104,6 @@ impl EventCenterSingleton {
 
         let center = instance.read().await;
         let engine_name = command.get_engine_name();
-
-        // 直接访问 HashMap，无需额外锁（参考 publish 方法的优化）
         let (sender, _receiver) = center.command_channels.get(&engine_name).ok_or_else(|| {
             EngineCommandSenderNotFoundSnafu {
                 engine_name: engine_name.to_string(),

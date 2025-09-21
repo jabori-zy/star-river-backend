@@ -17,15 +17,17 @@ use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use star_river_core::cache::key::KlineKey;
 use star_river_core::cache::CacheValue;
+use star_river_core::market::Kline;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use star_river_core::cache::Key;
 use star_river_core::custom_type::PlayIndex;
 use std::collections::HashMap;
+use star_river_core::cache::KeyTrait;
+
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
@@ -34,8 +36,8 @@ pub struct KlineNodeContext {
     pub data_is_loaded: Arc<RwLock<bool>>,
     pub backtest_config: KlineNodeBacktestConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    min_interval_symbols: Vec<Key>,
-    selected_symbol_keys: HashMap<Key, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
+    min_interval_symbols: Vec<KlineKey>,
+    selected_symbol_keys: HashMap<KlineKey, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
 }
 
 
@@ -47,14 +49,14 @@ impl KlineNodeContext {
         let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
         let selected_symbol_keys = backtest_config.exchange_mode_config.as_ref().unwrap().selected_symbols.iter().map(|symbol| {
-            let key: Key = KlineKey::new(
+            let kline_key = KlineKey::new(
                 exchange.clone(),
                 symbol.symbol.clone(),
                 symbol.interval.clone(),
                 Some(time_range.start_date.to_string()),
                 Some(time_range.end_date.to_string()),
-            ).into();
-            (key, (symbol.config_id, symbol.output_handle_id.clone()))
+            );
+            (kline_key, (symbol.config_id, symbol.output_handle_id.clone()))
         }).collect();
 
         Self {
@@ -69,11 +71,11 @@ impl KlineNodeContext {
     }
 
 
-    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<Key>) {
+    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
         self.min_interval_symbols = min_interval_symbols;
     }
 
-    pub fn get_min_interval_symbols_ref(&self) -> &Vec<Key> {
+    pub fn get_min_interval_symbols_ref(&self) -> &Vec<KlineKey> {
         &self.min_interval_symbols
     }
 
@@ -166,14 +168,14 @@ impl KlineNodeContext {
     // 从缓存引擎获取k线数据
     pub async fn get_history_kline_cache(
         &self,
-        kline_key: &Key,
+        kline_key: &KlineKey,
         play_index: PlayIndex, // 缓存索引
     ) -> Result<Vec<Arc<CacheValue>>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let get_cache_params = GetCacheParams::new(
             self.get_strategy_id().clone(),
             self.get_node_id().clone(),
-            kline_key.clone(),
+            kline_key.clone().into(),
             Some(play_index as u32),
             Some(1),
             self.get_node_id().clone(),
@@ -203,11 +205,12 @@ impl KlineNodeContext {
         &self,
         handle_id: String,
         config_id: i32,
-        kline_key: &Key,
+        should_calculate: bool,
+        kline_key: &KlineKey,
         index: i32, // 缓存索引
-        kline_data: Vec<Arc<CacheValue>>,
+        kline_data: Kline
     ) -> KlineNodeEvent {
-        let payload = KlineUpdatePayload::new(config_id, index, kline_key.clone(), kline_data);
+        let payload = KlineUpdatePayload::new(config_id, index, should_calculate, kline_key.clone(), kline_data);
         KlineNodeEvent::KlineUpdate(
             KlineUpdateEvent::new(
                 self.get_node_id().clone(),

@@ -7,18 +7,21 @@ use star_river_core::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use chrono::Utc;
 use star_river_core::system::DateTimeUtc;
+use star_river_core::indicator::Indicator;
 
 #[derive(Debug)]
 pub enum IndicatorEngineResponse {
     RegisterIndicator(RegisterIndicatorResponse),
-    CalculateBacktestIndicator(CalculateBacktestIndicatorResponse),
+    CalculateHistoryIndicator(CalculateHistoryIndicatorResponse),
+    CalculateIndicator(CalculateIndicatorResponse),
 }
 
 impl ResponseTrait for IndicatorEngineResponse {
     fn success(&self) -> bool {
         match self {
             IndicatorEngineResponse::RegisterIndicator(response) => response.success,
-            IndicatorEngineResponse::CalculateBacktestIndicator(response) => response.success,
+            IndicatorEngineResponse::CalculateHistoryIndicator(response) => response.success,
+            IndicatorEngineResponse::CalculateIndicator(response) => response.success,
         }
     }
 
@@ -27,7 +30,10 @@ impl ResponseTrait for IndicatorEngineResponse {
             IndicatorEngineResponse::RegisterIndicator(response) => {
                 response.error.as_ref().unwrap().clone()
             }
-            IndicatorEngineResponse::CalculateBacktestIndicator(response) => {
+            IndicatorEngineResponse::CalculateHistoryIndicator(response) => {
+                response.error.as_ref().unwrap().clone()
+            }
+            IndicatorEngineResponse::CalculateIndicator(response) => {
                 response.error.as_ref().unwrap().clone()
             }
         }
@@ -36,7 +42,8 @@ impl ResponseTrait for IndicatorEngineResponse {
     fn datetime(&self) -> DateTimeUtc {
         match self {
             IndicatorEngineResponse::RegisterIndicator(response) => response.datetime,
-            IndicatorEngineResponse::CalculateBacktestIndicator(response) => response.datetime,
+            IndicatorEngineResponse::CalculateHistoryIndicator(response) => response.datetime,
+            IndicatorEngineResponse::CalculateIndicator(response) => response.datetime,
         }
     }
 }
@@ -48,14 +55,14 @@ impl From<IndicatorEngineResponse> for EngineResponse {
 }
 
 #[derive(Debug)]
-pub struct CalculateBacktestIndicatorResponse {
+pub struct CalculateHistoryIndicatorResponse {
     pub success: bool,
     pub backtest_indicator_key: Key,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub datetime: DateTimeUtc,
 }
 
-impl CalculateBacktestIndicatorResponse {
+impl CalculateHistoryIndicatorResponse {
     pub fn success(backtest_indicator_key: Key) -> Self {
         Self {
             success: true,
@@ -66,9 +73,9 @@ impl CalculateBacktestIndicatorResponse {
     }
 }
 
-impl From<CalculateBacktestIndicatorResponse> for EngineResponse {
-    fn from(response: CalculateBacktestIndicatorResponse) -> Self {
-        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateBacktestIndicator(
+impl From<CalculateHistoryIndicatorResponse> for EngineResponse {
+    fn from(response: CalculateHistoryIndicatorResponse) -> Self {
+        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(
             response,
         ))
     }
@@ -113,5 +120,42 @@ impl RegisterIndicatorResponse {
 impl From<RegisterIndicatorResponse> for EngineResponse {
     fn from(response: RegisterIndicatorResponse) -> Self {
         EngineResponse::IndicatorEngine(IndicatorEngineResponse::RegisterIndicator(response))
+    }
+}
+
+#[derive(Debug)]
+pub struct CalculateIndicatorResponse {
+    pub success: bool,
+    pub indicator_key: Key,
+    pub indicator: Option<Indicator>,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
+    pub datetime: DateTimeUtc,
+}
+
+impl CalculateIndicatorResponse {
+    pub fn success(indicator_key: Key, indicator: Indicator) -> Self {
+        Self {
+            success: true,
+            indicator_key,
+            indicator: Some(indicator),
+            error: None,
+            datetime: Utc::now(),
+        }
+    }
+
+    pub fn error(error: Arc<dyn StarRiverErrorTrait>, indicator_key: Key) -> Self {
+        Self {
+            success: false,
+            indicator_key,
+            indicator: None,
+            error: Some(error),
+            datetime: Utc::now(),
+        }
+    }
+}
+
+impl From<CalculateIndicatorResponse> for EngineResponse {
+    fn from(response: CalculateIndicatorResponse) -> Self {
+        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateIndicator(response))
     }
 }

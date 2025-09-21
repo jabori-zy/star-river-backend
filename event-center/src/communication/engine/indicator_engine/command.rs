@@ -11,27 +11,31 @@ use star_river_core::system::DateTimeUtc;
 #[derive(Debug)]
 pub enum IndicatorEngineCommand {
     RegisterIndicator(RegisterIndicatorParams), // 注册指标
-    CalculateBacktestIndicator(CalculateBacktestIndicatorParams), // 计算回测指标
+    CalculateHistoryIndicator(CalculateHistoryIndicatorParams), // 计算历史指标
+    CalculateIndicator(CalculateIndicatorParams), // 计算指标
 }
 
 impl EngineCommandTrait for IndicatorEngineCommand {
     fn responder(&self) -> &EngineResponder {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => &params.responder,
-            IndicatorEngineCommand::CalculateBacktestIndicator(params) => &params.responder,
+            IndicatorEngineCommand::CalculateHistoryIndicator(params) => &params.responder,
+            IndicatorEngineCommand::CalculateIndicator(params) => &params.responder,
         }
     }
     fn datetime(&self) -> DateTimeUtc {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => params.datetime,
-            IndicatorEngineCommand::CalculateBacktestIndicator(params) => params.datetime,
+            IndicatorEngineCommand::CalculateHistoryIndicator(params) => params.datetime,
+            IndicatorEngineCommand::CalculateIndicator(params) => params.datetime,
         }
     }
 
     fn sender(&self) -> String {
         match self {
             IndicatorEngineCommand::RegisterIndicator(params) => params.sender.clone(),
-            IndicatorEngineCommand::CalculateBacktestIndicator(params) => params.sender.clone(),
+            IndicatorEngineCommand::CalculateHistoryIndicator(params) => params.sender.clone(),
+            IndicatorEngineCommand::CalculateIndicator(params) => params.sender.clone(),
         }
     }
 }
@@ -82,7 +86,7 @@ impl RegisterIndicatorParams {
 
 #[derive(Debug)]
 // 计算回测指标命令参数
-pub struct CalculateBacktestIndicatorParams {
+pub struct CalculateHistoryIndicatorParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub kline_key: KlineKey, // 回测K线缓存键
@@ -92,7 +96,7 @@ pub struct CalculateBacktestIndicatorParams {
     pub responder: EngineResponder,
 }
 
-impl CalculateBacktestIndicatorParams {
+impl CalculateHistoryIndicatorParams {
     pub fn new(
         strategy_id: StrategyId,
         node_id: NodeId,
@@ -113,8 +117,47 @@ impl CalculateBacktestIndicatorParams {
     }
 }
 
-impl From<CalculateBacktestIndicatorParams> for EngineCommand {
-    fn from(params: CalculateBacktestIndicatorParams) -> Self {
-        EngineCommand::IndicatorEngine(IndicatorEngineCommand::CalculateBacktestIndicator(params))
+impl From<CalculateHistoryIndicatorParams> for EngineCommand {
+    fn from(params: CalculateHistoryIndicatorParams) -> Self {
+        EngineCommand::IndicatorEngine(IndicatorEngineCommand::CalculateHistoryIndicator(params))
     }
 }
+
+#[derive(Debug)]
+pub struct CalculateIndicatorParams {
+    pub strategy_id: StrategyId,
+    pub node_id: NodeId,
+    pub kline_key: KlineKey,
+    pub indicator_config: IndicatorConfig,
+    pub sender: String,
+    pub datetime: DateTimeUtc,
+    pub responder: EngineResponder,
+}
+
+impl CalculateIndicatorParams {
+    pub fn new(
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        kline_key: KlineKey,
+        indicator_config: IndicatorConfig,
+        sender: String,
+        responder: EngineResponder,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            kline_key,
+            indicator_config,
+            sender,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<CalculateIndicatorParams> for EngineCommand {
+    fn from(params: CalculateIndicatorParams) -> Self {
+        EngineCommand::IndicatorEngine(IndicatorEngineCommand::CalculateIndicator(params))
+    }
+}
+

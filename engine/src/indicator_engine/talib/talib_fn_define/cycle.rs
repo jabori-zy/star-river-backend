@@ -5,6 +5,7 @@ use crate::talib_snake_fn;
 use star_river_core::indicator::indicator_define::cycle::*;
 use star_river_core::indicator::Indicator;
 use chrono::{DateTime, Utc};
+use star_river_core::error::engine_error::indicator_engine_error::*;
 
 impl TALib {
     // HT_DCPERIOD          Hilbert Transform - Dominant Cycle Period #希尔伯特变换 - 主导周期

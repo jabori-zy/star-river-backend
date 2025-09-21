@@ -6,7 +6,7 @@ use event_center::event::node_event::backtest_node_event::kline_node_event::{
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::KlinePlayEvent;
-use star_river_core::cache::Key;
+use star_river_core::cache::{Key, KeyTrait};
 use event_center::communication::strategy::NodeResponse;
 use event_center::communication::strategy::backtest_strategy::command::GetMinIntervalSymbolsParams;
 use event_center::communication::strategy::backtest_strategy::response::BacktestNodeResponse;
@@ -20,6 +20,7 @@ use event_center::communication::engine::EngineResponse;
 use std::sync::Arc;
 use star_river_core::cache::{CacheValue, CacheItem};
 use star_river_core::custom_type::PlayIndex;
+use star_river_core::cache::key::KlineKey;
 
 impl KlineNodeContext {
 
@@ -81,15 +82,17 @@ impl KlineNodeContext {
     fn send_kline_events(
         &self,
         symbol_info: &(i32, String),
-        symbol_key: &Key,
+        kline_key: &KlineKey,
+        should_calculate: bool,
         play_index: PlayIndex,
-        kline_data: Vec<Arc<CacheValue>>,
+        kline_data: Kline,
     ) {
         let send_kline_event = |handle_id: String, output_handle: &NodeOutputHandle| {
             let kline_update_event = self.get_kline_update_event(
                 handle_id,
                 symbol_info.0.clone(),
-                symbol_key,
+                should_calculate,
+                kline_key,
                 play_index,
                 kline_data.clone(),
             );
@@ -124,7 +127,7 @@ impl KlineNodeContext {
     // 处理插值算法的独立方法
     async fn handle_interpolated_kline(
         &self,
-        symbol_key: &Key,
+        symbol_key: &KlineKey,
         symbol_info: &(i32, String),
         current_play_index: PlayIndex,
     ) -> Result<(), String> {
@@ -164,11 +167,12 @@ impl KlineNodeContext {
     }
 
     // 插入新K线到缓存引擎
-    async fn insert_new_kline(&self, symbol_key: &Key, symbol_info: &(i32, String), current_play_index: PlayIndex, min_interval_kline: &CacheValue) -> Result<(), String> {
+    async fn insert_new_kline(&self, symbol_key: &KlineKey, symbol_info: &(i32, String), current_play_index: PlayIndex, min_interval_kline: &CacheValue) -> Result<(), String> {
         let (resp_tx, resp_rx) = oneshot::channel();
+        let key = Key::Kline(symbol_key.clone());
         let update_cache_params = UpdateCacheParams::new(
             self.get_strategy_id().clone(),
-            symbol_key.clone(),
+            key,
             min_interval_kline.clone(),
             self.get_node_id().clone(),
             resp_tx,
@@ -178,7 +182,7 @@ impl KlineNodeContext {
 
         if response.success() {
             // 发送K线事件
-            self.send_kline_events(symbol_info, symbol_key, current_play_index, vec![Arc::new(min_interval_kline.clone().into())]);
+            self.send_kline_events(symbol_info, symbol_key, true, current_play_index, min_interval_kline.as_kline().unwrap());
             Ok(())
         } else {
             Err("Failed to insert new kline".to_string())
@@ -188,7 +192,7 @@ impl KlineNodeContext {
     // 更新现有K线在缓存引擎中的值
     async fn update_existing_kline(
         &self,
-        symbol_key: &Key,
+        symbol_key: &KlineKey,
         symbol_info: &(i32, String),
         current_play_index: PlayIndex,
         min_interval_kline_data: &[Arc<CacheValue>],
@@ -198,7 +202,7 @@ impl KlineNodeContext {
         let get_cache_value_params = GetCacheParams::new(
             self.get_strategy_id().clone(),
             self.get_node_id().clone(),
-            symbol_key.clone(),
+            symbol_key.clone().into(),
             None,
             Some(1),
             self.get_node_id().clone(),
@@ -238,7 +242,7 @@ impl KlineNodeContext {
                 let (resp_tx, resp_rx) = oneshot::channel();
                 let update_cache_params = UpdateCacheParams::new(
                     self.get_strategy_id().clone(),
-                    symbol_key.clone(),
+                    symbol_key.clone().into(),
                     new_kline.clone().into(),
                     self.get_node_id().clone(),
                     resp_tx,
@@ -248,7 +252,7 @@ impl KlineNodeContext {
 
                 if response.success() {
                     // 使用通用方法发送K线事件
-                    self.send_kline_events(symbol_info, symbol_key, current_play_index, vec![Arc::new(new_kline.into())]);
+                    self.send_kline_events(symbol_info, symbol_key, true, current_play_index,  new_kline);
                     Ok(())
                 } else {
                     Err("Failed to update cache".to_string())
@@ -261,7 +265,7 @@ impl KlineNodeContext {
     // 处理最小周期K线的独立方法
     async fn handle_min_interval_kline(
         &self,
-        symbol_key: &Key,
+        symbol_key: &KlineKey,
         symbol_info: &(i32, String),
         current_play_index: PlayIndex,
         pre_kline_timestamp: &mut i64,
@@ -279,12 +283,14 @@ impl KlineNodeContext {
             }
         };
 
-        let kline_timestamp = kline_cache_value.last().unwrap().get_timestamp();
+        let kline = kline_cache_value.last().unwrap().as_kline().unwrap();
+        let kline_timestamp = kline.get_timestamp();
 
         // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
         if *pre_kline_timestamp != kline_timestamp && *pre_kline_timestamp == 0 {
             *pre_kline_timestamp = kline_timestamp;
-            let kline_datetime = kline_cache_value.last().unwrap().get_datetime();
+
+            let kline_datetime = kline.get_datetime();
             let payload = TimeUpdatePayload::new(kline_datetime);
             let time_update_event: KlineNodeEvent = TimeUpdateEvent::new(
                 self.get_node_id().clone(),
@@ -308,14 +314,14 @@ impl KlineNodeContext {
         }
 
         // 使用通用方法发送K线事件
-        self.send_kline_events(symbol_info, symbol_key, current_play_index, kline_cache_value.clone());
+        self.send_kline_events(symbol_info, symbol_key, false, current_play_index, kline);
 
         Ok(())
     }
 
 
 
-    pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<Key>, String> {
+    pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {
         let (tx, rx) = oneshot::channel();
         let get_min_interval_symbols_params = GetMinIntervalSymbolsParams::new(self.get_node_id().clone(), tx);
 

@@ -26,7 +26,6 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
-use star_river_core::utils::get_utc8_timestamp_millis;
 
 #[derive(Debug)]
 pub struct MarketEngineContext {

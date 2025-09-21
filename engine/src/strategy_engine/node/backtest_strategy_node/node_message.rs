@@ -161,6 +161,27 @@ pub mod common_log_message {
         en: "Node [{node_name}({node_id})] virtual trading system event monitoring terminated",
         zh: "{node_name} ({node_id}) 虚拟交易系统事件监听已终止"
     );
+
+    log_message!(
+        GetMinIntervalSymbolsSuccessMsg,
+        params: (
+            node_id: String,
+            node_name: String
+        ),
+        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization successful",
+        zh: "{node_name} ({node_id}) 最小周期交易对初始化成功"
+    );
+
+    log_message!(
+        GetMinIntervalSymbolsFailedMsg,
+        params: (
+            node_id: String,
+            node_name: String,
+            error: String
+        ),
+        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization failed: {error}",
+        zh: "{node_name} ({node_id}) 最小周期交易对初始化失败: {error}"
+    );
 }
 
 // StartNode 独特的日志消息
@@ -436,27 +457,6 @@ pub mod kline_node_log_message {
         ),
         en: "Kline Node [{node_name}({node_id})] start to register exchange [{exchange} (account_id: {account_id})]",
         zh: "{node_name} ({node_id}) 开始注册交易所: {exchange} (账户: {account_id})"
-    );
-
-    log_message!(
-        GetMinIntervalSymbolsSuccessMsg,
-        params: (
-            node_id: String,
-            node_name: String
-        ),
-        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization successful",
-        zh: "{node_name} ({node_id}) 最小周期交易对初始化成功"
-    );
-
-    log_message!(
-        GetMinIntervalSymbolsFailedMsg,
-        params: (
-            node_id: String,
-            node_name: String,
-            error: String
-        ),
-        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization failed: {error}",
-        zh: "{node_name} ({node_id}) 最小周期交易对初始化失败: {error}"
     );
 
     log_message!(

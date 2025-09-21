@@ -231,9 +231,24 @@ impl CacheEngineContext {
         let cache_entry = cache.get_mut(&key).unwrap();
 
         if !key_exists {
+            // 判断cache_entry长度
             cache_entry.initialize(vec![cache_calue]);
         } else {
-            cache_entry.update(cache_calue);
+            if cache_entry.get_length() == 0 {
+                cache_entry.initialize(vec![cache_calue]);
+            } else {
+                cache_entry.update(cache_calue);
+            }
+        }
+    }
+
+    pub async fn clear_cache(&mut self, key: Key) {
+        let mut cache = self.cache.write().await;
+        let cache_entry = cache.get_mut(&key);
+        if cache_entry.is_some() {
+            cache_entry.unwrap().clear();
+        } else {
+            return;
         }
     }
 }

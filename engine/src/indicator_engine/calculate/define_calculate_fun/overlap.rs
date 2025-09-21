@@ -5,9 +5,10 @@ use star_river_core::cache::CacheValue;
 use star_river_core::indicator::indicator_define::overlap::*;
 use star_river_core::indicator::Indicator;
 use std::sync::Arc;
+use star_river_core::error::engine_error::indicator_engine_error::*;
 
 impl CalculateIndicatorFunction {
-    // Bollinger Bands #�&
+    // Bollinger Bands #布林带
     calculate_fn!(BBANDS,
         talib_params => [
             (time_period: i32),
@@ -17,26 +18,26 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // Double Exponential Moving Average #�p��sG�
+    // Double Exponential Moving Average #双指数移动平均线
     calculate_fn!(DEMA,
         talib_params => [
             (time_period: i32),
         ]
     );
 
-    // Exponential Moving Average #p��sG�
+    // Exponential Moving Average #指数移动平均线
     calculate_fn!(EMA,
         talib_params => [
             (time_period: i32),
         ]
     );
 
-    // Hilbert Transform - Instantaneous Trendline #/y�����
+    // Hilbert Transform - Instantaneous Trendline #希尔伯特变换瞬时趋势线
     calculate_fn_snake!(HtTrendline,
         talib_params => []
     );
 
-    // KAMA - Kaufman Adaptive Moving Average #a+�����sG�
+    // KAMA - Kaufman Adaptive Moving Average #考夫曼自适应移动平均线
     calculate_fn!(KAMA,
         talib_params => [
             (time_period: i32),
@@ -51,7 +52,7 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // MAMA - MESA Adaptive Moving Average #�(����sG�
+    // MAMA - MESA Adaptive Moving Average #MESA自适应移动平均线
     calculate_fn!(MAMA,
         talib_params => [
             (fast_limit: f64),
@@ -59,7 +60,7 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // MAVP - Moving average with variable period #��sG�h
+    // MAVP - Moving average with variable period #可变周期移动平均线
     // calculate_fn!(MAVP,
     //     input => [close],
     //     talib_params => [
@@ -69,14 +70,14 @@ impl CalculateIndicatorFunction {
     //     ]
     // );
 
-    // MIDPOINT - MidPoint over period #h-�
+    // MIDPOINT - MidPoint over period #周期中点价
     calculate_fn!(MIDPOINT,
         talib_params => [
             (time_period: i32),
         ]
     );
 
-    // MIDPRICE - Midpoint Price over period #h-��<
+    // MIDPRICE - Midpoint Price over period #周期中点价格
     calculate_fn!(MIDPRICE,
         input => [high, low],
         talib_params => [
@@ -84,7 +85,7 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // SAR - Parabolic SAR #�i�l
+    // SAR - Parabolic SAR #抛物线转向
     calculate_fn!(SAR,
         input => [high, low],
         talib_params => [
@@ -93,7 +94,7 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // SAREXT - Parabolic SAR - Extended #�i�liU
+    // SAREXT - Parabolic SAR - Extended #抛物线转向扩展版
     calculate_fn!(SAREXT,
         input => [high, low],
         talib_params => [
@@ -108,14 +109,14 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // SMA - Simple Moving Average #�U��sG�
+    // SMA - Simple Moving Average #简单移动平均线
     calculate_fn!(SMA,
         talib_params => [
             (time_period: i32),
         ]
     );
 
-    // T3 - Triple Exponential Moving Average (T3) #	�p��sG�
+    // T3 - Triple Exponential Moving Average (T3) #三重指数移动平均线
     calculate_fn!(T3,
         talib_params => [
             (time_period: i32),
@@ -123,21 +124,21 @@ impl CalculateIndicatorFunction {
         ]
     );
 
-    // TEMA - Triple Exponential Moving Average #	�p��sG�
+    // TEMA - Triple Exponential Moving Average #三重指数移动平均线
     calculate_fn!(TEMA,
         talib_params => [
             (time_period: i32),
         ]
     );
 
-    // TRIMA - Triangular Moving Average #	�b��sG�
+    // TRIMA - Triangular Moving Average #三角移动平均线
     calculate_fn!(TRIMA,
         talib_params => [
             (time_period: i32),
         ]
     );
 
-    // WMA - Weighted Moving Average #�C��sG�
+    // WMA - Weighted Moving Average #加权移动平均线
     calculate_fn!(WMA,
         talib_params => [
             (time_period: i32),

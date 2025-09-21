@@ -5,6 +5,7 @@ use crate::talib_fn;
 use star_river_core::indicator::indicator_define::pattern_recognition::*;
 use star_river_core::indicator::Indicator;
 use chrono::{DateTime, Utc};
+use star_river_core::error::engine_error::indicator_engine_error::*;
 
 impl TALib {
     // CDL2CROWS            Two Crows #两只乌鸦

@@ -23,6 +23,7 @@ pub trait KeyTrait {
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
     fn get_interval(&self) -> KlineInterval;
+    fn get_time_range(&self) -> Option<TimeRange>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -176,7 +177,7 @@ impl CacheItem for CacheValue {
 
 
 impl CacheValue {
-    fn as_kline_ref(&self) -> Option<&Kline> {
+    pub fn as_kline_ref(&self) -> Option<&Kline> {
         match self {
             CacheValue::Kline(value) => Some(value),
             _ => None,
@@ -209,6 +210,7 @@ pub trait CacheEntryTrait {
     fn get_key(&self) -> Key;
     fn initialize(&mut self, data: Vec<CacheValue>);
     fn update(&mut self, cache_value: CacheValue);
+    fn clear(&mut self);
     fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>>;
     fn get_cache_data(&self, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>>;
     fn get_create_time(&self) -> i64;
@@ -222,8 +224,6 @@ pub trait CacheEntryTrait {
 
 #[derive(Debug, Clone)]
 pub enum CacheEntry {
-    // Kline(KlineCacheEntry),
-    // Indicator(IndicatorCacheEntry),
     Kline(KlineCacheEntry),
     Indicator(IndicatorCacheEntry),
 }
@@ -257,6 +257,13 @@ impl CacheEntry {
             // CacheEntry::Indicator(entry) => entry.update(cache_value),
             CacheEntry::Kline(entry) => entry.update(cache_value),
             CacheEntry::Indicator(entry) => entry.update(cache_value),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        match self {
+            CacheEntry::Kline(entry) => entry.clear(),
+            CacheEntry::Indicator(entry) => entry.clear(),
         }
     }
 

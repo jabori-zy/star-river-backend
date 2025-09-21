@@ -367,7 +367,7 @@ impl ExchangeEngineContext {
         &mut self,
         unregister_params: UnregisterExchangeParams,
     ) -> Result<(), String> {
-        tracing::debug!("接收到命令: {:?}", unregister_params);
+        // tracing::debug!("接收到命令: {:?}", unregister_params);
         // 先获取实例
         let mut exchange = self.get_exchange(&unregister_params.account_id).await?;
         match exchange.exchange_type() {

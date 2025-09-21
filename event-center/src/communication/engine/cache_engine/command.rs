@@ -16,6 +16,7 @@ pub enum CacheEngineCommand {
     GetCacheLength(GetCacheLengthParams),           // 获取缓存长度
     GetCacheLengthMulti(GetCacheLengthMultiParams), // 一次性获取多个key的缓存长度
     UpdateCache(UpdateCacheParams),                 // 更新缓存数据
+    ClearCache(ClearCacheParams),                   // 清空缓存
 }
 
 impl EngineCommandTrait for CacheEngineCommand {
@@ -27,6 +28,7 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheLength(params) => &params.responder,
             CacheEngineCommand::GetCacheLengthMulti(params) => &params.responder,
             CacheEngineCommand::UpdateCache(params) => &params.responder,
+            CacheEngineCommand::ClearCache(params) => &params.responder,
         }
     }
     fn datetime(&self) -> DateTimeUtc {
@@ -37,6 +39,7 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheLength(params) => params.datetime,
             CacheEngineCommand::GetCacheLengthMulti(params) => params.datetime,
             CacheEngineCommand::UpdateCache(params) => params.datetime,
+            CacheEngineCommand::ClearCache(params) => params.datetime,
         }
     }
 
@@ -48,6 +51,7 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheLength(params) => params.sender.clone(),
             CacheEngineCommand::GetCacheLengthMulti(params) => params.sender.clone(),
             CacheEngineCommand::UpdateCache(params) => params.sender.clone(),
+            CacheEngineCommand::ClearCache(params) => params.sender.clone(),
         }
     }
 }
@@ -345,5 +349,33 @@ impl UpdateCacheParams {
 impl From<UpdateCacheParams> for EngineCommand {
     fn from(params: UpdateCacheParams) -> Self {
         EngineCommand::CacheEngine(CacheEngineCommand::UpdateCache(params))
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ClearCacheParams {
+    pub strategy_id: StrategyId,
+    pub key: Key,
+    pub sender: String,
+    pub datetime: DateTimeUtc,
+    pub responder: EngineResponder,
+}
+
+impl ClearCacheParams {
+    pub fn new(strategy_id: StrategyId, key: Key, sender: String, responder: EngineResponder) -> Self {
+        Self {
+            strategy_id,
+            key,
+            sender,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<ClearCacheParams> for EngineCommand {
+    fn from(params: ClearCacheParams) -> Self {
+        EngineCommand::CacheEngine(CacheEngineCommand::ClearCache(params))
     }
 }

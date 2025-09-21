@@ -10,6 +10,7 @@ use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use strum::Display;
+use star_river_core::indicator::Indicator;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 pub enum IndicatorNodeEvent {
@@ -43,9 +44,9 @@ pub struct IndicatorUpdatePayload {
     #[serde(serialize_with = "serialize_indicator_cache_key")]
     pub indicator_key: IndicatorKey,
 
-    #[serde(rename = "indicatorSeries")]
+    #[serde(rename = "indicatorValue")]
     #[serde(serialize_with = "serialize_indicator_data")]
-    pub indicator_series: Vec<Arc<CacheValue>>,
+    pub indicator_value: Indicator,
 
     #[serde(rename = "playIndex")]
     pub play_index: i32,
@@ -59,7 +60,7 @@ impl IndicatorUpdatePayload {
         config_id: i32,
         indicator_config: IndicatorConfig,
         indicator_key: IndicatorKey,
-        indicator_series: Vec<Arc<CacheValue>>,
+        indicator_value: Indicator,
         play_index: i32,
     ) -> Self {
         Self {
@@ -69,7 +70,7 @@ impl IndicatorUpdatePayload {
             config_id,
             indicator_config,
             indicator_key,
-            indicator_series,
+            indicator_value,
             play_index,
         }
     }
@@ -87,23 +88,34 @@ where
     serializer.serialize_str(&indicator_cache_key_str)
 }
 
-#[allow(dead_code)]
+// #[allow(dead_code)]
+// fn serialize_indicator_data<S>(
+//     indicator_data: &Arc<CacheValue>,
+//     serializer: S,
+// ) -> Result<S::Ok, S::Error>
+// where
+//     S: serde::Serializer,
+// {
+//     use serde::ser::SerializeSeq;
+
+//     let mut seq = serializer.serialize_seq(Some(indicator_data.len()))?;
+//     indicator_data
+//         .iter()
+//         .map(|indicator_value| {
+//             let json_value = indicator_value.to_json();
+//             seq.serialize_element(&json_value)
+//         })
+//         .collect::<Result<(), S::Error>>()?;
+//     seq.end()
+// }
+
 fn serialize_indicator_data<S>(
-    indicator_data: &Vec<Arc<CacheValue>>,
+    indicator_data: &Indicator,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    use serde::ser::SerializeSeq;
-
-    let mut seq = serializer.serialize_seq(Some(indicator_data.len()))?;
-    indicator_data
-        .iter()
-        .map(|indicator_value| {
-            let json_value = indicator_value.to_json();
-            seq.serialize_element(&json_value)
-        })
-        .collect::<Result<(), S::Error>>()?;
-    seq.end()
+    let json_value = indicator_data.to_json();
+    json_value.serialize(serializer)
 }

@@ -5,6 +5,8 @@ use super::{
     StrategyInnerEvent,
     Key,
     KlineInterval,
+    KlineKey,
+    KeyTrait,
 };
 use tokio::sync::{mpsc, broadcast};
 use star_river_core::error::engine_error::strategy_error::backtest_strategy_error::*;
@@ -118,8 +120,14 @@ impl BacktestStrategy {
         let mut symbol_groups = HashMap::new();
         for key in keys.iter() {
             if matches!(key, Key::Kline(_)) {
-                let symbol = key.get_symbol();
-                symbol_groups.entry(symbol).or_insert_with(Vec::new).push(key);
+                match key {
+                    Key::Kline(kline_key) => {
+                        symbol_groups.entry(kline_key.get_symbol()).or_insert_with(Vec::new).push(kline_key.clone());
+                    }
+                    _ => return Err(IntervalNotSameSnafu {
+                        symbols: vec![],
+                    }.build()),
+                }
             }
         }
         // tracing::debug!("symbol_groups: {:#?}", symbol_groups);
@@ -129,7 +137,7 @@ impl BacktestStrategy {
         if symbol_groups.keys().len() == 1 {
             // 如果只有一个symbol，则找到最小的interval的key
             if let Some(keys) = symbol_groups.values().next() {
-                if let Some(&min_interval_symbol) = keys.iter().min_by_key(|key| key.get_interval()) {
+                if let Some(min_interval_symbol) = keys.iter().min_by_key(|key| key.get_interval()) {
                     let mut context_guard = context.write().await;
                     context_guard.set_min_interval_symbols(vec![min_interval_symbol.clone()]);
                     return Ok(());
@@ -142,9 +150,9 @@ impl BacktestStrategy {
         }
 
         // 3. 获取每个symbol组内interval最小的key
-        let min_interval_symbols: Vec<&Key> = symbol_groups
+        let min_interval_symbols: Vec<KlineKey> = symbol_groups
             .values()
-            .filter_map(|keys| {keys.iter().min_by_key(|key| key.get_interval()).copied()
+            .filter_map(|keys| {keys.iter().min_by_key(|key| key.get_interval()).cloned()
             })
             .collect();
         // tracing::debug!("min_interval_symbols: {:#?}", min_interval_symbols);
@@ -174,7 +182,7 @@ impl BacktestStrategy {
 
         // 最后获取写锁并设置结果
         let mut context_guard = context.write().await;
-        context_guard.set_min_interval_symbols(min_interval_symbols.into_iter().cloned().collect());
+        context_guard.set_min_interval_symbols(min_interval_symbols);
         Ok(())
     }
 }

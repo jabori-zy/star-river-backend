@@ -18,4 +18,6 @@ use super::{
     StrategyInnerEvent,
     Key,
     KlineInterval,
+    KlineKey,
+    KeyTrait,
 };

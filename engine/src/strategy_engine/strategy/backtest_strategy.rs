@@ -31,8 +31,9 @@ use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::position::virtual_position::VirtualPosition;
 use virtual_trading::VirtualTradingSystem;
 use chrono::Utc;
-use star_river_core::cache::Key;
+use star_river_core::cache::{Key, KeyTrait};
 use star_river_core::market::KlineInterval;
+use star_river_core::cache::key::KlineKey;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {

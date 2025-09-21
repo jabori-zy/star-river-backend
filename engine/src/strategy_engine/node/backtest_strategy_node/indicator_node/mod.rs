@@ -36,6 +36,7 @@ use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 use star_river_core::strategy::deserialize_time_range;
 use serde::de::IntoDeserializer;
 use std::str::FromStr;
+use std::collections::HashMap;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -71,18 +72,12 @@ impl IndicatorNode {
 
         // 通过配置，获取指标缓存键
         let indicator_keys = Self::get_indicator_keys(&backtest_config);
-        tracing::debug!("indicator_cache_keys: {:?}", indicator_keys);
         // 通过配置，获取回测K线缓存键
-        let kline_cache_key = Self::get_kline_key(&backtest_config);
+        let selected_kline_key = Self::get_kline_key(&backtest_config);
 
+        let indicator_node_context = IndicatorNodeContext::new(base_context, backtest_config, selected_kline_key, indicator_keys);
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(IndicatorNodeContext {
-                base_context,
-                backtest_config,
-                is_registered: Arc::new(RwLock::new(false)),
-                indicator_keys,
-                kline_key: kline_cache_key,
-            }))),
+            context: Arc::new(RwLock::new(Box::new(indicator_node_context)))
         })
     }
 
@@ -268,7 +263,7 @@ impl IndicatorNode {
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
-    fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> Vec<IndicatorKey> {
+    fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> HashMap<IndicatorKey,(i32, String)> {
         let exchange = backtest_config
             .exchange_mode_config
             .as_ref()
@@ -297,7 +292,7 @@ impl IndicatorNode {
             .time_range
             .clone();
 
-        let mut indicator_keys = vec![];
+        let mut indicator_keys = HashMap::new();
         for indicator in backtest_config
             .exchange_mode_config
             .as_ref()
@@ -313,7 +308,7 @@ impl IndicatorNode {
                 start_time: Some(time_range.start_date.to_string()),
                 end_time: Some(time_range.end_date.to_string()),
             };
-            indicator_keys.push(indicator_key);
+            indicator_keys.insert(indicator_key, (indicator.config_id, indicator.output_handle_id.clone()));
         }
         indicator_keys
     }
@@ -593,7 +588,31 @@ impl BacktestNodeTrait for IndicatorNode {
                         self.listen_strategy_command().await;
                     }
 
-                    IndicatorNodeStateAction::RegisterIndicatorCacheKey => {
+                    IndicatorNodeStateAction::GetMinIntervalSymbols => {
+                        tracing::info!("[{node_name}({node_id})] start to get min interval symbols");
+                        let context = self.get_context();
+                        
+                        let mut context_guard = context.write().await;
+                        if let Some(indicator_node_context) = context_guard.as_any_mut().downcast_mut::<IndicatorNodeContext>(){
+                            let min_interval_symbols = indicator_node_context.get_min_interval_symbols().await.unwrap();
+                            indicator_node_context.set_min_interval_symbols(min_interval_symbols);
+
+                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_id.clone(), node_name.clone());
+                            let log_event = NodeStateLogEvent::success(
+                                strategy_id.clone(),
+                                node_id.clone(),
+                                node_name.clone(),
+                                current_state.to_string(),
+                                IndicatorNodeStateAction::GetMinIntervalSymbols.to_string(),
+                                log_message.to_string(),
+                            );
+                            let _ = strategy_output_handle.send(log_event.into());
+                        }
+
+
+                    }
+
+                    IndicatorNodeStateAction::RegisterIndicatorKey => {
                         tracing::info!(
                             "[{node_name}({node_id})] starting to register indicator cache key"
                         );
@@ -605,7 +624,7 @@ impl BacktestNodeTrait for IndicatorNode {
                             node_id.clone(),
                             node_name.clone(),
                             current_state.to_string(),
-                            IndicatorNodeStateAction::RegisterIndicatorCacheKey.to_string(),
+                            IndicatorNodeStateAction::RegisterIndicatorKey.to_string(),
                             log_message.to_string(),
                         );
                         let _ = strategy_output_handle.send(log_event.into());

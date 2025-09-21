@@ -92,6 +92,12 @@ impl EngineContext for CacheEngineContext {
                         let response: CacheEngineResponse = UpdateCacheResponse::success(params.key).into();
                         params.responder.send(response.into()).unwrap();
                     }
+                    // 清空缓存
+                    CacheEngineCommand::ClearCache(params) => {
+                        self.clear_cache(params.key.clone()).await;
+                        let response: CacheEngineResponse = ClearCacheResponse::success(params.key).into();
+                        params.responder.send(response.into()).unwrap();
+                    }
                     _ => {}
                     
                 }

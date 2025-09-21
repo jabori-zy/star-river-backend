@@ -44,6 +44,10 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
         }
     }
 
+    fn clear(&mut self) {
+        self.data.clear();
+    }
+
     fn get_key(&self) -> Key {
         self.key.clone().into()
     }

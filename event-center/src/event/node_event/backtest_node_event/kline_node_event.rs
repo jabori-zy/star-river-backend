@@ -2,11 +2,13 @@ use super::super::super::strategy_event::{NodeStateLogEvent, StrategyRunningLogE
 use super::super::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::market::Kline;
 use std::sync::Arc;
 use strum::Display;
 use chrono::{DateTime, Utc};
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::cache::{Key, CacheValue, CacheItem};
+use star_river_core::cache::{CacheValue, CacheItem, KeyTrait};
+use star_river_core::cache::key::KlineKey;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
@@ -41,32 +43,38 @@ pub struct KlineUpdatePayload {
     #[serde(rename = "playIndex")]
     pub play_index: PlayIndex,
 
-    #[serde(serialize_with = "serialize_kline_cache_key")]
-    #[serde(rename = "klineKey")]
-    pub kline_key: Key,
+    #[serde(rename = "shouldCalculate")]
+    pub should_calculate: bool, // 是否需要计算
 
-    #[serde(serialize_with = "serialize_kline_data")]
-    #[serde(deserialize_with = "deserialize_cache_value_vec")]
-    pub kline: Vec<Arc<CacheValue>>,
+    #[serde(serialize_with = "serialize_kline_key")]
+    #[serde(rename = "klineKey")]
+    pub kline_key: KlineKey,
+
+    // #[serde(serialize_with = "serialize_kline_data")]
+    // #[serde(deserialize_with = "deserialize_cache_value_vec")]
+    #[serde(rename = "kline")]
+    pub kline: Kline,
 }
 
 impl KlineUpdatePayload {
     pub fn new(
         config_id: i32,
         play_index: PlayIndex,
-        kline_key: Key,
-        kline: Vec<Arc<CacheValue>>,
+        should_calculate: bool,
+        kline_key: KlineKey,
+        kline: Kline,
     ) -> Self {
         Self {
             config_id,
             play_index,
+            should_calculate,
             kline_key,
             kline,
         }
     }
 }
 
-fn serialize_kline_cache_key<'de, S>(kline_key: &Key, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_kline_key<'de, S>(kline_key: &KlineKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
