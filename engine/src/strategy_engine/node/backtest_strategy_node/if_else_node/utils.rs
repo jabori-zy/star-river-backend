@@ -21,18 +21,13 @@ pub fn get_variable_value(
         BacktestNodeEvent::IndicatorNode(indicator_event) => {
             if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_event {
                 // tracing::debug!("indicator_update_event: {:?}", indicator_update_event);
-                let indicator_value = indicator_update_event
+                let indicator_value: Option<f64> = indicator_update_event
                     .indicator_value
                     .to_json()
                     .get(variable_name)
-                    .and_then(|indicator_value| indicator_value.as_f64())
-                    .unwrap_or(0.0);
-                // 如果indicator_value为0，则返回None
-                if indicator_value == 0.0 {
-                    return None;
-                }
-                
-                Some(indicator_value)
+                    .and_then(|indicator_value| indicator_value.as_f64());
+                tracing::debug!("indicator_value: {:?}", indicator_value);
+                indicator_value
             } else {
                 None
             }

@@ -7,8 +7,9 @@ use event_center::event::node_event::backtest_node_event::indicator_node_event::
 };
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{
-    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
+    CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent
 };
+use event_center::event::node_event::{BacktestNodeEvent, NodeEvent};
 use star_river_core::cache::key::KlineKey;
 use star_river_core::cache::{CacheValue, Key, KeyTrait};
 use std::sync::Arc;
@@ -22,6 +23,7 @@ use event_center::communication::strategy::backtest_strategy::command::GetMinInt
 use snafu::Report;
 use star_river_core::indicator::Indicator;
 use event_center::communication::engine::cache_engine::ClearCacheParams;
+use event_center::event::node_event::backtest_node_event::common_event::TriggerPayload;
 
 
 impl IndicatorNodeContext {
@@ -82,7 +84,6 @@ impl IndicatorNodeContext {
             let kline_key = kline_update_event.kline_key.clone();
 
             if kline_update_event.should_calculate {
-                tracing::debug!("需要计算指标: {:?}", kline_key);
                 for (indicator_key, (config_id, output_handle_id)) in self.indicator_keys.iter() {
                     let (resp_tx, resp_rx) = oneshot::channel();
                     let cal_indi_params = CalculateIndicatorParams::new(
@@ -119,17 +120,15 @@ impl IndicatorNodeContext {
                         }
 
                     } else {
-
-                        // self.send_indicator_update_event(
-                        //     output_handle_id.clone(),
-                        //     &indicator_key,
-                        //     &config_id,
-                        //     Indicator::new(vec![]),
-                        //     kline_update_event.play_index,
-                        //     &node_id,
-                        //     &node_name,
-                        //     false,
-                        // );
+                        // 发送触发事件
+                        let payload = TriggerPayload::new(self.get_play_index());
+                        let trigger_event: CommonEvent = TriggerEvent::new(
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            output_handle_id.clone(), 
+                            payload
+                        ).into();
+                        let _ = self.get_output_handle(output_handle_id).send(trigger_event.into());
                         
                     }
                 }

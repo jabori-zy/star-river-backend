@@ -1,3 +1,6 @@
+mod context_impl;
+mod event_handler;
+
 use async_trait::async_trait;
 use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{
@@ -45,168 +48,10 @@ pub struct IfElseNodeContext {
     pub backtest_config: IfElseNodeBacktestConfig,
 }
 
-#[async_trait]
-impl BacktestNodeContextTrait for IfElseNodeContext {
-    fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait> {
-        Box::new(self.clone())
-    }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn get_base_context(&self) -> &BacktestBaseNodeContext {
-        &self.base_context
-    }
-
-    fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
-        &mut self.base_context
-    }
-
-    fn get_default_output_handle(&self) -> &NodeOutputHandle {
-        let else_output_handle_id = format!("{}_else_output", self.get_node_id());
-        self.base_context
-            .output_handles
-            .get(&else_output_handle_id)
-            .unwrap()
-    }
-
-    async fn handle_engine_event(&mut self, event: Event) {
-        let _event = event;
-    }
-
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
-        // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
-        //如果事件类型是回测指标更新或者k线更新
-        match &node_event {
-            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(
-                indicator_update_event,
-            )) => {
-                // 如果回测指标更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if self.get_play_index() == indicator_update_event.play_index {
-                    self.update_received_event(node_event);
-                }
-            }
-            BacktestNodeEvent::KlineNode(kline_event) => {
-                // 如果回测k线更新事件的k线缓存索引与播放索引相同，则更新接收事件
-                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    if self.get_play_index() == kline_update_event.play_index {
-                        self.update_received_event(node_event);
-                    }
-                }
-            }
-            BacktestNodeEvent::VariableNode(variable_event) => {
-                if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
-                    variable_event
-                {
-                    self.update_received_event(node_event);
-                }
-            }
-            BacktestNodeEvent::Common(signal_event) => match signal_event {
-                CommonEvent::Trigger(_) => {
-                    // tracing::debug!(
-                    //     "{}: 接收到条件不匹配事件。 不需要逻辑判断",
-                    //     self.get_node_id()
-                    // );
-
-                    let all_output_handles = self.get_all_output_handles();
-                    for (handle_id, handle) in all_output_handles.iter() {
-                        if handle_id == &format!("{}_strategy_output", self.get_node_id()) {
-                            continue;
-                        }
-
-                        if handle.connect_count > 0 {
-                            let payload = TriggerPayload::new(self.get_play_index());
-                            let condition_not_match_event: CommonEvent =
-                                TriggerEvent::new(
-                                    self.get_node_id().clone(),
-                                    self.get_node_name().clone(),
-                                    handle_id.clone(),
-                                    payload,
-                                )
-                                .into();
-
-                            let _ = handle.send(condition_not_match_event.into());
-                        }
-                    }
-                }
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
-
-    }
-
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
-        match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
-                if self.get_node_id() == &node_reset_params.node_id {
-                    let response = NodeResetResponse::success(self.get_node_id().clone());
-                    node_reset_params.responder.send(response.into()).unwrap();
-                }
-            }
-            _ => {}
-        }
-    }
-}
 
 impl IfElseNodeContext {
-    fn update_received_event(&mut self, received_event: BacktestNodeEvent) {
-        // tracing::debug!("接收到的变量消息: {:?}", received_event);
-        let (from_node_id, from_variable_id) = match &received_event {
-            BacktestNodeEvent::IndicatorNode(indicator_message) => {
-                if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) =
-                    indicator_message
-                {
-                    let from_node_id = indicator_update_event.from_node_id().clone();
-                    let from_variable_id = indicator_update_event.config_id;
-                    (from_node_id, from_variable_id)
-                } else {
-                    return;
-                }
-            }
-            BacktestNodeEvent::VariableNode(variable_event) => {
-                if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
-                    variable_event
-                {
-                    let from_node_id = sys_variable_updated_event.from_node_id().clone();
-                    let from_variable_id = sys_variable_updated_event.variable_config_id;
-                    (from_node_id, from_variable_id)
-                } else {
-                    return;
-                }
-            }
-            BacktestNodeEvent::KlineNode(kline_event) => {
-                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    (
-                        kline_update_event.from_node_id().clone(),
-                        kline_update_event.config_id,
-                    )
-                } else {
-                    return;
-                }
-            }
-            _ => {
-                return;
-            }
-        };
-        self.received_message
-            .entry((from_node_id.clone(), from_variable_id))
-            .and_modify(|e| *e = Some(received_event.clone()))
-            .or_insert(Some(received_event));
-        // tracing::debug!("received_message: {:?}", self.received_message);
-
-        self.update_received_flag(from_node_id, from_variable_id, true);
-    }
+    
 
     fn update_received_flag(
         &mut self,
@@ -352,6 +197,12 @@ impl IfElseNodeContext {
 
 
     async fn handle_not_matched_case(&self, case: &Case) {
+
+        if self.is_leaf_node() {
+            self.send_execute_over_event().await;
+            return;
+        }
+
         let case_output_handle_id = format!("{}_output_{}", self.get_node_id(), case.case_id);
         let case_output_handle: &NodeOutputHandle = self.get_output_handle(&case_output_handle_id);
         let payload = TriggerPayload::new(self.get_play_index());
