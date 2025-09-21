@@ -263,13 +263,56 @@ macro_rules! add_field_to_vec_dispatch {
     ($vec:expr, $field:expr, Option<$inner:ty>) => {
         match &$field {
             Some(inner) => {
-                $crate::add_field_to_vec!($vec, *inner, $inner);
+                let inner = inner.clone();
+                $crate::add_field_to_vec!($vec, inner, $inner);
             }
             None => $vec.push(f64::NAN),
         }
     };
     ($vec:expr, $field:expr, $field_type:ty) => {
         $crate::add_field_to_vec!($vec, $field, $field_type);
+    };
+    ($vec:expr, $field:expr) => {
+        // 使用匿名函数来处理不同类型的转换
+        let convert_value = |field: &dyn std::any::Any| -> f64 {
+            if let Some(val) = field.downcast_ref::<i64>() {
+                *val as f64
+            } else if let Some(val) = field.downcast_ref::<i32>() {
+                *val as f64
+            } else if let Some(val) = field.downcast_ref::<f64>() {
+                *val
+            } else if let Some(val) = field.downcast_ref::<f32>() {
+                *val as f64
+            } else if let Some(val) = field.downcast_ref::<ordered_float::OrderedFloat<f64>>() {
+                val.into_inner()
+            } else if let Some(val) = field.downcast_ref::<ordered_float::OrderedFloat<f32>>() {
+                val.into_inner() as f64
+            } else if let Some(val) = field.downcast_ref::<Option<f64>>() {
+                val.unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<f32>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<i64>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<i32>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<ordered_float::OrderedFloat<f64>>>() {
+                val.map(|v| v.into_inner()).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<ordered_float::OrderedFloat<f32>>>() {
+                val.map(|v| v.into_inner() as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::FixedOffset>>() {
+                val.timestamp_millis() as f64
+            } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::Utc>>() {
+                val.timestamp_millis() as f64
+            } else if let Some(val) = field.downcast_ref::<crate::time::Utc8DateTime>() {
+                val.timestamp_millis() as f64
+            } else if let Some(val) = field.downcast_ref::<crate::system::DateTimeUtc>() {
+                val.timestamp_millis() as f64
+            } else {
+                // 对于无法识别的类型，使用NaN而不是0.0来表示无效值
+                f64::NAN
+            }
+        };
+        $vec.push(convert_value(&$field));
     };
 }
 
