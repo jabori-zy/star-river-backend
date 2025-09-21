@@ -1,3 +1,6 @@
+pub mod playback_handler;
+pub mod event_handler;
+
 use super::super::StrategyCommandPublisher;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -7,10 +10,7 @@ use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::strategy::{NodeCommandReceiver, BacktestStrategyResponse};
 use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
 use event_center::communication::strategy::StrategyResponse;
-use event_center::event::node_event::NodeEventTrait;
 use event_center::singleton::EventCenterSingleton;
-use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
-use event_center::event::Event;
 use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
@@ -31,15 +31,7 @@ use star_river_core::custom_type::{NodeId, PlayIndex, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
-use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use event_center::event::node_event::backtest_node_event::if_else_node_event::IfElseNodeEvent;
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
-use event_center::event::node_event::backtest_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, SignalEvent};
 use event_center::event::strategy_event::StrategyRunningLogEvent;
-use event_center::communication::strategy::{NodeCommand, BacktestNodeCommand};
-use event_center::communication::strategy::{GetCurrentTimeResponse, GetStrategyCacheKeysResponse, GetStartNodeConfigParams};
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
@@ -48,15 +40,15 @@ use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 use chrono::{DateTime, Utc};
+use star_river_core::cache::key::KlineKey;
+use event_center::communication::strategy::GetStartNodeConfigParams;
 
 #[derive(Debug)]
 // 回测策略上下文
 pub struct BacktestStrategyContext {
     pub strategy_config: StrategyConfig,
     pub strategy_id: i32,
-    pub strategy_name: String,                                  // 策略名称
-    pub keys: Arc<RwLock<Vec<Key>>>,                            // 缓存键
-    pub cache_lengths: HashMap<Key, u32>,                       // 缓存长度
+    pub strategy_name: String,                                // 策略名称
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (), Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>,               // 节点索引
     pub cancel_task_token: CancellationToken,                   // 取消令牌
@@ -76,14 +68,17 @@ pub struct BacktestStrategyContext {
     pub strategy_inner_event_publisher: Option<StrategyInnerEventPublisher>, // 策略内部事件发布器
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>, // 策略统计模块
     pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
-    pub play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
-    pub play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
-    pub leaf_node_ids: Vec<NodeId>,           // 叶子节点id
-    pub execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
-    pub execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
-    pub current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
-    pub batch_id: Uuid,                       // 回测批次id
-    pub running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
+    pub(super) play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
+    pub(super) play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
+    pub(super) leaf_node_ids: Vec<NodeId>,           // 叶子节点id
+    pub(super) execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
+    pub(super) execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
+    pub(super) current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
+    pub(super) batch_id: Uuid,                       // 回测批次id
+    pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
+    pub(super) keys: Arc<RwLock<Vec<Key>>>,                            // 缓存键
+    pub(super) min_interval_symbols: Vec<KlineKey>,                        // 最小周期交易对
+    
 }
 
 impl BacktestStrategyContext {
@@ -118,11 +113,8 @@ impl BacktestStrategyContext {
             strategy_id,
             strategy_name: strategy_name.clone(),
             keys: Arc::new(RwLock::new(vec![])),
-            cache_lengths: HashMap::new(),
             graph: Graph::new(),
             node_indices: HashMap::new(),
-            // event_publisher,
-            // event_receivers: vec![response_event_receiver],
             cancel_task_token,
             state_machine: BacktestStrategyStateMachine::new(
                 strategy_id,
@@ -152,6 +144,7 @@ impl BacktestStrategyContext {
             current_time: Arc::new(RwLock::new(Utc::now())),
             batch_id: Uuid::new_v4(),
             running_log: Arc::new(RwLock::new(vec![])),
+            min_interval_symbols: vec![],
         }
     }
 
@@ -210,7 +203,15 @@ impl BacktestStrategyContext {
     }
 
     pub async fn reset_running_log(&mut self) {
-        *self.running_log.write().await = vec![];
+        self.running_log.write().await.clear();
+    }
+
+    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
+        self.min_interval_symbols = min_interval_symbols;
+    }
+
+    pub fn get_min_interval_symbols(&self) -> Vec<KlineKey> {
+        self.min_interval_symbols.clone()
     }
 
     pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
@@ -233,278 +234,7 @@ impl BacktestStrategyContext {
         self.node_command_receiver.clone()
     }
 
-    pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
-        match command {
-            NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyCacheKeys(
-                get_strategy_cache_keys_command,
-            )) => {
-                let keys = self.get_keys().await;
-                let get_strategy_cache_keys_response = GetStrategyCacheKeysResponse::success(keys);
-                get_strategy_cache_keys_command
-                    .responder
-                    .send(get_strategy_cache_keys_response.into())
-                    .unwrap();
-            }
-            NodeCommand::BacktestNode(BacktestNodeCommand::GetCurrentTime(
-                get_current_time_command,
-            )) => {
-                let current_time = self.get_current_time().await;
-                let get_current_time_response = GetCurrentTimeResponse::success(current_time);
-                get_current_time_command
-                    .responder
-                    .send(get_current_time_response.into())
-                    .unwrap();
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
-        // if let Event::Response(ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response))) = event {
-        //     let strategy_data = StrategyData {
-        //         strategy_id: self.strategy_id,
-        //         data: response.cache_data,
-        //         timestamp: get_utc8_timestamp_millis(),
-        //     };
-        //     let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
-        //     let _ = self.event_publisher.publish(strategy_event.into());
-        // }
-        Ok(())
-    }
-
-    // 所有节点发送的事件都会汇集到这里
-    pub async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
-        // 执行完毕
-        if let BacktestNodeEvent::Signal(signal_event) = &node_event {
-            match signal_event {
-                // 执行结束
-                SignalEvent::ExecuteOver(execute_over_event) => {
-                    // tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
-                    // tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
-                    let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
-                    if !execute_over_node_ids.contains(&execute_over_event.from_node_id()) {
-                        execute_over_node_ids.push(execute_over_event.from_node_id().clone());
-                    }
-
-                    // 如果所有叶子节点都执行完毕，则通知等待的线程
-                    if execute_over_node_ids.len() == self.leaf_node_ids.len() {
-                        tracing::debug!(
-                            "{}: 所有叶子节点执行完毕, 通知等待的线程。叶子节点id: {:?}",
-                            self.strategy_name.clone(),
-                            execute_over_node_ids
-                        );
-                        self.execute_over_notify.notify_waiters();
-                        // 通知完成后，清空execute_over_node_ids
-                        execute_over_node_ids.clear();
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if let BacktestNodeEvent::KlineNode(kline_node_event) = &node_event {
-            match kline_node_event {
-                KlineNodeEvent::KlineUpdate(kline_update_event) => {
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::KlineUpdate(kline_update_event.clone());
-                    // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                KlineNodeEvent::StateLog(log_event) => {
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::NodeStateLog(log_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                KlineNodeEvent::TimeUpdate(time_update_event) => {
-                    // 更新策略的全局时间
-                    self.set_current_time(time_update_event.current_time).await;
-                }
-                _ => {}
-            }
-        }
-
-        if let BacktestNodeEvent::IndicatorNode(indicator_node_event) = &node_event {
-            match indicator_node_event {
-                IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) => {
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::IndicatorUpdate(indicator_update_event.clone());
-                    // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-
-        // 期货订单节点事件
-        if let BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) = &node_event {
-            match futures_order_node_event {
-                FuturesOrderNodeEvent::FuturesOrderFilled(futures_order_filled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderFilled(
-                        futures_order_filled_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::FuturesOrderCreated(futures_order_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCreated(
-                        futures_order_created_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(
-                        futures_order_canceled_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::TakeProfitOrderCreated(take_profit_order_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCreated(
-                        take_profit_order_created_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::StopLossOrderCreated(stop_loss_order_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCreated(
-                        stop_loss_order_created_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::TakeProfitOrderFilled(take_profit_order_filled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderFilled(
-                        take_profit_order_filled_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::StopLossOrderFilled(stop_loss_order_filled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderFilled(
-                        stop_loss_order_filled_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::TakeProfitOrderCanceled(
-                    take_profit_order_canceled_event,
-                ) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCanceled(
-                        take_profit_order_canceled_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::StopLossOrderCanceled(stop_loss_order_canceled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCanceled(
-                        stop_loss_order_canceled_event.clone(),
-                    );
-                    //  let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                FuturesOrderNodeEvent::TransactionCreated(transaction_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TransactionCreated(
-                        transaction_created_event.clone(),
-                    );
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-
-        if let BacktestNodeEvent::PositionManagementNode(position_management_node_event) =
-            &node_event
-        {
-            match position_management_node_event {
-                PositionManagementNodeEvent::PositionCreated(position_created_event) => {
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::PositionCreated(position_created_event.clone());
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                PositionManagementNodeEvent::PositionUpdated(position_updated_event) => {
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::PositionUpdated(position_updated_event.clone());
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-                PositionManagementNodeEvent::PositionClosed(position_closed_event) => {
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::PositionClosed(position_closed_event.clone());
-                    // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-
-        if let BacktestNodeEvent::IfElseNode(if_else_node_event) = &node_event {
-            match if_else_node_event {
-                IfElseNodeEvent::RunningLog(running_log_event) => {
-                    // 添加运行日志
-                    self.add_running_log(running_log_event.clone()).await;
-
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::RunningLog(running_log_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into())
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-    }
-
-    pub async fn handle_strategy_stats_event(
-        &mut self,
-        event: StrategyStatsEvent,
-    ) -> Result<(), String> {
-        match event {
-            StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event) => {
-                // tracing::debug!("{}: 收到策略统计更新事件: {:?}", self.strategy_name, strategy_stats_updated_event);
-                let backtest_strategy_event =
-                    BacktestStrategyEvent::StrategyStatsUpdated(strategy_stats_updated_event);
-                // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
-                EventCenterSingleton::publish(backtest_strategy_event.into())
-                    .await
-                    .unwrap();
-            }
-        }
-        Ok(())
-    }
+    
 }
 
 impl BacktestStrategyContext {
@@ -608,19 +338,12 @@ impl BacktestStrategyContext {
     // 初始化所有节点的方法，不持有外部锁
     pub async fn init_node(
         context: Arc<RwLock<Self>>,
-    ) -> Result<Vec<Vec<String>>, BacktestStrategyError> {
+    ) -> Result<(), BacktestStrategyError> {
         // 短暂持有锁获取节点列表
         let nodes = {
             let context_guard = context.read().await;
             context_guard.topological_sort()
         }; // 锁立即释放
-
-        let mut node_list = Vec::new();
-        for node in &nodes {
-            let node_name = node.get_node_name().await;
-            let node_id = node.get_node_id().await;
-            node_list.push(vec![node_id, node_name]);
-        }
 
         // 逐个初始化节点，不持有锁
         for node in nodes {
@@ -689,7 +412,7 @@ impl BacktestStrategyContext {
             }
         }
 
-        Ok(node_list)
+        Ok(())
     }
 
     pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
@@ -742,27 +465,65 @@ impl BacktestStrategyContext {
         Err(format!("节点 {} 未能进入Stopped状态", node_id))
     }
 
+    // #[instrument(skip(self))]
+    // // 获取所有k线缓存中的最小长度
+    // pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
+    //     // 过滤出k线缓存key
+    //     let kline_cache_keys = self
+    //         .keys
+    //         .read()
+    //         .await
+    //         .iter()
+    //         .filter(|cache_key| matches!(cache_key, Key::Kline(_)))
+    //         .map(|cache_key| cache_key.clone())
+    //         .collect();
+    //     let (resp_tx, resp_rx) = oneshot::channel();
+    //     let get_cache_length_params = GetCacheLengthMultiParams::new(
+    //         self.strategy_id,
+    //         kline_cache_keys,
+    //         self.strategy_name.clone(),
+    //         resp_tx,
+    //     );
+    //     // 向缓存引擎发送命令
+    //     // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
+    //     EventCenterSingleton::send_command(get_cache_length_params.into())
+    //         .await
+    //         .unwrap();
+    //     let response = resp_rx.await.unwrap();
+    //     if response.success() {
+    //         let cache_engine_response = CacheEngineResponse::try_from(response);
+    //         if let Ok(cache_engine_response) = cache_engine_response {
+    //             match cache_engine_response {
+    //                 CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response) => {
+    //                     tracing::info!(cache_lengths = ?get_cache_length_multi_response.cache_length, "Get cache length successfully!");
+    //                     Ok(get_cache_length_multi_response.cache_length)
+    //                 }
+    //                 _ => Err("get cache length multi failed".to_string()),
+    //             }
+    //         } else {
+    //             Err("try from response failed".to_string())
+    //         }
+    //     } else {
+    //         Err("get cache length multi failed".to_string())
+    //     }
+    // }
+
+    // 初始化信号计数
     #[instrument(skip(self))]
-    // 获取所有k线缓存中的最小长度
-    pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
-        // 过滤出k线缓存key
-        let kline_cache_keys = self
-            .keys
-            .read()
-            .await
-            .iter()
-            .filter(|cache_key| matches!(cache_key, Key::Kline(_)))
-            .map(|cache_key| cache_key.clone())
-            .collect();
+    pub async fn get_signal_count(&mut self) -> Result<i32, String> {
+        // // 初始化信号计数
+        // let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
+        // Ok(min_cache_length as i32)
+        let min_interval_keys: Vec<Key> = self.get_min_interval_symbols().iter().map(|key| Key::from(key.clone())).collect();
+
+        // 1. 从缓存引擎获取每一个symbol的缓存长度
         let (resp_tx, resp_rx) = oneshot::channel();
         let get_cache_length_params = GetCacheLengthMultiParams::new(
             self.strategy_id,
-            kline_cache_keys,
+            min_interval_keys.clone(),
             self.strategy_name.clone(),
             resp_tx,
         );
-        // 向缓存引擎发送命令
-        // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
         EventCenterSingleton::send_command(get_cache_length_params.into())
             .await
             .unwrap();
@@ -772,25 +533,35 @@ impl BacktestStrategyContext {
             if let Ok(cache_engine_response) = cache_engine_response {
                 match cache_engine_response {
                     CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response) => {
-                        tracing::info!(cache_lengths = ?get_cache_length_multi_response.cache_length, "Get cache length successfully!");
-                        Ok(get_cache_length_multi_response.cache_length)
+                        let symbol_cache_lengths = get_cache_length_multi_response.cache_length;
+
+                        // 2. 判断每一个symbol的缓存长度是否相同
+                        if symbol_cache_lengths.is_empty() {
+                            return Err("no symbol cache lengths found".to_string());
+                        }
+
+                        // 获取第一个symbol的缓存长度作为基准
+                        let min_cache_length = symbol_cache_lengths.values().min().cloned().unwrap_or(0);
+
+                        // 检查所有symbol的缓存长度是否都相同
+                        for (key, cache_length) in symbol_cache_lengths.iter() {
+                            if *cache_length != min_cache_length {
+                                return Err(format!("symbol {} cache length {} is not same as min cache length {}", key.get_symbol(), cache_length, min_cache_length));
+                            }
+                        }
+
+                        return Ok(min_cache_length as i32);
                     }
-                    _ => Err("get cache length multi failed".to_string()),
+                    _ => {
+                        return Err("get cache length multi failed".to_string());
+                    }
                 }
             } else {
-                Err("try from response failed".to_string())
+                return Err("try from response failed".to_string());
             }
         } else {
-            Err("get cache length multi failed".to_string())
+            return Err("get cache length multi failed".to_string());
         }
-    }
-
-    // 初始化信号计数
-    #[instrument(skip(self))]
-    pub async fn get_signal_count(&mut self) -> Result<i32, String> {
-        // 初始化信号计数
-        let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
-        Ok(min_cache_length as i32)
     }
 
     // 获取start节点配置

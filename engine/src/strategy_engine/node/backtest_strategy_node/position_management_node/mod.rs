@@ -212,12 +212,11 @@ impl BacktestNodeTrait for PositionManagementNode {
     }
 
     async fn set_output_handle(&mut self) {
-        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         let position_operations = {
@@ -248,13 +247,14 @@ impl BacktestNodeTrait for PositionManagementNode {
             );
             let (success_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let (failed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!("[{node_name}] setting success output handle: {}", success_output_handle_id);
             self.add_output_handle(success_output_handle_id, success_tx)
                 .await;
+            tracing::debug!("[{node_name}] setting failed output handle: {}", failed_output_handle_id);
             self.add_output_handle(failed_output_handle_id, failed_tx)
                 .await;
         }
 
-        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {

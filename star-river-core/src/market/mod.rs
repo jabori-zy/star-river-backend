@@ -219,6 +219,41 @@ pub enum KlineInterval {
     Months1,
 }
 
+impl KlineInterval {
+    pub fn to_seconds(&self) -> i64 {
+        match self {
+            KlineInterval::Minutes1 => 60,
+            KlineInterval::Minutes2 => 120,
+            KlineInterval::Minutes3 => 180,
+            KlineInterval::Minutes4 => 240,
+            KlineInterval::Minutes5 => 300,
+            KlineInterval::Minutes6 => 360,
+            KlineInterval::Minutes10 => 600,
+            KlineInterval::Minutes12 => 720,
+            KlineInterval::Minutes15 => 900,
+            KlineInterval::Minutes20 => 1200,
+            KlineInterval::Minutes30 => 1800,
+            KlineInterval::Hours1 => 3600,
+            KlineInterval::Hours2 => 7200,
+            KlineInterval::Hours3 => 10800,
+            KlineInterval::Hours4 => 14400,
+            KlineInterval::Hours6 => 21600,
+            KlineInterval::Hours8 => 28800,
+            KlineInterval::Hours12 => 43200,
+            KlineInterval::Days1 => 86400,
+            KlineInterval::Weeks1 => 604800,
+            KlineInterval::Months1 => 2629746,
+        }
+    }
+}
+
+
+
+
+
+
+
+
 pub trait MarketData: Serialize + Clone + Debug {
     fn to_json(&self) -> serde_json::Value;
 }
@@ -240,8 +275,32 @@ impl From<Kline> for CacheValue {
 }
 
 impl Kline {
+    pub fn new(datetime: DateTimeUtc, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Self {
+        Self { datetime, open, high, low, close, volume }
+    }
+
+    pub fn datetime(&self) -> DateTimeUtc {
+        self.datetime
+    }
+
+    pub fn open(&self) -> f64 {
+        self.open
+    }
+
+    pub fn high(&self) -> f64 {
+        self.high
+    }
+
+    pub fn low(&self) -> f64 {
+        self.low
+    }
+
     pub fn close(&self) -> f64 {
         self.close
+    }
+
+    pub fn volume(&self) -> f64 {
+        self.volume
     }
 }
 

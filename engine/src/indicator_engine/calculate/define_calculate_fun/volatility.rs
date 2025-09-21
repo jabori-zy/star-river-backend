@@ -5,6 +5,7 @@ use star_river_core::cache::CacheValue;
 use star_river_core::indicator::indicator_define::volatility::*;
 use star_river_core::indicator::Indicator;
 use std::sync::Arc;
+use star_river_core::error::engine_error::indicator_engine_error::*;
 
 impl CalculateIndicatorFunction {
     // ATR - Average True Range #平均真实波幅

@@ -27,6 +27,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use star_river_core::custom_type::PlayIndex;
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -117,7 +118,7 @@ impl StrategyEngine {
     }
 
     // 启动策略
-    pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context
             .as_any_mut()
@@ -131,12 +132,12 @@ impl StrategyEngine {
                 // strategy_context.live_strategy_start(strategy_id).await
                 return Ok(());
             }
-            _ => Err("不支持的策略类型".to_string()),
+            _ => Err(UnsupportedStrategyTypeSnafu { strategy_type: strategy_info.trade_mode.to_string() }.build()),
         }
     }
 
     // 停止策略
-    pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context
             .as_any_mut()
@@ -149,13 +150,16 @@ impl StrategyEngine {
             // TradeMode::Live => {
             //     strategy_context.live_strategy_stop(strategy_id).await
             // }
-            TradeMode::Backtest => strategy_context.backtest_strategy_stop(strategy_id).await,
-            _ => Err("不支持的策略类型".to_string()),
+            TradeMode::Backtest => {
+                strategy_context.backtest_strategy_stop(strategy_id).await?;
+                return Ok(());
+            }
+            _ => Err(UnsupportedStrategyTypeSnafu { strategy_type: strategy_info.trade_mode.to_string() }.build()),
         }
     }
 
     // 获取策略缓存键
-    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<Vec<Key>, String> {
+    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<Vec<Key>, StrategyEngineError> {
         let context = self.context.read().await;
         let strategy_context = context
             .as_any()
@@ -171,7 +175,7 @@ impl StrategyEngine {
             TradeMode::Backtest => Ok(strategy_context
                 .get_backtest_strategy_keys(strategy_id)
                 .await),
-            _ => Err("不支持的策略类型".to_string()),
+            _ => Err(UnsupportedStrategyTypeSnafu { strategy_type: strategy_info.trade_mode.to_string() }.build()),
         }
     }
 }
@@ -179,7 +183,7 @@ impl StrategyEngine {
 // 回测策略
 impl StrategyEngine {
     // 播放策略
-    pub async fn play(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn play(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context
             .as_any_mut()
@@ -190,7 +194,7 @@ impl StrategyEngine {
     }
 
     // 暂停播放策略
-    pub async fn pause(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn pause(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context
             .as_any_mut()
@@ -203,7 +207,7 @@ impl StrategyEngine {
     }
 
     // 停止播放策略
-    pub async fn reset(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn reset(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context
             .as_any_mut()
@@ -216,7 +220,7 @@ impl StrategyEngine {
     }
 
     // 播放单根k线
-    pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<i32, String> {
+    pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<PlayIndex, StrategyEngineError> {
         let mut context = self.context.write().await;
         let strategy_context = context
             .as_any_mut()

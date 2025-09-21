@@ -2,6 +2,7 @@ use super::Key;
 use super::KeyTrait;
 use crate::indicator::IndicatorConfig;
 use crate::market::{Exchange, KlineInterval};
+use crate::strategy::TimeRange;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -127,8 +128,8 @@ pub struct KlineKey {
 }
 
 impl From<KlineKey> for Key {
-    fn from(history_kline_cache_key: KlineKey) -> Self {
-        Key::Kline(history_kline_cache_key)
+    fn from(kline_key: KlineKey) -> Self {
+        Key::Kline(kline_key)
     }
 }
 
@@ -205,6 +206,12 @@ impl KeyTrait for KlineKey {
     fn get_interval(&self) -> KlineInterval {
         self.interval.clone()
     }
+    fn get_time_range(&self) -> Option<TimeRange> {
+        match (&self.start_time, &self.end_time) {
+            (Some(start_time), Some(end_time)) => Some(TimeRange::new(start_time.clone(), end_time.clone())),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -218,8 +225,8 @@ pub struct IndicatorKey {
 }
 
 impl From<IndicatorKey> for Key {
-    fn from(backtest_indicator_cache_key: IndicatorKey) -> Self {
-        Key::Indicator(backtest_indicator_cache_key)
+    fn from(indicator_key: IndicatorKey) -> Self {
+        Key::Indicator(indicator_key)
     }
 }
 
@@ -295,5 +302,11 @@ impl KeyTrait for IndicatorKey {
     }
     fn get_interval(&self) -> KlineInterval {
         self.interval.clone()
+    }
+    fn get_time_range(&self) -> Option<TimeRange> {
+        match (&self.start_time, &self.end_time) {
+            (Some(start_time), Some(end_time)) => Some(TimeRange::new(start_time.clone(), end_time.clone())),
+            _ => None,
+        }
     }
 }

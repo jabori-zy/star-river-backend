@@ -5,15 +5,14 @@ use crate::strategy_engine::node::node_context::{
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::event::node_event::backtest_node_event::position_management_node_event::{
     PositionClosedEvent, PositionClosedPayload, PositionCreatedEvent, PositionCreatedPayload,
     PositionManagementNodeEvent, PositionUpdatedEvent, PositionUpdatedPayload,
 };
-use event_center::event::node_event::backtest_node_event::signal_event::{
-    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
+use event_center::event::node_event::backtest_node_event::common_event::{
+    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
@@ -26,7 +25,6 @@ use star_river_core::virtual_trading_system::event::{
 use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use star_river_core::utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug)]
@@ -76,7 +74,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         &mut self.base_context
     }
 
-    async fn handle_event(&mut self, event: Event) {
+    async fn handle_engine_event(&mut self, event: Event) {
         // match event {
         //     Event::Response(response_event) => {
         //         self.handle_response_event(response_event).await;
@@ -85,28 +83,27 @@ impl BacktestNodeContextTrait for PositionNodeContext {
         // }
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         self.base_context
             .output_handles
             .get(&format!("position_node_update_output"))
             .unwrap()
-            .clone()
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // tracing::info!("{}: 收到节点事件: {:?}", self.get_node_name(), node_event);
 
         match node_event {
-            BacktestNodeEvent::Signal(signal_event) => match signal_event {
-                SignalEvent::ConditionNotMatch(_) => {
+            BacktestNodeEvent::Common(signal_event) => match signal_event {
+                CommonEvent::Trigger(_) => {
                     tracing::debug!(
-                        "{}: 条件不匹配，不获取仓位信息。节点是否是叶子节点: {}",
+                        "{}: 收到触发事件，不获取仓位信息。节点是否是叶子节点: {}",
                         self.get_node_name(),
                         self.is_leaf_node()
                     );
                     if self.is_leaf_node() {
                         let payload = ExecuteOverPayload::new(self.get_play_index());
-                        let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                        let execute_over_event: CommonEvent = ExecuteOverEvent::new(
                             self.get_node_id().clone(),
                             self.get_node_name().clone(),
                             self.get_node_id().clone(),
@@ -122,14 +119,13 @@ impl BacktestNodeContextTrait for PositionNodeContext {
             },
 
             BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
-                tracing::debug!(
-                    "{}: 收到订单事件: {:?}",
+                tracing::debug!("{}: 收到订单事件: {:?}",
                     self.get_node_name(),
                     futures_order_node_event
                 );
                 if self.is_leaf_node() {
                     let payload = ExecuteOverPayload::new(self.get_play_index());
-                    let execute_over_event: SignalEvent = ExecuteOverEvent::new(
+                    let execute_over_event: CommonEvent = ExecuteOverEvent::new(
                         self.get_node_id().clone(),
                         self.get_node_name().clone(),
                         self.get_node_id().clone(),

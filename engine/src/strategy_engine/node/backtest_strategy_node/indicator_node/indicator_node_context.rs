@@ -1,3 +1,6 @@
+mod context_impl;
+mod event_handler;
+
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
@@ -6,14 +9,14 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::{AddCacheKeyParams, GetCacheParams};
-use event_center::communication::engine::indicator_engine::CalculateBacktestIndicatorParams;
+use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::event::node_event::backtest_node_event::indicator_node_event::{
     IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::signal_event::{
-    ExecuteOverEvent, ExecuteOverPayload, SignalEvent,
+use event_center::event::node_event::backtest_node_event::common_event::{
+    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::{event::Event, EventCenterSingleton};
@@ -30,245 +33,60 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::RwLock;
 use tokio::time::Duration;
-use star_river_core::utils::get_utc8_timestamp_millis;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
     pub is_registered: Arc<RwLock<bool>>,  // 是否已经注册指标
-    pub kline_key: KlineKey,               // 回测K线缓存键
-    pub indicator_keys: Vec<IndicatorKey>, // 指标缓存键
+    selected_kline_key: KlineKey,               // 回测K线缓存键
+    indicator_keys: HashMap<IndicatorKey,(i32, String)>, // 指标缓存键 -> (配置id, 输出句柄id)
+    min_interval_symbols: Vec<KlineKey>,
 }
 
-#[async_trait]
-impl BacktestNodeContextTrait for IndicatorNodeContext {
-    fn clone_box(&self) -> Box<dyn BacktestNodeContextTrait> {
-        Box::new(self.clone())
-    }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn get_base_context(&self) -> &BacktestBaseNodeContext {
-        &self.base_context
-    }
-
-    fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext {
-        &mut self.base_context
-    }
-
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
-        let default_output_handle_id = format!("{}_default_output", self.base_context.node_id);
-        self.base_context
-            .output_handles
-            .get(&default_output_handle_id)
-            .unwrap()
-            .clone()
-    }
-
-    async fn handle_event(&mut self, event: Event) {}
-
-    async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
-        match message {
-            BacktestNodeEvent::KlineNode(kline_event) => {
-                // 提前获取配置信息，统一错误处理
-                let exchange_config = self.backtest_config.exchange_mode_config.as_ref().unwrap();
-
-                let current_play_index = self.get_play_index();
-
-                // 如果索引不匹配，提前返回错误日志
-                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
-                    tracing::debug!(
-                        "{}: 接收到k线更新事件。事件的play_index: {}，节点的play_index: {}",
-                        self.base_context.node_id,
-                        kline_update_event.play_index,
-                        current_play_index
-                    );
-                    tracing::debug!("is_leaf_node: {}", self.is_leaf_node());
-                    if current_play_index != kline_update_event.play_index {
-                        tracing::error!(
-                            node_id = %self.base_context.node_id,
-                            node_name = %self.base_context.node_name,
-                            kline_cache_index = %kline_update_event.play_index,
-                            signal_index = %current_play_index,
-                            "kline cache index is not equal to signal index"
-                        );
-                        return;
-                    }
-
-                    // 提取公共数据
-                    let exchange = exchange_config.selected_account.exchange.clone();
-                    let selected_symbol = exchange_config.selected_symbol.clone();
-                    let symbol = selected_symbol.symbol.clone();
-                    let interval = selected_symbol.interval.clone();
-                    let time_range = exchange_config.time_range.clone();
-                    let node_id = self.get_node_id().clone();
-                    let node_name = self.get_node_name().clone();
-
-                    // 遍历指标缓存键，计算指标
-                    for ind_config in exchange_config.selected_indicators.iter() {
-                        let indicator_key = IndicatorKey {
-                            exchange: exchange.clone(),
-                            symbol: symbol.clone(),
-                            interval: interval.clone(),
-                            indicator_config: ind_config.indicator_config.clone(),
-                            start_time: Some(time_range.start_date.to_string()),
-                            end_time: Some(time_range.end_date.to_string()),
-                        };
-
-                        let from_handle_id = ind_config.output_handle_id.clone();
-
-                        // 获取指标缓存数据，增加错误处理
-                        let indicator_cache_data = match self
-                            .get_backtest_indicator_cache(
-                                &indicator_key,
-                                kline_update_event.play_index,
-                            )
-                            .await
-                        {
-                            Ok(data) => data,
-                            Err(e) => {
-                                tracing::error!(
-                                    node_id = %self.base_context.node_id,
-                                    node_name = %self.base_context.node_name,
-                                    indicator = ?ind_config.indicator_config,
-                                    "Failed to get backtest indicator cache: {}", e
-                                );
-                                continue;
-                            }
-                        };
-
-                        // 发送指标更新事件的通用函数
-                        let send_indicator_event =
-                            |handle_id: String,
-                             output_handle: NodeOutputHandle,
-                             data: Vec<Arc<CacheValue>>| {
-                                let payload = IndicatorUpdatePayload::new(
-                                    indicator_key.get_exchange(),
-                                    indicator_key.get_symbol(),
-                                    indicator_key.get_interval(),
-                                    ind_config.config_id,
-                                    indicator_key.get_indicator_config(),
-                                    indicator_key.clone(),
-                                    data,
-                                    kline_update_event.play_index,
-                                );
-                                let indicator_update_event: IndicatorNodeEvent =
-                                    IndicatorUpdateEvent::new(
-                                        node_id.clone(),
-                                        node_name.clone(),
-                                        handle_id,
-                                        payload,
-                                    )
-                                    .into();
-                                let _ = output_handle.send(indicator_update_event.into());
-                            };
-
-                        // 发送到指标特定的输出handle
-                        if let Some(output_handle) =
-                            self.base_context.output_handles.get(&from_handle_id)
-                        {
-                            send_indicator_event(
-                                from_handle_id,
-                                output_handle.clone(),
-                                indicator_cache_data.clone(),
-                            );
-                        }
-
-                        // 发送到默认输出handle
-                        let default_output_handle = self.get_default_output_handle();
-                        send_indicator_event(
-                            default_output_handle.output_handle_id.clone(),
-                            default_output_handle,
-                            indicator_cache_data.clone(),
-                        );
-
-                        // 发送到strategy
-                        let strategy_output_handle = self.get_strategy_output_handle();
-                        send_indicator_event(
-                            strategy_output_handle.output_handle_id.clone(),
-                            strategy_output_handle.clone(),
-                            indicator_cache_data,
-                        );
-                    }
-                    // 如果节点是叶子节点，则发送执行完毕事件
-                    if self.is_leaf_node() {
-                        let payload = ExecuteOverPayload::new(self.get_play_index());
-                        let execute_over_event: SignalEvent = ExecuteOverEvent::new(
-                            self.get_node_id().clone(),
-                            self.get_node_name().clone(),
-                            self.get_node_id().clone(),
-                            payload,
-                        )
-                        .into();
-                        let strategy_output_handle = self.get_strategy_output_handle();
-                        strategy_output_handle
-                            .send(execute_over_event.into())
-                            .unwrap();
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
-        match strategy_inner_event {
-            // StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-            //     // 更新k线缓存索引
-            //     self.set_play_index(play_index_update_event.play_index).await;
-            //     let strategy_output_handle = self.get_strategy_output_handle();
-            //     let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-            //         from_node_id: self.get_node_id().clone(),
-            //         from_node_name: self.get_node_name().clone(),
-            //         from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-            //         play_index: self.get_play_index().await,
-            //         message_timestamp: get_utc8_timestamp_millis(),
-            //     }));
-            //     // 发送到strategy
-            //     strategy_output_handle.send(signal).unwrap();
-            // }
-            StrategyInnerEvent::NodeReset => {
-                tracing::info!("收到策略重置事件，清空指标缓存键");
-            }
-        }
-    }
-
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
-        match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
-                if self.get_node_id() == &node_reset_params.node_id {
-                    let response = NodeResetResponse::success(self.get_node_id().clone());
-                    node_reset_params.responder.send(response.into()).unwrap();
-                }
-            }
-            _ => {}
-        }
-    }
-}
 
 impl IndicatorNodeContext {
+
+    pub fn new(
+        base_context: BacktestBaseNodeContext, 
+        backtest_config: IndicatorNodeBacktestConfig, 
+        selected_kline_key: KlineKey,
+        indicator_keys: HashMap<IndicatorKey,(i32, String)>,
+    ) -> Self {
+        Self {
+            base_context,
+            backtest_config,
+            is_registered: Arc::new(RwLock::new(false)),
+            selected_kline_key,
+            indicator_keys,
+            min_interval_symbols: vec![],
+        }
+    }
+
+    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
+        self.min_interval_symbols = min_interval_symbols;
+    }
+
+    pub fn get_min_interval_symbols_ref(&self) -> &Vec<KlineKey> {
+        &self.min_interval_symbols
+    }
+
+
     // 注册指标（初始化指标）向指标引擎发送注册请求
     pub async fn register_indicator_cache_key(&self) -> Result<bool, String> {
         let mut is_all_success = true;
         // 遍历已配置的指标，注册指标缓存键
-        for indicator_cache_key in self.indicator_keys.iter() {
+        for (indicator_key, _) in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
 
             let register_indicator_params = AddCacheKeyParams::new(
-                self.base_context.strategy_id.clone(),
-                indicator_cache_key.clone().into(),
+                self.get_strategy_id().clone(),
+                indicator_key.clone().into(),
                 None,
                 Duration::from_secs(30),
-                self.base_context.node_id.to_string(),
+                self.get_node_id().to_string(),
                 resp_tx,
             );
             // self.get_command_publisher().send(register_indicator_command).await.unwrap();
@@ -288,14 +106,14 @@ impl IndicatorNodeContext {
     // 获取已经计算好的回测指标数据
     async fn get_backtest_indicator_cache(
         &self,
-        indicator_cache_key: &IndicatorKey,
+        indicator_key: &IndicatorKey,
         play_index: i32,
-    ) -> Result<Vec<Arc<CacheValue>>, String> {
+    ) -> Result<Arc<CacheValue>, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let get_cache_params = GetCacheParams::new(
             self.base_context.strategy_id.clone(),
             self.base_context.node_id.clone(),
-            indicator_cache_key.clone().into(),
+            indicator_key.clone().into(),
             Some(play_index as u32),
             Some(1),
             self.base_context.node_id.clone(),
@@ -312,7 +130,9 @@ impl IndicatorNodeContext {
             if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
                 match cache_reponse {
                     CacheEngineResponse::GetCacheData(get_cache_data_response) => {
-                        return Ok(get_cache_data_response.cache_data)
+                        if get_cache_data_response.cache_data.len() == 1 {
+                            return Ok(get_cache_data_response.cache_data[0].clone());
+                        }
                     }
                     _ => {
                         return Err(format!(
@@ -332,21 +152,29 @@ impl IndicatorNodeContext {
     // 计算指标(一次性将指标全部计算完成)
     pub async fn calculate_indicator(&self) -> Result<bool, String> {
         let mut is_all_success = true;
-        for ind in self
-            .backtest_config
-            .exchange_mode_config
-            .clone()
-            .unwrap()
-            .selected_indicators
-            .iter()
-        {
+        
+        let kline_key = self.selected_kline_key.clone();
+        let min_interval_symbols = self.get_min_interval_symbols_ref();
+
+        // 如果当前IndicatorNode选择的kline_key不是最小周期交易对，则直接返回true
+        if !min_interval_symbols.contains(&kline_key) {
+            tracing::warn!("[{}] selected symbol is not min interval, skip", self.get_node_name());
+            return Ok(true);
+        }
+
+        let strategy_id = self.get_strategy_id().clone();
+        let node_id = self.get_node_id().clone();
+        
+        
+        for (ind_key, _ ) in self.indicator_keys.iter() {
+        
             let (resp_tx, resp_rx) = oneshot::channel();
-            let calculate_backtest_indicator_params = CalculateBacktestIndicatorParams::new(
-                self.base_context.strategy_id.clone(),
-                self.base_context.node_id.clone(),
-                self.kline_key.clone().into(),
-                ind.indicator_config.clone(),
-                self.base_context.node_id.clone(),
+            let calculate_backtest_indicator_params = CalculateHistoryIndicatorParams::new(
+                strategy_id.clone(),
+                node_id.clone(),
+                kline_key.clone().into(),
+                ind_key.indicator_config.clone(),
+                node_id.clone(),
                 resp_tx,
             );
             EventCenterSingleton::send_command(calculate_backtest_indicator_params.into())
@@ -361,3 +189,4 @@ impl IndicatorNodeContext {
         Ok(is_all_success)
     }
 }
+

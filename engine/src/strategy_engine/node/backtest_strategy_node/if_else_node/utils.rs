@@ -3,6 +3,7 @@ use super::if_else_node_context::ConfigId;
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IndicatorNodeEvent};
+use star_river_core::cache::CacheItem;
 use star_river_core::custom_type::NodeId;
 use std::collections::HashMap;
 
@@ -20,29 +21,12 @@ pub fn get_variable_value(
         BacktestNodeEvent::IndicatorNode(indicator_event) => {
             if let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_event {
                 // tracing::debug!("indicator_update_event: {:?}", indicator_update_event);
-                let indicator_value = indicator_update_event
-                    .indicator_series
-                    .last()
-                    .and_then(|last_indicator| {
-                        let indicator_json = last_indicator.to_json();
-                        indicator_json.get(variable_name).cloned()
-                    })
-                    .and_then(|indicator_value| {
-                        indicator_value.as_f64().or_else(|| {
-                            tracing::warn!(
-                                "variable '{}'s value '{}' is not a number",
-                                variable_name,
-                                indicator_value
-                            );
-                            None
-                        })
-                    });
-                if let Some(indicator_value) = indicator_value {
-                    // 如果indicator_value为0，则返回None
-                    if indicator_value == 0.0 {
-                        return None;
-                    }
-                }
+                let indicator_value: Option<f64> = indicator_update_event
+                    .indicator_value
+                    .to_json()
+                    .get(variable_name)
+                    .and_then(|indicator_value| indicator_value.as_f64());
+                tracing::debug!("indicator_value: {:?}", indicator_value);
                 indicator_value
             } else {
                 None
@@ -53,13 +37,9 @@ pub fn get_variable_value(
             if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_node_event {
                 let kline_value = kline_update_event
                     .kline
-                    .last()
-                    .and_then(|last_kline| {
-                        last_kline
-                            .to_json()
-                            .get(variable_name)
-                            .and_then(|value| value.as_f64())
-                    })
+                    .to_json()
+                    .get(variable_name)
+                    .and_then(|value| value.as_f64())
                     .unwrap_or(0.0);
                 if kline_value == 0.0 {
                     return None;

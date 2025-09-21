@@ -158,18 +158,17 @@ impl BacktestNodeTrait for VariableNode {
     }
 
     async fn set_output_handle(&mut self) {
-        tracing::debug!("{}: 设置节点默认出口", self.get_node_id().await);
         let node_id = self.get_node_id().await;
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
         self.add_output_handle(default_output_handle_id, tx).await;
 
         let variable_configs = {
@@ -188,10 +187,10 @@ impl BacktestNodeTrait for VariableNode {
         for variable in variable_configs {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let output_handle_id = format!("{}_output_{}", node_id, variable.config_id);
+            tracing::debug!("[{node_name}] setting variable output handle: {}", output_handle_id);
             self.add_output_handle(output_handle_id, tx).await;
         }
 
-        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {

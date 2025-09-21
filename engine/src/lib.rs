@@ -19,7 +19,6 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, LazyLock};
-use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::BroadcastStream;
 
@@ -32,14 +31,6 @@ pub trait EngineContext: Debug + Send + Sync + 'static {
     fn clone_box(&self) -> Box<dyn EngineContext>;
 
     fn get_engine_name(&self) -> EngineName;
-
-    // fn get_event_publisher(&self) -> &EventPublisher;
-
-    // fn get_event_receiver(&self) -> Vec<broadcast::Receiver<Event>>;
-
-    // fn get_command_publisher(&self) -> &CommandPublisher;
-
-    // fn get_command_receiver(&self) -> Arc<Mutex<CommandReceiver>>;
 
     async fn handle_event(&mut self, event: Event);
 
@@ -180,7 +171,6 @@ impl EngineFunction {
             loop {
                 if let Some(received_command) = command_receiver.lock().await.recv().await {
                     let mut context_guard = context.write().await;
-                    // tracing::debug!("{}: 接收到事件: {:?}", engine_name, event);
                     context_guard.handle_command(received_command).await;
                 }
             }

@@ -46,6 +46,7 @@ impl KlineNode {
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) =
             Self::check_kline_node_config(node_config)?;
+        
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -61,14 +62,9 @@ impl KlineNode {
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );
+        let context = KlineNodeContext::new(base_context, backtest_config, heartbeat);
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(KlineNodeContext {
-                base_context,
-                data_is_loaded: Arc::new(RwLock::new(false)),
-                exchange_is_registered: Arc::new(RwLock::new(false)),
-                backtest_config,
-                heartbeat,
-            }))),
+            context: Arc::new(RwLock::new(Box::new(context))),
         })
     }
 
@@ -157,13 +153,13 @@ impl BacktestNodeTrait for KlineNode {
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, strategy_output_handle_id = %strategy_output_handle_id, "setting strategy output handle");
+        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
+        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
         self.add_output_handle(default_output_handle_id, tx).await;
 
         // 添加每一个symbol的出口
@@ -184,11 +180,10 @@ impl BacktestNodeTrait for KlineNode {
 
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.output_handle_id.clone();
-            tracing::debug!(node_id = %node_id, node_name = %node_name, symbol_output_handle_id = %symbol_output_handle_id, "setting symbol output handle");
+            tracing::debug!("[{node_name}] setting symbol output handle: {}", symbol_output_handle_id);
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(symbol_output_handle_id, tx).await;
         }
-        tracing::info!(node_id = %node_id, node_name = %node_name, "setting node handle complete");
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
@@ -349,6 +344,28 @@ impl BacktestNodeTrait for KlineNode {
 
                         self.listen_strategy_inner_events().await;
                     }
+                    KlineNodeStateAction::GetMinIntervalSymbols => {
+                        tracing::info!("[{node_name}({node_id})] start to get min interval symbols");
+                        let context = self.get_context();
+                        
+                        let mut context_guard = context.write().await;
+                        if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>(){
+                            let min_interval_symbols = kline_node_context.get_min_interval_symbols().await.unwrap();
+                            kline_node_context.set_min_interval_symbols(min_interval_symbols);
+
+                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_id.clone(), node_name.clone());
+                            let log_event = NodeStateLogEvent::success(
+                                strategy_id.clone(),
+                                node_id.clone(),
+                                node_name.clone(),
+                                current_state.to_string(),
+                                KlineNodeStateAction::GetMinIntervalSymbols.to_string(),
+                                log_message.to_string(),
+                            );
+                            let _ = strategy_output_handle.send(log_event.into());
+                        }
+                    
+                    }
                     KlineNodeStateAction::RegisterExchange => {
                         tracing::info!("[{node_name}({node_id})] start to register exchange");
 
@@ -438,9 +455,9 @@ impl BacktestNodeTrait for KlineNode {
                             "[{node_name}({node_id})] starting to load kline data from exchange"
                         );
                         let context = self.get_context();
-                        let mut state_guard = context.write().await;
+                        let mut context_guard = context.write().await;
                         if let Some(kline_node_context) =
-                            state_guard.as_any_mut().downcast_mut::<KlineNodeContext>()
+                            context_guard.as_any_mut().downcast_mut::<KlineNodeContext>()
                         {
                             let is_all_success = kline_node_context
                                 .load_kline_history_from_exchange()
@@ -477,7 +494,7 @@ impl BacktestNodeTrait for KlineNode {
                     .await
                     .set_state_machine(state_machine.clone_box());
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
         Ok(())
     }

@@ -5,6 +5,7 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
+use star_river_core::error::engine_error::strategy_engine_error::*;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
@@ -14,6 +15,7 @@ use star_river_core::engine::EngineName;
 use star_river_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
+use snafu::IntoError;
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -86,26 +88,23 @@ pub async fn get_strategy_list(
         ("strategy_id" = i32, Path, description = "策略ID")
     ),
     responses(
-        (status = 200, body = ApiResponse<StrategyConfig>),
-        (status = 400, body = ApiResponse<StrategyConfig>)
+        (status = 200, body = NewApiResponse<StrategyConfig>),
+        (status = 400, body = NewApiResponse<StrategyConfig>)
     )
 )]
 pub async fn get_strategy_by_id(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<StrategyConfig>>) {
+) -> (StatusCode, Json<NewApiResponse<StrategyConfig>>) {
     let db = &star_river.database.lock().await.conn;
     let strategy = StrategyConfigQuery::get_strategy_by_id(db, strategy_id)
-        .await
-        .unwrap();
-    (
-        StatusCode::OK,
-        Json(ApiResponse {
-            code: 0,
-            message: "获取成功".to_string(),
-            data: strategy,
-        }),
-    )
+        .await;
+    if let Ok(strategy) = strategy {
+        (StatusCode::OK, Json(NewApiResponse::success(strategy)))
+    } else {
+        let error = StrategyConfigNotFoundSnafu { strategy_id }.into_error(strategy.unwrap_err());
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(error)))
+    }
 }
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
@@ -437,7 +436,7 @@ pub async fn get_strategy_cache_keys(
     if let Ok(cache_keys) = cache_keys {
         let cache_keys_str = cache_keys
             .iter()
-            .map(|cache_key| cache_key.get_key())
+            .map(|cache_key| cache_key.get_key_str())
             .collect();
         (
             StatusCode::OK,

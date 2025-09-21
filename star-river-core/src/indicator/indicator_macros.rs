@@ -37,6 +37,12 @@ macro_rules! define_indicator_output {
                 }
             }
 
+            impl From<$indicator_name> for crate::cache::CacheValue {
+                fn from(indicator: $indicator_name) -> Self {
+                    crate::cache::CacheValue::Indicator(indicator.into())
+                }
+            }
+
             impl crate::indicator::IndicatorTrait for $indicator_name {
                 fn to_json(&self) -> serde_json::Value {
                     serde_json::to_value(self).unwrap()
@@ -45,7 +51,7 @@ macro_rules! define_indicator_output {
                 fn to_list(&self) -> Vec<f64> {
                     let mut result = Vec::new();
                     $(
-                        $crate::add_field_to_vec_dispatch!(result, self.$output_field);
+                        $crate::add_field_to_vec_dispatch!(result, self.$output_field, $output_type);
                     )*
                     result
                 }
@@ -61,6 +67,7 @@ macro_rules! define_indicator_output {
             }
 
             impl crate::cache::CacheItem for $indicator_name {
+
                 fn get_datetime(&self) -> DateTime<Utc> {
                     self.datetime
                 }
@@ -230,6 +237,12 @@ macro_rules! add_field_to_vec {
     ($vec:expr, $field:expr, f32) => {
         $vec.push($field as f64);
     };
+    ($vec:expr, $field:expr, ordered_float::OrderedFloat<f64>) => {
+        $vec.push($field.into_inner());
+    };
+    ($vec:expr, $field:expr, ordered_float::OrderedFloat<f32>) => {
+        $vec.push($field.into_inner() as f64);
+    };
     ($vec:expr, $field:expr, chrono::DateTime<chrono::FixedOffset>) => {
         $vec.push($field.timestamp_millis() as f64);
     };
@@ -244,26 +257,59 @@ macro_rules! add_field_to_vec {
     };
 }
 
-
 // 辅助宏：通过类型推断将字段添加到Vec中
-#[macro_export] 
+#[macro_export]
 macro_rules! add_field_to_vec_dispatch {
+    ($vec:expr, $field:expr, Option<$inner:ty>) => {
+        match &$field {
+            Some(inner) => {
+                let inner = inner.clone();
+                $crate::add_field_to_vec!($vec, inner, $inner);
+            }
+            None => $vec.push(f64::NAN),
+        }
+    };
+    ($vec:expr, $field:expr, $field_type:ty) => {
+        $crate::add_field_to_vec!($vec, $field, $field_type);
+    };
     ($vec:expr, $field:expr) => {
         // 使用匿名函数来处理不同类型的转换
         let convert_value = |field: &dyn std::any::Any| -> f64 {
             if let Some(val) = field.downcast_ref::<i64>() {
                 *val as f64
             } else if let Some(val) = field.downcast_ref::<i32>() {
-                *val as f64  
+                *val as f64
             } else if let Some(val) = field.downcast_ref::<f64>() {
                 *val
             } else if let Some(val) = field.downcast_ref::<f32>() {
                 *val as f64
+            } else if let Some(val) = field.downcast_ref::<ordered_float::OrderedFloat<f64>>() {
+                val.into_inner()
+            } else if let Some(val) = field.downcast_ref::<ordered_float::OrderedFloat<f32>>() {
+                val.into_inner() as f64
+            } else if let Some(val) = field.downcast_ref::<Option<f64>>() {
+                val.unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<f32>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<i64>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<i32>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<ordered_float::OrderedFloat<f64>>>() {
+                val.map(|v| v.into_inner()).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<ordered_float::OrderedFloat<f32>>>() {
+                val.map(|v| v.into_inner() as f64).unwrap_or(f64::NAN)
             } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::FixedOffset>>() {
                 val.timestamp_millis() as f64
+            } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::Utc>>() {
+                val.timestamp_millis() as f64
+            } else if let Some(val) = field.downcast_ref::<crate::time::Utc8DateTime>() {
+                val.timestamp_millis() as f64
+            } else if let Some(val) = field.downcast_ref::<crate::system::DateTimeUtc>() {
+                val.timestamp_millis() as f64
             } else {
-                // 对于无法识别的类型，使用默认值
-                0.0
+                // 对于无法识别的类型，使用NaN而不是0.0来表示无效值
+                f64::NAN
             }
         };
         $vec.push(convert_value(&$field));
@@ -424,6 +470,8 @@ macro_rules! impl_indicator {
         }
 
         impl CacheItem for $enum_name {
+
+
             fn get_datetime(&self) -> DateTime<Utc> {
                 match self {
                     $(

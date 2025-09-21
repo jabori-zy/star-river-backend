@@ -8,7 +8,7 @@ macro_rules! talib_fn {
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
-            pub fn [<$indicator_name:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
+            pub fn [<$indicator_name:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let input_size = $input_field.len();
                 let lookback = unsafe {
                     [<TA_ $indicator_name:upper _Lookback>]
@@ -17,12 +17,11 @@ macro_rules! talib_fn {
                     ) as usize
                 };
                 if input_size <= lookback {
-                    // return Err(TalibError::DataLessThenLookbackError {
-                    //     indicator_name: stringify!($indicator_name).to_string(),
-                    //     lookback,
-                    //     data_length: input_size,
-                    // });
-                    return Err("data less than lookback".to_string());
+                    return Err(DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function!(
@@ -38,7 +37,7 @@ macro_rules! talib_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -60,7 +59,7 @@ macro_rules! talib_fn {
                 $datetime_field: $datetime_type,
                 $($input_field: $input_type,)*
                 $($param_field: $param_type),*
-            ) -> Result<Vec<Indicator>, String> {
+            ) -> Result<Vec<Indicator>, IndicatorEngineError> {
 
                 let mut input_size = Vec::new();
                 // 计算每一个输入的长度
@@ -72,11 +71,9 @@ macro_rules! talib_fn {
                 let first_size = &input_size[0];
                 for size in &input_size {
                     if size != first_size {
-                        // return Err(TalibError::DataLengthNotEqualError {
-                        //     indicator_name: stringify!($indicator_name).to_string(),
-                        //     data_length: input_size.clone(),
-                        // });
-                        return Err("data length not equal".to_string());
+                        return Err(DataLengthNotEqualSnafu {
+                            data_length: input_size.clone(),
+                        }.build());
                     }
                 }
 
@@ -91,12 +88,11 @@ macro_rules! talib_fn {
                 };
 
                 if input_size <= lookback {
-                    // return Err(TalibError::DataLessThenLookbackError {
-                    //     indicator_name: stringify!($indicator_name).to_string(),
-                    //     lookback,
-                    //     data_length: input_size,
-                    // });
-                    return Err("data less than lookback".to_string());
+                    return Err(DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function!(
@@ -112,7 +108,7 @@ macro_rules! talib_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -133,7 +129,7 @@ macro_rules! talib_snake_fn {
         output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
     ) => {
         paste::paste! {
-            pub fn [<$indicator_name:snake:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, String> {
+            pub fn [<$indicator_name:snake:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let input_size = $input_field.len();
                 let lookback = unsafe {
                     [<TA_ $indicator_name:snake:upper _Lookback>]
@@ -142,12 +138,11 @@ macro_rules! talib_snake_fn {
                     ) as usize
                 };
                 if input_size <= lookback {
-                    // return Err(TalibError::DataLessThenLookbackError {
-                    //     indicator_name: stringify!($indicator_name).to_string(),
-                    //     lookback,
-                    //     data_length: input_size,
-                    // });
-                    return Err("data less than lookback".to_string());
+                    return Err(DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function_snake!(
@@ -163,7 +158,7 @@ macro_rules! talib_snake_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -185,7 +180,7 @@ macro_rules! talib_snake_fn {
                 $datetime_field: $datetime_type,
                 $($input_field: $input_type,)*
                 $($param_field: $param_type),*
-            ) -> Result<Vec<Indicator>, String> {
+            ) -> Result<Vec<Indicator>, IndicatorEngineError> {
 
                 let mut input_size = Vec::new();
                 // 计算每一个输入的长度
@@ -197,11 +192,9 @@ macro_rules! talib_snake_fn {
                 let first_size = &input_size[0];
                 for size in &input_size {
                     if size != first_size {
-                        // return Err(TalibError::DataLengthNotEqualError {
-                        //     indicator_name: stringify!($indicator_name).to_string(),
-                        //     data_length: input_size.clone(),
-                        // });
-                        return Err("data length not equal".to_string());
+                        return Err(DataLengthNotEqualSnafu {
+                            data_length: input_size.clone(),
+                        }.build());
                     }
                 }
 
@@ -216,12 +209,11 @@ macro_rules! talib_snake_fn {
                 };
 
                 if input_size <= lookback {
-                    //  return Err(TalibError::DataLessThenLookbackError {
-                    //     indicator_name: stringify!($indicator_name).to_string(),
-                    //     lookback,
-                    //     data_length: input_size,
-                    // });
-                    return Err("data less than lookback".to_string());
+                    return Err(DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
                 }
 
                 let ($([<out_ $output_name>],)*) = crate::execute_talib_function_snake!(
@@ -237,7 +229,7 @@ macro_rules! talib_snake_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -247,48 +239,6 @@ macro_rules! talib_snake_fn {
         }
     };
 }
-
-// #[macro_export]
-// macro_rules! lookback_fn {
-//     ($indicator_name:ident, "snake_upper") => {
-//         paste::paste! {
-//             [<TA_ $indicator_name:snake:upper _Lookback>]
-//         }
-//     };
-
-//     ($indicator_name:ident, "upper") => {
-//         paste::paste! {
-//             [<TA_ $indicator_name:upper _Lookback>]
-//         }
-//     };
-
-//     ($indicator_name:ident) => {
-//         paste::paste! {
-//             [<TA_ $indicator_name:upper _Lookback>]
-//         }
-//     };
-// }
-
-// #[macro_export]
-// macro_rules! ta_fn {
-//     ($indicator_name:ident,"snake_upper") => {
-//         paste::paste! {
-//             [<TA_ $indicator_name:snake:upper>]
-//         }
-//     };
-
-//     ($indicator_name:ident, "upper") => {
-//         paste::paste! {
-//              [<TA_ $indicator_name:upper>]
-//         }
-//     };
-//     ($indicator_name:ident) => {
-//         paste::paste! {
-//             [<TA_ $indicator_name:upper>]
-//         }
-//     };
-
-// }
 
 // 内部宏：处理 TA-Lib 函数调用和错误处理的通用逻辑
 #[macro_export]
@@ -326,10 +276,9 @@ macro_rules! execute_talib_function {
             };
 
             if ret != TA_RetCode_TA_SUCCESS {
-                // return Err(TalibError::GenericCalculationError {
-                //     error: format!("TA-Lib error code: {:?}", ret)
-                // });
-                return Err("TA-Lib error code: {:?}".to_string());
+                return Err(TalibSnafu {
+                    ret_code: ret,
+                }.build());
             }
 
             ($(([<out_ $output_name>]),)*)
@@ -372,10 +321,9 @@ macro_rules! execute_talib_function_snake {
             };
 
             if ret != TA_RetCode_TA_SUCCESS {
-                // return Err(TalibError::GenericCalculationError {
-                //     error: format!("TA-Lib error code: {:?}", ret)
-                // });
-                return Err("TA-Lib error code: {:?}".to_string());
+                return Err(TalibSnafu {
+                    ret_code: ret,
+                }.build());
             }
 
             ($(([<out_ $output_name>]),)*)

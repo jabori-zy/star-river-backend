@@ -6,6 +6,7 @@ use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::strategy::BacktestStrategyConfig;
 use std::sync::Arc;
 use star_river_core::system::DateTimeUtc;
+use star_river_core::cache::key::KlineKey;
 
 
 #[derive(Debug)]
@@ -117,6 +118,7 @@ impl From<NodeResetResponse> for StrategyResponse {
 #[derive(Debug)]
 pub enum BacktestNodeResponse {
     GetStrategyCacheKeys(GetStrategyCacheKeysResponse),
+    GetMinIntervalSymbols(GetMinIntervalSymbolsResponse),
     GetCurrentTime(GetCurrentTimeResponse),
 }
 
@@ -125,6 +127,9 @@ impl NodeResponseTrait for BacktestNodeResponse {
         match self {
             BacktestNodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 get_strategy_cache_keys_response.success
+            }
+            BacktestNodeResponse::GetMinIntervalSymbols(get_min_interval_symbols_response) => {
+                get_min_interval_symbols_response.success
             }
             BacktestNodeResponse::GetCurrentTime(get_current_time_response) => {
                 get_current_time_response.success
@@ -141,6 +146,9 @@ impl NodeResponseTrait for BacktestNodeResponse {
                     .unwrap()
                     .clone()
             }
+            BacktestNodeResponse::GetMinIntervalSymbols(get_min_interval_symbols_response) => {
+                get_min_interval_symbols_response.error.as_ref().unwrap().clone()
+            }
             BacktestNodeResponse::GetCurrentTime(get_current_time_response) => {
                 get_current_time_response.error.as_ref().unwrap().clone()
             }
@@ -151,6 +159,9 @@ impl NodeResponseTrait for BacktestNodeResponse {
         match self {
             BacktestNodeResponse::GetStrategyCacheKeys(get_strategy_cache_keys_response) => {
                 get_strategy_cache_keys_response.datetime
+            }
+            BacktestNodeResponse::GetMinIntervalSymbols(get_min_interval_symbols_response) => {
+                get_min_interval_symbols_response.datetime
             }
             BacktestNodeResponse::GetCurrentTime(get_current_time_response) => {
                 get_current_time_response.datetime
@@ -183,6 +194,34 @@ impl From<GetStrategyCacheKeysResponse> for NodeResponse {
         NodeResponse::BacktestNode(BacktestNodeResponse::GetStrategyCacheKeys(response))
     }
 }
+
+
+#[derive(Debug)]
+pub struct GetMinIntervalSymbolsResponse {
+    pub success: bool,
+    pub error: Option<Arc<dyn StarRiverErrorTrait>>,
+    pub keys: Vec<KlineKey>,
+    pub datetime: DateTimeUtc,
+}
+
+impl GetMinIntervalSymbolsResponse {
+    pub fn success(keys: Vec<KlineKey>) -> Self {
+        Self {
+            success: true,
+            error: None,
+            keys,
+            datetime: Utc::now()
+        }
+    }
+}
+
+impl From<GetMinIntervalSymbolsResponse> for NodeResponse {
+    fn from(response: GetMinIntervalSymbolsResponse) -> Self {
+        NodeResponse::BacktestNode(BacktestNodeResponse::GetMinIntervalSymbols(response))
+    }
+}
+
+
 
 #[derive(Debug)]
 pub struct GetCurrentTimeResponse {

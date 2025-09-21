@@ -7,13 +7,13 @@ use event_center::communication::strategy::backtest_strategy::command::BacktestS
 use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::StrategyCommand;
-use event_center::event::node_event::backtest_node_event::signal_event::{
-    ConditionNotMatchEvent, ConditionNotMatchPayload, SignalEvent,
+use event_center::event::node_event::backtest_node_event::common_event::{
+    TriggerEvent, TriggerPayload, CommonEvent,
 };
 use event_center::event::node_event::backtest_node_event::variable_node_event::{
     SysVariableUpdatedEvent, SysVariableUpdatedPayload, VariableNodeEvent,
 };
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IfElseNodeEvent};
 use event_center::event::Event;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -59,16 +59,15 @@ impl BacktestNodeContextTrait for VariableNodeContext {
         &mut self.base_context
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         let node_id = self.base_context.node_id.clone();
         self.base_context
             .output_handles
             .get(&format!("{}_default_output", node_id))
             .unwrap()
-            .clone()
     }
 
-    async fn handle_event(&mut self, event: Event) {
+    async fn handle_engine_event(&mut self, event: Event) {
         tracing::info!("{}: 处理事件: {:?}", self.get_node_id(), event);
         // match event {
         //     Event::Response(response_event) => {
@@ -80,7 +79,8 @@ impl BacktestNodeContextTrait for VariableNodeContext {
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         match node_event {
-            BacktestNodeEvent::Signal(SignalEvent::ConditionMatch(_)) => {
+            BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(_)) => {
+                tracing::debug!("[{}] 条件匹配，获取变量", self.get_node_name());
                 // 判断当前节点的模式
                 // 如果是条件触发模式，则获取变量
                 if self
@@ -93,10 +93,10 @@ impl BacktestNodeContextTrait for VariableNodeContext {
                     self.get_variable().await;
                 }
             }
-            BacktestNodeEvent::Signal(SignalEvent::ConditionNotMatch(_)) => {
+            BacktestNodeEvent::Common(CommonEvent::Trigger(_)) => {
                 tracing::debug!("{}: 条件不触发模式，不获取变量", self.get_node_name());
-                let payload = ConditionNotMatchPayload::new(self.get_play_index());
-                let condition_not_match_event: SignalEvent = ConditionNotMatchEvent::new(
+                let payload = TriggerPayload::new(self.get_play_index());
+                let condition_not_match_event: CommonEvent = TriggerEvent::new(
                     self.base_context.node_id.clone(),
                     self.base_context.node_name.clone(),
                     self.get_default_output_handle().output_handle_id.clone(),

@@ -112,6 +112,16 @@ pub enum BacktestStrategyError {
 
     #[snafu(display("already pausing, cannot pause again"))]
     AlreadyPausing { backtrace: Backtrace },
+
+
+    #[snafu(display("different symbols have different minimum intervals: {symbols:?}"))]
+    IntervalNotSame {
+        symbols: Vec<(String, String)>,
+        backtrace: Backtrace,
+
+    }
+
+
     // EventError {
     //     source: EventCenterError,
     //     backtrace: Backtrace,
@@ -128,21 +138,22 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
         let prefix = self.get_prefix();
         let code = match self {
             // HTTP and JSON errors (1001-1004)
-            BacktestStrategyError::NodeCheck { .. } => 1000,
-            BacktestStrategyError::NodeInit { .. } => 1001,
-            BacktestStrategyError::NodeInitTimeout { .. } => 1002,
-            BacktestStrategyError::TokioTaskFailed { .. } => 1003,
-            BacktestStrategyError::NodeStateNotReady { .. } => 1004,
-            BacktestStrategyError::NodeConfigNull { .. } => 1005,
-            BacktestStrategyError::EdgeConfigNull { .. } => 1006,
-            BacktestStrategyError::EdgeConfigMissField { .. } => 1007,
-            BacktestStrategyError::NodeNotFound { .. } => 1008,
-            BacktestStrategyError::StrategyStateInvalidStateTransition { .. } => 1009,
-            BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1010,
-            BacktestStrategyError::WaitAllNodesStoppedTimeout { .. } => 1011,
-            BacktestStrategyError::PlayFinished { .. } => 1012,
-            BacktestStrategyError::AlreadyPlaying { .. } => 1013,
-            BacktestStrategyError::AlreadyPausing { .. } => 1014,
+            BacktestStrategyError::NodeCheck { .. } => 1000, // 节点检查错误
+            BacktestStrategyError::NodeInit { .. } => 1001, // 节点初始化错误
+            BacktestStrategyError::NodeInitTimeout { .. } => 1002, // 节点初始化超时
+            BacktestStrategyError::TokioTaskFailed { .. } => 1003, // 执行任务失败
+            BacktestStrategyError::NodeStateNotReady { .. } => 1004, // 节点状态未就绪
+            BacktestStrategyError::NodeConfigNull { .. } => 1005, // 节点配置为空
+            BacktestStrategyError::EdgeConfigNull { .. } => 1006, // 边配置为空
+            BacktestStrategyError::EdgeConfigMissField { .. } => 1007, // 边配置缺少字段
+            BacktestStrategyError::NodeNotFound { .. } => 1008, // 节点未找到
+            BacktestStrategyError::StrategyStateInvalidStateTransition { .. } => 1009, // 策略状态转换无效
+            BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1010, // 更新策略状态失败
+            BacktestStrategyError::WaitAllNodesStoppedTimeout { .. } => 1011, // 等待所有节点停止超时
+            BacktestStrategyError::PlayFinished { .. } => 1012, // 所有回测数据播放完毕
+            BacktestStrategyError::AlreadyPlaying { .. } => 1013, // 策略正在播放，无法再次播放
+            BacktestStrategyError::AlreadyPausing { .. } => 1014, // 策略正在暂停，无法再次暂停
+            BacktestStrategyError::IntervalNotSame { .. } => 1015, // 不同symbol的最小周期不相同
             // BacktestStrategyError::EventSendError { .. } => 1010,
         };
         format!("{prefix}_{code}")
@@ -170,6 +181,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 | BacktestStrategyError::PlayFinished { .. }
                 | BacktestStrategyError::AlreadyPlaying { .. }
                 | BacktestStrategyError::AlreadyPausing { .. }
+                | BacktestStrategyError::IntervalNotSame { .. }
         )
     }
 
@@ -298,6 +310,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     BacktestStrategyError::AlreadyPausing { .. } => {
                         format!("策略正在暂停，无法再次暂停")
                     }
+                    BacktestStrategyError::IntervalNotSame { symbols, .. } => {
+                        format!("不同交易对的最小周期不相同: {symbols:?}")
+                    }
                 }
             }
         }
@@ -326,6 +341,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             }
 
             // Errors without source - use default implementation
+            BacktestStrategyError::IntervalNotSame { .. } => {
+                vec![self.error_code()]
+            }
             _ => vec![self.error_code()],
         }
     }

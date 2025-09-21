@@ -275,13 +275,11 @@ impl Mt5HttpClient {
                         terminal_id: self.terminal_id,
                         url: url.clone(),
                     })?;
-            tracing::debug!("response_data: {:?}", response_data);
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
                     let data = response_data
                         .get("data")
                         .unwrap_or(&serde_json::Value::Null);
-                    tracing::debug!("symbol list data: {:?}", data);
                     Ok(data.clone())
                 } else {
                     let error_message = response_data
@@ -355,7 +353,6 @@ impl Mt5HttpClient {
                         terminal_id: self.terminal_id,
                         url: url.clone(),
                     })?;
-            tracing::debug!("response_data: {:?}", response_data);
 
             // 判断是否有code
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {

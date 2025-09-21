@@ -24,7 +24,7 @@ impl TALib {
                     let lookback = TA_EMA_Lookback(ema_config.time_period);
                     return lookback as usize;
                 }
-                IndicatorConfig::HtTrendline(ht_trendline_config) => {
+                IndicatorConfig::HtTrendline(_) => {
                     let lookback = TA_HT_TRENDLINE_Lookback();
                     return lookback as usize;
                 }
@@ -255,7 +255,7 @@ impl TALib {
                 }
 
                 // Volume
-                IndicatorConfig::AD(ad_config) => {
+                IndicatorConfig::AD(_) => {
                     let lookback = TA_AD_Lookback();
                     return lookback as usize;
                 }
@@ -264,46 +264,46 @@ impl TALib {
                         TA_ADOSC_Lookback(adosc_config.fast_period, adosc_config.slow_period);
                     return lookback as usize;
                 }
-                IndicatorConfig::OBV(obv_config) => {
+                IndicatorConfig::OBV(_) => {
                     let lookback = TA_OBV_Lookback();
                     return lookback as usize;
                 }
                 // Cycle
-                IndicatorConfig::HtDcperiod(ht_dcperiod_config) => {
+                IndicatorConfig::HtDcperiod(_) => {
                     let lookback = TA_HT_DCPERIOD_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::HtDcphase(ht_dcphase_config) => {
+                IndicatorConfig::HtDcphase(_) => {
                     let lookback = TA_HT_DCPHASE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::HtPhasor(ht_phasor_config) => {
+                IndicatorConfig::HtPhasor(_) => {
                     let lookback = TA_HT_PHASOR_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::HtSine(ht_sine_config) => {
+                IndicatorConfig::HtSine(_) => {
                     let lookback = TA_HT_SINE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::HtTrendmode(ht_trendmode_config) => {
+                IndicatorConfig::HtTrendmode(_) => {
                     let lookback = TA_HT_TRENDMODE_Lookback();
                     return lookback as usize;
                 }
 
                 // Price Transform
-                IndicatorConfig::AVGPRICE(avgprice_config) => {
+                IndicatorConfig::AVGPRICE(_) => {
                     let lookback = TA_AVGPRICE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::MEDPRICE(medprice_config) => {
+                IndicatorConfig::MEDPRICE(_) => {
                     let lookback = TA_MEDPRICE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::TYPPRICE(typprice_config) => {
+                IndicatorConfig::TYPPRICE(_) => {
                     let lookback = TA_TYPPRICE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::WCLPRICE(wclprice_config) => {
+                IndicatorConfig::WCLPRICE(_) => {
                     let lookback = TA_WCLPRICE_Lookback();
                     return lookback as usize;
                 }
@@ -316,25 +316,25 @@ impl TALib {
                     let lookback = TA_NATR_Lookback(natr_config.time_period);
                     return lookback as usize;
                 }
-                IndicatorConfig::TRANGE(trange_config) => {
+                IndicatorConfig::TRANGE(_) => {
                     let lookback = TA_TRANGE_Lookback();
                     return lookback as usize;
                 }
 
                 // Pattern Recognition
-                IndicatorConfig::CDL2CROWS(cdl2crows_config) => {
+                IndicatorConfig::CDL2CROWS(_) => {
                     let lookback = TA_CDL2CROWS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDL3BLACKCROWS(cdl3blackcrows_config) => {
+                IndicatorConfig::CDL3BLACKCROWS(_) => {
                     let lookback = TA_CDL3BLACKCROWS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDL3INSIDE(cdl3inside_config) => {
+                IndicatorConfig::CDL3INSIDE(_) => {
                     let lookback = TA_CDL3INSIDE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDL3OUTSIDE(cdl3outside_config) => {
+                IndicatorConfig::CDL3OUTSIDE(_) => {
                     let lookback = TA_CDL3OUTSIDE_Lookback();
                     return lookback as usize;
                 }
@@ -343,27 +343,27 @@ impl TALib {
                         TA_CDLABANDONEDBABY_Lookback(cdlabandonedbaby_config.penetration.into());
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLADVANCEBLOCK(cdladvanceblock_config) => {
+                IndicatorConfig::CDLADVANCEBLOCK(_) => {
                     let lookback = TA_CDLADVANCEBLOCK_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLBELTHOLD(cdlbelthold_config) => {
+                IndicatorConfig::CDLBELTHOLD(_) => {
                     let lookback = TA_CDLBELTHOLD_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLBREAKAWAY(cdlbreakaway_config) => {
+                IndicatorConfig::CDLBREAKAWAY(_) => {
                     let lookback = TA_CDLBREAKAWAY_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLCLOSINGMARUBOZU(cdlclosingmarubozu_config) => {
+                IndicatorConfig::CDLCLOSINGMARUBOZU(_) => {
                     let lookback = TA_CDLCLOSINGMARUBOZU_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLCONCEALBABYSWALL(cdlconcealbabyswall_config) => {
+                IndicatorConfig::CDLCONCEALBABYSWALL(_) => {
                     let lookback = TA_CDLCONCEALBABYSWALL_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLCOUNTERATTACK(cdlcounterattack_config) => {
+                IndicatorConfig::CDLCOUNTERATTACK(_) => {
                     let lookback = TA_CDLCOUNTERATTACK_Lookback();
                     return lookback as usize;
                 }
@@ -372,15 +372,15 @@ impl TALib {
                         TA_CDLDARKCLOUDCOVER_Lookback(cdldarkcloudcover_config.penetration.into());
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLDOJI(cdldoji_config) => {
+                IndicatorConfig::CDLDOJI(_) => {
                     let lookback = TA_CDLDOJI_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLDOJISTAR(cdldojistar_config) => {
+                IndicatorConfig::CDLDOJISTAR(_) => {
                     let lookback = TA_CDLDOJISTAR_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLENGULFING(cdlengulfing_config) => {
+                IndicatorConfig::CDLENGULFING(_) => {
                     let lookback = TA_CDLENGULFING_Lookback();
                     return lookback as usize;
                 }
@@ -395,101 +395,101 @@ impl TALib {
                         TA_CDLEVENINGSTAR_Lookback(cdleveningstar_config.penetration.into());
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLGAPSIDESIDEWHITE(cdlgapsidesidewhite_config) => {
+                IndicatorConfig::CDLGAPSIDESIDEWHITE(_) => {
                     let lookback = TA_CDLGAPSIDESIDEWHITE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLGRAVESTONEDOJI(cdlgravestonedoji_config) => {
+                IndicatorConfig::CDLGRAVESTONEDOJI(_) => {
                     let lookback = TA_CDLGRAVESTONEDOJI_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHAMMER(cdlhammer_config) => {
+                IndicatorConfig::CDLHAMMER(_) => {
                     let lookback = TA_CDLHAMMER_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHANGINGMAN(cdlhangingman_config) => {
+                IndicatorConfig::CDLHANGINGMAN(_) => {
                     let lookback = TA_CDLHANGINGMAN_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHIKKAKE(cdlhiikake_config) => {
+                IndicatorConfig::CDLHIKKAKE(_) => {
                     let lookback = TA_CDLHIKKAKE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHIKKAKEMOD(cdlhiikakemod_config) => {
+                IndicatorConfig::CDLHIKKAKEMOD(_) => {
                     let lookback = TA_CDLHIKKAKEMOD_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHOMINGPIGEON(cdlhomingpigeon_config) => {
+                IndicatorConfig::CDLHOMINGPIGEON(_) => {
                     let lookback = TA_CDLHOMINGPIGEON_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLIDENTICAL3CROWS(cdlidentical3crows_config) => {
+                IndicatorConfig::CDLIDENTICAL3CROWS(_) => {
                     let lookback = TA_CDLIDENTICAL3CROWS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLINVERTEDHAMMER(cdlinvertedhammer_config) => {
+                IndicatorConfig::CDLINVERTEDHAMMER(_) => {
                     let lookback = TA_CDLINVERTEDHAMMER_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLKICKING(cdlkicking_config) => {
+                IndicatorConfig::CDLKICKING(_) => {
                     let lookback = TA_CDLKICKING_Lookback();
                     return lookback as usize;
                 }
 
                 // 补充所有缺失的 CDL 指标
-                IndicatorConfig::CDL3LINESTRIKE(cdl3linestrike_config) => {
+                IndicatorConfig::CDL3LINESTRIKE(_) => {
                     let lookback = TA_CDL3LINESTRIKE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDL3STARSINSOUTH(cdl3starsinsouth_config) => {
+                IndicatorConfig::CDL3STARSINSOUTH(_) => {
                     let lookback = TA_CDL3STARSINSOUTH_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDL3WHITESOLDIERS(cdl3whitesoldiers_config) => {
+                IndicatorConfig::CDL3WHITESOLDIERS(_) => {
                     let lookback = TA_CDL3WHITESOLDIERS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLDRAGONFLYDOJI(cdldragonflydoji_config) => {
+                IndicatorConfig::CDLDRAGONFLYDOJI(_) => {
                     let lookback = TA_CDLDRAGONFLYDOJI_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHARAMI(cdlharami_config) => {
+                IndicatorConfig::CDLHARAMI(_) => {
                     let lookback = TA_CDLHARAMI_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHARAMICROSS(cdlharamicross_config) => {
+                IndicatorConfig::CDLHARAMICROSS(_) => {
                     let lookback = TA_CDLHARAMICROSS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLHIGHWAVE(cdlhighwave_config) => {
+                IndicatorConfig::CDLHIGHWAVE(_) => {
                     let lookback = TA_CDLHIGHWAVE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLINNECK(cdlinneck_config) => {
+                IndicatorConfig::CDLINNECK(_) => {
                     let lookback = TA_CDLINNECK_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLKICKINGBYLENGTH(cdlkickingbylength_config) => {
+                IndicatorConfig::CDLKICKINGBYLENGTH(_) => {
                     let lookback = TA_CDLKICKINGBYLENGTH_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLLADDERBOTTOM(cdlladderbottom_config) => {
+                IndicatorConfig::CDLLADDERBOTTOM(_) => {
                     let lookback = TA_CDLLADDERBOTTOM_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLLONGLEGGEDDOJI(cdllongleggeddoji_config) => {
+                IndicatorConfig::CDLLONGLEGGEDDOJI(_) => {
                     let lookback = TA_CDLLONGLEGGEDDOJI_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLLONGLINE(cdllongline_config) => {
+                IndicatorConfig::CDLLONGLINE(_) => {
                     let lookback = TA_CDLLONGLINE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLMARUBOZU(cdlmarubozu_config) => {
+                IndicatorConfig::CDLMARUBOZU(_) => {
                     let lookback = TA_CDLMARUBOZU_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLMATCHINGLOW(cdlmatchinglow_config) => {
+                IndicatorConfig::CDLMATCHINGLOW(_) => {
                     let lookback = TA_CDLMATCHINGLOW_Lookback();
                     return lookback as usize;
                 }

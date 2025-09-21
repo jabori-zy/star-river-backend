@@ -60,8 +60,6 @@ pub enum BacktestStrategyStateTransitionEvent {
 #[derive(Debug, Clone, Display)]
 pub enum BacktestStrategyStateAction {
     // 当切换到某一个状态时, 需要执行的动作
-    #[strum(serialize = "InitCacheLength")]
-    InitCacheLength, // 初始化缓存长度
 
     #[strum(serialize = "InitSignalCount")]
     InitSignalCount, // 初始化信号计数
@@ -191,7 +189,6 @@ impl BacktestStrategyStateMachine {
                         BacktestStrategyStateAction::ListenAndHandleNodeCommand,
                         BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent,
                         BacktestStrategyStateAction::InitNode, // 初始化节点
-                        BacktestStrategyStateAction::InitCacheLength, // 初始化缓存长度
                         BacktestStrategyStateAction::InitSignalCount, // 初始化信号计数
                         BacktestStrategyStateAction::InitInitialPlaySpeed, // 初始化初始播放速度
                         BacktestStrategyStateAction::InitVirtualTradingSystem, // 初始化虚拟交易系统

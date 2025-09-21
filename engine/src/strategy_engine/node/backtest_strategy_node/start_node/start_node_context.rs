@@ -5,14 +5,12 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::{BacktestStrategyCommand, GetStartNodeConfigResponse};
-use event_center::event::node_event::backtest_node_event::signal_event::{
-    KlinePlayEvent, KlinePlayFinishedEvent, KlinePlayFinishedPayload, KlinePlayPayload, SignalEvent,
+use event_center::event::node_event::backtest_node_event::start_node_event::{
+    KlinePlayEvent, KlinePlayPayload, StartNodeEvent,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
 use heartbeat::Heartbeat;
-
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use star_river_core::strategy::BacktestStrategyConfig;
@@ -21,7 +19,6 @@ use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use star_river_core::utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug, Clone)]
@@ -53,15 +50,14 @@ impl BacktestNodeContextTrait for StartNodeContext {
         &mut self.base_context
     }
 
-    fn get_default_output_handle(&self) -> NodeOutputHandle {
+    fn get_default_output_handle(&self) -> &NodeOutputHandle {
         self.base_context
             .output_handles
             .get(&format!("start_node_default_output"))
             .unwrap()
-            .clone()
     }
 
-    async fn handle_event(&mut self, event: Event) {
+    async fn handle_engine_event(&mut self, event: Event) {
         tracing::info!("{}: 收到事件: {:?}", self.base_context.node_id, event);
     }
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
@@ -124,7 +120,7 @@ impl StartNodeContext {
     // 发送k线跳动信号
     pub async fn send_play_signal(&self) {
         let payload = KlinePlayPayload::new(self.get_play_index());
-        let kline_play_event: SignalEvent = KlinePlayEvent::new(
+        let kline_play_event: StartNodeEvent = KlinePlayEvent::new(
             self.base_context.node_id.clone(),
             self.base_context.node_name.clone(),
             self.get_default_output_handle().output_handle_id.clone(),
@@ -137,19 +133,19 @@ impl StartNodeContext {
     }
 
     // 发送k线播放完毕信号
-    pub async fn send_finish_signal(&self, play_index: i32) {
-        let payload = KlinePlayFinishedPayload::new(play_index);
-        let kline_play_finished_event: SignalEvent = KlinePlayFinishedEvent::new(
-            self.base_context.node_id.clone(),
-            self.base_context.node_name.clone(),
-            self.get_default_output_handle().output_handle_id.clone(),
-            payload,
-        )
-        .into();
-        self.get_default_output_handle()
-            .send(kline_play_finished_event.into())
-            .unwrap();
-    }
+    // pub async fn send_finish_signal(&self, play_index: i32) {
+    //     let payload = KlinePlayFinishedPayload::new(play_index);
+    //     let play_finished_event: StartNodeEvent = KlinePlayFinishedEvent::new(
+    //         self.base_context.node_id.clone(),
+    //         self.base_context.node_name.clone(),
+    //         self.get_default_output_handle().output_handle_id.clone(),
+    //         payload,
+    //     )
+    //     .into();
+    //     self.get_default_output_handle()
+    //         .send(play_finished_event.into())
+    //         .unwrap();
+    // }
 
     pub async fn init_virtual_trading_system(&self) {
         let mut virtual_trading_system = self.virtual_trading_system.lock().await;

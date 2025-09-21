@@ -8,22 +8,34 @@ use strum::Display;
 pub enum IndicatorNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
     ListenAndHandleExternalEvents, // 处理外部事件
+    
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
+    
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
+    
     #[strum(serialize = "ListenAndHandleInnerEvents")]
     ListenAndHandleInnerEvents, // 处理内部事件
-    #[strum(serialize = "RegisterIndicatorCacheKey")]
-    RegisterIndicatorCacheKey, // 注册指标缓存键
+    
+    #[strum(serialize = "RegisterIndicatorKey")]
+    RegisterIndicatorKey, // 注册指标缓存键
+
+    #[strum(serialize = "GetMinIntervalSymbols")]
+    GetMinIntervalSymbols, // 获取最小周期交易对
+    
     #[strum(serialize = "CalculateIndicator")]
     CalculateIndicator, // 计算指标
+    
     #[strum(serialize = "LogNodeState")]
     LogNodeState, // 记录节点状态
+    
     #[strum(serialize = "LogTransition")]
     LogTransition, // 记录状态转换
+    
     #[strum(serialize = "LogError")]
     LogError(String), // 记录错误
+    
     #[strum(serialize = "CancelAsyncTask")]
     CancelAsyncTask, // 取消异步任务
 }
@@ -108,7 +120,8 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                         Box::new(IndicatorNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleInnerEvents),
-                        Box::new(IndicatorNodeStateAction::RegisterIndicatorCacheKey),
+                        Box::new(IndicatorNodeStateAction::GetMinIntervalSymbols),
+                        Box::new(IndicatorNodeStateAction::RegisterIndicatorKey),
                         Box::new(IndicatorNodeStateAction::CalculateIndicator),
                     ],
                 }))

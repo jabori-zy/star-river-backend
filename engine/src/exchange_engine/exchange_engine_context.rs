@@ -152,7 +152,7 @@ impl ExchangeEngineContext {
         }
     }
 
-    #[instrument(skip(self, account_config), fields(login = %account_config.config["login"], server = %account_config.config["server"]))]
+    // #[instrument(skip(self, account_config), fields(login = %account_config.config["login"], server = %account_config.config["server"]))]
     async fn register_mt5_exchange_in_dev(
         &mut self,
         account_config: AccountConfig,
@@ -367,7 +367,7 @@ impl ExchangeEngineContext {
         &mut self,
         unregister_params: UnregisterExchangeParams,
     ) -> Result<(), String> {
-        tracing::debug!("接收到命令: {:?}", unregister_params);
+        // tracing::debug!("接收到命令: {:?}", unregister_params);
         // 先获取实例
         let mut exchange = self.get_exchange(&unregister_params.account_id).await?;
         match exchange.exchange_type() {

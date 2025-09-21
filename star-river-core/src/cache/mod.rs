@@ -16,12 +16,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
+use crate::strategy::TimeRange;
 
 pub trait KeyTrait {
     fn get_key_str(&self) -> String;
     fn get_exchange(&self) -> Exchange;
     fn get_symbol(&self) -> String;
     fn get_interval(&self) -> KlineInterval;
+    fn get_time_range(&self) -> Option<TimeRange>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -51,7 +53,7 @@ impl FromStr for Key {
 }
 
 impl Key {
-    pub fn get_key(&self) -> String {
+    pub fn get_key_str(&self) -> String {
         match self {
             // Key::Kline(key) => key.get_key_str(),
             // Key::Indicator(key) => key.get_key_str(),
@@ -86,6 +88,39 @@ impl Key {
             Key::Indicator(key) => key.interval.clone(),
         }
     }
+
+    pub fn get_start_time(&self) -> Option<String> {
+        match self {
+            Key::Kline(key) => key.start_time.clone(),
+            Key::Indicator(key) => key.start_time.clone(),
+        }
+    }
+    
+    pub fn get_end_time(&self) -> Option<String> {
+        match self {
+            Key::Kline(key) => key.end_time.clone(),
+            Key::Indicator(key) => key.end_time.clone(),
+        }
+    }
+
+    pub fn get_time_range(&self) -> Option<TimeRange> {
+        match self {
+            Key::Kline(key) => {
+                if let (Some(start_time), Some(end_time)) = (key.start_time.clone(), key.end_time.clone()) {
+                    Some(TimeRange::new(start_time, end_time))
+                } else {
+                    None
+                }
+            }
+            Key::Indicator(key) => {
+                if let (Some(start_time), Some(end_time)) = (key.start_time.clone(), key.end_time.clone()) {
+                    Some(TimeRange::new(start_time, end_time))
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 pub trait CacheItem: Clone + Debug + DeepSizeOf {
@@ -103,42 +138,45 @@ pub enum CacheValue {
     Indicator(Indicator),
 }
 
-impl CacheValue {
-    pub fn to_json(&self) -> serde_json::Value {
+impl CacheItem for CacheValue {
+    fn to_json(&self) -> serde_json::Value {
         match self {
             CacheValue::Kline(value) => value.to_json(),
             CacheValue::Indicator(value) => value.to_json(),
         }
     }
 
-    pub fn to_json_with_time(&self) -> serde_json::Value {
+    fn to_json_with_time(&self) -> serde_json::Value {
         match self {
             CacheValue::Kline(value) => value.to_json_with_time(),
             CacheValue::Indicator(value) => value.to_json_with_time(),
         }
     }
 
-    pub fn to_list(&self) -> Vec<f64> {
+    fn to_list(&self) -> Vec<f64> {
         match self {
             CacheValue::Kline(value) => value.to_list(),
             CacheValue::Indicator(value) => value.to_list(),
         }
     }
 
-    pub fn get_datetime(&self) -> DateTime<Utc> {
+    fn get_datetime(&self) -> DateTime<Utc> {
         match self {
             CacheValue::Kline(value) => value.get_datetime(),
             CacheValue::Indicator(value) => value.get_datetime(),
         }
     }
 
-    pub fn get_timestamp(&self) -> i64 {
+    fn get_timestamp(&self) -> i64 {
         match self {
             CacheValue::Kline(value) => value.get_timestamp(),
             CacheValue::Indicator(value) => value.get_timestamp(),
         }
     }
+}
 
+
+impl CacheValue {
     pub fn as_kline_ref(&self) -> Option<&Kline> {
         match self {
             CacheValue::Kline(value) => Some(value),
@@ -172,6 +210,7 @@ pub trait CacheEntryTrait {
     fn get_key(&self) -> Key;
     fn initialize(&mut self, data: Vec<CacheValue>);
     fn update(&mut self, cache_value: CacheValue);
+    fn clear(&mut self);
     fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>>;
     fn get_cache_data(&self, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>>;
     fn get_create_time(&self) -> i64;
@@ -185,10 +224,8 @@ pub trait CacheEntryTrait {
 
 #[derive(Debug, Clone)]
 pub enum CacheEntry {
-    // Kline(KlineCacheEntry),
-    // Indicator(IndicatorCacheEntry),
-    HistoryKline(KlineCacheEntry),
-    HistoryIndicator(IndicatorCacheEntry),
+    Kline(KlineCacheEntry),
+    Indicator(IndicatorCacheEntry),
 }
 
 impl CacheEntry {
@@ -197,10 +234,10 @@ impl CacheEntry {
             // Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
             // Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
             Key::Kline(key) => {
-                CacheEntry::HistoryKline(KlineCacheEntry::new(key, Some(max_size), ttl))
+                CacheEntry::Kline(KlineCacheEntry::new(key, Some(max_size), ttl))
             }
             Key::Indicator(key) => {
-                CacheEntry::HistoryIndicator(IndicatorCacheEntry::new(key, Some(max_size), ttl))
+                CacheEntry::Indicator(IndicatorCacheEntry::new(key, Some(max_size), ttl))
             }
         }
     }
@@ -209,8 +246,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.initialize(data),
             // CacheEntry::Indicator(entry) => entry.initialize(data),
-            CacheEntry::HistoryKline(entry) => entry.initialize(data),
-            CacheEntry::HistoryIndicator(entry) => entry.initialize(data),
+            CacheEntry::Kline(entry) => entry.initialize(data),
+            CacheEntry::Indicator(entry) => entry.initialize(data),
         }
     }
 
@@ -218,8 +255,15 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.update(cache_value),
             // CacheEntry::Indicator(entry) => entry.update(cache_value),
-            CacheEntry::HistoryKline(entry) => entry.update(cache_value),
-            CacheEntry::HistoryIndicator(entry) => entry.update(cache_value),
+            CacheEntry::Kline(entry) => entry.update(cache_value),
+            CacheEntry::Indicator(entry) => entry.update(cache_value),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        match self {
+            CacheEntry::Kline(entry) => entry.clear(),
+            CacheEntry::Indicator(entry) => entry.clear(),
         }
     }
 
@@ -227,16 +271,16 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_key(),
             // CacheEntry::Indicator(entry) => entry.get_key(),
-            CacheEntry::HistoryKline(entry) => entry.get_key(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_key(),
+            CacheEntry::Kline(entry) => entry.get_key(),
+            CacheEntry::Indicator(entry) => entry.get_key(),
         }
     }
     pub fn get_all_cache_data(&self) -> Vec<Arc<CacheValue>> {
         match self {
             // CacheEntry::Kline(entry) => entry.get_all_cache_data(),
             // CacheEntry::Indicator(entry) => entry.get_all_cache_data(),
-            CacheEntry::HistoryKline(entry) => entry.get_all_cache_data(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_all_cache_data(),
+            CacheEntry::Kline(entry) => entry.get_all_cache_data(),
+            CacheEntry::Indicator(entry) => entry.get_all_cache_data(),
         }
     }
 
@@ -244,8 +288,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_cache_data(index, limit),
             // CacheEntry::Indicator(entry) => entry.get_cache_data(index, limit),
-            CacheEntry::HistoryKline(entry) => entry.get_cache_data(index, limit),
-            CacheEntry::HistoryIndicator(entry) => entry.get_cache_data(index, limit),
+            CacheEntry::Kline(entry) => entry.get_cache_data(index, limit),
+            CacheEntry::Indicator(entry) => entry.get_cache_data(index, limit),
         }
     }
 
@@ -253,8 +297,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_create_time(),
             // CacheEntry::Indicator(entry) => entry.get_create_time(),
-            CacheEntry::HistoryKline(entry) => entry.get_create_time(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_create_time(),
+            CacheEntry::Kline(entry) => entry.get_create_time(),
+            CacheEntry::Indicator(entry) => entry.get_create_time(),
         }
     }
 
@@ -262,8 +306,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_update_time(),
             // CacheEntry::Indicator(entry) => entry.get_update_time(),
-            CacheEntry::HistoryKline(entry) => entry.get_update_time(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_update_time(),
+            CacheEntry::Kline(entry) => entry.get_update_time(),
+            CacheEntry::Indicator(entry) => entry.get_update_time(),
         }
     }
 
@@ -271,8 +315,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_max_size(),
             // CacheEntry::Indicator(entry) => entry.get_max_size(),
-            CacheEntry::HistoryKline(entry) => entry.get_max_size(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_max_size(),
+            CacheEntry::Kline(entry) => entry.get_max_size(),
+            CacheEntry::Indicator(entry) => entry.get_max_size(),
         }
     }
 
@@ -280,8 +324,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_is_fresh(),
             // CacheEntry::Indicator(entry) => entry.get_is_fresh(),
-            CacheEntry::HistoryKline(entry) => entry.get_is_fresh(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_is_fresh(),
+            CacheEntry::Kline(entry) => entry.get_is_fresh(),
+            CacheEntry::Indicator(entry) => entry.get_is_fresh(),
         }
     }
 
@@ -289,8 +333,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_ttl(),
             // CacheEntry::Indicator(entry) => entry.get_ttl(),
-            CacheEntry::HistoryKline(entry) => entry.get_ttl(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_ttl(),
+            CacheEntry::Kline(entry) => entry.get_ttl(),
+            CacheEntry::Indicator(entry) => entry.get_ttl(),
         }
     }
 
@@ -326,8 +370,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_length(),
             // CacheEntry::Indicator(entry) => entry.get_length(),
-            CacheEntry::HistoryKline(entry) => entry.get_length(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_length(),
+            CacheEntry::Kline(entry) => entry.get_length(),
+            CacheEntry::Indicator(entry) => entry.get_length(),
         }
     }
 
@@ -335,8 +379,8 @@ impl CacheEntry {
         match self {
             // CacheEntry::Kline(entry) => entry.get_memory_size(),
             // CacheEntry::Indicator(entry) => entry.get_memory_size(),
-            CacheEntry::HistoryKline(entry) => entry.get_memory_size(),
-            CacheEntry::HistoryIndicator(entry) => entry.get_memory_size(),
+            CacheEntry::Kline(entry) => entry.get_memory_size(),
+            CacheEntry::Indicator(entry) => entry.get_memory_size(),
         }
     }
 }

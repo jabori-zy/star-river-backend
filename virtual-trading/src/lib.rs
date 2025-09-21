@@ -107,8 +107,8 @@ impl VirtualTradingSystem {
     pub fn add_kline_key(&mut self, kline_key: KlineKey) {
         // 判断CacheKey是否存在
         if !self.kline_price.contains_key(&kline_key) {
-            // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_cache_key
-            let filtered_kline_cache_keys = self
+            // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_key
+            let filtered_kline_keys = self
                 .kline_price
                 .keys()
                 .filter(|key| {
@@ -120,10 +120,10 @@ impl VirtualTradingSystem {
                 .collect::<Vec<&KlineKey>>();
             //比较interval，保留interval最小的那一个
             // 过滤出的列表长度一定为1，因为除了interval不同，其他都相同
-            if filtered_kline_cache_keys.len() == 1 {
+            if filtered_kline_keys.len() == 1 {
                 // 比较要插入的key的interval和过滤出的key的interval
                 // 如果要插入的key的interval小于过滤出的key的interval，则插入
-                if kline_key.interval < filtered_kline_cache_keys[0].interval {
+                if kline_key.interval < filtered_kline_keys[0].interval {
                     self.kline_price.insert(
                         kline_key,
                         Kline {
@@ -231,10 +231,12 @@ impl VirtualTradingSystem {
         for kline_key in keys {
             let kline = self
                 .get_close_price(kline_key.clone().into())
-                .await
-                .unwrap();
-            timestamp_list.push(kline.datetime);
-            self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
+                .await;
+            if let Ok(kline) = kline {
+                
+                timestamp_list.push(kline.datetime);
+                self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
+            }
         }
 
         // 检查完成后，需要检查所有k线的时间戳是否相同
@@ -326,12 +328,12 @@ impl VirtualTradingSystem {
     }
 
     // 从缓存引擎获取k线数据
-    async fn get_close_price(&self, kline_cache_key: Key) -> Result<Kline, String> {
+    async fn get_close_price(&self, kline_key: Key) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let params = GetCacheParams::new(
             -1,
             "virtual_trading_system".to_string(),
-            kline_cache_key,
+            kline_key,
             Some(self.get_play_index() as u32),
             Some(1),
             "virtual_trading_system".to_string(),
@@ -347,9 +349,11 @@ impl VirtualTradingSystem {
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.success() {
-            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) =
-                CacheEngineResponse::try_from(response)
+            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) = CacheEngineResponse::try_from(response)
             {
+                if get_cache_data_response.cache_data.is_empty() {
+                    return Err("get cache data response is empty".to_string());
+                }
                 let kline = get_cache_data_response.cache_data[0].as_kline().unwrap();
                 return Ok(kline);
             }

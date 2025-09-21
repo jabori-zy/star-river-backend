@@ -2,8 +2,6 @@ pub mod calculate_macros;
 pub mod define_calculate_fun;
 
 use crate::cache_engine::CacheEngine;
-use crate::calculate_fn;
-use crate::calculate_fn_snake;
 use crate::indicator_engine::talib::TALib;
 use star_river_core::cache::CacheValue;
 use star_river_core::cache::Key;
@@ -13,6 +11,7 @@ use star_river_core::indicator::PriceSource;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use chrono::{DateTime, Utc};
+use star_river_core::error::engine_error::indicator_engine_error::*;
 
 pub struct CalculateIndicatorFunction;
 
@@ -22,8 +21,7 @@ impl CalculateIndicatorFunction {
         kline_key: Key,
         indicator_config: IndicatorConfig,
         ignore_config: bool, // 是否忽略指标计算配置中所需要的长度，而是使用缓存中的所有数据
-    ) -> Result<Vec<Indicator>, String> {
-        tracing::info!("indicator_config: {:?}", indicator_config);
+    ) -> Result<Vec<Indicator>, IndicatorEngineError> {
 
         let lookback = TALib::lookback(&indicator_config);
         let kline_series: Vec<Arc<CacheValue>>;
@@ -40,12 +38,6 @@ impl CalculateIndicatorFunction {
                 .await
                 .get_cache_value(&kline_key, None, Some(lookback as u32 + 1))
                 .await;
-            if kline_series.len() < (lookback + 1) as usize {
-                return Err(format!(
-                    "kline_series length is less than lookback: {:?}",
-                    lookback
-                ));
-            }
         }
 
         match &indicator_config {
@@ -449,18 +441,19 @@ impl CalculateIndicatorFunction {
         }
     }
 
+    // 获取价格来源和时间戳
     fn get_price_source_and_datetime(
         price_source: &PriceSource,
         kline_series: Vec<Arc<CacheValue>>,
-    ) -> Result<(Vec<DateTime<Utc>>, Vec<f64>), String> {
+    ) -> Result<(Vec<DateTime<Utc>>, Vec<f64>), IndicatorEngineError> {
         let (timestamp_list, price_list) = match price_source {
             PriceSource::Close => {
                 let (timestamp_list, close_list): (Vec<DateTime<Utc>>, Vec<f64>) = kline_series
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
-                        v.as_kline()
-                            .ok_or_else(|| format!("Invalid kline data at index {}", i))
+                        v.as_kline_ref()
+                            .ok_or_else(|| InvalidKlineDataSnafu { index: i }.build())
                             .map(|kline| (kline.datetime, kline.close))
                     })
                     .collect::<Result<Vec<(DateTime<Utc>, f64)>, _>>()?
@@ -473,8 +466,8 @@ impl CalculateIndicatorFunction {
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
-                        v.as_kline()
-                            .ok_or_else(|| format!("Invalid kline data at index {}", i))
+                        v.as_kline_ref()
+                            .ok_or_else(|| InvalidKlineDataSnafu { index: i }.build())
                             .map(|kline| (kline.datetime, kline.open))
                     })
                     .collect::<Result<Vec<(DateTime<Utc>, f64)>, _>>()?
@@ -487,8 +480,8 @@ impl CalculateIndicatorFunction {
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
-                        v.as_kline()
-                            .ok_or_else(|| format!("Invalid kline data at index {}", i))
+                        v.as_kline_ref()
+                            .ok_or_else(|| InvalidKlineDataSnafu { index: i }.build())
                             .map(|kline| (kline.datetime, kline.high))
                     })
                     .collect::<Result<Vec<(DateTime<Utc>, f64)>, _>>()?
@@ -501,8 +494,8 @@ impl CalculateIndicatorFunction {
                     .iter()
                     .enumerate()
                     .map(|(i, v)| {
-                        v.as_kline()
-                            .ok_or_else(|| format!("Invalid kline data at index {}", i))
+                        v.as_kline_ref()
+                            .ok_or_else(|| InvalidKlineDataSnafu { index: i }.build())
                             .map(|kline| (kline.datetime, kline.low))
                     })
                     .collect::<Result<Vec<(DateTime<Utc>, f64)>, _>>()?
@@ -518,7 +511,7 @@ impl CalculateIndicatorFunction {
     // 获取高开低收+时间戳
     fn get_tohlcv(
         kline_series: Vec<Arc<CacheValue>>,
-    ) -> Result<(Vec<DateTime<Utc>>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>), String> {
+    ) -> Result<(Vec<DateTime<Utc>>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>), IndicatorEngineError> {
         let mut timestamp_list = Vec::new();
         let mut open_list = Vec::new();
         let mut high_list = Vec::new();
@@ -528,8 +521,8 @@ impl CalculateIndicatorFunction {
 
         for (i, v) in kline_series.iter().enumerate() {
             let kline = v
-                .as_kline()
-                .ok_or_else(|| format!("Invalid kline data at index {}", i))?;
+                .as_kline_ref()
+                .ok_or_else(|| InvalidKlineDataSnafu { index: i }.build())?;
             timestamp_list.push(kline.datetime);
             open_list.push(kline.open);
             high_list.push(kline.high);

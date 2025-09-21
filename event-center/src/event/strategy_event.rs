@@ -1,6 +1,7 @@
 pub mod backtest_strategy_event;
 
 use super::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use super::node_event::backtest_node_event::common_event::CommonEvent;
 use super::node_event::BacktestNodeEvent;
 use crate::Event;
 use backtest_strategy_event::BacktestStrategyEvent;
@@ -157,6 +158,18 @@ pub enum StrategyRunningLogType {
     #[strum(serialize = "condition_match")]
     #[serde(rename = "ConditionMatch")]
     ConditionMatch,
+    #[strum(serialize = "order_created")]
+    #[serde(rename = "OrderCreated")]
+    OrderCreated,
+    #[strum(serialize = "order_filled")]
+    #[serde(rename = "OrderFilled")]
+    OrderFilled,
+    #[strum(serialize = "order_canceled")]
+    #[serde(rename = "OrderCanceled")]
+    OrderCanceled,
+    #[strum(serialize = "processing_order")]
+    #[serde(rename = "ProcessingOrder")]
+    ProcessingOrder,
 }
 
 // 策略运行日志
@@ -197,6 +210,18 @@ pub struct StrategyRunningLogEvent {
     pub datetime: DateTimeUtc,
 }
 
+impl From<StrategyRunningLogEvent> for BacktestNodeEvent {
+    fn from(event: StrategyRunningLogEvent) -> Self {
+        BacktestNodeEvent::Common(CommonEvent::RunningLog(event))
+    }
+}
+
+impl From<StrategyRunningLogEvent> for BacktestStrategyEvent {
+    fn from(event: StrategyRunningLogEvent) -> Self {
+        BacktestStrategyEvent::RunningLog(event)
+    }
+}
+
 impl StrategyRunningLogEvent {
     pub fn success(
         strategy_id: i32,
@@ -214,6 +239,31 @@ impl StrategyRunningLogEvent {
             node_name,
             source,
             log_level: LogLevel::Info,
+            log_type,
+            message,
+            detail,
+            error_code: None,
+            error_code_chain: None,
+            datetime,
+        }
+    }
+
+    pub fn warn(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        source: StrategyRunningLogSource,
+        log_type: StrategyRunningLogType,
+        message: String,
+        detail: serde_json::Value,
+        datetime: DateTimeUtc,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            source,
+            log_level: LogLevel::Warn,
             log_type,
             message,
             detail,

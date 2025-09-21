@@ -97,7 +97,7 @@ impl BacktestStrategyFunction {
         };
 
         tracing::debug!(
-            "添加边: {:?} -> {:?}, 源节点handle = {}",
+            "add edge: {:?} -> {:?}, source handle = {}",
             from_node_id,
             to_node_id,
             from_handle_id
@@ -108,7 +108,7 @@ impl BacktestStrategyFunction {
             .unwrap()
             .get_all_output_handles()
             .await;
-        tracing::debug!("from_node_handles: {:?}", from_node_handles);
+        tracing::debug!("from_node_handles: {:?}", from_node_handles.iter().map(|handle| handle.output_handle_id.clone()).collect::<Vec<String>>());
         // 先获取源节点的output_handle
         let from_node_output_handle = context_guard
             .graph
@@ -116,12 +116,6 @@ impl BacktestStrategyFunction {
             .unwrap()
             .get_output_handle(&from_handle_id.to_string())
             .await;
-
-        tracing::debug!(
-            "{}: from_node_output_handle: {:?}",
-            from_handle_id,
-            from_node_output_handle
-        );
         // 增加源节点的出口连接数
         context_guard
             .graph
@@ -134,8 +128,6 @@ impl BacktestStrategyFunction {
         if let Some(target_node) = context_guard.graph.node_weight_mut(target) {
             let receiver = from_node_output_handle.subscribe();
             // 获取接收者数量
-
-            // tracing::debug!("{:?} 添加了一个接收者", target_node.get_node_name().await);
             let node_message_receiver = NodeInputHandle::new(
                 from_node_id.to_string(),
                 from_handle_id.to_string(),
@@ -147,9 +139,9 @@ impl BacktestStrategyFunction {
                 .await;
             let message_receivers = target_node.get_node_event_receivers().await;
             tracing::debug!(
-                "{}: 添加了一个接收者: {:?}",
+                "[{}] have added message receivers: {:?}",
                 target_node.get_node_name().await,
-                message_receivers
+                message_receivers.iter().map(|handle| handle.from_handle_id.clone()).collect::<Vec<String>>()
             );
             target_node.add_from_node_id(from_node_id.to_string()).await;
         }

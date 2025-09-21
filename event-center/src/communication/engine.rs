@@ -17,6 +17,7 @@ use std::sync::Arc;
 pub type EngineCommandSender = mpsc::Sender<EngineCommand>; // 命令发送器
 pub type EngineCommandReceiver = mpsc::Receiver<EngineCommand>; // 命令接收器
 pub type EngineResponder = oneshot::Sender<EngineResponse>; // 响应
+pub type EngineResponderNew = oneshot::Sender<Box<dyn ResponseTrait>>; // 响应
 
 pub trait EngineCommandTrait {
     fn responder(&self) -> &EngineResponder;

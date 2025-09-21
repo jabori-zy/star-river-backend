@@ -13,6 +13,8 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::TradeMode;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::custom_type::PlayIndex;
+use tokio::time::Duration;
 
 /*
     回测策略控制
@@ -55,8 +57,10 @@ impl StrategyEngineContext {
             let strategy_id = strategy_config.id;
             let strategy_name = strategy_config.name.clone();
             let result: Result<(), BacktestStrategyError> = async {
-                let mut strategy =
-                    BacktestStrategy::new(strategy_config, database, heartbeat).await;
+                let mut strategy = BacktestStrategy::new(strategy_config, database, heartbeat).await;
+
+                // 休眠1秒
+                tokio::time::sleep(Duration::from_millis(500)).await;
 
                 strategy.check_strategy().await?;
 
@@ -82,10 +86,10 @@ impl StrategyEngineContext {
     }
 
     // 停止回测策略
-    pub async fn backtest_strategy_stop(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn backtest_strategy_stop(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(mut strategy) = strategy {
-            strategy.stop_strategy().await.unwrap();
+            strategy.stop_strategy().await?;
             self.remove_strategy_instance(TradeMode::Backtest, strategy_id)
                 .await?;
         }
@@ -93,28 +97,28 @@ impl StrategyEngineContext {
     }
 
     // 播放回测策略
-    pub async fn backtest_strategy_play(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn backtest_strategy_play(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(mut strategy) = strategy {
-            strategy.play().await.unwrap();
+            strategy.play().await?;
         }
         Ok(())
     }
 
     // 重置回测策略
-    pub async fn backtest_strategy_reset(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn backtest_strategy_reset(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(mut strategy) = strategy {
-            strategy.reset().await.unwrap();
+            strategy.reset().await?;
         }
         Ok(())
     }
 
     // 暂停回测策略
-    pub async fn backtest_strategy_pause(&mut self, strategy_id: i32) -> Result<(), String> {
+    pub async fn backtest_strategy_pause(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(mut strategy) = strategy {
-            strategy.pause().await.unwrap();
+            strategy.pause().await?;
         }
         Ok(())
     }
@@ -123,14 +127,10 @@ impl StrategyEngineContext {
     pub async fn backtest_strategy_play_one_kline(
         &mut self,
         strategy_id: i32,
-    ) -> Result<i32, String> {
-        let strategy = self.get_backtest_strategy_instance(strategy_id).await;
-        if let Ok(mut strategy) = strategy {
-            let play_index = strategy.play_one_kline().await.unwrap();
-            Ok(play_index)
-        } else {
-            Err("播放单根k线失败".to_string())
-        }
+    ) -> Result<PlayIndex, StrategyEngineError> {
+        let mut strategy = self.get_backtest_strategy_instance(strategy_id).await?;
+        let play_index = strategy.play_one_kline().await?;
+        Ok(play_index)
     }
 
     // 获取回测策略的缓存键

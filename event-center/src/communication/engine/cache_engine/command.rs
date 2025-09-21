@@ -1,7 +1,7 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
 use chrono::Utc;
 use star_river_core::system::DateTimeUtc;
-use star_river_core::cache::Key;
+use star_river_core::cache::{Key, CacheValue};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::market::{Exchange, KlineInterval};
 use std::fmt::Debug;
@@ -15,6 +15,8 @@ pub enum CacheEngineCommand {
     GetCacheMulti(GetCacheMultiParams),             // 一次性获取多个key的数据
     GetCacheLength(GetCacheLengthParams),           // 获取缓存长度
     GetCacheLengthMulti(GetCacheLengthMultiParams), // 一次性获取多个key的缓存长度
+    UpdateCache(UpdateCacheParams),                 // 更新缓存数据
+    ClearCache(ClearCacheParams),                   // 清空缓存
 }
 
 impl EngineCommandTrait for CacheEngineCommand {
@@ -25,6 +27,8 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheMulti(params) => &params.responder,
             CacheEngineCommand::GetCacheLength(params) => &params.responder,
             CacheEngineCommand::GetCacheLengthMulti(params) => &params.responder,
+            CacheEngineCommand::UpdateCache(params) => &params.responder,
+            CacheEngineCommand::ClearCache(params) => &params.responder,
         }
     }
     fn datetime(&self) -> DateTimeUtc {
@@ -34,6 +38,8 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheMulti(params) => params.datetime,
             CacheEngineCommand::GetCacheLength(params) => params.datetime,
             CacheEngineCommand::GetCacheLengthMulti(params) => params.datetime,
+            CacheEngineCommand::UpdateCache(params) => params.datetime,
+            CacheEngineCommand::ClearCache(params) => params.datetime,
         }
     }
 
@@ -44,6 +50,8 @@ impl EngineCommandTrait for CacheEngineCommand {
             CacheEngineCommand::GetCacheMulti(params) => params.sender.clone(),
             CacheEngineCommand::GetCacheLength(params) => params.sender.clone(),
             CacheEngineCommand::GetCacheLengthMulti(params) => params.sender.clone(),
+            CacheEngineCommand::UpdateCache(params) => params.sender.clone(),
+            CacheEngineCommand::ClearCache(params) => params.sender.clone(),
         }
     }
 }
@@ -305,5 +313,69 @@ impl GetCacheLengthMultiParams {
 impl From<GetCacheLengthMultiParams> for EngineCommand {
     fn from(params: GetCacheLengthMultiParams) -> Self {
         EngineCommand::CacheEngine(CacheEngineCommand::GetCacheLengthMulti(params))
+    }
+}
+
+
+#[derive(Debug)]
+pub struct UpdateCacheParams {
+    pub strategy_id: StrategyId,
+    pub key: Key,
+    pub cache_value: CacheValue,
+    pub sender: String,
+    pub datetime: DateTimeUtc,
+    pub responder: EngineResponder,
+}
+
+impl UpdateCacheParams {
+    pub fn new(
+        strategy_id: StrategyId,
+        key: Key,
+        cache_value: CacheValue,
+        sender: String,
+        responder: EngineResponder,
+    ) -> Self {
+        Self {
+            strategy_id,
+            key,
+            cache_value,
+            sender,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<UpdateCacheParams> for EngineCommand {
+    fn from(params: UpdateCacheParams) -> Self {
+        EngineCommand::CacheEngine(CacheEngineCommand::UpdateCache(params))
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ClearCacheParams {
+    pub strategy_id: StrategyId,
+    pub key: Key,
+    pub sender: String,
+    pub datetime: DateTimeUtc,
+    pub responder: EngineResponder,
+}
+
+impl ClearCacheParams {
+    pub fn new(strategy_id: StrategyId, key: Key, sender: String, responder: EngineResponder) -> Self {
+        Self {
+            strategy_id,
+            key,
+            sender,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<ClearCacheParams> for EngineCommand {
+    fn from(params: ClearCacheParams) -> Self {
+        EngineCommand::CacheEngine(CacheEngineCommand::ClearCache(params))
     }
 }

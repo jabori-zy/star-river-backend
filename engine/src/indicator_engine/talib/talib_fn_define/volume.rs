@@ -5,6 +5,7 @@ use crate::talib_fn;
 use star_river_core::indicator::indicator_define::volume::*;
 use star_river_core::indicator::Indicator;
 use chrono::{DateTime, Utc};
+use star_river_core::error::engine_error::indicator_engine_error::*;
 
 impl TALib {
     // AD                   Chaikin A/D Line #钱德动量线

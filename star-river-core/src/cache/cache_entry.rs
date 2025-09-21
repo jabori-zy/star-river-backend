@@ -44,6 +44,10 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
         }
     }
 
+    fn clear(&mut self) {
+        self.data.clear();
+    }
+
     fn get_key(&self) -> Key {
         self.key.clone().into()
     }
@@ -147,7 +151,7 @@ impl KlineCacheEntry {
 
 impl From<KlineCacheEntry> for CacheEntry {
     fn from(entry: KlineCacheEntry) -> Self {
-        CacheEntry::HistoryKline(entry)
+        CacheEntry::Kline(entry)
     }
 }
 
@@ -155,7 +159,7 @@ pub type IndicatorCacheEntry = GenericCacheEntry<IndicatorKey>;
 
 impl From<IndicatorCacheEntry> for CacheEntry {
     fn from(entry: IndicatorCacheEntry) -> Self {
-        CacheEntry::HistoryIndicator(entry)
+        CacheEntry::Indicator(entry)
     }
 }
 

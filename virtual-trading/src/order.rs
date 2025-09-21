@@ -1,6 +1,5 @@
 use super::VirtualTradingSystem;
-use chrono::{DateTime, FixedOffset, Utc};
-use star_river_core::cache::key::KlineKey;
+use chrono::{DateTime, Utc};
 use star_river_core::custom_type::*;
 use star_river_core::market::Exchange;
 use star_river_core::order::virtual_order::VirtualOrder;
@@ -8,6 +7,8 @@ use star_river_core::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType}
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::position::PositionSide;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
+use star_river_core::error::virtual_trading_system_error::*;
+use snafu::Report;
 
 impl VirtualTradingSystem {
     // 生成订单ID, 从0开始
@@ -31,9 +32,10 @@ impl VirtualTradingSystem {
         sl: Option<f64>,
         tp_type: Option<TpslType>,
         sl_type: Option<TpslType>,
-    ) -> Result<(), String> {
+    ) -> Result<(), VirtualTradingSystemError> {
         let order_id = self.generate_order_id();
         let kline_key = self.get_kline_key(&exchange, &symbol);
+        let current_datetime = self.current_datetime;
         if let Some(kline_key) = kline_key {
             // 根据订单类型判断是否需要立即成交
             match &order_type {
@@ -63,10 +65,9 @@ impl VirtualTradingSystem {
                         sl_type,
                         current_datetime,
                     );
-                    tracing::debug!("市价订单创建成功: {:?}", market_order);
+                    tracing::debug!("market order created: {:?}", market_order);
 
-                    let order_create_event =
-                        VirtualTradingSystemEvent::FuturesOrderCreated(market_order.clone());
+                    let order_create_event = VirtualTradingSystemEvent::FuturesOrderCreated(market_order.clone());
                     let _ = self.event_publisher.send(order_create_event);
 
                     // 插入订单
@@ -78,15 +79,45 @@ impl VirtualTradingSystem {
                 }
                 // 限价单
                 OrderType::Limit => {
-                    // self.current_orders.push(virtual_order);
+                    // 限价单不立即成交
+                    let limit_order = VirtualOrder::new(
+                        None,
+                        order_id,
+                        strategy_id,
+                        node_id,
+                        order_config_id,
+                        exchange,
+                        symbol,
+                        order_side,
+                        order_type,
+                        quantity,
+                        price,
+                        tp,
+                        sl,
+                        tp_type,
+                        sl_type,
+                        current_datetime,
+                    );
+                    tracing::debug!("limit order created: {:?}", limit_order);
+                    let order_create_event = VirtualTradingSystemEvent::FuturesOrderCreated(limit_order.clone());
+                    let _ = self.event_publisher.send(order_create_event);
+                    // 插入订单
+                    self.orders.push(limit_order.clone());
                 }
                 _ => {
-                    // self.current_orders.push(virtual_order);
+                    let error = UnsupportedOrderTypeSnafu { order_type: order_type.to_string() }.build();
+                    let report = Report::from_error(&error);
+                    tracing::error!("{}", report);
+                    return Err(error);
+                    
                 }
             }
         } else {
             // 如果k线缓存key不存在，则不成交
-            return Err(format!("k线缓存key不存在: {:?}", kline_key));
+            let error = KlineKeyNotFoundSnafu { exchange: exchange.to_string(), symbol: symbol.to_string() }.build();
+            let report = Report::from_error(&error);
+            tracing::error!("{}", report);
+            return Err(error);
         }
         Ok(())
     }
@@ -146,7 +177,6 @@ impl VirtualTradingSystem {
         for order in unfilled_orders {
             if let Some(kline_key) = self.get_kline_key(&order.exchange, &order.symbol) {
                 if let Some(current_kline) = self.kline_price.get(&kline_key) {
-                    let current_datetime = current_kline.datetime;
                     let high_price = current_kline.high;
                     let low_price = current_kline.low;
 
@@ -156,14 +186,16 @@ impl VirtualTradingSystem {
                                 FuturesOrderSide::OpenLong => {
                                     // 限价开多：最低价格 <= 订单价格时执行
                                     if low_price <= order.open_price {
-                                        self.execute_order(&order, low_price, self.current_datetime)
+                                        // 限价单的成交价格应该是挂单的价格
+                                        self.execute_order(&order, order.open_price, self.current_datetime)
                                             .unwrap();
                                     }
                                 }
                                 FuturesOrderSide::OpenShort => {
                                     // 限价开空：最高价格 >= 订单价格时执行
                                     if high_price >= order.open_price {
-                                        self.execute_order(&order, high_price, self.current_datetime)
+                                        // 限价单的成交价格应该是挂单的价格
+                                        self.execute_order(&order, order.open_price, self.current_datetime)
                                             .unwrap();
                                     }
                                 }

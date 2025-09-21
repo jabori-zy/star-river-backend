@@ -4081,6 +4081,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "event-center",
+ "snafu",
  "star-river-core",
  "tokio",
  "tracing",

@@ -161,6 +161,27 @@ pub mod common_log_message {
         en: "Node [{node_name}({node_id})] virtual trading system event monitoring terminated",
         zh: "{node_name} ({node_id}) 虚拟交易系统事件监听已终止"
     );
+
+    log_message!(
+        GetMinIntervalSymbolsSuccessMsg,
+        params: (
+            node_id: String,
+            node_name: String
+        ),
+        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization successful",
+        zh: "{node_name} ({node_id}) 最小周期交易对初始化成功"
+    );
+
+    log_message!(
+        GetMinIntervalSymbolsFailedMsg,
+        params: (
+            node_id: String,
+            node_name: String,
+            error: String
+        ),
+        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization failed: {error}",
+        zh: "{node_name} ({node_id}) 最小周期交易对初始化失败: {error}"
+    );
 }
 
 // StartNode 独特的日志消息
@@ -905,6 +926,17 @@ pub mod futures_order_node_log_message {
     use crate::log_message;
     use crate::strategy_engine::log_message::*;
     use serde::{Deserialize, Serialize};
+    use star_river_core::custom_type::OrderId;
+
+
+    log_message!(
+        ProcessingOrderMsg,
+        params: (
+            order_config_id: i32
+        ),
+        en: "processing order - Config ID: {order_config_id}, can't create a new order",
+        zh: "正在处理订单 - 配置ID: {order_config_id}, 无法创建新订单"
+    );
 
     log_message!(
         MonitorUnfilledOrderMsg,
@@ -917,31 +949,15 @@ pub mod futures_order_node_log_message {
     );
 
     log_message!(
-        CreateOrderMsg,
-        params: (
-            node_id: String,
-            node_name: String,
-            order_config_id: i32,
-            symbol: String,
-            order_type: String,
-            side: String,
-            quantity: f64,
-            price: f64
-        ),
-        en: "FuturesOrder Node [{node_name}({node_id})] creating order - Config ID: {order_config_id}, Symbol: {symbol}, Type: {order_type}, Side: {side}, Quantity: {quantity}, Price: {price}",
-        zh: "{node_name} ({node_id}) 创建订单 - 配置ID: {order_config_id}, 交易对: {symbol}, 类型: {order_type}, 方向: {side}, 数量: {quantity}, 价格: {price}"
-    );
-
-    log_message!(
         OrderCreatedMsg,
         params: (
-            node_id: String,
-            node_name: String,
-            order_id: String,
-            order_config_id: i32
+            order_id: OrderId,
+            order_config_id: i32,
+            price: f64,
+            side: String
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order created successfully - Order ID: {order_id}, Config ID: {order_config_id}",
-        zh: "{node_name} ({node_id}) 订单创建成功 - 订单ID: {order_id}, 配置ID: {order_config_id}"
+        en: "order created successfully - Order ID: {order_id}, Config ID: {order_config_id} price: {price} side: {side}",
+        zh: "订单创建成功 - 订单ID: {order_id}, 配置ID: {order_config_id} 价格: {price} 方向: {side}"
     );
 
     log_message!(
@@ -949,7 +965,7 @@ pub mod futures_order_node_log_message {
         params: (
             node_id: String,
             node_name: String,
-            order_id: String,
+            order_id: OrderId,
             order_config_id: i32
         ),
         en: "FuturesOrder Node [{node_name}({node_id})] order placed successfully - Order ID: {order_id}, Config ID: {order_config_id}",
@@ -959,56 +975,50 @@ pub mod futures_order_node_log_message {
     log_message!(
         OrderPartialFilledMsg,
         params: (
-            node_id: String,
             node_name: String,
-            order_id: String,
+            order_id: OrderId,
             filled_quantity: f64,
             remaining_quantity: f64
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order partially filled - Order ID: {order_id}, Filled: {filled_quantity}, Remaining: {remaining_quantity}",
+        en: "[{node_name}({node_id})] order partially filled - Order ID: {order_id}, Filled: {filled_quantity}, Remaining: {remaining_quantity}",
         zh: "{node_name} ({node_id}) 订单部分成交 - 订单ID: {order_id}, 已成交: {filled_quantity}, 剩余: {remaining_quantity}"
     );
 
     log_message!(
         OrderFilledMsg,
         params: (
-            node_id: String,
             node_name: String,
-            order_id: String,
+            order_id: OrderId,
             filled_quantity: f64,
             filled_price: f64
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order completely filled - Order ID: {order_id}, Quantity: {filled_quantity}, Price: {filled_price}",
-        zh: "{node_name} ({node_id}) 订单完全成交 - 订单ID: {order_id}, 数量: {filled_quantity}, 价格: {filled_price}"
+        en: "[{node_name}] order completely filled - Order ID: {order_id}, Quantity: {filled_quantity}, Price: {filled_price}",
+        zh: "[{node_name}] 订单完全成交 - 订单ID: {order_id}, 数量: {filled_quantity}, 价格: {filled_price}"
     );
 
     log_message!(
         OrderCanceledMsg,
         params: (
-            node_id: String,
             node_name: String,
-            order_id: String,
-            reason: String
+            order_id: OrderId,
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order canceled - Order ID: {order_id}, Reason: {reason}",
-        zh: "{node_name} ({node_id}) 订单已取消 - 订单ID: {order_id}, 原因: {reason}"
+        en: "[{node_name}] order canceled - Order ID: {order_id}",
+        zh: "[{node_name}] 订单已取消 - 订单ID: {order_id}"
     );
 
     log_message!(
         OrderExpiredMsg,
         params: (
-            node_id: String,
             node_name: String,
-            order_id: String
+            order_id: OrderId
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order expired - Order ID: {order_id}",
+        en: "[{node_name}] order expired - Order ID: {order_id}",
         zh: "{node_name} ({node_id}) 订单已过期 - 订单ID: {order_id}"
     );
 
     log_message!(
         OrderRejectedMsg,
         params: (
-            node_id: String,
             node_name: String,
             order_id: String,
             reason: String
@@ -1020,7 +1030,6 @@ pub mod futures_order_node_log_message {
     log_message!(
         OrderErrorMsg,
         params: (
-            node_id: String,
             node_name: String,
             order_id: String,
             error: String

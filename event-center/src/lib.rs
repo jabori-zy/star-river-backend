@@ -50,8 +50,7 @@ impl Channel {
 #[derive(Debug)]
 pub struct EventCenter {
     pub(crate) broadcast_channels: HashMap<Channel, EventSender>,
-    pub(crate) command_channels:
-        HashMap<EngineName, (EngineCommandSender, Arc<Mutex<EngineCommandReceiver>>)>, // 成对保存发送器和接收器
+    pub(crate) command_channels:HashMap<EngineName, (EngineCommandSender, Arc<Mutex<EngineCommandReceiver>>)>, // 成对保存发送器和接收器
     black_hole: HashMap<Channel, EventReceiver>, // 黑洞通道，用于接收所有事件，但不进行处理
 }
 
@@ -95,8 +94,7 @@ impl EventCenter {
         for engine_name in engines.iter() {
             let (tx, rx) = mpsc::channel::<EngineCommand>(100);
             // 成对保存发送器和接收器
-            self.command_channels
-                .insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
+            self.command_channels.insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
             tracing::debug!("Command channel initialized for engine: {:?}", engine_name);
         }
     }
