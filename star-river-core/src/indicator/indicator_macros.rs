@@ -253,7 +253,7 @@ macro_rules! add_field_to_vec {
 
 
 // 辅助宏：通过类型推断将字段添加到Vec中
-#[macro_export] 
+#[macro_export]
 macro_rules! add_field_to_vec_dispatch {
     ($vec:expr, $field:expr) => {
         // 使用匿名函数来处理不同类型的转换
@@ -261,16 +261,24 @@ macro_rules! add_field_to_vec_dispatch {
             if let Some(val) = field.downcast_ref::<i64>() {
                 *val as f64
             } else if let Some(val) = field.downcast_ref::<i32>() {
-                *val as f64  
+                *val as f64
             } else if let Some(val) = field.downcast_ref::<f64>() {
                 *val
             } else if let Some(val) = field.downcast_ref::<f32>() {
                 *val as f64
+            } else if let Some(val) = field.downcast_ref::<Option<f64>>() {
+                val.unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<f32>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<i64>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
+            } else if let Some(val) = field.downcast_ref::<Option<i32>>() {
+                val.map(|v| v as f64).unwrap_or(f64::NAN)
             } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::FixedOffset>>() {
                 val.timestamp_millis() as f64
             } else {
-                // 对于无法识别的类型，使用默认值
-                0.0
+                // 对于无法识别的类型，使用NaN而不是0.0来表示无效值
+                f64::NAN
             }
         };
         $vec.push(convert_value(&$field));
