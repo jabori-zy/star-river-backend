@@ -37,7 +37,7 @@ macro_rules! talib_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -108,7 +108,7 @@ macro_rules! talib_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -158,7 +158,7 @@ macro_rules! talib_snake_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
@@ -229,7 +229,7 @@ macro_rules! talib_snake_fn {
                     .map(|i| $indicator_name {
                         datetime: $datetime_field[i],
                         $(
-                            $output_name: [<out_ $output_name>][i],
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
                         )*
                     }.into())
                     .collect();
