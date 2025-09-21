@@ -51,7 +51,7 @@ macro_rules! define_indicator_output {
                 fn to_list(&self) -> Vec<f64> {
                     let mut result = Vec::new();
                     $(
-                        $crate::add_field_to_vec_dispatch!(result, self.$output_field, $output_type);
+                        $crate::add_field_to_vec_dispatch!(result, self.$output_field);
                     )*
                     result
                 }
@@ -269,9 +269,6 @@ macro_rules! add_field_to_vec_dispatch {
             None => $vec.push(f64::NAN),
         }
     };
-    ($vec:expr, $field:expr, $field_type:ty) => {
-        $crate::add_field_to_vec!($vec, $field, $field_type);
-    };
     ($vec:expr, $field:expr) => {
         // 使用匿名函数来处理不同类型的转换
         let convert_value = |field: &dyn std::any::Any| -> f64 {
@@ -302,8 +299,6 @@ macro_rules! add_field_to_vec_dispatch {
             } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::FixedOffset>>() {
                 val.timestamp_millis() as f64
             } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::Utc>>() {
-                val.timestamp_millis() as f64
-            } else if let Some(val) = field.downcast_ref::<crate::time::Utc8DateTime>() {
                 val.timestamp_millis() as f64
             } else if let Some(val) = field.downcast_ref::<crate::system::DateTimeUtc>() {
                 val.timestamp_millis() as f64
