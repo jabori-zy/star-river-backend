@@ -5,29 +5,12 @@ use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
-use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use async_trait::async_trait;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::{AddCacheKeyParams, GetCacheParams};
 use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
-use event_center::communication::strategy::StrategyCommand;
-use event_center::event::node_event::backtest_node_event::indicator_node_event::{
-    IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
-};
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::common_event::{
-    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
-};
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::{event::Event, EventCenterSingleton};
+use event_center::EventCenterSingleton;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
-use star_river_core::cache::{CacheValue, KeyTrait};
-
-use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
-use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
-use std::any::Any;
+use star_river_core::cache::CacheValue;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -71,6 +54,10 @@ impl IndicatorNodeContext {
 
     pub fn get_min_interval_symbols_ref(&self) -> &Vec<KlineKey> {
         &self.min_interval_symbols
+    }
+
+    pub fn get_indicator_keys_ref(&self) -> &HashMap<IndicatorKey,(i32, String)> {
+        &self.indicator_keys
     }
 
 

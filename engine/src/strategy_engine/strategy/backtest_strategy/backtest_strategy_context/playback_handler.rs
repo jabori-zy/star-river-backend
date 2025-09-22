@@ -89,7 +89,7 @@ impl BacktestStrategyContext {
             if play_index < total_signal_count {
                 // 因为从-1开始，所以先+1，再发送信号
                 let new_play_index = Self::increment_played_signal_count(&context).await;
-                tracing::info!("[{}]: start play kline. total_signal_count: {}, current_play_index: {}", context.strategy_name.clone(), total_signal_count, new_play_index);
+                tracing::debug!("[{}]: start play kline. total_signal_count: {}, current_play_index: {}", context.strategy_name.clone(), total_signal_count, new_play_index);
                 context.play_index_watch_tx.send(new_play_index).unwrap();
                 // 发送后，等待所有叶子节点执行完毕
                 context.execute_over_notify.notified().await;
@@ -99,7 +99,6 @@ impl BacktestStrategyContext {
             
 
                 // 检查播放完毕
-                tracing::warn!("[{}]: play_index: {}, total_signal_count: {}", context.strategy_name.clone(), new_play_index, total_signal_count);
                 if new_play_index == total_signal_count - 1 {
                     Self::handle_play_finished(&context, &context.strategy_name, new_play_index).await;
                     break;

@@ -80,6 +80,10 @@ impl KlineNodeContext {
         &self.min_interval_symbols
     }
 
+    pub fn get_selected_symbol_keys_ref(&self) -> &HashMap<KlineKey, (i32, String)> {
+        &self.selected_symbol_keys
+    }
+
 
     // 注册交易所
     #[instrument(skip(self))]
@@ -223,6 +227,4 @@ impl KlineNodeContext {
         )
     }
 
-
-    
 }

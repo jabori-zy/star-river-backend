@@ -42,45 +42,55 @@ impl BacktestStrategyFunction {
         )?;
 
         // update strategy keys
-        let indicator_keys = {
-            let node_context_rwlock = node.get_context();
-            let node_context = node_context_rwlock.read().await;
-            let node_context_guard = node_context
-                .as_any()
-                .downcast_ref::<IndicatorNodeContext>()
-                .unwrap();
-            let exchange_mode_config = node_context_guard
-                .backtest_config
-                .exchange_mode_config
-                .as_ref()
-                .unwrap();
-            let selected_account = &exchange_mode_config.selected_account;
-            let selected_symbol = &exchange_mode_config.selected_symbol;
-            let time_range = &exchange_mode_config.time_range;
-            let selected_indicators = &exchange_mode_config.selected_indicators;
+        // let indicator_keys = {
+        //     let node_context_rwlock = node.get_context();
+        //     let node_context = node_context_rwlock.read().await;
+        //     let node_context_guard = node_context
+        //         .as_any()
+        //         .downcast_ref::<IndicatorNodeContext>()
+        //         .unwrap();
+        //     let exchange_mode_config = node_context_guard
+        //         .backtest_config
+        //         .exchange_mode_config
+        //         .as_ref()
+        //         .unwrap();
+        //     let selected_account = &exchange_mode_config.selected_account;
+        //     let selected_symbol = &exchange_mode_config.selected_symbol;
+        //     let time_range = &exchange_mode_config.time_range;
+        //     let selected_indicators = &exchange_mode_config.selected_indicators;
 
-            let kline_key = KlineKey::new(
-                selected_account.exchange.clone(),
-                selected_symbol.symbol.clone(),
-                selected_symbol.interval.clone(),
-                Some(time_range.start_date.to_string()),
-                Some(time_range.end_date.to_string()),
-            );
-            let mut indicator_keys = vec![];
-            selected_indicators.iter().for_each(|indicator| {
-                let indicator_key =
-                    IndicatorKey::new(kline_key.clone(), indicator.indicator_config.clone());
-                indicator_keys.push(indicator_key);
-            });
-            indicator_keys
-        }; // 读锁在这里释放
+        //     let kline_key = KlineKey::new(
+        //         selected_account.exchange.clone(),
+        //         selected_symbol.symbol.clone(),
+        //         selected_symbol.interval.clone(),
+        //         Some(time_range.start_date.to_string()),
+        //         Some(time_range.end_date.to_string()),
+        //     );
+        //     let mut indicator_keys = vec![];
+        //     selected_indicators.iter().for_each(|indicator| {
+        //         let indicator_key =
+        //             IndicatorKey::new(kline_key.clone(), indicator.indicator_config.clone());
+        //         indicator_keys.push(indicator_key);
+        //     });
+        //     indicator_keys
+        // }; // 读锁在这里释放
+
+        let indicator_keys: Vec<IndicatorKey> = {
+            let node_ctx = node.get_context();
+            let node_ctx_guard = node_ctx.read().await;
+            let node_ctx_guard = node_ctx_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
+            let indicator_keys_map = node_ctx_guard.get_indicator_keys_ref().clone();
+            indicator_keys_map.keys().cloned().collect()
+        };
+
+        let node_id = node.get_node_id().await;
 
         let mut strategy_keys_guard = strategy_keys.write().await;
-        strategy_keys_guard.extend(indicator_keys.iter().map(|key| key.clone().into()));
+        strategy_keys_guard.extend(indicator_keys.iter().map(|key| (key.clone().into(), node_id.clone())));
         drop(strategy_keys_guard); // 显式释放写锁
 
         // set default output handle
-        let node_id = node.get_node_id().await;
+        
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;

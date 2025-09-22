@@ -12,6 +12,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use std::collections::HashMap;
+use star_river_core::custom_type::NodeId;
+use star_river_core::cache::Key;
 
 impl BacktestStrategyFunction {
     pub async fn add_kline_node(
@@ -45,60 +48,80 @@ impl BacktestStrategyFunction {
             play_index_watch_rx,
         )?;
 
-        let backtest_config = node
-            .get_context()
-            .read()
-            .await
-            .as_any()
-            .downcast_ref::<KlineNodeContext>()
-            .unwrap()
-            .backtest_config
-            .clone();
-        match backtest_config.data_source {
-            BacktestDataSource::Exchange => {
-                let exchange = backtest_config
-                    .exchange_mode_config
-                    .as_ref()
-                    .unwrap()
-                    .selected_account
-                    .exchange
-                    .clone();
-                let time_range = backtest_config
-                    .exchange_mode_config
-                    .as_ref()
-                    .unwrap()
-                    .time_range
-                    .clone();
+        let node_id = node.get_node_id().await;
 
-                for symbol_config in backtest_config
-                    .exchange_mode_config
-                    .as_ref()
-                    .unwrap()
-                    .selected_symbols
-                    .iter()
-                {
-                    let kline_key = KlineKey::new(
-                        exchange.clone(),
-                        symbol_config.symbol.clone(),
-                        symbol_config.interval.clone(),
-                        Some(time_range.start_date.to_string()),
-                        Some(time_range.end_date.to_string()),
-                    );
-                    // 添加到策略缓存key列表中
-                    let mut strategy_keys_guard = strategy_keys.write().await;
-                    let key: star_river_core::cache::Key = kline_key.clone().into();
-                    if !strategy_keys_guard.contains(&key) {
-                        strategy_keys_guard.push(key);
-                    }
-                    // 添加到虚拟交易系统中
-                    let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
-                    virtual_trading_system_guard.add_kline_key(kline_key);
-                }
-            }
-            _ => {}
+        let selected_symbol_keys = {
+            let node_ctx = node.get_context();
+            let node_ctx_guard = node_ctx.read().await;
+            let node_ctx_guard = node_ctx_guard.as_any().downcast_ref::<KlineNodeContext>().unwrap();
+            node_ctx_guard.get_selected_symbol_keys_ref().clone()
+        };
+
+
+        for (key,_) in selected_symbol_keys.iter()
+        {
+            // 添加到策略缓存key列表中
+            let mut strategy_keys_guard = strategy_keys.write().await;
+            strategy_keys_guard.insert(key.clone().into(), node_id.clone());
+            // 添加到虚拟交易系统中
+            let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
+            virtual_trading_system_guard.add_kline_key(key.clone());
         }
 
-        let node_id = node.get_node_id().await;
+        // let backtest_config = node
+        //     .get_context()
+        //     .read()
+        //     .await
+        //     .as_any()
+        //     .downcast_ref::<KlineNodeContext>()
+        //     .unwrap()
+        //     .backtest_config
+        //     .clone();
+        // match backtest_config.data_source {
+        //     BacktestDataSource::Exchange => {
+        //         let exchange = backtest_config
+        //             .exchange_mode_config
+        //             .as_ref()
+        //             .unwrap()
+        //             .selected_account
+        //             .exchange
+        //             .clone();
+        //         let time_range = backtest_config
+        //             .exchange_mode_config
+        //             .as_ref()
+        //             .unwrap()
+        //             .time_range
+        //             .clone();
+
+        //         for symbol_config in backtest_config
+        //             .exchange_mode_config
+        //             .as_ref()
+        //             .unwrap()
+        //             .selected_symbols
+        //             .iter()
+        //         {
+        //             let kline_key = KlineKey::new(
+        //                 exchange.clone(),
+        //                 symbol_config.symbol.clone(),
+        //                 symbol_config.interval.clone(),
+        //                 Some(time_range.start_date.to_string()),
+        //                 Some(time_range.end_date.to_string()),
+        //             );
+        //             // 添加到策略缓存key列表中
+        //             let mut strategy_keys_guard = strategy_keys.write().await;
+        //             let key: Key = kline_key.clone().into();
+        //             if !strategy_keys_guard.contains_key(&key) {
+        //                 strategy_keys_guard.insert(key, node_id.clone());
+        //             }
+        //             // 添加到虚拟交易系统中
+        //             let mut virtual_trading_system_guard = virtual_trading_system.lock().await;
+        //             virtual_trading_system_guard.add_kline_key(kline_key);
+        //         }
+        //     }
+        //     _ => {}
+        // }
+
+        
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;

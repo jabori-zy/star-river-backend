@@ -3,6 +3,7 @@ use crate::{
     define_indicator,
     indicator::{MAType, PriceSource},
 };
+use crate::error::star_river_error::*;
 
 //Bollinger Bands #布林带
 define_indicator!(BBANDS,

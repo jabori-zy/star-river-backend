@@ -1,5 +1,6 @@
 use crate::define_indicator;
 use chrono::{DateTime, Utc};
+use crate::error::star_river_error::*;
 
 // AVGPRICE             Average Price #平均价格
 define_indicator!(AVGPRICE,

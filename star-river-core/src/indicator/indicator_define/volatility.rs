@@ -1,5 +1,6 @@
 use crate::define_indicator;
 use chrono::{DateTime, Utc};
+use crate::error::star_river_error::*;
 
 // ATR                  Average True Range #平均真实波幅 #平均真实波幅
 define_indicator!(ATR,

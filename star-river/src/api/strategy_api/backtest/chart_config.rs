@@ -42,7 +42,6 @@ pub struct UpdateBacktestChartConfigParams {
         (status = 500, description = "内部服务器错误", body = ApiResponse<StrategyConfig>),
     )
 )]
-#[instrument(skip(star_river))]
 pub async fn update_backtest_chart_config(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,

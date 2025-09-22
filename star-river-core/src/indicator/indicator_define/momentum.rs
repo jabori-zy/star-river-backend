@@ -1,4 +1,6 @@
 use chrono::{DateTime, Utc};
+use crate::error::star_river_error::*;
+
 
 use crate::{
     define_indicator,

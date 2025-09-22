@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
 use crate::strategy::TimeRange;
+use crate::error::star_river_error::*;
 
 pub trait KeyTrait {
     fn get_key_str(&self) -> String;
@@ -37,7 +38,7 @@ pub enum Key {
 }
 
 impl FromStr for Key {
-    type Err = String;
+    type Err = StarRiverError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();
@@ -47,7 +48,7 @@ impl FromStr for Key {
             // "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
             "kline" => Ok(Key::Kline(KlineKey::from_str(s)?)),
             "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
-            _ => Err("Invalid cache key type".to_string()),
+            _ => Err(InvalidKeyTypeSnafu { key_type: key_type.to_string()}.build()),
         }
     }
 }

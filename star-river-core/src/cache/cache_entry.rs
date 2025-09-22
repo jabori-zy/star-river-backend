@@ -57,44 +57,53 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
     }
 
     fn get_cache_data(&self, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
-        // 如果limit和index都为None，则返回所有数据
-        if limit.is_none() && index.is_none() {
-            return self.get_all_cache_data();
-        }
+        match (index, limit) {
+            // 有index，有limit
+            (Some(idx), Some(limit_val)) => {
+                // 如果索引超出范围，返回空
+                if idx as usize >= self.data.len() {
+                    return Vec::new();
+                }
 
-        // 如果limit为None，设置为数据总长度以便后续处理
-        let limit = if let Some(limit) = limit {
-            limit
-        } else {
-            self.data.len() as u32
-        };
+                // 计算从索引开始向前取limit个元素
+                let end = idx as usize + 1;
+                let start = if limit_val as usize >= end {
+                    0
+                } else {
+                    end - limit_val as usize
+                };
 
-        // 处理index参数
-        if let Some(idx) = index {
-            // 确保索引在有效范围内
-            if idx as usize >= self.data.len() {
-                return Vec::new();
+                self.data.range(start..end).cloned().collect()
             }
 
-            // 计算从索引开始向前取limit个元素
-            let end = idx as usize + 1; // 索引位置加1（包含索引位置）
-            let start = if limit as usize >= end {
-                0 // 如果limit大于等于end，就取从0到end的所有元素
-            } else {
-                end - limit as usize // 否则取索引前的limit个元素
-            };
+            // 有index，无limit
+            (Some(idx), None) => {
+                // 如果索引超出范围，返回空
+                if idx as usize >= self.data.len() {
+                    return Vec::new();
+                }
 
-            return self.data.range(start..end).cloned().collect();
-        } else {
-            // 没有指定index，使用原来的逻辑，从后往前取limit条数据
-            // 如果limit大于等于数据长度，直接克隆并返回所有数据
-            if limit as usize >= self.data.len() {
-                return self.get_all_cache_data();
+                // 从索引开始向前取所有元素（到开头）
+                let end = idx as usize + 1;
+                self.data.range(0..end).cloned().collect()
             }
 
-            // 从后往前取limit条数据
-            let start = self.data.len().saturating_sub(limit as usize);
-            return self.data.range(start..).cloned().collect();
+            // 无index，有limit
+            (None, Some(limit_val)) => {
+                // 从后往前取limit条数据
+                if limit_val as usize >= self.data.len() {
+                    return self.get_all_cache_data();
+                }
+
+                let start = self.data.len().saturating_sub(limit_val as usize);
+                self.data.range(start..).cloned().collect()
+            }
+
+            // 无index，无limit
+            (None, None) => {
+                // 如果limit和index都为None，则返回所有数据
+                self.get_all_cache_data()
+            }
         }
     }
 

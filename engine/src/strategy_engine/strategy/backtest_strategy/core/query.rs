@@ -1,4 +1,11 @@
-use super::{BacktestStrategy, VirtualOrder, VirtualPosition, VirtualTransaction, StatsSnapshot, StrategyRunningLogEvent};
+use super::{
+    BacktestStrategy, VirtualOrder, VirtualPosition, 
+    VirtualTransaction, StatsSnapshot, StrategyRunningLogEvent, 
+    BacktestStrategyError, KlineKey,
+};
+use std::sync::Arc;
+use star_river_core::cache::{CacheValue, Key};
+use star_river_core::custom_type::PlayIndex;
 
 
 
@@ -36,6 +43,11 @@ impl BacktestStrategy {
     pub async fn get_running_log(&self) -> Vec<StrategyRunningLogEvent> {
         let context_guard = self.context.read().await;
         context_guard.get_running_log().await
+    }
+
+    pub async fn get_strategy_data(&self, play_index: PlayIndex, key: Key) -> Result<Vec<Arc<CacheValue>>, BacktestStrategyError> {
+        let context_guard = self.context.read().await;
+        context_guard.get_strategy_data(play_index, key).await
     }
 
 }

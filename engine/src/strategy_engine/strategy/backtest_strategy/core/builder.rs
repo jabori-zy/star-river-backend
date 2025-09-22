@@ -118,7 +118,7 @@ impl BacktestStrategy {
 
         // 1. 按symbol分组
         let mut symbol_groups = HashMap::new();
-        for key in keys.iter() {
+        for (key, _) in keys.iter() {
             if matches!(key, Key::Kline(_)) {
                 match key {
                     Key::Kline(kline_key) => {

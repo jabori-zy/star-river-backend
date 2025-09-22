@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use star_river_core::system::system_config::SystemConfig;
 use star_river_core::system::system_config::Localization;
 use utoipa::ToSchema;
-use star_river_core::error::system_error::*;
+use star_river_core::error::star_river_error::*;
 use snafu::IntoError;
 use tracing::instrument;
 use star_river_core::system::system_config::SystemConfigManager;

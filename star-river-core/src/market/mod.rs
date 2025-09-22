@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
 use std::fmt::Display;
 use std::str::FromStr;
-use chrono::{DateTime, Utc};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 use crate::system::DateTimeUtc;
+use crate::error::star_river_error::*;
 
 
 pub type MT5Server = String;
@@ -91,7 +91,7 @@ impl Serialize for Exchange {
 }
 
 impl FromStr for Exchange {
-    type Err = String;
+    type Err = StarRiverError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -122,7 +122,7 @@ impl FromStr for Exchange {
                         Ok(Exchange::Metatrader5(String::new()))
                     }
                 } else {
-                    Err(format!("无效的交易所: {}", s))
+                    Err(ParseExchangeFailedSnafu { exchange: s.to_string()}.build())
                 }
             }
         }

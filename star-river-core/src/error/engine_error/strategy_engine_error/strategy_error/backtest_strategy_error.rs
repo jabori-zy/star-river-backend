@@ -119,6 +119,20 @@ pub enum BacktestStrategyError {
         symbols: Vec<(String, String)>,
         backtrace: Backtrace,
 
+    },
+
+    #[snafu(transparent)]
+    Node {
+        source: BacktestStrategyNodeError,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("[{strategy_name}] get data failed. key: {key}, play index: {play_index}"))]
+    GetDataFailed {
+        strategy_name: String,
+        key: String,
+        play_index: u32,
+        backtrace: Backtrace,
     }
 
 
@@ -154,6 +168,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::AlreadyPlaying { .. } => 1013, // 策略正在播放，无法再次播放
             BacktestStrategyError::AlreadyPausing { .. } => 1014, // 策略正在暂停，无法再次暂停
             BacktestStrategyError::IntervalNotSame { .. } => 1015, // 不同symbol的最小周期不相同
+            BacktestStrategyError::Node { .. } => 1016, // 节点错误
+            BacktestStrategyError::GetDataFailed { .. } => 1017, // 获取数据失败
             // BacktestStrategyError::EventSendError { .. } => 1010,
         };
         format!("{prefix}_{code}")
@@ -182,6 +198,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 | BacktestStrategyError::AlreadyPlaying { .. }
                 | BacktestStrategyError::AlreadyPausing { .. }
                 | BacktestStrategyError::IntervalNotSame { .. }
+                | BacktestStrategyError::Node { .. }
+                | BacktestStrategyError::GetDataFailed { .. }
         )
     }
 
@@ -313,6 +331,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     BacktestStrategyError::IntervalNotSame { symbols, .. } => {
                         format!("不同交易对的最小周期不相同: {symbols:?}")
                     }
+                    BacktestStrategyError::Node { source, .. } => {
+                        format!("节点错误: {}", source.get_error_message(language))
+                    }
+                    BacktestStrategyError::GetDataFailed { strategy_name, key, play_index, .. } => {
+                        format!("获取数据失败: 策略 [{strategy_name}] 数据键: {key}, 缓存索引: {play_index}")
+                    }
                 }
             }
         }
@@ -342,6 +366,14 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
 
             // Errors without source - use default implementation
             BacktestStrategyError::IntervalNotSame { .. } => {
+                vec![self.error_code()]
+            }
+            BacktestStrategyError::Node { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
+            BacktestStrategyError::GetDataFailed { .. } => {
                 vec![self.error_code()]
             }
             _ => vec![self.error_code()],

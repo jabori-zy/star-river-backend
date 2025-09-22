@@ -125,7 +125,7 @@ macro_rules! define_indicator_config {
             }
 
             impl std::str::FromStr for [<$indicator_name Config>] {
-                type Err = String;
+                type Err = StarRiverError;
                 #[allow(unused_variables)]
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
                     // use crate::indicator::utils::*;
@@ -183,7 +183,7 @@ macro_rules! define_indicator_config {
             }
 
             impl std::str::FromStr for [<$indicator_name Config>] {
-                type Err = String;
+                type Err = StarRiverError;
 
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
                     use crate::indicator::utils::*;
@@ -527,7 +527,7 @@ macro_rules! impl_indicator_config {
 
             // 实现 FromStr trait
             impl std::str::FromStr for $indicator_config_enum {
-                type Err = String;
+                type Err = StarRiverError;
 
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
                     // 提取指标类型（如"sma"）
@@ -542,7 +542,7 @@ macro_rules! impl_indicator_config {
                         $(
                             stringify!([<$indicator_name:lower>]) | stringify!([<$indicator_name:snake>]) => Ok($indicator_config_enum::$indicator_name([<$indicator_name Config>]::from_str(s)?)),
                         )+
-                        _ => Err(format!("不支持的指标类型: {}", indicator_type)),
+                        _ => Err(InvalidIndicatorTypeSnafu {indicator_type: indicator_type.to_string()}.build()),
                     }
                 }
             }

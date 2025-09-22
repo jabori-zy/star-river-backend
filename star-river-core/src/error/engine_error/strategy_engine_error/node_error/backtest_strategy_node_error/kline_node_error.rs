@@ -27,6 +27,15 @@ pub enum KlineNodeError {
         source: serde_json::Error,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("[{node_name}] get kline data failed. kline key: [{kline_key}], play index: [{play_index}]"))]
+    GetKlineData {
+        node_name: String,
+        kline_key: String,
+        play_index: u32,
+        backtrace: Backtrace,
+
+    }
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -42,6 +51,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::RegisterExchange { .. } => 1001,
             KlineNodeError::ConfigFieldValueNull { .. } => 1002,
             KlineNodeError::ConfigDeserializationFailed { .. } => 1003,
+            KlineNodeError::GetKlineData { .. } => 1004,
         };
 
         format!("{}_{:04}", prefix, code)
@@ -75,7 +85,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             // For errors with external sources or no source
             KlineNodeError::ConfigFieldValueNull { .. } |
             // For errors with external sources that don't implement our trait
-            KlineNodeError::ConfigDeserializationFailed { .. }  => vec![self.error_code()],
+            KlineNodeError::ConfigDeserializationFailed { .. } |
+            KlineNodeError::GetKlineData { .. } => vec![self.error_code()],
         }
     }
 
@@ -93,6 +104,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 }
                 KlineNodeError::ConfigDeserializationFailed { source, .. } => {
                     format!("K线节点回测配置反序列化失败，原因: [{}]", source)
+                }
+                KlineNodeError::GetKlineData { node_name, kline_key, play_index, .. } => {
+                    format!("K线节点 [{node_name}] 获取K线数据失败，K线键: [{kline_key}]，缓存索引: [{play_index}]")
                 }
             },
         }

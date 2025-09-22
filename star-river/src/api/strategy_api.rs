@@ -16,6 +16,8 @@ use star_river_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 use snafu::IntoError;
+use std::collections::HashMap;
+use star_river_core::custom_type::NodeId;
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -419,7 +421,7 @@ pub async fn stop_strategy(
 pub async fn get_strategy_cache_keys(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<String>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
@@ -428,27 +430,20 @@ pub async fn get_strategy_cache_keys(
         .downcast_mut::<StrategyEngine>()
         .unwrap();
     let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
-    if let Ok(cache_keys) = cache_keys {
-        let cache_keys_str = cache_keys
-            .iter()
+    
+    if let Ok(keys_map) = cache_keys {
+        let keys_str = keys_map
+            .keys()
             .map(|cache_key| cache_key.get_key_str())
-            .collect();
+            .collect::<Vec<String>>();
         (
             StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(cache_keys_str),
-            }),
+            Json(NewApiResponse::success(keys_str)),
         )
     } else {
         return (
             StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
+            Json(NewApiResponse::error(cache_keys.unwrap_err())),
         );
     }
 }

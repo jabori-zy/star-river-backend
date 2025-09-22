@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use snafu::{Report, ResultExt};
+use snafu::Report;
 use star_river_core::cache::Key;
 use star_river_core::error::engine_error::*;
 use star_river_core::order::virtual_order::VirtualOrder;
@@ -28,6 +28,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use star_river_core::custom_type::PlayIndex;
+use star_river_core::custom_type::NodeId;
+use star_river_core::cache::CacheValue;
+
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -159,7 +162,7 @@ impl StrategyEngine {
     }
 
     // 获取策略缓存键
-    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<Vec<Key>, StrategyEngineError> {
+    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<HashMap<Key, NodeId>, StrategyEngineError> {
         let context = self.context.read().await;
         let strategy_context = context
             .as_any()
@@ -340,6 +343,23 @@ impl StrategyEngine {
             .unwrap();
         strategy_context
             .get_backtest_strategy_running_log(strategy_id)
+            .await
+    }
+
+
+    pub async fn get_strategy_data(
+        &mut self,
+        strategy_id: i32,
+        play_index: i32,
+        key: Key,
+    ) -> Result<Vec<Arc<CacheValue>>, StrategyEngineError> {
+        let context = self.context.read().await;
+        let strategy_context = context
+            .as_any()
+            .downcast_ref::<StrategyEngineContext>()
+            .unwrap();
+        strategy_context
+            .get_backtest_strategy_data(strategy_id, play_index, key)
             .await
     }
 }

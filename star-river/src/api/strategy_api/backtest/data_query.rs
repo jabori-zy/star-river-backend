@@ -7,12 +7,15 @@ use axum::http::StatusCode;
 use engine::strategy_engine::StrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
+use star_river_core::cache::Key;
 use star_river_core::engine::EngineName;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use utoipa::{IntoParams, ToSchema};
+use std::str::FromStr;
+use star_river_core::cache::CacheItem;
 
 #[utoipa::path(
     get,
@@ -337,5 +340,67 @@ pub async fn get_running_log(
             StatusCode::BAD_REQUEST,
             Json(NewApiResponse::error(running_log.unwrap_err())),
         )
+    }
+}
+
+
+#[derive(Serialize, Deserialize, IntoParams, ToSchema, Debug)]
+#[schema(
+    title = "get strategy data",
+    description = "get strategy data",
+    example = json!({
+        "play_index": 1,
+        "key": ""
+    })
+)]
+pub struct GetStrategyDataQuery {
+    pub play_index: i32,
+    pub key: String,
+}
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/data",
+    tag = "Backtest Strategy",
+    summary = "Get strategy data",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy data"),
+        ("play_index" = i32, Query, description = "The play index to get strategy data"),
+        ("key" = String, Query, description = "The key to get strategy data")
+    ),
+    responses(
+        (status = 200, description = "Get strategy data successfully", body = NewApiResponse<Vec<utoipa::openapi::Object>>),
+        (status = 400, description = "Get strategy data failed", body = NewApiResponse<Vec<utoipa::openapi::Object>>)
+    )
+)]
+pub async fn get_strategy_data(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+    Query(params): Query<GetStrategyDataQuery>,
+) -> (StatusCode, Json<NewApiResponse<Vec<serde_json::Value>>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard
+        .as_any_mut()
+        .downcast_mut::<StrategyEngine>()
+        .unwrap();
+
+    match Key::from_str(&params.key) {
+        Ok(key) => {
+            strategy_engine
+                .get_strategy_data(strategy_id, params.play_index, key)
+                .await
+                .map(|data| {
+                    let result: Vec<serde_json::Value> = data
+                        .iter()
+                        .map(|cache_value| cache_value.to_json())
+                        .collect();
+                    (StatusCode::OK, Json(NewApiResponse::success(result)))
+                })
+                .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }

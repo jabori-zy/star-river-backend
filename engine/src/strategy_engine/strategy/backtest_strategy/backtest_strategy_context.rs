@@ -17,6 +17,7 @@ use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
 use snafu::IntoError;
 use snafu::ResultExt;
+use snafu::GenerateImplicitData;
 use std::collections::HashMap;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
@@ -29,6 +30,7 @@ use tracing::instrument;
 use star_river_core::cache::Key;
 use star_river_core::custom_type::{NodeId, PlayIndex, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::error::engine_error::node_error::backtest_strategy_node_error::*;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
@@ -42,6 +44,11 @@ use virtual_trading::VirtualTradingSystem;
 use chrono::{DateTime, Utc};
 use star_river_core::cache::key::KlineKey;
 use event_center::communication::strategy::GetStartNodeConfigParams;
+use star_river_core::cache::CacheValue;
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::KlineNode;
+use event_center::communication::engine::cache_engine::GetCacheParams;
+use event_center::communication::engine::EngineResponse;
+use star_river_core::cache::KeyTrait;
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -76,7 +83,7 @@ pub struct BacktestStrategyContext {
     pub(super) current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
     pub(super) batch_id: Uuid,                       // 回测批次id
     pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
-    pub(super) keys: Arc<RwLock<Vec<Key>>>,                            // 缓存键
+    pub(super) keys: Arc<RwLock<HashMap<Key, NodeId>>>,                     // 缓存键 -> 其所属节点id
     pub(super) min_interval_symbols: Vec<KlineKey>,                        // 最小周期交易对
     
 }
@@ -112,7 +119,7 @@ impl BacktestStrategyContext {
             strategy_config,
             strategy_id,
             strategy_name: strategy_name.clone(),
-            keys: Arc::new(RwLock::new(vec![])),
+            keys: Arc::new(RwLock::new(HashMap::new())),
             graph: Graph::new(),
             node_indices: HashMap::new(),
             cancel_task_token,
@@ -152,7 +159,7 @@ impl BacktestStrategyContext {
         self.strategy_name.clone()
     }
 
-    pub async fn get_keys(&self) -> Vec<Key> {
+    pub async fn get_keys(&self) -> HashMap<Key, NodeId> {
         self.keys.read().await.clone()
     }
 
@@ -256,48 +263,6 @@ impl BacktestStrategyContext {
             node_list.push(vec![node_id, node_name]);
         }
         node_list
-    }
-
-    async fn get_strategy_data(
-        strategy_id: StrategyId,
-        strategy_name: String,
-        cache_keys: Arc<RwLock<Vec<Key>>>,
-    ) {
-        let cache_keys_clone = cache_keys.read().await.clone();
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetCacheMultiParams::new(
-            strategy_id,
-            cache_keys_clone,
-            None,
-            None,
-            strategy_name,
-            resp_tx,
-        );
-
-        let _ = EventCenterSingleton::send_command(params.into())
-            .await
-            .unwrap();
-
-        // 等待响应
-        let response = resp_rx.await.unwrap();
-        if response.success() {
-            // let cache_engine_response = CacheEngineResponse::try_from(response);
-            // if let Ok(cache_engine_response) = cache_engine_response {
-            //     match cache_engine_response {
-            //         CacheEngineResponse::GetCacheDataMulti(response) => {
-            //             let strategy_data = BacktestStrategyData {
-            //                 strategy_id: strategy_id,
-            //                 cache_key: response.cache_key.get_key(),
-            //                 data: response.cache_data,
-            //                 timestamp: get_utc8_timestamp_millis(),
-            //             };
-            //             let strategy_event = StrategyEvent::BacktestStrategyDataUpdate(strategy_data);
-            //             event_publisher.publish(strategy_event.into()).await.unwrap();
-            //         }
-            //         _ => {}
-            //     }
-            // }
-        }
     }
 
     pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
@@ -646,5 +611,76 @@ impl BacktestStrategyContext {
                 strategy_name: self.strategy_name.clone(),
             })?;
         Ok(())
+    }
+
+
+    pub async fn get_strategy_data(&self, play_index: PlayIndex, key: Key) -> Result<Vec<Arc<CacheValue>>, BacktestStrategyError> {
+        // 安全检查：验证key是否属于当前策略
+        let keys_map = self.keys.read().await;
+        if !keys_map.contains_key(&key) {
+            return Err(GetDataFailedSnafu {
+                strategy_name: self.strategy_name.clone(),
+                key: key.get_key_str(),
+                play_index: play_index as u32
+            }.fail()?);
+        }
+        drop(keys_map); // 释放锁
+
+        let (resp_tx, resp_rx) = oneshot::channel();
+
+        let index = match &key {
+            Key::Kline(kline_key) => {
+                if self.min_interval_symbols.contains(kline_key) {
+                    Some(play_index as u32)
+                } else {
+                    None
+                }
+            }
+            Key::Indicator(indicator_key) => {
+                let kline_key = indicator_key.get_kline_key();
+                if self.min_interval_symbols.contains(&kline_key) {
+                    Some(play_index as u32)
+                } else {
+                    None
+                }
+            }
+        };
+
+        let get_cache_params = GetCacheParams::new(
+            self.strategy_id,
+            "".to_string(),
+            key.clone(),
+            index,
+            None,
+            "".to_string(),
+            resp_tx,
+        );
+
+        EventCenterSingleton::send_command(get_cache_params.into())
+            .await
+            .unwrap();
+
+        let response = resp_rx.await.unwrap();
+
+        if response.success() {
+            match response {
+                EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(get_cache_data_response)) => {
+                    Ok(get_cache_data_response.cache_data)
+                }
+                _ => {
+                    Err(GetDataFailedSnafu {
+                        strategy_name: self.strategy_name.clone(),
+                        key: key.get_key_str(),
+                        play_index: play_index as u32
+                    }.fail()?)
+                }
+            }
+        } else {
+            Err(GetDataFailedSnafu {
+                strategy_name: self.strategy_name.clone(),
+                key: key.get_key_str(),
+                play_index: play_index as u32
+            }.fail()?)
+        }
     }
 }

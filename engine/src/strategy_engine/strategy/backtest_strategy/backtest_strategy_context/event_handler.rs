@@ -23,7 +23,8 @@ impl BacktestStrategyContext {
             NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyKeys(
                 get_strategy_cache_keys_command,
             )) => {
-                let keys = self.get_keys().await;
+                let keys_map = self.get_keys().await;
+                let keys = keys_map.keys().cloned().collect();
                 let get_strategy_cache_keys_response = GetStrategyCacheKeysResponse::success(keys);
                 get_strategy_cache_keys_command
                     .responder
@@ -57,16 +58,7 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
-    async fn handle_event(&mut self, event: Event) -> Result<(), String> {
-        // if let Event::Response(ResponseEvent::CacheEngine(CacheEngineResponse::GetCacheDataMulti(response))) = event {
-        //     let strategy_data = StrategyData {
-        //         strategy_id: self.strategy_id,
-        //         data: response.cache_data,
-        //         timestamp: get_utc8_timestamp_millis(),
-        //     };
-        //     let strategy_event = StrategyEvent::StrategyDataUpdate(strategy_data);
-        //     let _ = self.event_publisher.publish(strategy_event.into());
-        // }
+    async fn handle_event(&mut self, _event: Event) -> Result<(), String> {
         Ok(())
     }
 
@@ -87,7 +79,7 @@ impl BacktestStrategyContext {
                     // 如果所有叶子节点都执行完毕，则通知等待的线程
                     if execute_over_node_ids.len() == self.leaf_node_ids.len() {
                         tracing::debug!(
-                            "{}: 所有叶子节点执行完毕, 通知等待的线程。叶子节点id: {:?}",
+                            "[{}]: notify waiting thread. leaf node ids: {:?}",
                             self.strategy_name.clone(),
                             execute_over_node_ids
                         );

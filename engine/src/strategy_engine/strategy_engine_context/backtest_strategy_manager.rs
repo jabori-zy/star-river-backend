@@ -15,6 +15,10 @@ use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::custom_type::PlayIndex;
 use tokio::time::Duration;
+use std::collections::HashMap;
+use star_river_core::custom_type::NodeId;
+use star_river_core::cache::CacheValue;
+use std::sync::Arc;
 
 /*
     回测策略控制
@@ -134,12 +138,12 @@ impl StrategyEngineContext {
     }
 
     // 获取回测策略的缓存键
-    pub async fn get_backtest_strategy_keys(&self, strategy_id: i32) -> Vec<Key> {
+    pub async fn get_backtest_strategy_keys(&self, strategy_id: i32) -> HashMap<Key, NodeId> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await;
         if let Ok(strategy) = strategy {
             strategy.get_context().read().await.get_keys().await
         } else {
-            Vec::new()
+            HashMap::new()
         }
     }
 
@@ -261,5 +265,15 @@ impl StrategyEngineContext {
     ) -> Result<Vec<StrategyRunningLogEvent>, StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
         Ok(strategy.get_running_log().await)
+    }
+
+    pub async fn get_backtest_strategy_data(
+        &self,
+        strategy_id: i32,
+        play_index: i32,
+        key: Key,
+    ) -> Result<Vec<Arc<CacheValue>>, StrategyEngineError> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
+        Ok(strategy.get_strategy_data(play_index, key).await?)
     }
 }
