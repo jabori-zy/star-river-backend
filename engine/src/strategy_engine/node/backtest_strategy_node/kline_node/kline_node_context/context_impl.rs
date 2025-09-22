@@ -101,6 +101,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
                 node_reset_params,
             )) => {
                 if self.get_node_id() == &node_reset_params.node_id {
+                    self.handle_node_reset().await;
                     let response = NodeResetResponse::success(self.get_node_id().clone());
                     node_reset_params.responder.send(response.into()).unwrap();
                 }

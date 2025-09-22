@@ -1,6 +1,7 @@
 mod context_impl;
 mod event_handler;
 mod utils;
+mod command_handler;
 
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{
