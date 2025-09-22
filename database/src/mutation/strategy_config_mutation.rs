@@ -35,8 +35,6 @@ impl StrategyConfigMutation {
         strategy_config: Option<JsonValue>,
         nodes: Option<JsonValue>,
         edges: Option<JsonValue>,
-        live_chart_config: Option<JsonValue>,
-        backtest_chart_config: Option<JsonValue>,
     ) -> Result<StrategyConfig, DbErr> {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
@@ -52,8 +50,6 @@ impl StrategyConfigMutation {
             config: Set(strategy_config),
             nodes: Set(nodes),
             edges: Set(edges),
-            live_chart_config: Set(live_chart_config),
-            backtest_chart_config: Set(backtest_chart_config),
             updated_time: Set(Utc::now()),
             ..Default::default()
         }

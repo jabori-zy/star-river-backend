@@ -185,10 +185,6 @@ pub struct UpdateStrategyParams {
     pub nodes: Option<serde_json::Value>,
     /// 策略边
     pub edges: Option<serde_json::Value>,
-    /// 策略图表配置
-    pub live_chart_config: Option<serde_json::Value>,
-    /// 回测图表配置
-    pub backtest_chart_config: Option<serde_json::Value>,
 }
 
 #[utoipa::path(
@@ -212,6 +208,7 @@ pub async fn update_strategy(
 ) -> (StatusCode, Json<ApiResponse<StrategyConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
+    tracing::info!("更新策略: {:?}", params);
     match StrategyConfigMutation::update_strategy_by_id(
         conn,
         strategy_id,
@@ -220,9 +217,7 @@ pub async fn update_strategy(
         params.trade_mode,
         params.config,
         params.nodes,
-        params.edges,
-        params.live_chart_config,
-        params.backtest_chart_config,
+        params.edges
     )
     .await
     {
