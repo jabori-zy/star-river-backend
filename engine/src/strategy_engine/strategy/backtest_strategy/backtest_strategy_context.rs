@@ -1,5 +1,9 @@
-pub mod playback_handler;
-pub mod event_handler;
+mod playback_handler;
+mod event_handler;
+mod node_lifecycle;
+mod node_operation;
+mod strategy_operation;
+mod data_query;
 
 use super::super::StrategyCommandPublisher;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
@@ -8,29 +12,22 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::strategy::{NodeCommandReceiver, BacktestStrategyResponse};
-use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheMultiParams, GetCacheLengthMultiParams};
+use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheLengthMultiParams};
 use event_center::communication::strategy::StrategyResponse;
 use event_center::singleton::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
-use snafu::IntoError;
-use snafu::ResultExt;
-use snafu::GenerateImplicitData;
 use std::collections::HashMap;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::broadcast;
-use tokio::sync::oneshot;
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
-use tracing::instrument;
 use star_river_core::cache::Key;
-use star_river_core::custom_type::{NodeId, PlayIndex, StrategyId};
+use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use star_river_core::error::engine_error::node_error::backtest_strategy_node_error::*;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
@@ -45,10 +42,22 @@ use chrono::{DateTime, Utc};
 use star_river_core::cache::key::KlineKey;
 use event_center::communication::strategy::GetStartNodeConfigParams;
 use star_river_core::cache::CacheValue;
-use crate::strategy_engine::node::backtest_strategy_node::kline_node::KlineNode;
 use event_center::communication::engine::cache_engine::GetCacheParams;
 use event_center::communication::engine::EngineResponse;
-use star_river_core::cache::KeyTrait;
+use event_center::communication::strategy::NodeCommand;
+use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
+use event_center::communication::strategy::backtest_strategy::response::{GetStrategyCacheKeysResponse, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse};
+use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
+use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::CommonEvent;
+use event_center::event::node_event::NodeEventTrait;
+use event_center::event::strategy_event::backtest_strategy_event::PlayFinishedEvent;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -245,442 +254,19 @@ impl BacktestStrategyContext {
 }
 
 impl BacktestStrategyContext {
-    // 拓扑排序
-    pub fn topological_sort(&self) -> Vec<Box<dyn BacktestNodeTrait>> {
-        petgraph::algo::toposort(&self.graph, None)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|index| self.graph[index].clone())
-            .collect()
-    }
-
-    pub async fn get_node_list(&self) -> Vec<Vec<String>> {
-        let nodes = self.topological_sort();
-        let mut node_list = Vec::new();
-        for node in &nodes {
-            let node_name = node.get_node_name().await;
-            let node_id = node.get_node_id().await;
-            node_list.push(vec![node_id, node_name]);
-        }
-        node_list
-    }
-
-    pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
-        let start_time = std::time::Instant::now();
-        let timeout = std::time::Duration::from_secs(timeout_secs);
-
-        loop {
-            let mut all_stopped = true;
-            // 检查所有节点状态
-            for node in self.graph.node_weights() {
-                let run_state = node.get_run_state().await;
-                if run_state != BacktestNodeRunState::Stopped {
-                    all_stopped = false;
-                    break;
-                }
-            }
-
-            // 如果所有节点都已停止，返回成功
-            if all_stopped {
-                tracing::info!(
-                    "所有节点已停止，共耗时{}ms",
-                    start_time.elapsed().as_millis()
-                );
-                return Ok(true);
-            }
-
-            // 检查是否超时
-            if start_time.elapsed() > timeout {
-                tracing::warn!("等待节点停止超时，已等待{}秒", timeout_secs);
-                return Ok(false);
-            }
-
-            // 短暂休眠后再次检查
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        }
-    }
-
-    // 初始化所有节点的方法，不持有外部锁
-    pub async fn init_node(
-        context: Arc<RwLock<Self>>,
-    ) -> Result<(), BacktestStrategyError> {
-        // 短暂持有锁获取节点列表
-        let nodes = {
-            let context_guard = context.read().await;
-            context_guard.topological_sort()
-        }; // 锁立即释放
-
-        // 逐个初始化节点，不持有锁
-        for node in nodes {
-            let mut node_clone = node.clone();
-
-            let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> =
-                tokio::spawn(async move {
-                    node_clone.init().await.context(NodeInitSnafu {})?;
-                    Ok(())
-                });
-
-            let node_name = node.get_node_name().await;
-            let node_id = node.get_node_id().await;
-            let node_type = node.get_node_type().await;
-
-            // 等待节点初始化完成（这里没有持有任何锁）
-            match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
-                Ok(result) => {
-                    if let Err(e) = result {
-                        return Err(TokioTaskFailedSnafu {
-                            task_name: "INIT_NODE".to_string(),
-                            node_name,
-                            node_id,
-                            node_type: node_type.to_string(),
-                        }
-                        .into_error(e));
-                    }
-
-                    if let Ok(Err(e)) = result {
-                        return Err(e);
-                    }
-                }
-                Err(e) => {
-                    return Err(NodeInitTimeoutSnafu {
-                        node_id,
-                        node_name,
-                        node_type: node_type.to_string(),
-                    }
-                    .into_error(e));
-                }
-            }
-
-            // 等待节点进入Ready状态（这里也没有持有锁）
-            let mut retry_count = 0;
-            let max_retries = 10;
-
-            while retry_count < max_retries {
-                let run_state = node.get_run_state().await;
-                if run_state == BacktestNodeRunState::Ready {
-                    tracing::debug!("节点 {} 已进入Ready状态", node_id);
-                    // 节点初始化间隔
-                    tokio::time::sleep(Duration::from_millis(1)).await;
-                    break;
-                }
-                retry_count += 1;
-                tokio::time::sleep(Duration::from_millis(500)).await;
-            }
-
-            if retry_count >= max_retries {
-                return Err(NodeStateNotReadySnafu {
-                    node_id: node_id,
-                    node_name: node_name,
-                    node_type: node_type.to_string(),
-                }
-                .fail()?);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
-        let mut node_clone = node.clone();
-        let node_name = node_clone.get_node_name().await;
-        let node_id = node_clone.get_node_id().await;
-
-        let node_handle = tokio::spawn(async move {
-            if let Err(e) = node_clone.stop().await {
-                tracing::error!(node_name = %node_name, node_id = %node_id, error = %e, "节点停止失败。");
-                return Err(format!("节点停止失败。"));
-            }
-            Ok(())
-        });
-
-        let node_name = node.get_node_name().await;
-        let node_id = node.get_node_id().await;
-
-        // 等待节点停止完成
-        match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
-            Ok(result) => {
-                if let Err(e) = result {
-                    return Err(format!("节点 {} 停止任务失败: {}", node_name, e));
-                }
-
-                if let Ok(Err(e)) = result {
-                    return Err(format!("节点 {} 停止过程中出错: {}", node_name, e));
-                }
-            }
-            Err(_) => {
-                return Err(format!("节点 {} 停止超时", node_id));
-            }
-        }
-
-        // 等待节点进入Stopped状态
-        let mut retry_count = 0;
-        let max_retries = 20;
-
-        while retry_count < max_retries {
-            let run_state = node.get_run_state().await;
-            if run_state == BacktestNodeRunState::Stopped {
-                tracing::debug!("节点 {} 已进入Stopped状态", node_id);
-                tokio::time::sleep(Duration::from_millis(10)).await;
-                return Ok(());
-            }
-            retry_count += 1;
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-
-        Err(format!("节点 {} 未能进入Stopped状态", node_id))
-    }
-
-    // #[instrument(skip(self))]
-    // // 获取所有k线缓存中的最小长度
-    // pub async fn get_cache_length(&self) -> Result<HashMap<Key, u32>, String> {
-    //     // 过滤出k线缓存key
-    //     let kline_cache_keys = self
-    //         .keys
-    //         .read()
-    //         .await
-    //         .iter()
-    //         .filter(|cache_key| matches!(cache_key, Key::Kline(_)))
-    //         .map(|cache_key| cache_key.clone())
-    //         .collect();
-    //     let (resp_tx, resp_rx) = oneshot::channel();
-    //     let get_cache_length_params = GetCacheLengthMultiParams::new(
-    //         self.strategy_id,
-    //         kline_cache_keys,
-    //         self.strategy_name.clone(),
-    //         resp_tx,
-    //     );
-    //     // 向缓存引擎发送命令
-    //     // self.command_publisher.send(cache_engine_command.into()).await.unwrap();
-    //     EventCenterSingleton::send_command(get_cache_length_params.into())
-    //         .await
-    //         .unwrap();
-    //     let response = resp_rx.await.unwrap();
-    //     if response.success() {
-    //         let cache_engine_response = CacheEngineResponse::try_from(response);
-    //         if let Ok(cache_engine_response) = cache_engine_response {
-    //             match cache_engine_response {
-    //                 CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response) => {
-    //                     tracing::info!(cache_lengths = ?get_cache_length_multi_response.cache_length, "Get cache length successfully!");
-    //                     Ok(get_cache_length_multi_response.cache_length)
-    //                 }
-    //                 _ => Err("get cache length multi failed".to_string()),
-    //             }
-    //         } else {
-    //             Err("try from response failed".to_string())
-    //         }
-    //     } else {
-    //         Err("get cache length multi failed".to_string())
-    //     }
-    // }
-
-    // 初始化信号计数
-    #[instrument(skip(self))]
-    pub async fn get_signal_count(&mut self) -> Result<i32, String> {
-        // // 初始化信号计数
-        // let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
-        // Ok(min_cache_length as i32)
-        let min_interval_keys: Vec<Key> = self.get_min_interval_symbols().iter().map(|key| Key::from(key.clone())).collect();
-
-        // 1. 从缓存引擎获取每一个symbol的缓存长度
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let get_cache_length_params = GetCacheLengthMultiParams::new(
-            self.strategy_id,
-            min_interval_keys.clone(),
-            self.strategy_name.clone(),
-            resp_tx,
-        );
-        EventCenterSingleton::send_command(get_cache_length_params.into())
-            .await
-            .unwrap();
-        let response = resp_rx.await.unwrap();
-        if response.success() {
-            let cache_engine_response = CacheEngineResponse::try_from(response);
-            if let Ok(cache_engine_response) = cache_engine_response {
-                match cache_engine_response {
-                    CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response) => {
-                        let symbol_cache_lengths = get_cache_length_multi_response.cache_length;
-
-                        // 2. 判断每一个symbol的缓存长度是否相同
-                        if symbol_cache_lengths.is_empty() {
-                            return Err("no symbol cache lengths found".to_string());
-                        }
-
-                        // 获取第一个symbol的缓存长度作为基准
-                        let min_cache_length = symbol_cache_lengths.values().min().cloned().unwrap_or(0);
-
-                        // 检查所有symbol的缓存长度是否都相同
-                        for (key, cache_length) in symbol_cache_lengths.iter() {
-                            if *cache_length != min_cache_length {
-                                return Err(format!("symbol {} cache length {} is not same as min cache length {}", key.get_symbol(), cache_length, min_cache_length));
-                            }
-                        }
-
-                        return Ok(min_cache_length as i32);
-                    }
-                    _ => {
-                        return Err("get cache length multi failed".to_string());
-                    }
-                }
-            } else {
-                return Err("try from response failed".to_string());
-            }
-        } else {
-            return Err("get cache length multi failed".to_string());
-        }
-    }
-
-    // 获取start节点配置
-    pub async fn get_start_node_config(&self) -> Result<BacktestStrategyConfig, String> {
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let get_start_node_config_params =
-            GetStartNodeConfigParams::new("start_node".to_string(), resp_tx);
-        self.strategy_command_publisher
-            .send(get_start_node_config_params.into())
-            .await
-            .unwrap();
-        // EventCenterSingleton::send_command(get_start_node_config_command).await.unwrap();
-        let response = resp_rx.await.unwrap();
-        if response.success() {
-            if let StrategyResponse::BacktestStrategy(
-                BacktestStrategyResponse::GetStartNodeConfig(get_start_node_config_response),
-            ) = response
-            {
-                Ok(get_start_node_config_response.backtest_strategy_config)
-            } else {
-                Err("get start node config failed".to_string())
-            }
-        } else {
-            Err("get start node config failed".to_string())
-        }
-    }
-
-    pub async fn get_play_index(&self) -> i32 {
-        let play_index = self.play_index.read().await;
-        *play_index
-    }
-
-    // 获取所有的virtual order
-    pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let virtual_orders = virtual_trading_system.get_virtual_orders();
-        virtual_orders
-    }
-
-    pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let current_positions = virtual_trading_system.get_current_positions_ref();
-        current_positions.clone()
-    }
-
-    pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let history_positions = virtual_trading_system.get_history_positions();
-        history_positions
-    }
-
-    pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let transactions = virtual_trading_system.get_transactions();
-        transactions
-    }
-
-    pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
-        let strategy_stats = self.strategy_stats.read().await;
-        strategy_stats.get_stats_history(play_index).await
-    }
-
-    pub async fn virtual_trading_system_reset(&self) {
-        let mut virtual_trading_system = self.virtual_trading_system.lock().await;
-        virtual_trading_system.reset();
-    }
-
-    pub async fn strategy_stats_reset(&self) {
-        let mut strategy_stats = self.strategy_stats.write().await;
-        strategy_stats.clear_asset_snapshots().await;
-    }
-
-    pub async fn update_strategy_status(
-        &mut self,
-        status: String,
-    ) -> Result<(), BacktestStrategyError> {
-        let strategy_id = self.strategy_id;
-        StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, status)
-            .await
-            .context(UpdateStrategyStatusFailedSnafu {
-                strategy_id,
-                strategy_name: self.strategy_name.clone(),
-            })?;
-        Ok(())
-    }
 
 
-    pub async fn get_strategy_data(&self, play_index: PlayIndex, key: Key) -> Result<Vec<Arc<CacheValue>>, BacktestStrategyError> {
-        // 安全检查：验证key是否属于当前策略
-        let keys_map = self.keys.read().await;
-        if !keys_map.contains_key(&key) {
-            return Err(GetDataFailedSnafu {
-                strategy_name: self.strategy_name.clone(),
-                key: key.get_key_str(),
-                play_index: play_index as u32
-            }.fail()?);
-        }
-        drop(keys_map); // 释放锁
 
-        let (resp_tx, resp_rx) = oneshot::channel();
+    
 
-        let index = match &key {
-            Key::Kline(kline_key) => {
-                if self.min_interval_symbols.contains(kline_key) {
-                    Some(play_index as u32)
-                } else {
-                    None
-                }
-            }
-            Key::Indicator(indicator_key) => {
-                let kline_key = indicator_key.get_kline_key();
-                if self.min_interval_symbols.contains(&kline_key) {
-                    Some(play_index as u32)
-                } else {
-                    None
-                }
-            }
-        };
+    
 
-        let get_cache_params = GetCacheParams::new(
-            self.strategy_id,
-            "".to_string(),
-            key.clone(),
-            index,
-            None,
-            "".to_string(),
-            resp_tx,
-        );
+    
 
-        EventCenterSingleton::send_command(get_cache_params.into())
-            .await
-            .unwrap();
+    
 
-        let response = resp_rx.await.unwrap();
+    
 
-        if response.success() {
-            match response {
-                EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(get_cache_data_response)) => {
-                    Ok(get_cache_data_response.cache_data)
-                }
-                _ => {
-                    Err(GetDataFailedSnafu {
-                        strategy_name: self.strategy_name.clone(),
-                        key: key.get_key_str(),
-                        play_index: play_index as u32
-                    }.fail()?)
-                }
-            }
-        } else {
-            Err(GetDataFailedSnafu {
-                strategy_name: self.strategy_name.clone(),
-                key: key.get_key_str(),
-                play_index: play_index as u32
-            }.fail()?)
-        }
-    }
+
+
 }

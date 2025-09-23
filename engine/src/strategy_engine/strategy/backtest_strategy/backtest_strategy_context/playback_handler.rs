@@ -1,18 +1,18 @@
-use super::super::backtest_strategy_context::BacktestStrategyContext;
-use super::super::backtest_strategy_state_machine::BacktestStrategyRunState;
-use crate::strategy_engine::node::BacktestNodeTrait;
+use super::{
+    BacktestStrategyContext,
+    BacktestStrategyRunState,
+    BacktestNodeTrait,
+    EventCenterSingleton,
+    PlayFinishedEvent,
+    NodeResetParams,
+};
 use std::sync::Arc;
-use event_center::EventCenterSingleton;
-use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::sync::{Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use star_river_core::custom_type::{PlayIndex, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use uuid::Uuid;
-use virtual_trading::VirtualTradingSystem;
 use tokio::sync::oneshot;
-use event_center::event::strategy_event::backtest_strategy_event::PlayFinishedEvent;
 
 #[derive(Debug)]
 struct PlayContext {
@@ -24,8 +24,6 @@ struct PlayContext {
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     child_cancel_play_token: CancellationToken,
-    virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-    strategy_inner_event_publisher: StrategyInnerEventPublisher,
     execute_over_notify: Arc<Notify>,
     play_index_watch_tx: tokio::sync::watch::Sender<PlayIndex>,
 }
@@ -44,7 +42,6 @@ impl BacktestStrategyContext {
     async fn create_play_context(&self) -> PlayContext {
         let start_node_index = self.node_indices.get("start_node").unwrap();
         let node = self.graph.node_weight(*start_node_index).unwrap().clone();
-        let strategy_inner_event_publisher = self.strategy_inner_event_publisher.clone().unwrap();
 
         PlayContext {
             strategy_id: self.strategy_id,
@@ -55,8 +52,6 @@ impl BacktestStrategyContext {
             is_playing: self.is_playing.clone(),
             initial_play_speed: self.initial_play_speed.clone(),
             child_cancel_play_token: self.cancel_play_token.child_token(),
-            virtual_trading_system: self.virtual_trading_system.clone(),
-            strategy_inner_event_publisher: strategy_inner_event_publisher,
             execute_over_notify: self.execute_over_notify.clone(),
             play_index_watch_tx: self.play_index_watch_tx.clone(),
         }
