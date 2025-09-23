@@ -1,24 +1,16 @@
 use super::{
-    BacktestStrategy, BacktestStrategyError,
-    BacktestStrategyFunction,
-    NodeCommand,
-    StrategyInnerEvent,
-    Key,
-    KlineInterval,
-    KlineKey,
-    KeyTrait,
+    BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey,
+    NodeCommand, StrategyInnerEvent,
 };
-use tokio::sync::{mpsc, broadcast};
-use star_river_core::error::engine_error::strategy_error::backtest_strategy_error::*;
 use snafu::IntoError;
+use star_river_core::error::engine_error::strategy_error::backtest_strategy_error::*;
 use std::collections::HashMap;
-
+use tokio::sync::{broadcast, mpsc};
 
 impl BacktestStrategy {
     pub async fn add_node(&mut self) -> Result<(), BacktestStrategyError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
-        let (strategy_inner_event_tx, strategy_inner_event_rx) =
-            broadcast::channel::<StrategyInnerEvent>(100);
+        let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
         // setting strategy context properties
         {
@@ -103,7 +95,6 @@ impl BacktestStrategy {
         Ok(())
     }
 
-
     // 检查策略的symbol配置
     pub async fn check_symbol_config(&mut self) -> Result<(), BacktestStrategyError> {
         let context = self.get_context();
@@ -122,11 +113,12 @@ impl BacktestStrategy {
             if matches!(key, Key::Kline(_)) {
                 match key {
                     Key::Kline(kline_key) => {
-                        symbol_groups.entry(kline_key.get_symbol()).or_insert_with(Vec::new).push(kline_key.clone());
+                        symbol_groups
+                            .entry(kline_key.get_symbol())
+                            .or_insert_with(Vec::new)
+                            .push(kline_key.clone());
                     }
-                    _ => return Err(IntervalNotSameSnafu {
-                        symbols: vec![],
-                    }.build()),
+                    _ => return Err(IntervalNotSameSnafu { symbols: vec![] }.build()),
                 }
             }
         }
@@ -144,29 +136,29 @@ impl BacktestStrategy {
                 }
             }
             // 如果无法找到有效的symbol或key，返回错误
-            return Err(IntervalNotSameSnafu {
-                symbols: vec![],
-            }.build());
+            return Err(IntervalNotSameSnafu { symbols: vec![] }.build());
         }
 
         // 3. 获取每个symbol组内interval最小的key
         let min_interval_symbols: Vec<KlineKey> = symbol_groups
             .values()
-            .filter_map(|keys| {keys.iter().min_by_key(|key| key.get_interval()).cloned()
-            })
+            .filter_map(|keys| keys.iter().min_by_key(|key| key.get_interval()).cloned())
             .collect();
         // tracing::debug!("min_interval_symbols: {:#?}", min_interval_symbols);
 
         // 4. 检查列表内的所有interval是否相同.(去重之后是否等于1)
-        let min_interval_intervals = min_interval_symbols.iter().map(|key| key.get_interval()).collect::<Vec<KlineInterval>>();
+        let min_interval_intervals = min_interval_symbols
+            .iter()
+            .map(|key| key.get_interval())
+            .collect::<Vec<KlineInterval>>();
         let min_interval_intervals_unique = if min_interval_intervals.is_empty() {
             0
         } else {
             let first_interval = &min_interval_intervals[0];
             if min_interval_intervals.iter().all(|interval| interval == first_interval) {
-                1  // 所有元素都相同
+                1 // 所有元素都相同
             } else {
-                2  // 存在不同元素（大于1即可）
+                2 // 存在不同元素（大于1即可）
             }
         };
 
@@ -176,8 +168,12 @@ impl BacktestStrategy {
         // 如果去重后的interval数量大于1，说明不同symbol的最小interval不相同
         if min_interval_intervals_unique > 1 {
             return Err(IntervalNotSameSnafu {
-                symbols: min_interval_symbols.iter().map(|key| (key.get_symbol(), key.get_interval().to_string())).collect::<Vec<(String, String)>>(),
-            }.build());
+                symbols: min_interval_symbols
+                    .iter()
+                    .map(|key| (key.get_symbol(), key.get_interval().to_string()))
+                    .collect::<Vec<(String, String)>>(),
+            }
+            .build());
         }
 
         // 最后获取写锁并设置结果

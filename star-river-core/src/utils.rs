@@ -1,11 +1,10 @@
-use chrono::{DateTime, FixedOffset, Utc, TimeZone};
-use std::sync::LazyLock;
 use crate::system::DateTimeUtc;
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
+use std::sync::LazyLock;
 
 // UTC+8 时区常量，使用 LazyLock 延迟初始化
-static UTC8_OFFSET: LazyLock<FixedOffset> = LazyLock::new(|| {
-    FixedOffset::east_opt(8 * 3600).expect("Invalid UTC+8 offset")
-});
+static UTC8_OFFSET: LazyLock<FixedOffset> =
+    LazyLock::new(|| FixedOffset::east_opt(8 * 3600).expect("Invalid UTC+8 offset"));
 
 // 获取utc+8的时间戳
 pub fn get_utc8_timestamp_millis() -> i64 {
@@ -17,29 +16,28 @@ pub fn get_utc8_timestamp() -> i64 {
     Utc::now().with_timezone(&*UTC8_OFFSET).timestamp()
 }
 
-
 // 使用项目统一的错误类型
 use crate::error::datetime_error::*;
 
 /// 时间戳转换为 UTC+8 时间（返回 Result）
 /// 支持秒级和毫秒级时间戳的自动识别
 // pub fn timestamp_to_utc8_datetime(timestamp: i64) -> Result<DateTimeUtc, DateTimeError> {
-    
+
 //     // 验证时间戳有效性
 //     if timestamp <= 0 {
-//         return Err(InvalidTimestampSnafu { 
+//         return Err(InvalidTimestampSnafu {
 //             timestamp
 //         }.build());
 //     }
-    
+
 //     // 更好的时间戳识别逻辑
 //     let timestamp_millis = seconds_to_millis(timestamp);
-    
+
 //     // 使用 Result 处理错误
 //     Utc.timestamp_millis_opt(timestamp_millis)
 //         .single()
 //         .map(|utc_time| utc_time.with_timezone(&*UTC8_OFFSET))
-//         .ok_or_else(|| TransformTimestampFailedSnafu { 
+//         .ok_or_else(|| TransformTimestampFailedSnafu {
 //             timestamp
 //         }.build())
 // }
@@ -55,11 +53,11 @@ use crate::error::datetime_error::*;
 pub fn timestamp_to_utc8(timestamp: i64) -> String {
     // 修复：实际使用转换后的时间戳
     let timestamp_millis = if timestamp < 1000000000000 {
-        timestamp * 1000  // 秒转毫秒
+        timestamp * 1000 // 秒转毫秒
     } else {
         timestamp
     };
-    
+
     DateTime::<Utc>::from_timestamp_millis(timestamp_millis)
         .unwrap()
         .with_timezone(&*UTC8_OFFSET)

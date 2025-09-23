@@ -1,5 +1,5 @@
-mod event_handler;
 mod context_impl;
+mod event_handler;
 mod order_handler;
 
 use super::futures_order_node_types::*;
@@ -74,9 +74,7 @@ impl Clone for FuturesOrderNodeContext {
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
             virtual_trading_system: self.virtual_trading_system.clone(),
-            virtual_trading_system_event_receiver: self
-                .virtual_trading_system_event_receiver
-                .resubscribe(),
+            virtual_trading_system_event_receiver: self.virtual_trading_system_event_receiver.resubscribe(),
             unfilled_virtual_order: self.unfilled_virtual_order.clone(),
             virtual_order_history: self.virtual_order_history.clone(),
             virtual_transaction_history: self.virtual_transaction_history.clone(),
@@ -86,11 +84,7 @@ impl Clone for FuturesOrderNodeContext {
 }
 
 impl FuturesOrderNodeContext {
-    async fn set_is_processing_order(
-        &mut self,
-        input_handle_id: &InputHandleId,
-        is_processing_order: bool,
-    ) {
+    async fn set_is_processing_order(&mut self, input_handle_id: &InputHandleId, is_processing_order: bool) {
         self.is_processing_order
             .write()
             .await
@@ -98,11 +92,7 @@ impl FuturesOrderNodeContext {
     }
 
     // 添加未成交的虚拟订单
-    async fn add_unfilled_virtual_order(
-        &mut self,
-        input_handle_id: &InputHandleId,
-        virtual_order: VirtualOrder,
-    ) {
+    async fn add_unfilled_virtual_order(&mut self, input_handle_id: &InputHandleId, virtual_order: VirtualOrder) {
         let mut unfilled_virtual_order_guard = self.unfilled_virtual_order.write().await;
         // tracing::info!("{}: 订单已添加到未成交的虚拟订单列表: {:?}", self.get_node_id(), virtual_order);
         unfilled_virtual_order_guard
@@ -111,11 +101,7 @@ impl FuturesOrderNodeContext {
             .push(virtual_order);
     }
 
-    async fn remove_unfilled_virtual_order(
-        &mut self,
-        input_handle_id: &InputHandleId,
-        virtual_order_id: OrderId,
-    ) {
+    async fn remove_unfilled_virtual_order(&mut self, input_handle_id: &InputHandleId, virtual_order_id: OrderId) {
         let mut unfilled_virtual_order_guard = self.unfilled_virtual_order.write().await;
         unfilled_virtual_order_guard
             .entry(input_handle_id.to_string())
@@ -124,11 +110,7 @@ impl FuturesOrderNodeContext {
             });
     }
 
-    async fn add_virtual_order_history(
-        &mut self,
-        input_handle_id: &InputHandleId,
-        virtual_order: VirtualOrder,
-    ) {
+    async fn add_virtual_order_history(&mut self, input_handle_id: &InputHandleId, virtual_order: VirtualOrder) {
         let mut virtual_order_history_guard = self.virtual_order_history.write().await;
         virtual_order_history_guard
             .entry(input_handle_id.to_string())
@@ -136,11 +118,7 @@ impl FuturesOrderNodeContext {
             .push(virtual_order);
     }
 
-    async fn remove_virtual_order_history(
-        &mut self,
-        input_handle_id: &InputHandleId,
-        virtual_order_id: OrderId,
-    ) {
+    async fn remove_virtual_order_history(&mut self, input_handle_id: &InputHandleId, virtual_order_id: OrderId) {
         let mut virtual_order_history_guard = self.virtual_order_history.write().await;
         virtual_order_history_guard
             .entry(input_handle_id.to_string())
@@ -164,21 +142,13 @@ impl FuturesOrderNodeContext {
     // 判断是否可以创建订单
     async fn can_create_order(&mut self, input_handle_id: &InputHandleId) -> bool {
         let is_processing_order_guard = self.is_processing_order.read().await;
-        let is_processing_order = *is_processing_order_guard
-            .get(input_handle_id)
-            .unwrap_or(&false);
+        let is_processing_order = *is_processing_order_guard.get(input_handle_id).unwrap_or(&false);
 
         let unfilled_virtual_order_guard = self.unfilled_virtual_order.read().await;
-        let unfilled_virtual_order_len = unfilled_virtual_order_guard
-            .get(input_handle_id)
-            .map_or(0, |v| v.len());
+        let unfilled_virtual_order_len = unfilled_virtual_order_guard.get(input_handle_id).map_or(0, |v| v.len());
 
         !(is_processing_order || unfilled_virtual_order_len > 0)
     }
-
-    
-
-    
 
     async fn check_order_status(&mut self, order_id: OrderId) -> Result<OrderStatus, String> {
         let virtual_trading_system_guard = self.virtual_trading_system.lock().await;
@@ -188,9 +158,6 @@ impl FuturesOrderNodeContext {
         }
         Err("订单不存在".to_string())
     }
-
-    
-
 
     pub async fn monitor_unfilled_order(&mut self) {
         let unfilled_virtual_order = self.unfilled_virtual_order.clone();
@@ -242,8 +209,7 @@ impl FuturesOrderNodeContext {
 
     async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
-        let get_strategy_cache_keys_params =
-            GetStrategyKeysParams::new(self.get_node_id().clone(), tx);
+        let get_strategy_cache_keys_params = GetStrategyKeysParams::new(self.get_node_id().clone(), tx);
 
         self.get_node_command_sender()
             .send(get_strategy_cache_keys_params.into())
@@ -278,8 +244,7 @@ impl FuturesOrderNodeContext {
                     self.min_kline_interval = Some(kline_keys[0].get_interval());
                 } else if !kline_keys.is_empty() {
                     // 如果列表长度大于1，则需要根据interval排序，获取最小的interval的key
-                    let min_interval_key =
-                        kline_keys.iter().min_by_key(|k| k.get_interval()).unwrap(); // 这里可以安全unwrap，因为我们已经检查了不为空
+                    let min_interval_key = kline_keys.iter().min_by_key(|k| k.get_interval()).unwrap(); // 这里可以安全unwrap，因为我们已经检查了不为空
                     self.min_kline_interval = Some(min_interval_key.get_interval());
                 }
             }
@@ -336,9 +301,7 @@ impl FuturesOrderNodeContext {
 
             let reponse = rx.await.unwrap();
             match reponse {
-                EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(
-                    get_cache_data_response,
-                )) => {
+                EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(get_cache_data_response)) => {
                     // tracing::info!("{}: 获取K线缓存数据成功: {:?}", self.get_node_id(), get_cache_data_response.cache_data);
                     return Ok(get_cache_data_response.cache_data);
                 }
@@ -348,8 +311,4 @@ impl FuturesOrderNodeContext {
             return Err("获取K线缓存数据失败".to_string());
         }
     }
-
-    
 }
-
-

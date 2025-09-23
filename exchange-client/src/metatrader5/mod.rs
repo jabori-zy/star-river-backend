@@ -33,9 +33,7 @@ use star_river_core::market::{Exchange, Kline};
 use star_river_core::order::{CreateOrderParams, GetTransactionDetailParams};
 use star_river_core::order::{Order, OriginalOrder};
 use star_river_core::position::PositionNumber;
-use star_river_core::position::{
-    GetPositionNumberParams, GetPositionParam, OriginalPosition, Position,
-};
+use star_river_core::position::{GetPositionNumberParams, GetPositionParam, OriginalPosition, Position};
 use star_river_core::strategy::TimeRange;
 use star_river_core::transaction::{OriginalTransaction, Transaction};
 use std::any::Any;
@@ -44,8 +42,8 @@ use std::os::windows::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 use std::process::Stdio;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use tokio::process::Child;
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -516,11 +514,7 @@ impl MetaTrader5 {
                     unsafe {
                         // 第二个参数为进程组 ID
                         if let Err(e) = GenerateConsoleCtrlEvent(0, pgid) {
-                            tracing::warn!(
-                                "发送控制事件到MT5-{}进程失败: {:?}",
-                                self.terminal_id,
-                                e
-                            );
+                            tracing::warn!("发送控制事件到MT5-{}进程失败: {:?}", self.terminal_id, e);
                         }
                     }
                 }
@@ -544,17 +538,10 @@ impl MetaTrader5 {
                             .args(&["/F", "/T", "/PID", &pid.to_string()])
                             .output()
                         {
-                            Ok(_) => tracing::info!(
-                                "强制终止MT5-{}进程成功，PID: {}",
-                                self.terminal_id,
-                                pid
-                            ),
-                            Err(e) => tracing::warn!(
-                                "强制终止MT5-{}进程失败，PID: {}, 错误: {}",
-                                self.terminal_id,
-                                pid,
-                                e
-                            ),
+                            Ok(_) => tracing::info!("强制终止MT5-{}进程成功，PID: {}", self.terminal_id, pid),
+                            Err(e) => {
+                                tracing::warn!("强制终止MT5-{}进程失败，PID: {}, 错误: {}", self.terminal_id, pid, e)
+                            }
                         }
                     }
                 }
@@ -575,12 +562,7 @@ impl MetaTrader5 {
                 for attempt in 1..=3 {
                     // 使用tasklist命令查找特定名称的进程
                     let output = StdCommand::new("tasklist")
-                        .args(&[
-                            "/FI",
-                            &format!("IMAGENAME eq {}", self.process_name),
-                            "/FO",
-                            "CSV",
-                        ])
+                        .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
                         .output()
                         .unwrap_or_else(|e| {
                             tracing::warn!("检查进程状态失败: {}", e);
@@ -611,10 +593,7 @@ impl MetaTrader5 {
                                 .output();
                             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                         } else {
-                            tracing::error!(
-                                "无法停止MT5-{}进程，多次尝试后仍在运行",
-                                self.terminal_id
-                            );
+                            tracing::error!("无法停止MT5-{}进程，多次尝试后仍在运行", self.terminal_id);
                             return Ok(false);
                         }
                     }
@@ -640,12 +619,7 @@ impl MetaTrader5 {
             #[cfg(windows)]
             {
                 let output = StdCommand::new("tasklist")
-                    .args(&[
-                        "/FI",
-                        &format!("IMAGENAME eq {}", self.process_name),
-                        "/FO",
-                        "CSV",
-                    ])
+                    .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
                     .output()
                     .unwrap_or_else(|e| {
                         tracing::warn!("检查进程状态失败: {}", e);
@@ -672,12 +646,7 @@ impl MetaTrader5 {
                             // 再次检查
                             // 完整命令: tasklist /FI "IMAGENAME eq <process_name>" /FO CSV
                             let check_output = StdCommand::new("tasklist")
-                                .args(&[
-                                    "/FI",
-                                    &format!("IMAGENAME eq {}", self.process_name),
-                                    "/FO",
-                                    "CSV",
-                                ])
+                                .args(&["/FI", &format!("IMAGENAME eq {}", self.process_name), "/FO", "CSV"])
                                 .output()
                                 .unwrap_or_else(|e| {
                                     tracing::warn!("检查进程状态失败: {}", e);
@@ -740,12 +709,7 @@ impl MetaTrader5 {
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             tracing::debug!(terminal_id = %self.terminal_id, "http client is initialized, ready to initialize terminal");
             mt5_http_client
-                .initialize_terminal(
-                    self.login,
-                    &self.password,
-                    &self.server,
-                    &self.terminal_path,
-                )
+                .initialize_terminal(self.login, &self.password, &self.server, &self.terminal_path)
                 .await?;
 
             tracing::info!(terminal_id = %self.terminal_id, "terminal is initializing, waiting for connection ready");
@@ -819,10 +783,7 @@ impl ExchangeClient for MetaTrader5 {
             .collect()
     }
 
-    async fn get_ticker_price(
-        &self,
-        symbol: &str,
-    ) -> Result<serde_json::Value, ExchangeClientError> {
+    async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, ExchangeClientError> {
         Ok(serde_json::Value::Null)
     }
 
@@ -918,17 +879,13 @@ impl ExchangeClient for MetaTrader5 {
 
     async fn get_socket_stream(&self) -> Result<(), ExchangeClientError> {
         // 判断当前是否正在处理流
-        if self
-            .is_process_stream
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
             return Ok(());
         }
         tracing::debug!("metatrader5开始处理流数据");
         // 如果当前没有处理流，则开始处理流,设置状态为true
-        self.is_process_stream
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        self.is_process_stream.store(true, std::sync::atomic::Ordering::Relaxed);
 
         let websocket_state = self.websocket_state.clone();
         let data_processor = self.data_processor.clone();
@@ -953,10 +910,7 @@ impl ExchangeClient for MetaTrader5 {
                             if let Some(state) = websocket_state.as_mut() {
                                 // 回复pong帧
                                 let socket = state.as_mut();
-                                socket
-                                    .send(Message::Pong(data))
-                                    .await
-                                    .expect("发送pong帧失败");
+                                socket.send(Message::Pong(data)).await.expect("发送pong帧失败");
                                 // tracing::debug!("发送pong帧");
                             }
                         }
@@ -964,9 +918,8 @@ impl ExchangeClient for MetaTrader5 {
                             tracing::debug!("收到pong帧");
                         }
                         Message::Text(text) => {
-                            let stream_json =
-                                serde_json::from_str::<serde_json::Value>(&text.to_string())
-                                    .expect("解析WebSocket消息JSON失败");
+                            let stream_json = serde_json::from_str::<serde_json::Value>(&text.to_string())
+                                .expect("解析WebSocket消息JSON失败");
                             // tracing::debug!("收到消息: {:?}", stream_json);
                             let data_processor = data_processor.lock().await;
                             if let Err(e) = data_processor.process_stream(stream_json).await {
@@ -1012,10 +965,7 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn create_order(
-        &self,
-        params: CreateOrderParams,
-    ) -> Result<Box<dyn OriginalOrder>, ExchangeClientError> {
+    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         let mt5_order_request = Mt5CreateOrderParams::from(params);
 
@@ -1024,13 +974,10 @@ impl ExchangeClient for MetaTrader5 {
             let create_order_result = mt5_http_client.create_order(mt5_order_request).await?;
 
             // 获取返回码
-            let retcode =
-                create_order_result["data"]["retcode"]
-                    .as_i64()
-                    .context(RetcodeSnafu {
-                        terminal_id: self.terminal_id,
-                        port: self.server_port,
-                    })?;
+            let retcode = create_order_result["data"]["retcode"].as_i64().context(RetcodeSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            })?;
 
             if retcode != 10009 {
                 return RetcodeSnafu {
@@ -1041,13 +988,10 @@ impl ExchangeClient for MetaTrader5 {
             }
 
             // 获取订单ID
-            let order_id =
-                create_order_result["data"]["order_id"]
-                    .as_i64()
-                    .context(OrderIdSnafu {
-                        terminal_id: self.terminal_id,
-                        port: self.server_port,
-                    })?;
+            let order_id = create_order_result["data"]["order_id"].as_i64().context(OrderIdSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            })?;
 
             // 获取订单详情
             let order_info = mt5_http_client.get_order(&order_id).await?;
@@ -1091,23 +1035,16 @@ impl ExchangeClient for MetaTrader5 {
             let data_processor = self.data_processor.lock().await;
 
             if let Some(transaction_id) = params.transaction_id {
-                let transaction_detail_info =
-                    mt5_http_client.get_deal_by_deal_id(&transaction_id).await?;
-                let transaction_detail =
-                    data_processor.process_deal(transaction_detail_info).await?;
+                let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
                 return Ok(transaction_detail);
             } else if let Some(position_id) = params.position_id {
-                let transaction_detail_info = mt5_http_client
-                    .get_deal_by_position_id(&position_id)
-                    .await?;
-                let transaction_detail =
-                    data_processor.process_deal(transaction_detail_info).await?;
+                let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
                 return Ok(transaction_detail);
             } else if let Some(order_id) = params.order_id {
-                let transaction_detail_info =
-                    mt5_http_client.get_deals_by_order_id(&order_id).await?;
-                let transaction_detail =
-                    data_processor.process_deal(transaction_detail_info).await?;
+                let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await?;
+                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
                 return Ok(transaction_detail);
             } else {
                 return OtherSnafu {
@@ -1124,10 +1061,7 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn get_position(
-        &self,
-        params: GetPositionParam,
-    ) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
+    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let position_info = mt5_http_client.get_position(&params.position_id).await?;
@@ -1140,9 +1074,7 @@ impl ExchangeClient for MetaTrader5 {
                 .fail()?;
             }
             let data_processor = self.data_processor.lock().await;
-            let position = data_processor
-                .process_position(position_list[0].clone())
-                .await?;
+            let position = data_processor.process_position(position_list[0].clone()).await?;
             Ok(position)
         } else {
             return HttpClientNotCreatedSnafu {
@@ -1153,10 +1085,7 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn get_latest_position(
-        &self,
-        position: &Position,
-    ) -> Result<Position, ExchangeClientError> {
+    async fn get_latest_position(&self, position: &Position) -> Result<Position, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let original_position_json = mt5_http_client
@@ -1192,8 +1121,7 @@ impl ExchangeClient for MetaTrader5 {
     ) -> Result<PositionNumber, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let mt5_position_number_request =
-                Mt5GetPositionNumberParams::from(position_number_request);
+            let mt5_position_number_request = Mt5GetPositionNumberParams::from(position_number_request);
             let position_number_info = mt5_http_client
                 .get_position_number(mt5_position_number_request)
                 .await

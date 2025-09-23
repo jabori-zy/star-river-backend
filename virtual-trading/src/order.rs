@@ -1,14 +1,14 @@
 use super::VirtualTradingSystem;
 use chrono::{DateTime, Utc};
+use snafu::Report;
 use star_river_core::custom_type::*;
+use star_river_core::error::virtual_trading_system_error::*;
 use star_river_core::market::Exchange;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};
-use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::position::PositionSide;
+use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
-use star_river_core::error::virtual_trading_system_error::*;
-use snafu::Report;
 
 impl VirtualTradingSystem {
     // 生成订单ID, 从0开始
@@ -105,16 +105,22 @@ impl VirtualTradingSystem {
                     self.orders.push(limit_order.clone());
                 }
                 _ => {
-                    let error = UnsupportedOrderTypeSnafu { order_type: order_type.to_string() }.build();
+                    let error = UnsupportedOrderTypeSnafu {
+                        order_type: order_type.to_string(),
+                    }
+                    .build();
                     let report = Report::from_error(&error);
                     tracing::error!("{}", report);
                     return Err(error);
-                    
                 }
             }
         } else {
             // 如果k线缓存key不存在，则不成交
-            let error = KlineKeyNotFoundSnafu { exchange: exchange.to_string(), symbol: symbol.to_string() }.build();
+            let error = KlineKeyNotFoundSnafu {
+                exchange: exchange.to_string(),
+                symbol: symbol.to_string(),
+            }
+            .build();
             let report = Report::from_error(&error);
             tracing::error!("{}", report);
             return Err(error);
@@ -162,10 +168,7 @@ impl VirtualTradingSystem {
     pub fn get_unfilled_orders(&self) -> Vec<VirtualOrder> {
         self.orders
             .iter()
-            .filter(|order| {
-                order.order_status == OrderStatus::Created
-                    || order.order_status == OrderStatus::Placed
-            })
+            .filter(|order| order.order_status == OrderStatus::Created || order.order_status == OrderStatus::Placed)
             .cloned()
             .collect::<Vec<VirtualOrder>>()
     }

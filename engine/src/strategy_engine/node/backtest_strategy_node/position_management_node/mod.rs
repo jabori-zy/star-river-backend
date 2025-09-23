@@ -4,9 +4,7 @@ pub mod position_management_node_types;
 // pub mod position_management_node_log_message;
 
 use super::node_message::common_log_message::*;
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
@@ -27,11 +25,11 @@ use star_river_core::virtual_trading_system::event::VirtualTradingSystemEventRec
 use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use tokio_stream::wrappers::BroadcastStream;
+use tokio::sync::broadcast;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug, Clone)]
@@ -78,10 +76,7 @@ impl PositionManagementNode {
 
     fn check_position_management_node_config(
         node_config: serde_json::Value,
-    ) -> Result<
-        (StrategyId, NodeId, NodeName, PositionNodeBacktestConfig),
-        PositionManagementNodeError,
-    > {
+    ) -> Result<(StrategyId, NodeId, NodeName, PositionNodeBacktestConfig), PositionManagementNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
@@ -132,9 +127,8 @@ impl PositionManagementNode {
             })?
             .to_owned();
 
-        let backtest_config =
-            serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json)
-                .context(ConfigDeserializationFailedSnafu {})?;
+        let backtest_config = serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json)
+            .context(ConfigDeserializationFailedSnafu {})?;
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
@@ -142,10 +136,8 @@ impl PositionManagementNode {
         let (virtual_trading_system_event_receiver, cancel_token, node_id) = {
             let context = self.get_context();
             let context_guard = context.read().await;
-            let position_management_node_context = context_guard
-                .as_any()
-                .downcast_ref::<PositionNodeContext>()
-                .unwrap();
+            let position_management_node_context =
+                context_guard.as_any().downcast_ref::<PositionNodeContext>().unwrap();
 
             let receiver = position_management_node_context
                 .virtual_trading_system_event_receiver
@@ -216,16 +208,17 @@ impl BacktestNodeTrait for PositionManagementNode {
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
+        tracing::debug!(
+            "[{node_name}] setting strategy output handle: {}",
+            strategy_output_handle_id
+        );
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         let position_operations = {
             let context = self.get_context();
             let context_guard = context.read().await;
-            let position_management_node_context = context_guard
-                .as_any()
-                .downcast_ref::<PositionNodeContext>()
-                .unwrap();
+            let position_management_node_context =
+                context_guard.as_any().downcast_ref::<PositionNodeContext>().unwrap();
             position_management_node_context
                 .backtest_config
                 .position_operations
@@ -247,21 +240,21 @@ impl BacktestNodeTrait for PositionManagementNode {
             );
             let (success_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let (failed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting success output handle: {}", success_output_handle_id);
-            self.add_output_handle(success_output_handle_id, success_tx)
-                .await;
-            tracing::debug!("[{node_name}] setting failed output handle: {}", failed_output_handle_id);
-            self.add_output_handle(failed_output_handle_id, failed_tx)
-                .await;
+            tracing::debug!(
+                "[{node_name}] setting success output handle: {}",
+                success_output_handle_id
+            );
+            self.add_output_handle(success_output_handle_id, success_tx).await;
+            tracing::debug!(
+                "[{node_name}] setting failed output handle: {}",
+                failed_output_handle_id
+            );
+            self.add_output_handle(failed_output_handle_id, failed_tx).await;
         }
-
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!(
-            "================={}====================",
-            self.get_node_name().await
-        );
+        tracing::info!("================={}====================", self.get_node_name().await);
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize)
@@ -270,10 +263,7 @@ impl BacktestNodeTrait for PositionManagementNode {
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!(
-            "{:?}: 初始化完成",
-            self.get_state_machine().await.current_state()
-        );
+        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete)
             .await?;
@@ -282,8 +272,7 @@ impl BacktestNodeTrait for PositionManagementNode {
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop)
-            .await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
 
         // 等待所有任务结束
         self.cancel_task().await;
@@ -310,10 +299,9 @@ impl BacktestNodeTrait for PositionManagementNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {
-            if let Some(position_node_state_action) = action
-                .as_any()
-                .downcast_ref::<PositionManagementNodeStateAction>(
-            ) {
+            if let Some(position_node_state_action) =
+                action.as_any().downcast_ref::<PositionManagementNodeStateAction>()
+            {
                 let current_state = state_machine.current_state();
                 match position_node_state_action {
                     PositionManagementNodeStateAction::LogTransition => {
@@ -324,17 +312,11 @@ impl BacktestNodeTrait for PositionManagementNode {
                         );
                     }
                     PositionManagementNodeStateAction::LogNodeState => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] current state: {:?}",
-                            current_state
-                        );
+                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
 
                         // 发送节点状态日志事件
-                        let log_message = NodeStateLogMsg::new(
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                        );
+                        let log_message =
+                            NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -346,11 +328,8 @@ impl BacktestNodeTrait for PositionManagementNode {
                         let _ = strategy_output_handle.send(log_event.into());
                     }
                     PositionManagementNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen external events"
-                        );
-                        let log_message =
-                            ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -363,9 +342,7 @@ impl BacktestNodeTrait for PositionManagementNode {
                         self.listen_external_events().await;
                     }
                     PositionManagementNodeStateAction::RegisterTask => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] registering position monitoring task"
-                        );
+                        tracing::info!("[{node_name}({node_id})] registering position monitoring task");
                         let log_message = RegisterTaskMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
@@ -386,8 +363,7 @@ impl BacktestNodeTrait for PositionManagementNode {
                     }
                     PositionManagementNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message =
-                            ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -400,11 +376,8 @@ impl BacktestNodeTrait for PositionManagementNode {
                         self.listen_node_events().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen strategy inner events"
-                        );
-                        let log_message =
-                            ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -417,11 +390,8 @@ impl BacktestNodeTrait for PositionManagementNode {
                         self.listen_strategy_inner_events().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen strategy command"
-                        );
-                        let log_message =
-                            ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -435,10 +405,7 @@ impl BacktestNodeTrait for PositionManagementNode {
                     }
                     PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
                         tracing::info!("[{node_name}({node_id})] starting to listen virtual trading system events");
-                        let log_message = ListenVirtualTradingSystemEventMsg::new(
-                            node_id.clone(),
-                            node_name.clone(),
-                        );
+                        let log_message = ListenVirtualTradingSystemEventMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -458,10 +425,7 @@ impl BacktestNodeTrait for PositionManagementNode {
         }
 
         // 所有动作执行完毕后更新节点最新的状态
-        self.context
-            .write()
-            .await
-            .set_state_machine(state_machine.clone_box());
+        self.context.write().await.set_state_machine(state_machine.clone_box());
         Ok(())
     }
 }

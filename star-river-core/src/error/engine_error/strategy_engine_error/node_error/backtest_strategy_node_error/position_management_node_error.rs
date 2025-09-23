@@ -1,22 +1,15 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum PositionManagementNodeError {
-    #[snafu(display(
-        "position management node backtest config field value is null: {field_name}"
-    ))]
-    ConfigFieldValueNull {
-        field_name: String,
-        backtrace: Backtrace,
-    },
+    #[snafu(display("position management node backtest config field value is null: {field_name}"))]
+    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
-    #[snafu(display(
-        "position management node backtest config deserialization failed. reason: {source}"
-    ))]
+    #[snafu(display("position management node backtest config deserialization failed. reason: {source}"))]
     ConfigDeserializationFailed {
         source: serde_json::Error,
         backtrace: Backtrace,

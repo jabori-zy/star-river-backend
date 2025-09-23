@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use star_river_core::indicator::indicator_define::price_transform::*;
 use star_river_core::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::price_transform::*;
 
 /// 测试所有价格转换指标
 pub fn test_price_transform_indicators() {
@@ -25,10 +25,7 @@ fn test_avgprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_avgprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  AVGPRICE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  AVGPRICE: 计算失败 - {:?}", e),
@@ -40,10 +37,7 @@ fn test_medprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_medprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  MEDPRICE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MEDPRICE: 计算失败 - {:?}", e),
@@ -55,10 +49,7 @@ fn test_typprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_typprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  TYPPRICE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  TYPPRICE: 计算失败 - {:?}", e),
@@ -70,10 +61,7 @@ fn test_wclprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_wclprice(kline_series.to_vec()) {
         Ok(results) => {
             println!("  WCLPRICE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  WCLPRICE: 计算失败 - {:?}", e),

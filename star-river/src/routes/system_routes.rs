@@ -1,8 +1,8 @@
-use crate::api::system_api::{get_system_config, update_system_config, get_timezones};
+use crate::api::system_api::{get_system_config, get_timezones, update_system_config};
 use crate::star_river::StarRiver;
 use axum::{
-    routing::{get, put},
     Router,
+    routing::{get, put},
 };
 
 pub fn create_system_routes() -> Router<StarRiver> {

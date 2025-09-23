@@ -1,8 +1,8 @@
 pub mod node_error;
 pub mod strategy_error;
 
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
@@ -24,32 +24,23 @@ pub enum StrategyEngineError {
     },
 
     #[snafu(display("strategy {} is exists", strategy_id))]
-    StrategyIsExist {
-        strategy_id: i32,
-        backtrace: Backtrace,
-    },
+    StrategyIsExist { strategy_id: i32, backtrace: Backtrace },
 
     #[snafu(display("strategy instance not found: {}", strategy_id))]
-    StrategyInstanceNotFound {
-        strategy_id: i32,
-        backtrace: Backtrace,
-    },
+    StrategyInstanceNotFound { strategy_id: i32, backtrace: Backtrace },
 
     #[snafu(display("database error: {}", source))]
     Database { source: DbErr, backtrace: Backtrace },
 
     #[snafu(display("trade mode {} is unsupported", trade_mode))]
-    UnsupportedTradeMode {
-        trade_mode: String,
-        backtrace: Backtrace,
-    },
+    UnsupportedTradeMode { trade_mode: String, backtrace: Backtrace },
 
     #[snafu(display("strategy {strategy_id} config not found"))]
     StrategyConfigNotFound {
         strategy_id: i32,
         source: DbErr,
         backtrace: Backtrace,
-    }
+    },
 }
 
 // Implement the StarRiverErrorTrait for StrategyEngineError
@@ -128,7 +119,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
                 StrategyEngineError::UnsupportedTradeMode { trade_mode, .. } => {
                     format!("不支持的交易模式: {}", trade_mode)
                 }
-                StrategyEngineError::StrategyConfigNotFound { strategy_id, source, .. } => {
+                StrategyEngineError::StrategyConfigNotFound {
+                    strategy_id, source, ..
+                } => {
                     format!("策略 {} 配置不存在: {}", strategy_id, source)
                 }
             },

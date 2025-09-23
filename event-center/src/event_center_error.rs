@@ -1,36 +1,24 @@
-use crate::communication::engine::EngineCommand;
 use crate::Event;
+use crate::communication::engine::EngineCommand;
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::error_trait::Language;
 use star_river_core::error::ErrorCode;
+use star_river_core::error::error_trait::Language;
 use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum EventCenterError {
     #[snafu(display("Channel [{channel}] not initialized"))]
-    ChannelNotInitialized {
-        channel: String,
-        backtrace: Backtrace,
-    },
+    ChannelNotInitialized { channel: String, backtrace: Backtrace },
 
     #[snafu(display("Channel [{channel}] not found"))]
-    ChannelNotFound {
-        channel: String,
-        backtrace: Backtrace,
-    },
+    ChannelNotFound { channel: String, backtrace: Backtrace },
 
     #[snafu(display("Engine command receiver for [{engine_name}] not found"))]
-    EngineCommandReceiverNotFound {
-        engine_name: String,
-        backtrace: Backtrace,
-    },
+    EngineCommandReceiverNotFound { engine_name: String, backtrace: Backtrace },
 
     #[snafu(display("Engine command sender for [{engine_name}] not found"))]
-    EngineCommandSenderNotFound {
-        engine_name: String,
-        backtrace: Backtrace,
-    },
+    EngineCommandSenderNotFound { engine_name: String, backtrace: Backtrace },
 
     #[snafu(transparent)]
     EventSendError {
@@ -114,12 +102,8 @@ impl star_river_core::error::error_trait::StarRiverErrorTrait for EventCenterErr
                 EventCenterError::CommandSendError { source, .. } => {
                     format!("命令发送错误: {}", source)
                 }
-                EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => {
-                    "事件中心实例已初始化".to_string()
-                }
-                EventCenterError::EventCenterInstanceNotInitialized { .. } => {
-                    "事件中心实例未初始化".to_string()
-                }
+                EventCenterError::EventCenterInstanceAlreadyInitialized { .. } => "事件中心实例已初始化".to_string(),
+                EventCenterError::EventCenterInstanceNotInitialized { .. } => "事件中心实例未初始化".to_string(),
             },
         }
     }

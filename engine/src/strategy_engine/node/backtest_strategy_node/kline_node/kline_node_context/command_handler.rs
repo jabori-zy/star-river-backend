@@ -1,9 +1,8 @@
 use super::KlineNodeContext;
-use event_center::communication::engine::cache_engine::ClearCacheParams;
-use event_center::EventCenterSingleton;
-use tokio::sync::oneshot;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
-
+use event_center::EventCenterSingleton;
+use event_center::communication::engine::cache_engine::ClearCacheParams;
+use tokio::sync::oneshot;
 
 impl KlineNodeContext {
     // 节点重置
@@ -13,7 +12,7 @@ impl KlineNodeContext {
             if !self.min_interval_symbols.contains(kline_key) {
                 let (resp_tx, resp_rx) = oneshot::channel();
                 let clear_cache_params = ClearCacheParams::new(
-                    self.get_strategy_id().clone(), 
+                    self.get_strategy_id().clone(),
                     kline_key.clone().into(),
                     self.get_node_id().clone(),
                     resp_tx,
@@ -26,8 +25,6 @@ impl KlineNodeContext {
                     tracing::error!("删除k线缓存失败: {:#?}", response);
                 }
             }
-
-        };
-
+        }
     }
 }

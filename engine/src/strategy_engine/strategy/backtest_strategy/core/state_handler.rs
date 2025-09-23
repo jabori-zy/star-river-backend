@@ -1,15 +1,14 @@
 use super::super::super::backtest_strategy::BacktestStrategy;
-use crate::strategy_engine::strategy::backtest_strategy::*;
-use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStateTransitionEvent;
-use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyError;
-use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStateAction;
-use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStats;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyContext;
-use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyFunction;
+use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyError;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyEvent;
+use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyFunction;
+use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStateAction;
+use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStateTransitionEvent;
+use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStats;
+use crate::strategy_engine::strategy::backtest_strategy::*;
 use snafu::Report;
 use star_river_core::error::error_trait::Language;
-
 
 impl BacktestStrategy {
     pub async fn update_strategy_state(
@@ -30,16 +29,11 @@ impl BacktestStrategy {
             // action execute result flag
             match action {
                 BacktestStrategyStateAction::InitInitialPlaySpeed => {
-                    tracing::info!(
-                        "[{}({})] init initial play speed",
-                        strategy_name,
-                        strategy_id
-                    );
+                    tracing::info!("[{}({})] init initial play speed", strategy_name, strategy_id);
                     let context_guard = self.context.read().await;
                     let start_node_config = context_guard.get_start_node_config().await;
                     if let Ok(start_node_config) = start_node_config {
-                        let mut initial_play_speed_guard =
-                            context_guard.initial_play_speed.write().await;
+                        let mut initial_play_speed_guard = context_guard.initial_play_speed.write().await;
                         *initial_play_speed_guard = start_node_config.play_speed as u32;
                         tracing::info!(
                             "[{}({})] init initial play speed success. initial play speed: {:?}",
@@ -48,11 +42,7 @@ impl BacktestStrategy {
                             *initial_play_speed_guard
                         );
                     } else {
-                        tracing::error!(
-                            "[{}({})] get start node config failed",
-                            strategy_name,
-                            strategy_id
-                        );
+                        tracing::error!("[{}({})] get start node config failed", strategy_name, strategy_id);
                     }
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
@@ -60,35 +50,20 @@ impl BacktestStrategy {
                     let mut context_guard = self.context.write().await;
                     let signal_count = context_guard.get_signal_count().await;
 
-
                     if let Ok(signal_count) = signal_count {
                         let mut signal_count_guard = context_guard.total_signal_count.write().await;
                         *signal_count_guard = signal_count;
-                        tracing::info!(
-                            "[{}({})] init signal count success",
-                            strategy_name,
-                            strategy_id
-                        );
+                        tracing::info!("[{}({})] init signal count success", strategy_name, strategy_id);
                     } else {
-                        tracing::error!(
-                            "[{}({})] get signal count failed",
-                            strategy_name,
-                            strategy_id
-                        );
+                        tracing::error!("[{}({})] get signal count failed", strategy_name, strategy_id);
                     }
                 }
                 BacktestStrategyStateAction::InitVirtualTradingSystem => {
-                    tracing::info!(
-                        "[{}({})] init virtual trading system",
-                        strategy_name,
-                        strategy_id
-                    );
+                    tracing::info!("[{}({})] init virtual trading system", strategy_name, strategy_id);
                     let context_guard = self.context.read().await;
                     let virtual_trading_system = context_guard.virtual_trading_system.clone();
                     drop(context_guard); // 释放锁
-                    if let Err(e) =
-                        VirtualTradingSystem::listen_play_index(virtual_trading_system).await
-                    {
+                    if let Err(e) = VirtualTradingSystem::listen_play_index(virtual_trading_system).await {
                         tracing::error!(
                             "[{}({})] init virtual trading system failed: {}",
                             strategy_name,
@@ -109,22 +84,10 @@ impl BacktestStrategy {
                     let strategy_stats = context_guard.strategy_stats.clone();
                     drop(context_guard); // 释放锁
 
-                    if let Err(e) =
-                        BacktestStrategyStats::handle_virtual_trading_system_events(strategy_stats)
-                            .await
-                    {
-                        tracing::error!(
-                            "[{}({})] init strategy stats failed: {}",
-                            strategy_name,
-                            strategy_id,
-                            e
-                        );
+                    if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(strategy_stats).await {
+                        tracing::error!("[{}({})] init strategy stats failed: {}", strategy_name, strategy_id, e);
                     } else {
-                        tracing::info!(
-                            "[{}({})] init strategy stats success",
-                            strategy_name,
-                            strategy_id
-                        );
+                        tracing::info!("[{}({})] init strategy stats success", strategy_name, strategy_id);
                     }
                 }
 
@@ -153,9 +116,8 @@ impl BacktestStrategy {
                         );
 
                         let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event);
-                        let _ = futures::executor::block_on(
-                            EventCenterSingleton::publish(backtest_strategy_event.into())
-                        );
+                        let _ =
+                            futures::executor::block_on(EventCenterSingleton::publish(backtest_strategy_event.into()));
                         e
                     };
 
@@ -247,26 +209,20 @@ impl BacktestStrategy {
                 BacktestStrategyStateAction::LogStrategyState => {
                     let current_state = self.get_state_machine().await.current_state();
 
-                    let log_message = StrategyStateLogMsg::new(
-                        strategy_id,
-                        strategy_name.clone(),
-                        current_state.to_string(),
-                    );
+                    let log_message =
+                        StrategyStateLogMsg::new(strategy_id, strategy_name.clone(), current_state.to_string());
                     let log_event = StrategyStateLogEvent {
                         strategy_id,
                         strategy_name: strategy_name.clone(),
                         strategy_state: Some(current_state.to_string()),
-                        strategy_state_action: Some(
-                            BacktestStrategyStateAction::LogStrategyState.to_string(),
-                        ),
+                        strategy_state_action: Some(BacktestStrategyStateAction::LogStrategyState.to_string()),
                         log_level: LogLevel::Info,
                         error_code: None,
                         error_code_chain: None,
                         message: log_message.to_string(),
                         datetime: Utc::now(),
                     };
-                    let backtest_strategy_event =
-                        BacktestStrategyEvent::StrategyStateLog(log_event.clone());
+                    let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event.clone());
                     // let _ = self.get_context().read().await.get_event_publisher().publish(backtest_strategy_event.into()).await;
                     let _ = EventCenterSingleton::publish(backtest_strategy_event.into()).await;
                 }

@@ -22,11 +22,7 @@ impl VirtualTradingSystem {
 
     // 更新已使用保证金
     pub fn update_used_margin(&mut self) {
-        self.used_margin = self
-            .current_positions
-            .iter()
-            .map(|position| position.margin)
-            .sum();
+        self.used_margin = self.current_positions.iter().map(|position| position.margin).sum();
     }
 
     // 更新保证金率

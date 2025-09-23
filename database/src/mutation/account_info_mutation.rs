@@ -44,8 +44,7 @@ impl AccountInfoMutation {
                 Ok(account_info_model.into())
             }
             None => {
-                let account_info_model =
-                    AccountInfoMutation::insert_account_info(db, account_id, info).await?;
+                let account_info_model = AccountInfoMutation::insert_account_info(db, account_id, info).await?;
                 Ok(account_info_model)
             }
         }

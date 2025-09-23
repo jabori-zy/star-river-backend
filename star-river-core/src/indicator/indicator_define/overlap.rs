@@ -1,9 +1,9 @@
-use chrono::{DateTime, Utc};
+use crate::error::star_river_error::*;
 use crate::{
     define_indicator,
     indicator::{MAType, PriceSource},
 };
-use crate::error::star_river_error::*;
+use chrono::{DateTime, Utc};
 
 //Bollinger Bands #布林带
 define_indicator!(BBANDS,

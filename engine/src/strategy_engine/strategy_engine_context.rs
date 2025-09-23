@@ -1,8 +1,8 @@
 pub mod backtest_strategy_manager;
 
-use crate::exchange_engine::ExchangeEngine;
 use crate::EngineContext;
 use crate::EngineName;
+use crate::exchange_engine::ExchangeEngine;
 use async_trait::async_trait;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use event_center::event::Event;
@@ -19,7 +19,6 @@ use snafu::{Report, ResultExt};
 use star_river_core::custom_type::StrategyId;
 use star_river_core::error::engine_error::strategy_engine_error::*;
 use star_river_core::strategy::{StrategyConfig, TradeMode};
-
 
 #[derive(Debug)]
 pub struct StrategyEngineContext {
@@ -128,15 +127,15 @@ impl StrategyEngineContext {
             //     tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
             // }
             TradeMode::Backtest => {
-                self.backtest_strategy_list
-                    .lock()
-                    .await
-                    .remove(&strategy_id);
+                self.backtest_strategy_list.lock().await.remove(&strategy_id);
                 tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);
             }
             _ => {
                 tracing::error!("不支持的交易模式: {}", trade_mode);
-                return Err(UnsupportedTradeModeSnafu { trade_mode: trade_mode.to_string() }.build());
+                return Err(UnsupportedTradeModeSnafu {
+                    trade_mode: trade_mode.to_string(),
+                }
+                .build());
             }
         }
         Ok(())

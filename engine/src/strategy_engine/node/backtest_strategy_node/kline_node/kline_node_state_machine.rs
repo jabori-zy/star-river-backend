@@ -10,37 +10,37 @@ use std::any::Any;
 pub enum KlineNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
     ListenAndHandleExternalEvents, // 处理外部事件
-    
+
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 监听节点消息
-    
+
     #[strum(serialize = "ListenAndHandleInnerEvents")]
     ListenAndHandleInnerEvents, // 监听内部事件
-    
+
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
-    
+
     #[strum(serialize = "LogNodeState")]
     LogNodeState, // 记录节点状态
-    
+
     #[strum(serialize = "GetMinIntervalSymbols")]
     GetMinIntervalSymbols, // 获取最小周期交易对
-    
+
     #[strum(serialize = "RegisterExchange")]
     RegisterExchange, // 注册交易所
-    
+
     #[strum(serialize = "LoadHistoryFromExchange")]
     LoadHistoryFromExchange, // 从交易所加载K线历史
-    
+
     #[strum(serialize = "LoadHistoryFromFile")]
     LoadHistoryFromFile, // 从文件加载K线历史
-    
+
     #[strum(serialize = "LogTransition")]
     LogTransition, // 记录状态转换
-    
+
     #[strum(serialize = "LogError")]
     LogError(String), // 记录错误
-    
+
     #[strum(serialize = "CancelAsyncTask")]
     CancelAsyncTask, // 取消异步任务
 }
@@ -68,10 +68,7 @@ impl BacktestStateChangeActions for KlineNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions
-            .iter()
-            .map(|action| action.clone_box())
-            .collect()
+        self.actions.iter().map(|action| action.clone_box()).collect()
     }
 }
 
@@ -130,7 +127,7 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                                 Box::new(KlineNodeStateAction::ListenAndHandleInnerEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleStrategyCommand),
                                 Box::new(KlineNodeStateAction::GetMinIntervalSymbols), // 获取最小周期交易对
-                                Box::new(KlineNodeStateAction::RegisterExchange), // 注册交易所
+                                Box::new(KlineNodeStateAction::RegisterExchange),      // 注册交易所
                                 Box::new(KlineNodeStateAction::LoadHistoryFromExchange), // 从交易所加载K线历史
                             ],
                         }))
@@ -149,10 +146,7 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                 }
             }
             // 初始化完成，进入Ready状态
-            (
-                BacktestNodeRunState::Initializing,
-                BacktestNodeStateTransitionEvent::InitializeComplete,
-            ) => {
+            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(KlineNodeStateChangeActions {

@@ -1,14 +1,14 @@
 use super::super::super::strategy_event::{NodeStateLogEvent, StrategyRunningLogEvent};
 use super::super::NodeEvent;
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::{CacheItem, CacheValue, KeyTrait};
+use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Kline;
 use std::sync::Arc;
 use strum::Display;
-use chrono::{DateTime, Utc};
-use star_river_core::custom_type::PlayIndex;
-use star_river_core::cache::{CacheValue, CacheItem, KeyTrait};
-use star_river_core::cache::key::KlineKey;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
@@ -82,10 +82,7 @@ where
     serializer.serialize_str(&kline_key_str)
 }
 
-fn serialize_kline_data<S>(
-    kline_data: &Vec<Arc<CacheValue>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_kline_data<S>(kline_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

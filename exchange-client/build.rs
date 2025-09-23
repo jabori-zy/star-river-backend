@@ -35,10 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "windows")]
     {
         // 设置script目录路径
-        let script_dir = Path::new(&project_root)
-            .join("src")
-            .join("metatrader5")
-            .join("script");
+        let script_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
 
         // 打包前清理可能影响构建检测的临时文件和目录
         let pycache_dir = script_dir.join("__pycache__");

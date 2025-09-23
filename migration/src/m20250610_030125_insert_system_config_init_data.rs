@@ -30,9 +30,7 @@ impl MigrationTrait for Migration {
 
         // 删除插入的初始数据
         SystemConfig::delete_many()
-            .filter(
-                ::entity::system_config::Column::Localization.eq(Localization::English.to_string()),
-            )
+            .filter(::entity::system_config::Column::Localization.eq(Localization::English.to_string()))
             .exec(db)
             .await?;
 

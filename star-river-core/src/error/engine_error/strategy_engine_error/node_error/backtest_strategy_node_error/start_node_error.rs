@@ -1,5 +1,5 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -7,10 +7,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum StartNodeError {
     #[snafu(display("start node backtest config field [{field_name}]'s value is null"))]
-    ConfigFieldValueNull {
-        field_name: String,
-        backtrace: Backtrace,
-    },
+    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("start node backtest config deserialization failed. reason: [{source}]"))]
     ConfigDeserializationFailed {
@@ -19,7 +16,9 @@ pub enum StartNodeError {
     },
 
     // >= 0
-    #[snafu(display("start node config [{config_name}] should be greater than or equal to(>= 0) zero, but got [{config_value}]"))]
+    #[snafu(display(
+        "start node config [{config_name}] should be greater than or equal to(>= 0) zero, but got [{config_value}]"
+    ))]
     ValueNotGreaterThanOrEqualToZero {
         node_name: String,
         node_id: String,
@@ -29,7 +28,9 @@ pub enum StartNodeError {
     },
 
     // > 0
-    #[snafu(display("start node [{node_name}({node_id})] config [{config_name}] should be greater than(> 0) zero, but got [{config_value}]"))]
+    #[snafu(display(
+        "start node [{node_name}({node_id})] config [{config_name}] should be greater than(> 0) zero, but got [{config_value}]"
+    ))]
     ValueNotGreaterThanZero {
         node_name: String,
         node_id: String,

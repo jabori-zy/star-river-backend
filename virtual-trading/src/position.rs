@@ -1,25 +1,21 @@
 use super::VirtualTradingSystem;
 use crate::utils::Formula;
+use chrono::{DateTime, Utc};
 use star_river_core::custom_type::*;
-use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::OrderStatus;
+use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::position::{PositionSide, PositionState};
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
-use chrono::{DateTime, Utc};
 
 impl VirtualTradingSystem {
     pub fn generate_position_id(&self) -> PositionId {
         self.current_positions.len() as PositionId
     }
 
-    pub fn create_position(
-        &mut self,
-        order: &VirtualOrder,
-        current_price: f64,
-    ) -> Result<VirtualPosition, String> {
+    pub fn create_position(&mut self, order: &VirtualOrder, current_price: f64) -> Result<VirtualPosition, String> {
         // 判断保证金是否充足
         let margin = Formula::calculate_margin(self.leverage, current_price, order.quantity);
         if margin > self.available_balance {
@@ -36,18 +32,9 @@ impl VirtualTradingSystem {
             FuturesOrderSide::CloseLong => PositionSide::Long,
             FuturesOrderSide::CloseShort => PositionSide::Short,
         };
-        let force_price = Formula::calculate_force_price(
-            &position_side,
-            self.leverage,
-            current_price,
-            order.quantity,
-        );
-        let margin_ratio = Formula::calculate_margin_ratio(
-            self.available_balance,
-            self.leverage,
-            current_price,
-            order.quantity,
-        );
+        let force_price = Formula::calculate_force_price(&position_side, self.leverage, current_price, order.quantity);
+        let margin_ratio =
+            Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price, order.quantity);
         let virtual_position = VirtualPosition::new(
             position_id,
             position_side,
@@ -83,16 +70,11 @@ impl VirtualTradingSystem {
         let virtual_position = self.create_position(order, current_price).unwrap();
 
         // 更新订单的仓位id
-        self.update_order_position_id(
-            order.order_id,
-            virtual_position.position_id,
-            execute_datetime,
-        )
-        .unwrap();
+        self.update_order_position_id(order.order_id, virtual_position.position_id, execute_datetime)
+            .unwrap();
 
         // 发送仓位创建事件
-        let position_created_event =
-            VirtualTradingSystemEvent::PositionCreated(virtual_position.clone());
+        let position_created_event = VirtualTradingSystemEvent::PositionCreated(virtual_position.clone());
         let _ = self.event_publisher.send(position_created_event);
 
         // 创建止盈止损订单
@@ -100,8 +82,7 @@ impl VirtualTradingSystem {
         if let Some(tp_order) = tp_order {
             tracing::info!("create take profit order: {:?}", tp_order);
             self.orders.push(tp_order.clone());
-            let order_create_event =
-                VirtualTradingSystemEvent::TakeProfitOrderCreated(tp_order.clone());
+            let order_create_event = VirtualTradingSystemEvent::TakeProfitOrderCreated(tp_order.clone());
             let _ = self.event_publisher.send(order_create_event);
         }
 
@@ -109,19 +90,16 @@ impl VirtualTradingSystem {
         if let Some(sl_order) = sl_order {
             tracing::info!("create stop loss order: {:?}", sl_order);
             self.orders.push(sl_order.clone());
-            let order_create_event =
-                VirtualTradingSystemEvent::StopLossOrderCreated(sl_order.clone());
+            let order_create_event = VirtualTradingSystemEvent::StopLossOrderCreated(sl_order.clone());
             let _ = self.event_publisher.send(order_create_event);
         }
 
         // 生成交易明细
         let transaction_id = self.get_transaction_id();
-        let virtual_transaction =
-            VirtualTransaction::new(transaction_id, &order, &virtual_position, execute_datetime);
+        let virtual_transaction = VirtualTransaction::new(transaction_id, &order, &virtual_position, execute_datetime);
 
         // 发送交易明细创建事件
-        let transaction_created_event =
-            VirtualTradingSystemEvent::TransactionCreated(virtual_transaction.clone());
+        let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction.clone());
         let _ = self.event_publisher.send(transaction_created_event);
 
         // 修改订单的状态
@@ -135,8 +113,7 @@ impl VirtualTradingSystem {
 
         // 在这里发送订单成交事件
         let filled_order = self.get_order(order.order_id).unwrap();
-        let order_filled_event =
-            VirtualTradingSystemEvent::FuturesOrderFilled(filled_order.clone());
+        let order_filled_event = VirtualTradingSystemEvent::FuturesOrderFilled(filled_order.clone());
         let _ = self.event_publisher.send(order_filled_event);
 
         Ok(position_id)
@@ -156,8 +133,7 @@ impl VirtualTradingSystem {
                     let quantity = self.current_positions[i].quantity;
 
                     // 计算新的保证金信息
-                    let margin =
-                        Formula::calculate_margin(self.leverage, current_price_val, quantity);
+                    let margin = Formula::calculate_margin(self.leverage, current_price_val, quantity);
                     let margin_ratio = Formula::calculate_margin_ratio(
                         self.available_balance,
                         self.leverage,
@@ -180,8 +156,7 @@ impl VirtualTradingSystem {
                         margin_ratio,
                         force_price,
                     );
-                    let position_updated_event =
-                        VirtualTradingSystemEvent::PositionUpdated(position.clone());
+                    let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
                     let _ = self.event_publisher.send(position_updated_event);
                 }
             }
@@ -205,8 +180,7 @@ impl VirtualTradingSystem {
 
     // 将仓位从当前持仓列表中移除，并添加到历史持仓列表中
     pub fn remove_position(&mut self, position_id: PositionId) {
-        self.current_positions
-            .retain(|p| p.position_id != position_id);
+        self.current_positions.retain(|p| p.position_id != position_id);
     }
 
     // 执行止盈订单
@@ -225,12 +199,8 @@ impl VirtualTradingSystem {
             if let Some(mut position) = position {
                 // 更新仓位的收益
                 let unrealized_profit = match tp_order.order_side {
-                    FuturesOrderSide::CloseLong => {
-                        position.quantity * (execute_price - position.open_price)
-                    }
-                    FuturesOrderSide::CloseShort => {
-                        position.quantity * (position.open_price - execute_price)
-                    }
+                    FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
+                    FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
                     _ => 0.0,
                 };
 
@@ -244,13 +214,11 @@ impl VirtualTradingSystem {
                 position.margin_ratio = 0.0;
 
                 // 发送最后一次仓位更新事件
-                let position_updated_event =
-                    VirtualTradingSystemEvent::PositionUpdated(position.clone());
+                let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
                 let _ = self.event_publisher.send(position_updated_event);
 
                 // 发送仓位平仓事件
-                let position_closed_event =
-                    VirtualTradingSystemEvent::PositionClosed(position.clone());
+                let position_closed_event = VirtualTradingSystemEvent::PositionClosed(position.clone());
                 let _ = self.event_publisher.send(position_closed_event);
                 // 将仓位添加到历史持仓列表中
                 self.history_positions.push(position.clone());
@@ -261,8 +229,7 @@ impl VirtualTradingSystem {
                     VirtualTransaction::new(transaction_id, tp_order, &position, self.current_datetime);
                 self.transactions.push(virtual_transaction.clone());
                 // 发送交易明细创建事件
-                let transaction_created_event =
-                    VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
+                let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
                 let _ = self.event_publisher.send(transaction_created_event);
 
                 // 修改止盈订单状态
@@ -270,23 +237,17 @@ impl VirtualTradingSystem {
                     .update_order_status(tp_order.order_id, OrderStatus::Filled, self.current_datetime)
                     .unwrap();
                 // 发送止盈订单成交事件
-                let tp_order_filled_event =
-                    VirtualTradingSystemEvent::TakeProfitOrderFilled(updated_tp_order);
+                let tp_order_filled_event = VirtualTradingSystemEvent::TakeProfitOrderFilled(updated_tp_order);
                 let _ = self.event_publisher.send(tp_order_filled_event);
 
                 // 取消同仓位止损订单
                 let sl_order = self.get_stop_loss_order(position_id);
                 if let Some(sl_order) = sl_order {
                     let updated_sl_order = self
-                        .update_order_status(
-                            sl_order.order_id,
-                            OrderStatus::Canceled,
-                            self.current_datetime,
-                        )
+                        .update_order_status(sl_order.order_id, OrderStatus::Canceled, self.current_datetime)
                         .unwrap();
                     // 发送止损订单取消事件
-                    let sl_order_canceled_event =
-                        VirtualTradingSystemEvent::StopLossOrderCanceled(updated_sl_order);
+                    let sl_order_canceled_event = VirtualTradingSystemEvent::StopLossOrderCanceled(updated_sl_order);
                     let _ = self.event_publisher.send(sl_order_canceled_event);
                 }
             }
@@ -310,12 +271,8 @@ impl VirtualTradingSystem {
                 // 更新仓位的收益
 
                 let unrealized_profit = match sl_order.order_side {
-                    FuturesOrderSide::CloseLong => {
-                        position.quantity * (execute_price - position.open_price)
-                    }
-                    FuturesOrderSide::CloseShort => {
-                        position.quantity * (position.open_price - execute_price)
-                    }
+                    FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
+                    FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
                     _ => 0.0,
                 };
 
@@ -329,13 +286,11 @@ impl VirtualTradingSystem {
                 position.margin_ratio = 0.0;
 
                 // 发送最后一次仓位更新事件
-                let position_updated_event =
-                    VirtualTradingSystemEvent::PositionUpdated(position.clone());
+                let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
                 let _ = self.event_publisher.send(position_updated_event);
 
                 // 发送仓位平仓事件
-                let position_closed_event =
-                    VirtualTradingSystemEvent::PositionClosed(position.clone());
+                let position_closed_event = VirtualTradingSystemEvent::PositionClosed(position.clone());
                 let _ = self.event_publisher.send(position_closed_event);
                 // 将仓位添加到历史持仓列表中
                 self.history_positions.push(position.clone());
@@ -346,8 +301,7 @@ impl VirtualTradingSystem {
                     VirtualTransaction::new(transaction_id, sl_order, &position, self.current_datetime);
                 self.transactions.push(virtual_transaction.clone());
                 // 发送交易明细创建事件
-                let transaction_created_event =
-                    VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
+                let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
                 let _ = self.event_publisher.send(transaction_created_event);
 
                 // 修改止损订单状态
@@ -355,23 +309,17 @@ impl VirtualTradingSystem {
                     .update_order_status(sl_order.order_id, OrderStatus::Filled, self.current_datetime)
                     .unwrap();
                 // 发送止损订单成交事件
-                let sl_order_filled_event =
-                    VirtualTradingSystemEvent::StopLossOrderFilled(updated_sl_order);
+                let sl_order_filled_event = VirtualTradingSystemEvent::StopLossOrderFilled(updated_sl_order);
                 let _ = self.event_publisher.send(sl_order_filled_event);
 
                 // 取消同仓位止盈订单
                 let tp_order = self.get_take_profit_order(position_id);
                 if let Some(tp_order) = tp_order {
                     let updated_tp_order = self
-                        .update_order_status(
-                            tp_order.order_id,
-                            OrderStatus::Canceled,
-                            self.current_datetime,
-                        )
+                        .update_order_status(tp_order.order_id, OrderStatus::Canceled, self.current_datetime)
                         .unwrap();
                     // 发送止盈订单取消事件
-                    let tp_order_canceled_event =
-                        VirtualTradingSystemEvent::TakeProfitOrderCanceled(updated_tp_order);
+                    let tp_order_canceled_event = VirtualTradingSystemEvent::TakeProfitOrderCanceled(updated_tp_order);
                     let _ = self.event_publisher.send(tp_order_canceled_event);
                 }
             }

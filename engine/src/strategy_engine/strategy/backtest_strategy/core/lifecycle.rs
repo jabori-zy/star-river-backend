@@ -1,28 +1,18 @@
 use super::BacktestStrategy;
-use crate::strategy_engine::strategy::backtest_strategy::*;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyRunState;
 use crate::strategy_engine::strategy::backtest_strategy::BacktestStrategyStateTransitionEvent;
-
-
+use crate::strategy_engine::strategy::backtest_strategy::*;
 
 impl BacktestStrategy {
     pub async fn check_strategy(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.get_strategy_name().await;
         let strategy_id = self.get_strategy_id().await;
 
-        tracing::info!(
-            "[{}({})] starting check strategy",
-            strategy_name,
-            strategy_id
-        );
+        tracing::info!("[{}({})] starting check strategy", strategy_name, strategy_id);
         self.context
             .write()
             .await
-            .update_strategy_status(
-                BacktestStrategyRunState::Checking
-                    .to_string()
-                    .to_lowercase(),
-            )
+            .update_strategy_status(BacktestStrategyRunState::Checking.to_string().to_lowercase())
             .await?;
 
         let update_result = self
@@ -41,11 +31,7 @@ impl BacktestStrategy {
         self.context
             .write()
             .await
-            .update_strategy_status(
-                BacktestStrategyRunState::CheckPassed
-                    .to_string()
-                    .to_lowercase(),
-            )
+            .update_strategy_status(BacktestStrategyRunState::CheckPassed.to_string().to_lowercase())
             .await?;
         let update_result = self
             .update_strategy_state(BacktestStrategyStateTransitionEvent::CheckComplete)
@@ -64,21 +50,13 @@ impl BacktestStrategy {
     pub async fn init_strategy(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.get_strategy_name().await;
         let strategy_id = self.get_strategy_id().await;
-        tracing::info!(
-            "[{}({})] starting init strategy",
-            strategy_name,
-            strategy_id
-        );
+        tracing::info!("[{}({})] starting init strategy", strategy_name, strategy_id);
 
         // created => initializing
         self.context
             .write()
             .await
-            .update_strategy_status(
-                BacktestStrategyRunState::Initializing
-                    .to_string()
-                    .to_lowercase(),
-            )
+            .update_strategy_status(BacktestStrategyRunState::Initializing.to_string().to_lowercase())
             .await?;
         let update_result = self
             .update_strategy_state(BacktestStrategyStateTransitionEvent::Initialize)
@@ -131,11 +109,7 @@ impl BacktestStrategy {
         self.context
             .write()
             .await
-            .update_strategy_status(
-                BacktestStrategyRunState::Stopping
-                    .to_string()
-                    .to_lowercase(),
-            )
+            .update_strategy_status(BacktestStrategyRunState::Stopping.to_string().to_lowercase())
             .await?;
         let update_result = self
             .update_strategy_state(BacktestStrategyStateTransitionEvent::Stop)
@@ -158,9 +132,7 @@ impl BacktestStrategy {
             self.context
                 .write()
                 .await
-                .update_strategy_status(
-                    BacktestStrategyRunState::Stopped.to_string().to_lowercase(),
-                )
+                .update_strategy_status(BacktestStrategyRunState::Stopped.to_string().to_lowercase())
                 .await?;
             let update_result = self
                 .update_strategy_state(BacktestStrategyStateTransitionEvent::StopComplete)
@@ -169,9 +141,7 @@ impl BacktestStrategy {
                 self.context
                     .write()
                     .await
-                    .update_strategy_status(
-                        BacktestStrategyRunState::Failed.to_string().to_lowercase(),
-                    )
+                    .update_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
                     .await?;
                 return Err(e);
             }

@@ -1,6 +1,6 @@
 use axum::{
-    routing::{delete, get, post, put},
     Router,
+    routing::{delete, get, post, put},
 };
 
 use crate::api::market_api::{get_support_kline_intervals, get_symbol_list};

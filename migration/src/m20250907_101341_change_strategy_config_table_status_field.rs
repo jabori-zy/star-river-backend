@@ -21,11 +21,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(StrategyConfigNew::Name).string().not_null())
-                    .col(
-                        ColumnDef::new(StrategyConfigNew::Description)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(StrategyConfigNew::Description).string().not_null())
                     .col(
                         ColumnDef::new(StrategyConfigNew::Status)
                             .string()
@@ -115,11 +111,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(StrategyConfigOld::Name).string().not_null())
-                    .col(
-                        ColumnDef::new(StrategyConfigOld::Description)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(StrategyConfigOld::Description).string().not_null())
                     .col(
                         ColumnDef::new(StrategyConfigOld::Status)
                             .integer()

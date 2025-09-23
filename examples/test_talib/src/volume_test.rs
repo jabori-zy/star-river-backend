@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use star_river_core::indicator::indicator_define::volume::*;
 use star_river_core::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::volume::*;
 
 /// 测试所有成交量指标
 pub fn test_volume_indicators() {
@@ -25,10 +25,7 @@ fn test_ad(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) 
     match CalculateIndicatorFunction::calculate_ad(kline_series.to_vec()) {
         Ok(results) => {
             println!("  AD: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  AD: 计算失败 - {:?}", e),
@@ -45,10 +42,7 @@ fn test_adosc(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>
     match CalculateIndicatorFunction::calculate_adosc(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ADOSC: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ADOSC: 计算失败 - {:?}", e),
@@ -60,10 +54,7 @@ fn test_obv(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_obv(kline_series.to_vec()) {
         Ok(results) => {
             println!("  OBV: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  OBV: 计算失败 - {:?}", e),

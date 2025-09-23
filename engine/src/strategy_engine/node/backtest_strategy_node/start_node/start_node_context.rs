@@ -1,19 +1,17 @@
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::strategy::StrategyCommand;
+use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::{BacktestStrategyCommand, GetStartNodeConfigResponse};
+use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::{
     KlinePlayEvent, KlinePlayPayload, StartNodeEvent,
 };
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::Event;
 use heartbeat::Heartbeat;
-use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use star_river_core::strategy::BacktestStrategyConfig;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use std::any::Any;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
@@ -94,19 +92,12 @@ impl BacktestNodeContextTrait for StartNodeContext {
             )) => {
                 let start_node_config = self.node_config.read().await.clone();
 
-                let response = GetStartNodeConfigResponse::success(
-                    self.base_context.node_id.clone(),
-                    start_node_config,
-                );
+                let response =
+                    GetStartNodeConfigResponse::success(self.base_context.node_id.clone(), start_node_config);
 
-                get_start_node_config_params
-                    .responder
-                    .send(response.into())
-                    .unwrap();
+                get_start_node_config_params.responder.send(response.into()).unwrap();
             }
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     let response = NodeResetResponse::success(self.get_node_id().clone());
                     node_reset_params.responder.send(response.into()).unwrap();
@@ -127,9 +118,7 @@ impl StartNodeContext {
             payload,
         )
         .into();
-        self.get_default_output_handle()
-            .send(kline_play_event.into())
-            .unwrap();
+        self.get_default_output_handle().send(kline_play_event.into()).unwrap();
     }
 
     // 发送k线播放完毕信号

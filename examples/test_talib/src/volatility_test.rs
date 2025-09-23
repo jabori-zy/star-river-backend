@@ -1,7 +1,7 @@
 use crate::value::*;
 use engine::indicator_engine::calculate::CalculateIndicatorFunction;
-use star_river_core::indicator::indicator_define::volatility::*;
 use star_river_core::indicator::IndicatorTrait;
+use star_river_core::indicator::indicator_define::volatility::*;
 /// 测试所有波动率指标
 pub fn test_volatility_indicators() {
     println!("=== 波动率指标测试 ===");
@@ -26,10 +26,7 @@ fn test_atr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_atr(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ATR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ATR: 计算失败 - {:?}", e),
@@ -43,10 +40,7 @@ fn test_natr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_natr(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  NATR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  NATR: 计算失败 - {:?}", e),
@@ -58,10 +52,7 @@ fn test_trange(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue
     match CalculateIndicatorFunction::calculate_trange(kline_series.to_vec()) {
         Ok(results) => {
             println!("  TRANGE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  TRANGE: 计算失败 - {:?}", e),

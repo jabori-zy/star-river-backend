@@ -1,19 +1,17 @@
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::custom_type::{Balance, StrategyId};
-use star_river_core::strategy_stats::event::{
-    StrategyStatsEvent, StrategyStatsEventSender, StrategyStatsUpdatedEvent,
-};
+use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventSender, StrategyStatsUpdatedEvent};
 use star_river_core::strategy_stats::{StatsSnapshot, StatsSnapshotHistory};
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
 use virtual_trading::VirtualTradingSystem;
 
-use star_river_core::system::DateTimeUtc;
 use chrono::Utc;
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub struct BacktestStrategyStats {
@@ -54,9 +52,7 @@ impl BacktestStrategyStats {
         self.datetime = datetime;
     }
 
-    pub async fn handle_virtual_trading_system_events(
-        stats: Arc<RwLock<Self>>,
-    ) -> Result<(), String> {
+    pub async fn handle_virtual_trading_system_events(stats: Arc<RwLock<Self>>) -> Result<(), String> {
         let (receiver, cancel_token) = {
             let guard = stats.read().await;
             let virtual_trading_system = guard.virtual_trading_system.lock().await;
@@ -101,10 +97,7 @@ impl BacktestStrategyStats {
         Ok(())
     }
 
-    async fn handle_virtual_trading_system_event(
-        &mut self,
-        event: VirtualTradingSystemEvent,
-    ) -> Result<(), String> {
+    async fn handle_virtual_trading_system_event(&mut self, event: VirtualTradingSystemEvent) -> Result<(), String> {
         // 处理事件并更新资产快照
         match event {
             VirtualTradingSystemEvent::UpdateFinished => {
@@ -154,11 +147,9 @@ impl BacktestStrategyStats {
                 datetime,
             };
 
-            let _ =
-                self.strategy_stats_event_sender
-                    .send(StrategyStatsEvent::StrategyStatsUpdated(
-                        strategy_stats_updated_event,
-                    ));
+            let _ = self
+                .strategy_stats_event_sender
+                .send(StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event));
 
             // 添加到历史记录
             let mut asset_snapshot_history_guard = self.asset_snapshot_history.write().await;

@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use engine::cache_engine::CacheEngine;
 use serde::Deserialize;
-use star_river_core::cache::{Key, CacheItem};
+use star_river_core::cache::{CacheItem, Key};
 use star_river_core::engine::EngineName;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -45,12 +45,7 @@ pub async fn get_cache_keys(
     State(star_river): State<StarRiver>,
     Query(params): Query<GetAllCacheKeyParams>,
 ) -> (StatusCode, Json<ApiResponse<Vec<String>>>) {
-    let engine = star_river
-        .engine_manager
-        .lock()
-        .await
-        .get_cache_engine()
-        .await;
+    let engine = star_river.engine_manager.lock().await.get_cache_engine().await;
     let engine_guard = engine.lock().await;
     let cache_key = match params.key_type {
         Some(key_type) => match key_type {
@@ -95,19 +90,11 @@ pub async fn get_cache_value(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::CacheEngine).await;
     let mut engine_guard = engine.lock().await;
-    let cache_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<CacheEngine>()
-        .unwrap();
+    let cache_engine = engine_guard.as_any_mut().downcast_mut::<CacheEngine>().unwrap();
     let key = Key::from_str(&key_str).unwrap();
-    let cache = cache_engine
-        .get_cache_value(&key, params.index, params.limit)
-        .await;
+    let cache = cache_engine.get_cache_value(&key, params.index, params.limit).await;
     // let cache_values: Vec<Vec<f64>> = cache.iter().map(|cache_value| cache_value.to_list()).collect();
-    let cache_values: Vec<serde_json::Value> = cache
-        .iter()
-        .map(|cache_value| cache_value.to_json())
-        .collect();
+    let cache_values: Vec<serde_json::Value> = cache.iter().map(|cache_value| cache_value.to_json()).collect();
     (
         StatusCode::OK,
         Json(ApiResponse {
@@ -130,12 +117,7 @@ pub async fn get_cache_value(
 pub async fn get_memory_size(
     State(star_river): State<StarRiver>,
 ) -> (StatusCode, Json<ApiResponse<HashMap<String, u32>>>) {
-    let engine = star_river
-        .engine_manager
-        .lock()
-        .await
-        .get_cache_engine()
-        .await;
+    let engine = star_river.engine_manager.lock().await.get_cache_engine().await;
     let engine_guard = engine.lock().await;
     let memory_size = engine_guard.get_memory_size().await.unwrap();
     (

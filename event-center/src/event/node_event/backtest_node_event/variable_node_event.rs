@@ -38,12 +38,7 @@ pub struct SysVariableUpdatedPayload {
 }
 
 impl SysVariableUpdatedPayload {
-    pub fn new(
-        play_index: i32,
-        variable_config_id: i32,
-        variable: SysVariable,
-        variable_value: f64,
-    ) -> Self {
+    pub fn new(play_index: i32, variable_config_id: i32, variable: SysVariable, variable_value: f64) -> Self {
         Self {
             play_index,
             variable_config_id,
@@ -69,12 +64,7 @@ pub struct PositionNumberUpdatePayload {
 }
 
 impl PositionNumberUpdatePayload {
-    pub fn new(
-        exchange: Option<Exchange>,
-        symbol: Option<String>,
-        position_number: u32,
-        event_timestamp: i64,
-    ) -> Self {
+    pub fn new(exchange: Option<Exchange>, symbol: Option<String>, position_number: u32, event_timestamp: i64) -> Self {
         Self {
             exchange,
             symbol,

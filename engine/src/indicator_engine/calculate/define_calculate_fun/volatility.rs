@@ -2,10 +2,10 @@ use crate::calculate_fn;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::talib::TALib;
 use star_river_core::cache::CacheValue;
-use star_river_core::indicator::indicator_define::volatility::*;
-use star_river_core::indicator::Indicator;
-use std::sync::Arc;
 use star_river_core::error::engine_error::indicator_engine_error::*;
+use star_river_core::indicator::Indicator;
+use star_river_core::indicator::indicator_define::volatility::*;
+use std::sync::Arc;
 
 impl CalculateIndicatorFunction {
     // ATR - Average True Range #平均真实波幅

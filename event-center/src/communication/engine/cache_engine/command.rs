@@ -1,12 +1,11 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
-use star_river_core::cache::{Key, CacheValue};
+use star_river_core::cache::{CacheValue, Key};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::market::{Exchange, KlineInterval};
+use star_river_core::system::DateTimeUtc;
 use std::fmt::Debug;
 use tokio::time::Duration;
-
 
 #[derive(Debug)]
 pub enum CacheEngineCommand {
@@ -268,12 +267,7 @@ pub struct GetCacheLengthParams {
 }
 
 impl GetCacheLengthParams {
-    pub fn new(
-        strategy_id: StrategyId,
-        cache_key: Key,
-        sender: String,
-        responder: EngineResponder,
-    ) -> Self {
+    pub fn new(strategy_id: StrategyId, cache_key: Key, sender: String, responder: EngineResponder) -> Self {
         Self {
             strategy_id,
             cache_key,
@@ -294,12 +288,7 @@ pub struct GetCacheLengthMultiParams {
 }
 
 impl GetCacheLengthMultiParams {
-    pub fn new(
-        strategy_id: StrategyId,
-        keys: Vec<Key>,
-        sender: String,
-        responder: EngineResponder,
-    ) -> Self {
+    pub fn new(strategy_id: StrategyId, keys: Vec<Key>, sender: String, responder: EngineResponder) -> Self {
         Self {
             strategy_id,
             keys,
@@ -315,7 +304,6 @@ impl From<GetCacheLengthMultiParams> for EngineCommand {
         EngineCommand::CacheEngine(CacheEngineCommand::GetCacheLengthMulti(params))
     }
 }
-
 
 #[derive(Debug)]
 pub struct UpdateCacheParams {
@@ -351,7 +339,6 @@ impl From<UpdateCacheParams> for EngineCommand {
         EngineCommand::CacheEngine(CacheEngineCommand::UpdateCache(params))
     }
 }
-
 
 #[derive(Debug)]
 pub struct ClearCacheParams {

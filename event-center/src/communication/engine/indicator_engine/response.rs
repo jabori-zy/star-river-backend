@@ -1,13 +1,13 @@
 use super::super::{EngineResponse, ResponseTrait};
+use chrono::Utc;
 use star_river_core::cache::Key;
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::error::error_trait::StarRiverErrorTrait;
+use star_river_core::indicator::Indicator;
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};
-use std::sync::Arc;
-use chrono::Utc;
 use star_river_core::system::DateTimeUtc;
-use star_river_core::indicator::Indicator;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum IndicatorEngineResponse {
@@ -27,15 +27,9 @@ impl ResponseTrait for IndicatorEngineResponse {
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            IndicatorEngineResponse::RegisterIndicator(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            IndicatorEngineResponse::CalculateHistoryIndicator(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            IndicatorEngineResponse::CalculateIndicator(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
+            IndicatorEngineResponse::RegisterIndicator(response) => response.error.as_ref().unwrap().clone(),
+            IndicatorEngineResponse::CalculateHistoryIndicator(response) => response.error.as_ref().unwrap().clone(),
+            IndicatorEngineResponse::CalculateIndicator(response) => response.error.as_ref().unwrap().clone(),
         }
     }
 
@@ -75,9 +69,7 @@ impl CalculateHistoryIndicatorResponse {
 
 impl From<CalculateHistoryIndicatorResponse> for EngineResponse {
     fn from(response: CalculateHistoryIndicatorResponse) -> Self {
-        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(
-            response,
-        ))
+        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(response))
     }
 }
 

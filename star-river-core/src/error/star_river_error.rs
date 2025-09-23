@@ -1,30 +1,21 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
+use crate::error::error_trait::StarRiverErrorTrait;
+use sea_orm::DbErr;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use sea_orm::DbErr;
-use crate::error::error_trait::StarRiverErrorTrait;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum StarRiverError {
     #[snafu(display("update system config failed. reason: [{source}]"))]
-    UpdateSystemConfigFailed {
-        source: DbErr,
-        backtrace: Backtrace,
-    },
+    UpdateSystemConfigFailed { source: DbErr, backtrace: Backtrace },
 
     #[snafu(display("get system config failed. reason: [{source}]"))]
-    GetSystemConfigFailed {
-        source: DbErr,
-        backtrace: Backtrace,
-    },
+    GetSystemConfigFailed { source: DbErr, backtrace: Backtrace },
 
     #[snafu(display("invalid key type: {key_type}"))]
-    InvalidKeyType {
-        key_type: String,
-        backtrace: Backtrace,
-    },
+    InvalidKeyType { key_type: String, backtrace: Backtrace },
 
     #[snafu(display("invalid indicator type: {indicator_type}"))]
     InvalidIndicatorType {
@@ -33,17 +24,10 @@ pub enum StarRiverError {
     },
 
     #[snafu(display("invalid key format: {key_str}"))]
-    InvalidKeyFormat {
-        key_str: String,
-        backtrace: Backtrace,
-    },
+    InvalidKeyFormat { key_str: String, backtrace: Backtrace },
 
     #[snafu(display("parse exchange failed: {exchange}"))]
-    ParseExchangeFailed {
-        exchange: String,
-        backtrace: Backtrace,
-    },
-
+    ParseExchangeFailed { exchange: String, backtrace: Backtrace },
 
     #[snafu(display("parse kline interval failed: {interval}, reason: [{source}]"))]
     ParseKlineIntervalFailed {
@@ -52,12 +36,13 @@ pub enum StarRiverError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("invalid indicator config format: {indicator_config}. the format should be 'indicator_name(param1=value1 param2=value2 ...)"))]
+    #[snafu(display(
+        "invalid indicator config format: {indicator_config}. the format should be 'indicator_name(param1=value1 param2=value2 ...)"
+    ))]
     InvalidIndicatorConfigFormat {
         indicator_config: String,
         backtrace: Backtrace,
     },
-
 
     #[snafu(display("indicator param empty: {indicator_config}"))]
     IndicatorParamEmpty {
@@ -72,10 +57,7 @@ pub enum StarRiverError {
     },
 
     #[snafu(display("indicator config miss param {param}"))]
-    IndicatorConfigMissParam {
-        param: String,
-        backtrace: Backtrace,
-    },
+    IndicatorConfigMissParam { param: String, backtrace: Backtrace },
 
     #[snafu(display("parse int indicator param failed: {param}. reason: [{source}]"))]
     ParseIntIndicatorParamFailed {
@@ -109,18 +91,18 @@ impl StarRiverErrorTrait for StarRiverError {
         let prefix = self.get_prefix();
         let code = match self {
             StarRiverError::UpdateSystemConfigFailed { .. } => 1001, // 更新系统配置失败
-            StarRiverError::GetSystemConfigFailed { .. } => 1002, // 获取系统配置失败
-            StarRiverError::InvalidKeyType { .. } => 1003, // 无效的缓存键类型
-            StarRiverError::InvalidIndicatorType { .. } => 1004, // 无效的指标类型
+            StarRiverError::GetSystemConfigFailed { .. } => 1002,    // 获取系统配置失败
+            StarRiverError::InvalidKeyType { .. } => 1003,           // 无效的缓存键类型
+            StarRiverError::InvalidIndicatorType { .. } => 1004,     // 无效的指标类型
             StarRiverError::InvalidIndicatorConfigFormat { .. } => 1005, // 无效的指标配置格式
-            StarRiverError::IndicatorParamEmpty { .. } => 1006, // 指标参数为空
+            StarRiverError::IndicatorParamEmpty { .. } => 1006,      // 指标参数为空
             StarRiverError::IndicatorParamFormatInvalid { .. } => 1007, // 指标参数格式无效
             StarRiverError::IndicatorConfigMissParam { .. } => 1008, // 指标配置缺少参数
             StarRiverError::ParseIntIndicatorParamFailed { .. } => 1009, // 指标参数解析失败
             StarRiverError::ParseFloatIndicatorParamFailed { .. } => 1010, // 指标参数解析失败
             StarRiverError::ParseSpecialIndicatorParamFailed { .. } => 1011, // 指标参数解析失败
-            StarRiverError::InvalidKeyFormat { .. } => 1012, // 无效的缓存键格式
-            StarRiverError::ParseExchangeFailed { .. } => 1013, // 解析交易所失败
+            StarRiverError::InvalidKeyFormat { .. } => 1012,         // 无效的缓存键格式
+            StarRiverError::ParseExchangeFailed { .. } => 1013,      // 解析交易所失败
             StarRiverError::ParseKlineIntervalFailed { .. } => 1014, // 解析K线周期失败
         };
         format!("{}_{:04}", prefix, code)
@@ -134,20 +116,20 @@ impl StarRiverErrorTrait for StarRiverError {
     fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            StarRiverError::UpdateSystemConfigFailed { .. } |
-            StarRiverError::GetSystemConfigFailed { .. } |
-            StarRiverError::InvalidKeyType { .. } |
-            StarRiverError::InvalidIndicatorType { .. } |
-            StarRiverError::InvalidIndicatorConfigFormat { .. } |
-            StarRiverError::IndicatorParamEmpty { .. } |
-            StarRiverError::IndicatorParamFormatInvalid { .. } |
-            StarRiverError::IndicatorConfigMissParam { .. } |
-            StarRiverError::ParseIntIndicatorParamFailed { .. } |
-            StarRiverError::ParseFloatIndicatorParamFailed { .. } |
-            StarRiverError::ParseSpecialIndicatorParamFailed { .. } |
-            StarRiverError::InvalidKeyFormat { .. } |
-            StarRiverError::ParseExchangeFailed { .. } |
-            StarRiverError::ParseKlineIntervalFailed { .. }
+            StarRiverError::UpdateSystemConfigFailed { .. }
+                | StarRiverError::GetSystemConfigFailed { .. }
+                | StarRiverError::InvalidKeyType { .. }
+                | StarRiverError::InvalidIndicatorType { .. }
+                | StarRiverError::InvalidIndicatorConfigFormat { .. }
+                | StarRiverError::IndicatorParamEmpty { .. }
+                | StarRiverError::IndicatorParamFormatInvalid { .. }
+                | StarRiverError::IndicatorConfigMissParam { .. }
+                | StarRiverError::ParseIntIndicatorParamFailed { .. }
+                | StarRiverError::ParseFloatIndicatorParamFailed { .. }
+                | StarRiverError::ParseSpecialIndicatorParamFailed { .. }
+                | StarRiverError::InvalidKeyFormat { .. }
+                | StarRiverError::ParseExchangeFailed { .. }
+                | StarRiverError::ParseKlineIntervalFailed { .. }
         )
     }
 
@@ -203,20 +185,20 @@ impl StarRiverErrorTrait for StarRiverError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            StarRiverError::UpdateSystemConfigFailed { .. } |
-            StarRiverError::GetSystemConfigFailed { .. } |
-            StarRiverError::InvalidKeyType { .. } |
-            StarRiverError::InvalidIndicatorType { .. } |
-            StarRiverError::InvalidIndicatorConfigFormat { .. } |
-            StarRiverError::IndicatorParamEmpty { .. } |
-            StarRiverError::IndicatorParamFormatInvalid { .. } |
-            StarRiverError::IndicatorConfigMissParam { .. } |
-            StarRiverError::ParseIntIndicatorParamFailed { .. } |
-            StarRiverError::ParseFloatIndicatorParamFailed { .. } |
-            StarRiverError::ParseSpecialIndicatorParamFailed { .. } |
-            StarRiverError::InvalidKeyFormat { .. } |
-            StarRiverError::ParseExchangeFailed { .. } |
-            StarRiverError::ParseKlineIntervalFailed { .. } => vec![self.error_code()],
+            StarRiverError::UpdateSystemConfigFailed { .. }
+            | StarRiverError::GetSystemConfigFailed { .. }
+            | StarRiverError::InvalidKeyType { .. }
+            | StarRiverError::InvalidIndicatorType { .. }
+            | StarRiverError::InvalidIndicatorConfigFormat { .. }
+            | StarRiverError::IndicatorParamEmpty { .. }
+            | StarRiverError::IndicatorParamFormatInvalid { .. }
+            | StarRiverError::IndicatorConfigMissParam { .. }
+            | StarRiverError::ParseIntIndicatorParamFailed { .. }
+            | StarRiverError::ParseFloatIndicatorParamFailed { .. }
+            | StarRiverError::ParseSpecialIndicatorParamFailed { .. }
+            | StarRiverError::InvalidKeyFormat { .. }
+            | StarRiverError::ParseExchangeFailed { .. }
+            | StarRiverError::ParseKlineIntervalFailed { .. } => vec![self.error_code()],
         }
     }
 }

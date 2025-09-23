@@ -97,9 +97,7 @@ impl StrategyConfigMutation {
         }
         .update(db)
         .await?;
-        Ok(strategy_config_model
-            .backtest_chart_config
-            .unwrap_or(JsonValue::Null))
+        Ok(strategy_config_model.backtest_chart_config.unwrap_or(JsonValue::Null))
     }
 
     pub async fn update_strategy_status(

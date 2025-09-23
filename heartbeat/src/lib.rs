@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::instrument;
@@ -13,8 +13,7 @@ use uuid::Uuid;
 // 普通任务类型定义
 type NormalFunction = Box<dyn Fn() + Send + Sync + 'static>;
 // 异步任务类型定义
-type AsyncFunction =
-    Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static>;
+type AsyncFunction = Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static>;
 
 #[derive(Clone, Debug)]
 pub struct Heartbeat {
@@ -96,11 +95,7 @@ impl Heartbeat {
                 // let current_count = count.fetch_add(1, Ordering::SeqCst);
                 let current_count = count
                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-                        if count < max_count {
-                            Some(count + 1)
-                        } else {
-                            Some(0)
-                        }
+                        if count < max_count { Some(count + 1) } else { Some(0) }
                     })
                     .unwrap();
                 // tracing::debug!("Heartbeat #{}", current_count);
@@ -124,12 +119,7 @@ impl Heartbeat {
     ///
     /// # Returns
     /// 返回任务的唯一标识符
-    pub async fn register_async_task<F, Fut>(
-        &mut self,
-        task_name: String,
-        function: F,
-        interval: u64,
-    ) -> Uuid
+    pub async fn register_async_task<F, Fut>(&mut self, task_name: String, function: F, interval: u64) -> Uuid
     where
         F: Fn() -> Fut + Send + Sync + 'static,
         Fut: Future<Output = ()> + Send + 'static,
@@ -147,10 +137,7 @@ impl Heartbeat {
         let task_config = Task::AsyncTask(async_task_config);
 
         // 将任务配置插入到任务列表中
-        self.all_tasks
-            .lock()
-            .await
-            .insert(task_id.clone(), task_config);
+        self.all_tasks.lock().await.insert(task_id.clone(), task_config);
 
         // 返回任务id
         task_id

@@ -1,7 +1,7 @@
 pub mod exchange_engine_context;
 
-use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use crate::EngineName;
+use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use exchange_client::ExchangeClient;
@@ -51,19 +51,13 @@ impl ExchangeEngine {
 
     pub async fn is_registered(&self, account_id: &i32) -> bool {
         let context_guard = self.context.read().await;
-        let exchange_context = context_guard
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
         exchange_context.is_registered(account_id).await
     }
 
     pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
         let context_guard = self.context.read().await;
-        let exchange_context = context_guard
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
         let exchanges = exchange_context.get_exchange(account_id).await;
         match exchanges {
             Ok(exchange) => Ok(exchange),

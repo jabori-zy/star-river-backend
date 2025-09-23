@@ -1,31 +1,30 @@
+pub mod common_event;
 pub mod futures_order_node_event;
 pub mod if_else_node_event;
 pub mod indicator_node_event;
 pub mod kline_node_event;
 pub mod position_management_node_event;
-pub mod common_event;
-pub mod variable_node_event;
 pub mod start_node_event;
+pub mod variable_node_event;
 
+pub use common_event::CommonEvent;
 pub use futures_order_node_event::FuturesOrderNodeEvent;
 pub use if_else_node_event::IfElseNodeEvent;
 pub use indicator_node_event::IndicatorNodeEvent;
 pub use kline_node_event::KlineNodeEvent;
 pub use position_management_node_event::PositionManagementNodeEvent;
-pub use common_event::CommonEvent;
-pub use variable_node_event::VariableNodeEvent;
 pub use start_node_event::StartNodeEvent;
+pub use variable_node_event::VariableNodeEvent;
 
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::{CacheValue, CacheItem};
+use star_river_core::cache::{CacheItem, CacheValue};
 use std::sync::Arc;
 use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "node_type")]
 pub enum BacktestNodeEvent {
-
     #[strum(serialize = "start_node")]
     #[serde(rename = "start_node")]
     StartNode(StartNodeEvent),
@@ -61,10 +60,7 @@ pub enum BacktestNodeEvent {
 
 // 通用的序列化函数
 #[allow(dead_code)]
-fn serialize_cache_value_vec<S>(
-    data: &Vec<Arc<CacheValue>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_cache_value_vec<S>(data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

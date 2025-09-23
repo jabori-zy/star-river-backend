@@ -6,11 +6,11 @@ use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
 use crate::{EngineContext, EngineName};
 use async_trait::async_trait;
-use event_center::communication::engine::indicator_engine::*;
 use event_center::communication::engine::EngineCommand;
-use event_center::event::exchange_event::ExchangeKlineUpdateEvent;
+use event_center::communication::engine::indicator_engine::*;
 use event_center::event::Event;
 use event_center::event::ExchangeEvent;
+use event_center::event::exchange_event::ExchangeKlineUpdateEvent;
 use heartbeat::Heartbeat;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, StrategyId};
@@ -41,14 +41,9 @@ impl Clone for IndicatorEngineContext {
     }
 }
 
-
-
 impl IndicatorEngineContext {
     // k线更新后， 触发指标计算
-    async fn handle_exchange_kline_update(
-        &mut self,
-        exchange_kline_update_event: ExchangeKlineUpdateEvent,
-    ) {
+    async fn handle_exchange_kline_update(&mut self, exchange_kline_update_event: ExchangeKlineUpdateEvent) {
         // tracing::info!("接收到k线更新事件: {:?},当前订阅指标: {:?}", exchange_kline_update_event, self.subscribe_indicators.lock().await);
         // 遍历订阅的指标， 计算指标
         // 判断是否需要计算指标
@@ -57,11 +52,7 @@ impl IndicatorEngineContext {
         let kline_interval = exchange_kline_update_event.interval.clone();
         // 判断是否需要计算指标
         let should_calculate = self
-            .should_calculate(
-                kline_exchange.clone(),
-                kline_symbol.clone(),
-                kline_interval.clone(),
-            )
+            .should_calculate(kline_exchange.clone(), kline_symbol.clone(), kline_interval.clone())
             .await;
         // 如果需要计算指标，则获取需要计算的指标
         if should_calculate {
@@ -115,10 +106,7 @@ impl IndicatorEngineContext {
                 let heartbeat = self.heartbeat.lock().await;
                 heartbeat
                     .run_async_task_once(
-                        format!(
-                            "calculate_indicator_{}",
-                            indicator_sub_key.indicator_config.to_string()
-                        ),
+                        format!("calculate_indicator_{}", indicator_sub_key.indicator_config.to_string()),
                         futures,
                     )
                     .await;
@@ -183,13 +171,7 @@ impl IndicatorEngineContext {
             .add_key(indicator_key.into(), None, Duration::from_millis(10))
             .await;
         // 3. 计算指标
-        let kline_key = KlineKey::new(
-            exchange.clone(),
-            symbol.clone(),
-            interval.clone(),
-            None,
-            None,
-        );
+        let kline_key = KlineKey::new(exchange.clone(), symbol.clone(), interval.clone(), None, None);
         let indicators = CalculateIndicatorFunction::calculate_indicator(
             self.cache_engine.clone(),
             kline_key.clone().into(),

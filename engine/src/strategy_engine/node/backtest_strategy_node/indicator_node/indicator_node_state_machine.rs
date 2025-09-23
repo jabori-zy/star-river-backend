@@ -8,34 +8,34 @@ use strum::Display;
 pub enum IndicatorNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
     ListenAndHandleExternalEvents, // 处理外部事件
-    
+
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
-    
+
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
-    
+
     #[strum(serialize = "ListenAndHandleInnerEvents")]
     ListenAndHandleInnerEvents, // 处理内部事件
-    
+
     #[strum(serialize = "RegisterIndicatorKey")]
     RegisterIndicatorKey, // 注册指标缓存键
 
     #[strum(serialize = "GetMinIntervalSymbols")]
     GetMinIntervalSymbols, // 获取最小周期交易对
-    
+
     #[strum(serialize = "CalculateIndicator")]
     CalculateIndicator, // 计算指标
-    
+
     #[strum(serialize = "LogNodeState")]
     LogNodeState, // 记录节点状态
-    
+
     #[strum(serialize = "LogTransition")]
     LogTransition, // 记录状态转换
-    
+
     #[strum(serialize = "LogError")]
     LogError(String), // 记录错误
-    
+
     #[strum(serialize = "CancelAsyncTask")]
     CancelAsyncTask, // 取消异步任务
 }
@@ -63,10 +63,7 @@ impl BacktestStateChangeActions for IndicatorNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions
-            .iter()
-            .map(|action| action.clone_box())
-            .collect()
+        self.actions.iter().map(|action| action.clone_box()).collect()
     }
 }
 
@@ -127,10 +124,7 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                 }))
             }
             // 初始化完成，进入Ready状态
-            (
-                BacktestNodeRunState::Initializing,
-                BacktestNodeStateTransitionEvent::InitializeComplete,
-            ) => {
+            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(IndicatorNodeStateChangeActions {

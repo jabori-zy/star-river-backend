@@ -25,11 +25,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Order::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Order::NodeId).string().not_null())
-                    .col(
-                        ColumnDef::new(Order::ExchangeOrderId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Order::ExchangeOrderId).big_integer().not_null())
                     .col(ColumnDef::new(Order::AccountId).integer().not_null())
                     .col(ColumnDef::new(Order::Exchange).string().not_null())
                     .col(ColumnDef::new(Order::Symbol).string().not_null())
@@ -66,9 +62,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(Order::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(Order::Table).to_owned()).await
     }
 }
 

@@ -1,23 +1,11 @@
-pub mod query;
-pub mod playback;
-pub mod lifecycle;
-pub mod state_handler;
 pub mod builder;
-
+pub mod lifecycle;
+pub mod playback;
+pub mod query;
+pub mod state_handler;
 
 use super::{
-    BacktestStrategy, 
-    VirtualOrder, 
-    VirtualPosition, 
-    VirtualTransaction, 
-    StatsSnapshot,
-    StrategyRunningLogEvent,
-    BacktestStrategyError,
-    BacktestStrategyFunction,
-    NodeCommand,
-    StrategyInnerEvent,
-    Key,
-    KlineInterval,
-    KlineKey,
-    KeyTrait,
+    BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey,
+    NodeCommand, StatsSnapshot, StrategyInnerEvent, StrategyRunningLogEvent, VirtualOrder, VirtualPosition,
+    VirtualTransaction,
 };

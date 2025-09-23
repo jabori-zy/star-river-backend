@@ -1,8 +1,8 @@
 use chrono::Utc;
 use serde::Serialize;
 use snafu::Report;
-use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::error::ErrorCode;
+use star_river_core::error::error_trait::StarRiverErrorTrait;
 use std::error::Error;
 use utoipa::ToSchema;
 

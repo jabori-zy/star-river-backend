@@ -1,12 +1,12 @@
 use super::super::{EngineResponse, ResponseTrait};
+use chrono::Utc;
+use star_river_core::cache::CacheItem;
 use star_river_core::cache::{CacheValue, Key};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::error::error_trait::StarRiverErrorTrait;
+use star_river_core::system::DateTimeUtc;
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
-use star_river_core::cache::CacheItem;
 
 #[derive(Debug)]
 pub enum CacheEngineResponse {
@@ -37,25 +37,13 @@ impl ResponseTrait for CacheEngineResponse {
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
             CacheEngineResponse::AddCacheKey(response) => response.error.as_ref().unwrap().clone(),
-            CacheEngineResponse::AddIndicatorCacheKey(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
+            CacheEngineResponse::AddIndicatorCacheKey(response) => response.error.as_ref().unwrap().clone(),
             CacheEngineResponse::GetCacheData(response) => response.error.as_ref().unwrap().clone(),
-            CacheEngineResponse::GetCacheDataMulti(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            CacheEngineResponse::GetCacheLength(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            CacheEngineResponse::GetCacheLengthMulti(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            CacheEngineResponse::UpdateCache(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            CacheEngineResponse::ClearCache(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
+            CacheEngineResponse::GetCacheDataMulti(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheLength(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::GetCacheLengthMulti(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::UpdateCache(response) => response.error.as_ref().unwrap().clone(),
+            CacheEngineResponse::ClearCache(response) => response.error.as_ref().unwrap().clone(),
         }
     }
 
@@ -104,7 +92,7 @@ impl AddCacheKeyResponse {
             success: true,
             key,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
@@ -131,7 +119,7 @@ impl GetCacheDataResponse {
             key,
             cache_data,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
@@ -159,14 +147,12 @@ impl GetCacheDataMultiResponse {
                 .map(|(cache_key, data)| {
                     (
                         cache_key.get_key_str(),
-                        data.into_iter()
-                            .map(|cache_value| cache_value.to_list())
-                            .collect(),
+                        data.into_iter().map(|cache_value| cache_value.to_list()).collect(),
                     )
                 })
                 .collect(),
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
@@ -188,18 +174,14 @@ pub struct AddIndicatorCacheKeyResponse {
 }
 
 impl AddIndicatorCacheKeyResponse {
-    pub fn success(
-        requested_strategy_id: StrategyId,
-        requested_node_id: NodeId,
-        indicator_key: Key,
-    ) -> Self {
+    pub fn success(requested_strategy_id: StrategyId, requested_node_id: NodeId, indicator_key: Key) -> Self {
         Self {
             success: true,
             requested_strategy_id,
             requested_node_id,
             indicator_key,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
@@ -226,7 +208,7 @@ impl GetCacheLengthResponse {
             cache_key,
             cache_length,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
@@ -251,18 +233,16 @@ impl GetCacheLengthMultiResponse {
             success: true,
             cache_length,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
-
 
 // impl From<GetCacheLengthMultiResponse> for Response {
 //     fn from(response: GetCacheLengthMultiResponse) -> Self {
 //         Response::CacheEngine(CacheEngineResponse::GetCacheLengthMulti(response))
 //     }
 // }
-
 
 #[derive(Debug)]
 pub struct UpdateCacheResponse {
@@ -278,11 +258,10 @@ impl UpdateCacheResponse {
             success: true,
             key,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }
-
 
 impl From<UpdateCacheResponse> for CacheEngineResponse {
     fn from(response: UpdateCacheResponse) -> Self {
@@ -304,7 +283,7 @@ impl ClearCacheResponse {
             success: true,
             key,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }

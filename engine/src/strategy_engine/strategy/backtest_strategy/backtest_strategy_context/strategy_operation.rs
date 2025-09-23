@@ -1,18 +1,8 @@
-use super::{
-    BacktestStrategyContext,
-    StrategyConfigMutation,
-    BacktestStrategyError,
-    UpdateStrategyStatusFailedSnafu,
-};
+use super::{BacktestStrategyContext, BacktestStrategyError, StrategyConfigMutation, UpdateStrategyStatusFailedSnafu};
 use snafu::ResultExt;
 
-
-
 impl BacktestStrategyContext {
-    pub async fn update_strategy_status(
-        &mut self,
-        status: String,
-    ) -> Result<(), BacktestStrategyError> {
+    pub async fn update_strategy_status(&mut self, status: String) -> Result<(), BacktestStrategyError> {
         let strategy_id = self.strategy_id;
         StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, status)
             .await
@@ -22,7 +12,6 @@ impl BacktestStrategyContext {
             })?;
         Ok(())
     }
-
 
     pub async fn virtual_trading_system_reset(&self) {
         let mut virtual_trading_system = self.virtual_trading_system.lock().await;
@@ -34,13 +23,8 @@ impl BacktestStrategyContext {
         strategy_stats.clear_asset_snapshots().await;
     }
 
-
     pub async fn get_play_index(&self) -> i32 {
         let play_index = self.play_index.read().await;
         *play_index
     }
-
 }
-
-
-

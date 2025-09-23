@@ -1,21 +1,16 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
+use crate::error::virtual_trading_system_error::VirtualTradingSystemError;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use crate::error::virtual_trading_system_error::VirtualTradingSystemError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum FuturesOrderNodeError {
     #[snafu(display("futures order node backtest config field value is null: {field_name}"))]
-    ConfigFieldValueNull {
-        field_name: String,
-        backtrace: Backtrace,
-    },
+    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
-    #[snafu(display(
-        "futures order node backtest config deserialization failed. reason: {source}"
-    ))]
+    #[snafu(display("futures order node backtest config deserialization failed. reason: {source}"))]
     ConfigDeserializationFailed {
         source: serde_json::Error,
         backtrace: Backtrace,
@@ -28,9 +23,7 @@ pub enum FuturesOrderNodeError {
     },
 
     #[snafu(display("cannot create order because current is processing order or unfilled order is not empty"))]
-    CannotCreateOrder {
-        backtrace: Backtrace,
-    },
+    CannotCreateOrder { backtrace: Backtrace },
 
     #[snafu(display("order config not found for input handle id: {input_handle_id}"))]
     OrderConfigNotFound {

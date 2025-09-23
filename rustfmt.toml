@@ -1,1 +1,10 @@
+# 样式版本，使用 2024 版本的格式化规则
 style_edition = "2024"
+
+# 基础配置（稳定特性）
+max_width = 120                     # 每行最大字符数，超过会换行
+hard_tabs = false                  # 使用空格而不是制表符进行缩进
+tab_spaces = 4                     # 缩进使用的空格数
+newline_style = "Unix"             # 使用 Unix 风格换行符（\n）
+use_small_heuristics = "Default"   # 使用默认的小启发式规则
+fn_params_layout="Tall"

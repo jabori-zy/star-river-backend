@@ -50,10 +50,7 @@ impl BacktestStateChangeActions for StartNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions
-            .iter()
-            .map(|action| action.clone_box())
-            .collect()
+        self.actions.iter().map(|action| action.clone_box()).collect()
     }
 }
 
@@ -104,17 +101,14 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                         Box::new(StartNodeStateAction::LogTransition),
                         Box::new(StartNodeStateAction::ListenAndHandleInnerEvents), // 处理内部事件
                         Box::new(StartNodeStateAction::ListenAndHandleStrategyCommand), // 处理策略命令
-                        Box::new(StartNodeStateAction::ListenAndHandlePlayIndex), // 处理播放索引
-                        Box::new(StartNodeStateAction::InitVirtualTradingSystem), // 初始化虚拟交易系统
-                        Box::new(StartNodeStateAction::InitStrategyStats),        // 初始化策略统计
+                        Box::new(StartNodeStateAction::ListenAndHandlePlayIndex),   // 处理播放索引
+                        Box::new(StartNodeStateAction::InitVirtualTradingSystem),   // 初始化虚拟交易系统
+                        Box::new(StartNodeStateAction::InitStrategyStats),          // 初始化策略统计
                     ],
                 }))
             }
             // 初始化完成，进入Ready状态
-            (
-                BacktestNodeRunState::Initializing,
-                BacktestNodeStateTransitionEvent::InitializeComplete,
-            ) => {
+            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(StartNodeStateChangeActions {

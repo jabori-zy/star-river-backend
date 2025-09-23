@@ -2,17 +2,16 @@ mod context_impl;
 mod event_handler;
 
 use async_trait::async_trait;
-use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
+use event_center::event::Event;
+use event_center::event::node_event::NodeEventTrait;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{
-    TriggerEvent, TriggerPayload,
-    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
+    CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
 };
 use event_center::event::node_event::backtest_node_event::if_else_node_event::{
     ConditionMatchEvent, ConditionMatchPayload, IfElseNodeEvent,
 };
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::NodeEventTrait;
-use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -48,17 +47,8 @@ pub struct IfElseNodeContext {
     pub backtest_config: IfElseNodeBacktestConfig,
 }
 
-
-
 impl IfElseNodeContext {
-    
-
-    fn update_received_flag(
-        &mut self,
-        from_node_id: NodeId,
-        from_variable_id: ConfigId,
-        flag: bool,
-    ) {
+    fn update_received_flag(&mut self, from_node_id: NodeId, from_variable_id: ConfigId, flag: bool) {
         self.received_flag
             .entry((from_node_id, from_variable_id))
             .and_modify(|e| *e = flag)
@@ -114,13 +104,12 @@ impl IfElseNodeContext {
         // 遍历case进行条件评估
         for (index, case) in self.backtest_config.cases.iter().enumerate() {
             let case_result = self.evaluate_case(case).await;
-            
+
             // 如果条件匹配，处理匹配的case
             if case_result.0 {
                 tracing::debug!("[{}] 条件匹配，处理匹配的case 分支", self.get_node_name());
                 self.handle_matched_case(case, case_result.1, current_time).await?;
-                
-            } 
+            }
             // 如果条件不匹配，并且是最后一个case, 则发送trigger事件
             else {
                 if index == self.backtest_config.cases.len() - 1 {
@@ -152,7 +141,7 @@ impl IfElseNodeContext {
         let from_node_id = self.get_node_id().clone();
         let from_node_name = self.get_node_name().clone();
         let play_index = self.get_play_index();
-        
+
         let case_output_handle_id = format!("{}_output_{}", self.get_node_id(), case.case_id);
         let case_output_handle: &NodeOutputHandle = self.get_output_handle(&case_output_handle_id);
         let strategy_output_handle = self.get_strategy_output_handle();
@@ -168,8 +157,8 @@ impl IfElseNodeContext {
         .into();
 
         // 创建并发送日志事件
-        let condition_result_json = serde_json::to_value(condition_results)
-            .context(EvaluateResultSerializationFailedSnafu {})?;
+        let condition_result_json =
+            serde_json::to_value(condition_results).context(EvaluateResultSerializationFailedSnafu {})?;
         let message = ConditionMatchedMsg::new(from_node_name.clone(), case.case_id);
         let log_event = StrategyRunningLogEvent::success(
             strategy_id,
@@ -195,9 +184,7 @@ impl IfElseNodeContext {
         Ok(())
     }
 
-
     async fn handle_not_matched_case(&self, case: &Case) {
-
         if self.is_leaf_node() {
             self.send_execute_over_event().await;
             return;
@@ -215,7 +202,6 @@ impl IfElseNodeContext {
         )
         .into();
         let _ = case_output_handle.send(condition_not_match_event.into());
-
     }
 
     // 处理else分支
@@ -322,10 +308,7 @@ impl IfElseNodeContext {
     }
 
     // 评估and条件组
-    async fn evaluate_and_conditions(
-        &self,
-        conditions: &Vec<Condition>,
-    ) -> (bool, Vec<ConditionResult>) {
+    async fn evaluate_and_conditions(&self, conditions: &Vec<Condition>) -> (bool, Vec<ConditionResult>) {
         // tracing::debug!("{}: 开始评估and条件组: {:#?}", self.get_node_id(), conditions);
         if conditions.is_empty() {
             return (true, vec![]); // 空条件组默认为true
@@ -343,10 +326,7 @@ impl IfElseNodeContext {
     }
 
     // 评估or条件组
-    async fn evaluate_or_conditions(
-        &self,
-        conditions: &Vec<Condition>,
-    ) -> (bool, Vec<ConditionResult>) {
+    async fn evaluate_or_conditions(&self, conditions: &Vec<Condition>) -> (bool, Vec<ConditionResult>) {
         if conditions.is_empty() {
             return (false, vec![]); // 空条件组默认为false
         }
@@ -372,9 +352,9 @@ impl IfElseNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(
-                get_current_time_response,
-            )) => return Ok(get_current_time_response.current_time),
+            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(get_current_time_response)) => {
+                return Ok(get_current_time_response.current_time);
+            }
             _ => return Err("获取当前时间失败".to_string()),
         }
     }

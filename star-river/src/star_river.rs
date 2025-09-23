@@ -1,13 +1,13 @@
 use axum::extract::State;
 use database::DatabaseManager;
+use database::query::system_config_query::SystemConfigQuery;
 use engine::engine_manager::EngineManager;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
+use star_river_core::system::system_config::SystemConfigManager;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
-use star_river_core::system::system_config::SystemConfigManager;
-use database::query::system_config_query::SystemConfigQuery;
 
 #[derive(Clone, Debug)]
 pub struct StarRiver {
@@ -36,14 +36,16 @@ impl StarRiver {
         )
         .await;
 
-        let system_config = SystemConfigQuery::get_system_config(&database.get_conn()).await.unwrap();
+        let system_config = SystemConfigQuery::get_system_config(&database.get_conn())
+            .await
+            .unwrap();
         tracing::info!("system_config: {:?}", system_config);
         // 初始化时区
         SystemConfigManager::initialize_from_db(system_config);
         // 添加这行确认
         let config_after_init = SystemConfigManager::get_config();
         tracing::info!("config after init: {:?}", config_after_init);
-        
+
         let timezone = SystemConfigManager::get_timezone();
         tracing::info!("current timezone: {}", timezone);
 

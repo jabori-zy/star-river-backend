@@ -1,6 +1,5 @@
 mod context_impl;
 
-
 use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
@@ -9,10 +8,11 @@ use event_center::communication::engine::cache_engine::*;
 use event_center::communication::engine::{EngineCommand, EngineResponse};
 use event_center::event::Event;
 use event_center::event::{ExchangeEvent, IndicatorEvent};
+use star_river_core::cache::CacheItem;
 use star_river_core::cache::key::KlineKey;
 use star_river_core::cache::{
-    cache_entry::{IndicatorCacheEntry, KlineCacheEntry},
     CacheEntry,
+    cache_entry::{IndicatorCacheEntry, KlineCacheEntry},
 };
 use star_river_core::cache::{CacheValue, Key};
 use std::any::Any;
@@ -22,7 +22,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use star_river_core::cache::CacheItem;
 
 #[derive(Debug)]
 pub struct CacheEngineContext {
@@ -46,8 +45,6 @@ impl Clone for CacheEngineContext {
         }
     }
 }
-
-
 
 impl CacheEngineContext {
     async fn handle_exchange_event(&mut self, exchange_event: ExchangeEvent) {
@@ -78,11 +75,7 @@ impl CacheEngineContext {
                 )
                 .into();
                 tracing::debug!("更新历史k线缓存: {:?}", key);
-                let cache_series = event
-                    .kline_history
-                    .into_iter()
-                    .map(|kline| kline.into())
-                    .collect();
+                let cache_series = event.kline_history.into_iter().map(|kline| kline.into()).collect();
                 self.initialize_cache(key, cache_series).await;
             }
             _ => {}
@@ -94,12 +87,7 @@ impl CacheEngineContext {
     }
 
     // 获取缓存数据
-    pub async fn get_cache(
-        &self,
-        key: &Key,
-        index: Option<u32>,
-        limit: Option<u32>,
-    ) -> Vec<Arc<CacheValue>> {
+    pub async fn get_cache(&self, key: &Key, index: Option<u32>, limit: Option<u32>) -> Vec<Arc<CacheValue>> {
         let cache = self.cache.read().await;
         let cache_entry = cache.get(key);
         if cache_entry.is_none() {
@@ -136,20 +124,12 @@ impl CacheEngineContext {
                 cache_data.insert(key.clone(), vec![]);
                 continue;
             }
-            cache_data.insert(
-                key.clone(),
-                cache_entry.unwrap().get_cache_data(index, limit),
-            );
+            cache_data.insert(key.clone(), cache_entry.unwrap().get_cache_data(index, limit));
         }
         cache_data
     }
 
-    pub async fn add_key(
-        &mut self,
-        key: Key,
-        max_size: Option<u32>,
-        ttl: Duration,
-    ) -> Result<(), String> {
+    pub async fn add_key(&mut self, key: Key, max_size: Option<u32>, ttl: Duration) -> Result<(), String> {
         let is_contain = { self.cache.read().await.contains_key(&key) };
 
         // 如果缓存键已存在，则不插入
@@ -157,20 +137,14 @@ impl CacheEngineContext {
             match key.clone() {
                 Key::Kline(backtest_kline_cache_key) => {
                     let mut cache = self.cache.write().await;
-                    let cache_entry =
-                        KlineCacheEntry::new(backtest_kline_cache_key.clone(), max_size, ttl);
+                    let cache_entry = KlineCacheEntry::new(backtest_kline_cache_key.clone(), max_size, ttl);
                     cache.insert(key, cache_entry.into());
                 }
                 Key::Indicator(history_indicator_cache_key) => {
                     let mut cache = self.cache.write().await;
-                    let cache_entry = IndicatorCacheEntry::new(
-                        history_indicator_cache_key.clone(),
-                        max_size,
-                        ttl,
-                    );
+                    let cache_entry = IndicatorCacheEntry::new(history_indicator_cache_key.clone(), max_size, ttl);
                     cache.insert(key, cache_entry.into());
-                } 
-                // Key::Indicator(indicator_cache_key) => {
+                } // Key::Indicator(indicator_cache_key) => {
                   //     let is_contain = {
                   //         self.cache.read().await.contains_key(&indicator_cache_key.clone().into())
                   //     };
@@ -214,12 +188,9 @@ impl CacheEngineContext {
         cache_entry.initialize(cache_series);
     }
 
-
     pub async fn update_cache(&mut self, key: Key, cache_calue: CacheValue) {
         // 先检查键是否存在，释放锁
-        let key_exists = {
-            self.cache.read().await.contains_key(&key)
-        };
+        let key_exists = { self.cache.read().await.contains_key(&key) };
 
         if !key_exists {
             // 如果缓存键不存在，先添加键

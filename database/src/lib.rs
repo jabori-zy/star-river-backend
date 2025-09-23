@@ -72,8 +72,7 @@ impl DatabaseManager {
         tracing::info!("数据库路径: {}", database_url);
 
         let mut opt = ConnectOptions::new(database_url);
-        opt.sqlx_logging(false)
-            .sqlx_logging_level(LevelFilter::Debug);
+        opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);
         let conn = Database::connect(opt).await.unwrap();
         Self::migrate(&conn).await;
         Ok(conn)

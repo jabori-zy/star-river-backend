@@ -24,17 +24,8 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(StrategyConfig::Name).string().not_null())
-                    .col(
-                        ColumnDef::new(StrategyConfig::Description)
-                            .string()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(StrategyConfig::Status)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    )
+                    .col(ColumnDef::new(StrategyConfig::Description).string().not_null())
+                    .col(ColumnDef::new(StrategyConfig::Status).integer().not_null().default(0))
                     .col(
                         ColumnDef::new(StrategyConfig::IsDeleted)
                             .boolean()

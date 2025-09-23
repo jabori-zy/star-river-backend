@@ -1,12 +1,12 @@
 use super::Key;
 use super::KeyTrait;
+use crate::error::star_river_error::*;
 use crate::indicator::IndicatorConfig;
 use crate::market::{Exchange, KlineInterval};
 use crate::strategy::TimeRange;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use crate::error::star_river_error::*;
 use snafu::ResultExt;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct KlineKey {
@@ -29,19 +29,20 @@ impl FromStr for KlineKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();
         if parts.len() != 6 {
-            return Err(InvalidKeyFormatSnafu { key_str: s.to_string()}.build());
+            return Err(InvalidKeyFormatSnafu { key_str: s.to_string() }.build());
         }
 
         let exchange = parts[1].parse::<Exchange>()?;
         let symbol = parts[2].to_string();
         let interval = parts[3]
-            .parse::<KlineInterval>().context(ParseKlineIntervalFailedSnafu { interval: parts[3].to_string()})?;
+            .parse::<KlineInterval>()
+            .context(ParseKlineIntervalFailedSnafu {
+                interval: parts[3].to_string(),
+            })?;
         // 使用Box::leak将字符串转换为静态引用
         let start_time = Some(parts[4].to_string());
         let end_time = Some(parts[5].to_string());
-        Ok(KlineKey::new(
-            exchange, symbol, interval, start_time, end_time,
-        ))
+        Ok(KlineKey::new(exchange, symbol, interval, start_time, end_time))
     }
 }
 
@@ -125,14 +126,16 @@ impl FromStr for IndicatorKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();
         if parts.len() != 7 {
-            return Err(InvalidKeyFormatSnafu { key_str: s.to_string()}.build());
+            return Err(InvalidKeyFormatSnafu { key_str: s.to_string() }.build());
         }
 
         let exchange = parts[1].parse::<Exchange>()?;
         let symbol = parts[2].to_string();
         let interval = parts[3]
             .parse::<KlineInterval>()
-            .context(ParseKlineIntervalFailedSnafu { interval: parts[3].to_string()})?;
+            .context(ParseKlineIntervalFailedSnafu {
+                interval: parts[3].to_string(),
+            })?;
         let indicator_config = IndicatorConfig::from_str(parts[4])?;
         let start_time = Some(parts[5].to_string());
         let end_time = Some(parts[6].to_string());
@@ -158,7 +161,13 @@ impl IndicatorKey {
     }
 
     pub fn get_kline_key(&self) -> KlineKey {
-        KlineKey::new(self.exchange.clone(), self.symbol.clone(), self.interval.clone(), self.start_time.clone(), self.end_time.clone())
+        KlineKey::new(
+            self.exchange.clone(),
+            self.symbol.clone(),
+            self.interval.clone(),
+            self.start_time.clone(),
+            self.end_time.clone(),
+        )
     }
 }
 

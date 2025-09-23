@@ -1,16 +1,13 @@
 use super::node_types::*;
 use crate::strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
-use event_center::communication::strategy::{
-    NodeCommandSender, StrategyCommand, StrategyCommandReceiver,
-};
-use event_center::event::node_event::backtest_node_event::common_event::{
-    TriggerEvent, TriggerPayload,
-    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
-};
-use event_center::event::Event;
 use event_center::EventPublisher;
-use event_center::{event::EventReceiver, CommandPublisher};
+use event_center::communication::strategy::{NodeCommandSender, StrategyCommand, StrategyCommandReceiver};
+use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::common_event::{
+    CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
+};
+use event_center::{CommandPublisher, event::EventReceiver};
 
 use event_center::event::node_event::BacktestNodeEvent;
 use star_river_core::custom_type::PlayIndex;
@@ -20,8 +17,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 #[async_trait]
@@ -306,10 +303,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     fn get_output_handle(&self, handle_id: &String) -> &NodeOutputHandle {
         // tracing::info!("get_output_handle: {:?}", handle_id);
-        self.get_base_context()
-            .output_handles
-            .get(handle_id)
-            .unwrap()
+        self.get_base_context().output_handles.get(handle_id).unwrap()
     }
 
     fn get_strategy_output_handle(&self) -> &NodeOutputHandle {
@@ -402,13 +396,13 @@ pub struct BacktestBaseNodeContext {
     pub node_name: String,
     is_leaf_node: bool, // 是否是叶子节点
     pub cancel_token: CancellationToken,
-    pub input_handles: Vec<NodeInputHandle>, // 节点事件接收器
+    pub input_handles: Vec<NodeInputHandle>,                 // 节点事件接收器
     pub output_handles: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
     pub strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
-    pub is_enable_event_publish: bool,       // 是否启用事件发布
-    pub state_machine: Box<dyn BacktestNodeStateMachine>, // 状态机
-    pub from_node_id: Vec<String>,           // 来源节点ID
-    pub node_command_sender: NodeCommandSender, // 向策略发送命令
+    pub is_enable_event_publish: bool,                       // 是否启用事件发布
+    pub state_machine: Box<dyn BacktestNodeStateMachine>,    // 状态机
+    pub from_node_id: Vec<String>,                           // 来源节点ID
+    pub node_command_sender: NodeCommandSender,              // 向策略发送命令
     pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }

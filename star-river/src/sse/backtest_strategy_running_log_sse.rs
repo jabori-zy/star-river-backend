@@ -4,11 +4,11 @@ use std::{convert::Infallible, time::Duration};
 use tokio_stream::StreamExt;
 
 use async_stream::stream;
-use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
-use event_center::event::Event as EventCenterEvent;
-use event_center::event::StrategyEvent;
 use event_center::Channel;
 use event_center::EventCenterSingleton;
+use event_center::event::Event as EventCenterEvent;
+use event_center::event::StrategyEvent;
+use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
 
 #[utoipa::path(
     get,
@@ -19,8 +19,7 @@ use event_center::EventCenterSingleton;
         (status = 200, description = "Backtest Strategy Running Log SSE connection successful")
     )
 )]
-pub async fn backtest_strategy_running_log_sse_handler(
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn backtest_strategy_running_log_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Backtest Strategy Running Log SSE connection successful");
     // let event_center = star_river.event_center.lock().await;
     let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy)

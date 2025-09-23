@@ -19,13 +19,13 @@ impl StrategyConfigQuery {
 
         let num_pages = paginator.num_pages().await?;
         let models = paginator.fetch_page(page - 1).await?;
-        
+
         let mut strategy_configs = Vec::new();
         for model in models {
             let strategy_config = model.into();
             strategy_configs.push(strategy_config);
         }
-        
+
         Ok((strategy_configs, num_pages))
     }
 
@@ -35,13 +35,13 @@ impl StrategyConfigQuery {
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .all(db)
             .await?;
-            
+
         let mut strategy_configs = Vec::new();
         for model in strategy_models {
             let strategy_config = model.into();
             strategy_configs.push(strategy_config);
         }
-        
+
         Ok(strategy_configs)
     }
 
@@ -51,14 +51,11 @@ impl StrategyConfigQuery {
             .one(db)
             .await?
             .ok_or(DbErr::RecordNotFound("Cannot find strategy config.".to_owned()))?;
-            
+
         Ok(strategy_model.into())
     }
 
-    pub async fn get_backtest_chart_config_by_strategy_id(
-        db: &DbConn,
-        strategy_id: i32,
-    ) -> Result<JsonValue, DbErr> {
+    pub async fn get_backtest_chart_config_by_strategy_id(db: &DbConn, strategy_id: i32) -> Result<JsonValue, DbErr> {
         let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .one(db)
@@ -71,10 +68,7 @@ impl StrategyConfigQuery {
         }
     }
 
-    pub async fn get_strategy_status_by_strategy_id(
-        db: &DbConn,
-        strategy_id: i32,
-    ) -> Result<String, DbErr> {
+    pub async fn get_strategy_status_by_strategy_id(db: &DbConn, strategy_id: i32) -> Result<String, DbErr> {
         let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .one(db)

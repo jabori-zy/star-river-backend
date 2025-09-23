@@ -1,8 +1,8 @@
 pub mod data_processor_error;
 pub mod mt5_error;
 
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 pub use data_processor_error::*;
 pub use mt5_error::*;
 use snafu::{Backtrace, Snafu};
@@ -12,10 +12,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum ExchangeClientError {
     #[snafu(transparent)]
-    MetaTrader5 {
-        source: Mt5Error,
-        backtrace: Backtrace,
-    },
+    MetaTrader5 { source: Mt5Error, backtrace: Backtrace },
 
     #[snafu(transparent)]
     DataProcessor {
@@ -24,28 +21,16 @@ pub enum ExchangeClientError {
     },
 
     #[snafu(display("Binance error: {message}"))]
-    Binance {
-        message: String,
-        backtrace: Backtrace,
-    },
+    Binance { message: String, backtrace: Backtrace },
 
     #[snafu(display("Authentication error: {message}"))]
-    Authentication {
-        message: String,
-        backtrace: Backtrace,
-    },
+    Authentication { message: String, backtrace: Backtrace },
 
     #[snafu(display("Rate limit exceeded: {message}"))]
-    RateLimit {
-        message: String,
-        backtrace: Backtrace,
-    },
+    RateLimit { message: String, backtrace: Backtrace },
 
     #[snafu(display("Internal error: {message}"))]
-    Internal {
-        message: String,
-        backtrace: Backtrace,
-    },
+    Internal { message: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for ExchangeClientError
@@ -75,8 +60,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
                     ExchangeClientError::Internal { .. } => 1004,
 
                     // This should never happen due to outer match, but needed for completeness
-                    ExchangeClientError::MetaTrader5 { .. }
-                    | ExchangeClientError::DataProcessor { .. } => unreachable!(),
+                    ExchangeClientError::MetaTrader5 { .. } | ExchangeClientError::DataProcessor { .. } => {
+                        unreachable!()
+                    }
                 };
                 format!("{}_{:04}", prefix, code)
             }

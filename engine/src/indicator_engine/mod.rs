@@ -5,9 +5,9 @@ pub mod talib;
 pub mod talib_bindings;
 // pub mod talib_error;
 
+use crate::EngineName;
 use crate::cache_engine::CacheEngine;
 use crate::indicator_engine::indicator_engine_context::IndicatorEngineContext;
-use crate::EngineName;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
 use heartbeat::Heartbeat;

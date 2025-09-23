@@ -1,10 +1,10 @@
 use super::super::{EngineResponse, ResponseTrait};
+use chrono::Utc;
 use star_river_core::error::engine_error::*;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::market::Exchange;
-use std::sync::Arc;
-use chrono::Utc;
 use star_river_core::system::DateTimeUtc;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum ExchangeEngineResponse {
@@ -20,9 +20,7 @@ impl ResponseTrait for ExchangeEngineResponse {
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            ExchangeEngineResponse::RegisterExchange(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
+            ExchangeEngineResponse::RegisterExchange(response) => response.error.as_ref().unwrap().clone(),
         }
     }
 
@@ -73,7 +71,7 @@ impl RegisterExchangeResponse {
             account_id,
             exchange,
             error: None,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 
@@ -83,7 +81,7 @@ impl RegisterExchangeResponse {
             account_id,
             exchange,
             error: Some(Arc::new(error)),
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }

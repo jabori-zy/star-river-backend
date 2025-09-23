@@ -29,14 +29,14 @@ use event_center::event::strategy_event::NodeStateLogEvent;
 
 use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_type::SelectedSymbol;
 use indicator_node_type::{ExchangeModeConfig, SelectedIndicator};
+use serde::de::IntoDeserializer;
 use snafu::ResultExt;
 use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use star_river_core::indicator::IndicatorConfig;
-use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 use star_river_core::strategy::deserialize_time_range;
-use serde::de::IntoDeserializer;
-use std::str::FromStr;
+use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -52,8 +52,7 @@ impl IndicatorNode {
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IndicatorNodeError> {
-        let (strategy_id, node_id, node_name, backtest_config) =
-            Self::check_indicator_node_config(node_config)?;
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_indicator_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -75,16 +74,16 @@ impl IndicatorNode {
         // 通过配置，获取回测K线缓存键
         let selected_kline_key = Self::get_kline_key(&backtest_config);
 
-        let indicator_node_context = IndicatorNodeContext::new(base_context, backtest_config, selected_kline_key, indicator_keys);
+        let indicator_node_context =
+            IndicatorNodeContext::new(base_context, backtest_config, selected_kline_key, indicator_keys);
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(indicator_node_context)))
+            context: Arc::new(RwLock::new(Box::new(indicator_node_context))),
         })
     }
 
     fn check_indicator_node_config(
         node_config: serde_json::Value,
-    ) -> Result<(StrategyId, NodeId, NodeName, IndicatorNodeBacktestConfig), IndicatorNodeError>
-    {
+    ) -> Result<(StrategyId, NodeId, NodeName, IndicatorNodeBacktestConfig), IndicatorNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
@@ -172,8 +171,8 @@ impl IndicatorNode {
             })?
             .to_owned();
         tracing::debug!("time_range_json: {:?}", time_range_json);
-        let time_range = deserialize_time_range(time_range_json.into_deserializer())
-            .context(ConfigDeserializationFailedSnafu {})?;
+        let time_range =
+            deserialize_time_range(time_range_json.into_deserializer()).context(ConfigDeserializationFailedSnafu {})?;
         tracing::debug!("time_range: {:?}", time_range);
 
         let data_source = backtest_config_json
@@ -186,8 +185,8 @@ impl IndicatorNode {
                 .build()
             })?
             .to_owned();
-        let data_source = BacktestDataSource::from_str(&data_source)
-            .context(DataSourceParseFailedSnafu { data_source })?;
+        let data_source =
+            BacktestDataSource::from_str(&data_source).context(DataSourceParseFailedSnafu { data_source })?;
 
         let selected_indicators_array = backtest_config_json
             .get("exchangeModeConfig")
@@ -263,7 +262,7 @@ impl IndicatorNode {
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
-    fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> HashMap<IndicatorKey,(i32, String)> {
+    fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> HashMap<IndicatorKey, (i32, String)> {
         let exchange = backtest_config
             .exchange_mode_config
             .as_ref()
@@ -377,24 +376,27 @@ impl BacktestNodeTrait for IndicatorNode {
 
         // 添加strategy_output_handle
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
+        tracing::debug!(
+            "[{node_name}] setting strategy output handle: {}",
+            strategy_output_handle_id
+        );
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
+        tracing::debug!(
+            "[{node_name}] setting default output handle: {}",
+            default_output_handle_id
+        );
         self.add_output_handle(default_output_handle_id, tx).await;
 
         // 添加每一个indicator的出口
         let selected_indicator = {
             let context = self.get_context();
             let context_guard = context.read().await;
-            let indicator_node_context = context_guard
-                .as_any()
-                .downcast_ref::<IndicatorNodeContext>()
-                .unwrap();
+            let indicator_node_context = context_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
             let exchange_mode_config = indicator_node_context
                 .backtest_config
                 .exchange_mode_config
@@ -405,7 +407,10 @@ impl BacktestNodeTrait for IndicatorNode {
 
         for indicator in selected_indicator.iter() {
             let indicator_output_handle_id = indicator.output_handle_id.clone();
-            tracing::debug!("[{node_name}] setting indicator output handle: {}", indicator_output_handle_id);
+            tracing::debug!(
+                "[{node_name}] setting indicator output handle: {}",
+                indicator_output_handle_id
+            );
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(indicator_output_handle_id, tx).await;
         }
@@ -427,16 +432,9 @@ impl BacktestNodeTrait for IndicatorNode {
         loop {
             let is_registered = {
                 let state_guard = self.context.read().await;
-                let indicator_node_context = state_guard
-                    .as_any()
-                    .downcast_ref::<IndicatorNodeContext>()
-                    .unwrap();
+                let indicator_node_context = state_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
                 let is_registered = indicator_node_context.is_registered.read().await.clone();
-                tracing::info!(
-                    "{}: 检查是否已经注册指标: {}",
-                    self.get_node_id().await,
-                    is_registered
-                );
+                tracing::info!("{}: 检查是否已经注册指标: {}", self.get_node_id().await, is_registered);
                 is_registered
             };
             if is_registered {
@@ -447,11 +445,7 @@ impl BacktestNodeTrait for IndicatorNode {
 
         tracing::info!(
             "{:?}: 初始化完成",
-            self.context
-                .read()
-                .await
-                .get_state_machine()
-                .current_state()
+            self.context.read().await.get_state_machine().current_state()
         );
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete)
@@ -462,8 +456,7 @@ impl BacktestNodeTrait for IndicatorNode {
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop)
-            .await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -489,9 +482,7 @@ impl BacktestNodeTrait for IndicatorNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {
-            if let Some(indicator_node_state_action) =
-                action.as_any().downcast_ref::<IndicatorNodeStateAction>()
-            {
+            if let Some(indicator_node_state_action) = action.as_any().downcast_ref::<IndicatorNodeStateAction>() {
                 let current_state = state_machine.current_state();
                 match indicator_node_state_action {
                     IndicatorNodeStateAction::LogTransition => {
@@ -502,15 +493,9 @@ impl BacktestNodeTrait for IndicatorNode {
                         );
                     }
                     IndicatorNodeStateAction::LogNodeState => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] current state: {:?}",
-                            current_state
-                        );
-                        let log_message = NodeStateLogMsg::new(
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                        );
+                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
+                        let log_message =
+                            NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -522,11 +507,8 @@ impl BacktestNodeTrait for IndicatorNode {
                         let _ = strategy_output_handle.send(log_event.into());
                     }
                     IndicatorNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen external events"
-                        );
-                        let log_message =
-                            ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -540,8 +522,7 @@ impl BacktestNodeTrait for IndicatorNode {
                     }
                     IndicatorNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message =
-                            ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -554,11 +535,8 @@ impl BacktestNodeTrait for IndicatorNode {
                         self.listen_node_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen strategy inner events"
-                        );
-                        let log_message =
-                            ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -571,11 +549,8 @@ impl BacktestNodeTrait for IndicatorNode {
                         self.listen_strategy_inner_events().await;
                     }
                     IndicatorNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen strategy command"
-                        );
-                        let log_message =
-                            ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -591,9 +566,11 @@ impl BacktestNodeTrait for IndicatorNode {
                     IndicatorNodeStateAction::GetMinIntervalSymbols => {
                         tracing::info!("[{node_name}({node_id})] start to get min interval symbols");
                         let context = self.get_context();
-                        
+
                         let mut context_guard = context.write().await;
-                        if let Some(indicator_node_context) = context_guard.as_any_mut().downcast_mut::<IndicatorNodeContext>(){
+                        if let Some(indicator_node_context) =
+                            context_guard.as_any_mut().downcast_mut::<IndicatorNodeContext>()
+                        {
                             let min_interval_symbols = indicator_node_context.get_min_interval_symbols().await.unwrap();
                             indicator_node_context.set_min_interval_symbols(min_interval_symbols);
 
@@ -608,17 +585,12 @@ impl BacktestNodeTrait for IndicatorNode {
                             );
                             let _ = strategy_output_handle.send(log_event.into());
                         }
-
-
                     }
 
                     IndicatorNodeStateAction::RegisterIndicatorKey => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to register indicator cache key"
-                        );
+                        tracing::info!("[{node_name}({node_id})] starting to register indicator cache key");
 
-                        let log_message =
-                            RegisterIndicatorCacheKeyMsg::new(node_id.clone(), node_name.clone());
+                        let log_message = RegisterIndicatorCacheKeyMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -630,21 +602,14 @@ impl BacktestNodeTrait for IndicatorNode {
                         let _ = strategy_output_handle.send(log_event.into());
 
                         let mut context = self.context.write().await;
-                        let context = context
-                            .as_any_mut()
-                            .downcast_mut::<IndicatorNodeContext>()
-                            .unwrap();
+                        let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
                         let is_all_success = context.register_indicator_cache_key().await.unwrap();
                         if is_all_success {
                             if is_all_success {
                                 *context.is_registered.write().await = true;
-                                tracing::info!(
-                                    "[{node_name}({node_id})] register indicator cache key success"
-                                );
+                                tracing::info!("[{node_name}({node_id})] register indicator cache key success");
                             } else {
-                                tracing::error!(
-                                    "[{node_name}({node_id})] register indicator cache key failed"
-                                );
+                                tracing::error!("[{node_name}({node_id})] register indicator cache key failed");
                             }
                         }
                     }
@@ -661,10 +626,7 @@ impl BacktestNodeTrait for IndicatorNode {
                         );
                         let _ = strategy_output_handle.send(log_event.into());
                         let mut context = self.context.write().await;
-                        let context = context
-                            .as_any_mut()
-                            .downcast_mut::<IndicatorNodeContext>()
-                            .unwrap();
+                        let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
                         let is_all_success = context.calculate_indicator().await.unwrap();
 
                         if is_all_success {
@@ -681,10 +643,7 @@ impl BacktestNodeTrait for IndicatorNode {
                 }
                 // 所有动作执行完毕后更新节点最新的状态
                 {
-                    self.context
-                        .write()
-                        .await
-                        .set_state_machine(state_machine.clone_box());
+                    self.context.write().await.set_state_machine(state_machine.clone_box());
                 }
             }
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;

@@ -31,10 +31,7 @@ fn test_ht_dcperiod(kline_series: &[std::sync::Arc<star_river_core::cache::Cache
     match CalculateIndicatorFunction::calculate_ht_dcperiod(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  HT_DCPERIOD: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  HT_DCPERIOD: 计算失败 - {:?}", e),
@@ -50,10 +47,7 @@ fn test_ht_dcphase(kline_series: &[std::sync::Arc<star_river_core::cache::CacheV
     match CalculateIndicatorFunction::calculate_ht_dcphase(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  HT_DCPHASE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  HT_DCPHASE: 计算失败 - {:?}", e),
@@ -69,10 +63,7 @@ fn test_ht_phasor(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVa
     match CalculateIndicatorFunction::calculate_ht_phasor(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  HT_PHASOR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  HT_PHASOR: 计算失败 - {:?}", e),
@@ -88,10 +79,7 @@ fn test_ht_sine(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValu
     match CalculateIndicatorFunction::calculate_ht_sine(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  HT_SINE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  HT_SINE: 计算失败 - {:?}", e),
@@ -107,10 +95,7 @@ fn test_ht_trendmode(kline_series: &[std::sync::Arc<star_river_core::cache::Cach
     match CalculateIndicatorFunction::calculate_ht_trendmode(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  HT_TRENDMODE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  HT_TRENDMODE: 计算失败 - {:?}", e),

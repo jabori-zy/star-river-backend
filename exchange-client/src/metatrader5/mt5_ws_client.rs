@@ -1,9 +1,8 @@
 use futures::SinkExt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{handshake::client::Response, Message},
-    MaybeTlsStream, WebSocketStream,
+    MaybeTlsStream, WebSocketStream, connect_async,
+    tungstenite::{Message, handshake::client::Response},
 };
 
 use serde::Serialize;
@@ -20,7 +19,11 @@ impl Mt5WsClient {
         let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
         let duration = start.elapsed();
-        tracing::info!("connect to metatrader5 websocket server successfully, duration: {:?}, response status: {:?}", duration, response.status());
+        tracing::info!(
+            "connect to metatrader5 websocket server successfully, duration: {:?}, response status: {:?}",
+            duration,
+            response.status()
+        );
 
         Ok((WebSocketState::new(socket), response))
     }
@@ -44,13 +47,8 @@ impl WebSocketState {
         Self { socket }
     }
 
-    async fn send<'a, I>(
-        &mut self,
-        command: &str,
-        data_type: Option<&str>,
-        params: Option<I>,
-        frequency: Option<u32>,
-    ) where
+    async fn send<'a, I>(&mut self, command: &str, data_type: Option<&str>, params: Option<I>, frequency: Option<u32>)
+    where
         I: Serialize + 'a,
     {
         // 构建消息

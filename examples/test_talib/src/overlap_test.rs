@@ -46,10 +46,7 @@ fn test_bbands(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue
     match CalculateIndicatorFunction::calculate_bbands(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  BBANDS: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             // //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  BBANDS: 计算失败 - {:?}", e),
@@ -66,10 +63,7 @@ fn test_dema(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_dema(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  DEMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             // //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  DEMA: 计算失败 - {:?}", e),
@@ -86,10 +80,7 @@ fn test_ema(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_ema(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  EMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             // //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  EMA: 计算失败 - {:?}", e),
@@ -105,10 +96,7 @@ fn test_ht_trendline(kline_series: &[std::sync::Arc<star_river_core::cache::Cach
     match CalculateIndicatorFunction::calculate_ht_trendline(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  HT_TRENDLINE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  HT_TRENDLINE: 计算失败 - {:?}", e),
@@ -125,10 +113,7 @@ fn test_kama(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_kama(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  KAMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  KAMA: 计算失败 - {:?}", e),
@@ -146,10 +131,7 @@ fn test_ma(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) 
     match CalculateIndicatorFunction::calculate_ma(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MA: 计算失败 - {:?}", e),
@@ -167,10 +149,7 @@ fn test_mama(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_mama(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MAMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MAMA: 计算失败 - {:?}", e),
@@ -187,10 +166,7 @@ fn test_midpoint(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_midpoint(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MIDPOINT: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MIDPOINT: 计算失败 - {:?}", e),
@@ -204,10 +180,7 @@ fn test_midprice(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_midprice(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MIDPRICE: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MIDPRICE: 计算失败 - {:?}", e),
@@ -224,10 +197,7 @@ fn test_sar(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_sar(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  SAR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  SAR: 计算失败 - {:?}", e),
@@ -250,10 +220,7 @@ fn test_sarext(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue
     match CalculateIndicatorFunction::calculate_sarext(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  SAREXT: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  SAREXT: 计算失败 - {:?}", e),
@@ -270,10 +237,7 @@ fn test_sma(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_sma(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  SMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  SMA: 计算失败 - {:?}", e),
@@ -291,10 +255,7 @@ fn test_t3(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) 
     match CalculateIndicatorFunction::calculate_t3(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  T3: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  T3: 计算失败 - {:?}", e),
@@ -311,10 +272,7 @@ fn test_tema(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_tema(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  TEMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  TEMA: 计算失败 - {:?}", e),
@@ -331,10 +289,7 @@ fn test_trima(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>
     match CalculateIndicatorFunction::calculate_trima(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  TRIMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  TRIMA: 计算失败 - {:?}", e),
@@ -351,10 +306,7 @@ fn test_wma(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_wma(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  WMA: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             //println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  WMA: 计算失败 - {:?}", e),

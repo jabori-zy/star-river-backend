@@ -15,10 +15,7 @@ pub trait LiveNodeStateMachine: Send + Sync + Debug + 'static {
     fn current_state(&self) -> LiveNodeRunState;
 
     /// 处理状态转换事件
-    fn transition(
-        &mut self,
-        event: LiveNodeStateTransitionEvent,
-    ) -> Result<Box<dyn LiveStateChangeActions>, String>;
+    fn transition(&mut self, event: LiveNodeStateTransitionEvent) -> Result<Box<dyn LiveStateChangeActions>, String>;
 }
 
 /// 状态转换后需要执行的动作

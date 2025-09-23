@@ -50,10 +50,7 @@ impl BacktestStateChangeActions for OrderNodeStateChangeActions {
         self.new_state.clone()
     }
     fn get_actions(&self) -> Vec<Box<dyn BacktestNodeTransitionAction>> {
-        self.actions
-            .iter()
-            .map(|action| action.clone_box())
-            .collect()
+        self.actions.iter().map(|action| action.clone_box()).collect()
     }
 }
 
@@ -112,10 +109,7 @@ impl BacktestNodeStateMachine for OrderNodeStateMachine {
                 }))
             }
             // 初始化完成，进入Ready状态
-            (
-                BacktestNodeRunState::Initializing,
-                BacktestNodeStateTransitionEvent::InitializeComplete,
-            ) => {
+            (BacktestNodeRunState::Initializing, BacktestNodeStateTransitionEvent::InitializeComplete) => {
                 // 修改manager的状态
                 self.current_state = BacktestNodeRunState::Ready;
                 Ok(Box::new(OrderNodeStateChangeActions {

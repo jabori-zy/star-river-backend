@@ -4,10 +4,13 @@ pub mod key;
 use crate::market::Exchange;
 use serde::{Deserialize, Serialize};
 
+use crate::error::star_river_error::*;
 use crate::indicator::Indicator;
 use crate::market::Kline;
 use crate::market::KlineInterval;
+use crate::strategy::TimeRange;
 use cache_entry::{IndicatorCacheEntry, KlineCacheEntry};
+use chrono::{DateTime, Utc};
 use deepsize::DeepSizeOf;
 use key::{IndicatorKey, KlineKey};
 use std::fmt::Debug;
@@ -15,9 +18,6 @@ use std::hash::Hash;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use chrono::{DateTime, Utc};
-use crate::strategy::TimeRange;
-use crate::error::star_river_error::*;
 
 pub trait KeyTrait {
     fn get_key_str(&self) -> String;
@@ -48,7 +48,10 @@ impl FromStr for Key {
             // "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
             "kline" => Ok(Key::Kline(KlineKey::from_str(s)?)),
             "indicator" => Ok(Key::Indicator(IndicatorKey::from_str(s)?)),
-            _ => Err(InvalidKeyTypeSnafu { key_type: key_type.to_string()}.build()),
+            _ => Err(InvalidKeyTypeSnafu {
+                key_type: key_type.to_string(),
+            }
+            .build()),
         }
     }
 }
@@ -96,7 +99,7 @@ impl Key {
             Key::Indicator(key) => key.start_time.clone(),
         }
     }
-    
+
     pub fn get_end_time(&self) -> Option<String> {
         match self {
             Key::Kline(key) => key.end_time.clone(),
@@ -176,7 +179,6 @@ impl CacheItem for CacheValue {
     }
 }
 
-
 impl CacheValue {
     pub fn as_kline_ref(&self) -> Option<&Kline> {
         match self {
@@ -234,12 +236,8 @@ impl CacheEntry {
         match key {
             // Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, max_size, ttl)),
             // Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, max_size, ttl)),
-            Key::Kline(key) => {
-                CacheEntry::Kline(KlineCacheEntry::new(key, Some(max_size), ttl))
-            }
-            Key::Indicator(key) => {
-                CacheEntry::Indicator(IndicatorCacheEntry::new(key, Some(max_size), ttl))
-            }
+            Key::Kline(key) => CacheEntry::Kline(KlineCacheEntry::new(key, Some(max_size), ttl)),
+            Key::Indicator(key) => CacheEntry::Indicator(IndicatorCacheEntry::new(key, Some(max_size), ttl)),
         }
     }
 

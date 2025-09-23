@@ -1,14 +1,14 @@
 use super::BacktestStrategyFunction;
-use crate::strategy_engine::node::backtest_strategy_node::position_management_node::PositionManagementNode;
 use crate::strategy_engine::node::BacktestNodeTrait;
+use crate::strategy_engine::node::backtest_strategy_node::position_management_node::PositionManagementNode;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use event_center::communication::strategy::{NodeCommandSender, StrategyCommand};
 use star_river_core::error::engine_error::node_error::position_management_node_error::*;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use tokio::sync::mpsc;
 
 impl BacktestStrategyFunction {
     pub async fn add_position_management_node(
@@ -19,13 +19,7 @@ impl BacktestStrategyFunction {
     ) -> Result<(), PositionManagementNodeError> {
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
 
-        let (
-            heartbeat,
-            virtual_trading_system,
-            virtual_trading_system_event_receiver,
-            database,
-            play_index_watch_rx,
-        ) = {
+        let (heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();

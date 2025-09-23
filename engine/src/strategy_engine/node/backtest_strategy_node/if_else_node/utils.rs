@@ -50,9 +50,7 @@ pub fn get_variable_value(
             }
         }
         BacktestNodeEvent::VariableNode(variable_node_event) => {
-            if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) =
-                variable_node_event
-            {
+            if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_node_event {
                 Some(sys_variable_updated_event.variable_value)
             } else {
                 None

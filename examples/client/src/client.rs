@@ -7,7 +7,7 @@ use tokio_tungstenite::tungstenite::Utf8Bytes;
 // we will use tungstenite for websocket client impl (same library as what axum is using)
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
+    tungstenite::protocol::{CloseFrame, Message, frame::coding::CloseCode},
 };
 
 const N_CLIENTS: usize = 1; //set to desired number
@@ -53,9 +53,7 @@ async fn spawn_client(who: usize) {
 
     //we can ping the server for start
     sender
-        .send(Message::Ping(axum::body::Bytes::from_static(
-            b"Hello, Server!",
-        )))
+        .send(Message::Ping(axum::body::Bytes::from_static(b"Hello, Server!")))
         .await
         .expect("Can not send!");
 
@@ -121,10 +119,7 @@ fn process_message(msg: Message, who: usize) -> ControlFlow<(), ()> {
         }
         Message::Close(c) => {
             if let Some(cf) = c {
-                println!(
-                    ">>> {} got close with code {} and reason `{}`",
-                    who, cf.code, cf.reason
-                );
+                println!(">>> {} got close with code {} and reason `{}`", who, cf.code, cf.reason);
             } else {
                 println!(">>> {who} somehow got close message without CloseFrame");
             }

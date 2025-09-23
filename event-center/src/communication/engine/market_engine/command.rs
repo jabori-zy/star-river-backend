@@ -1,17 +1,16 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::{Exchange, KlineInterval};
 use star_river_core::strategy::TimeRange;
+use star_river_core::system::DateTimeUtc;
 use std::fmt::Debug;
-
 
 #[derive(Debug)]
 pub enum MarketEngineCommand {
-    SubscribeKlineStream(SubscribeKlineStreamParams), // 订阅K线流
+    SubscribeKlineStream(SubscribeKlineStreamParams),     // 订阅K线流
     UnsubscribeKlineStream(UnsubscribeKlineStreamParams), // 取消订阅K线流
-    GetKlineHistory(GetKlineHistoryParams),           // 获取K线历史数据
+    GetKlineHistory(GetKlineHistoryParams),               // 获取K线历史数据
 }
 
 impl EngineCommandTrait for MarketEngineCommand {

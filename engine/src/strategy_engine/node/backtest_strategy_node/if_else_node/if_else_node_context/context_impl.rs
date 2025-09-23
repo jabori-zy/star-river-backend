@@ -1,22 +1,19 @@
 use super::IfElseNodeContext;
 
-use async_trait::async_trait;
-use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::common_event::{
-    TriggerEvent, TriggerPayload,CommonEvent,
-};
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::Event;
-use std::any::Any;
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use async_trait::async_trait;
 use event_center::communication::strategy::StrategyCommand;
-use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-
+use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, TriggerEvent, TriggerPayload};
+use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+use std::any::Any;
 
 #[async_trait]
 impl BacktestNodeContextTrait for IfElseNodeContext {
@@ -42,10 +39,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
 
     fn get_default_output_handle(&self) -> &NodeOutputHandle {
         let else_output_handle_id = format!("{}_else_output", self.get_node_id());
-        self.base_context
-            .output_handles
-            .get(&else_output_handle_id)
-            .unwrap()
+        self.base_context.output_handles.get(&else_output_handle_id).unwrap()
     }
 
     async fn handle_engine_event(&mut self, event: Event) {
@@ -57,9 +51,9 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
 
         // 检查是否需要更新接收事件
         let should_update = match &node_event {
-            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(
-                indicator_update_event,
-            )) => self.get_play_index() == indicator_update_event.play_index,
+            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
+                self.get_play_index() == indicator_update_event.play_index
+            }
             BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
                 self.get_play_index() == kline_update_event.play_index
             }
@@ -74,10 +68,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         match &node_event {
             BacktestNodeEvent::Common(signal_event) => match signal_event {
                 CommonEvent::Trigger(_) => {
-                    tracing::debug!(
-                        "{}: 接收到trigger事件。 不需要逻辑判断",
-                        self.get_node_id()
-                    );
+                    tracing::debug!("{}: 接收到trigger事件。 不需要逻辑判断", self.get_node_id());
 
                     self.handle_trigger_event().await;
                 }
@@ -87,15 +78,11 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
         }
     }
 
-    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {
-
-    }
+    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     let response = NodeResetResponse::success(self.get_node_id().clone());
                     node_reset_params.responder.send(response.into()).unwrap();

@@ -6,8 +6,8 @@ pub mod kline_node_error;
 pub mod position_management_node_error;
 pub mod start_node_error;
 
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -31,10 +31,7 @@ pub enum BacktestStrategyNodeError {
     },
 
     #[snafu(display("unsupported backtest strategy node type: {node_type}"))]
-    UnsupportedNodeType {
-        node_type: String,
-        backtrace: Backtrace,
-    },
+    UnsupportedNodeType { node_type: String, backtrace: Backtrace },
 
     #[snafu(transparent)]
     StartNode {
@@ -132,27 +129,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
             Language::Chinese => {
                 match self {
                     // transparent errors - return source message directly
-                    BacktestStrategyNodeError::StateMachine { source, .. } => {
-                        source.get_error_message(language)
-                    }
-                    BacktestStrategyNodeError::StartNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
-                    BacktestStrategyNodeError::KlineNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
-                    BacktestStrategyNodeError::IndicatorNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
-                    BacktestStrategyNodeError::IfElseNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
-                    BacktestStrategyNodeError::GetVariableNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
-                    BacktestStrategyNodeError::FuturesOrderNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
+                    BacktestStrategyNodeError::StateMachine { source, .. } => source.get_error_message(language),
+                    BacktestStrategyNodeError::StartNode { source, .. } => source.get_error_message(language),
+                    BacktestStrategyNodeError::KlineNode { source, .. } => source.get_error_message(language),
+                    BacktestStrategyNodeError::IndicatorNode { source, .. } => source.get_error_message(language),
+                    BacktestStrategyNodeError::IfElseNode { source, .. } => source.get_error_message(language),
+                    BacktestStrategyNodeError::GetVariableNode { source, .. } => source.get_error_message(language),
+                    BacktestStrategyNodeError::FuturesOrderNode { source, .. } => source.get_error_message(language),
                     BacktestStrategyNodeError::PositionManagementNode { source, .. } => {
                         source.get_error_message(language)
                     }
@@ -176,9 +159,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
             BacktestStrategyNodeError::IfElseNode { source, .. } => source.error_code_chain(),
             BacktestStrategyNodeError::GetVariableNode { source, .. } => source.error_code_chain(),
             BacktestStrategyNodeError::FuturesOrderNode { source, .. } => source.error_code_chain(),
-            BacktestStrategyNodeError::PositionManagementNode { source, .. } => {
-                source.error_code_chain()
-            }
+            BacktestStrategyNodeError::PositionManagementNode { source, .. } => source.error_code_chain(),
 
             // non-transparent errors - return own error code
             BacktestStrategyNodeError::UnsupportedNodeType { .. } => vec![self.error_code()],

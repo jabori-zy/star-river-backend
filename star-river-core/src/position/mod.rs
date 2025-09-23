@@ -2,14 +2,14 @@ pub mod virtual_position;
 
 use crate::market::Exchange;
 use crate::system::DateTimeUtc;
+use crate::system::system_config::SystemConfigManager;
+use entity::position::Model as PositionModel;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
+use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use entity::position::Model as PositionModel;
-use crate::system::system_config::SystemConfigManager;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionNumberParam {
@@ -93,7 +93,6 @@ pub struct Position {
     pub update_time: DateTimeUtc,
 }
 
-
 impl From<PositionModel> for Position {
     fn from(model: PositionModel) -> Self {
         Self {
@@ -135,4 +134,3 @@ pub struct PositionNumber {
     pub position_side: Option<PositionSide>,
     pub position_number: i32,
 }
-

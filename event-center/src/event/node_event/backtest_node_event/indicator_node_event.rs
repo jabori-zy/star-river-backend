@@ -3,14 +3,14 @@ use super::super::NodeEvent;
 use super::{deserialize_cache_value_vec, serialize_cache_value_vec};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::key::IndicatorKey;
-use star_river_core::cache::{CacheValue, CacheItem};
 use star_river_core::cache::KeyTrait;
+use star_river_core::cache::key::IndicatorKey;
+use star_river_core::cache::{CacheItem, CacheValue};
+use star_river_core::indicator::Indicator;
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};
 use std::sync::Arc;
 use strum::Display;
-use star_river_core::indicator::Indicator;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 pub enum IndicatorNodeEvent {
@@ -77,10 +77,7 @@ impl IndicatorUpdatePayload {
 }
 
 #[allow(dead_code)]
-fn serialize_indicator_cache_key<'de, S>(
-    indicator_cache_key: &IndicatorKey,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &IndicatorKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -109,10 +106,7 @@ where
 //     seq.end()
 // }
 
-fn serialize_indicator_data<S>(
-    indicator_data: &Indicator,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_indicator_data<S>(indicator_data: &Indicator, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

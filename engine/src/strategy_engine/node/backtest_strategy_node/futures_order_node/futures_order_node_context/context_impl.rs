@@ -1,16 +1,14 @@
 use super::FuturesOrderNodeContext;
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
+use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::StrategyCommand;
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use std::any::Any;
-use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait, BacktestBaseNodeContext};
-
-
 
 #[async_trait]
 impl BacktestNodeContextTrait for FuturesOrderNodeContext {
@@ -70,15 +68,11 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         // }
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
-        
-    }
+    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     let mut is_processing_order = self.is_processing_order.write().await;
                     is_processing_order.clear();

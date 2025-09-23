@@ -126,11 +126,7 @@ impl FastFormatter {
     }
 
     /// 使用预分配缓冲区格式化模板
-    pub fn format_template(
-        &mut self,
-        template: &str,
-        replacements: &[(&str, &dyn fmt::Display)],
-    ) -> String {
+    pub fn format_template(&mut self, template: &str, replacements: &[(&str, &dyn fmt::Display)]) -> String {
         self.buffer.clear();
 
         let mut chars = template.chars().peekable();
@@ -230,8 +226,7 @@ impl StringPool {
 }
 
 /// 全局字符串池实例
-static STRING_POOL: once_cell::sync::Lazy<StringPool> =
-    once_cell::sync::Lazy::new(|| StringPool::new(1024));
+static STRING_POOL: once_cell::sync::Lazy<StringPool> = once_cell::sync::Lazy::new(|| StringPool::new(1024));
 
 /// 便捷函数：从池中获取字符串
 pub fn get_pooled_string() -> String {

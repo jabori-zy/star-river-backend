@@ -13,5 +13,5 @@ pub mod error;
 pub mod node;
 pub mod strategy_stats;
 pub mod system;
-pub mod virtual_trading_system;
 pub mod utils;
+pub mod virtual_trading_system;

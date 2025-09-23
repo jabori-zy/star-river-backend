@@ -6,10 +6,7 @@ use star_river_core::strategy::sys_varibale::StrategySysVariable;
 pub struct StrategySysVariableMutation;
 
 impl StrategySysVariableMutation {
-    pub async fn insert_strategy_sys_variable(
-        db: &DbConn,
-        strategy_id: i32,
-    ) -> Result<StrategySysVariable, DbErr> {
+    pub async fn insert_strategy_sys_variable(db: &DbConn, strategy_id: i32) -> Result<StrategySysVariable, DbErr> {
         let strategy_sys_variable_model = strategy_sys_variable::ActiveModel {
             id: NotSet,
             strategy_id: Set(strategy_id),
@@ -30,12 +27,11 @@ impl StrategySysVariableMutation {
         strategy_id: i32,
         position_number: i32,
     ) -> Result<StrategySysVariable, DbErr> {
-        let strategy: strategy_sys_variable::ActiveModel =
-            StrategySysVariableEntity::find_by_id(strategy_id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
-                .map(Into::into)?;
+        let strategy: strategy_sys_variable::ActiveModel = StrategySysVariableEntity::find_by_id(strategy_id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::Custom("Cannot find strategy.".to_owned()))
+            .map(Into::into)?;
 
         let strategy_sys_variable_model = strategy_sys_variable::ActiveModel {
             id: strategy.id,

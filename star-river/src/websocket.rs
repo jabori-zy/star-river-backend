@@ -6,21 +6,14 @@ use futures::{sink::SinkExt, stream::StreamExt};
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
 
-pub async fn ws_handler(
-    ws: WebSocketUpgrade,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> impl IntoResponse {
+pub async fn ws_handler(ws: WebSocketUpgrade, ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, addr))
 }
 
 async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
     tracing::info!("Client connected: {}", addr);
 
-    if socket
-        .send(Message::Ping(Bytes::from_static(&[1, 2, 3])))
-        .await
-        .is_ok()
-    {
+    if socket.send(Message::Ping(Bytes::from_static(&[1, 2, 3]))).await.is_ok() {
         tracing::info!("Ping {}", addr)
     } else {
         tracing::error!("Failed to send ping to {}", addr);

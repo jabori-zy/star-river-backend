@@ -1,26 +1,17 @@
 use crate::error::ErrorCode;
-use snafu::{Backtrace, Snafu};
-use crate::error::error_trait::StarRiverErrorTrait;
-use std::collections::HashMap;
 use crate::error::error_trait::Language;
+use crate::error::error_trait::StarRiverErrorTrait;
+use snafu::{Backtrace, Snafu};
+use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum DateTimeError {
     #[snafu(display("Invalid timestamp: {timestamp}"))]
-    InvalidTimestamp {
-        timestamp: i64,
-        backtrace: Backtrace,
-    },
-
+    InvalidTimestamp { timestamp: i64, backtrace: Backtrace },
 
     #[snafu(display("Transform timestamp failed: {timestamp}"))]
-    TransformTimestampFailed {
-        timestamp: i64,
-        backtrace: Backtrace,
-    }
-
-
+    TransformTimestampFailed { timestamp: i64, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for ExchangeClientError
@@ -55,8 +46,7 @@ impl StarRiverErrorTrait for DateTimeError {
             _ => matches!(
                 self,
                 // Network-related errors are usually recoverable
-                DateTimeError::InvalidTimestamp { .. } | 
-                DateTimeError::TransformTimestampFailed { .. }
+                DateTimeError::InvalidTimestamp { .. } | DateTimeError::TransformTimestampFailed { .. }
             ),
         }
     }

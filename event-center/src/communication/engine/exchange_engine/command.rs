@@ -1,8 +1,8 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
-use star_river_core::market::Exchange;
-use std::fmt::Debug;
 use chrono::Utc;
+use star_river_core::market::Exchange;
 use star_river_core::system::DateTimeUtc;
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub enum ExchangeEngineCommand {
@@ -49,12 +49,7 @@ pub struct RegisterExchangeParams {
 }
 
 impl RegisterExchangeParams {
-    pub fn new(
-        account_id: i32,
-        exchange: Exchange,
-        sender: String,
-        responder: EngineResponder,
-    ) -> Self {
+    pub fn new(account_id: i32, exchange: Exchange, sender: String, responder: EngineResponder) -> Self {
         Self {
             account_id,
             exchange,

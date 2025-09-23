@@ -1,6 +1,6 @@
+use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use crate::error::indicator_error::IndicatorError;
-use crate::error::ErrorCode;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -8,10 +8,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum IndicatorNodeError {
     #[snafu(display("indicator node backtest config field value is null: {field_name}"))]
-    ConfigFieldValueNull {
-        field_name: String,
-        backtrace: Backtrace,
-    },
+    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("indicator node backtest config deserialization failed. reason: {source}"))]
     ConfigDeserializationFailed {
@@ -19,9 +16,7 @@ pub enum IndicatorNodeError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display(
-        "{config_name} should be greater than or equal to zero, but got {config_value}"
-    ))]
+    #[snafu(display("{config_name} should be greater than or equal to zero, but got {config_value}"))]
     ValueNotGreaterThanOrEqualToZero {
         config_name: String,
         config_value: f64,
@@ -118,10 +113,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
                     config_value,
                     ..
                 } => {
-                    format!(
-                        "配置 {} 应该大于等于零，但得到了 {}",
-                        config_name, config_value
-                    )
+                    format!("配置 {} 应该大于等于零，但得到了 {}", config_name, config_value)
                 }
                 IndicatorNodeError::ValueNotGreaterThanZero {
                     config_name,
@@ -134,9 +126,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
                     format!("指标错误: {}", source)
                 }
                 IndicatorNodeError::DataSourceParseFailed {
-                    data_source,
-                    source,
-                    ..
+                    data_source, source, ..
                 } => {
                     format!("数据源 [{}] 解析失败，原因: [{}]", data_source, source)
                 }

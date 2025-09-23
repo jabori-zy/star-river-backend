@@ -1,27 +1,23 @@
 use super::position_management_node_types::*;
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
+use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::StrategyCommand;
+use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::common_event::{
+    CommonEvent, ExecuteOverEvent, ExecuteOverPayload,
+};
 use event_center::event::node_event::backtest_node_event::position_management_node_event::{
     PositionClosedEvent, PositionClosedPayload, PositionCreatedEvent, PositionCreatedPayload,
     PositionManagementNodeEvent, PositionUpdatedEvent, PositionUpdatedPayload,
 };
-use event_center::event::node_event::backtest_node_event::common_event::{
-    ExecuteOverEvent, ExecuteOverPayload, CommonEvent,
-};
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::Event;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
-use star_river_core::virtual_trading_system::event::{
-    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,
-};
+use star_river_core::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
 use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -45,9 +41,7 @@ impl Clone for PositionNodeContext {
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
             virtual_trading_system: self.virtual_trading_system.clone(),
-            virtual_trading_system_event_receiver: self
-                .virtual_trading_system_event_receiver
-                .resubscribe(),
+            virtual_trading_system_event_receiver: self.virtual_trading_system_event_receiver.resubscribe(),
         }
     }
 }
@@ -119,10 +113,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
             },
 
             BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
-                tracing::debug!("{}: 收到订单事件: {:?}",
-                    self.get_node_name(),
-                    futures_order_node_event
-                );
+                tracing::debug!("{}: 收到订单事件: {:?}", self.get_node_name(), futures_order_node_event);
                 if self.is_leaf_node() {
                     let payload = ExecuteOverPayload::new(self.get_play_index());
                     let execute_over_event: CommonEvent = ExecuteOverEvent::new(
@@ -164,9 +155,7 @@ impl BacktestNodeContextTrait for PositionNodeContext {
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     let response = NodeResetResponse::success(self.get_node_id().clone());
                     node_reset_params.responder.send(response.into()).unwrap();
@@ -186,30 +175,27 @@ impl PositionNodeContext {
         let from_node_name = self.get_node_name().clone();
         let from_handle_id = self.get_node_id().clone();
 
-        let position_event: Option<PositionManagementNodeEvent> = match virtual_trading_system_event
-        {
+        let position_event: Option<PositionManagementNodeEvent> = match virtual_trading_system_event {
             VirtualTradingSystemEvent::PositionCreated(position) => {
                 let payload = PositionCreatedPayload::new(position.clone());
-                let position_created_event: PositionManagementNodeEvent =
-                    PositionCreatedEvent::new(
-                        from_node_id.clone(),
-                        from_node_name.clone(),
-                        from_handle_id.clone(),
-                        payload,
-                    )
-                    .into();
+                let position_created_event: PositionManagementNodeEvent = PositionCreatedEvent::new(
+                    from_node_id.clone(),
+                    from_node_name.clone(),
+                    from_handle_id.clone(),
+                    payload,
+                )
+                .into();
                 Some(position_created_event)
             }
             VirtualTradingSystemEvent::PositionUpdated(position) => {
                 let payload = PositionUpdatedPayload::new(position.clone());
-                let position_updated_event: PositionManagementNodeEvent =
-                    PositionUpdatedEvent::new(
-                        from_node_id.clone(),
-                        from_node_name.clone(),
-                        from_handle_id.clone(),
-                        payload,
-                    )
-                    .into();
+                let position_updated_event: PositionManagementNodeEvent = PositionUpdatedEvent::new(
+                    from_node_id.clone(),
+                    from_node_name.clone(),
+                    from_handle_id.clone(),
+                    payload,
+                )
+                .into();
                 Some(position_updated_event)
             }
             VirtualTradingSystemEvent::PositionClosed(position) => {
@@ -227,9 +213,7 @@ impl PositionNodeContext {
         };
 
         if let Some(position_event) = position_event {
-            self.get_strategy_output_handle()
-                .send(position_event.into())
-                .unwrap();
+            self.get_strategy_output_handle().send(position_event.into()).unwrap();
         }
 
         Ok(())

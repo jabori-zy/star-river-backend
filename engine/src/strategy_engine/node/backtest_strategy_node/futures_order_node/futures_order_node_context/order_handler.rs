@@ -5,9 +5,11 @@ use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use super::super::super::node_message::futures_order_node_log_message::*;
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType};
 
-
 impl FuturesOrderNodeContext {
-    pub(super) async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), FuturesOrderNodeError> {
+    pub(super) async fn create_order(
+        &mut self,
+        order_config: &FuturesOrderConfig,
+    ) -> Result<(), FuturesOrderNodeError> {
         // 如果当前是正在处理订单的状态，或者未成交的订单列表不为空，则不创建订单
         if !self.can_create_order(&order_config.input_handle_id).await {
             tracing::warn!("{}: 当前正在处理订单, 跳过", self.get_node_name());
@@ -28,8 +30,7 @@ impl FuturesOrderNodeContext {
         }
 
         // 将input_handle_id的is_processing_order设置为true
-        self.set_is_processing_order(&order_config.input_handle_id, true)
-            .await;
+        self.set_is_processing_order(&order_config.input_handle_id, true).await;
 
         let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
         let exchange = self
@@ -62,8 +63,7 @@ impl FuturesOrderNodeContext {
         if let Err(e) = create_order_result {
             // 如果创建订单失败，则直接重置is_processing_order
             self.set_is_processing_order(&order_config.input_handle_id, false).await;
-            
-            
+
             return Err(e.into());
         }
 

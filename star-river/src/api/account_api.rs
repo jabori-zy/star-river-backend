@@ -7,9 +7,9 @@ use axum::response::Json;
 use database::mutation::account_config_mutation::AccountConfigMutation;
 use database::query::account_config_query::AccountConfigQuery;
 use engine::account_engine::AccountEngine;
+use event_center::EventCenterSingleton;
 use event_center::event::AccountEvent;
 use event_center::event::Event;
-use event_center::EventCenterSingleton;
 use serde::{Deserialize, Serialize};
 use star_river_core::account::AccountConfig;
 use star_river_core::engine::EngineName;
@@ -47,10 +47,7 @@ pub async fn start_mt5_terminal(
     // 获取account_engine
     let engine = engine_manager.get_engine(EngineName::AccountEngine).await;
     let mut engine_guard = engine.lock().await;
-    let account_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<AccountEngine>()
-        .unwrap();
+    let account_engine = engine_guard.as_any_mut().downcast_mut::<AccountEngine>().unwrap();
     account_engine.register_exchange(account_id).await.unwrap();
 
     (
@@ -81,10 +78,7 @@ pub enum ExchangeType {
 }
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
-#[schema(
-    title = "获取指定交易所的账户配置参数",
-    description = "获取指定交易所的账户配置"
-)]
+#[schema(title = "获取指定交易所的账户配置参数", description = "获取指定交易所的账户配置")]
 pub struct GetAccountConfigByExchangeQuery {
     /// 交易所
     #[schema(example = "metatrader5")]
@@ -108,14 +102,10 @@ pub async fn get_account_configs(
 ) -> (StatusCode, Json<ApiResponse<Vec<AccountConfig>>>) {
     let db = &star_river.database.lock().await.conn;
     let account_config = match params.exchange {
-        Some(exchange) => {
-            AccountConfigQuery::get_account_config_by_exchange(db, exchange.to_string())
-                .await
-                .unwrap()
-        }
-        None => AccountConfigQuery::get_all_account_config(db)
+        Some(exchange) => AccountConfigQuery::get_account_config_by_exchange(db, exchange.to_string())
             .await
             .unwrap(),
+        None => AccountConfigQuery::get_all_account_config(db).await.unwrap(),
     };
     (
         StatusCode::OK,
@@ -202,8 +192,7 @@ pub async fn add_account_config(
     let database = star_river.database.lock().await;
     let conn = &database.conn;
 
-    let account_config_json =
-        serde_json::to_value(&request.account_config).expect("Invalid account config");
+    let account_config_json = serde_json::to_value(&request.account_config).expect("Invalid account config");
     tracing::info!("account_config_json: {:?}", account_config_json);
     match AccountConfigMutation::insert_account_config(
         conn,
@@ -332,8 +321,7 @@ pub async fn update_account_config(
 ) -> (StatusCode, Json<ApiResponse<AccountConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    let account_config_json =
-        serde_json::to_value(&params.account_config).expect("Invalid account config");
+    let account_config_json = serde_json::to_value(&params.account_config).expect("Invalid account config");
     match AccountConfigMutation::update_account_config(
         conn,
         account_id,
@@ -373,10 +361,7 @@ pub async fn update_account_config(
 }
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
-#[schema(
-    title = "更新账户可用状态参数",
-    description = "通过查询参数更新账户的可用状态"
-)]
+#[schema(title = "更新账户可用状态参数", description = "通过查询参数更新账户的可用状态")]
 pub struct UpdateAccountIsAvailableQuery {
     /// 账户是否可用
     #[schema(example = true)]
@@ -405,13 +390,7 @@ pub async fn update_account_is_available(
 ) -> (StatusCode, Json<ApiResponse<AccountConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match AccountConfigMutation::update_account_config_is_available(
-        conn,
-        account_id,
-        query.is_available,
-    )
-    .await
-    {
+    match AccountConfigMutation::update_account_config_is_available(conn, account_id, query.is_available).await {
         Ok(account_config) => {
             // 更新成功之后，发布账户配置已更新事件
             // let event_center = star_river.event_center.lock().await;

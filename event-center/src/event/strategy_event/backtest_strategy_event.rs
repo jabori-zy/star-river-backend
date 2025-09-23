@@ -1,31 +1,28 @@
 use super::super::node_event::backtest_node_event::futures_order_node_event::{
-    FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent,
-    StopLossOrderCanceledEvent, StopLossOrderCreatedEvent, StopLossOrderFilledEvent,
-    TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent, TakeProfitOrderFilledEvent,
-    TransactionCreatedEvent,
+    FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent, StopLossOrderCanceledEvent,
+    StopLossOrderCreatedEvent, StopLossOrderFilledEvent, TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent,
+    TakeProfitOrderFilledEvent, TransactionCreatedEvent,
 };
 use super::super::node_event::backtest_node_event::indicator_node_event::IndicatorUpdateEvent;
-use super::super::node_event::backtest_node_event::kline_node_event::{KlineUpdateEvent};
+use super::super::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;
 use super::super::node_event::backtest_node_event::position_management_node_event::{
     PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent,
 };
 use super::super::strategy_event::{LogLevel, NodeStateLogEvent, StrategyRunningLogEvent};
-use crate::{event::Event, StrategyEvent};
+use crate::{StrategyEvent, event::Event};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::system::DateTimeUtc;
 use star_river_core::strategy_stats::event::StrategyStatsUpdatedEvent;
+use star_river_core::system::DateTimeUtc;
 use strum::Display;
-use chrono::Utc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
 pub enum BacktestStrategyEvent {
-
     #[strum(serialize = "play-finished-event")]
     #[serde(rename = "play-finished-event")]
     PlayFinished(PlayFinishedEvent), // 回测播放完毕事件
-
 
     #[strum(serialize = "kline-update-event")]
     #[serde(rename = "kline-update-event")]
@@ -142,13 +139,30 @@ pub struct StrategyStateLogEvent {
     pub datetime: DateTimeUtc,
 }
 
-
 impl StrategyStateLogEvent {
-    pub fn new(strategy_id: i32, strategy_name: String, strategy_state: Option<String>, strategy_state_action: Option<String>, log_level: LogLevel, error_code: Option<String>, error_code_chain: Option<Vec<String>>, message: String) -> Self {
-        Self { strategy_id, strategy_name, strategy_state, strategy_state_action, log_level, error_code, error_code_chain, message, datetime: Utc::now() }
+    pub fn new(
+        strategy_id: i32,
+        strategy_name: String,
+        strategy_state: Option<String>,
+        strategy_state_action: Option<String>,
+        log_level: LogLevel,
+        error_code: Option<String>,
+        error_code_chain: Option<Vec<String>>,
+        message: String,
+    ) -> Self {
+        Self {
+            strategy_id,
+            strategy_name,
+            strategy_state,
+            strategy_state_action,
+            log_level,
+            error_code,
+            error_code_chain,
+            message,
+            datetime: Utc::now(),
+        }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayFinishedEvent {
@@ -167,7 +181,12 @@ pub struct PlayFinishedEvent {
 
 impl PlayFinishedEvent {
     pub fn new(strategy_id: i32, strategy_name: String, play_index: PlayIndex) -> Self {
-        Self { strategy_id, strategy_name, play_index, datetime: Utc::now() }
+        Self {
+            strategy_id,
+            strategy_name,
+            play_index,
+            datetime: Utc::now(),
+        }
     }
 }
 

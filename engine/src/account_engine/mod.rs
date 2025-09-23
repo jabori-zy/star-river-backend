@@ -2,10 +2,8 @@ pub mod account_engine_context;
 pub mod account_engine_types;
 
 use crate::EngineName;
-use crate::{
-    account_engine::account_engine_context::AccountEngineContext, exchange_engine::ExchangeEngine,
-};
 use crate::{Engine, EngineContext};
+use crate::{account_engine::account_engine_context::AccountEngineContext, exchange_engine::ExchangeEngine};
 use async_trait::async_trait;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -43,10 +41,7 @@ impl Engine for AccountEngine {
         tracing::info!("{}已启动", engine_name);
         self.listen_events().await;
         let mut context = self.context.write().await;
-        let account_engine_context = context
-            .as_any_mut()
-            .downcast_mut::<AccountEngineContext>()
-            .unwrap();
+        let account_engine_context = context.as_any_mut().downcast_mut::<AccountEngineContext>().unwrap();
         account_engine_context.monitor_accounts().await;
     }
 }
@@ -71,10 +66,7 @@ impl AccountEngine {
 
     pub async fn register_exchange(&self, account_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
-        let account_engine_context = context
-            .as_any_mut()
-            .downcast_mut::<AccountEngineContext>()
-            .unwrap();
+        let account_engine_context = context.as_any_mut().downcast_mut::<AccountEngineContext>().unwrap();
         account_engine_context.register_exchange(account_id).await
     }
 }

@@ -45,12 +45,11 @@ impl AccountConfigMutation {
         sort_index: i32,
     ) -> Result<AccountConfig, DbErr> {
         // 获取mt5账户配置
-        let account_config_active_model: account_config::ActiveModel =
-            account_config::Entity::find_by_id(id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
-                .map(Into::into)?;
+        let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .map(Into::into)?;
 
         let account_config_model = account_config::ActiveModel {
             id: account_config_active_model.id,
@@ -70,12 +69,11 @@ impl AccountConfigMutation {
     }
 
     pub async fn delete_account_config(db: &DbConn, id: i32) -> Result<(), DbErr> {
-        let account_config_model: account_config::ActiveModel =
-            account_config::Entity::find_by_id(id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
-                .map(Into::into)?;
+        let account_config_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .map(Into::into)?;
 
         account_config::ActiveModel {
             id: account_config_model.id,
@@ -94,12 +92,11 @@ impl AccountConfigMutation {
         id: i32,
         is_available: bool,
     ) -> Result<AccountConfig, DbErr> {
-        let account_config_active_model: account_config::ActiveModel =
-            account_config::Entity::find_by_id(id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
-                .map(Into::into)?;
+        let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .map(Into::into)?;
 
         let account_config_model = account_config::ActiveModel {
             id: account_config_active_model.id,

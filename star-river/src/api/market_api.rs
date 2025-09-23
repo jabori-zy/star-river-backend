@@ -1,7 +1,7 @@
-use crate::api::response::ApiResponse;
 use crate::StarRiver;
+use crate::api::response::ApiResponse;
 use axum::extract::{Path, State};
-use axum::{http::StatusCode, Json};
+use axum::{Json, http::StatusCode};
 use engine::market_engine::MarketEngine;
 use star_river_core::custom_type::AccountId;
 use star_river_core::engine::EngineName;
@@ -28,10 +28,7 @@ pub async fn get_symbol_list(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::MarketEngine).await;
     let mut engine_guard = engine.lock().await;
-    let market_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<MarketEngine>()
-        .unwrap();
+    let market_engine = engine_guard.as_any_mut().downcast_mut::<MarketEngine>().unwrap();
     let symbol_list = market_engine.get_symbol_list(account_id).await;
     match symbol_list {
         Ok(symbol_list) => (
@@ -77,10 +74,7 @@ pub async fn get_support_kline_intervals(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::MarketEngine).await;
     let mut engine_guard = engine.lock().await;
-    let market_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<MarketEngine>()
-        .unwrap();
+    let market_engine = engine_guard.as_any_mut().downcast_mut::<MarketEngine>().unwrap();
     let support_kline_intervals = market_engine.get_support_kline_intervals(account_id).await;
     (
         StatusCode::OK,

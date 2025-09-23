@@ -52,8 +52,7 @@ impl FuturesOrderNode {
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, FuturesOrderNodeError> {
-        let (strategy_id, node_id, node_name, backtest_config) =
-            Self::check_futures_order_node_config(node_config)?;
+        let (strategy_id, node_id, node_name, backtest_config) = Self::check_futures_order_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -84,8 +83,7 @@ impl FuturesOrderNode {
 
     fn check_futures_order_node_config(
         node_config: serde_json::Value,
-    ) -> Result<(StrategyId, NodeId, NodeName, FuturesOrderNodeBacktestConfig), FuturesOrderNodeError>
-    {
+    ) -> Result<(StrategyId, NodeId, NodeName, FuturesOrderNodeBacktestConfig), FuturesOrderNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
@@ -136,9 +134,8 @@ impl FuturesOrderNode {
             })?
             .to_owned();
 
-        let backtest_config =
-            serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json)
-                .context(ConfigDeserializationFailedSnafu {})?;
+        let backtest_config = serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json)
+            .context(ConfigDeserializationFailedSnafu {})?;
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
@@ -220,7 +217,10 @@ impl BacktestNodeTrait for FuturesOrderNode {
         let node_name = self.get_node_name().await;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
+        tracing::debug!(
+            "[{node_name}] setting strategy output handle: {}",
+            strategy_output_handle_id
+        );
         self.add_output_handle(strategy_output_handle_id, tx).await;
 
         let futures_order_configs = {
@@ -230,100 +230,91 @@ impl BacktestNodeTrait for FuturesOrderNode {
                 .as_any()
                 .downcast_ref::<FuturesOrderNodeContext>()
                 .unwrap();
-            futures_order_node_context
-                .backtest_config
-                .futures_order_configs
-                .clone()
+            futures_order_node_context.backtest_config.futures_order_configs.clone()
         };
         // 为每一个订单添加出口
         for order_config in futures_order_configs.iter() {
-
-
-            let all_output_handle_id = format!("{}_all_status_output_{}",node_id, order_config.order_config_id);
+            let all_output_handle_id = format!("{}_all_status_output_{}", node_id, order_config.order_config_id);
             let (all_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order all output handle: {}", all_output_handle_id);
-            self.add_output_handle(all_output_handle_id, all_tx)
-                .await;
-
-
-            let created_output_handle_id = format!(
-                "{}_created_output_{}",
-                node_id, order_config.order_config_id
+            tracing::debug!(
+                "[{node_name}] setting order all output handle: {}",
+                all_output_handle_id
             );
+            self.add_output_handle(all_output_handle_id, all_tx).await;
+
+            let created_output_handle_id = format!("{}_created_output_{}", node_id, order_config.order_config_id);
             let (created_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order created output handle: {}", created_output_handle_id);
-            self.add_output_handle(created_output_handle_id, created_tx)
-                .await;
+            tracing::debug!(
+                "[{node_name}] setting order created output handle: {}",
+                created_output_handle_id
+            );
+            self.add_output_handle(created_output_handle_id, created_tx).await;
 
             match order_config.order_type {
                 OrderType::Limit => {
-                    let placed_output_handle_id =
-                        format!("{}_placed_output_{}", node_id, order_config.order_config_id);
+                    let placed_output_handle_id = format!("{}_placed_output_{}", node_id, order_config.order_config_id);
                     let (placed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-                    tracing::debug!("[{node_name}] setting order placed output handle: {}", placed_output_handle_id);
-                    self.add_output_handle(placed_output_handle_id, placed_tx)
-                        .await;
+                    tracing::debug!(
+                        "[{node_name}] setting order placed output handle: {}",
+                        placed_output_handle_id
+                    );
+                    self.add_output_handle(placed_output_handle_id, placed_tx).await;
                 }
                 _ => {}
             }
 
-            let partial_output_handle_id = format!(
-                "{}_partial_output_{}",
-                node_id, order_config.order_config_id
-            );
+            let partial_output_handle_id = format!("{}_partial_output_{}", node_id, order_config.order_config_id);
             let (partial_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order partial output handle: {}", partial_output_handle_id);
-            self.add_output_handle(partial_output_handle_id, partial_tx)
-                .await;
+            tracing::debug!(
+                "[{node_name}] setting order partial output handle: {}",
+                partial_output_handle_id
+            );
+            self.add_output_handle(partial_output_handle_id, partial_tx).await;
 
-            let filled_output_handle_id =
-                format!("{}_filled_output_{}", node_id, order_config.order_config_id);
+            let filled_output_handle_id = format!("{}_filled_output_{}", node_id, order_config.order_config_id);
             let (filled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order filled output handle: {}", filled_output_handle_id);
-            self.add_output_handle(filled_output_handle_id, filled_tx)
-                .await;
-
-            let canceled_output_handle_id = format!(
-                "{}_canceled_output_{}",
-                node_id, order_config.order_config_id
+            tracing::debug!(
+                "[{node_name}] setting order filled output handle: {}",
+                filled_output_handle_id
             );
+            self.add_output_handle(filled_output_handle_id, filled_tx).await;
+
+            let canceled_output_handle_id = format!("{}_canceled_output_{}", node_id, order_config.order_config_id);
             let (canceled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order canceled output handle: {}", canceled_output_handle_id);
-            self.add_output_handle(canceled_output_handle_id, canceled_tx)
-                .await;
-
-            let expired_output_handle_id = format!(
-                "{}_expired_output_{}",
-                node_id, order_config.order_config_id
+            tracing::debug!(
+                "[{node_name}] setting order canceled output handle: {}",
+                canceled_output_handle_id
             );
+            self.add_output_handle(canceled_output_handle_id, canceled_tx).await;
+
+            let expired_output_handle_id = format!("{}_expired_output_{}", node_id, order_config.order_config_id);
             let (expired_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order expired output handle: {}", expired_output_handle_id);
-            self.add_output_handle(expired_output_handle_id, expired_tx)
-                .await;
-
-            let rejected_output_handle_id = format!(
-                "{}_rejected_output_{}",
-                node_id, order_config.order_config_id
+            tracing::debug!(
+                "[{node_name}] setting order expired output handle: {}",
+                expired_output_handle_id
             );
-            let (rejected_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order rejected output handle: {}", rejected_output_handle_id);
-            self.add_output_handle(rejected_output_handle_id, rejected_tx)
-                .await;
+            self.add_output_handle(expired_output_handle_id, expired_tx).await;
 
-            let error_output_handle_id =
-                format!("{}_error_output_{}", node_id, order_config.order_config_id);
+            let rejected_output_handle_id = format!("{}_rejected_output_{}", node_id, order_config.order_config_id);
+            let (rejected_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+            tracing::debug!(
+                "[{node_name}] setting order rejected output handle: {}",
+                rejected_output_handle_id
+            );
+            self.add_output_handle(rejected_output_handle_id, rejected_tx).await;
+
+            let error_output_handle_id = format!("{}_error_output_{}", node_id, order_config.order_config_id);
             let (error_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{node_name}] setting order error output handle: {}", error_output_handle_id);
-            self.add_output_handle(error_output_handle_id, error_tx)
-                .await;
+            tracing::debug!(
+                "[{node_name}] setting order error output handle: {}",
+                error_output_handle_id
+            );
+            self.add_output_handle(error_output_handle_id, error_tx).await;
         }
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!(
-            "================={}====================",
-            self.get_node_name().await
-        );
+        tracing::info!("================={}====================", self.get_node_name().await);
         tracing::info!("{}: 开始初始化", self.get_node_name().await);
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize)
@@ -332,10 +323,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!(
-            "{:?}: 初始化完成",
-            self.get_state_machine().await.current_state()
-        );
+        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete)
             .await?;
@@ -344,8 +332,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
         tracing::info!("{}: 开始停止", self.get_node_id().await);
-        self.update_node_state(BacktestNodeStateTransitionEvent::Stop)
-            .await?;
+        self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
         // 切换为stopped状态
@@ -430,9 +417,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.get_actions() {
-            if let Some(order_node_state_action) =
-                action.as_any().downcast_ref::<OrderNodeStateAction>()
-            {
+            if let Some(order_node_state_action) = action.as_any().downcast_ref::<OrderNodeStateAction>() {
                 let current_state = state_machine.current_state();
                 match order_node_state_action {
                     OrderNodeStateAction::LogTransition => {
@@ -443,17 +428,11 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         );
                     }
                     OrderNodeStateAction::LogNodeState => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] current state: {:?}",
-                            current_state
-                        );
+                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
 
                         // 发送节点状态日志事件
-                        let log_message = NodeStateLogMsg::new(
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                        );
+                        let log_message =
+                            NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -465,11 +444,8 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         let _ = strategy_output_handle.send(log_event.into());
                     }
                     OrderNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen external events"
-                        );
-                        let log_message =
-                            ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -482,11 +458,8 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         self.listen_external_events().await;
                     }
                     OrderNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen strategy inner events"
-                        );
-                        let log_message =
-                            ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
+                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -499,9 +472,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         self.listen_strategy_inner_events().await;
                     }
                     OrderNodeStateAction::RegisterTask => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] registering heartbeat monitoring task"
-                        );
+                        tracing::info!("[{node_name}({node_id})] registering heartbeat monitoring task");
                         let log_message = RegisterTaskMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
@@ -522,8 +493,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
                     }
                     OrderNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message =
-                            ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
+                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -536,11 +506,8 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         self.listen_node_events().await;
                     }
                     OrderNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!(
-                            "[{node_name}({node_id})] starting to listen strategy command"
-                        );
-                        let log_message =
-                            ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -555,10 +522,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
 
                     OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
                         tracing::info!("[{node_name}({node_id})] starting to listen virtual trading system events");
-                        let log_message = ListenVirtualTradingSystemEventMsg::new(
-                            node_id.clone(),
-                            node_name.clone(),
-                        );
+                        let log_message = ListenVirtualTradingSystemEventMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id,
                             node_id.clone(),
@@ -582,10 +546,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
         }
 
         // 所有动作执行完毕后更新节点最新的状态
-        self.context
-            .write()
-            .await
-            .set_state_machine(state_machine.clone_box());
+        self.context.write().await.set_state_machine(state_machine.clone_box());
         Ok(())
     }
 }

@@ -1,10 +1,9 @@
 use crate::Event;
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use star_river_core::market::{Exchange, Kline, KlineInterval, KlineSeries, TickerPrice};
+use star_river_core::system::DateTimeUtc;
 use strum::Display;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event_name")]
@@ -38,12 +37,7 @@ pub struct ExchangeKlineSeriesEventInfo {
 }
 
 impl ExchangeKlineSeriesEventInfo {
-    pub fn new(
-        exchange: Exchange,
-        symbol: String,
-        interval: KlineInterval,
-        kline_series: KlineSeries,
-    ) -> Self {
+    pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, kline_series: KlineSeries) -> Self {
         Self {
             exchange,
             symbol,
@@ -95,12 +89,7 @@ pub struct KlineSeriesUpdateEvent {
 }
 
 impl KlineSeriesUpdateEvent {
-    pub fn new(
-        exchange: Exchange,
-        symbol: String,
-        interval: KlineInterval,
-        kline_series: KlineSeries,
-    ) -> Self {
+    pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, kline_series: KlineSeries) -> Self {
         Self {
             exchange,
             symbol,

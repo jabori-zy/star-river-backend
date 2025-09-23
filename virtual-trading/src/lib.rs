@@ -4,18 +4,17 @@ pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
 
-use event_center::communication::engine::cache_engine::{
-    CacheEngineCommand, CacheEngineResponse, GetCacheParams,
-};
-use star_river_core::cache::key::KlineKey;
+use event_center::communication::engine::cache_engine::{CacheEngineCommand, CacheEngineResponse, GetCacheParams};
 use star_river_core::cache::Key;
+use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::*;
-use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::OrderType;
+use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
+use chrono::{DateTime, Utc};
 use event_center::EventCenterSingleton;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Exchange;
@@ -25,9 +24,8 @@ use star_river_core::virtual_trading_system::event::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use chrono::{DateTime, Utc};
+use tokio::sync::broadcast;
 
 /// 虚拟交易系统
 ///
@@ -229,11 +227,8 @@ impl VirtualTradingSystem {
 
         let mut timestamp_list = vec![];
         for kline_key in keys {
-            let kline = self
-                .get_close_price(kline_key.clone().into())
-                .await;
+            let kline = self.get_close_price(kline_key.clone().into()).await;
             if let Ok(kline) = kline {
-                
                 timestamp_list.push(kline.datetime);
                 self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
             }
@@ -315,16 +310,15 @@ impl VirtualTradingSystem {
     }
 
     pub fn get_take_profit_order(&self, position_id: PositionId) -> Option<&VirtualOrder> {
-        self.orders.iter().find(|order| {
-            order.position_id == Some(position_id)
-                && order.order_type == OrderType::TakeProfitMarket
-        })
+        self.orders
+            .iter()
+            .find(|order| order.position_id == Some(position_id) && order.order_type == OrderType::TakeProfitMarket)
     }
 
     pub fn get_stop_loss_order(&self, position_id: PositionId) -> Option<&VirtualOrder> {
-        self.orders.iter().find(|order| {
-            order.position_id == Some(position_id) && order.order_type == OrderType::StopMarket
-        })
+        self.orders
+            .iter()
+            .find(|order| order.position_id == Some(position_id) && order.order_type == OrderType::StopMarket)
     }
 
     // 从缓存引擎获取k线数据
@@ -349,7 +343,8 @@ impl VirtualTradingSystem {
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.success() {
-            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) = CacheEngineResponse::try_from(response)
+            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) =
+                CacheEngineResponse::try_from(response)
             {
                 if get_cache_data_response.cache_data.is_empty() {
                     return Err("get cache data response is empty".to_string());

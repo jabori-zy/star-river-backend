@@ -9,7 +9,6 @@ use event_center::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
 
-
 #[async_trait]
 impl EngineContext for CacheEngineContext {
     fn clone_box(&self) -> Box<dyn EngineContext> {
@@ -50,25 +49,20 @@ impl EngineContext for CacheEngineContext {
                             .await
                             .unwrap();
                         let response = AddCacheKeyResponse::success(params.key);
-                        let response_event =
-                            EngineResponse::CacheEngine(CacheEngineResponse::AddCacheKey(response));
+                        let response_event = EngineResponse::CacheEngine(CacheEngineResponse::AddCacheKey(response));
 
                         params.responder.send(response_event.into()).unwrap();
                     }
 
                     // 处理获取缓存数据命令
                     CacheEngineCommand::GetCache(params) => {
-                        let data = self
-                            .get_cache(&params.key, params.index, params.limit)
-                            .await;
+                        let data = self.get_cache(&params.key, params.index, params.limit).await;
                         let response = GetCacheDataResponse::success(params.key, data);
                         let response = CacheEngineResponse::GetCacheData(response);
                         params.responder.send(response.into()).unwrap();
                     }
                     CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self
-                            .get_cache_multi(&params.keys, params.index, params.limit)
-                            .await;
+                        let multi_data = self.get_cache_multi(&params.keys, params.index, params.limit).await;
                         let response = GetCacheDataMultiResponse::success(multi_data);
                         let response = CacheEngineResponse::GetCacheDataMulti(response);
                         params.responder.send(response.into()).unwrap();
@@ -79,11 +73,8 @@ impl EngineContext for CacheEngineContext {
                             length_result.insert(key.clone(), self.get_cache_length(key).await);
                         }
 
-                        let get_cache_length_multi_response =
-                            GetCacheLengthMultiResponse::success(length_result);
-                        let response = CacheEngineResponse::GetCacheLengthMulti(
-                            get_cache_length_multi_response,
-                        );
+                        let get_cache_length_multi_response = GetCacheLengthMultiResponse::success(length_result);
+                        let response = CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response);
                         params.responder.send(response.into()).unwrap();
                     }
                     // 更新缓存
@@ -99,7 +90,6 @@ impl EngineContext for CacheEngineContext {
                         params.responder.send(response.into()).unwrap();
                     }
                     _ => {}
-                    
                 }
             }
             _ => {}

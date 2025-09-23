@@ -1,8 +1,8 @@
+use super::super::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use strum::Display;
-use super::super::NodeEvent;
 use star_river_core::custom_type::PlayIndex;
+use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]

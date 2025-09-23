@@ -2,14 +2,14 @@ pub mod mt5_account;
 
 use crate::market::Exchange;
 use crate::system::DateTimeUtc;
+use crate::system::system_config::SystemConfigManager;
+use entity::account_config::Model as AccountConfigModel;
+use entity::account_info::Model as AccountInfoModel;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
-use utoipa::ToSchema;
-use entity::account_config::Model as AccountConfigModel;
-use entity::account_info::Model as AccountInfoModel;
-use crate::system::system_config::SystemConfigManager;
 use std::str::FromStr;
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -35,11 +35,7 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(
-        config: AccountConfig,
-        info: Option<AccountInfo>,
-        exchange_status: ExchangeStatus,
-    ) -> Self {
+    pub fn new(config: AccountConfig, info: Option<AccountInfo>, exchange_status: ExchangeStatus) -> Self {
         Self {
             account_config: config,
             account_info: info,
@@ -91,29 +87,23 @@ impl Account {
 //系统的账户配置
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AccountConfig {
-    pub id: i32,                    // 账户id
-    pub account_name: String,       // 账户名称
-    pub exchange: Exchange,         // 交易所
-    pub config: serde_json::Value,  // 账户配置
-    pub is_available: bool,         // 是否可用
-    pub is_deleted: bool,           // 是否删除
-    pub sort_index: i32,            // 排序索引
+    pub id: i32,                   // 账户id
+    pub account_name: String,      // 账户名称
+    pub exchange: Exchange,        // 交易所
+    pub config: serde_json::Value, // 账户配置
+    pub is_available: bool,        // 是否可用
+    pub is_deleted: bool,          // 是否删除
+    pub sort_index: i32,           // 排序索引
     #[schema(value_type = String, example = "2021-01-01 00:00:00")]
     pub create_time: DateTimeUtc, // 创建时间
     #[schema(value_type = String, example = "2021-01-01 00:00:00")]
     pub update_time: DateTimeUtc, // 更新时间
 }
 
-
 impl From<AccountConfigModel> for AccountConfig {
     fn from(model: AccountConfigModel) -> Self {
         let exchange = match model.exchange.as_str() {
-            "metatrader5" => Exchange::Metatrader5(
-                model.account_config["server"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string(),
-            ),
+            "metatrader5" => Exchange::Metatrader5(model.account_config["server"].as_str().unwrap_or("").to_string()),
             _ => Exchange::from_str(model.exchange.as_str()).unwrap(),
         };
         Self {
@@ -125,7 +115,7 @@ impl From<AccountConfigModel> for AccountConfig {
             is_deleted: model.is_delete,
             sort_index: model.sort_index,
             create_time: model.create_time,
-            update_time: model.update_time
+            update_time: model.update_time,
         }
     }
 }
@@ -134,12 +124,11 @@ impl From<AccountConfigModel> for AccountConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountInfo {
     pub id: i32,
-    pub account_id: i32,            // 配置id
-    pub info: serde_json::Value,    // 账户信息
+    pub account_id: i32,          // 配置id
+    pub info: serde_json::Value,  // 账户信息
     pub create_time: DateTimeUtc, // 创建时间
     pub update_time: DateTimeUtc, // 更新时间
 }
-
 
 impl From<AccountInfoModel> for AccountInfo {
     fn from(model: AccountInfoModel) -> Self {

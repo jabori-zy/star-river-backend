@@ -4,11 +4,11 @@ use crate::account::AccountTrait;
 use crate::account::ExchangeStatus;
 use crate::account::OriginalAccountInfo;
 use crate::market::Exchange;
-use tokio::sync::{mpsc, oneshot};
 use crate::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::str::FromStr;
+use tokio::sync::{mpsc, oneshot};
 
 // metatrader5 账户配置
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -34,18 +34,9 @@ impl From<AccountConfig> for Mt5AccountConfig {
             account_name: account_config.account_name,
             exchange: account_config.exchange,
             login: account_config.config["login"].as_i64().unwrap(),
-            password: account_config.config["password"]
-                .as_str()
-                .unwrap()
-                .to_string(),
-            server: account_config.config["server"]
-                .as_str()
-                .unwrap()
-                .to_string(),
-            terminal_path: account_config.config["terminal_path"]
-                .as_str()
-                .unwrap()
-                .to_string(),
+            password: account_config.config["password"].as_str().unwrap().to_string(),
+            server: account_config.config["server"].as_str().unwrap().to_string(),
+            terminal_path: account_config.config["terminal_path"].as_str().unwrap().to_string(),
             is_available: account_config.is_available,
             sort_index: account_config.sort_index,
             create_time: account_config.create_time,
@@ -151,24 +142,15 @@ impl From<AccountInfo> for Mt5AccountInfo {
             id: account_info.id,
             account_id: account_info.account_id,
             login: account_info.info["login"].as_i64().unwrap(),
-            trade_mode: account_info.info["trade_mode"]
-                .as_str()
-                .unwrap()
-                .to_string(),
+            trade_mode: account_info.info["trade_mode"].as_str().unwrap().to_string(),
             leverage: account_info.info["leverage"].as_i64().unwrap(),
             limit_orders: account_info.info["limit_orders"].as_i64().unwrap(),
-            margin_stopout_mode: account_info.info["margin_stopout_mode"]
-                .as_str()
-                .unwrap()
-                .to_string(),
+            margin_stopout_mode: account_info.info["margin_stopout_mode"].as_str().unwrap().to_string(),
             trade_allowed: account_info.info["trade_allowed"].as_bool().unwrap(),
             dlls_allowed: account_info.info["dlls_allowed"].as_bool().unwrap(),
             terminal_connected: account_info.info["terminal_connected"].as_bool().unwrap(),
             trade_expert: account_info.info["trade_expert"].as_bool().unwrap(),
-            margin_mode: account_info.info["margin_mode"]
-                .as_str()
-                .unwrap()
-                .to_string(),
+            margin_mode: account_info.info["margin_mode"].as_str().unwrap().to_string(),
             currency_digits: account_info.info["currency_digits"].as_i64().unwrap(),
             fifo_close: account_info.info["fifo_close"].as_bool().unwrap(),
             balance: account_info.info["balance"].as_f64().unwrap(),

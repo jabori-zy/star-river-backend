@@ -1,30 +1,28 @@
 use super::KlineNodeContext;
+use super::utils::is_cross_interval;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use event_center::event::node_event::backtest_node_event::kline_node_event::{
-    KlineNodeEvent, TimeUpdateEvent, TimeUpdatePayload,
-};
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::backtest_node_event::start_node_event::KlinePlayEvent;
-use star_river_core::cache::{Key, KeyTrait};
+use event_center::EventCenterSingleton;
+use event_center::communication::engine::EngineResponse;
+use event_center::communication::engine::cache_engine::CacheEngineResponse;
+use event_center::communication::engine::cache_engine::{GetCacheParams, UpdateCacheParams};
 use event_center::communication::strategy::NodeResponse;
 use event_center::communication::strategy::backtest_strategy::command::GetMinIntervalSymbolsParams;
 use event_center::communication::strategy::backtest_strategy::response::BacktestNodeResponse;
-use star_river_core::market::Kline;
-use tokio::sync::oneshot;
-use super::utils::is_cross_interval;
-use event_center::communication::engine::cache_engine::{GetCacheParams, UpdateCacheParams};
-use event_center::EventCenterSingleton;
-use event_center::communication::engine::cache_engine::CacheEngineResponse;
-use event_center::communication::engine::EngineResponse;
-use std::sync::Arc;
-use star_river_core::cache::{CacheValue, CacheItem};
-use star_river_core::custom_type::PlayIndex;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::kline_node_event::{
+    KlineNodeEvent, TimeUpdateEvent, TimeUpdatePayload,
+};
+use event_center::event::node_event::backtest_node_event::start_node_event::KlinePlayEvent;
 use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::{CacheItem, CacheValue};
+use star_river_core::cache::{Key, KeyTrait};
+use star_river_core::custom_type::PlayIndex;
+use star_river_core::market::Kline;
+use std::sync::Arc;
+use tokio::sync::oneshot;
 
 impl KlineNodeContext {
-
-
     pub(super) async fn send_kline(&self, play_event: KlinePlayEvent) {
         // 提前获取配置信息，统一错误处理
         let exchange_mode_config = self.backtest_config.exchange_mode_config.as_ref().unwrap();
@@ -40,12 +38,10 @@ impl KlineNodeContext {
             // 获取k线缓存值
             // 1. 如果是在最小周期交易对列表中，则从缓存引擎获取k线数据
             if self.min_interval_symbols.contains(symbol_key) {
-                if let Err(e) = self.handle_min_interval_kline(
-                    symbol_key,
-                    symbol_info,
-                    current_play_index,
-                    &mut pre_kline_timestamp,
-                ).await {
+                if let Err(e) = self
+                    .handle_min_interval_kline(symbol_key, symbol_info, current_play_index, &mut pre_kline_timestamp)
+                    .await
+                {
                     tracing::error!(
                         node_id = %self.base_context.node_id,
                         node_name = %self.base_context.node_name,
@@ -57,7 +53,10 @@ impl KlineNodeContext {
                 }
             } else {
                 // 2. 如果不在最小周期交易对列表中，使用插值算法处理
-                if let Err(e) = self.handle_interpolated_kline(symbol_key, symbol_info, current_play_index).await {
+                if let Err(e) = self
+                    .handle_interpolated_kline(symbol_key, symbol_info, current_play_index)
+                    .await
+                {
                     tracing::error!(
                         node_id = %self.base_context.node_id,
                         node_name = %self.base_context.node_name,
@@ -73,10 +72,8 @@ impl KlineNodeContext {
                     self.send_execute_over_event().await;
                 }
             }
-            
         }
     }
-
 
     // 提取发送K线事件的通用方法
     fn send_kline_events(
@@ -110,18 +107,12 @@ impl KlineNodeContext {
         // 发送到默认输出handle
         let default_output_handle = self.get_default_output_handle();
         if default_output_handle.connect_count > 0 {
-            send_kline_event(
-                default_output_handle.output_handle_id.clone(),
-                default_output_handle,
-            );
+            send_kline_event(default_output_handle.output_handle_id.clone(), default_output_handle);
         }
 
         // 发送到策略输出handle
         let strategy_output_handle = self.get_strategy_output_handle();
-        send_kline_event(
-            strategy_output_handle.output_handle_id.clone(),
-            strategy_output_handle,
-        );
+        send_kline_event(strategy_output_handle.output_handle_id.clone(), strategy_output_handle);
     }
 
     // 处理插值算法的独立方法
@@ -132,13 +123,16 @@ impl KlineNodeContext {
         current_play_index: PlayIndex,
     ) -> Result<(), String> {
         // 先找到相同symbol的min_interval_symbol
-        let min_interval_symbol = self.min_interval_symbols
+        let min_interval_symbol = self
+            .min_interval_symbols
             .iter()
             .find(|k| k.get_symbol() == symbol_key.get_symbol())
             .ok_or_else(|| format!("No min interval symbol found for {}", symbol_key.get_symbol()))?;
 
         // 从缓存引擎获取k线数据
-        let min_interval_kline_data = self.get_history_kline_cache(min_interval_symbol, current_play_index).await
+        let min_interval_kline_data = self
+            .get_history_kline_cache(min_interval_symbol, current_play_index)
+            .await
             .map_err(|e| {
                 tracing::error!(
                     node_id = %self.base_context.node_id,
@@ -150,24 +144,46 @@ impl KlineNodeContext {
         // 判断当前play_index
         if current_play_index == 0 {
             // 如果play_index为0，则向缓存引擎插入新的k线
-            self.insert_new_kline(symbol_key, symbol_info, current_play_index, min_interval_kline_data[0].as_ref()).await
+            self.insert_new_kline(
+                symbol_key,
+                symbol_info,
+                current_play_index,
+                min_interval_kline_data[0].as_ref(),
+            )
+            .await
         } else {
             // 核心步骤（插值算法）
             let current_interval = symbol_key.get_interval();
-            let is_cross_interval = is_cross_interval(&current_interval, &min_interval_kline_data.last().unwrap().get_datetime());
+            let is_cross_interval = is_cross_interval(
+                &current_interval,
+                &min_interval_kline_data.last().unwrap().get_datetime(),
+            );
 
             if is_cross_interval {
                 // 如果当前是新的周期，则向缓存引擎插入新的k线
-                self.insert_new_kline(symbol_key, symbol_info, current_play_index, min_interval_kline_data[0].as_ref()).await
+                self.insert_new_kline(
+                    symbol_key,
+                    symbol_info,
+                    current_play_index,
+                    min_interval_kline_data[0].as_ref(),
+                )
+                .await
             } else {
                 // 如果当前不是新的周期，则更新缓存引擎中的值
-                self.update_existing_kline(symbol_key, symbol_info, current_play_index, &min_interval_kline_data).await
+                self.update_existing_kline(symbol_key, symbol_info, current_play_index, &min_interval_kline_data)
+                    .await
             }
         }
     }
 
     // 插入新K线到缓存引擎
-    async fn insert_new_kline(&self, symbol_key: &KlineKey, symbol_info: &(i32, String), current_play_index: PlayIndex, min_interval_kline: &CacheValue) -> Result<(), String> {
+    async fn insert_new_kline(
+        &self,
+        symbol_key: &KlineKey,
+        symbol_info: &(i32, String),
+        current_play_index: PlayIndex,
+        min_interval_kline: &CacheValue,
+    ) -> Result<(), String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let key = Key::Kline(symbol_key.clone());
         let update_cache_params = UpdateCacheParams::new(
@@ -182,7 +198,13 @@ impl KlineNodeContext {
 
         if response.success() {
             // 发送K线事件
-            self.send_kline_events(symbol_info, symbol_key, true, current_play_index, min_interval_kline.as_kline().unwrap());
+            self.send_kline_events(
+                symbol_info,
+                symbol_key,
+                true,
+                current_play_index,
+                min_interval_kline.as_kline().unwrap(),
+            );
             Ok(())
         } else {
             Err("Failed to insert new kline".to_string())
@@ -231,10 +253,10 @@ impl KlineNodeContext {
                 let new_low = last_kline.low().min(min_interval_low);
                 let new_kline = Kline::new(
                     last_kline.datetime(), // 时间必须和last_kline的时间一致，因为是基于last_kline的更新
-                    last_kline.open(), // 相同的时间的开盘价相同
-                    new_high, // 最高价
-                    new_low, // 最低价
-                    min_interval_close, // 收盘价
+                    last_kline.open(),     // 相同的时间的开盘价相同
+                    new_high,              // 最高价
+                    new_low,               // 最低价
+                    min_interval_close,    // 收盘价
                     last_kline.volume() + min_interval_volume, // 成交量累计
                 );
 
@@ -252,12 +274,12 @@ impl KlineNodeContext {
 
                 if response.success() {
                     // 使用通用方法发送K线事件
-                    self.send_kline_events(symbol_info, symbol_key, true, current_play_index,  new_kline);
+                    self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline);
                     Ok(())
                 } else {
                     Err("Failed to update cache".to_string())
                 }
-            },
+            }
             _ => Err("Unexpected response type".to_string()),
         }
     }
@@ -319,8 +341,6 @@ impl KlineNodeContext {
         Ok(())
     }
 
-
-
     pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {
         let (tx, rx) = oneshot::channel();
         let get_min_interval_symbols_params = GetMinIntervalSymbolsParams::new(self.get_node_id().clone(), tx);
@@ -338,5 +358,4 @@ impl KlineNodeContext {
             _ => return Err("获取最小周期交易对失败".to_string()),
         }
     }
-
 }

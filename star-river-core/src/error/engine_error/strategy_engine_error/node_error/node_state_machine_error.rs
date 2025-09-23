@@ -1,5 +1,5 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -49,10 +49,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestNodeStateMachine
                     event,
                     ..
                 } => {
-                    format!(
-                        "状态转换失败，从 {} 到 {}，事件: {}",
-                        from_state, to_state, event
-                    )
+                    format!("状态转换失败，从 {} 到 {}，事件: {}", from_state, to_state, event)
                 }
             },
         }

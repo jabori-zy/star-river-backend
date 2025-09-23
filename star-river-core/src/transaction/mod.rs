@@ -2,13 +2,13 @@ pub mod virtual_transaction;
 
 use crate::market::Exchange;
 use crate::system::DateTimeUtc;
+use entity::transaction::Model as TransactionModel;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
+use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use entity::transaction::Model as TransactionModel;
-use std::str::FromStr;
 
 // 交易明细类型
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema, PartialEq, Eq)]
@@ -48,7 +48,6 @@ pub struct Transaction {
     pub create_time: DateTimeUtc,
     pub extra_info: Option<serde_json::Value>, // 额外信息
 }
-
 
 impl From<TransactionModel> for Transaction {
     fn from(model: TransactionModel) -> Self {

@@ -2,13 +2,13 @@ pub mod virtual_order;
 
 use crate::market::Exchange;
 use crate::system::DateTimeUtc;
+use entity::order::Model as OrderModel;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::Debug;
 use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use entity::order::Model as OrderModel;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {
@@ -136,10 +136,9 @@ pub struct Order {
     pub tp: Option<f64>,                       // 止盈价格
     pub sl: Option<f64>,                       // 止损价格
     pub extra_info: Option<serde_json::Value>, // 额外信息
-    pub created_time: DateTimeUtc,           // 创建时间
-    pub updated_time: DateTimeUtc,           // 更新时间
+    pub created_time: DateTimeUtc,             // 创建时间
+    pub updated_time: DateTimeUtc,             // 更新时间
 }
-
 
 impl From<OrderModel> for Order {
     fn from(model: OrderModel) -> Self {

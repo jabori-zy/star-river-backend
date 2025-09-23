@@ -928,7 +928,6 @@ pub mod futures_order_node_log_message {
     use serde::{Deserialize, Serialize};
     use star_river_core::custom_type::OrderId;
 
-
     log_message!(
         ProcessingOrderMsg,
         params: (

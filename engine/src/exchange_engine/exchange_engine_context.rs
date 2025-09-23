@@ -2,11 +2,11 @@ use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
 use database::query::account_config_query::AccountConfigQuery;
-use event_center::communication::engine::exchange_engine::*;
 use event_center::communication::engine::EngineCommand;
+use event_center::communication::engine::exchange_engine::*;
 use event_center::event::Event;
-use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::ExchangeClient;
+use exchange_client::metatrader5::MetaTrader5;
 use sea_orm::DatabaseConnection;
 use snafu::{Report, ResultExt};
 use star_river_core::account::AccountConfig;
@@ -66,9 +66,7 @@ impl EngineContext for ExchangeEngineContext {
             EngineCommand::ExchangeEngine(exchange_engine_command) => {
                 match exchange_engine_command {
                     ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
-                        let result = self
-                            .register_exchange(register_exchange_command.account_id)
-                            .await;
+                        let result = self.register_exchange(register_exchange_command.account_id).await;
 
                         let response = if let Ok(()) = result {
                             // success
@@ -86,10 +84,7 @@ impl EngineContext for ExchangeEngineContext {
                             )
                         };
                         // 发送响应事件
-                        register_exchange_command
-                            .responder
-                            .send(response.into())
-                            .unwrap();
+                        register_exchange_command.responder.send(response.into()).unwrap();
                     }
                     _ => {}
                 }
@@ -100,15 +95,11 @@ impl EngineContext for ExchangeEngineContext {
 }
 
 impl ExchangeEngineContext {
-    pub async fn register_exchange(
-        &mut self,
-        account_id: AccountId,
-    ) -> Result<(), ExchangeEngineError> {
+    pub async fn register_exchange(&mut self, account_id: AccountId) -> Result<(), ExchangeEngineError> {
         tracing::info!("开始注册交易所，账户ID: {}", account_id);
 
         // 从数据库中获取账户配置
-        let account_config =
-            AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await?;
+        let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await?;
 
         let result = match account_config.exchange {
             Exchange::Metatrader5(_) => {
@@ -153,23 +144,11 @@ impl ExchangeEngineContext {
     }
 
     // #[instrument(skip(self, account_config), fields(login = %account_config.config["login"], server = %account_config.config["server"]))]
-    async fn register_mt5_exchange_in_dev(
-        &mut self,
-        account_config: AccountConfig,
-    ) -> Result<(), ExchangeEngineError> {
+    async fn register_mt5_exchange_in_dev(&mut self, account_config: AccountConfig) -> Result<(), ExchangeEngineError> {
         let login = account_config.config["login"].as_i64().unwrap();
-        let password = account_config.config["password"]
-            .as_str()
-            .unwrap()
-            .to_string();
-        let server = account_config.config["server"]
-            .as_str()
-            .unwrap()
-            .to_string();
-        let terminal_path = account_config.config["terminal_path"]
-            .as_str()
-            .unwrap()
-            .to_string();
+        let password = account_config.config["password"].as_str().unwrap().to_string();
+        let server = account_config.config["server"].as_str().unwrap().to_string();
+        let terminal_path = account_config.config["terminal_path"].as_str().unwrap().to_string();
 
         let mut mt5 = MetaTrader5::new(
             account_config.id,
@@ -363,10 +342,7 @@ impl ExchangeEngineContext {
     //     Ok(())
     // }
 
-    pub async fn unregister_exchange(
-        &mut self,
-        unregister_params: UnregisterExchangeParams,
-    ) -> Result<(), String> {
+    pub async fn unregister_exchange(&mut self, unregister_params: UnregisterExchangeParams) -> Result<(), String> {
         // tracing::debug!("接收到命令: {:?}", unregister_params);
         // 先获取实例
         let mut exchange = self.get_exchange(&unregister_params.account_id).await?;
@@ -376,20 +352,12 @@ impl ExchangeEngineContext {
                 let mt5 = exchange.as_any_mut().downcast_mut::<MetaTrader5>().unwrap();
 
                 // 设置超时时间为15秒
-                match tokio::time::timeout(
-                    tokio::time::Duration::from_secs(15),
-                    mt5.stop_mt5_server(),
-                )
-                .await
-                {
+                match tokio::time::timeout(tokio::time::Duration::from_secs(15), mt5.stop_mt5_server()).await {
                     // 在超时时间内完成了操作
                     Ok(result) => match result {
                         // 停止成功
                         Ok(true) => {
-                            tracing::info!(
-                                "成功停止MT5服务，账户ID: {}",
-                                unregister_params.account_id
-                            );
+                            tracing::info!("成功停止MT5服务，账户ID: {}", unregister_params.account_id);
                             self.exchanges.remove(&unregister_params.account_id);
                         }
                         // 停止尝试但失败
@@ -402,20 +370,13 @@ impl ExchangeEngineContext {
                         }
                         // 函数执行出错
                         Err(e) => {
-                            tracing::error!(
-                                "MT5服务停止出错，错误: {}，账户ID: {}",
-                                e,
-                                unregister_params.account_id
-                            );
+                            tracing::error!("MT5服务停止出错，错误: {}，账户ID: {}", e, unregister_params.account_id);
                             self.exchanges.remove(&unregister_params.account_id);
                         }
                     },
                     // 操作超时
                     Err(_) => {
-                        tracing::error!(
-                            "MT5服务停止操作超时，账户ID: {}",
-                            unregister_params.account_id
-                        );
+                        tracing::error!("MT5服务停止操作超时，账户ID: {}", unregister_params.account_id);
                         // 尽管超时，仍然移除实例，避免资源泄漏
                         self.exchanges.remove(&unregister_params.account_id);
                     }
@@ -444,10 +405,7 @@ impl ExchangeEngineContext {
         }
     }
 
-    pub async fn get_exchange_ref<'a>(
-        &'a self,
-        account_id: &i32,
-    ) -> Result<&'a Box<dyn ExchangeClient>, String> {
+    pub async fn get_exchange_ref<'a>(&'a self, account_id: &i32) -> Result<&'a Box<dyn ExchangeClient>, String> {
         match self.exchanges.get(account_id) {
             Some(client) => Ok(client),
             None => Err(format!("交易所 {:?} 未注册", account_id)),

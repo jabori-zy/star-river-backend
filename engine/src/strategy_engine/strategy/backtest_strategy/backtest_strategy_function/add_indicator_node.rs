@@ -1,7 +1,7 @@
 use super::BacktestStrategyFunction;
-use crate::strategy_engine::node::backtest_strategy_node::indicator_node::indicator_node_context::IndicatorNodeContext;
-use crate::strategy_engine::node::backtest_strategy_node::indicator_node::IndicatorNode;
 use crate::strategy_engine::node::BacktestNodeTrait;
+use crate::strategy_engine::node::backtest_strategy_node::indicator_node::IndicatorNode;
+use crate::strategy_engine::node::backtest_strategy_node::indicator_node::indicator_node_context::IndicatorNodeContext;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use event_center::communication::strategy::{NodeCommandSender, StrategyCommand};
 use star_river_core::cache::key::IndicatorKey;
@@ -9,9 +9,9 @@ use star_river_core::cache::key::KlineKey;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::indicator_node_error::*;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use tokio::sync::mpsc;
 
 impl BacktestStrategyFunction {
     pub async fn add_indicator_node(
@@ -90,7 +90,7 @@ impl BacktestStrategyFunction {
         drop(strategy_keys_guard); // 显式释放写锁
 
         // set default output handle
-        
+
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;

@@ -60,7 +60,6 @@ pub enum BacktestStrategyStateTransitionEvent {
 #[derive(Debug, Clone, Display)]
 pub enum BacktestStrategyStateAction {
     // 当切换到某一个状态时, 需要执行的动作
-
     #[strum(serialize = "InitSignalCount")]
     InitSignalCount, // 初始化信号计数
 
@@ -126,11 +125,7 @@ pub struct BacktestStrategyStateMachine {
 }
 
 impl BacktestStrategyStateMachine {
-    pub fn new(
-        strategy_id: i32,
-        strategy_name: String,
-        current_state: BacktestStrategyRunState,
-    ) -> Self {
+    pub fn new(strategy_id: i32, strategy_name: String, current_state: BacktestStrategyRunState) -> Self {
         Self {
             current_state,
             strategy_id,
@@ -161,10 +156,7 @@ impl BacktestStrategyStateMachine {
                     ],
                 })
             }
-            (
-                BacktestStrategyRunState::Checking,
-                BacktestStrategyStateTransitionEvent::CheckComplete,
-            ) => {
+            (BacktestStrategyRunState::Checking, BacktestStrategyStateTransitionEvent::CheckComplete) => {
                 self.current_state = BacktestStrategyRunState::CheckPassed;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::CheckPassed,
@@ -175,10 +167,7 @@ impl BacktestStrategyStateMachine {
                 })
             }
             // created => initializing
-            (
-                BacktestStrategyRunState::CheckPassed,
-                BacktestStrategyStateTransitionEvent::Initialize,
-            ) => {
+            (BacktestStrategyRunState::CheckPassed, BacktestStrategyStateTransitionEvent::Initialize) => {
                 self.current_state = BacktestStrategyRunState::Initializing;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Initializing,
@@ -188,20 +177,17 @@ impl BacktestStrategyStateMachine {
                         BacktestStrategyStateAction::ListenAndHandleNodeEvent,
                         BacktestStrategyStateAction::ListenAndHandleNodeCommand,
                         BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent,
-                        BacktestStrategyStateAction::InitNode, // 初始化节点
+                        BacktestStrategyStateAction::InitNode,        // 初始化节点
                         BacktestStrategyStateAction::InitSignalCount, // 初始化信号计数
                         BacktestStrategyStateAction::InitInitialPlaySpeed, // 初始化初始播放速度
                         BacktestStrategyStateAction::InitVirtualTradingSystem, // 初始化虚拟交易系统
                         BacktestStrategyStateAction::InitStrategyStats, // 初始化策略统计
-                                                               // BacktestStrategyStateAction::LoadPositions, // 加载持仓
+                                                                      // BacktestStrategyStateAction::LoadPositions, // 加载持仓
                     ],
                 })
             }
             // initializing => ready
-            (
-                BacktestStrategyRunState::Initializing,
-                BacktestStrategyStateTransitionEvent::InitializeComplete,
-            ) => {
+            (BacktestStrategyRunState::Initializing, BacktestStrategyStateTransitionEvent::InitializeComplete) => {
                 self.current_state = BacktestStrategyRunState::Ready;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Ready,
@@ -224,10 +210,7 @@ impl BacktestStrategyStateMachine {
                 })
             }
             // stopping => stopped
-            (
-                BacktestStrategyRunState::Stopping,
-                BacktestStrategyStateTransitionEvent::StopComplete,
-            ) => {
+            (BacktestStrategyRunState::Stopping, BacktestStrategyStateTransitionEvent::StopComplete) => {
                 self.current_state = BacktestStrategyRunState::Stopped;
                 Ok(BacktestStrategyStateChangeActions {
                     new_state: BacktestStrategyRunState::Stopped,

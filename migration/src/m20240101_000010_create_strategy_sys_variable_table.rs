@@ -23,11 +23,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(StrategySysVariable::StrategyId)
-                            .integer()
-                            .not_null(),
-                    ) //策略id
+                    .col(ColumnDef::new(StrategySysVariable::StrategyId).integer().not_null()) //策略id
                     .col(
                         ColumnDef::new(StrategySysVariable::PositionNumber)
                             .integer()

@@ -5,35 +5,29 @@ use star_river_core::{account::AccountConfig, custom_type::AccountId};
 pub struct AccountConfigQuery;
 
 impl AccountConfigQuery {
-    pub async fn get_account_config_by_exchange(
-        db: &DbConn,
-        exchange: String,
-    ) -> Result<Vec<AccountConfig>, DbErr> {
+    pub async fn get_account_config_by_exchange(db: &DbConn, exchange: String) -> Result<Vec<AccountConfig>, DbErr> {
         let account_config_models = AccountConfigEntity::find()
             .filter(account_config::Column::Exchange.eq(exchange))
             .filter(account_config::Column::IsDelete.eq(false))
             .all(db)
             .await?;
-        
+
         let mut account_configs = Vec::new();
         for model in account_config_models {
             let account_config = model.into();
             account_configs.push(account_config);
         }
-        
+
         Ok(account_configs)
     }
 
-    pub async fn get_account_config_by_id(
-        db: &DbConn,
-        account_id: AccountId,
-    ) -> Result<AccountConfig, DbErr> {
+    pub async fn get_account_config_by_id(db: &DbConn, account_id: AccountId) -> Result<AccountConfig, DbErr> {
         let account_config_model = AccountConfigEntity::find_by_id(account_id)
             .filter(account_config::Column::IsDelete.eq(false))
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find account config.".to_owned()))?;
-            
+
         Ok(account_config_model.into())
     }
 
@@ -42,13 +36,13 @@ impl AccountConfigQuery {
             .filter(account_config::Column::IsDelete.eq(false))
             .all(db)
             .await?;
-            
+
         let mut account_configs = Vec::new();
         for model in account_config_models {
             let account_config = model.into();
             account_configs.push(account_config);
         }
-        
+
         Ok(account_configs)
     }
 }

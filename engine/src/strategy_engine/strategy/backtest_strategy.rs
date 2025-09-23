@@ -9,31 +9,29 @@ use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state
 use backtest_strategy_context::BacktestStrategyContext;
 use backtest_strategy_function::BacktestStrategyFunction;
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
-use event_center::event::strategy_event::backtest_strategy_event::{
-    BacktestStrategyEvent, StrategyStateLogEvent,
-};
+use chrono::Utc;
 use event_center::EventCenterSingleton;
+use event_center::communication::strategy::NodeCommand;
+use event_center::event::strategy_event::backtest_strategy_event::{BacktestStrategyEvent, StrategyStateLogEvent};
+use event_center::event::strategy_event::{LogLevel, StrategyRunningLogEvent};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
+use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::{Key, KeyTrait};
+use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::error::error_trait::StarRiverErrorTrait;
+use star_river_core::market::KlineInterval;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::StrategyConfig;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+use star_river_core::strategy_stats::StatsSnapshot;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use star_river_core::error::error_trait::StarRiverErrorTrait;
-use star_river_core::order::virtual_order::VirtualOrder;
-use event_center::communication::strategy::NodeCommand;
-use event_center::event::strategy_event::{LogLevel, StrategyRunningLogEvent};
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
-use star_river_core::strategy::StrategyConfig;
-use star_river_core::strategy_stats::StatsSnapshot;
-use star_river_core::transaction::virtual_transaction::VirtualTransaction;
-use star_river_core::position::virtual_position::VirtualPosition;
 use virtual_trading::VirtualTradingSystem;
-use chrono::Utc;
-use star_river_core::cache::{Key, KeyTrait};
-use star_river_core::market::KlineInterval;
-use star_river_core::cache::key::KlineKey;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {
@@ -51,8 +49,6 @@ impl BacktestStrategy {
             context: Arc::new(RwLock::new(context)),
         }
     }
-
-    
 }
 
 impl BacktestStrategy {
@@ -71,5 +67,4 @@ impl BacktestStrategy {
     pub async fn get_state_machine(&self) -> BacktestStrategyStateMachine {
         self.context.read().await.state_machine.clone()
     }
-
 }

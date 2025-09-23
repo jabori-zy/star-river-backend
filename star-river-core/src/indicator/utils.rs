@@ -1,21 +1,24 @@
-use std::collections::HashMap;
 use crate::error::star_river_error::*;
 use snafu::ResultExt;
+use std::collections::HashMap;
 
-
-pub fn parse_indicator_config_from_str(
-    s: &str,
-) -> Result<(String, HashMap<String, String>), StarRiverError> {
+pub fn parse_indicator_config_from_str(s: &str) -> Result<(String, HashMap<String, String>), StarRiverError> {
     // 验证格式并分离指标名称和参数部分
     let parts: Vec<&str> = s.split('(').collect();
     if parts.len() != 2 {
-        return Err(InvalidIndicatorConfigFormatSnafu {indicator_config: s.to_string()}.build());
+        return Err(InvalidIndicatorConfigFormatSnafu {
+            indicator_config: s.to_string(),
+        }
+        .build());
     }
 
     let indicator_name = parts[0].trim().to_lowercase();
     let content = parts[1].split(')').next().unwrap_or_default();
     if content.trim().is_empty() {
-        return Err(IndicatorParamEmptySnafu {indicator_config: s.to_string()}.build());
+        return Err(IndicatorParamEmptySnafu {
+            indicator_config: s.to_string(),
+        }
+        .build());
     }
 
     let mut params = HashMap::new();
@@ -26,14 +29,20 @@ pub fn parse_indicator_config_from_str(
     for param in param_parts {
         let kv: Vec<&str> = param.split('=').collect();
         if kv.len() != 2 {
-            return Err(IndicatorParamFormatInvalidSnafu {indicator_config: s.to_string()}.build());
+            return Err(IndicatorParamFormatInvalidSnafu {
+                indicator_config: s.to_string(),
+            }
+            .build());
         }
 
         let key = kv[0].trim().to_string();
         let value = kv[1].trim().to_string();
 
         if key.is_empty() || value.is_empty() {
-            return Err(IndicatorParamFormatInvalidSnafu {indicator_config: s.to_string()}.build());
+            return Err(IndicatorParamFormatInvalidSnafu {
+                indicator_config: s.to_string(),
+            }
+            .build());
         }
 
         params.insert(key, value);
@@ -44,39 +53,48 @@ pub fn parse_indicator_config_from_str(
 
 /// 从参数HashMap中获取必需的整数参数
 pub fn get_required_i32_param(params: &HashMap<String, String>, key: &str) -> Result<i32, StarRiverError> {
-    let value = params.get(key).ok_or(IndicatorConfigMissParamSnafu {param: key.to_string()}.build())?;
+    let value = params
+        .get(key)
+        .ok_or(IndicatorConfigMissParamSnafu { param: key.to_string() }.build())?;
     value
-        .parse::<i32>().context(ParseIntIndicatorParamFailedSnafu {param: key.to_string()})
+        .parse::<i32>()
+        .context(ParseIntIndicatorParamFailedSnafu { param: key.to_string() })
 }
 
 /// 从参数HashMap中获取必需的浮点数参数
 pub fn get_required_f64_param(params: &HashMap<String, String>, key: &str) -> Result<f64, StarRiverError> {
-    let value = params.get(key).ok_or(IndicatorConfigMissParamSnafu {param: key.to_string()}.build())?;
+    let value = params
+        .get(key)
+        .ok_or(IndicatorConfigMissParamSnafu { param: key.to_string() }.build())?;
     value
-        .parse::<f64>().context(ParseFloatIndicatorParamFailedSnafu {param: key.to_string()})
+        .parse::<f64>()
+        .context(ParseFloatIndicatorParamFailedSnafu { param: key.to_string() })
 }
 
 /// 从参数HashMap中获取必需的f32浮点数参数
 pub fn get_required_f32_param(params: &HashMap<String, String>, key: &str) -> Result<f32, StarRiverError> {
-    let value = params.get(key).ok_or(IndicatorConfigMissParamSnafu {param: key.to_string()}.build())?;
+    let value = params
+        .get(key)
+        .ok_or(IndicatorConfigMissParamSnafu { param: key.to_string() }.build())?;
     value
-        .parse::<f32>().context(ParseFloatIndicatorParamFailedSnafu {param: key.to_string()})
+        .parse::<f32>()
+        .context(ParseFloatIndicatorParamFailedSnafu { param: key.to_string() })
 }
 
 /// 从参数HashMap中获取必需的字符串参数并解析为指定类型
-pub fn get_required_special_param<T>(
-    params: &HashMap<String, String>,
-    key: &str,
-) -> Result<T, StarRiverError>
+pub fn get_required_special_param<T>(params: &HashMap<String, String>, key: &str) -> Result<T, StarRiverError>
 where
     T: std::str::FromStr,
     T::Err: std::fmt::Display,
 {
-    let value = params.get(key).ok_or(IndicatorConfigMissParamSnafu {param: key.to_string()}.build())?;
-    value
-        .parse::<T>()
-        .map_err(|e| ParseSpecialIndicatorParamFailedSnafu {
+    let value = params
+        .get(key)
+        .ok_or(IndicatorConfigMissParamSnafu { param: key.to_string() }.build())?;
+    value.parse::<T>().map_err(|e| {
+        ParseSpecialIndicatorParamFailedSnafu {
             param: key.to_string(),
             reason: e.to_string(),
-        }.build())
+        }
+        .build()
+    })
 }

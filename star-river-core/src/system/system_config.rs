@@ -1,12 +1,15 @@
-use chrono::{Utc};
+use crate::system::DateTimeUtc;
+use chrono::Utc;
+use chrono_tz::{Asia::Shanghai, Tz};
+use entity::system_config::Model as SystemConfigModel;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use std::sync::{
+    Arc, LazyLock,
+    atomic::{AtomicPtr, Ordering},
+};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use chrono_tz::{Tz, Asia::Shanghai};
-use entity::system_config::Model as SystemConfigModel;
-use std::str::FromStr;
-use std::sync::{LazyLock, Arc, atomic::{AtomicPtr, Ordering}};
-use crate::system::DateTimeUtc;
 
 // 本地化
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display, ToSchema)]
@@ -37,8 +40,6 @@ pub struct SystemConfig {
     pub updated_time: DateTimeUtc,
 }
 
-
-
 impl SystemConfig {
     pub async fn from_model(model: SystemConfigModel) -> Self {
         let timezone = model.timezone.parse::<Tz>().unwrap();
@@ -52,7 +53,6 @@ impl SystemConfig {
     }
 }
 
-
 impl Default for SystemConfig {
     fn default() -> Self {
         Self {
@@ -63,8 +63,7 @@ impl Default for SystemConfig {
             updated_time: Utc::now(),
         }
     }
-}   
-
+}
 
 /// 全局系统配置状态，使用原子指针
 static SYSTEM_CONFIG: LazyLock<AtomicPtr<SystemConfig>> = LazyLock::new(|| {
@@ -83,12 +82,12 @@ impl SystemConfigManager {
         let config = unsafe { &*ptr };
         Arc::new(config.clone())
     }
-    
+
     /// 更新全局系统配置
     pub fn update_config(new_config: SystemConfig) {
         let new_ptr = Box::into_raw(Box::new(new_config));
         let old_ptr = SYSTEM_CONFIG.swap(new_ptr, Ordering::AcqRel);
-        
+
         // 释放旧的配置（但不在程序结束时，避免内存泄漏）
         if !old_ptr.is_null() {
             unsafe {
@@ -97,24 +96,23 @@ impl SystemConfigManager {
             }
         }
     }
-    
+
     /// 从数据库加载系统配置并初始化（应该在系统启动时调用）
     pub fn initialize_from_db(config: SystemConfig) {
         tracing::debug!("Initializing system config from DB: {:?}", config);
         Self::update_config(config);
         tracing::debug!("System config initialized successfully");
     }
-    
+
     /// 获取当前系统时区
     pub fn get_timezone() -> Tz {
         let ptr = SYSTEM_CONFIG.load(Ordering::Acquire);
         unsafe { (*ptr).timezone }
     }
-    
+
     /// 获取当前系统本地化设置
     pub fn get_localization() -> Localization {
         let ptr = SYSTEM_CONFIG.load(Ordering::Acquire);
         unsafe { (*ptr).localization.clone() }
     }
 }
-

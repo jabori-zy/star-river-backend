@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::InputHandleId;
-use star_river_core::strategy::deserialize_time_range;
 use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
-use star_river_core::strategy::{
-    BacktestDataSource, SelectedAccount, TimeRange,
-};
+use star_river_core::strategy::deserialize_time_range;
+use star_river_core::strategy::{BacktestDataSource, SelectedAccount, TimeRange};
 
 // 合约订单配置
 #[derive(Debug, Clone, Serialize, Deserialize)]

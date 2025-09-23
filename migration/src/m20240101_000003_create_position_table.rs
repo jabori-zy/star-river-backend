@@ -1,5 +1,4 @@
 use sea_orm_migration::prelude::*;
-use chrono::{DateTime, Utc};
 
 pub struct Migration;
 
@@ -24,17 +23,9 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Position::StrategyId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Position::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Position::NodeId).string().not_null())
-                    .col(
-                        ColumnDef::new(Position::ExchangePositionId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Position::ExchangePositionId).big_integer().not_null())
                     .col(ColumnDef::new(Position::AccountId).integer().not_null())
                     .col(ColumnDef::new(Position::Exchange).string().not_null())
                     .col(ColumnDef::new(Position::Symbol).string().not_null())

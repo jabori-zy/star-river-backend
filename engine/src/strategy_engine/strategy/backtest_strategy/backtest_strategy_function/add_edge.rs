@@ -30,29 +30,23 @@ impl BacktestStrategyFunction {
                 .build()
             })?;
 
-        let from_node_id = edge_config
-            .get("source")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                EdgeConfigMissFieldSnafu {
-                    strategy_id: context_guard.strategy_id,
-                    strategy_name: context_guard.strategy_name.clone(),
-                    field_name: "source".to_string(),
-                }
-                .build()
-            })?;
+        let from_node_id = edge_config.get("source").and_then(|v| v.as_str()).ok_or_else(|| {
+            EdgeConfigMissFieldSnafu {
+                strategy_id: context_guard.strategy_id,
+                strategy_name: context_guard.strategy_name.clone(),
+                field_name: "source".to_string(),
+            }
+            .build()
+        })?;
 
-        let to_node_id = edge_config
-            .get("target")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                EdgeConfigMissFieldSnafu {
-                    strategy_id: context_guard.strategy_id,
-                    strategy_name: context_guard.strategy_name.clone(),
-                    field_name: "target".to_string(),
-                }
-                .build()
-            })?;
+        let to_node_id = edge_config.get("target").and_then(|v| v.as_str()).ok_or_else(|| {
+            EdgeConfigMissFieldSnafu {
+                strategy_id: context_guard.strategy_id,
+                strategy_name: context_guard.strategy_name.clone(),
+                field_name: "target".to_string(),
+            }
+            .build()
+        })?;
 
         let to_handle_id = edge_config
             .get("targetHandle")
@@ -67,31 +61,23 @@ impl BacktestStrategyFunction {
             })?;
 
         let (source, target) = {
-            let source = context_guard
-                .node_indices
-                .get(from_node_id)
-                .copied()
-                .ok_or_else(|| {
-                    NodeNotFoundSnafu {
-                        strategy_id: context_guard.strategy_id,
-                        strategy_name: context_guard.strategy_name.clone(),
-                        node_id: from_node_id.to_string(),
-                    }
-                    .build()
-                })?;
+            let source = context_guard.node_indices.get(from_node_id).copied().ok_or_else(|| {
+                NodeNotFoundSnafu {
+                    strategy_id: context_guard.strategy_id,
+                    strategy_name: context_guard.strategy_name.clone(),
+                    node_id: from_node_id.to_string(),
+                }
+                .build()
+            })?;
 
-            let target = context_guard
-                .node_indices
-                .get(to_node_id)
-                .copied()
-                .ok_or_else(|| {
-                    NodeNotFoundSnafu {
-                        strategy_id: context_guard.strategy_id,
-                        strategy_name: context_guard.strategy_name.clone(),
-                        node_id: to_node_id.to_string(),
-                    }
-                    .build()
-                })?;
+            let target = context_guard.node_indices.get(to_node_id).copied().ok_or_else(|| {
+                NodeNotFoundSnafu {
+                    strategy_id: context_guard.strategy_id,
+                    strategy_name: context_guard.strategy_name.clone(),
+                    node_id: to_node_id.to_string(),
+                }
+                .build()
+            })?;
 
             (source, target)
         };
@@ -108,7 +94,13 @@ impl BacktestStrategyFunction {
             .unwrap()
             .get_all_output_handles()
             .await;
-        tracing::debug!("from_node_handles: {:?}", from_node_handles.iter().map(|handle| handle.output_handle_id.clone()).collect::<Vec<String>>());
+        tracing::debug!(
+            "from_node_handles: {:?}",
+            from_node_handles
+                .iter()
+                .map(|handle| handle.output_handle_id.clone())
+                .collect::<Vec<String>>()
+        );
         // 先获取源节点的output_handle
         let from_node_output_handle = context_guard
             .graph
@@ -134,14 +126,15 @@ impl BacktestStrategyFunction {
                 to_handle_id.to_string(),
                 receiver,
             );
-            target_node
-                .add_message_receiver(node_message_receiver)
-                .await;
+            target_node.add_message_receiver(node_message_receiver).await;
             let message_receivers = target_node.get_node_event_receivers().await;
             tracing::debug!(
                 "[{}] have added message receivers: {:?}",
                 target_node.get_node_name().await,
-                message_receivers.iter().map(|handle| handle.from_handle_id.clone()).collect::<Vec<String>>()
+                message_receivers
+                    .iter()
+                    .map(|handle| handle.from_handle_id.clone())
+                    .collect::<Vec<String>>()
             );
             target_node.add_from_node_id(from_node_id.to_string()).await;
         }

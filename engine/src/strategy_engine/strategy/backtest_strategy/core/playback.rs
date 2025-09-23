@@ -1,6 +1,5 @@
 use super::{BacktestStrategy, BacktestStrategyError};
 
-
 impl BacktestStrategy {
     pub async fn play(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.get_strategy_name().await;

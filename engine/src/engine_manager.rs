@@ -1,11 +1,11 @@
+use crate::Engine;
+use crate::EngineName;
 use crate::account_engine::AccountEngine;
 use crate::cache_engine::CacheEngine;
 use crate::exchange_engine::ExchangeEngine;
 use crate::indicator_engine::IndicatorEngine;
 use crate::market_engine::MarketEngine;
 use crate::strategy_engine::StrategyEngine;
-use crate::Engine;
-use crate::EngineName;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
@@ -36,12 +36,10 @@ impl EngineManager {
         let indicator_engine = IndicatorEngine::new(heartbeat.clone(), cache_engine.clone());
 
         // 策略引擎
-        let strategy_engine =
-            StrategyEngine::new(database.clone(), exchange_engine.clone(), heartbeat.clone());
+        let strategy_engine = StrategyEngine::new(database.clone(), exchange_engine.clone(), heartbeat.clone());
 
         // 账户引擎
-        let account_engine =
-            AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());
+        let account_engine = AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());
 
         Self {
             exchange_engine,

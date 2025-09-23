@@ -29,12 +29,7 @@ impl BacktestStrategyFunction {
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let database = strategy_context_guard.database.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (
-                heartbeat,
-                virtual_trading_system,
-                database,
-                play_index_watch_rx,
-            )
+            (heartbeat, virtual_trading_system, database, play_index_watch_rx)
         };
 
         let mut node = VariableNode::new(

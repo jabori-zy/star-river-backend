@@ -5,17 +5,17 @@ mod strategy_engine_context;
 pub mod log_message;
 
 use crate::EngineName;
-use crate::{
-    exchange_engine::ExchangeEngine,
-    strategy_engine::strategy_engine_context::StrategyEngineContext,
-};
 use crate::{Engine, EngineContext};
+use crate::{exchange_engine::ExchangeEngine, strategy_engine::strategy_engine_context::StrategyEngineContext};
 use async_trait::async_trait;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use snafu::Report;
+use star_river_core::cache::CacheValue;
 use star_river_core::cache::Key;
+use star_river_core::custom_type::NodeId;
+use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::*;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
@@ -27,10 +27,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use star_river_core::custom_type::PlayIndex;
-use star_river_core::custom_type::NodeId;
-use star_river_core::cache::CacheValue;
-
 
 #[derive(Debug, Clone)]
 pub struct StrategyEngine {
@@ -92,14 +88,8 @@ impl StrategyEngine {
     // 初始化策略
     pub async fn init_strategy(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
-        let strategy_info = strategy_context
-            .get_strategy_info_by_id(strategy_id)
-            .await
-            .unwrap();
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await.unwrap();
         match strategy_info.trade_mode {
             // TradeMode::Live => {
             //     strategy_context.live_strategy_init(strategy_id).await.unwrap();
@@ -123,32 +113,25 @@ impl StrategyEngine {
     // 启动策略
     pub async fn start_strategy(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
-        let strategy_info = strategy_context
-            .get_strategy_info_by_id(strategy_id)
-            .await?;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
             TradeMode::Live => {
                 // strategy_context.live_strategy_start(strategy_id).await
                 return Ok(());
             }
-            _ => Err(UnsupportedStrategyTypeSnafu { strategy_type: strategy_info.trade_mode.to_string() }.build()),
+            _ => Err(UnsupportedStrategyTypeSnafu {
+                strategy_type: strategy_info.trade_mode.to_string(),
+            }
+            .build()),
         }
     }
 
     // 停止策略
     pub async fn stop_strategy(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
-        let strategy_info = strategy_context
-            .get_strategy_info_by_id(strategy_id)
-            .await?;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
             // TradeMode::Live => {
             //     strategy_context.live_strategy_stop(strategy_id).await
@@ -157,28 +140,30 @@ impl StrategyEngine {
                 strategy_context.backtest_strategy_stop(strategy_id).await?;
                 return Ok(());
             }
-            _ => Err(UnsupportedStrategyTypeSnafu { strategy_type: strategy_info.trade_mode.to_string() }.build()),
+            _ => Err(UnsupportedStrategyTypeSnafu {
+                strategy_type: strategy_info.trade_mode.to_string(),
+            }
+            .build()),
         }
     }
 
     // 获取策略缓存键
-    pub async fn get_strategy_cache_keys(&mut self, strategy_id: i32) -> Result<HashMap<Key, NodeId>, StrategyEngineError> {
+    pub async fn get_strategy_cache_keys(
+        &mut self,
+        strategy_id: i32,
+    ) -> Result<HashMap<Key, NodeId>, StrategyEngineError> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
-        let strategy_info = strategy_context
-            .get_strategy_info_by_id(strategy_id)
-            .await?;
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        let strategy_info = strategy_context.get_strategy_info_by_id(strategy_id).await?;
         match strategy_info.trade_mode {
             // TradeMode::Live => {
             //     Ok(strategy_context.get_live_strategy_keys(strategy_id).await)
             // }
-            TradeMode::Backtest => Ok(strategy_context
-                .get_backtest_strategy_keys(strategy_id)
-                .await),
-            _ => Err(UnsupportedStrategyTypeSnafu { strategy_type: strategy_info.trade_mode.to_string() }.build()),
+            TradeMode::Backtest => Ok(strategy_context.get_backtest_strategy_keys(strategy_id).await),
+            _ => Err(UnsupportedStrategyTypeSnafu {
+                strategy_type: strategy_info.trade_mode.to_string(),
+            }
+            .build()),
         }
     }
 }
@@ -188,10 +173,7 @@ impl StrategyEngine {
     // 播放策略
     pub async fn play(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         strategy_context.backtest_strategy_play(strategy_id).await?;
         Ok(())
     }
@@ -199,136 +181,73 @@ impl StrategyEngine {
     // 暂停播放策略
     pub async fn pause(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .backtest_strategy_pause(strategy_id)
-            .await?;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        strategy_context.backtest_strategy_pause(strategy_id).await?;
         Ok(())
     }
 
     // 停止播放策略
     pub async fn reset(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .backtest_strategy_reset(strategy_id)
-            .await?;
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        strategy_context.backtest_strategy_reset(strategy_id).await?;
         Ok(())
     }
 
     // 播放单根k线
     pub async fn play_one_kline(&mut self, strategy_id: i32) -> Result<PlayIndex, StrategyEngineError> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .backtest_strategy_play_one_kline(strategy_id)
-            .await
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
+        strategy_context.backtest_strategy_play_one_kline(strategy_id).await
     }
 
     // 获取播放索引
     pub async fn get_play_index(&mut self, strategy_id: i32) -> Result<i32, String> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .get_backtest_strategy_play_index(strategy_id)
-            .await
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_backtest_strategy_play_index(strategy_id).await
     }
 
-    pub async fn get_virtual_orders(
-        &mut self,
-        strategy_id: i32,
-    ) -> Result<Vec<VirtualOrder>, String> {
+    pub async fn get_virtual_orders(&mut self, strategy_id: i32) -> Result<Vec<VirtualOrder>, String> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .get_backtest_strategy_virtual_orders(strategy_id)
-            .await
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_backtest_strategy_virtual_orders(strategy_id).await
     }
 
-    pub async fn get_current_virtual_positions(
-        &mut self,
-        strategy_id: i32,
-    ) -> Result<Vec<VirtualPosition>, String> {
+    pub async fn get_current_virtual_positions(&mut self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context
             .get_backtest_strategy_current_positions(strategy_id)
             .await
     }
 
-    pub async fn get_history_virtual_positions(
-        &mut self,
-        strategy_id: i32,
-    ) -> Result<Vec<VirtualPosition>, String> {
+    pub async fn get_history_virtual_positions(&mut self, strategy_id: i32) -> Result<Vec<VirtualPosition>, String> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context
             .get_backtest_strategy_history_positions(strategy_id)
             .await
     }
 
-    pub async fn get_stats_history(
-        &mut self,
-        strategy_id: i32,
-        play_index: i32,
-    ) -> Result<Vec<StatsSnapshot>, String> {
+    pub async fn get_stats_history(&mut self, strategy_id: i32, play_index: i32) -> Result<Vec<StatsSnapshot>, String> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context
             .get_backtest_strategy_stats_history(strategy_id, play_index)
             .await
     }
 
-    pub async fn get_virtual_transactions(
-        &mut self,
-        strategy_id: i32,
-    ) -> Result<Vec<VirtualTransaction>, String> {
+    pub async fn get_virtual_transactions(&mut self, strategy_id: i32) -> Result<Vec<VirtualTransaction>, String> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .get_backtest_strategy_transactions(strategy_id)
-            .await
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_backtest_strategy_transactions(strategy_id).await
     }
 
-    pub async fn get_strategy_status(
-        &mut self,
-        strategy_id: i32,
-    ) -> Result<String, StrategyEngineError> {
+    pub async fn get_strategy_status(&mut self, strategy_id: i32) -> Result<String, StrategyEngineError> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
-        let strategy_status = strategy_context
-            .get_backtest_strategy_status(strategy_id)
-            .await?;
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        let strategy_status = strategy_context.get_backtest_strategy_status(strategy_id).await?;
         Ok(strategy_status)
     }
 
@@ -337,15 +256,9 @@ impl StrategyEngine {
         strategy_id: i32,
     ) -> Result<Vec<StrategyRunningLogEvent>, StrategyEngineError> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
-        strategy_context
-            .get_backtest_strategy_running_log(strategy_id)
-            .await
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_backtest_strategy_running_log(strategy_id).await
     }
-
 
     pub async fn get_strategy_data(
         &mut self,
@@ -354,10 +267,7 @@ impl StrategyEngine {
         key: Key,
     ) -> Result<Vec<Arc<CacheValue>>, StrategyEngineError> {
         let context = self.context.read().await;
-        let strategy_context = context
-            .as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context
             .get_backtest_strategy_data(strategy_id, play_index, key)
             .await
@@ -369,24 +279,15 @@ impl StrategyEngine {
     // 开启策略数据推送
     pub async fn enable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         // strategy_context.enable_live_strategy_data_push(strategy_id).await?;
         Ok(())
     }
 
     // 关闭策略数据推送
-    pub async fn disable_live_strategy_data_push(
-        &mut self,
-        strategy_id: i32,
-    ) -> Result<(), String> {
+    pub async fn disable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;
-        let strategy_context = context
-            .as_any_mut()
-            .downcast_mut::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = context.as_any_mut().downcast_mut::<StrategyEngineContext>().unwrap();
         // strategy_context.disable_live_strategy_data_push(strategy_id).await?;
         Ok(())
     }

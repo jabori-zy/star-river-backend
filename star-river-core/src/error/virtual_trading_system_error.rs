@@ -1,5 +1,5 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -7,10 +7,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum VirtualTradingSystemError {
     #[snafu(display("order type [{order_type}] is unsupported"))]
-    UnsupportedOrderType {
-        order_type: String,
-        backtrace: Backtrace,
-    },
+    UnsupportedOrderType { order_type: String, backtrace: Backtrace },
 
     #[snafu(display("kline key not found for exchange [{exchange}] and symbol [{symbol}]"))]
     KlineKeyNotFound {
@@ -43,8 +40,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for VirtualTradingSystemErro
     fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            VirtualTradingSystemError::UnsupportedOrderType { .. } |
-            VirtualTradingSystemError::KlineKeyNotFound { .. }
+            VirtualTradingSystemError::UnsupportedOrderType { .. } | VirtualTradingSystemError::KlineKeyNotFound { .. }
         )
     }
 
@@ -66,8 +62,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for VirtualTradingSystemErro
         match self {
             // CreateIndicatorFailed has source but serde_json::Error doesn't implement our trait
             // So we start the chain here
-            VirtualTradingSystemError::UnsupportedOrderType { .. } |
-            VirtualTradingSystemError::KlineKeyNotFound { .. } => vec![self.error_code()],
+            VirtualTradingSystemError::UnsupportedOrderType { .. }
+            | VirtualTradingSystemError::KlineKeyNotFound { .. } => vec![self.error_code()],
         }
     }
 }

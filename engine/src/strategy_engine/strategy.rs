@@ -29,9 +29,7 @@ impl StrategyCommandPublisher {
     pub async fn send(&self, command: StrategyCommand) -> Result<(), String> {
         let node_id = command.node_id();
         let channels = self.channels.lock().await;
-        let sender = channels
-            .get(node_id)
-            .ok_or(format!("Node id {} not found", node_id))?;
+        let sender = channels.get(node_id).ok_or(format!("Node id {} not found", node_id))?;
         sender
             .send(command)
             .await

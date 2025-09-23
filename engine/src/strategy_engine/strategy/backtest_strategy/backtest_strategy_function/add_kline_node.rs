@@ -1,20 +1,20 @@
 use super::BacktestStrategyFunction;
-use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_context::KlineNodeContext;
-use crate::strategy_engine::node::backtest_strategy_node::kline_node::KlineNode;
 use crate::strategy_engine::node::BacktestNodeTrait;
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::KlineNode;
+use crate::strategy_engine::node::backtest_strategy_node::kline_node::kline_node_context::KlineNodeContext;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use event_center::communication::strategy::{NodeCommandSender, StrategyCommand};
+use star_river_core::cache::Key;
 use star_river_core::cache::key::KlineKey;
+use star_river_core::custom_type::NodeId;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::kline_node_error::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use star_river_core::strategy::BacktestDataSource;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use std::collections::HashMap;
-use star_river_core::custom_type::NodeId;
-use star_river_core::cache::Key;
+use tokio::sync::mpsc;
 
 impl BacktestStrategyFunction {
     pub async fn add_kline_node(
@@ -31,12 +31,7 @@ impl BacktestStrategyFunction {
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let strategy_keys = strategy_context_guard.keys.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (
-                heartbeat,
-                virtual_trading_system,
-                strategy_keys,
-                play_index_watch_rx,
-            )
+            (heartbeat, virtual_trading_system, strategy_keys, play_index_watch_rx)
         };
 
         let mut node = KlineNode::new(
@@ -57,9 +52,7 @@ impl BacktestStrategyFunction {
             node_ctx_guard.get_selected_symbol_keys_ref().clone()
         };
 
-
-        for (key,_) in selected_symbol_keys.iter()
-        {
+        for (key, _) in selected_symbol_keys.iter() {
             // 添加到策略缓存key列表中
             let mut strategy_keys_guard = strategy_keys.write().await;
             strategy_keys_guard.insert(key.clone().into(), node_id.clone());
@@ -121,7 +114,6 @@ impl BacktestStrategyFunction {
         //     _ => {}
         // }
 
-        
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;

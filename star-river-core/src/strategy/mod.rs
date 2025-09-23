@@ -5,18 +5,18 @@ pub mod strategy_inner_event;
 pub mod sys_varibale; // 图表消息
 
 use crate::custom_type::FeeRate;
-use crate::market::deserialize_exchange;
 use crate::market::Exchange;
+use crate::market::deserialize_exchange;
+use crate::system::DateTimeUtc;
+use crate::system::system_config::SystemConfigManager;
 use chrono::{DateTime, FixedOffset, Utc};
+use entity::strategy_config::Model as StrategyConfigModel;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use entity::strategy_config::Model as StrategyConfigModel;
-use crate::system::system_config::SystemConfigManager;
-use std::str::FromStr;
-use crate::system::DateTimeUtc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StrategyConfig {
@@ -70,14 +70,7 @@ impl From<StrategyConfigModel> for StrategyConfig {
     }
 }
 
-
-
-
-
-
-#[derive(
-    Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash, ToSchema,
-)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum TradeMode {
     #[strum(serialize = "backtest")]
@@ -156,8 +149,6 @@ impl TimeRange {
     }
 }
 
-
-
 impl fmt::Display for TimeRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} ~ {}", self.start_date, self.end_date)
@@ -185,12 +176,13 @@ where
                     let start_date = start_with_tz.with_timezone(&Utc);
                     let end_date = end_with_tz.with_timezone(&Utc);
                     tracing::info!("start_date: {:?}, end_date: {:?}", start_date, end_date);
-                    return Ok(TimeRange {
-                        start_date,
-                        end_date,
-                    });
+                    return Ok(TimeRange { start_date, end_date });
                 }
-                _ => return Err(serde::de::Error::custom("can't parse date format, expected format: YYYY-MM-DD HH:MM:SS +TZ:TZ")),
+                _ => {
+                    return Err(serde::de::Error::custom(
+                        "can't parse date format, expected format: YYYY-MM-DD HH:MM:SS +TZ:TZ",
+                    ));
+                }
             }
         }
     }

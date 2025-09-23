@@ -1,31 +1,27 @@
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
+use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::StrategyCommand;
-use event_center::event::node_event::backtest_node_event::common_event::{
-    TriggerEvent, TriggerPayload, CommonEvent,
-};
+use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, TriggerEvent, TriggerPayload};
 use event_center::event::node_event::backtest_node_event::variable_node_event::{
     SysVariableUpdatedEvent, SysVariableUpdatedPayload, VariableNodeEvent,
 };
 use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IfElseNodeEvent};
-use event_center::event::Event;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::node::variable_node::GetVariableType;
 use star_river_core::node::variable_node::*;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use star_river_core::strategy::sys_varibale::SysVariable;
+use star_river_core::utils::get_utc8_timestamp_millis;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use star_river_core::utils::get_utc8_timestamp_millis;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug, Clone)]
@@ -116,9 +112,7 @@ impl BacktestNodeContextTrait for VariableNodeContext {
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     let response = NodeResetResponse::success(self.get_node_id().clone());
                     node_reset_params.responder.send(response.into()).unwrap();
@@ -177,14 +171,13 @@ impl VariableNodeContext {
                         var_config.variable.clone(),
                         position_number as f64,
                     );
-                    let sys_variable_updated_event: VariableNodeEvent =
-                        SysVariableUpdatedEvent::new(
-                            self.base_context.node_id.clone(),
-                            self.base_context.node_name.clone(),
-                            var_config.output_handle_id.clone(),
-                            payload,
-                        )
-                        .into();
+                    let sys_variable_updated_event: VariableNodeEvent = SysVariableUpdatedEvent::new(
+                        self.base_context.node_id.clone(),
+                        self.base_context.node_name.clone(),
+                        var_config.output_handle_id.clone(),
+                        payload,
+                    )
+                    .into();
 
                     let output_handle = self.get_output_handle(&var_config.output_handle_id);
                     tracing::debug!(

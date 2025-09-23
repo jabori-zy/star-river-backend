@@ -127,9 +127,7 @@ fn test_utc8_to_utc_conversion() {
 
     // 方法2: 从FixedOffset创建再转换
     let beijing_offset = FixedOffset::east_opt(8 * 3600).unwrap();
-    let utc8_time2: DateTime<FixedOffset> = beijing_offset
-        .with_ymd_and_hms(2025, 9, 9, 22, 47, 17)
-        .unwrap();
+    let utc8_time2: DateTime<FixedOffset> = beijing_offset.with_ymd_and_hms(2025, 9, 9, 22, 47, 17).unwrap();
     let utc_time2 = utc8_time2.with_timezone(&Utc);
 
     println!("  方法2 - 从FixedOffset创建:");
@@ -141,23 +139,14 @@ fn test_utc8_to_utc_conversion() {
     let current_utc = current_utc8.with_timezone(&Utc);
 
     println!("  方法3 - 当前时间转换:");
-    println!(
-        "    当前UTC+8: {}",
-        current_utc8.format("%Y-%m-%d %H:%M:%S%.3f %z")
-    );
-    println!(
-        "    当前UTC:   {}",
-        current_utc.format("%Y-%m-%d %H:%M:%S%.3f %z")
-    );
+    println!("    当前UTC+8: {}", current_utc8.format("%Y-%m-%d %H:%M:%S%.3f %z"));
+    println!("    当前UTC:   {}", current_utc.format("%Y-%m-%d %H:%M:%S%.3f %z"));
 
     // 验证时间戳相同
     println!("  时间戳验证:");
     println!("    UTC+8时间戳: {}", utc8_time.timestamp());
     println!("    UTC时间戳:   {}", utc_time1.timestamp());
-    println!(
-        "    时间戳相等:   {}",
-        utc8_time.timestamp() == utc_time1.timestamp()
-    );
+    println!("    时间戳相等:   {}", utc8_time.timestamp() == utc_time1.timestamp());
 
     println!();
 }
@@ -165,33 +154,33 @@ fn test_utc8_to_utc_conversion() {
 /// 演示 chrono-tz 的实际功能
 fn demonstrate_chrono_tz_benefits() {
     // chrono-tz 实际功能演示
-    use chrono_tz::{Asia::Shanghai, Europe::London, US::Eastern, US::Pacific, Australia::Sydney, Tz};
-    
+    use chrono_tz::{Asia::Shanghai, Australia::Sydney, Europe::London, Tz, US::Eastern, US::Pacific};
+
     let now = Utc::now();
-    
+
     println!("=== chrono-tz 实际功能演示 ===");
-    
+
     // 1. 夏令时自动处理演示
     println!("1. 夏令时自动处理:");
-    
+
     // 美东时间：冬季 EST (UTC-5)，夏季 EDT (UTC-4)
     let winter_date = Eastern.with_ymd_and_hms(2025, 1, 15, 12, 0, 0).unwrap();
     let summer_date = Eastern.with_ymd_and_hms(2025, 7, 15, 12, 0, 0).unwrap();
-    
+
     println!("   美东冬季: {} (偏移: {})", winter_date, winter_date.offset());
     println!("   美东夏季: {} (偏移: {})", summer_date, summer_date.offset());
-    
+
     // 伦敦时间：冬季 GMT (UTC+0)，夏季 BST (UTC+1)
     let london_winter = London.with_ymd_and_hms(2025, 1, 15, 12, 0, 0).unwrap();
     let london_summer = London.with_ymd_and_hms(2025, 7, 15, 12, 0, 0).unwrap();
-    
+
     println!("   伦敦冬季: {} (偏移: {})", london_winter, london_winter.offset());
     println!("   伦敦夏季: {} (偏移: {})", london_summer, london_summer.offset());
-    
+
     // 2. 全球同一时刻对比
     println!("2. 同一UTC时刻的全球时间:");
     let utc_moment = Utc::now();
-    
+
     let timezones = vec![
         ("上海", Shanghai as Tz),
         ("纽约", Eastern),
@@ -199,27 +188,27 @@ fn demonstrate_chrono_tz_benefits() {
         ("洛杉矶", Pacific),
         ("悉尼", Sydney),
     ];
-    
+
     println!("   UTC: {}", utc_moment);
     for (name, tz) in timezones {
         let local_time = utc_moment.with_timezone(&tz);
         println!("   {}: {} ({})", name, local_time, tz);
     }
-    
+
     // 3. 跨时区业务场景
     println!("3. 业务场景 - 北京上午9点开盘:");
     let beijing_open = Shanghai.with_ymd_and_hms(2025, 7, 15, 9, 0, 0).unwrap();
     let ny_time = beijing_open.with_timezone(&Eastern);
     let london_time = beijing_open.with_timezone(&London);
-    
+
     println!("   北京: {} {}", beijing_open.format("%H:%M"), Shanghai);
     println!("   纽约: {} {}", ny_time.format("%H:%M"), Eastern);
     println!("   伦敦: {} {}", london_time.format("%H:%M"), London);
-    
+
     // 4. 时区标识符解析
     println!("4. 时区字符串解析:");
     let tz_names = vec!["Asia/Shanghai", "America/New_York", "Europe/London"];
-    
+
     for name in tz_names {
         if let Ok(tz) = name.parse::<Tz>() {
             let local_time = now.with_timezone(&tz);
@@ -233,21 +222,21 @@ fn demonstrate_chrono_tz_benefits() {
 /// 简单的时区演示
 fn simple_timezone_demo() {
     use chrono_tz::{TZ_VARIANTS, Tz};
-    
+
     println!("=== chrono-tz 支持的所有时区 ===");
     println!("总计: {} 个时区\n", TZ_VARIANTS.len());
-    
+
     // 显示常用时区及其当前时间
     println!("常用时区当前时间:");
     let common_timezones = vec![
         ("北京", "Asia/Shanghai"),
-        ("东京", "Asia/Tokyo"), 
+        ("东京", "Asia/Tokyo"),
         ("纽约", "America/New_York"),
         ("洛杉矶", "America/Los_Angeles"),
         ("伦敦", "Europe/London"),
         ("悉尼", "Australia/Sydney"),
     ];
-    
+
     let now = chrono::Utc::now();
     for (city, tz_name) in common_timezones {
         if let Ok(tz) = tz_name.parse::<Tz>() {
@@ -257,7 +246,8 @@ fn simple_timezone_demo() {
             println!("local_time: {}", local_time);
             println!("fixed_offset_time: {}", fixed_offset_time);
             println!("tz_local_time: {}", tz_local_time);
-            println!("   {:<6}: {} {} ({})", 
+            println!(
+                "   {:<6}: {} {} ({})",
                 city,
                 local_time.format("%m-%d %H:%M"),
                 tz_local_time.timezone().name(),
@@ -265,17 +255,17 @@ fn simple_timezone_demo() {
             );
         }
     }
-    
+
     println!("\n前20个时区名称:");
     for (i, tz) in TZ_VARIANTS.iter().take(20).enumerate() {
         println!("   {:<2}. {}", i + 1, tz.name());
     }
-    
+
     println!("\n使用方法:");
     println!("   use chrono_tz::{{TZ_VARIANTS, Tz}};");
     println!("   let tz: Tz = \"Asia/Shanghai\".parse().unwrap();");
     println!("   let now = Utc::now().with_timezone(&tz);");
-    
+
     println!();
 }
 
@@ -313,14 +303,8 @@ fn test_current_utc8_time() {
     println!("  格式化展示:");
     println!("    标准格式: {}", current_utc8_1);
     println!("    RFC3339:  {}", current_utc8_1.to_rfc3339());
-    println!(
-        "    自定义1:  {}",
-        current_utc8_1.format("%Y年%m月%d日 %H时%M分%S秒")
-    );
-    println!(
-        "    自定义2:  {}",
-        current_utc8_1.format("%Y-%m-%d %H:%M:%S")
-    );
+    println!("    自定义1:  {}", current_utc8_1.format("%Y年%m月%d日 %H时%M分%S秒"));
+    println!("    自定义2:  {}", current_utc8_1.format("%Y-%m-%d %H:%M:%S"));
     println!("    只有时间: {}", current_utc8_1.format("%H:%M:%S"));
     println!("    只有日期: {}", current_utc8_1.format("%Y-%m-%d"));
 

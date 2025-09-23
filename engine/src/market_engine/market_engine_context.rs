@@ -1,19 +1,19 @@
-use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
-use crate::exchange_engine::ExchangeEngine;
-use crate::market_engine::market_engine_type::KlineSubKey;
 use crate::EngineName;
+use crate::exchange_engine::ExchangeEngine;
+use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
+use crate::market_engine::market_engine_type::KlineSubKey;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
+use event_center::EventCenterSingleton;
+use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::cache_engine::*;
 use event_center::communication::engine::market_engine::*;
-use event_center::communication::engine::EngineCommand;
 use event_center::event::Event;
 use event_center::event::{
-    exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
     ExchangeEvent,
+    exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
 };
-use event_center::EventCenterSingleton;
-use star_river_core::cache::{key::KlineKey, Key};
+use star_river_core::cache::{Key, key::KlineKey};
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
@@ -23,8 +23,8 @@ use star_river_core::strategy::TimeRange;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::oneshot;
 use tokio::sync::Mutex;
+use tokio::sync::oneshot;
 use tokio::time::Duration;
 
 #[derive(Debug)]
@@ -68,9 +68,7 @@ impl EngineContext for MarketEngineContext {
 
     async fn handle_command(&mut self, command: EngineCommand) {
         match command {
-            EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(
-                command_params,
-            )) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(command_params)) => {
                 self.subscribe_kline_stream(
                     command_params.strategy_id,
                     command_params.account_id,
@@ -82,10 +80,7 @@ impl EngineContext for MarketEngineContext {
                 )
                 .await
                 .unwrap();
-                tracing::debug!(
-                    "市场数据引擎订阅K线流成功, 请求节点: {}",
-                    command_params.node_id
-                );
+                tracing::debug!("市场数据引擎订阅K线流成功, 请求节点: {}", command_params.node_id);
 
                 // 都成功后，发送响应事件
                 let subscribe_kline_stream_response = SubscribeKlineStreamResponse::success(
@@ -99,9 +94,7 @@ impl EngineContext for MarketEngineContext {
                     .unwrap();
             }
 
-            EngineCommand::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(
-                command_params,
-            )) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(command_params)) => {
                 self.unsubscribe_kline_stream(
                     command_params.strategy_id,
                     command_params.account_id,
@@ -149,15 +142,9 @@ impl EngineContext for MarketEngineContext {
                     .await
                     .unwrap();
 
-                let get_kline_history_response = GetKlineHistoryResponse::success(
-                    params.exchange,
-                    params.symbol,
-                    params.interval,
-                );
-                params
-                    .responder
-                    .send(get_kline_history_response.into())
-                    .unwrap();
+                let get_kline_history_response =
+                    GetKlineHistoryResponse::success(params.exchange, params.symbol, params.interval);
+                params.responder.send(get_kline_history_response.into()).unwrap();
             }
             _ => {}
         }
@@ -288,10 +275,7 @@ impl MarketEngineContext {
 
         // 3. 获取读锁
         let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange_client = exchange_engine_context_guard
             .get_exchange_ref(&account_id)
@@ -310,8 +294,7 @@ impl MarketEngineContext {
             interval.clone().into(),
             initail_kline_series.clone(),
         );
-        let exchange_klineseries_update_event =
-            ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
+        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
         EventCenterSingleton::publish(exchange_klineseries_update_event.into())
             .await
             .unwrap();
@@ -353,10 +336,7 @@ impl MarketEngineContext {
 
         // 3. 获取读锁
         let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange = exchange_engine_context_guard
             .get_exchange_ref(&account_id)
@@ -404,10 +384,7 @@ impl MarketEngineContext {
 
         // 3. 获取读锁
         let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange = exchange_engine_context_guard
             .get_exchange_ref(&account_id)
@@ -427,10 +404,7 @@ impl MarketEngineContext {
             exchange_engine_guard.get_context()
         };
         let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange = exchange_engine_context_guard
             .get_exchange_ref(&account_id)
@@ -446,10 +420,7 @@ impl MarketEngineContext {
             exchange_engine_guard.get_context()
         };
         let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange = exchange_engine_context_guard
             .get_exchange_ref(&account_id)

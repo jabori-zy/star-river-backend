@@ -5,19 +5,19 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
-use star_river_core::error::engine_error::strategy_engine_error::*;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use engine::strategy_engine::StrategyEngine;
 use serde::{Deserialize, Serialize};
+use snafu::IntoError;
+use star_river_core::custom_type::NodeId;
 use star_river_core::engine::EngineName;
+use star_river_core::error::engine_error::strategy_engine_error::*;
 use star_river_core::strategy::StrategyConfig;
+use std::collections::HashMap;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
-use snafu::IntoError;
-use std::collections::HashMap;
-use star_river_core::custom_type::NodeId;
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -65,10 +65,9 @@ pub async fn get_strategy_list(
     let strategy_per_page = params.strategy_per_page.unwrap_or(10);
 
     let db = &star_river.database.lock().await.conn;
-    let (strategy_list, num_pages) =
-        StrategyConfigQuery::get_strategy_list_in_page(db, page, strategy_per_page)
-            .await
-            .unwrap();
+    let (strategy_list, num_pages) = StrategyConfigQuery::get_strategy_list_in_page(db, page, strategy_per_page)
+        .await
+        .unwrap();
     (
         StatusCode::OK,
         Json(GetStrategyListResponse {
@@ -99,8 +98,7 @@ pub async fn get_strategy_by_id(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<StrategyConfig>>) {
     let db = &star_river.database.lock().await.conn;
-    let strategy = StrategyConfigQuery::get_strategy_by_id(db, strategy_id)
-        .await;
+    let strategy = StrategyConfigQuery::get_strategy_by_id(db, strategy_id).await;
     if let Ok(strategy) = strategy {
         (StatusCode::OK, Json(NewApiResponse::success(strategy)))
     } else {
@@ -147,9 +145,7 @@ pub async fn create_strategy(
         Ok(strategy) => {
             tracing::info!("创建策略成功: {:?}", strategy);
             // 创建策略系统变量
-            if let Err(e) =
-                StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await
-            {
+            if let Err(e) = StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await {
                 tracing::error!("创建策略系统变量失败: {:?}", e);
             }
             (
@@ -219,7 +215,7 @@ pub async fn update_strategy(
         params.trade_mode,
         params.config,
         params.nodes,
-        params.edges
+        params.edges,
     )
     .await
     {
@@ -304,10 +300,7 @@ pub async fn init_strategy(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let result = strategy_engine.init_strategy(strategy_id).await;
     if let Err(e) = result {
         return (StatusCode::CONFLICT, Json(NewApiResponse::error(e)));
@@ -331,10 +324,7 @@ pub async fn run_strategy(
             let engine_manager = star_river.engine_manager.lock().await;
             let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
             let mut engine_guard = engine.lock().await;
-            let strategy_engine = engine_guard
-                .as_any_mut()
-                .downcast_mut::<StrategyEngine>()
-                .unwrap();
+            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
             strategy_engine.start_strategy(strategy_id).await.unwrap();
         })
         .await;
@@ -370,10 +360,7 @@ pub async fn stop_strategy(
             let engine_manager = star_river.engine_manager.lock().await;
             let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
             let mut engine_guard = engine.lock().await;
-            let strategy_engine = engine_guard
-                .as_any_mut()
-                .downcast_mut::<StrategyEngine>()
-                .unwrap();
+            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
             strategy_engine.stop_strategy(strategy_id).await.unwrap();
         })
         .await;
@@ -425,21 +412,15 @@ pub async fn get_strategy_cache_keys(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
-    
+
     if let Ok(keys_map) = cache_keys {
         let keys_str = keys_map
             .keys()
             .map(|cache_key| cache_key.get_key_str())
             .collect::<Vec<String>>();
-        (
-            StatusCode::OK,
-            Json(NewApiResponse::success(keys_str)),
-        )
+        (StatusCode::OK, Json(NewApiResponse::success(keys_str)))
     } else {
         return (
             StatusCode::BAD_REQUEST,
@@ -455,10 +436,7 @@ pub async fn enable_strategy_data_push(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     strategy_engine
         .enable_live_strategy_data_push(strategy_id)
         .await
@@ -481,10 +459,7 @@ pub async fn disable_strategy_data_push(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     strategy_engine
         .disable_live_strategy_data_push(strategy_id)
         .await

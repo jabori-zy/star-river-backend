@@ -25,12 +25,7 @@ impl BacktestStrategyFunction {
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();
             let strategy_stats = strategy_context_guard.strategy_stats.clone();
             let play_index_watch_rx = strategy_context_guard.play_index_watch_rx.clone();
-            (
-                heartbeat,
-                virtual_trading_system,
-                strategy_stats,
-                play_index_watch_rx,
-            )
+            (heartbeat, virtual_trading_system, strategy_stats, play_index_watch_rx)
         };
 
         let mut node = StartNode::new(

@@ -1,9 +1,9 @@
-use tokio::sync::{mpsc, oneshot};
 use crate::system::DateTimeUtc;
+use crate::system::system_config::SystemConfigManager;
+use entity::strategy_sys_variable::Model as StrategySysVariableModel;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
-use entity::strategy_sys_variable::Model as StrategySysVariableModel;
-use crate::system::system_config::SystemConfigManager;
+use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString)]
 pub enum SysVariable {
@@ -40,6 +40,4 @@ impl From<StrategySysVariableModel> for StrategySysVariable {
             update_time: model.update_time,
         }
     }
-
-    
 }

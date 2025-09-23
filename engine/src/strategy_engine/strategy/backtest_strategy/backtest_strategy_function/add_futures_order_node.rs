@@ -19,13 +19,7 @@ impl BacktestStrategyFunction {
     ) -> Result<(), FuturesOrderNodeError> {
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
 
-        let (
-            heartbeat,
-            virtual_trading_system,
-            virtual_trading_system_event_receiver,
-            database,
-            play_index_watch_rx,
-        ) = {
+        let (heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
             let heartbeat = strategy_context_guard.heartbeat.clone();
             let virtual_trading_system = strategy_context_guard.virtual_trading_system.clone();

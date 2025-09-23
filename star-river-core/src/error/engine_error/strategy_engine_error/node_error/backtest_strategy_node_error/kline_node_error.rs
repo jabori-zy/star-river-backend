@@ -1,5 +1,5 @@
-use crate::error::error_trait::{Language, StarRiverErrorTrait};
 use crate::error::ErrorCode;
+use crate::error::error_trait::{Language, StarRiverErrorTrait};
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,10 +17,7 @@ pub enum KlineNodeError {
     },
 
     #[snafu(display("kline node config field [{field_name}]'s value is null"))]
-    ConfigFieldValueNull {
-        field_name: String,
-        backtrace: Backtrace,
-    },
+    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("kline node backtest config deserialization failed. reason: [{source}]"))]
     ConfigDeserializationFailed {
@@ -34,8 +31,7 @@ pub enum KlineNodeError {
         kline_key: String,
         play_index: u32,
         backtrace: Backtrace,
-
-    }
+    },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -94,9 +90,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
         match language {
             Language::English => self.to_string(),
             Language::Chinese => match self {
-                KlineNodeError::RegisterExchange {
-                    node_name, node_id, ..
-                } => {
+                KlineNodeError::RegisterExchange { node_name, node_id, .. } => {
                     format!("K线节点 [{}({})] 注册交易所错误", node_name, node_id)
                 }
                 KlineNodeError::ConfigFieldValueNull { field_name, .. } => {
@@ -105,7 +99,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::ConfigDeserializationFailed { source, .. } => {
                     format!("K线节点回测配置反序列化失败，原因: [{}]", source)
                 }
-                KlineNodeError::GetKlineData { node_name, kline_key, play_index, .. } => {
+                KlineNodeError::GetKlineData {
+                    node_name,
+                    kline_key,
+                    play_index,
+                    ..
+                } => {
                     format!("K线节点 [{node_name}] 获取K线数据失败，K线键: [{kline_key}]，缓存索引: [{play_index}]")
                 }
             },

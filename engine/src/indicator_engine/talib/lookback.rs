@@ -33,15 +33,11 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::MA(ma_config) => {
-                    let lookback =
-                        TA_MA_Lookback(ma_config.time_period, ma_config.ma_type.clone() as i32);
+                    let lookback = TA_MA_Lookback(ma_config.time_period, ma_config.ma_type.clone() as i32);
                     return lookback as usize;
                 }
                 IndicatorConfig::MAMA(mama_config) => {
-                    let lookback = TA_MAMA_Lookback(
-                        mama_config.fast_limit.into(),
-                        mama_config.slow_limit.into(),
-                    );
+                    let lookback = TA_MAMA_Lookback(mama_config.fast_limit.into(), mama_config.slow_limit.into());
                     return lookback as usize;
                 }
                 // IndicatorConfig::MAVP(mavp_config) => {
@@ -57,8 +53,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::SAR(sar_config) => {
-                    let lookback =
-                        TA_SAR_Lookback(sar_config.acceleration.into(), sar_config.maximum.into());
+                    let lookback = TA_SAR_Lookback(sar_config.acceleration.into(), sar_config.maximum.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::SAREXT(sarext_config) => {
@@ -260,8 +255,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::ADOSC(adosc_config) => {
-                    let lookback =
-                        TA_ADOSC_Lookback(adosc_config.fast_period, adosc_config.slow_period);
+                    let lookback = TA_ADOSC_Lookback(adosc_config.fast_period, adosc_config.slow_period);
                     return lookback as usize;
                 }
                 IndicatorConfig::OBV(_) => {
@@ -339,8 +333,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLABANDONEDBABY(cdlabandonedbaby_config) => {
-                    let lookback =
-                        TA_CDLABANDONEDBABY_Lookback(cdlabandonedbaby_config.penetration.into());
+                    let lookback = TA_CDLABANDONEDBABY_Lookback(cdlabandonedbaby_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLADVANCEBLOCK(_) => {
@@ -368,8 +361,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLDARKCLOUDCOVER(cdldarkcloudcover_config) => {
-                    let lookback =
-                        TA_CDLDARKCLOUDCOVER_Lookback(cdldarkcloudcover_config.penetration.into());
+                    let lookback = TA_CDLDARKCLOUDCOVER_Lookback(cdldarkcloudcover_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLDOJI(_) => {
@@ -385,14 +377,11 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLEVENINGDOJISTAR(cdleveningdojistar_config) => {
-                    let lookback = TA_CDLEVENINGDOJISTAR_Lookback(
-                        cdleveningdojistar_config.penetration.into(),
-                    );
+                    let lookback = TA_CDLEVENINGDOJISTAR_Lookback(cdleveningdojistar_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLEVENINGSTAR(cdleveningstar_config) => {
-                    let lookback =
-                        TA_CDLEVENINGSTAR_Lookback(cdleveningstar_config.penetration.into());
+                    let lookback = TA_CDLEVENINGSTAR_Lookback(cdleveningstar_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLGAPSIDESIDEWHITE(_) => {
@@ -498,14 +487,11 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLMORNINGDOJISTAR(cdlmorningdojistar_config) => {
-                    let lookback = TA_CDLMORNINGDOJISTAR_Lookback(
-                        cdlmorningdojistar_config.penetration.into(),
-                    );
+                    let lookback = TA_CDLMORNINGDOJISTAR_Lookback(cdlmorningdojistar_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLMORNINGSTAR(cdlmorningstar_config) => {
-                    let lookback =
-                        TA_CDLMORNINGSTAR_Lookback(cdlmorningstar_config.penetration.into());
+                    let lookback = TA_CDLMORNINGSTAR_Lookback(cdlmorningstar_config.penetration.into());
                     return lookback as usize;
                 }
                 IndicatorConfig::CDLONNECK(cdlonneck_config) => {

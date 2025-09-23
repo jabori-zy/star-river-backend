@@ -1,23 +1,15 @@
 use super::KlineNodeContext;
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
+use event_center::communication::strategy::StrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::StrategyCommand;
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::Event;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::start_node_event::StartNodeEvent;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use std::any::Any;
-use event_center::event::node_event::backtest_node_event::start_node_event::StartNodeEvent;
-
-
-
-
-
-
 
 #[async_trait]
 impl BacktestNodeContextTrait for KlineNodeContext {
@@ -58,13 +50,11 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         // 收到消息之后，获取对应index的k线数据
 
         match node_event {
-            BacktestNodeEvent::StartNode(start_node_event) => {
-                match start_node_event {
-                    StartNodeEvent::KlinePlay(play_event) => {
-                        self.send_kline(play_event).await;
-                    }
+            BacktestNodeEvent::StartNode(start_node_event) => match start_node_event {
+                StartNodeEvent::KlinePlay(play_event) => {
+                    self.send_kline(play_event).await;
                 }
-            }
+            },
             _ => {}
         }
     }
@@ -97,9 +87,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
         match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(
-                node_reset_params,
-            )) => {
+            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     self.handle_node_reset().await;
                     let response = NodeResetResponse::success(self.get_node_id().clone());

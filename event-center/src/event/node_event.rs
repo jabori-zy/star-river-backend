@@ -3,10 +3,9 @@ pub mod backtest_node_event;
 pub use backtest_node_event::BacktestNodeEvent;
 
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
 use serde::{Deserialize, Serialize};
+use star_river_core::system::DateTimeUtc;
 use std::ops::Deref;
-
 
 // 泛型事件结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,12 +17,7 @@ pub struct NodeEvent<T> {
 }
 
 impl<T> NodeEvent<T> {
-    pub fn new(
-        from_node_id: String,
-        from_node_name: String,
-        from_node_handle_id: String,
-        payload: T,
-    ) -> Self {
+    pub fn new(from_node_id: String, from_node_name: String, from_node_handle_id: String, payload: T) -> Self {
         let node_event_base = NodeEventBase::new(from_node_id, from_node_name, from_node_handle_id);
         Self {
             node_event_base,
@@ -81,7 +75,7 @@ impl NodeEventBase {
             from_node_id,
             from_node_name,
             from_node_handle_id,
-            datetime: Utc::now()
+            datetime: Utc::now(),
         }
     }
 }

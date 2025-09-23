@@ -1,6 +1,6 @@
-use star_river_core::cache::{CacheValue, CacheItem};
-use star_river_core::market::Kline;
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use star_river_core::cache::{CacheItem, CacheValue};
+use star_river_core::market::Kline;
 use std::sync::Arc;
 
 fn fixed_offset_time_from_millis(ms: i64) -> DateTime<Utc> {
@@ -28,7 +28,7 @@ pub fn generate_kline_cache_values(
     let mut cache_values = Vec::with_capacity(length);
 
     for i in 0..length {
-        let datetime = start_timestamp + Duration::milliseconds(i as i64 * interval_ms);   
+        let datetime = start_timestamp + Duration::milliseconds(i as i64 * interval_ms);
 
         // 生成模拟的价格数据
         let price_multiplier = 1.0 + (i as f64 * price_variation / length as f64);
@@ -120,26 +120,11 @@ pub fn generate_trending_kline_series(length: usize, trend_factor: f64) -> Vec<A
 /// * `Vec<(String, Vec<Arc<CacheValue>>)>` - 包含标签和数据的元组向量
 pub fn generate_test_datasets() -> Vec<(String, Vec<Arc<CacheValue>>)> {
     vec![
-        (
-            "small_10".to_string(),
-            generate_simple_kline_series(10, None, None),
-        ),
-        (
-            "medium_50".to_string(),
-            generate_simple_kline_series(50, None, None),
-        ),
-        (
-            "large_200".to_string(),
-            generate_simple_kline_series(200, None, None),
-        ),
-        (
-            "uptrend_30".to_string(),
-            generate_trending_kline_series(30, 0.5),
-        ),
-        (
-            "downtrend_30".to_string(),
-            generate_trending_kline_series(30, -0.3),
-        ),
+        ("small_10".to_string(), generate_simple_kline_series(10, None, None)),
+        ("medium_50".to_string(), generate_simple_kline_series(50, None, None)),
+        ("large_200".to_string(), generate_simple_kline_series(200, None, None)),
+        ("uptrend_30".to_string(), generate_trending_kline_series(30, 0.5)),
+        ("downtrend_30".to_string(), generate_trending_kline_series(30, -0.3)),
     ]
 }
 

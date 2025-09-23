@@ -1,10 +1,10 @@
 use crate::cache::Key;
 use crate::cache::*;
+use crate::utils::get_utc8_timestamp_millis;
 use deepsize::DeepSizeOf;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::utils::get_utc8_timestamp_millis;
 
 #[derive(Debug, Clone)]
 pub struct GenericCacheEntry<K: Clone + Debug + Into<Key>> {
@@ -135,10 +135,7 @@ impl<K: Clone + Debug + Into<Key>> CacheEntryTrait for GenericCacheEntry<K> {
     }
 
     fn get_memory_size(&self) -> u32 {
-        self.data
-            .iter()
-            .map(|value| value.deep_size_of() as u32)
-            .sum()
+        self.data.iter().map(|value| value.deep_size_of() as u32).sum()
     }
 }
 

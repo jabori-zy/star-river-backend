@@ -6,6 +6,8 @@ pub use symbol::Symbol;
 use std::fmt::Debug;
 
 use crate::cache::{CacheItem, CacheValue};
+use crate::error::star_river_error::*;
+use crate::system::DateTimeUtc;
 use deepsize::DeepSizeOf;
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
@@ -14,9 +16,6 @@ use std::fmt::Display;
 use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use crate::system::DateTimeUtc;
-use crate::error::star_river_error::*;
-
 
 pub type MT5Server = String;
 
@@ -122,7 +121,10 @@ impl FromStr for Exchange {
                         Ok(Exchange::Metatrader5(String::new()))
                     }
                 } else {
-                    Err(ParseExchangeFailedSnafu { exchange: s.to_string()}.build())
+                    Err(ParseExchangeFailedSnafu {
+                        exchange: s.to_string(),
+                    }
+                    .build())
                 }
             }
         }
@@ -139,20 +141,7 @@ where
 }
 
 // k线间隔
-#[derive(
-    Clone,
-    Serialize,
-    Deserialize,
-    Display,
-    EnumString,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Ord,
-    PartialOrd,
-    ToSchema,
-)]
+#[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, ToSchema)]
 pub enum KlineInterval {
     #[strum(serialize = "1m")]
     #[serde(rename = "1m")]
@@ -247,13 +236,6 @@ impl KlineInterval {
     }
 }
 
-
-
-
-
-
-
-
 pub trait MarketData: Serialize + Clone + Debug {
     fn to_json(&self) -> serde_json::Value;
 }
@@ -276,7 +258,14 @@ impl From<Kline> for CacheValue {
 
 impl Kline {
     pub fn new(datetime: DateTimeUtc, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Self {
-        Self { datetime, open, high, low, close, volume }
+        Self {
+            datetime,
+            open,
+            high,
+            low,
+            close,
+            volume,
+        }
     }
 
     pub fn datetime(&self) -> DateTimeUtc {

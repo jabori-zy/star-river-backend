@@ -18,20 +18,16 @@ use event_center::communication::strategy::backtest_strategy::{GetCurrentTimePar
 use event_center::communication::strategy::NodeResponse;
 use star_river_core::system::DateTimeUtc;
 
-
-
 impl FuturesOrderNodeContext {
     /// 发送trigger事件到第一个有连接的output_handle
     fn send_trigger_event(&self) -> bool {
         let all_output_handles = self.get_all_output_handles();
         let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-        
+
         // 使用filter过滤出符合条件的handle，然后取第一个
         if let Some((handle_id, handle)) = all_output_handles
             .iter()
-            .filter(|(handle_id, handle)| {
-                handle_id != &&strategy_output_handle_id && handle.connect_count > 0
-            })
+            .filter(|(handle_id, handle)| handle_id != &&strategy_output_handle_id && handle.connect_count > 0)
             .next()
         {
             let payload = TriggerPayload::new(self.get_play_index());
@@ -55,17 +51,15 @@ impl FuturesOrderNodeContext {
     ) -> Result<(), FuturesOrderNodeError> {
         // tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?} 来自节点: {}", self.get_node_id(), input_handle_id, node_event, from_node_id);
         match node_event {
-            BacktestNodeEvent::Common(common_evt) => {
-                match common_evt {
-                    CommonEvent::Trigger(trigger_evt) => {
-                        if trigger_evt.play_index == self.get_play_index() {
-                            self.send_trigger_event();
-                        }
+            BacktestNodeEvent::Common(common_evt) => match common_evt {
+                CommonEvent::Trigger(trigger_evt) => {
+                    if trigger_evt.play_index == self.get_play_index() {
+                        self.send_trigger_event();
                     }
-                    
-                    _ => {}
                 }
-            }
+
+                _ => {}
+            },
             BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(condition_match_evt)) => {
                 if condition_match_evt.play_index == self.get_play_index() {
                     // 根据input_handle_id获取订单配置
@@ -74,7 +68,12 @@ impl FuturesOrderNodeContext {
                             .futures_order_configs
                             .iter()
                             .find(|config| config.input_handle_id == *input_handle_id)
-                            .ok_or(OrderConfigNotFoundSnafu { input_handle_id: input_handle_id.to_string() }.build())?
+                            .ok_or(
+                                OrderConfigNotFoundSnafu {
+                                    input_handle_id: input_handle_id.to_string(),
+                                }
+                                .build(),
+                            )?
                             .clone()
                     };
                     // 创建订单
@@ -93,8 +92,6 @@ impl FuturesOrderNodeContext {
         Ok(())
     }
 
-
-
     pub(super) async fn send_order_status_event(
         &mut self,
         virtual_order: VirtualOrder,
@@ -109,150 +106,186 @@ impl FuturesOrderNodeContext {
             virtual_order.order_config_id
         );
         // 订单配置id对应的all_output_handle_id
-        let config_all_status_output_handle_id = format!("{}_all_status_output_{}", node_id, virtual_order.order_config_id);
+        let config_all_status_output_handle_id =
+            format!("{}_all_status_output_{}", node_id, virtual_order.order_config_id);
         tracing::debug!("output_handle_id: {}", order_status_output_handle_id);
-        
+
         let order_status_output_handle = self.get_output_handle(&order_status_output_handle_id);
         let config_all_status_output_handle = self.get_output_handle(&config_all_status_output_handle_id);
 
         // 如果总输出与订单状态输出都没有连接，则发送trigger事件
         if config_all_status_output_handle.connect_count == 0 && order_status_output_handle.connect_count == 0 {
-            tracing::debug!("all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event");
+            tracing::debug!(
+                "all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event"
+            );
             self.send_trigger_event();
             return;
         }
-        
+
         // 如果all_status_output_handle的connect_count大于0，则发送事件
         if config_all_status_output_handle.connect_count > 0 {
-            let order_event = self.get_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+            let order_event = self.get_order_node_event(
+                config_all_status_output_handle_id.clone(),
+                virtual_order.clone(),
+                event_type,
+            );
             if let Some(order_event) = order_event {
-                tracing::debug!("send order event through all_status_output_handle: {}", config_all_status_output_handle_id);
+                tracing::debug!(
+                    "send order event through all_status_output_handle: {}",
+                    config_all_status_output_handle_id
+                );
                 let _ = config_all_status_output_handle.send(order_event.into());
             }
         }
         if order_status_output_handle.connect_count > 0 {
-            let order_event = self.get_order_node_event(order_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+            let order_event =
+                self.get_order_node_event(order_status_output_handle_id.clone(), virtual_order.clone(), event_type);
             if let Some(order_event) = order_event {
-                tracing::debug!("send order event through order_status_output_handle: {}", order_status_output_handle_id);
+                tracing::debug!(
+                    "send order event through order_status_output_handle: {}",
+                    order_status_output_handle_id
+                );
                 let _ = order_status_output_handle.send(order_event.into());
             }
         }
 
-        let order_event = self.get_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+        let order_event = self.get_order_node_event(
+            config_all_status_output_handle_id.clone(),
+            virtual_order.clone(),
+            event_type,
+        );
         let strategy_output_handle = self.get_strategy_output_handle();
         if let Some(order_event) = order_event {
-            tracing::debug!("send order event through strategy_output_handle: {}", config_all_status_output_handle_id);
+            tracing::debug!(
+                "send order event through strategy_output_handle: {}",
+                config_all_status_output_handle_id
+            );
             let _ = strategy_output_handle.send(order_event.into());
         }
     }
 
-    fn get_order_node_event(&self, output_handle_id: String, virtual_order: VirtualOrder, event_type: &VirtualTradingSystemEvent) -> Option<FuturesOrderNodeEvent> {
+    fn get_order_node_event(
+        &self,
+        output_handle_id: String,
+        virtual_order: VirtualOrder,
+        event_type: &VirtualTradingSystemEvent,
+    ) -> Option<FuturesOrderNodeEvent> {
         let node_id = self.get_node_id().clone();
         let node_name = self.get_node_name().clone();
-        
-        
+
         let order_event: Option<FuturesOrderNodeEvent> = match event_type {
             // 期货订单事件
             VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
                 let payload = FuturesOrderCreatedPayload::new(virtual_order.clone());
-                Some(FuturesOrderCreatedEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    FuturesOrderCreatedEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
             VirtualTradingSystemEvent::FuturesOrderFilled(_) => {
                 let payload = FuturesOrderFilledPayload::new(virtual_order.clone());
-                Some(FuturesOrderFilledEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    FuturesOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload)
+                        .into(),
                 )
-                .into())
             }
             VirtualTradingSystemEvent::FuturesOrderCanceled(_) => {
                 let payload = FuturesOrderCanceledPayload::new(virtual_order.clone());
-                Some(FuturesOrderCanceledEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    FuturesOrderCanceledEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
 
             // 止盈订单事件
             VirtualTradingSystemEvent::TakeProfitOrderCreated(_) => {
                 let payload = TakeProfitOrderCreatedPayload::new(virtual_order.clone());
-                Some(TakeProfitOrderCreatedEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    TakeProfitOrderCreatedEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
             VirtualTradingSystemEvent::TakeProfitOrderFilled(_) => {
                 let payload = TakeProfitOrderFilledPayload::new(virtual_order.clone());
-                Some(TakeProfitOrderFilledEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    TakeProfitOrderFilledEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
             VirtualTradingSystemEvent::TakeProfitOrderCanceled(_) => {
                 let payload = TakeProfitOrderCanceledPayload::new(virtual_order.clone());
-                Some(TakeProfitOrderCanceledEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    TakeProfitOrderCanceledEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
 
             // 止损订单事件
             VirtualTradingSystemEvent::StopLossOrderCreated(_) => {
                 let payload = StopLossOrderCreatedPayload::new(virtual_order.clone());
-                Some(StopLossOrderCreatedEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    StopLossOrderCreatedEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
             VirtualTradingSystemEvent::StopLossOrderFilled(_) => {
                 let payload = StopLossOrderFilledPayload::new(virtual_order.clone());
-                Some(StopLossOrderFilledEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    StopLossOrderFilledEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
             VirtualTradingSystemEvent::StopLossOrderCanceled(_) => {
                 let payload = StopLossOrderCanceledPayload::new(virtual_order.clone());
-                Some(StopLossOrderCanceledEvent::new(
-                    node_id.clone(),
-                    node_name.clone(),
-                    output_handle_id.clone(),
-                    payload,
+                Some(
+                    StopLossOrderCanceledEvent::new(
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        payload,
+                    )
+                    .into(),
                 )
-                .into())
             }
-            _ => None
+            _ => None,
         };
         order_event
     }
-
-
 
     // 处理虚拟交易系统事件
     pub(crate) async fn handle_virtual_trading_system_event(
@@ -278,11 +311,15 @@ impl FuturesOrderNodeContext {
                 match virtual_trading_system_event {
                     VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
                         tracing::debug!("[{}] receive futures order created event", self.get_node_name());
-                        self.add_unfilled_virtual_order(&input_handle_id, order.clone())
-                            .await;
+                        self.add_unfilled_virtual_order(&input_handle_id, order.clone()).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event)
                             .await;
-                        let message = OrderCreatedMsg::new(order.order_id, order.order_config_id, order.open_price, order.order_side.to_string());
+                        let message = OrderCreatedMsg::new(
+                            order.order_id,
+                            order.order_config_id,
+                            order.open_price,
+                            order.order_side.to_string(),
+                        );
                         let log_event = StrategyRunningLogEvent::success(
                             self.get_strategy_id().clone(),
                             self.get_node_id().clone(),
@@ -299,12 +336,16 @@ impl FuturesOrderNodeContext {
                     VirtualTradingSystemEvent::FuturesOrderFilled(_) => {
                         self.remove_unfilled_virtual_order(&input_handle_id, order.order_id)
                             .await;
-                        self.add_virtual_order_history(&input_handle_id, order.clone())
-                            .await;
+                        self.add_virtual_order_history(&input_handle_id, order.clone()).await;
                         self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event)
                             .await;
-                        let message = OrderFilledMsg::new(self.get_node_name().clone(), order.order_id, order.quantity, order.open_price);
+                        let message = OrderFilledMsg::new(
+                            self.get_node_name().clone(),
+                            order.order_id,
+                            order.quantity,
+                            order.open_price,
+                        );
                         let log_event = StrategyRunningLogEvent::success(
                             self.get_strategy_id().clone(),
                             self.get_node_id().clone(),
@@ -321,8 +362,7 @@ impl FuturesOrderNodeContext {
                     VirtualTradingSystemEvent::FuturesOrderCanceled(_) => {
                         self.remove_unfilled_virtual_order(&input_handle_id, order.order_id)
                             .await;
-                        self.add_virtual_order_history(&input_handle_id, order.clone())
-                            .await;
+                        self.add_virtual_order_history(&input_handle_id, order.clone()).await;
                         self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event)
                             .await;
@@ -363,11 +403,7 @@ impl FuturesOrderNodeContext {
 
         if let Some(transaction) = transaction {
             if transaction.node_id == self.get_node_id().clone() {
-                let input_handle_id = format!(
-                    "{}_input_{}",
-                    self.get_node_id(),
-                    transaction.order_config_id
-                );
+                let input_handle_id = format!("{}_input_{}", self.get_node_id(), transaction.order_config_id);
                 self.add_virtual_transaction_history(&input_handle_id, transaction.clone())
                     .await;
                 let payload = TransactionCreatedPayload::new(transaction.clone());
@@ -386,7 +422,6 @@ impl FuturesOrderNodeContext {
         Ok(())
     }
 
-
     pub(super) async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
         let (tx, rx) = oneshot::channel();
         let get_current_time_params = GetCurrentTimeParams::new(self.get_node_id().clone(), tx);
@@ -397,9 +432,9 @@ impl FuturesOrderNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(
-                get_current_time_response,
-            )) => return Ok(get_current_time_response.current_time),
+            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(get_current_time_response)) => {
+                return Ok(get_current_time_response.current_time);
+            }
             _ => return Err("获取当前时间失败".to_string()),
         }
     }

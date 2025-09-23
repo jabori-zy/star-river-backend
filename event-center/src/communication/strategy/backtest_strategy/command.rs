@@ -1,11 +1,9 @@
 use super::super::{
-    NodeCommand, NodeCommandTrait, NodeResponder, StrategyCommand, StrategyCommandTrait,
-    StrategyResponder,
+    NodeCommand, NodeCommandTrait, NodeResponder, StrategyCommand, StrategyCommandTrait, StrategyResponder,
 };
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
 use star_river_core::custom_type::NodeId;
-
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum BacktestStrategyCommand {
@@ -166,7 +164,6 @@ pub struct GetMinIntervalSymbolsParams {
     pub responder: NodeResponder,
 }
 
-
 impl GetMinIntervalSymbolsParams {
     pub fn new(node_id: NodeId, responder: NodeResponder) -> Self {
         Self {
@@ -182,10 +179,6 @@ impl From<GetMinIntervalSymbolsParams> for NodeCommand {
         NodeCommand::BacktestNode(BacktestNodeCommand::GetMinIntervalSymbols(params))
     }
 }
-
-
-
-
 
 #[derive(Debug)]
 pub struct GetCurrentTimeParams {

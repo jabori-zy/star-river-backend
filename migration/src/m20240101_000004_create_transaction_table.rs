@@ -23,39 +23,19 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Transaction::StrategyId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Transaction::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Transaction::NodeId).string().not_null())
                     .col(ColumnDef::new(Transaction::Exchange).string().not_null())
                     .col(ColumnDef::new(Transaction::Symbol).string().not_null())
-                    .col(
-                        ColumnDef::new(Transaction::ExchangePositionId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Transaction::ExchangePositionId).big_integer().not_null())
                     .col(
                         ColumnDef::new(Transaction::ExchangeTransactionId)
                             .big_integer()
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Transaction::ExchangeOrderId)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(Transaction::TransactionType)
-                            .string()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(Transaction::TransactionSide)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Transaction::ExchangeOrderId).big_integer().not_null())
+                    .col(ColumnDef::new(Transaction::TransactionType).string().not_null())
+                    .col(ColumnDef::new(Transaction::TransactionSide).string().not_null())
                     .col(ColumnDef::new(Transaction::Quantity).double().not_null())
                     .col(ColumnDef::new(Transaction::Price).double().not_null())
                     .col(

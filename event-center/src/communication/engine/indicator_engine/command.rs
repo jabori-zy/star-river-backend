@@ -1,18 +1,18 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
+use chrono::Utc;
 use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};
 use std::fmt::Debug;
-use chrono::Utc;
 
 use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 pub enum IndicatorEngineCommand {
-    RegisterIndicator(RegisterIndicatorParams), // 注册指标
+    RegisterIndicator(RegisterIndicatorParams),                 // 注册指标
     CalculateHistoryIndicator(CalculateHistoryIndicatorParams), // 计算历史指标
-    CalculateIndicator(CalculateIndicatorParams), // 计算指标
+    CalculateIndicator(CalculateIndicatorParams),               // 计算指标
 }
 
 impl EngineCommandTrait for IndicatorEngineCommand {
@@ -55,7 +55,7 @@ pub struct RegisterIndicatorParams {
     pub interval: KlineInterval,           // 时间周期
     pub indicator_config: IndicatorConfig, // 指标配置
     pub sender: String,                    // 发送者
-    pub datetime: DateTimeUtc,   // 命令时间戳
+    pub datetime: DateTimeUtc,             // 命令时间戳
     pub responder: EngineResponder,        // 响应者
 }
 
@@ -160,4 +160,3 @@ impl From<CalculateIndicatorParams> for EngineCommand {
         EngineCommand::IndicatorEngine(IndicatorEngineCommand::CalculateIndicator(params))
     }
 }
-

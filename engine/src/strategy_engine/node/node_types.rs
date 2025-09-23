@@ -134,12 +134,9 @@ pub struct NodeOutputHandle {
 impl NodeOutputHandle {
     pub fn send(&self, event: BacktestNodeEvent) -> Result<usize, String> {
         if self.connect_count > 0 {
-            self.node_event_sender.send(event).map_err(|e| {
-                format!(
-                    "节点{}的出口{}发送消息失败: {}",
-                    self.node_id, self.output_handle_id, e
-                )
-            })
+            self.node_event_sender
+                .send(event)
+                .map_err(|e| format!("节点{}的出口{}发送消息失败: {}", self.node_id, self.output_handle_id, e))
         } else {
             // 如果connect_count为1(默认的一个是连接到策略的)，则不发送消息
             Err(format!(

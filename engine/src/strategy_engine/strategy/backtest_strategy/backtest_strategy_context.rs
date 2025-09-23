@@ -1,70 +1,72 @@
-mod playback_handler;
+mod data_query;
 mod event_handler;
 mod node_lifecycle;
 mod node_operation;
+mod playback_handler;
 mod strategy_operation;
-mod data_query;
 
 use super::super::StrategyCommandPublisher;
+use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
+use chrono::{DateTime, Utc};
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use event_center::communication::strategy::{NodeCommandReceiver, BacktestStrategyResponse};
+use event_center::communication::engine::EngineResponse;
+use event_center::communication::engine::cache_engine::GetCacheParams;
 use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheLengthMultiParams};
+use event_center::communication::strategy::GetStartNodeConfigParams;
+use event_center::communication::strategy::NodeCommand;
 use event_center::communication::strategy::StrategyResponse;
+use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
+use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
+use event_center::communication::strategy::backtest_strategy::response::{
+    GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyCacheKeysResponse,
+};
+use event_center::communication::strategy::{BacktestStrategyResponse, NodeCommandReceiver};
+use event_center::event::Event;
+use event_center::event::node_event::NodeEventTrait;
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use event_center::event::node_event::backtest_node_event::CommonEvent;
+use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
+use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
+use event_center::event::strategy_event::StrategyRunningLogEvent;
+use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use event_center::event::strategy_event::backtest_strategy_event::PlayFinishedEvent;
 use event_center::singleton::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
+use star_river_core::cache::CacheValue;
+use star_river_core::cache::Key;
+use star_river_core::cache::key::KlineKey;
+use star_river_core::custom_type::{NodeId, PlayIndex};
+use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::order::virtual_order::VirtualOrder;
+use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
+use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
+use star_river_core::strategy_stats::StatsSnapshot;
+use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::collections::HashMap;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::broadcast;
 use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
-use star_river_core::cache::Key;
-use star_river_core::custom_type::{NodeId, PlayIndex};
-use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use star_river_core::order::virtual_order::VirtualOrder;
-use star_river_core::position::virtual_position::VirtualPosition;
-use event_center::event::strategy_event::StrategyRunningLogEvent;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
-use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
-use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
-use star_river_core::strategy_stats::StatsSnapshot;
-use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
-use chrono::{DateTime, Utc};
-use star_river_core::cache::key::KlineKey;
-use event_center::communication::strategy::GetStartNodeConfigParams;
-use star_river_core::cache::CacheValue;
-use event_center::communication::engine::cache_engine::GetCacheParams;
-use event_center::communication::engine::EngineResponse;
-use event_center::communication::strategy::NodeCommand;
-use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
-use event_center::communication::strategy::backtest_strategy::response::{GetStrategyCacheKeysResponse, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse};
-use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
-use event_center::event::Event;
-use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::backtest_node_event::CommonEvent;
-use event_center::event::node_event::NodeEventTrait;
-use event_center::event::strategy_event::backtest_strategy_event::PlayFinishedEvent;
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 
 #[derive(Debug)]
 // 回测策略上下文
 pub struct BacktestStrategyContext {
     pub strategy_config: StrategyConfig,
     pub strategy_id: i32,
-    pub strategy_name: String,                                // 策略名称
+    pub strategy_name: String,                                  // 策略名称
     pub graph: Graph<Box<dyn BacktestNodeTrait>, (), Directed>, // 策略的拓扑图
     pub node_indices: HashMap<String, NodeIndex>,               // 节点索引
     pub cancel_task_token: CancellationToken,                   // 取消令牌
@@ -78,23 +80,22 @@ pub struct BacktestStrategyContext {
     pub total_signal_count: Arc<RwLock<i32>>,                           // 信号计数
     pub play_index: Arc<RwLock<i32>>,                                   // 播放索引
     pub is_playing: Arc<RwLock<bool>>,                                  // 是否正在播放
-    pub initial_play_speed: Arc<RwLock<u32>>, // 初始播放速度 （从策略配置中加载）
-    pub cancel_play_token: CancellationToken, // 取消播放令牌
-    pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, // 虚拟交易系统
+    pub initial_play_speed: Arc<RwLock<u32>>,                           // 初始播放速度 （从策略配置中加载）
+    pub cancel_play_token: CancellationToken,                           // 取消播放令牌
+    pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,       // 虚拟交易系统
     pub strategy_inner_event_publisher: Option<StrategyInnerEventPublisher>, // 策略内部事件发布器
-    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>, // 策略统计模块
-    pub strategy_stats_event_receiver: StrategyStatsEventReceiver, // 策略统计事件接收器
-    pub(super) play_index_watch_tx: tokio::sync::watch::Sender<i32>, // 播放索引监听器
-    pub(super) play_index_watch_rx: tokio::sync::watch::Receiver<i32>, // 播放索引监听器
-    pub(super) leaf_node_ids: Vec<NodeId>,           // 叶子节点id
-    pub(super) execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>, // 执行完毕的节点id
-    pub(super) execute_over_notify: Arc<Notify>,     // 已经更新播放索引的节点id通知
-    pub(super) current_time: Arc<RwLock<DateTime<Utc>>>, // 当前时间
-    pub(super) batch_id: Uuid,                       // 回测批次id
-    pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>, // 运行日志
-    pub(super) keys: Arc<RwLock<HashMap<Key, NodeId>>>,                     // 缓存键 -> 其所属节点id
-    pub(super) min_interval_symbols: Vec<KlineKey>,                        // 最小周期交易对
-    
+    pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,             // 策略统计模块
+    pub strategy_stats_event_receiver: StrategyStatsEventReceiver,      // 策略统计事件接收器
+    pub(super) play_index_watch_tx: tokio::sync::watch::Sender<i32>,    // 播放索引监听器
+    pub(super) play_index_watch_rx: tokio::sync::watch::Receiver<i32>,  // 播放索引监听器
+    pub(super) leaf_node_ids: Vec<NodeId>,                              // 叶子节点id
+    pub(super) execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,         // 执行完毕的节点id
+    pub(super) execute_over_notify: Arc<Notify>,                        // 已经更新播放索引的节点id通知
+    pub(super) current_time: Arc<RwLock<DateTime<Utc>>>,                // 当前时间
+    pub(super) batch_id: Uuid,                                          // 回测批次id
+    pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>,  // 运行日志
+    pub(super) keys: Arc<RwLock<HashMap<Key, NodeId>>>,                 // 缓存键 -> 其所属节点id
+    pub(super) min_interval_symbols: Vec<KlineKey>,                     // 最小周期交易对
 }
 
 impl BacktestStrategyContext {
@@ -108,21 +109,16 @@ impl BacktestStrategyContext {
         let cancel_task_token = CancellationToken::new();
         let cancel_play_token = CancellationToken::new();
 
-        let (play_index_watch_tx, play_index_watch_rx) =
-            tokio::sync::watch::channel::<PlayIndex>(-1);
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(
+        let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<PlayIndex>(-1);
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(play_index_watch_rx.clone())));
+
+        let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
+        let strategy_stats: Arc<RwLock<BacktestStrategyStats>> = Arc::new(RwLock::new(BacktestStrategyStats::new(
+            strategy_id,
+            virtual_trading_system.clone(),
+            strategy_stats_event_tx,
             play_index_watch_rx.clone(),
         )));
-
-        let (strategy_stats_event_tx, strategy_stats_event_rx) =
-            broadcast::channel::<StrategyStatsEvent>(100);
-        let strategy_stats: Arc<RwLock<BacktestStrategyStats>> =
-            Arc::new(RwLock::new(BacktestStrategyStats::new(
-                strategy_id,
-                virtual_trading_system.clone(),
-                strategy_stats_event_tx,
-                play_index_watch_rx.clone(),
-            )));
 
         Self {
             strategy_config,
@@ -195,10 +191,7 @@ impl BacktestStrategyContext {
         self.node_command_receiver = Arc::new(Mutex::new(Some(node_command_receiver)));
     }
 
-    pub fn set_strategy_inner_event_publisher(
-        &mut self,
-        strategy_inner_event_publisher: StrategyInnerEventPublisher,
-    ) {
+    pub fn set_strategy_inner_event_publisher(&mut self, strategy_inner_event_publisher: StrategyInnerEventPublisher) {
         self.strategy_inner_event_publisher = Some(strategy_inner_event_publisher);
     }
 
@@ -249,24 +242,6 @@ impl BacktestStrategyContext {
     pub fn get_node_command_receiver(&self) -> Arc<Mutex<Option<NodeCommandReceiver>>> {
         self.node_command_receiver.clone()
     }
-
-    
 }
 
-impl BacktestStrategyContext {
-
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-
-
-}
+impl BacktestStrategyContext {}

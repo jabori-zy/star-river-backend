@@ -2,8 +2,8 @@ use crate::api::account_api::ExchangeType;
 use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
 use crate::api::cache_api::CacheKeyType;
 use crate::api::response::ApiResponse;
-use star_river_core::account::AccountConfig;
 use crate::api::system_api::SystemConfigUpdateParams;
+use star_river_core::account::AccountConfig;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -39,7 +39,6 @@ use utoipa::OpenApi;
         crate::api::strategy_api::backtest::get_strategy_status,
         crate::api::strategy_api::backtest::get_running_log,
         crate::api::strategy_api::backtest::get_strategy_data,
-        
         // 账户相关路径
         crate::api::account_api::get_account_configs,
         crate::api::account_api::add_account_config,

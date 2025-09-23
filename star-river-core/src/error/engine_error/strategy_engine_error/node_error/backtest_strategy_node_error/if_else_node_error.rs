@@ -1,5 +1,5 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -7,10 +7,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum IfElseNodeError {
     #[snafu(display("if else node backtest config field value is null: {field_name}"))]
-    ConfigFieldValueNull {
-        field_name: String,
-        backtrace: Backtrace,
-    },
+    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("if else node backtest config deserialization failed. reason: {source}"))]
     ConfigDeserializationFailed {
@@ -51,8 +48,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for IfElseNodeError {
     fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            IfElseNodeError::ConfigFieldValueNull { .. }
-                | IfElseNodeError::ConfigDeserializationFailed { .. }
+            IfElseNodeError::ConfigFieldValueNull { .. } | IfElseNodeError::ConfigDeserializationFailed { .. }
         )
     }
 

@@ -1,20 +1,13 @@
-use super::{
-    BacktestStrategyContext,
-    BacktestNodeRunState,
-    BacktestNodeTrait,
-};
+use super::{BacktestNodeRunState, BacktestNodeTrait, BacktestStrategyContext};
+use snafu::{IntoError, ResultExt};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use snafu::{ResultExt, IntoError};
 use tokio::time::Duration;
 
-
 impl BacktestStrategyContext {
-        // 初始化所有节点的方法，不持有外部锁
-    pub async fn init_node(
-        context: Arc<RwLock<Self>>,
-    ) -> Result<(), BacktestStrategyError> {
+    // 初始化所有节点的方法，不持有外部锁
+    pub async fn init_node(context: Arc<RwLock<Self>>) -> Result<(), BacktestStrategyError> {
         // 短暂持有锁获取节点列表
         let nodes = {
             let context_guard = context.read().await;
@@ -25,11 +18,10 @@ impl BacktestStrategyContext {
         for node in nodes {
             let mut node_clone = node.clone();
 
-            let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> =
-                tokio::spawn(async move {
-                    node_clone.init().await.context(NodeInitSnafu {})?;
-                    Ok(())
-                });
+            let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
+                node_clone.init().await.context(NodeInitSnafu {})?;
+                Ok(())
+            });
 
             let node_name = node.get_node_name().await;
             let node_id = node.get_node_id().await;
@@ -91,7 +83,6 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
-
     pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
         let mut node_clone = node.clone();
         let node_name = node_clone.get_node_name().await;
@@ -142,7 +133,6 @@ impl BacktestStrategyContext {
         Err(format!("节点 {} 未能进入Stopped状态", node_id))
     }
 
-
     pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
         let start_time = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(timeout_secs);
@@ -160,10 +150,7 @@ impl BacktestStrategyContext {
 
             // 如果所有节点都已停止，返回成功
             if all_stopped {
-                tracing::info!(
-                    "所有节点已停止，共耗时{}ms",
-                    start_time.elapsed().as_millis()
-                );
+                tracing::info!("所有节点已停止，共耗时{}ms", start_time.elapsed().as_millis());
                 return Ok(true);
             }
 
@@ -177,5 +164,4 @@ impl BacktestStrategyContext {
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         }
     }
-
 }

@@ -53,10 +53,7 @@ fn test_adx(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_adx(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ADX: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ADX: 计算失败 - {:?}", e),
@@ -70,10 +67,7 @@ fn test_adxr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_adxr(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ADXR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ADXR: 计算失败 - {:?}", e),
@@ -92,10 +86,7 @@ fn test_apo(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_apo(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  APO: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  APO: 计算失败 - {:?}", e),
@@ -109,10 +100,7 @@ fn test_aroon(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>
     match CalculateIndicatorFunction::calculate_aroon(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  AROON: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  AROON: 计算失败 - {:?}", e),
@@ -126,10 +114,7 @@ fn test_aroonosc(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_aroonosc(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  AROONOSC: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  AROONOSC: 计算失败 - {:?}", e),
@@ -141,10 +126,7 @@ fn test_bop(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_bop(kline_series.to_vec()) {
         Ok(results) => {
             println!("  BOP: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  BOP: 计算失败 - {:?}", e),
@@ -158,10 +140,7 @@ fn test_cci(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_cci(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  CCI: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  CCI: 计算失败 - {:?}", e),
@@ -178,10 +157,7 @@ fn test_cmo(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_cmo(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  CMO: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  CMO: 计算失败 - {:?}", e),
@@ -195,10 +171,7 @@ fn test_dx(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]) 
     match CalculateIndicatorFunction::calculate_dx(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  DX: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  DX: 计算失败 - {:?}", e),
@@ -217,10 +190,7 @@ fn test_macd(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_macd(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MACD: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MACD: 计算失败 - {:?}", e),
@@ -242,10 +212,7 @@ fn test_macdext(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValu
     match CalculateIndicatorFunction::calculate_macdext(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MACDEXT: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MACDEXT: 计算失败 - {:?}", e),
@@ -262,10 +229,7 @@ fn test_macdfix(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValu
     match CalculateIndicatorFunction::calculate_macdfix(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MACDFIX: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MACDFIX: 计算失败 - {:?}", e),
@@ -279,10 +243,7 @@ fn test_mfi(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_mfi(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MFI: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MFI: 计算失败 - {:?}", e),
@@ -296,10 +257,7 @@ fn test_minus_di(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_minus_di(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MINUS_DI: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MINUS_DI: 计算失败 - {:?}", e),
@@ -313,10 +271,7 @@ fn test_minus_dm(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_minus_dm(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MINUS_DM: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MINUS_DM: 计算失败 - {:?}", e),
@@ -333,10 +288,7 @@ fn test_mom(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_mom(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  MOM: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  MOM: 计算失败 - {:?}", e),
@@ -350,10 +302,7 @@ fn test_plus_di(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValu
     match CalculateIndicatorFunction::calculate_plus_di(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  PLUS_DI: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  PLUS_DI: 计算失败 - {:?}", e),
@@ -367,10 +316,7 @@ fn test_plus_dm(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValu
     match CalculateIndicatorFunction::calculate_plus_dm(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  PLUS_DM: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  PLUS_DM: 计算失败 - {:?}", e),
@@ -389,10 +335,7 @@ fn test_ppo(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_ppo(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  PPO: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  PPO: 计算失败 - {:?}", e),
@@ -409,10 +352,7 @@ fn test_roc(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_roc(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ROC: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ROC: 计算失败 - {:?}", e),
@@ -429,10 +369,7 @@ fn test_rocp(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_rocp(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ROCP: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ROCP: 计算失败 - {:?}", e),
@@ -449,10 +386,7 @@ fn test_rocr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_rocr(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ROCR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ROCR: 计算失败 - {:?}", e),
@@ -469,10 +403,7 @@ fn test_rocr100(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValu
     match CalculateIndicatorFunction::calculate_rocr100(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ROCR100: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ROCR100: 计算失败 - {:?}", e),
@@ -489,10 +420,7 @@ fn test_rsi(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>])
     match CalculateIndicatorFunction::calculate_rsi(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  RSI: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  RSI: 计算失败 - {:?}", e),
@@ -512,10 +440,7 @@ fn test_stoch(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>
     match CalculateIndicatorFunction::calculate_stoch(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  STOCH: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  STOCH: 计算失败 - {:?}", e),
@@ -533,10 +458,7 @@ fn test_stochf(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue
     match CalculateIndicatorFunction::calculate_stochf(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  STOCHF: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  STOCHF: 计算失败 - {:?}", e),
@@ -556,10 +478,7 @@ fn test_stochrsi(kline_series: &[std::sync::Arc<star_river_core::cache::CacheVal
     match CalculateIndicatorFunction::calculate_stochrsi(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  STOCHRSI: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  STOCHRSI: 计算失败 - {:?}", e),
@@ -576,10 +495,7 @@ fn test_trix(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>]
     match CalculateIndicatorFunction::calculate_trix(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  TRIX: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  TRIX: 计算失败 - {:?}", e),
@@ -597,10 +513,7 @@ fn test_ultosc(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue
     match CalculateIndicatorFunction::calculate_ultosc(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  ULTOSC: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  ULTOSC: 计算失败 - {:?}", e),
@@ -614,10 +527,7 @@ fn test_willr(kline_series: &[std::sync::Arc<star_river_core::cache::CacheValue>
     match CalculateIndicatorFunction::calculate_willr(kline_series.to_vec(), &config) {
         Ok(results) => {
             println!("  WILLR: 成功计算 {} 个结果", results.len());
-            let result_list = results
-                .iter()
-                .map(|v| v.to_list())
-                .collect::<Vec<Vec<f64>>>();
+            let result_list = results.iter().map(|v| v.to_list()).collect::<Vec<Vec<f64>>>();
             println!("    结果: {:?}", result_list);
         }
         Err(e) => println!("  WILLR: 计算失败 - {:?}", e),

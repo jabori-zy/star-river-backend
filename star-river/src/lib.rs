@@ -5,25 +5,25 @@ pub mod star_river;
 pub mod websocket;
 
 use crate::routes::create_app_routes;
-use crate::star_river::init_app;
 use crate::star_river::StarRiver;
+use crate::star_river::init_app;
 use axum::extract::State;
 use axum::http::HeaderValue;
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
-use time::macros::format_description;
 use time::UtcOffset;
+use time::macros::format_description;
 use tokio;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::instrument;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
 use tracing_subscriber::fmt::time::OffsetTime;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
@@ -46,8 +46,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
 
     // 设置为UTC+8时区（北京时间）
     let offset = UtcOffset::current_local_offset().expect("should get local offset!");
-    let time_format =
-        format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:6]");
+    let time_format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:6]");
     let timer = OffsetTime::new(offset, time_format);
     let console_layer = layer()
         .with_writer(stdout)
@@ -109,10 +108,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     print_startup_info(addr);
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-    let server = axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    );
+    let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>());
     let graceful = server.with_graceful_shutdown(async {
         rx.await.ok();
         tracing::info!("开始执行优雅关闭流程...");
@@ -203,17 +199,9 @@ async fn bind_with_retry(
             Ok(listener) => return Ok(listener),
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
                 if retries >= max_retries {
-                    return Err(format!(
-                        "端口 {} 被占用，重试 {} 次后仍然失败",
-                        addr.port(),
-                        max_retries
-                    )
-                    .into());
+                    return Err(format!("端口 {} 被占用，重试 {} 次后仍然失败", addr.port(), max_retries).into());
                 }
-                tracing::warn!(
-                    "端口 {} 被占用，尝试清理所有 StarRiver 相关进程...",
-                    addr.port()
-                );
+                tracing::warn!("端口 {} 被占用，尝试清理所有 StarRiver 相关进程...", addr.port());
 
                 // 等待进程完全退出
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -250,9 +238,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
     // 2. 检查并清理带有数字后缀的 Metatrader5-*.exe 进程
     // 使用tasklist命令查找所有进程，然后筛选Metatrader5-*进程（兼容老旧机型）
     // 完整命令: tasklist /FO CSV
-    let output = std::process::Command::new("tasklist")
-        .args(&["/FO", "CSV"])
-        .output();
+    let output = std::process::Command::new("tasklist").args(&["/FO", "CSV"]).output();
 
     match output {
         Ok(output) => {
@@ -265,9 +251,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
                 if line.contains("Metatrader5-") && line.contains(".exe") {
                     if let Some(process_name) = line.split(',').nth(0) {
                         let process_name = process_name.trim_matches('"');
-                        if process_name.starts_with("Metatrader5-")
-                            && process_name.ends_with(".exe")
-                        {
+                        if process_name.starts_with("Metatrader5-") && process_name.ends_with(".exe") {
                             found_processes.push(process_name.to_string());
                         }
                     }
@@ -275,10 +259,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if !found_processes.is_empty() {
-                tracing::warn!(
-                    "发现Metatrader5-*.exe进程: {:?}, 正在清理...",
-                    found_processes
-                );
+                tracing::warn!("发现Metatrader5-*.exe进程: {:?}, 正在清理...", found_processes);
 
                 // 逐个清理找到的进程
                 for process_name in found_processes {
@@ -299,9 +280,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. 如果上面的通配符方法不起作用，可以尝试列出所有进程并逐一匹配
     // 完整命令: tasklist /FO CSV
-    let output = std::process::Command::new("tasklist")
-        .args(&["/FO", "CSV"])
-        .output()?;
+    let output = std::process::Command::new("tasklist").args(&["/FO", "CSV"]).output()?;
 
     let output_str = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = output_str.lines().collect();
@@ -345,11 +324,7 @@ fn clean_mei_temp_dirs() {
                         if path.is_dir() {
                             match std::fs::remove_dir_all(&path) {
                                 Ok(_) => tracing::info!("已删除_MEI临时文件夹: {}", path.display()),
-                                Err(e) => tracing::warn!(
-                                    "删除_MEI临时文件夹失败: {}, 错误: {}",
-                                    path.display(),
-                                    e
-                                ),
+                                Err(e) => tracing::warn!("删除_MEI临时文件夹失败: {}, 错误: {}", path.display(), e),
                             }
                         }
                     }

@@ -7,15 +7,15 @@ use axum::http::StatusCode;
 use engine::strategy_engine::StrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
+use star_river_core::cache::CacheItem;
 use star_river_core::cache::Key;
 use star_river_core::engine::EngineName;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
-use utoipa::{IntoParams, ToSchema};
 use std::str::FromStr;
-use star_river_core::cache::CacheItem;
+use utoipa::{IntoParams, ToSchema};
 
 #[utoipa::path(
     get,
@@ -36,10 +36,7 @@ pub async fn get_virtual_orders(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let virtual_orders = strategy_engine.get_virtual_orders(strategy_id).await;
     if let Ok(virtual_orders) = virtual_orders {
         (
@@ -82,13 +79,8 @@ pub async fn get_current_positions(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
-    let current_positions = strategy_engine
-        .get_current_virtual_positions(strategy_id)
-        .await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let current_positions = strategy_engine.get_current_virtual_positions(strategy_id).await;
     if let Ok(current_positions) = current_positions {
         (
             StatusCode::OK,
@@ -130,10 +122,7 @@ pub async fn get_virtual_transactions(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let virtual_transactions = strategy_engine.get_virtual_transactions(strategy_id).await;
     if let Ok(virtual_transactions) = virtual_transactions {
         (
@@ -191,13 +180,8 @@ pub async fn get_stats_history(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
-    let stats_history = strategy_engine
-        .get_stats_history(strategy_id, params.play_index)
-        .await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let stats_history = strategy_engine.get_stats_history(strategy_id, params.play_index).await;
     if let Ok(stats_history) = stats_history {
         (
             StatusCode::OK,
@@ -239,13 +223,8 @@ pub async fn get_history_positions(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
-    let history_positions = strategy_engine
-        .get_history_virtual_positions(strategy_id)
-        .await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let history_positions = strategy_engine.get_history_virtual_positions(strategy_id).await;
     if let Ok(history_positions) = history_positions {
         (
             StatusCode::OK,
@@ -287,16 +266,10 @@ pub async fn get_strategy_status(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let strategy_status = strategy_engine.get_strategy_status(strategy_id).await;
     if let Ok(strategy_status) = strategy_status {
-        (
-            StatusCode::OK,
-            Json(NewApiResponse::success(strategy_status)),
-        )
+        (StatusCode::OK, Json(NewApiResponse::success(strategy_status)))
     } else {
         (
             StatusCode::BAD_REQUEST,
@@ -321,17 +294,11 @@ pub async fn get_strategy_status(
 pub async fn get_running_log(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (
-    StatusCode,
-    Json<NewApiResponse<Vec<StrategyRunningLogEvent>>>,
-) {
+) -> (StatusCode, Json<NewApiResponse<Vec<StrategyRunningLogEvent>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let running_log = strategy_engine.get_running_log(strategy_id).await;
     if let Ok(running_log) = running_log {
         (StatusCode::OK, Json(NewApiResponse::success(running_log)))
@@ -342,7 +309,6 @@ pub async fn get_running_log(
         )
     }
 }
-
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema, Debug)]
 #[schema(
@@ -357,7 +323,6 @@ pub struct GetStrategyDataQuery {
     pub play_index: i32,
     pub key: String,
 }
-
 
 #[utoipa::path(
     get,
@@ -382,25 +347,17 @@ pub async fn get_strategy_data(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
 
     match Key::from_str(&params.key) {
-        Ok(key) => {
-            strategy_engine
-                .get_strategy_data(strategy_id, params.play_index, key)
-                .await
-                .map(|data| {
-                    let result: Vec<serde_json::Value> = data
-                        .iter()
-                        .map(|cache_value| cache_value.to_json())
-                        .collect();
-                    (StatusCode::OK, Json(NewApiResponse::success(result)))
-                })
-                .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))))
-        }
+        Ok(key) => strategy_engine
+            .get_strategy_data(strategy_id, params.play_index, key)
+            .await
+            .map(|data| {
+                let result: Vec<serde_json::Value> = data.iter().map(|cache_value| cache_value.to_json()).collect();
+                (StatusCode::OK, Json(NewApiResponse::success(result)))
+            })
+            .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }

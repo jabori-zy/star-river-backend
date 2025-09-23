@@ -1,10 +1,9 @@
 use super::super::{EngineResponse, ResponseTrait};
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::market::{Exchange, KlineInterval};
+use star_river_core::system::DateTimeUtc;
 use std::sync::Arc;
-
 
 #[derive(Debug)]
 pub enum MarketEngineResponse {
@@ -24,15 +23,9 @@ impl ResponseTrait for MarketEngineResponse {
 
     fn error(&self) -> Arc<dyn StarRiverErrorTrait> {
         match self {
-            MarketEngineResponse::SubscribeKlineStream(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            MarketEngineResponse::UnsubscribeKlineStream(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
-            MarketEngineResponse::GetKlineHistory(response) => {
-                response.error.as_ref().unwrap().clone()
-            }
+            MarketEngineResponse::SubscribeKlineStream(response) => response.error.as_ref().unwrap().clone(),
+            MarketEngineResponse::UnsubscribeKlineStream(response) => response.error.as_ref().unwrap().clone(),
+            MarketEngineResponse::GetKlineHistory(response) => response.error.as_ref().unwrap().clone(),
         }
     }
 

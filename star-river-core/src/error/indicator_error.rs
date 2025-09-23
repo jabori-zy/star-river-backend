@@ -1,5 +1,5 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -43,8 +43,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorError {
     fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            IndicatorError::UnsupportedIndicatorType { .. }
-                | IndicatorError::CreateIndicatorFailed { .. }
+            IndicatorError::UnsupportedIndicatorType { .. } | IndicatorError::CreateIndicatorFailed { .. }
         )
     }
 
@@ -56,9 +55,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorError {
                     format!("不支持的指标类型 [{}]", indicator_type)
                 }
                 IndicatorError::CreateIndicatorFailed {
-                    indicator_type,
-                    source,
-                    ..
+                    indicator_type, source, ..
                 } => {
                     format!("创建指标 [{}] 失败，原因: [{}]", indicator_type, source)
                 }

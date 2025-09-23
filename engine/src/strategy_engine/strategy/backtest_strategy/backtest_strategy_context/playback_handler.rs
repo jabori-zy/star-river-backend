@@ -1,18 +1,14 @@
 use super::{
-    BacktestStrategyContext,
-    BacktestStrategyRunState,
-    BacktestNodeTrait,
-    EventCenterSingleton,
+    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyRunState, EventCenterSingleton, NodeResetParams,
     PlayFinishedEvent,
-    NodeResetParams,
 };
-use std::sync::Arc;
-use tokio::sync::{Notify, RwLock};
-use tokio_util::sync::CancellationToken;
 use star_river_core::custom_type::{PlayIndex, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
-use uuid::Uuid;
+use std::sync::Arc;
 use tokio::sync::oneshot;
+use tokio::sync::{Notify, RwLock};
+use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 #[derive(Debug)]
 struct PlayContext {
@@ -61,15 +57,16 @@ impl BacktestStrategyContext {
         loop {
             // 检查取消状态
             if context.child_cancel_play_token.is_cancelled() {
-                tracing::info!("[{}]: received cancel signal, exit play task", context.strategy_name.clone());
+                tracing::info!(
+                    "[{}]: received cancel signal, exit play task",
+                    context.strategy_name.clone()
+                );
                 *context.is_playing.write().await = false;
                 break;
             }
 
             // 检查暂停状态
-            if let Some(should_break) =
-                Self::handle_pause_state(&context, &context.strategy_name).await
-            {
+            if let Some(should_break) = Self::handle_pause_state(&context, &context.strategy_name).await {
                 if should_break {
                     break;
                 }
@@ -84,14 +81,17 @@ impl BacktestStrategyContext {
             if play_index < total_signal_count {
                 // 因为从-1开始，所以先+1，再发送信号
                 let new_play_index = Self::increment_played_signal_count(&context).await;
-                tracing::debug!("[{}]: start play kline. total_signal_count: {}, current_play_index: {}", context.strategy_name.clone(), total_signal_count, new_play_index);
+                tracing::debug!(
+                    "[{}]: start play kline. total_signal_count: {}, current_play_index: {}",
+                    context.strategy_name.clone(),
+                    total_signal_count,
+                    new_play_index
+                );
                 context.play_index_watch_tx.send(new_play_index).unwrap();
                 // 发送后，等待所有叶子节点执行完毕
                 context.execute_over_notify.notified().await;
 
                 // Self::send_play_signal(&context, new_play_index).await;
-
-            
 
                 // 检查播放完毕
                 if new_play_index == total_signal_count - 1 {
@@ -136,7 +136,10 @@ impl BacktestStrategyContext {
         let speed = *context.initial_play_speed.read().await;
 
         if speed < 1 {
-            tracing::warn!("[{}]: play speed less than 1, adjusted to 1", context.strategy_name.clone());
+            tracing::warn!(
+                "[{}]: play speed less than 1, adjusted to 1",
+                context.strategy_name.clone()
+            );
             1
         } else {
             speed
@@ -184,14 +187,9 @@ impl BacktestStrategyContext {
     }
 
     // 处理播放完毕, 发送播放完毕事件
-    async fn handle_play_finished(
-        context: &PlayContext,
-        strategy_name: &str,
-        play_index: PlayIndex,
-    ) {
+    async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: PlayIndex) {
         let finish_event = PlayFinishedEvent::new(context.strategy_id, context.strategy_name.clone(), play_index);
         let _ = EventCenterSingleton::publish(finish_event.into()).await;
-
 
         tracing::info!("[{}]: k线播放完毕，正常退出播放任务", strategy_name);
         *context.is_playing.write().await = false;
@@ -200,11 +198,7 @@ impl BacktestStrategyContext {
     // 处理播放延迟
     // true 退出循环
     // false 继续循环
-    async fn handle_play_delay(
-        context: &PlayContext,
-        strategy_name: &str,
-        play_speed: u32,
-    ) -> bool {
+    async fn handle_play_delay(context: &PlayContext, strategy_name: &str, play_speed: u32) -> bool {
         // play_speed代表1秒播放多少根k线， 100代表1秒播放100根k线
         // 1000 / 100 = 10ms
         let delay_millis = 1000 / play_speed as u64;
@@ -224,10 +218,12 @@ impl BacktestStrategyContext {
 
     // 播放k线
     pub async fn play(&mut self) -> Result<(), BacktestStrategyError> {
-        
         // 判断是否已播放完毕
         if *self.play_index.read().await == *self.total_signal_count.read().await - 1 {
-            tracing::warn!("[{}]: already played finished, cannot play more kline", self.strategy_name.clone());
+            tracing::warn!(
+                "[{}]: already played finished, cannot play more kline",
+                self.strategy_name.clone()
+            );
             return Err(PlayFinishedSnafu {}.build());
         }
 
@@ -284,7 +280,7 @@ impl BacktestStrategyContext {
         self.cancel_play_token.cancel();
         // 重置信号计数
         *self.play_index.write().await = -1; // 重置为-1，表示未播放
-                                             // 重置播放状态
+        // 重置播放状态
         *self.is_playing.write().await = false;
         // 替换已经取消的令牌
         self.cancel_play_token = CancellationToken::new();
@@ -299,7 +295,10 @@ impl BacktestStrategyContext {
         }
 
         if *self.play_index.read().await > *self.total_signal_count.read().await {
-            tracing::warn!("[{}] already played finished, cannot play more kline", self.strategy_name.clone());
+            tracing::warn!(
+                "[{}] already played finished, cannot play more kline",
+                self.strategy_name.clone()
+            );
             return false;
         }
 
@@ -349,8 +348,8 @@ impl BacktestStrategyContext {
             // 先增加单次播放计数
             let play_index = self.increment_single_play_count().await;
             tracing::info!(
-                "[{}]: start play one kline. total_signal_count: {}, current_play_index: {}", 
-                self.strategy_name.clone(), 
+                "[{}]: start play one kline. total_signal_count: {}, current_play_index: {}",
+                self.strategy_name.clone(),
                 total_signal_count,
                 play_index
             );

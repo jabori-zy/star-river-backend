@@ -8,12 +8,12 @@ pub mod cache_engine;
 pub mod strategy_engine; // 策略引擎
 
 use async_trait::async_trait;
-use event_center::communication::engine::EngineCommand;
-use event_center::event::Event;
 use event_center::Channel;
 use event_center::EventCenterSingleton;
-use futures::stream::select_all;
+use event_center::communication::engine::EngineCommand;
+use event_center::event::Event;
 use futures::StreamExt;
+use futures::stream::select_all;
 use star_river_core::engine::EngineName;
 use std::any::Any;
 use std::collections::HashMap;
@@ -96,10 +96,7 @@ pub struct EngineEventReceiver;
 
 impl EngineEventReceiver {
     pub fn get_event_receivers(engine_name: &EngineName) -> Vec<Channel> {
-        ENGINE_EVENT_RECEIVERS
-            .get(engine_name)
-            .cloned()
-            .unwrap_or_default()
+        ENGINE_EVENT_RECEIVERS.get(engine_name).cloned().unwrap_or_default()
     }
 }
 
@@ -161,9 +158,7 @@ impl EngineFunction {
             let context_guard = context.read().await;
             let engine_name = context_guard.get_engine_name();
             // let command_receiver = context.read().await.get_command_receiver();
-            let command_receiver = EventCenterSingleton::get_command_receiver(&engine_name)
-                .await
-                .unwrap();
+            let command_receiver = EventCenterSingleton::get_command_receiver(&engine_name).await.unwrap();
             (engine_name, command_receiver)
         };
         tracing::debug!("{}: 开始监听命令", engine_name);

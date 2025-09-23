@@ -1,8 +1,8 @@
+use super::super::super::strategy_event::StrategyRunningLogEvent;
 use super::super::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::PlayIndex;
-use super::super::super::strategy_event::StrategyRunningLogEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, From)]
 pub enum CommonEvent {
@@ -10,8 +10,8 @@ pub enum CommonEvent {
     Trigger(TriggerEvent), // 触发事件
     // KlinePlayFinished(KlinePlayFinishedEvent), // k线播放完毕
     // KlinePlay(KlinePlayEvent),                 // K线跳动(信号计数:根据这个值去请求缓存的下标)
-    ExecuteOver(ExecuteOverEvent),             // 执行完毕
-    RunningLog(StrategyRunningLogEvent),        // 运行日志
+    ExecuteOver(ExecuteOverEvent),       // 执行完毕
+    RunningLog(StrategyRunningLogEvent), // 运行日志
 }
 
 // 类型别名

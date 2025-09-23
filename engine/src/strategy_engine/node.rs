@@ -16,8 +16,8 @@ use star_river_core::error::engine_error::strategy_engine_error::node_error::Bac
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio::sync::RwLock;
+use tokio::sync::broadcast;
 
 #[async_trait]
 pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
@@ -65,11 +65,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     async fn get_all_output_handles(&self) -> Vec<NodeOutputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard
-            .get_all_output_handle()
-            .values()
-            .cloned()
-            .collect()
+        context_guard.get_all_output_handle().values().cloned().collect()
     }
 
     async fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
@@ -115,8 +111,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
             _ => return,
         };
 
-        self.add_output_handle(default_output_handle_id.to_string(), tx)
-            .await;
+        self.add_output_handle(default_output_handle_id.to_string(), tx).await;
         tracing::debug!(
             "{}: 设置节点默认出口成功: {}",
             node_name,
@@ -130,11 +125,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_message_receivers_mut().push(receiver);
     }
     // 添加出口
-    async fn add_output_handle(
-        &mut self,
-        handle_id: String,
-        sender: broadcast::Sender<BacktestNodeEvent>,
-    ) {
+    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<BacktestNodeEvent>) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
             output_handle_id: handle_id.clone(),
@@ -205,10 +196,7 @@ pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
     }
 
     // 更新节点状态
-    async fn update_node_state(
-        &mut self,
-        event: LiveNodeStateTransitionEvent,
-    ) -> Result<(), String>;
+    async fn update_node_state(&mut self, event: LiveNodeStateTransitionEvent) -> Result<(), String>;
 }
 
 impl Clone for Box<dyn LiveNodeTrait> {
@@ -269,17 +257,10 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     async fn get_all_output_handles(&self) -> Vec<NodeOutputHandle> {
         let context = self.get_context();
         let context_guard = context.read().await;
-        context_guard
-            .get_all_output_handles()
-            .values()
-            .cloned()
-            .collect()
+        context_guard.get_all_output_handles().values().cloned().collect()
     }
 
-    async fn get_node_event_sender(
-        &self,
-        handle_id: String,
-    ) -> broadcast::Sender<BacktestNodeEvent> {
+    async fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
         let context = self.get_context();
         let context_guard = context.read().await;
         context_guard.get_node_event_sender(handle_id).clone()
@@ -349,8 +330,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
             _ => return,
         };
 
-        self.add_output_handle(default_output_handle_id.to_string(), tx)
-            .await;
+        self.add_output_handle(default_output_handle_id.to_string(), tx).await;
         tracing::debug!(
             "{}: 设置节点默认出口成功: {}",
             node_name,
@@ -364,11 +344,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         context_guard.get_all_input_handles_mut().push(receiver);
     }
     // 添加出口
-    async fn add_output_handle(
-        &mut self,
-        handle_id: String,
-        sender: broadcast::Sender<BacktestNodeEvent>,
-    ) {
+    async fn add_output_handle(&mut self, handle_id: String, sender: broadcast::Sender<BacktestNodeEvent>) {
         let node_output_handle = NodeOutputHandle {
             node_id: self.get_node_id().await,
             output_handle_id: handle_id.clone(),

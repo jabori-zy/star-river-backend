@@ -1,6 +1,6 @@
 use crate::api::cache_api::{get_cache_keys, get_cache_value, get_memory_size};
 use crate::star_river::StarRiver;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 
 pub fn create_cache_routes() -> Router<StarRiver> {
     Router::new()

@@ -1,11 +1,11 @@
 use crate::api::response::ApiResponse;
+use crate::api::response::NewApiResponse;
 use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path};
 use axum::http::StatusCode;
 use engine::strategy_engine::StrategyEngine;
 use star_river_core::engine::EngineName;
-use crate::api::response::NewApiResponse;
 
 #[utoipa::path(
     post,
@@ -26,24 +26,17 @@ pub async fn play(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let result = strategy_engine.play(strategy_id).await;
     if let Ok(()) = result {
-        (
-            StatusCode::OK,
-            Json(NewApiResponse::success(())) 
-        )
+        (StatusCode::OK, Json(NewApiResponse::success(())))
     } else {
         (
             StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(result.unwrap_err()))
+            Json(NewApiResponse::error(result.unwrap_err())),
         )
     }
 }
-        
 
 #[utoipa::path(
     post,
@@ -65,22 +58,19 @@ pub async fn play_one(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let played_signal_count = strategy_engine.play_one_kline(strategy_id).await;
     if let Ok(played_signal_count) = played_signal_count {
         (
             StatusCode::OK,
             Json(NewApiResponse::success(serde_json::json!({
-                    "played_signal_count": played_signal_count
-                })))
+                "played_signal_count": played_signal_count
+            }))),
         )
     } else {
         (
             StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(played_signal_count.unwrap_err()))
+            Json(NewApiResponse::error(played_signal_count.unwrap_err())),
         )
     }
 }
@@ -105,23 +95,16 @@ pub async fn pause(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let result = strategy_engine.pause(strategy_id).await;
     if let Ok(()) = result {
-        (
-            StatusCode::OK,
-            Json(NewApiResponse::success(())),
-        )
+        (StatusCode::OK, Json(NewApiResponse::success(())))
     } else {
         (
             StatusCode::BAD_REQUEST,
             Json(NewApiResponse::error(result.unwrap_err())),
         )
     }
-    
 }
 
 #[utoipa::path(
@@ -144,10 +127,7 @@ pub async fn get_play_index(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let play_index = strategy_engine.get_play_index(strategy_id).await;
     if let Ok(play_index) = play_index {
         (
@@ -192,16 +172,10 @@ pub async fn reset(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard
-        .as_any_mut()
-        .downcast_mut::<StrategyEngine>()
-        .unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
     let result = strategy_engine.reset(strategy_id).await;
     if let Ok(()) = result {
-        (
-            StatusCode::OK,
-            Json(NewApiResponse::success(())),
-        )
+        (StatusCode::OK, Json(NewApiResponse::success(())))
     } else {
         (
             StatusCode::BAD_REQUEST,

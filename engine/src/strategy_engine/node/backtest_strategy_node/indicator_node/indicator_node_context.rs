@@ -2,41 +2,36 @@ mod context_impl;
 mod event_handler;
 
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use event_center::EventCenterSingleton;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::{AddCacheKeyParams, GetCacheParams};
 use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
-use event_center::EventCenterSingleton;
-use star_river_core::cache::key::{IndicatorKey, KlineKey};
 use star_river_core::cache::CacheValue;
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::oneshot;
 use tokio::sync::RwLock;
+use tokio::sync::oneshot;
 use tokio::time::Duration;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
-    pub is_registered: Arc<RwLock<bool>>,  // 是否已经注册指标
-    selected_kline_key: KlineKey,               // 回测K线缓存键
-    indicator_keys: HashMap<IndicatorKey,(i32, String)>, // 指标缓存键 -> (配置id, 输出句柄id)
+    pub is_registered: Arc<RwLock<bool>>,                 // 是否已经注册指标
+    selected_kline_key: KlineKey,                         // 回测K线缓存键
+    indicator_keys: HashMap<IndicatorKey, (i32, String)>, // 指标缓存键 -> (配置id, 输出句柄id)
     min_interval_symbols: Vec<KlineKey>,
 }
 
-
-
 impl IndicatorNodeContext {
-
     pub fn new(
-        base_context: BacktestBaseNodeContext, 
-        backtest_config: IndicatorNodeBacktestConfig, 
+        base_context: BacktestBaseNodeContext,
+        backtest_config: IndicatorNodeBacktestConfig,
         selected_kline_key: KlineKey,
-        indicator_keys: HashMap<IndicatorKey,(i32, String)>,
+        indicator_keys: HashMap<IndicatorKey, (i32, String)>,
     ) -> Self {
         Self {
             base_context,
@@ -56,10 +51,9 @@ impl IndicatorNodeContext {
         &self.min_interval_symbols
     }
 
-    pub fn get_indicator_keys_ref(&self) -> &HashMap<IndicatorKey,(i32, String)> {
+    pub fn get_indicator_keys_ref(&self) -> &HashMap<IndicatorKey, (i32, String)> {
         &self.indicator_keys
     }
-
 
     // 注册指标（初始化指标）向指标引擎发送注册请求
     pub async fn register_indicator_cache_key(&self) -> Result<bool, String> {
@@ -121,25 +115,17 @@ impl IndicatorNodeContext {
                             return Ok(get_cache_data_response.cache_data[0].clone());
                         }
                     }
-                    _ => {
-                        return Err(format!(
-                            "节点{}收到回测K线缓存数据失败",
-                            self.base_context.node_id
-                        ))
-                    }
+                    _ => return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id)),
                 }
             }
         }
-        Err(format!(
-            "节点{}收到回测K线缓存数据失败",
-            self.base_context.node_id
-        ))
+        Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id))
     }
 
     // 计算指标(一次性将指标全部计算完成)
     pub async fn calculate_indicator(&self) -> Result<bool, String> {
         let mut is_all_success = true;
-        
+
         let kline_key = self.selected_kline_key.clone();
         let min_interval_symbols = self.get_min_interval_symbols_ref();
 
@@ -151,10 +137,8 @@ impl IndicatorNodeContext {
 
         let strategy_id = self.get_strategy_id().clone();
         let node_id = self.get_node_id().clone();
-        
-        
-        for (ind_key, _ ) in self.indicator_keys.iter() {
-        
+
+        for (ind_key, _) in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
             let calculate_backtest_indicator_params = CalculateHistoryIndicatorParams::new(
                 strategy_id.clone(),
@@ -176,4 +160,3 @@ impl IndicatorNodeContext {
         Ok(is_all_success)
     }
 }
-

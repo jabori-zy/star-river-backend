@@ -1,8 +1,8 @@
 use crate::custom_type::AccountId;
+use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use crate::error::exchange_client_error::ExchangeClientError;
 use crate::error::exchange_client_error::Mt5Error;
-use crate::error::ErrorCode;
 use crate::market::Exchange;
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
@@ -32,10 +32,7 @@ pub enum ExchangeEngineError {
     #[snafu(transparent)]
     Database { source: DbErr, backtrace: Backtrace },
 
-    #[snafu(display(
-        "account {account_id}'s exchange type {:?} is unsupported",
-        exchange_type
-    ))]
+    #[snafu(display("account {account_id}'s exchange type {:?} is unsupported", exchange_type))]
     UnsupportedExchangeType {
         exchange_type: Exchange,
         account_id: AccountId,
@@ -63,9 +60,7 @@ pub enum ExchangeEngineError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display(
-        "exchange client type conversion failed for account {account_id}: {message}"
-    ))]
+    #[snafu(display("exchange client type conversion failed for account {account_id}: {message}"))]
     ExchangeClientTypeConversionFailed {
         message: String,
         account_id: AccountId,
@@ -210,8 +205,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     ExchangeEngineError::NotImplemented { .. } => 1022,
 
                     // This should never happen due to outer match, but needed for completeness
-                    ExchangeEngineError::ExchangeClientError { .. }
-                    | ExchangeEngineError::Mt5 { .. } => unreachable!(),
+                    ExchangeEngineError::ExchangeClientError { .. } | ExchangeEngineError::Mt5 { .. } => unreachable!(),
                 };
                 format!("{}_{:04}", prefix, code)
             }
@@ -275,9 +269,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 }
             }
             ExchangeEngineError::EventPublishingFailed {
-                account_id,
-                event_type,
-                ..
+                account_id, event_type, ..
             } => {
                 if let Some(acc_id) = account_id {
                     ctx.insert("account_id", acc_id.to_string());
@@ -392,10 +384,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     account_id,
                     ..
                 } => {
-                    format!(
-                        "账户 {} 的交易所类型 {:?} 不支持",
-                        account_id, exchange_type
-                    )
+                    format!("账户 {} 的交易所类型 {:?} 不支持", account_id, exchange_type)
                 }
                 ExchangeEngineError::Mt5 { source } => {
                     format!("MetaTrader5错误: {}", source.get_error_message(language))
@@ -411,10 +400,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     } else {
                         String::new()
                     };
-                    format!(
-                        "账户 {} 未找到交易所客户端: {}{}",
-                        account_id, message, op_str
-                    )
+                    format!("账户 {} 未找到交易所客户端: {}{}", account_id, message, op_str)
                 }
                 ExchangeEngineError::ExchangeClientOperationFailed {
                     message,
@@ -457,9 +443,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     msg
                 }
                 ExchangeEngineError::DatabaseConnectionFailed {
-                    message,
-                    database_url,
-                    ..
+                    message, database_url, ..
                 } => {
                     let url_str = if let Some(url) = database_url {
                         format!(", 数据库URL: {}", url)

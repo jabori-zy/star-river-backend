@@ -1,26 +1,11 @@
 use super::{
-    BacktestStrategyContext,
-    VirtualOrder,
-    VirtualPosition,
-    VirtualTransaction,
-    StatsSnapshot,
-    Key,
-    GetCacheLengthMultiParams,
-    EventCenterSingleton,
-    CacheEngineResponse,
-    GetCacheParams,
-    EngineResponse,
-    GetDataFailedSnafu,
-    BacktestStrategyError,
-    PlayIndex,
-    CacheValue,
+    BacktestStrategyContext, BacktestStrategyError, CacheEngineResponse, CacheValue, EngineResponse,
+    EventCenterSingleton, GetCacheLengthMultiParams, GetCacheParams, GetDataFailedSnafu, Key, PlayIndex, StatsSnapshot,
+    VirtualOrder, VirtualPosition, VirtualTransaction,
 };
+use std::sync::Arc;
 use tokio::sync::oneshot;
 use tracing::instrument;
-use std::sync::Arc;
-
-
-
 
 impl BacktestStrategyContext {
     // 获取所有的virtual order
@@ -53,14 +38,17 @@ impl BacktestStrategyContext {
         strategy_stats.get_stats_history(play_index).await
     }
 
-
     // 初始化信号计数
     #[instrument(skip(self))]
     pub async fn get_signal_count(&mut self) -> Result<i32, String> {
         // // 初始化信号计数
         // let min_cache_length = self.cache_lengths.values().min().cloned().unwrap_or(0);
         // Ok(min_cache_length as i32)
-        let min_interval_keys: Vec<Key> = self.get_min_interval_symbols().iter().map(|key| Key::from(key.clone())).collect();
+        let min_interval_keys: Vec<Key> = self
+            .get_min_interval_symbols()
+            .iter()
+            .map(|key| Key::from(key.clone()))
+            .collect();
 
         // 1. 从缓存引擎获取每一个symbol的缓存长度
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -92,7 +80,12 @@ impl BacktestStrategyContext {
                         // 检查所有symbol的缓存长度是否都相同
                         for (key, cache_length) in symbol_cache_lengths.iter() {
                             if *cache_length != min_cache_length {
-                                return Err(format!("symbol {} cache length {} is not same as min cache length {}", key.get_symbol(), cache_length, min_cache_length));
+                                return Err(format!(
+                                    "symbol {} cache length {} is not same as min cache length {}",
+                                    key.get_symbol(),
+                                    cache_length,
+                                    min_cache_length
+                                ));
                             }
                         }
 
@@ -110,16 +103,20 @@ impl BacktestStrategyContext {
         }
     }
 
-
-    pub async fn get_strategy_data(&self, play_index: PlayIndex, key: Key) -> Result<Vec<Arc<CacheValue>>, BacktestStrategyError> {
+    pub async fn get_strategy_data(
+        &self,
+        play_index: PlayIndex,
+        key: Key,
+    ) -> Result<Vec<Arc<CacheValue>>, BacktestStrategyError> {
         // 安全检查：验证key是否属于当前策略
         let keys_map = self.keys.read().await;
         if !keys_map.contains_key(&key) {
             return Err(GetDataFailedSnafu {
                 strategy_name: self.strategy_name.clone(),
                 key: key.get_key_str(),
-                play_index: play_index as u32
-            }.fail()?);
+                play_index: play_index as u32,
+            }
+            .fail()?);
         }
         drop(keys_map); // 释放锁
 
@@ -164,21 +161,20 @@ impl BacktestStrategyContext {
                 EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(get_cache_data_response)) => {
                     Ok(get_cache_data_response.cache_data)
                 }
-                _ => {
-                    Err(GetDataFailedSnafu {
-                        strategy_name: self.strategy_name.clone(),
-                        key: key.get_key_str(),
-                        play_index: play_index as u32
-                    }.fail()?)
+                _ => Err(GetDataFailedSnafu {
+                    strategy_name: self.strategy_name.clone(),
+                    key: key.get_key_str(),
+                    play_index: play_index as u32,
                 }
+                .fail()?),
             }
         } else {
             Err(GetDataFailedSnafu {
                 strategy_name: self.strategy_name.clone(),
                 key: key.get_key_str(),
-                play_index: play_index as u32
-            }.fail()?)
+                play_index: play_index as u32,
+            }
+            .fail()?)
         }
     }
-
 }

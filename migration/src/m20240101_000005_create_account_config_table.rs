@@ -23,28 +23,12 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(AccountConfig::AccountName)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AccountConfig::AccountName).string().not_null())
                     .col(ColumnDef::new(AccountConfig::Exchange).string().not_null())
-                    .col(
-                        ColumnDef::new(AccountConfig::IsAvailable)
-                            .boolean()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AccountConfig::IsAvailable).boolean().not_null())
                     .col(ColumnDef::new(AccountConfig::IsDelete).boolean().not_null())
-                    .col(
-                        ColumnDef::new(AccountConfig::SortIndex)
-                            .integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(AccountConfig::AccountConfig)
-                            .json()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AccountConfig::SortIndex).integer().not_null())
+                    .col(ColumnDef::new(AccountConfig::AccountConfig).json().not_null())
                     .col(
                         ColumnDef::new(AccountConfig::CreateTime)
                             .timestamp()

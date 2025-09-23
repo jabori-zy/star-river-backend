@@ -1,10 +1,8 @@
 mod market_engine_context;
 mod market_engine_type;
 use crate::EngineName;
-use crate::{
-    exchange_engine::ExchangeEngine, market_engine::market_engine_context::MarketEngineContext,
-};
 use crate::{Engine, EngineContext};
+use crate::{exchange_engine::ExchangeEngine, market_engine::market_engine_context::MarketEngineContext};
 use async_trait::async_trait;
 use star_river_core::custom_type::AccountId;
 use star_river_core::market::{KlineInterval, Symbol};
@@ -52,23 +50,14 @@ impl MarketEngine {
 
     pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, String> {
         let context_read = self.context.read().await;
-        let market_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<MarketEngineContext>()
-            .unwrap();
-        let symbol_list = market_engine_context_guard
-            .get_symbol_list(account_id)
-            .await
-            .unwrap();
+        let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
+        let symbol_list = market_engine_context_guard.get_symbol_list(account_id).await.unwrap();
         Ok(symbol_list)
     }
 
     pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Vec<KlineInterval> {
         let context_read = self.context.read().await;
-        let market_engine_context_guard = context_read
-            .as_any()
-            .downcast_ref::<MarketEngineContext>()
-            .unwrap();
+        let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
         let support_kline_intervals = market_engine_context_guard
             .get_support_kline_intervals(account_id)
             .await;

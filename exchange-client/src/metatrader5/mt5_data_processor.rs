@@ -1,12 +1,12 @@
 use crate::metatrader5::mt5_types::Mt5Deal;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
-use chrono::{TimeZone,Utc};
-use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
+use chrono::{TimeZone, Utc};
 use event_center::EventCenterSingleton;
+use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
 use snafu::{OptionExt, ResultExt};
-use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
 use star_river_core::account::OriginalAccountInfo;
+use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
 use star_river_core::error::exchange_client_error::*;
 use star_river_core::market::Symbol;
 use star_river_core::market::{Exchange, Kline, MT5Server};
@@ -33,10 +33,7 @@ impl Mt5DataProcessor {
         }
     }
 
-    async fn process_stream_kline(
-        &self,
-        raw_stream: serde_json::Value,
-    ) -> Result<(), DataProcessorError> {
+    async fn process_stream_kline(&self, raw_stream: serde_json::Value) -> Result<(), DataProcessorError> {
         let kline_data = raw_stream.get("data").context(MissingFieldSnafu {
             field: "data",
             context: Some("kline stream".to_string()),
@@ -53,21 +50,16 @@ impl Mt5DataProcessor {
             field: "interval",
             context: Some("kline data".to_string()),
         })?;
-        let interval_str =
-            interval_str
-                .parse::<Mt5KlineInterval>()
-                .context(TypeConversionSnafu {
-                    from: "Mt5KlineInterval",
-                    to: "Mt5KlineInterval".to_string(),
-                })?;
+        let interval_str = interval_str.parse::<Mt5KlineInterval>().context(TypeConversionSnafu {
+            from: "Mt5KlineInterval",
+            to: "Mt5KlineInterval".to_string(),
+        })?;
 
         // 10位
-        let timestamp = kline_data["timestamp"]
-            .as_i64()
-            .context(MissingFieldSnafu {
-                field: "timestamp",
-                context: Some("kline data".to_string()),
-            })?;
+        let timestamp = kline_data["timestamp"].as_i64().context(MissingFieldSnafu {
+            field: "timestamp",
+            context: Some("kline data".to_string()),
+        })?;
 
         // Validate timestamp range (should be positive and reasonable)
         if timestamp <= 0 {
@@ -125,10 +117,7 @@ impl Mt5DataProcessor {
         Ok(())
     }
 
-    pub async fn process_stream(
-        &self,
-        raw_stream: serde_json::Value,
-    ) -> Result<(), DataProcessorError> {
+    pub async fn process_stream(&self, raw_stream: serde_json::Value) -> Result<(), DataProcessorError> {
         // tracing::debug!("处理流数据: {:?}", raw_stream);
         // 如果data_type为kline，则处理k线数据，如果没有data_type，则跳过
         if let Some(data_type) = raw_stream.get("type") {
@@ -149,10 +138,7 @@ impl Mt5DataProcessor {
         Ok(())
     }
 
-    pub async fn process_symbol_list(
-        &self,
-        symbols: serde_json::Value,
-    ) -> Result<Vec<Symbol>, DataProcessorError> {
+    pub async fn process_symbol_list(&self, symbols: serde_json::Value) -> Result<Vec<Symbol>, DataProcessorError> {
         let symbols = symbols.as_array().context(ArrayParsingSnafu {
             actual_type: "array".to_string(),
             context: "symbol list".to_string(),
@@ -172,12 +158,7 @@ impl Mt5DataProcessor {
                     actual: "non-string".to_string(),
                     context: "parse symbol list".to_string(),
                 })?;
-            let symbol = Symbol::new(
-                symbol_name,
-                None,
-                None,
-                Exchange::Metatrader5(self.server.clone()),
-            );
+            let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()));
             symbol_list.push(symbol);
         }
         // println!("symbol_list: {:?}", symbol_list);
@@ -219,10 +200,13 @@ impl Mt5DataProcessor {
                 interval: Some(interval.to_string()),
             })?;
             //1757649600 10 digits
-            let datetime = Utc.timestamp_opt(timestamp, 0).single().context(TimestampConversionSnafu {
-                message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
-                timestamp: Some(timestamp),
-            })?;
+            let datetime = Utc
+                .timestamp_opt(timestamp, 0)
+                .single()
+                .context(TimestampConversionSnafu {
+                    message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
+                    timestamp: Some(timestamp),
+                })?;
 
             let open = arr[1].as_f64().context(KlineDataParsingSnafu {
                 message: format!("Invalid open price at index {}: {:?}", index, arr[1]),
@@ -303,11 +287,10 @@ impl Mt5DataProcessor {
         order_data["server"] = self.server.clone().into();
         tracing::debug!("订单信息: {:?}", order_data);
 
-        let order =
-            serde_json::from_value::<Mt5Order>(order_data).context(OrderDataParsingSnafu {
-                message: "Failed to deserialize order data".to_string(),
-                order_id: None,
-            })?;
+        let order = serde_json::from_value::<Mt5Order>(order_data).context(OrderDataParsingSnafu {
+            message: "Failed to deserialize order data".to_string(),
+            order_id: None,
+        })?;
 
         tracing::info!("订单信息: {:?}", order);
         Ok(Box::new(order))
@@ -347,24 +330,22 @@ impl Mt5DataProcessor {
                 context: "order update data".to_string(),
             })?;
 
-        let new_order_status = state_str
-            .parse::<Mt5OrderState>()
-            .context(EnumParsingSnafu {
-                field: "state".to_string(),
-                variant: state_str.to_string(),
-                valid_variants: vec![
-                    "ORDER_STATE_STARTED".to_string(),
-                    "ORDER_STATE_PLACED".to_string(),
-                    "ORDER_STATE_CANCELED".to_string(),
-                    "ORDER_STATE_PARTIAL".to_string(),
-                    "ORDER_STATE_FILLED".to_string(),
-                    "ORDER_STATE_REJECTED".to_string(),
-                    "ORDER_STATE_EXPIRED".to_string(),
-                    "ORDER_STATE_REQUEST_ADD".to_string(),
-                    "ORDER_STATE_REQUEST_MODIFY".to_string(),
-                    "ORDER_STATE_REQUEST_CANCEL".to_string(),
-                ],
-            })?;
+        let new_order_status = state_str.parse::<Mt5OrderState>().context(EnumParsingSnafu {
+            field: "state".to_string(),
+            variant: state_str.to_string(),
+            valid_variants: vec![
+                "ORDER_STATE_STARTED".to_string(),
+                "ORDER_STATE_PLACED".to_string(),
+                "ORDER_STATE_CANCELED".to_string(),
+                "ORDER_STATE_PARTIAL".to_string(),
+                "ORDER_STATE_FILLED".to_string(),
+                "ORDER_STATE_REJECTED".to_string(),
+                "ORDER_STATE_EXPIRED".to_string(),
+                "ORDER_STATE_REQUEST_ADD".to_string(),
+                "ORDER_STATE_REQUEST_MODIFY".to_string(),
+                "ORDER_STATE_REQUEST_CANCEL".to_string(),
+            ],
+        })?;
 
         let order = Order {
             order_id: old_order.order_id,
@@ -395,12 +376,10 @@ impl Mt5DataProcessor {
         position_json["server"] = self.server.clone().into();
 
         tracing::debug!("仓位信息 :{:?}", position_json);
-        let position = serde_json::from_value::<Mt5Position>(position_json).context(
-            PositionDataParsingSnafu {
-                message: "Failed to deserialize position data".to_string(),
-                position_id: None,
-            },
-        )?;
+        let position = serde_json::from_value::<Mt5Position>(position_json).context(PositionDataParsingSnafu {
+            message: "Failed to deserialize position data".to_string(),
+            position_id: None,
+        })?;
         tracing::info!("仓位信息: {:?}", position);
 
         Ok(Box::new(position))
@@ -414,22 +393,20 @@ impl Mt5DataProcessor {
         // tracing::debug!("最新仓位信息: {:?}", new_position_json);
         // 仓位数据
         new_position_json["server"] = self.server.clone().into();
-        let new_mt_position = serde_json::from_value::<Mt5Position>(new_position_json).context(
-            PositionDataParsingSnafu {
+        let new_mt_position =
+            serde_json::from_value::<Mt5Position>(new_position_json).context(PositionDataParsingSnafu {
                 message: "Failed to deserialize position data".to_string(),
                 position_id: Some(old_position.position_id.into()),
-            },
-        )?;
+            })?;
 
         // Validate timestamp conversion
-        let create_time = Utc
-            .timestamp_millis_opt(new_mt_position.time_msc)
-            .single()
-            .context(TimestampConversionSnafu {
-                message: "Invalid create timestamp".to_string(),
-                timestamp: Some(new_mt_position.time_msc),
-            })?
-            ;
+        let create_time =
+            Utc.timestamp_millis_opt(new_mt_position.time_msc)
+                .single()
+                .context(TimestampConversionSnafu {
+                    message: "Invalid create timestamp".to_string(),
+                    timestamp: Some(new_mt_position.time_msc),
+                })?;
 
         let update_time = Utc
             .timestamp_millis_opt(new_mt_position.time_update_msc)
@@ -437,8 +414,7 @@ impl Mt5DataProcessor {
             .context(TimestampConversionSnafu {
                 message: "Invalid update timestamp".to_string(),
                 timestamp: Some(new_mt_position.time_update_msc),
-            })?
-            ;
+            })?;
 
         let new_position = Position {
             position_id: old_position.position_id,
@@ -496,12 +472,10 @@ impl Mt5DataProcessor {
         &self,
         position_number_info: serde_json::Value,
     ) -> Result<PositionNumber, DataProcessorError> {
-        let position_number_data = position_number_info
-            .get("data")
-            .context(MissingFieldSnafu {
-                field: "data".to_string(),
-                context: "position number info".to_string(),
-            })?;
+        let position_number_data = position_number_info.get("data").context(MissingFieldSnafu {
+            field: "data".to_string(),
+            context: "position number info".to_string(),
+        })?;
 
         tracing::debug!("仓位数量信息 :{:?}", position_number_data);
 
@@ -562,12 +536,11 @@ impl Mt5DataProcessor {
         // 把account_id 添加到account_info_data中
         account_info["account_id"] = account_id.into();
 
-        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(
-            AccountInfoParsingSnafu {
+        let account_info =
+            serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParsingSnafu {
                 message: "Failed to deserialize account info".to_string(),
                 account_id: Some(account_id),
-            },
-        )?;
+            })?;
 
         Ok(Box::new(account_info))
     }

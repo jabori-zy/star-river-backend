@@ -46,14 +46,10 @@ impl Mt5HttpClient {
 
         // if the status code is 200, then ping success
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
                     tracing::debug!("ping MT5 server success");
@@ -128,14 +124,10 @@ impl Mt5HttpClient {
 
         // 如果为200，则初始化成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
                     tracing::info!(terminal_id = %login, "MT5 terminal initialized successfully");
@@ -190,22 +182,16 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取终端信息
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
             // 判断是否有code
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 // 如果code为0，则返回data，否则返回错误
                 if is_success {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!("Successfully got terminal info");
                     Ok(data.clone())
                 } else {
@@ -267,19 +253,13 @@ impl Mt5HttpClient {
             })?;
 
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 if is_success {
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     Ok(data.clone())
                 } else {
                     let error_message = response_data
@@ -345,23 +325,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取K线数据成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 // 如果code为0，则返回data，否则返回错误
                 if is_success {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(symbol = %symbol, "Successfully got kline series");
                     Ok(data.clone())
                 } else {
@@ -371,10 +345,7 @@ impl Mt5HttpClient {
                         .and_then(|m| m.as_str())
                         .unwrap_or("unknown error")
                         .to_string();
-                    let error_code = response_data
-                        .get("code")
-                        .and_then(|v| v.as_i64())
-                        .unwrap_or(0);
+                    let error_code = response_data.get("code").and_then(|v| v.as_i64()).unwrap_or(0);
                     tracing::error!(code = %error_code, error = %error_message, symbol = %symbol, "Failed to get kline series");
                     return GetKlineDataSnafu {
                         symbol: symbol.to_string(),
@@ -456,23 +427,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取K线数据成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // if success is true, then return data, otherwise return error
             if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
                 // 如果code为0，则返回data，否则返回错误
                 if is_success {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(symbol = %symbol, "Successfully got kline history");
                     Ok(data.clone())
                 } else {
@@ -482,10 +447,7 @@ impl Mt5HttpClient {
                         .and_then(|m| m.as_str())
                         .unwrap_or("unknown error")
                         .to_string();
-                    let error_code = response_data
-                        .get("code")
-                        .and_then(|v| v.as_i64())
-                        .unwrap_or(0);
+                    let error_code = response_data.get("code").and_then(|v| v.as_i64()).unwrap_or(0);
                     tracing::error!(code = %error_code, error = %error_message, symbol = %symbol, "Failed to get kline history");
                     return GetKlineDataSnafu {
                         symbol: symbol.to_string(),
@@ -525,10 +487,7 @@ impl Mt5HttpClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn create_order(
-        &self,
-        params: Mt5CreateOrderParams,
-    ) -> Result<serde_json::Value, Mt5Error> {
+    pub async fn create_order(&self, params: Mt5CreateOrderParams) -> Result<serde_json::Value, Mt5Error> {
         let url = self.get_url(Mt5HttpUrl::CreateOrder);
         let symbol = &params.symbol;
         tracing::debug!(url = %url, params = ?params, "Creating order");
@@ -547,23 +506,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则创建订单成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::info!("Successfully created order");
                     Ok(data.clone())
                 } else {
@@ -571,10 +524,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the create order response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the create order response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, "Failed to create order");
                     return CreateOrderSnafu {
@@ -623,11 +573,7 @@ impl Mt5HttpClient {
     // 获取订单
     #[instrument(skip(self))]
     pub async fn get_order(&self, order_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!(
-            "{}?order_id={}",
-            self.get_url(Mt5HttpUrl::GetOrder),
-            order_id
-        );
+        let url = format!("{}?order_id={}", self.get_url(Mt5HttpUrl::GetOrder), order_id);
         tracing::debug!(url = %url, order_id = %order_id, "Getting order");
 
         let response = self
@@ -643,23 +589,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取订单成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(order_id = %order_id, "Successfully got order");
                     Ok(data.clone())
                 } else {
@@ -667,10 +607,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get order response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get order response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, order_id = %order_id, "Failed to get order");
                     return GetOrderSnafu {
@@ -718,11 +655,7 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_position(&self, position_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!(
-            "{}?position_id={}",
-            self.get_url(Mt5HttpUrl::GetPosition),
-            position_id
-        );
+        let url = format!("{}?position_id={}", self.get_url(Mt5HttpUrl::GetPosition), position_id);
         tracing::debug!(url = %url, position_id = %position_id, "Getting position");
 
         let response = self
@@ -738,23 +671,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取仓位成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(position_id = %position_id, "Successfully got position");
                     Ok(data.clone())
                 } else {
@@ -762,10 +689,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get position response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get position response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, position_id = %position_id, "Failed to get position");
                     return GetPositionSnafu {
@@ -813,15 +737,8 @@ impl Mt5HttpClient {
 
     // 获取成交明细
     #[instrument(skip(self))]
-    pub async fn get_deal_by_position_id(
-        &self,
-        position_id: &i64,
-    ) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!(
-            "{}?position_id={}",
-            self.get_url(Mt5HttpUrl::GetDeal),
-            position_id
-        );
+    pub async fn get_deal_by_position_id(&self, position_id: &i64) -> Result<serde_json::Value, Mt5Error> {
+        let url = format!("{}?position_id={}", self.get_url(Mt5HttpUrl::GetDeal), position_id);
         tracing::debug!(url = %url, position_id = %position_id, "Getting deal by position id");
 
         let response = self
@@ -837,23 +754,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取成交明细成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(position_id = %position_id, "Successfully got deal by position id");
                     Ok(data.clone())
                 } else {
@@ -861,10 +772,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get deal response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get deal response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, position_id = %position_id, "Failed to get deal by position id");
                     return GetDealByPositionIdSnafu {
@@ -928,23 +836,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取成交明细成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(deal_id = %deal_id, "Successfully got deal by deal id");
                     Ok(data.clone())
                 } else {
@@ -952,10 +854,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get deal response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get deal response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, deal_id = %deal_id, "Failed to get deal by deal id");
                     return GetDealByDealIdSnafu {
@@ -1002,15 +901,8 @@ impl Mt5HttpClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_deals_by_order_id(
-        &self,
-        order_id: &i64,
-    ) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!(
-            "{}?order_id={}",
-            self.get_url(Mt5HttpUrl::GetDeal),
-            order_id
-        );
+    pub async fn get_deals_by_order_id(&self, order_id: &i64) -> Result<serde_json::Value, Mt5Error> {
+        let url = format!("{}?order_id={}", self.get_url(Mt5HttpUrl::GetDeal), order_id);
         tracing::debug!(url = %url, order_id = %order_id, "Getting deals by order id");
 
         let response = self
@@ -1026,23 +918,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取成交明细成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(order_id = %order_id, "Successfully got deals by order id");
                     Ok(data.clone())
                 } else {
@@ -1050,10 +936,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get deals response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get deals response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, order_id = %order_id, "Failed to get deals by order id");
                     return GetDealByOrderIdSnafu {
@@ -1131,23 +1014,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取仓位数量成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     tracing::debug!(symbol = %symbol, position_side = ?position_side, "Successfully got position number");
                     Ok(data.clone())
                 } else {
@@ -1221,23 +1098,17 @@ impl Mt5HttpClient {
 
         // 如果为200，则获取账户信息成功
         if response.status().is_success() {
-            let response_data =
-                response
-                    .json::<serde_json::Value>()
-                    .await
-                    .context(ResponseSnafu {
-                        terminal_id: self.terminal_id,
-                        url: url.clone(),
-                    })?;
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
 
             // 判断是否有code
             if let Some(code) = response_data.get("code").and_then(|v| v.as_i64()) {
                 // 如果code为0，则返回data，否则返回错误
                 if code == 0 {
                     // 如果有data，则返回data，否则返回null
-                    let data = response_data
-                        .get("data")
-                        .unwrap_or(&serde_json::Value::Null);
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
                     Ok(data.clone())
                 } else {
                     // code不为0，则返回message

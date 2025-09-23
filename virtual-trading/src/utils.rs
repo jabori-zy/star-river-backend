@@ -1,8 +1,8 @@
 use super::VirtualTradingSystem;
 use star_river_core::custom_type::{Balance, Leverage, Margin, MarginRatio, Price};
-use star_river_core::order::{virtual_order::VirtualOrder, FuturesOrderSide};
-use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::order::{FuturesOrderSide, virtual_order::VirtualOrder};
 use star_river_core::position::PositionSide;
+use star_river_core::position::virtual_position::VirtualPosition;
 
 pub struct Formula;
 
@@ -37,12 +37,8 @@ impl Formula {
         // 计算强平价格
         // 强平价格 = 开仓价格 - 保证金 / 持仓量
         let force_price = match position_side {
-            PositionSide::Long => {
-                price - Self::calculate_margin(leverage, price, quantity) / quantity
-            } // 多仓的强平价格： 开仓价格 - 保证金 / 持仓量
-            PositionSide::Short => {
-                price + Self::calculate_margin(leverage, price, quantity) / quantity
-            } // 空仓的强平价格： 开仓价格 + 保证金 / 持仓量
+            PositionSide::Long => price - Self::calculate_margin(leverage, price, quantity) / quantity, // 多仓的强平价格： 开仓价格 - 保证金 / 持仓量
+            PositionSide::Short => price + Self::calculate_margin(leverage, price, quantity) / quantity, // 空仓的强平价格： 开仓价格 + 保证金 / 持仓量
         };
         force_price
     }

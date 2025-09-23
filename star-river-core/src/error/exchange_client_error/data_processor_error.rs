@@ -1,8 +1,8 @@
-use crate::error::error_trait::Language;
 use crate::error::ErrorCode;
+use crate::error::datetime_error::DateTimeError;
+use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use crate::error::datetime_error::DateTimeError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -98,7 +98,9 @@ pub enum DataProcessorError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("Invalid kline array format: expected 6 elements [timestamp, open, high, low, close, volume], got {length}"))]
+    #[snafu(display(
+        "Invalid kline array format: expected 6 elements [timestamp, open, high, low, close, volume], got {length}"
+    ))]
     InvalidKlineArrayFormat {
         length: usize,
         data: String,
@@ -139,16 +141,13 @@ pub enum DataProcessorError {
     },
 
     #[snafu(display("Data processing internal error: {message}"))]
-    Internal {
-        message: String,
-        backtrace: Backtrace,
-    },
+    Internal { message: String, backtrace: Backtrace },
 
     #[snafu(transparent)]
     DateTime {
         source: DateTimeError,
         backtrace: Backtrace,
-    }
+    },
 }
 
 // Implement the StarRiverErrorTrait for DataProcessorError
@@ -195,8 +194,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
         let mut ctx = HashMap::new();
         match self {
             DataProcessorError::StreamProcessing {
-                data_type: Some(dt),
-                ..
+                data_type: Some(dt), ..
             } => {
                 ctx.insert("data_type", dt.clone());
             }
@@ -220,9 +218,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     ctx.insert("context", c.clone());
                 }
             }
-            DataProcessorError::KlineDataParsing {
-                symbol, interval, ..
-            } => {
+            DataProcessorError::KlineDataParsing { symbol, interval, .. } => {
                 if let Some(sym) = symbol {
                     ctx.insert("symbol", sym.clone());
                 }
@@ -295,9 +291,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
             Language::English => self.to_string(),
             Language::Chinese => match self {
                 DataProcessorError::JsonParsing { .. } => "JSON解析失败".to_string(),
-                DataProcessorError::StreamProcessing {
-                    message, data_type, ..
-                } => {
+                DataProcessorError::StreamProcessing { message, data_type, .. } => {
                     if let Some(dt) = data_type {
                         format!("流数据处理失败: {}, 数据类型: {}", message, dt)
                     } else {
@@ -330,10 +324,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                             field, expected, actual, ctx
                         )
                     } else {
-                        format!(
-                            "字段 '{}' 数据类型无效: 期望 {}，实际 {}",
-                            field, expected, actual
-                        )
+                        format!("字段 '{}' 数据类型无效: 期望 {}，实际 {}", field, expected, actual)
                     }
                 }
                 DataProcessorError::KlineDataParsing {
@@ -351,9 +342,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     }
                     msg
                 }
-                DataProcessorError::OrderDataParsing {
-                    message, order_id, ..
-                } => {
+                DataProcessorError::OrderDataParsing { message, order_id, .. } => {
                     if let Some(id) = order_id {
                         format!("解析订单数据失败: {}, 订单ID: {}", message, id)
                     } else {
@@ -361,9 +350,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     }
                 }
                 DataProcessorError::PositionDataParsing {
-                    message,
-                    position_id,
-                    ..
+                    message, position_id, ..
                 } => {
                     if let Some(id) = position_id {
                         format!("解析持仓数据失败: {}, 持仓ID: {}", message, id)
@@ -371,9 +358,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                         format!("解析持仓数据失败: {}", message)
                     }
                 }
-                DataProcessorError::DealDataParsing {
-                    message, deal_id, ..
-                } => {
+                DataProcessorError::DealDataParsing { message, deal_id, .. } => {
                     if let Some(id) = deal_id {
                         format!("解析交易数据失败: {}, 交易ID: {}", message, id)
                     } else {
@@ -381,9 +366,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     }
                 }
                 DataProcessorError::AccountInfoParsing {
-                    message,
-                    account_id,
-                    ..
+                    message, account_id, ..
                 } => {
                     if let Some(id) = account_id {
                         format!("解析账户信息失败: {}, 账户ID: {}", message, id)
@@ -392,9 +375,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     }
                 }
                 DataProcessorError::ArrayParsing {
-                    actual_type,
-                    context,
-                    ..
+                    actual_type, context, ..
                 } => {
                     format!(
                         "数组数据解析失败: 期望数组格式，实际类型 {} (上下文: {})",
@@ -402,7 +383,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     )
                 }
                 DataProcessorError::InvalidKlineArrayFormat { length, data, .. } => {
-                    format!("K线数组格式无效: 期望6个元素 [时间戳, 开盘价, 最高价, 最低价, 收盘价, 成交量]，实际长度 {}，数据: {}", length, data)
+                    format!(
+                        "K线数组格式无效: 期望6个元素 [时间戳, 开盘价, 最高价, 最低价, 收盘价, 成交量]，实际长度 {}，数据: {}",
+                        length, data
+                    )
                 }
                 DataProcessorError::DataValidation {
                     message,
@@ -412,10 +396,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     ..
                 } => {
                     if let Some(ctx) = context {
-                        format!(
-                            "{}. 字段 {} 值为 {} (上下文: {})",
-                            message, field, value, ctx
-                        )
+                        format!("{}. 字段 {} 值为 {} (上下文: {})", message, field, value, ctx)
                     } else {
                         format!("{}. 字段 {} 值为 {}", message, field, value)
                     }
@@ -448,9 +429,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     }
                     msg
                 }
-                DataProcessorError::TimestampConversion {
-                    message, timestamp, ..
-                } => {
+                DataProcessorError::TimestampConversion { message, timestamp, .. } => {
                     if let Some(ts) = timestamp {
                         format!("时间戳转换失败: {}, 时间戳: {}", message, ts)
                     } else {

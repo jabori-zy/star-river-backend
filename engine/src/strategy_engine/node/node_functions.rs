@@ -1,15 +1,15 @@
 use super::node_context::{BacktestNodeContextTrait, LiveNodeContextTrait};
-use crate::{strategy_engine::node::node_types::NodeType, EngineName};
-use event_center::event::Event;
+use crate::{EngineName, strategy_engine::node::node_types::NodeType};
 use event_center::Channel;
 use event_center::EventCenterSingleton;
-use futures::stream::select_all;
+use event_center::event::Event;
 use futures::StreamExt;
+use futures::stream::select_all;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
-use tokio::sync::broadcast;
 use tokio::sync::RwLock;
+use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 
 pub struct LiveNodeFunction;
@@ -140,21 +140,20 @@ impl LiveNodeFunction {
     }
 }
 
-static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> =
-    LazyLock::new(|| {
-        HashMap::from([
-            (NodeType::StartNode, vec![]),
-            (NodeType::KlineNode, vec![Channel::Market]),
-            (NodeType::IndicatorNode, vec![]),
-            (NodeType::IfElseNode, vec![]),
-            (NodeType::FuturesOrderNode, vec![]),
-            (NodeType::PositionNode, vec![]),
-            (NodeType::PositionManagementNode, vec![]),
-            (NodeType::GetVariableNode, vec![]),
-            (NodeType::OrderNode, vec![]),
-            (NodeType::VariableNode, vec![]),
-        ])
-    });
+static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> = LazyLock::new(|| {
+    HashMap::from([
+        (NodeType::StartNode, vec![]),
+        (NodeType::KlineNode, vec![Channel::Market]),
+        (NodeType::IndicatorNode, vec![]),
+        (NodeType::IfElseNode, vec![]),
+        (NodeType::FuturesOrderNode, vec![]),
+        (NodeType::PositionNode, vec![]),
+        (NodeType::PositionManagementNode, vec![]),
+        (NodeType::GetVariableNode, vec![]),
+        (NodeType::OrderNode, vec![]),
+        (NodeType::VariableNode, vec![]),
+    ])
+});
 
 pub struct BacktestNodeEventReceiver;
 
@@ -183,8 +182,7 @@ impl BacktestNodeFunction {
             let cancel_token = context_guard.get_cancel_token().clone();
             let node_id = context_guard.get_node_id().to_string();
             let node_type = context_guard.get_node_type();
-            let should_receive_channels =
-                BacktestNodeEventReceiver::get_backtest_node_event_receivers(node_type);
+            let should_receive_channels = BacktestNodeEventReceiver::get_backtest_node_event_receivers(node_type);
 
             let mut event_receivers = Vec::new();
             for channel in should_receive_channels.iter() {
@@ -289,14 +287,10 @@ impl BacktestNodeFunction {
         });
     }
 
-    pub async fn listen_strategy_inner_events(
-        context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>,
-    ) {
+    pub async fn listen_strategy_inner_events(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
         let (inner_event_receiver, cancel_token, node_id) = {
             let state_guard = context.read().await;
-            let receiver = state_guard
-                .get_strategy_inner_event_receiver()
-                .resubscribe();
+            let receiver = state_guard.get_strategy_inner_event_receiver().resubscribe();
             let cancel_token = state_guard.get_cancel_token().clone();
             let node_id = state_guard.get_node_id().to_string();
             (receiver, cancel_token, node_id)
