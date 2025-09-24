@@ -1,4 +1,4 @@
-mod data_query;
+mod data_handler;
 mod event_handler;
 mod node_lifecycle;
 mod node_operation;
@@ -18,12 +18,12 @@ use event_center::communication::engine::cache_engine::{CacheEngineResponse, Get
 use event_center::communication::strategy::GetStartNodeConfigParams;
 use event_center::communication::strategy::NodeCommand;
 use event_center::communication::strategy::StrategyResponse;
-use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
+use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
 use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::{
     GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyCacheKeysResponse,
 };
-use event_center::communication::strategy::{BacktestStrategyResponse, NodeCommandReceiver};
+use event_center::communication::strategy::{BacktestNodeResponse, NodeCommandReceiver};
 use event_center::event::Event;
 use event_center::event::node_event::NodeEventTrait;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
@@ -42,9 +42,11 @@ use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
 use star_river_core::cache::CacheValue;
 use star_river_core::cache::Key;
-use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::indicator::Indicator;
+use star_river_core::market::Kline;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
@@ -96,6 +98,8 @@ pub struct BacktestStrategyContext {
     pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>,  // 运行日志
     pub(super) keys: Arc<RwLock<HashMap<Key, NodeId>>>,                 // 缓存键 -> 其所属节点id
     pub(super) min_interval_symbols: Vec<KlineKey>,                     // 最小周期交易对
+    pub(super) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,  // 最小周期交易对k线数据
+    pub(super) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 指标数据
 }
 
 impl BacktestStrategyContext {
@@ -157,6 +161,8 @@ impl BacktestStrategyContext {
             batch_id: Uuid::new_v4(),
             running_log: Arc::new(RwLock::new(vec![])),
             min_interval_symbols: vec![],
+            kline_data: Arc::new(RwLock::new(HashMap::new())),
+            indicator_data: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

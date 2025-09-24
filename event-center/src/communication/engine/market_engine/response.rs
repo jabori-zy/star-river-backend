@@ -1,7 +1,7 @@
 use super::super::{EngineResponse, ResponseTrait};
 use chrono::Utc;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
-use star_river_core::market::{Exchange, KlineInterval};
+use star_river_core::market::{Exchange, Kline, KlineInterval};
 use star_river_core::system::DateTimeUtc;
 use std::sync::Arc;
 
@@ -119,17 +119,19 @@ pub struct GetKlineHistoryResponse {
     pub exchange: Exchange,
     pub symbol: String,
     pub interval: KlineInterval,
+    pub kline_history: Vec<Kline>,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub datetime: DateTimeUtc,
 }
 
 impl GetKlineHistoryResponse {
-    pub fn success(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
+    pub fn success(exchange: Exchange, symbol: String, interval: KlineInterval, kline_history: Vec<Kline>) -> Self {
         Self {
             success: true,
             exchange,
             symbol,
             interval,
+            kline_history,
             error: None,
             datetime: Utc::now(),
         }

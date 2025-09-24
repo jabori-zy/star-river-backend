@@ -8,7 +8,7 @@ use event_center::communication::engine::indicator_engine::CalculateIndicatorPar
 use event_center::communication::engine::indicator_engine::IndicatorEngineResponse;
 use event_center::communication::strategy::NodeResponse;
 use event_center::communication::strategy::backtest_strategy::command::GetMinIntervalSymbolsParams;
-use event_center::communication::strategy::backtest_strategy::response::BacktestNodeResponse;
+use event_center::communication::strategy::backtest_strategy::response::BacktestStrategyResponse;
 use event_center::event::node_event::backtest_node_event::common_event::TriggerPayload;
 use event_center::event::node_event::backtest_node_event::common_event::{
     CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent,
@@ -181,7 +181,7 @@ impl IndicatorNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::BacktestNode(BacktestNodeResponse::GetMinIntervalSymbols(
+            NodeResponse::BacktestNode(BacktestStrategyResponse::GetMinIntervalSymbols(
                 get_min_interval_symbols_response,
             )) => return Ok(get_min_interval_symbols_response.keys),
             _ => return Err("获取最小周期交易对失败".to_string()),

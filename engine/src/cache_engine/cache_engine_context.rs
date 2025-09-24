@@ -48,38 +48,38 @@ impl Clone for CacheEngineContext {
 
 impl CacheEngineContext {
     async fn handle_exchange_event(&mut self, exchange_event: ExchangeEvent) {
-        match exchange_event {
-            // ExchangeEvent::ExchangeKlineUpdate(event) => {
-            //     // 更新cache_key对应的数据
-            //     let cache_key = Key::BacktestKline(BacktestKlineKey::new(event.exchange, event.symbol, event.interval));
-            //     // 更新缓存
-            //     self.update_cache(cache_key, event.kline.into()).await;
-            // }
-            //
-            // ExchangeEvent::ExchangeKlineSeriesUpdate(event) => {
-            //     tracing::debug!("处理k线系列更新事件");
-            //     // 更新cache_key对应的数据
-            //     let cache_key = Key::BacktestKline(BacktestKlineKey::new(event.exchange, event.symbol, event.interval));
-            //     let cache_series = event.kline_series.into_iter().map(|kline| kline.into()).collect();
-            //     self.initialize_cache(cache_key, cache_series).await;
-            // }
-            // 历史k线更新
-            ExchangeEvent::ExchangeKlineHistoryUpdate(event) => {
-                // 更新cache_key对应的数据
-                let key = KlineKey::new(
-                    event.exchange,
-                    event.symbol,
-                    event.interval,
-                    Some(event.time_range.start_date.to_string()),
-                    Some(event.time_range.end_date.to_string()),
-                )
-                .into();
-                tracing::debug!("更新历史k线缓存: {:?}", key);
-                let cache_series = event.kline_history.into_iter().map(|kline| kline.into()).collect();
-                self.initialize_cache(key, cache_series).await;
-            }
-            _ => {}
-        }
+        // match exchange_event {
+        // ExchangeEvent::ExchangeKlineUpdate(event) => {
+        //     // 更新cache_key对应的数据
+        //     let cache_key = Key::BacktestKline(BacktestKlineKey::new(event.exchange, event.symbol, event.interval));
+        //     // 更新缓存
+        //     self.update_cache(cache_key, event.kline.into()).await;
+        // }
+        //
+        // ExchangeEvent::ExchangeKlineSeriesUpdate(event) => {
+        //     tracing::debug!("处理k线系列更新事件");
+        //     // 更新cache_key对应的数据
+        //     let cache_key = Key::BacktestKline(BacktestKlineKey::new(event.exchange, event.symbol, event.interval));
+        //     let cache_series = event.kline_series.into_iter().map(|kline| kline.into()).collect();
+        //     self.initialize_cache(cache_key, cache_series).await;
+        // }
+        // 历史k线更新
+        // ExchangeEvent::ExchangeKlineHistoryUpdate(event) => {
+        //     // 更新cache_key对应的数据
+        //     let key = KlineKey::new(
+        //         event.exchange,
+        //         event.symbol,
+        //         event.interval,
+        //         Some(event.time_range.start_date.to_string()),
+        //         Some(event.time_range.end_date.to_string()),
+        //     )
+        //     .into();
+        //     tracing::debug!("更新历史k线缓存: {:?}", key);
+        //     let cache_series = event.kline_history.into_iter().map(|kline| kline.into()).collect();
+        //     self.initialize_cache(key, cache_series).await;
+        // }
+        // _ => {}
+        // }
     }
 
     async fn handle_indicator_event(&mut self, indicator_event: IndicatorEvent) {
@@ -91,7 +91,7 @@ impl CacheEngineContext {
         let cache = self.cache.read().await;
         let cache_entry = cache.get(key);
         if cache_entry.is_none() {
-            tracing::error!("缓存键不存在: {:?}", key);
+            tracing::error!("缓存键不存在: {:?}。获取数据失败", key);
             return vec![];
         }
         cache_entry.unwrap().get_cache_data(index, limit)
@@ -102,7 +102,7 @@ impl CacheEngineContext {
         match cache.get(&key) {
             Some(cache_entry) => cache_entry.get_length(),
             None => {
-                tracing::error!("缓存键不存在: {:?}", key);
+                tracing::error!("缓存键不存在: {:?}。获取缓存长度失败", key);
                 0
             }
         }

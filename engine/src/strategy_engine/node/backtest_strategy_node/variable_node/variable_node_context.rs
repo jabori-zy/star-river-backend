@@ -2,7 +2,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, Backte
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::strategy::StrategyCommand;
-use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
 use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::event::Event;
@@ -112,7 +112,7 @@ impl BacktestNodeContextTrait for VariableNodeContext {
 
     async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
         match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(node_reset_params)) => {
+            StrategyCommand::BacktestStrategy(BacktestNodeCommand::NodeReset(node_reset_params)) => {
                 if self.get_node_id() == &node_reset_params.node_id {
                     let response = NodeResetResponse::success(self.get_node_id().clone());
                     node_reset_params.responder.send(response.into()).unwrap();

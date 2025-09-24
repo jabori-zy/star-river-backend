@@ -27,14 +27,14 @@ use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use star_river_core::custom_type::NodeId;
 use super::utils::{get_condition_variable_value};
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::communication::strategy::{StrategyCommand, NodeResponse, BacktestNodeResponse};
+use event_center::communication::strategy::{StrategyCommand, NodeResponse, BacktestStrategyResponse};
 use event_center::communication::strategy::backtest_strategy::GetCurrentTimeParams;
 use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 use event_center::event::strategy_event::StrategyRunningLogSource;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use snafu::ResultExt;
 use star_river_core::system::DateTimeUtc;
-use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 
 pub type ConfigId = i32;
@@ -352,7 +352,7 @@ impl IfElseNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(get_current_time_response)) => {
+            NodeResponse::BacktestNode(BacktestStrategyResponse::GetCurrentTime(get_current_time_response)) => {
                 return Ok(get_current_time_response.current_time);
             }
             _ => return Err("获取当前时间失败".to_string()),

@@ -127,10 +127,20 @@ pub enum BacktestStrategyError {
         key: String,
         play_index: u32,
         backtrace: Backtrace,
-    }, // EventError {
-       //     source: EventCenterError,
-       //     backtrace: Backtrace,
-       // },
+    },
+
+    #[snafu(display("[{strategy_name}] get start node config failed"))]
+    GetStartNodeConfigFailed {
+        strategy_name: String,
+        backtrace: Backtrace,
+    },
+
+
+    #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
+    KlineDataLengthNotSame {
+        strategy_name: String,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -161,7 +171,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::IntervalNotSame { .. } => 1015, // 不同symbol的最小周期不相同
             BacktestStrategyError::Node { .. } => 1016,      // 节点错误
             BacktestStrategyError::GetDataFailed { .. } => 1017, // 获取数据失败
-                                                              // BacktestStrategyError::EventSendError { .. } => 1010,
+            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1018, // 获取开始节点配置失败
+            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1019, // kline数据长度不相同
         };
         format!("{prefix}_{code}")
     }
@@ -191,6 +202,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 | BacktestStrategyError::IntervalNotSame { .. }
                 | BacktestStrategyError::Node { .. }
                 | BacktestStrategyError::GetDataFailed { .. }
+                | BacktestStrategyError::GetStartNodeConfigFailed { .. }
+                | BacktestStrategyError::KlineDataLengthNotSame { .. }
         )
     }
 
@@ -323,6 +336,18 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 } => {
                     format!("获取数据失败: 策略 [{strategy_name}] 数据键: {key}, 缓存索引: {play_index}")
                 }
+                BacktestStrategyError::GetStartNodeConfigFailed {
+                    strategy_name,
+                    ..
+                } => {
+                    format!("[{strategy_name}] 获取开始节点配置失败")
+                }
+                BacktestStrategyError::KlineDataLengthNotSame {
+                    strategy_name,
+                    ..
+                } => {
+                    format!("[{strategy_name}] kline数据长度不相同")
+                }
             },
         }
     }
@@ -359,6 +384,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 chain
             }
             BacktestStrategyError::GetDataFailed { .. } => {
+                vec![self.error_code()]
+            }
+            BacktestStrategyError::GetStartNodeConfigFailed { .. } => {
+                vec![self.error_code()]
+            }
+            BacktestStrategyError::KlineDataLengthNotSame { .. } => {
                 vec![self.error_code()]
             }
             _ => vec![self.error_code()],

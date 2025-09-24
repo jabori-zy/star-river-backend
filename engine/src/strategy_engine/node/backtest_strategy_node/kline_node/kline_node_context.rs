@@ -5,19 +5,19 @@ mod utils;
 
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use event_center::communication::strategy::{BacktestStrategyResponse, GetKlineDataParams, InitKlineDataParams, NodeCommand, NodeResponse};
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheParams};
 use event_center::communication::engine::exchange_engine::RegisterExchangeParams;
-use event_center::communication::engine::market_engine::GetKlineHistoryParams;
+use event_center::communication::engine::market_engine::{GetKlineHistoryParams, MarketEngineResponse};
 use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload,
 };
 use heartbeat::Heartbeat;
-use star_river_core::cache::CacheValue;
 use star_river_core::cache::KeyTrait;
 use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::PlayIndex;
+use star_river_core::error::engine_error::node_error::backtest_strategy_node_error::kline_node_error::*;
 use star_river_core::market::Kline;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -183,7 +183,39 @@ impl KlineNodeContext {
                 .unwrap();
 
             let response = resp_rx.await.unwrap();
-            if !response.success() {
+            if response.success() {
+                match response {
+                    EngineResponse::MarketEngine(MarketEngineResponse::GetKlineHistory(resp)) => {
+                        let kline_history = resp.kline_history;
+                        tracing::debug!(
+                            "[{}] get kline history from exchange success, symbol: {}-{}, kline history length: {:#?}",
+                            self.get_node_name(),
+                            symbol_key.get_symbol(),
+                            symbol_key.get_interval(),
+                            kline_history.len()
+                        );
+                        let (resp_tx, resp_rx) = oneshot::channel();
+                        let init_kline_data_command: NodeCommand = InitKlineDataParams::new(
+                            self.get_node_id().clone(),
+                            symbol_key.clone(),
+                            kline_history,
+                            resp_tx,
+                        ).into();
+                        self.get_node_command_sender()
+                            .send(init_kline_data_command)
+                            .await
+                            .unwrap();
+
+                        let response = resp_rx.await.unwrap();
+                        if response.success() {
+                            continue;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            else {
                 is_all_success = false;
                 break;
             }
@@ -191,40 +223,40 @@ impl KlineNodeContext {
         Ok(is_all_success)
     }
 
-    // 从缓存引擎获取k线数据
-    pub async fn get_history_kline_cache(
+    // 从策略中获取k线数据
+    pub async fn get_kline(
         &self,
         kline_key: &KlineKey,
-        play_index: PlayIndex, // 缓存索引
-    ) -> Result<Vec<Arc<CacheValue>>, String> {
+        play_index: PlayIndex, // 播放索引
+    ) -> Result<Vec<Kline>, KlineNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_cache_params = GetCacheParams::new(
-            self.get_strategy_id().clone(),
-            self.get_node_id().clone(),
-            kline_key.clone().into(),
-            Some(play_index as u32),
-            Some(1),
-            self.get_node_id().clone(),
-            resp_tx,
+        let get_kline_params = GetKlineDataParams::new(
+            self.get_node_id().clone(), 
+            kline_key.clone(),
+            Some(play_index), 
+            Some(1), 
+            resp_tx
         );
+        
 
-        EventCenterSingleton::send_command(get_cache_params.into())
-            .await
-            .unwrap();
+        self.get_node_command_sender().send(get_kline_params.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.success() {
-            if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
-                match cache_reponse {
-                    CacheEngineResponse::GetCacheData(get_cache_data_response) => {
-                        return Ok(get_cache_data_response.cache_data);
-                    }
-                    _ => {}
+            match response {
+                NodeResponse::BacktestNode(BacktestStrategyResponse::GetKlineData(resp)) => {
+                    return Ok(resp.data);
                 }
+                _ => {}
             }
         }
-        Err(format!("get history kline cache failed"))
+        Err(GetKlineDataSnafu {
+            node_name: self.get_node_name().clone(),
+            kline_key: kline_key.get_key_str(),
+            play_index: play_index as u32,
+        }
+        .fail()?)
     }
 
     fn get_kline_update_event(

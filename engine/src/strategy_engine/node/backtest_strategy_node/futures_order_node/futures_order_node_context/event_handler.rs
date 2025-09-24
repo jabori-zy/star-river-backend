@@ -14,7 +14,7 @@ use super::super::super::node_message::futures_order_node_log_message::*;
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType};
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
-use event_center::communication::strategy::backtest_strategy::{GetCurrentTimeParams, BacktestNodeResponse};
+use event_center::communication::strategy::backtest_strategy::{GetCurrentTimeParams, BacktestStrategyResponse};
 use event_center::communication::strategy::NodeResponse;
 use star_river_core::system::DateTimeUtc;
 
@@ -432,7 +432,7 @@ impl FuturesOrderNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::BacktestNode(BacktestNodeResponse::GetCurrentTime(get_current_time_response)) => {
+            NodeResponse::BacktestNode(BacktestStrategyResponse::GetCurrentTime(get_current_time_response)) => {
                 return Ok(get_current_time_response.current_time);
             }
             _ => return Err("获取当前时间失败".to_string()),

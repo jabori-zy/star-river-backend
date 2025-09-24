@@ -2,34 +2,37 @@ use super::super::{
     NodeCommand, NodeCommandTrait, NodeResponder, StrategyCommand, StrategyCommandTrait, StrategyResponder,
 };
 use chrono::Utc;
-use star_river_core::custom_type::NodeId;
+use star_river_core::cache::key::KlineKey;
+use star_river_core::custom_type::{NodeId, PlayIndex};
+use star_river_core::indicator::Indicator;
+use star_river_core::market::Kline;
 use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
-pub enum BacktestStrategyCommand {
+pub enum BacktestNodeCommand {
     GetStartNodeConfig(GetStartNodeConfigParams),
     NodeReset(NodeResetParams),
 }
 
-impl StrategyCommandTrait for BacktestStrategyCommand {
+impl StrategyCommandTrait for BacktestNodeCommand {
     fn node_id(&self) -> &NodeId {
         match self {
-            BacktestStrategyCommand::GetStartNodeConfig(params) => &params.node_id,
-            BacktestStrategyCommand::NodeReset(params) => &params.node_id,
+            BacktestNodeCommand::GetStartNodeConfig(params) => &params.node_id,
+            BacktestNodeCommand::NodeReset(params) => &params.node_id,
         }
     }
 
     fn datetime(&self) -> DateTimeUtc {
         match self {
-            BacktestStrategyCommand::GetStartNodeConfig(params) => params.datetime,
-            BacktestStrategyCommand::NodeReset(params) => params.datetime,
+            BacktestNodeCommand::GetStartNodeConfig(params) => params.datetime,
+            BacktestNodeCommand::NodeReset(params) => params.datetime,
         }
     }
 
     fn responder(&self) -> &StrategyResponder {
         match self {
-            BacktestStrategyCommand::GetStartNodeConfig(params) => &params.responder,
-            BacktestStrategyCommand::NodeReset(params) => &params.responder,
+            BacktestNodeCommand::GetStartNodeConfig(params) => &params.responder,
+            BacktestNodeCommand::NodeReset(params) => &params.responder,
         }
     }
 }
@@ -53,7 +56,7 @@ impl GetStartNodeConfigParams {
 
 impl From<GetStartNodeConfigParams> for StrategyCommand {
     fn from(params: GetStartNodeConfigParams) -> Self {
-        StrategyCommand::BacktestStrategy(BacktestStrategyCommand::GetStartNodeConfig(params))
+        StrategyCommand::BacktestStrategy(BacktestNodeCommand::GetStartNodeConfig(params))
     }
 }
 
@@ -76,43 +79,67 @@ impl NodeResetParams {
 
 impl From<NodeResetParams> for StrategyCommand {
     fn from(params: NodeResetParams) -> Self {
-        StrategyCommand::BacktestStrategy(BacktestStrategyCommand::NodeReset(params))
+        StrategyCommand::BacktestStrategy(BacktestNodeCommand::NodeReset(params))
     }
 }
 
 #[derive(Debug)]
-pub enum BacktestNodeCommand {
+pub enum BacktestStrategyCommand {
     GetStrategyKeys(GetStrategyKeysParams),
     GetMinIntervalSymbols(GetMinIntervalSymbolsParams),
     GetKlineIndex(GetKlineIndexParams),
     GetCurrentTime(GetCurrentTimeParams),
+    InitKlineData(InitKlineDataParams),
+    InitIndicatorData(InitIndicatorDataParams),
+    GetKlineData(GetKlineDataParams),
+    GetIndicatorData(GetIndicatorDataParams),
+    UpdateKlineData(UpdateKlineDataParams),
+    UpdateIndicatorData(UpdateIndicatorDataParams),
 }
 
-impl NodeCommandTrait for BacktestNodeCommand {
+impl NodeCommandTrait for BacktestStrategyCommand {
     fn responder(&self) -> &NodeResponder {
         match self {
-            BacktestNodeCommand::GetStrategyKeys(params) => &params.responder,
-            BacktestNodeCommand::GetMinIntervalSymbols(params) => &params.responder,
-            BacktestNodeCommand::GetKlineIndex(params) => &params.responder,
-            BacktestNodeCommand::GetCurrentTime(params) => &params.responder,
+            BacktestStrategyCommand::GetStrategyKeys(params) => &params.responder,
+            BacktestStrategyCommand::GetMinIntervalSymbols(params) => &params.responder,
+            BacktestStrategyCommand::GetKlineIndex(params) => &params.responder,
+            BacktestStrategyCommand::GetCurrentTime(params) => &params.responder,
+            BacktestStrategyCommand::InitKlineData(params) => &params.responder,
+            BacktestStrategyCommand::InitIndicatorData(params) => &params.responder,
+            BacktestStrategyCommand::GetKlineData(params) => &params.responder,
+            BacktestStrategyCommand::GetIndicatorData(params) => &params.responder,
+            BacktestStrategyCommand::UpdateKlineData(params) => &params.responder,
+            BacktestStrategyCommand::UpdateIndicatorData(params) => &params.responder,
         }
     }
 
     fn datetime(&self) -> DateTimeUtc {
         match self {
-            BacktestNodeCommand::GetStrategyKeys(params) => params.datetime,
-            BacktestNodeCommand::GetMinIntervalSymbols(params) => params.datetime,
-            BacktestNodeCommand::GetKlineIndex(params) => params.datetime,
-            BacktestNodeCommand::GetCurrentTime(params) => params.datetime,
+            BacktestStrategyCommand::GetStrategyKeys(params) => params.datetime,
+            BacktestStrategyCommand::GetMinIntervalSymbols(params) => params.datetime,
+            BacktestStrategyCommand::GetKlineIndex(params) => params.datetime,
+            BacktestStrategyCommand::GetCurrentTime(params) => params.datetime,
+            BacktestStrategyCommand::InitKlineData(params) => params.datetime,
+            BacktestStrategyCommand::InitIndicatorData(params) => params.datetime,
+            BacktestStrategyCommand::GetKlineData(params) => params.datetime,
+            BacktestStrategyCommand::GetIndicatorData(params) => params.datetime,
+            BacktestStrategyCommand::UpdateKlineData(params) => params.datetime,
+            BacktestStrategyCommand::UpdateIndicatorData(params) => params.datetime,
         }
     }
 
     fn node_id(&self) -> &NodeId {
         match self {
-            BacktestNodeCommand::GetStrategyKeys(params) => &params.node_id,
-            BacktestNodeCommand::GetMinIntervalSymbols(params) => &params.node_id,
-            BacktestNodeCommand::GetKlineIndex(params) => &params.node_id,
-            BacktestNodeCommand::GetCurrentTime(params) => &params.node_id,
+            BacktestStrategyCommand::GetStrategyKeys(params) => &params.node_id,
+            BacktestStrategyCommand::GetMinIntervalSymbols(params) => &params.node_id,
+            BacktestStrategyCommand::GetKlineIndex(params) => &params.node_id,
+            BacktestStrategyCommand::GetCurrentTime(params) => &params.node_id,
+            BacktestStrategyCommand::InitKlineData(params) => &params.node_id,
+            BacktestStrategyCommand::InitIndicatorData(params) => &params.node_id,
+            BacktestStrategyCommand::GetKlineData(params) => &params.node_id,
+            BacktestStrategyCommand::GetIndicatorData(params) => &params.node_id,
+            BacktestStrategyCommand::UpdateKlineData(params) => &params.node_id,
+            BacktestStrategyCommand::UpdateIndicatorData(params) => &params.node_id,
         }
     }
 }
@@ -136,7 +163,7 @@ impl GetStrategyKeysParams {
 
 impl From<GetStrategyKeysParams> for NodeCommand {
     fn from(params: GetStrategyKeysParams) -> Self {
-        NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyKeys(params))
+        NodeCommand::BacktestNode(BacktestStrategyCommand::GetStrategyKeys(params))
     }
 }
 
@@ -176,7 +203,7 @@ impl GetMinIntervalSymbolsParams {
 
 impl From<GetMinIntervalSymbolsParams> for NodeCommand {
     fn from(params: GetMinIntervalSymbolsParams) -> Self {
-        NodeCommand::BacktestNode(BacktestNodeCommand::GetMinIntervalSymbols(params))
+        NodeCommand::BacktestNode(BacktestStrategyCommand::GetMinIntervalSymbols(params))
     }
 }
 
@@ -199,6 +226,171 @@ impl GetCurrentTimeParams {
 
 impl From<GetCurrentTimeParams> for NodeCommand {
     fn from(params: GetCurrentTimeParams) -> Self {
-        NodeCommand::BacktestNode(BacktestNodeCommand::GetCurrentTime(params))
+        NodeCommand::BacktestNode(BacktestStrategyCommand::GetCurrentTime(params))
+    }
+}
+
+#[derive(Debug)]
+pub struct InitKlineDataParams {
+    pub node_id: NodeId,
+    pub kline_key: KlineKey,
+    pub init_kline_data: Vec<Kline>,
+    pub datetime: DateTimeUtc,
+    pub responder: NodeResponder,
+}
+
+impl InitKlineDataParams {
+    pub fn new(node_id: NodeId, kline_key: KlineKey, init_kline_data: Vec<Kline>, responder: NodeResponder) -> Self {
+        Self {
+            node_id,
+            kline_key,
+            init_kline_data,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<InitKlineDataParams> for NodeCommand {
+    fn from(params: InitKlineDataParams) -> Self {
+        NodeCommand::BacktestNode(BacktestStrategyCommand::InitKlineData(params))
+    }
+}
+
+#[derive(Debug)]
+pub struct InitIndicatorDataParams {
+    pub node_id: NodeId,
+    pub indicator_key: String,
+    pub init_indicator_data: Vec<Indicator>,
+    pub datetime: DateTimeUtc,
+    pub responder: NodeResponder,
+}
+
+impl InitIndicatorDataParams {
+    pub fn new(
+        node_id: NodeId,
+        indicator_key: String,
+        init_indicator_data: Vec<Indicator>,
+        responder: NodeResponder,
+    ) -> Self {
+        Self {
+            node_id,
+            indicator_key,
+            init_indicator_data,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<InitIndicatorDataParams> for NodeCommand {
+    fn from(params: InitIndicatorDataParams) -> Self {
+        NodeCommand::BacktestNode(BacktestStrategyCommand::InitIndicatorData(params))
+    }
+}
+
+#[derive(Debug)]
+pub struct GetKlineDataParams {
+    pub node_id: NodeId,
+    pub kline_key: KlineKey,
+    pub play_index: Option<PlayIndex>,
+    pub limit: Option<i32>,
+    pub datetime: DateTimeUtc,
+    pub responder: NodeResponder,
+}
+
+impl GetKlineDataParams {
+    pub fn new(node_id: NodeId, kline_key: KlineKey, play_index: Option<PlayIndex>, limit: Option<i32>, responder: NodeResponder) -> Self {
+        Self {
+            node_id,
+            kline_key,
+            play_index,
+            limit,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<GetKlineDataParams> for NodeCommand {
+    fn from(params: GetKlineDataParams) -> Self {
+        NodeCommand::BacktestNode(BacktestStrategyCommand::GetKlineData(params))
+    }
+}
+
+#[derive(Debug)]
+pub struct GetIndicatorDataParams {
+    pub node_id: NodeId,
+    pub indicator_key: String,
+    pub play_index: PlayIndex,
+    pub limit: Option<i32>,
+    pub datetime: DateTimeUtc,
+    pub responder: NodeResponder,
+}
+
+impl GetIndicatorDataParams {
+    pub fn new(node_id: NodeId, indicator_key: String, play_index: PlayIndex, limit: Option<i32>, responder: NodeResponder) -> Self {
+        Self {
+            node_id,
+            indicator_key,
+            play_index,
+            limit,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdateKlineDataParams {
+    pub node_id: NodeId,
+    pub kline_key: KlineKey,
+    pub kline: Kline,
+    pub datetime: DateTimeUtc,
+    pub responder: NodeResponder,
+}
+
+impl UpdateKlineDataParams {
+    pub fn new(node_id: NodeId, kline_key: KlineKey, update_kline_data: Kline, responder: NodeResponder) -> Self {
+        Self {
+            node_id,
+            kline_key,
+            kline: update_kline_data,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<UpdateKlineDataParams> for NodeCommand {
+    fn from(params: UpdateKlineDataParams) -> Self {
+        NodeCommand::BacktestNode(BacktestStrategyCommand::UpdateKlineData(params))
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdateIndicatorDataParams {
+    pub node_id: NodeId,
+    pub indicator_key: String,
+    pub update_indicator_data: Indicator,
+    pub datetime: DateTimeUtc,
+    pub responder: NodeResponder,
+}
+
+impl UpdateIndicatorDataParams {
+    pub fn new(node_id: NodeId, indicator_key: String, update_indicator_data: Indicator, responder: NodeResponder) -> Self {
+        Self {
+            node_id,
+            indicator_key,
+            update_indicator_data,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<UpdateIndicatorDataParams> for NodeCommand {
+    fn from(params: UpdateIndicatorDataParams) -> Self {
+        NodeCommand::BacktestNode(BacktestStrategyCommand::UpdateIndicatorData(params))
     }
 }

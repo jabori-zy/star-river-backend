@@ -9,7 +9,7 @@ use tokio::time::Duration;
 
 #[derive(Debug)]
 pub enum CacheEngineCommand {
-    AddCacheKey(AddCacheKeyParams),                 // 添加缓存键
+    AddKey(AddKeyParams),                 // 添加缓存键
     GetCache(GetCacheParams),                       // 获取缓存数据
     GetCacheMulti(GetCacheMultiParams),             // 一次性获取多个key的数据
     GetCacheLength(GetCacheLengthParams),           // 获取缓存长度
@@ -21,7 +21,7 @@ pub enum CacheEngineCommand {
 impl EngineCommandTrait for CacheEngineCommand {
     fn responder(&self) -> &EngineResponder {
         match self {
-            CacheEngineCommand::AddCacheKey(params) => &params.responder,
+            CacheEngineCommand::AddKey(params) => &params.responder,
             CacheEngineCommand::GetCache(params) => &params.responder,
             CacheEngineCommand::GetCacheMulti(params) => &params.responder,
             CacheEngineCommand::GetCacheLength(params) => &params.responder,
@@ -32,7 +32,7 @@ impl EngineCommandTrait for CacheEngineCommand {
     }
     fn datetime(&self) -> DateTimeUtc {
         match self {
-            CacheEngineCommand::AddCacheKey(params) => params.datetime,
+            CacheEngineCommand::AddKey(params) => params.datetime,
             CacheEngineCommand::GetCache(params) => params.datetime,
             CacheEngineCommand::GetCacheMulti(params) => params.datetime,
             CacheEngineCommand::GetCacheLength(params) => params.datetime,
@@ -44,7 +44,7 @@ impl EngineCommandTrait for CacheEngineCommand {
 
     fn sender(&self) -> String {
         match self {
-            CacheEngineCommand::AddCacheKey(params) => params.sender.clone(),
+            CacheEngineCommand::AddKey(params) => params.sender.clone(),
             CacheEngineCommand::GetCache(params) => params.sender.clone(),
             CacheEngineCommand::GetCacheMulti(params) => params.sender.clone(),
             CacheEngineCommand::GetCacheLength(params) => params.sender.clone(),
@@ -63,7 +63,7 @@ impl From<CacheEngineCommand> for EngineCommand {
 
 // 添加K线缓存键参数
 #[derive(Debug)]
-pub struct AddCacheKeyParams {
+pub struct AddKeyParams {
     pub strategy_id: StrategyId,
     pub key: Key,
     pub max_size: Option<u32>,
@@ -73,7 +73,7 @@ pub struct AddCacheKeyParams {
     pub responder: EngineResponder,
 }
 
-impl AddCacheKeyParams {
+impl AddKeyParams {
     pub fn new(
         strategy_id: StrategyId,
         key: Key,
@@ -94,9 +94,9 @@ impl AddCacheKeyParams {
     }
 }
 
-impl From<AddCacheKeyParams> for EngineCommand {
-    fn from(params: AddCacheKeyParams) -> Self {
-        EngineCommand::CacheEngine(CacheEngineCommand::AddCacheKey(params))
+impl From<AddKeyParams> for EngineCommand {
+    fn from(params: AddKeyParams) -> Self {
+        EngineCommand::CacheEngine(CacheEngineCommand::AddKey(params))
     }
 }
 

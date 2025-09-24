@@ -182,7 +182,6 @@ impl BacktestStrategyStateMachine {
                         BacktestStrategyStateAction::InitInitialPlaySpeed, // 初始化初始播放速度
                         BacktestStrategyStateAction::InitVirtualTradingSystem, // 初始化虚拟交易系统
                         BacktestStrategyStateAction::InitStrategyStats, // 初始化策略统计
-                                                                      // BacktestStrategyStateAction::LoadPositions, // 加载持仓
                     ],
                 })
             }

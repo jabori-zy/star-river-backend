@@ -46,20 +46,19 @@ impl BacktestStrategy {
                     }
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
-                    tracing::info!("[{}({})] init signal count", strategy_name, strategy_id);
-                    let mut context_guard = self.context.write().await;
-                    let signal_count = context_guard.get_signal_count().await;
+                    let context_guard = self.context.read().await;
+                    let signal_count = context_guard.get_signal_count_new().await;
 
-                    if let Ok(signal_count) = signal_count {
+                    if let Ok(count) = signal_count {
                         let mut signal_count_guard = context_guard.total_signal_count.write().await;
-                        *signal_count_guard = signal_count;
-                        tracing::info!("[{}({})] init signal count success", strategy_name, strategy_id);
+                        *signal_count_guard = count;
+                        tracing::info!("[{}({})] init signal count success. signal count: {}", strategy_name, strategy_id, count);
                     } else {
-                        tracing::error!("[{}({})] get signal count failed", strategy_name, strategy_id);
+                        let report = Report::from_error(signal_count.unwrap_err());
+                        tracing::error!("{}", report);
                     }
                 }
                 BacktestStrategyStateAction::InitVirtualTradingSystem => {
-                    tracing::info!("[{}({})] init virtual trading system", strategy_name, strategy_id);
                     let context_guard = self.context.read().await;
                     let virtual_trading_system = context_guard.virtual_trading_system.clone();
                     drop(context_guard); // 释放锁

@@ -190,7 +190,7 @@ impl VirtualTradingSystem {
     // 设置k线缓存索引, 并更新所有数据
     pub async fn update_system(&mut self) {
         // 当k线索引更新后，更新k线缓存key的最新收盘价
-        self.update_kline_price().await;
+        // self.update_kline_price().await;
         // 更新时间戳
         self.update_timestamp();
 

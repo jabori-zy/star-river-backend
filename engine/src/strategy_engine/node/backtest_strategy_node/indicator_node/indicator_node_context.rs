@@ -5,7 +5,7 @@ use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
-use event_center::communication::engine::cache_engine::{AddCacheKeyParams, GetCacheParams};
+use event_center::communication::engine::cache_engine::{AddKeyParams, GetCacheParams};
 use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
 use star_river_core::cache::CacheValue;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
@@ -62,7 +62,7 @@ impl IndicatorNodeContext {
         for (indicator_key, _) in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
 
-            let register_indicator_params = AddCacheKeyParams::new(
+            let register_indicator_params = AddKeyParams::new(
                 self.get_strategy_id().clone(),
                 indicator_key.clone().into(),
                 None,

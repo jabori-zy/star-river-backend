@@ -129,22 +129,21 @@ impl EngineContext for MarketEngineContext {
                     .unwrap();
 
                 // 发布k线历史更新事件
-                let exchange_kline_history_update_event = ExchangeKlineHistoryUpdateEvent::new(
-                    params.exchange.clone(),
-                    params.symbol.clone(),
-                    params.interval.clone(),
-                    params.time_range.clone(),
-                    kline_history,
-                );
-                let exchange_kline_history_update_event =
-                    ExchangeEvent::ExchangeKlineHistoryUpdate(exchange_kline_history_update_event);
-                EventCenterSingleton::publish(exchange_kline_history_update_event.into())
-                    .await
-                    .unwrap();
+                // let exchange_kline_history_update_event = ExchangeKlineHistoryUpdateEvent::new(
+                //     params.exchange.clone(),
+                //     params.symbol.clone(),
+                //     params.interval.clone(),
+                //     params.time_range.clone(),
+                //     kline_history,
+                // );
+                // let exchange_kline_history_update_event =
+                //     ExchangeEvent::ExchangeKlineHistoryUpdate(exchange_kline_history_update_event);
+                // EventCenterSingleton::publish(exchange_kline_history_update_event.into())
+                //     .await
+                //     .unwrap();
 
-                let get_kline_history_response =
-                    GetKlineHistoryResponse::success(params.exchange, params.symbol, params.interval);
-                params.responder.send(get_kline_history_response.into()).unwrap();
+                let resp = GetKlineHistoryResponse::success(params.exchange, params.symbol, params.interval, kline_history);
+                params.responder.send(resp.into()).unwrap();
             }
             _ => {}
         }
@@ -171,7 +170,7 @@ impl MarketEngineContext {
             end_time,
         });
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = AddCacheKeyParams::new(
+        let params = AddKeyParams::new(
             strategy_id,
             key,
             Some(max_size),
@@ -180,7 +179,7 @@ impl MarketEngineContext {
             resp_tx,
         );
 
-        let add_key_command = CacheEngineCommand::AddCacheKey(params);
+        let add_key_command = CacheEngineCommand::AddKey(params);
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
         EventCenterSingleton::send_command(add_key_command.into())
@@ -210,7 +209,7 @@ impl MarketEngineContext {
             end_time: Some(time_range.end_date.to_string()),
         });
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = AddCacheKeyParams::new(
+        let params = AddKeyParams::new(
             strategy_id,
             key,
             None,
@@ -219,7 +218,7 @@ impl MarketEngineContext {
             resp_tx,
         );
 
-        let add_key_command = CacheEngineCommand::AddCacheKey(params);
+        let add_key_command = CacheEngineCommand::AddKey(params);
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
         EventCenterSingleton::send_command(add_key_command.into())
@@ -352,7 +351,7 @@ impl MarketEngineContext {
 
     async fn get_kline_history(
         &self,
-        strategy_id: StrategyId,
+        strategy_id: i32,
         account_id: AccountId,
         exchange: Exchange,
         symbol: String,
@@ -360,23 +359,24 @@ impl MarketEngineContext {
         time_range: TimeRange,
     ) -> Result<Vec<Kline>, String> {
         // 添加缓存key
-        self.add_history_kline_key(
-            strategy_id,
-            exchange.clone(),
-            symbol.clone(),
-            interval.clone(),
-            time_range.clone(),
-        )
-        .await;
+        // self.add_history_kline_key(
+        //     strategy_id,
+        //     exchange.clone(),
+        //     symbol.clone(),
+        //     interval.clone(),
+        //     time_range.clone(),
+        // )
+        // .await;
+        tracing::debug!("strategy {} get kline history", strategy_id);
 
         // 1. 先检查注册状态
         let exchange_is_registered = self.exchange_is_registered(account_id).await;
 
         if !exchange_is_registered {
-            return Err(format!("交易所 {:?} 未注册", exchange));
+            return Err(format!("exchange {:?} is not registered", exchange));
         }
 
-        // 2. 获取上下文（新的锁范围）
+        // 2. 获取上下文
         let exchange_engine_context = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
             exchange_engine_guard.get_context()
@@ -384,12 +384,9 @@ impl MarketEngineContext {
 
         // 3. 获取读锁
         let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
+        let exchange_engine_ctx_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange = exchange_engine_context_guard
-            .get_exchange_ref(&account_id)
-            .await
-            .unwrap();
+        let exchange = exchange_engine_ctx_guard.get_exchange_ref(&account_id).await.unwrap();
         let kline_history = exchange
             .get_kline_history(&symbol, interval.clone(), time_range)
             .await

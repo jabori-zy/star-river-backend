@@ -44,7 +44,7 @@ impl EngineContext for CacheEngineContext {
             EngineCommand::CacheEngine(command) => {
                 match command {
                     // 添加缓存
-                    CacheEngineCommand::AddCacheKey(params) => {
+                    CacheEngineCommand::AddKey(params) => {
                         self.add_key(params.key.clone(), params.max_size, params.duration)
                             .await
                             .unwrap();
@@ -56,6 +56,7 @@ impl EngineContext for CacheEngineContext {
 
                     // 处理获取缓存数据命令
                     CacheEngineCommand::GetCache(params) => {
+                        tracing::debug!("获取缓存数据: {:#?}", params);
                         let data = self.get_cache(&params.key, params.index, params.limit).await;
                         let response = GetCacheDataResponse::success(params.key, data);
                         let response = CacheEngineResponse::GetCacheData(response);

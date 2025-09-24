@@ -12,10 +12,10 @@ use async_trait::async_trait;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::GetCacheParams;
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
+use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
 use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
 use event_center::communication::strategy::backtest_strategy::GetStrategyKeysParams;
-use event_center::communication::strategy::{BacktestNodeResponse, NodeResponse, StrategyCommand};
+use event_center::communication::strategy::{BacktestStrategyResponse, NodeResponse, StrategyCommand};
 use event_center::event::node_event::backtest_node_event::futures_order_node_event::*;
 use event_center::event::node_event::backtest_node_event::common_event::{
     TriggerEvent, TriggerPayload, CommonEvent,
@@ -218,7 +218,7 @@ impl FuturesOrderNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            NodeResponse::BacktestNode(BacktestNodeResponse::GetStrategyCacheKeys(
+            NodeResponse::BacktestNode(BacktestStrategyResponse::GetStrategyCacheKeys(
                 get_strategy_cache_keys_response,
             )) => return Ok(get_strategy_cache_keys_response.keys),
             _ => return Err("获取策略缓存键失败".to_string()),

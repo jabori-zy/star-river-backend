@@ -20,7 +20,7 @@ pub trait StrategyCommandTrait {
 
 #[derive(Debug)]
 pub enum StrategyCommand {
-    BacktestStrategy(BacktestStrategyCommand),
+    BacktestStrategy(BacktestNodeCommand),
 }
 
 impl StrategyCommand {
@@ -56,7 +56,7 @@ pub type NodeCommandReceiver = mpsc::Receiver<NodeCommand>;
 
 #[derive(Debug)]
 pub enum StrategyResponse {
-    BacktestStrategy(BacktestStrategyResponse),
+    BacktestStrategy(BacktestNodeResponse),
 }
 
 impl StrategyResponse {
@@ -92,7 +92,7 @@ pub trait NodeCommandTrait {
 }
 
 pub enum NodeCommand {
-    BacktestNode(BacktestNodeCommand),
+    BacktestNode(BacktestStrategyCommand),
 }
 
 impl NodeCommand {
@@ -123,7 +123,7 @@ pub trait NodeResponseTrait {
 
 #[derive(Debug)]
 pub enum NodeResponse {
-    BacktestNode(BacktestNodeResponse),
+    BacktestNode(BacktestStrategyResponse),
 }
 
 impl NodeResponse {

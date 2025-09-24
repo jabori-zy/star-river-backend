@@ -1,5 +1,7 @@
+use event_center::communication::strategy::{GetKlineDataResponse, InitBacktestKlineDataResponse, NodeResponse, UpdateKlineDataResponse};
+use star_river_core::cache::CacheItem;
 use super::{
-    BacktestNodeCommand, BacktestNodeEvent, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event,
+    BacktestStrategyCommand, BacktestNodeEvent, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event,
     EventCenterSingleton, FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse,
     GetStrategyCacheKeysResponse, IndicatorNodeEvent, KlineNodeEvent, NodeCommand, NodeEventTrait,
     PositionManagementNodeEvent, StrategyStatsEvent,
@@ -9,7 +11,7 @@ impl BacktestStrategyContext {
     pub async fn handle_node_command(&mut self, command: NodeCommand) -> Result<(), String> {
         match command {
             // 获取策略缓存keys
-            NodeCommand::BacktestNode(BacktestNodeCommand::GetStrategyKeys(get_strategy_cache_keys_command)) => {
+            NodeCommand::BacktestNode(BacktestStrategyCommand::GetStrategyKeys(get_strategy_cache_keys_command)) => {
                 let keys_map = self.get_keys().await;
                 let keys = keys_map.keys().cloned().collect();
                 let get_strategy_cache_keys_response = GetStrategyCacheKeysResponse::success(keys);
@@ -19,7 +21,7 @@ impl BacktestStrategyContext {
                     .unwrap();
             }
             // 获取当前时间
-            NodeCommand::BacktestNode(BacktestNodeCommand::GetCurrentTime(get_current_time_command)) => {
+            NodeCommand::BacktestNode(BacktestStrategyCommand::GetCurrentTime(get_current_time_command)) => {
                 let current_time = self.get_current_time().await;
                 let get_current_time_response = GetCurrentTimeResponse::success(current_time);
                 get_current_time_command
@@ -28,7 +30,7 @@ impl BacktestStrategyContext {
                     .unwrap();
             }
             // 获取最小时间间隔的symbol
-            NodeCommand::BacktestNode(BacktestNodeCommand::GetMinIntervalSymbols(get_min_interval_symbols_command)) => {
+            NodeCommand::BacktestNode(BacktestStrategyCommand::GetMinIntervalSymbols(get_min_interval_symbols_command)) => {
                 let min_interval_symbols = self.get_min_interval_symbols();
                 let get_min_interval_symbols_response = GetMinIntervalSymbolsResponse::success(min_interval_symbols);
                 get_min_interval_symbols_command
@@ -36,6 +38,113 @@ impl BacktestStrategyContext {
                     .send(get_min_interval_symbols_response.into())
                     .unwrap();
             }
+            NodeCommand::BacktestNode(BacktestStrategyCommand::InitKlineData(command)) => {
+                // 初始化k线数据
+                let mut kline_data_guard = self.kline_data.write().await;
+                if let Some(kline_data) = kline_data_guard.get(&command.kline_key) {
+                    if kline_data.len() == 0 {
+                        kline_data_guard.insert(command.kline_key, command.init_kline_data);
+                    }
+                } else {
+                    kline_data_guard.insert(command.kline_key, command.init_kline_data);
+                }
+
+                let init_backtest_kline_data_response: NodeResponse = InitBacktestKlineDataResponse::success(command.node_id).into();
+                command.responder.send(init_backtest_kline_data_response.into()).unwrap();
+            }
+
+            NodeCommand::BacktestNode(BacktestStrategyCommand::GetKlineData(command)) => {
+                let kline_data_guard = self.kline_data.read().await;
+                let result_data = if let Some(kline_data) = kline_data_guard.get(&command.kline_key) {
+                    match (command.play_index, command.limit) {
+                        // 有index，有limit
+                        (Some(play_index), Some(limit)) => {
+                            // 如果索引超出范围，返回空
+                            if play_index as usize >= kline_data.len() {
+                                Vec::new()
+                            } else {
+                                // 计算从索引开始向前取limit个元素
+                                let end = play_index as usize + 1;
+                                let start = if limit as usize >= end {
+                                    0
+                                } else {
+                                    end - limit as usize
+                                };
+                                kline_data[start..end].to_vec()
+                            }
+                        },
+                        // 有index，无limit
+                        (Some(play_index), None) => {
+                            // 如果索引超出范围，返回空
+                            if play_index as usize >= kline_data.len() {
+                                Vec::new()
+                            } else {
+                                // 从索引开始向前取所有元素（到开头）
+                                let end = play_index as usize + 1;
+                                kline_data[0..end].to_vec()
+                            }
+                        },
+                        // 无index，有limit
+                        (None, Some(limit)) => {
+                            // 从后往前取limit条数据
+                            if limit as usize >= kline_data.len() {
+                                kline_data.clone()
+                            } else {
+                                let start = kline_data.len().saturating_sub(limit as usize);
+                                kline_data[start..].to_vec()
+                            }
+                        },
+                        // 无index，无limit
+                        (None, None) => {
+                            // 如果limit和index都为None，则返回所有数据
+                            kline_data.clone()
+                        }
+                    }
+                } else {
+                    Vec::new()
+                };
+
+                let response = GetKlineDataResponse::success(result_data);
+                command.responder.send(response.into()).unwrap();
+            }
+            NodeCommand::BacktestNode(BacktestStrategyCommand::UpdateKlineData(command)) => {
+                // 先检查键是否存在，释放锁
+                let key_exists = { self.kline_data.read().await.contains_key(&command.kline_key) };
+
+                if !key_exists {
+                    // 如果缓存键不存在，先初始化空的Vec
+                    let mut kline_data_guard = self.kline_data.write().await;
+                    kline_data_guard.insert(command.kline_key.clone(), Vec::new());
+                }
+
+                // 重新获取锁并更新
+                let mut kline_data_guard = self.kline_data.write().await;
+                let kline_data = kline_data_guard.get_mut(&command.kline_key).unwrap();
+
+                if !key_exists || kline_data.len() == 0 {
+                    // 判断是否为初始化
+                    kline_data.clear();
+                    kline_data.push(command.kline.clone());
+                } else {
+                    // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k线
+                    if let Some(last_kline) = kline_data.last() {
+                        if last_kline.get_timestamp() == command.kline.get_timestamp() {
+                            kline_data.pop();
+                            kline_data.push(command.kline.clone());
+                        } else {
+                            // 如果最新的一条数据时间戳不等于最后一根k线的时间戳，则插入新数据
+                            kline_data.push(command.kline.clone());
+                        }
+                    } else {
+                        kline_data.push(command.kline.clone());
+                    }
+                }
+
+                // TODO: 创建并发送响应
+                let response = UpdateKlineDataResponse::success(command.kline);
+                command.responder.send(response.into()).unwrap();
+            }
+
             _ => {}
         }
         Ok(())

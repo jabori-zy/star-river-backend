@@ -32,6 +32,20 @@ pub enum KlineNodeError {
         play_index: u32,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("[{node_name}] kline timestamp not equal. kline key: [{kline_key}], play index: [{play_index}]"))]
+    KlineTimestampNotEqual {
+        node_name: String,
+        kline_key: String,
+        play_index: u32,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("no min interval symbol found for [{symbol}]"))]
+    NoMinIntervalSymbol {
+        symbol: String,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -48,6 +62,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::ConfigFieldValueNull { .. } => 1002,
             KlineNodeError::ConfigDeserializationFailed { .. } => 1003,
             KlineNodeError::GetKlineData { .. } => 1004,
+            KlineNodeError::KlineTimestampNotEqual { .. } => 1005,
+            KlineNodeError::NoMinIntervalSymbol { .. } => 1006,
         };
 
         format!("{}_{:04}", prefix, code)
@@ -64,6 +80,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::RegisterExchange { .. }
                 | KlineNodeError::ConfigFieldValueNull { .. }
                 | KlineNodeError::ConfigDeserializationFailed { .. }
+                | KlineNodeError::KlineTimestampNotEqual { .. }
+                | KlineNodeError::NoMinIntervalSymbol { .. }
         )
     }
 
@@ -82,7 +100,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::ConfigFieldValueNull { .. } |
             // For errors with external sources that don't implement our trait
             KlineNodeError::ConfigDeserializationFailed { .. } |
-            KlineNodeError::GetKlineData { .. } => vec![self.error_code()],
+            KlineNodeError::GetKlineData { .. } |
+            KlineNodeError::KlineTimestampNotEqual { .. } |
+            KlineNodeError::NoMinIntervalSymbol { .. } => vec![self.error_code()],
         }
     }
 
@@ -105,7 +125,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                     play_index,
                     ..
                 } => {
-                    format!("K线节点 [{node_name}] 获取K线数据失败，K线键: [{kline_key}]，缓存索引: [{play_index}]")
+                    format!("K线节点 [{node_name}] 获取K线数据失败，K线键: [{kline_key}]，播放索引: [{play_index}]")
+                }
+                KlineNodeError::KlineTimestampNotEqual { node_name, kline_key, play_index, .. } => {
+                    format!("K线节点 [{node_name}] K线时间戳不一致，K线键: [{kline_key}]，播放索引: [{play_index}]")
+                }
+                KlineNodeError::NoMinIntervalSymbol { symbol, .. } => {
+                    format!("K线节点没有找到最小周期K线，交易对: [{symbol}]")
                 }
             },
         }
