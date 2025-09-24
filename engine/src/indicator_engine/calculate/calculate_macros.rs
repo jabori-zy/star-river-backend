@@ -5,7 +5,7 @@ macro_rules! calculate_fn {
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?]
     ) => {
         paste::paste! {
-            pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
+            pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Kline>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let (timestamp_list, price_source) = CalculateIndicatorFunction::get_price_source_and_datetime(
                     &config.price_source,
                     kline_series
@@ -28,7 +28,7 @@ macro_rules! calculate_fn {
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?]
     ) => {
         paste::paste! {
-            pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
+            pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Kline>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let tohlcv = CalculateIndicatorFunction::get_tohlcv(kline_series)?;
 
                 let result = TALib::[<$indicator_name:lower>](
@@ -47,7 +47,7 @@ macro_rules! calculate_fn {
         input => [$($input_field:ident),* $(,)?]
     ) => {
         paste::paste! {
-            pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Arc<CacheValue>>) -> Result<Vec<Indicator>, IndicatorEngineError> {
+            pub fn [<calculate_ $indicator_name:lower>](kline_series: Vec<Kline>) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let tohlcv = CalculateIndicatorFunction::get_tohlcv(kline_series)?;
                 let result = TALib::[<$indicator_name:lower>](
                     &tohlcv.0, // timestamp_list
@@ -67,7 +67,7 @@ macro_rules! calculate_fn_snake {
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?]
     ) => {
         paste::paste! {
-            pub fn [<calculate_ $indicator_name:snake:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
+            pub fn [<calculate_ $indicator_name:snake:lower>](kline_series: Vec<Kline>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let (timestamp_list, price_source) = CalculateIndicatorFunction::get_price_source_and_datetime(
                     &config.price_source,
                     kline_series
@@ -90,7 +90,7 @@ macro_rules! calculate_fn_snake {
         talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?]
     ) => {
         paste::paste! {
-            pub fn [<calculate_ $indicator_name:snake:lower>](kline_series: Vec<Arc<CacheValue>>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
+            pub fn [<calculate_ $indicator_name:snake:lower>](kline_series: Vec<Kline>, config: &[<$indicator_name Config>]) -> Result<Vec<Indicator>, IndicatorEngineError> {
                 let tohlcv = CalculateIndicatorFunction::get_tohlcv(kline_series)?;
 
                 let result = TALib::[<$indicator_name:snake:lower>](

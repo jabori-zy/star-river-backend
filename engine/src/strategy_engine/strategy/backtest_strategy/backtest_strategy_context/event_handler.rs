@@ -1,4 +1,4 @@
-use event_center::communication::strategy::{GetKlineDataResponse, InitBacktestKlineDataResponse, NodeResponse, UpdateKlineDataResponse};
+use event_center::communication::strategy::{GetIndicatorDataResponse, GetKlineDataResponse, InitIndicatorDataResponse, InitKlineDataResponse, NodeResponse, UpdateIndicatorDataResponse, UpdateKlineDataResponse};
 use star_river_core::cache::CacheItem;
 use super::{
     BacktestStrategyCommand, BacktestNodeEvent, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event,
@@ -49,7 +49,7 @@ impl BacktestStrategyContext {
                     kline_data_guard.insert(command.kline_key, command.init_kline_data);
                 }
 
-                let init_backtest_kline_data_response: NodeResponse = InitBacktestKlineDataResponse::success(command.node_id).into();
+                let init_backtest_kline_data_response: NodeResponse = InitKlineDataResponse::success(command.node_id).into();
                 command.responder.send(init_backtest_kline_data_response.into()).unwrap();
             }
 
@@ -142,6 +142,113 @@ impl BacktestStrategyContext {
 
                 // TODO: 创建并发送响应
                 let response = UpdateKlineDataResponse::success(command.kline);
+                command.responder.send(response.into()).unwrap();
+            }
+
+            NodeCommand::BacktestNode(BacktestStrategyCommand::InitIndicatorData(command)) => {
+                // 初始化指标数据
+                let mut indicator_data_guard = self.indicator_data.write().await;
+                if let Some(indicator_data) = indicator_data_guard.get(&command.indicator_key) {
+                    if indicator_data.len() == 0 {
+                        indicator_data_guard.insert(command.indicator_key, command.indicator_series);
+                    }
+                } else {
+                    indicator_data_guard.insert(command.indicator_key, command.indicator_series);
+                }
+
+                let init_indicator_data_response: NodeResponse = InitIndicatorDataResponse::success(command.node_id).into();
+                command.responder.send(init_indicator_data_response.into()).unwrap();
+            }
+
+            NodeCommand::BacktestNode(BacktestStrategyCommand::GetIndicatorData(command)) => {
+                let indicator_data_guard = self.indicator_data.read().await;
+                let result_data = if let Some(indicator_data) = indicator_data_guard.get(&command.indicator_key) {
+                    match (command.play_index, command.limit) {
+                        // 有index，有limit
+                        (Some(play_index), Some(limit)) => {
+                            // 如果索引超出范围，返回空Vec
+                            if play_index as usize >= indicator_data.len() {
+                                Vec::new()
+                            } else {
+                                // 计算从索引开始向前取limit个元素
+                                let end = play_index as usize + 1;
+                                let start = if limit as usize >= end {
+                                    0
+                                } else {
+                                    end - limit as usize
+                                };
+                                indicator_data[start..end].to_vec()
+                            }
+                        },
+                        // 有index，无limit
+                        (Some(play_index), None) => {
+                            // 如果索引超出范围，返回空Vec
+                            if play_index as usize >= indicator_data.len() {
+                                Vec::new()
+                            } else {
+                                // 从索引开始向前取所有元素（到开头）
+                                let end = play_index as usize + 1;
+                                indicator_data[0..end].to_vec()
+                            }
+                        },
+                        // 无index，有limit
+                        (None, Some(limit)) => {
+                            // 从后往前取limit条数据
+                            if limit as usize >= indicator_data.len() {
+                                indicator_data.clone()
+                            } else {
+                                let start = indicator_data.len().saturating_sub(limit as usize);
+                                indicator_data[start..].to_vec()
+                            }
+                        },
+                        // 无index，无limit
+                        (None, None) => {
+                            // 如果limit和index都为None，则返回所有数据
+                            indicator_data.clone()
+                        }
+                    }
+                } else {
+                    Vec::new()
+                };
+
+                let response = GetIndicatorDataResponse::success(result_data);
+                command.responder.send(response.into()).unwrap();
+            }
+
+            NodeCommand::BacktestNode(BacktestStrategyCommand::UpdateIndicatorData(command)) => {
+                // 先检查键是否存在，释放锁
+                let key_exists = { self.indicator_data.read().await.contains_key(&command.indicator_key) };
+
+                if !key_exists {
+                    // 如果缓存键不存在，先初始化空的Vec
+                    let mut indicator_data_guard = self.indicator_data.write().await;
+                    indicator_data_guard.insert(command.indicator_key.clone(), Vec::new());
+                }
+
+                // 重新获取锁并更新
+                let mut indicator_data_guard = self.indicator_data.write().await;
+                let indicator_data = indicator_data_guard.get_mut(&command.indicator_key).unwrap();
+
+                if !key_exists || indicator_data.len() == 0 {
+                    // 判断是否为初始化
+                    indicator_data.clear();
+                    indicator_data.push(command.indicator_data.clone());
+                } else {
+                    // 如果最新的一条数据时间戳等于最后一个指标的时间戳，则更新最后一条指标
+                    if let Some(last_indicator) = indicator_data.last() {
+                        if last_indicator.get_timestamp() == command.indicator_data.get_timestamp() {
+                            indicator_data.pop();
+                            indicator_data.push(command.indicator_data.clone());
+                        } else {
+                            // 如果最新的一条数据时间戳不等于最后一个指标的时间戳，则插入新数据
+                            indicator_data.push(command.indicator_data.clone());
+                        }
+                    } else {
+                        indicator_data.push(command.indicator_data.clone());
+                    }
+                }
+
+                let response = UpdateIndicatorDataResponse::success(command.indicator_data);
                 command.responder.send(response.into()).unwrap();
             }
 

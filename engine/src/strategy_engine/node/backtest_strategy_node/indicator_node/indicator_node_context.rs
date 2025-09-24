@@ -1,18 +1,23 @@
 mod context_impl;
 mod event_handler;
+mod status_handler;
+mod data_handler;
 
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use event_center::communication::engine::EngineResponse;
+use event_center::communication::strategy::{BacktestStrategyResponse, GetIndicatorDataParams, GetKlineDataParams, InitIndicatorDataParams, NodeResponse, UpdateIndicatorDataParams};
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::{AddKeyParams, GetCacheParams};
-use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
+use event_center::communication::engine::indicator_engine::{CalculateHistoryIndicatorParams, IndicatorEngineResponse};
 use star_river_core::cache::CacheValue;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::indicator::Indicator;
+use star_river_core::market::Kline;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::Duration;
 
@@ -20,9 +25,10 @@ use tokio::time::Duration;
 pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub backtest_config: IndicatorNodeBacktestConfig,
-    pub is_registered: Arc<RwLock<bool>>,                 // 是否已经注册指标
     selected_kline_key: KlineKey,                         // 回测K线缓存键
     indicator_keys: HashMap<IndicatorKey, (i32, String)>, // 指标缓存键 -> (配置id, 输出句柄id)
+    kline_value: HashMap<IndicatorKey, Vec<Kline>>, // 指标缓存键 -> 指标值
+    indicator_lookback: HashMap<IndicatorKey, usize>, // 指标缓存键 -> lookback
     min_interval_symbols: Vec<KlineKey>,
 }
 
@@ -36,9 +42,10 @@ impl IndicatorNodeContext {
         Self {
             base_context,
             backtest_config,
-            is_registered: Arc::new(RwLock::new(false)),
             selected_kline_key,
             indicator_keys,
+            kline_value: HashMap::new(),
+            indicator_lookback: HashMap::new(),
             min_interval_symbols: vec![],
         }
     }
@@ -85,38 +92,29 @@ impl IndicatorNodeContext {
     }
 
     // 获取已经计算好的回测指标数据
-    async fn get_backtest_indicator_cache(
+    async fn get_indicator_data(
         &self,
         indicator_key: &IndicatorKey,
         play_index: i32,
-    ) -> Result<Arc<CacheValue>, String> {
+    ) -> Result<Indicator, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_cache_params = GetCacheParams::new(
-            self.base_context.strategy_id.clone(),
+        let get_indicator_params = GetIndicatorDataParams::new(
             self.base_context.node_id.clone(),
             indicator_key.clone().into(),
-            Some(play_index as u32),
+            Some(play_index),
             Some(1),
-            self.base_context.node_id.clone(),
             resp_tx,
         );
-        // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(get_cache_params.into())
-            .await
-            .unwrap();
+        self.get_node_command_sender().send(get_indicator_params.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.success() {
-            if let Ok(cache_reponse) = CacheEngineResponse::try_from(response) {
-                match cache_reponse {
-                    CacheEngineResponse::GetCacheData(get_cache_data_response) => {
-                        if get_cache_data_response.cache_data.len() == 1 {
-                            return Ok(get_cache_data_response.cache_data[0].clone());
-                        }
-                    }
-                    _ => return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id)),
+            match response {
+                NodeResponse::BacktestNode(BacktestStrategyResponse::GetIndicatorData(resp)) => {
+                    return Ok(resp.data.last().unwrap().clone());
                 }
+                _ => return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id)),
             }
         }
         Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id))
@@ -140,22 +138,63 @@ impl IndicatorNodeContext {
 
         for (ind_key, _) in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let calculate_backtest_indicator_params = CalculateHistoryIndicatorParams::new(
-                strategy_id.clone(),
+
+            // 获取所有K线
+            let get_kline_series_params = GetKlineDataParams::new(
                 node_id.clone(),
-                kline_key.clone().into(),
-                ind_key.indicator_config.clone(),
-                node_id.clone(),
+                kline_key.clone(),
+                None,
+                None,
                 resp_tx,
             );
-            EventCenterSingleton::send_command(calculate_backtest_indicator_params.into())
-                .await
-                .unwrap();
+            self.get_node_command_sender().send(get_kline_series_params.into()).await.unwrap();
             let response = resp_rx.await.unwrap();
-            if !response.success() {
-                is_all_success = false;
-                break;
+            if response.success() {
+                match response {
+                    NodeResponse::BacktestNode(BacktestStrategyResponse::GetKlineData(resp)) => {
+                        let (resp_tx, resp_rx) = oneshot::channel();
+                        let cal_ind_cmd = CalculateHistoryIndicatorParams::new(
+                            strategy_id.clone(),
+                            node_id.clone(),
+                            kline_key.clone().into(),
+                            resp.data,
+                            ind_key.indicator_config.clone(),
+                            node_id.clone(),
+                            resp_tx,
+                        );
+                        EventCenterSingleton::send_command(cal_ind_cmd.into()).await.unwrap();
+                        let response = resp_rx.await.unwrap();
+                        if response.success() {
+                            match response {
+                                EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(resp)) => {
+                                    let (resp_tx, resp_rx) = oneshot::channel();
+                                    let update_indicator_params = InitIndicatorDataParams::new(
+                                        node_id.clone(),
+                                        ind_key.clone(),
+                                        resp.indicators,
+                                        resp_tx,
+                                    );
+                                    self.get_node_command_sender().send(update_indicator_params.into()).await.unwrap();
+                                    let response = resp_rx.await.unwrap();
+                                    if response.success() {
+                                        continue;
+                                    }
+
+
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            is_all_success = false;
+                            break;
+
+                        }
+                    }
+                    _ => {}
+                }
             }
+
+            
         }
         Ok(is_all_success)
     }

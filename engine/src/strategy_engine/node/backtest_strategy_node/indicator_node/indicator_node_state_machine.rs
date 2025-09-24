@@ -18,8 +18,8 @@ pub enum IndicatorNodeStateAction {
     #[strum(serialize = "ListenAndHandleInnerEvents")]
     ListenAndHandleInnerEvents, // 处理内部事件
 
-    #[strum(serialize = "RegisterIndicatorKey")]
-    RegisterIndicatorKey, // 注册指标缓存键
+    #[strum(serialize = "InitIndicatorLookback")]
+    InitIndicatorLookback, // 初始化指标lookback
 
     #[strum(serialize = "GetMinIntervalSymbols")]
     GetMinIntervalSymbols, // 获取最小周期交易对
@@ -117,8 +117,8 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                         Box::new(IndicatorNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleInnerEvents),
+                        Box::new(IndicatorNodeStateAction::InitIndicatorLookback),
                         Box::new(IndicatorNodeStateAction::GetMinIntervalSymbols),
-                        Box::new(IndicatorNodeStateAction::RegisterIndicatorKey),
                         Box::new(IndicatorNodeStateAction::CalculateIndicator),
                     ],
                 }))

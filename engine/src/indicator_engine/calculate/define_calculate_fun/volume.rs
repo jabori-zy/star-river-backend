@@ -5,6 +5,7 @@ use star_river_core::cache::CacheValue;
 use star_river_core::error::engine_error::indicator_engine_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::indicator::indicator_define::volume::*;
+use star_river_core::market::Kline;
 use std::sync::Arc;
 
 impl CalculateIndicatorFunction {

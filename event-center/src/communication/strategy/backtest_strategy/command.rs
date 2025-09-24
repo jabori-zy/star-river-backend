@@ -2,7 +2,7 @@ use super::super::{
     NodeCommand, NodeCommandTrait, NodeResponder, StrategyCommand, StrategyCommandTrait, StrategyResponder,
 };
 use chrono::Utc;
-use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::indicator::Indicator;
 use star_river_core::market::Kline;
@@ -260,8 +260,8 @@ impl From<InitKlineDataParams> for NodeCommand {
 #[derive(Debug)]
 pub struct InitIndicatorDataParams {
     pub node_id: NodeId,
-    pub indicator_key: String,
-    pub init_indicator_data: Vec<Indicator>,
+    pub indicator_key: IndicatorKey,
+    pub indicator_series: Vec<Indicator>,
     pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
@@ -269,14 +269,14 @@ pub struct InitIndicatorDataParams {
 impl InitIndicatorDataParams {
     pub fn new(
         node_id: NodeId,
-        indicator_key: String,
-        init_indicator_data: Vec<Indicator>,
+        indicator_key: IndicatorKey,
+        indicator_series: Vec<Indicator>,
         responder: NodeResponder,
     ) -> Self {
         Self {
             node_id,
             indicator_key,
-            init_indicator_data,
+            indicator_series,
             datetime: Utc::now(),
             responder,
         }
@@ -321,15 +321,15 @@ impl From<GetKlineDataParams> for NodeCommand {
 #[derive(Debug)]
 pub struct GetIndicatorDataParams {
     pub node_id: NodeId,
-    pub indicator_key: String,
-    pub play_index: PlayIndex,
+    pub indicator_key: IndicatorKey,
+    pub play_index: Option<PlayIndex>,
     pub limit: Option<i32>,
     pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
 
 impl GetIndicatorDataParams {
-    pub fn new(node_id: NodeId, indicator_key: String, play_index: PlayIndex, limit: Option<i32>, responder: NodeResponder) -> Self {
+    pub fn new(node_id: NodeId, indicator_key: IndicatorKey, play_index: Option<PlayIndex>, limit: Option<i32>, responder: NodeResponder) -> Self {
         Self {
             node_id,
             indicator_key,
@@ -340,6 +340,13 @@ impl GetIndicatorDataParams {
         }
     }
 }
+
+impl From<GetIndicatorDataParams> for NodeCommand {
+    fn from(params: GetIndicatorDataParams) -> Self {
+        NodeCommand::BacktestNode(BacktestStrategyCommand::GetIndicatorData(params))
+    }
+}
+
 
 #[derive(Debug)]
 pub struct UpdateKlineDataParams {
@@ -371,18 +378,18 @@ impl From<UpdateKlineDataParams> for NodeCommand {
 #[derive(Debug)]
 pub struct UpdateIndicatorDataParams {
     pub node_id: NodeId,
-    pub indicator_key: String,
-    pub update_indicator_data: Indicator,
+    pub indicator_key: IndicatorKey,
+    pub indicator_data: Indicator,
     pub datetime: DateTimeUtc,
     pub responder: NodeResponder,
 }
 
 impl UpdateIndicatorDataParams {
-    pub fn new(node_id: NodeId, indicator_key: String, update_indicator_data: Indicator, responder: NodeResponder) -> Self {
+    pub fn new(node_id: NodeId, indicator_key: IndicatorKey, indicator_data: Indicator, responder: NodeResponder) -> Self {
         Self {
             node_id,
             indicator_key,
-            update_indicator_data,
+            indicator_data,
             datetime: Utc::now(),
             responder,
         }

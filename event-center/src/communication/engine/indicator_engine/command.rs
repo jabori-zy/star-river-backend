@@ -1,9 +1,9 @@
 use super::super::{EngineCommand, EngineCommandTrait, EngineResponder};
 use chrono::Utc;
-use star_river_core::cache::key::KlineKey;
+use star_river_core::cache::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::indicator::IndicatorConfig;
-use star_river_core::market::{Exchange, KlineInterval};
+use star_river_core::market::{Exchange, Kline, KlineInterval};
 use std::fmt::Debug;
 
 use star_river_core::system::DateTimeUtc;
@@ -13,6 +13,7 @@ pub enum IndicatorEngineCommand {
     RegisterIndicator(RegisterIndicatorParams),                 // 注册指标
     CalculateHistoryIndicator(CalculateHistoryIndicatorParams), // 计算历史指标
     CalculateIndicator(CalculateIndicatorParams),               // 计算指标
+    GetIndicatorLookback(GetIndicatorLookbackParams),           // 获取指标lookback
 }
 
 impl EngineCommandTrait for IndicatorEngineCommand {
@@ -21,6 +22,7 @@ impl EngineCommandTrait for IndicatorEngineCommand {
             IndicatorEngineCommand::RegisterIndicator(params) => &params.responder,
             IndicatorEngineCommand::CalculateHistoryIndicator(params) => &params.responder,
             IndicatorEngineCommand::CalculateIndicator(params) => &params.responder,
+            IndicatorEngineCommand::GetIndicatorLookback(params) => &params.responder,
         }
     }
     fn datetime(&self) -> DateTimeUtc {
@@ -28,6 +30,7 @@ impl EngineCommandTrait for IndicatorEngineCommand {
             IndicatorEngineCommand::RegisterIndicator(params) => params.datetime,
             IndicatorEngineCommand::CalculateHistoryIndicator(params) => params.datetime,
             IndicatorEngineCommand::CalculateIndicator(params) => params.datetime,
+            IndicatorEngineCommand::GetIndicatorLookback(params) => params.datetime,
         }
     }
 
@@ -36,6 +39,7 @@ impl EngineCommandTrait for IndicatorEngineCommand {
             IndicatorEngineCommand::RegisterIndicator(params) => params.sender.clone(),
             IndicatorEngineCommand::CalculateHistoryIndicator(params) => params.sender.clone(),
             IndicatorEngineCommand::CalculateIndicator(params) => params.sender.clone(),
+            IndicatorEngineCommand::GetIndicatorLookback(params) => params.sender.clone(),
         }
     }
 }
@@ -90,6 +94,7 @@ pub struct CalculateHistoryIndicatorParams {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub kline_key: KlineKey, // 回测K线缓存键
+    pub kline_series: Vec<Kline>, // 回测K线
     pub indicator_config: IndicatorConfig,
     pub sender: String,
     pub datetime: DateTimeUtc,
@@ -101,6 +106,7 @@ impl CalculateHistoryIndicatorParams {
         strategy_id: StrategyId,
         node_id: NodeId,
         kline_key: KlineKey,
+        kline_series: Vec<Kline>,
         indicator_config: IndicatorConfig,
         sender: String,
         responder: EngineResponder,
@@ -109,6 +115,7 @@ impl CalculateHistoryIndicatorParams {
             strategy_id,
             node_id,
             kline_key,
+            kline_series,
             indicator_config,
             sender,
             datetime: Utc::now(),
@@ -158,5 +165,36 @@ impl CalculateIndicatorParams {
 impl From<CalculateIndicatorParams> for EngineCommand {
     fn from(params: CalculateIndicatorParams) -> Self {
         EngineCommand::IndicatorEngine(IndicatorEngineCommand::CalculateIndicator(params))
+    }
+}
+
+
+
+#[derive(Debug)]
+pub struct GetIndicatorLookbackParams {
+    pub strategy_id: StrategyId,
+    pub node_id: NodeId,
+    pub indicator_key: IndicatorKey,
+    pub sender: String,
+    pub datetime: DateTimeUtc,
+    pub responder: EngineResponder,
+}
+
+impl GetIndicatorLookbackParams {
+    pub fn new(strategy_id: StrategyId, node_id: NodeId, indicator_key: IndicatorKey, sender: String, responder: EngineResponder) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            indicator_key,
+            sender,
+            datetime: Utc::now(),
+            responder,
+        }
+    }
+}
+
+impl From<GetIndicatorLookbackParams> for EngineCommand {
+    fn from(params: GetIndicatorLookbackParams) -> Self {
+        EngineCommand::IndicatorEngine(IndicatorEngineCommand::GetIndicatorLookback(params))
     }
 }

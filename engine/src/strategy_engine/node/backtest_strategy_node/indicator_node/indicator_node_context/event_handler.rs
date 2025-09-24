@@ -1,6 +1,8 @@
 use super::IndicatorNodeContext;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
+use event_center::communication::strategy::UpdateIndicatorDataParams;
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::engine::cache_engine::ClearCacheParams;
@@ -67,21 +69,36 @@ impl IndicatorNodeContext {
         }
     }
 
-    pub(super) async fn handle_kline_update(&self, kline_update_event: KlineNodeEvent) {
+    // 处理k线更新事件
+    pub(super) async fn handle_kline_update(&mut self, kline_update_event: KlineNodeEvent) {
         if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_update_event {
             // 提取公共数据
             let strategy_id = self.get_strategy_id().clone();
             let node_id = self.get_node_id().clone();
             let node_name = self.get_node_name().clone();
             let kline_key = kline_update_event.kline_key.clone();
+            
+            let indicator_keys = self.indicator_keys.clone();
 
-            if kline_update_event.should_calculate {
-                for (indicator_key, (config_id, output_handle_id)) in self.indicator_keys.iter() {
+            // 如果当前k线key不是最小周期交易对，则更新指标缓存数据
+            if !self.min_interval_symbols.contains(&self.selected_kline_key) {
+                for (indicator_key, (config_id, output_handle_id)) in indicator_keys.iter() {
+                    
+                    self.update_kline_data(indicator_key.clone(), kline_update_event.kline.clone()).await;
+                    
+                    let kline_series = self.kline_value.get(indicator_key).unwrap();
+                    let lookback = self.indicator_lookback.get(indicator_key).unwrap();
+                    if kline_series.len() < *lookback + 1 {
+                        tracing::warn!("指标缓存数据长度小于lookback, skip. lookback: {}, kline_series_len: {}", lookback, kline_series.len());
+                        continue;
+                    }
+                    tracing::debug!("计算指标: {:#?}", indicator_key.indicator_config);
                     let (resp_tx, resp_rx) = oneshot::channel();
-                    let cal_indi_params = CalculateIndicatorParams::new(
+                    let cal_indi_params = CalculateHistoryIndicatorParams::new(
                         strategy_id,
                         node_id.clone(),
                         kline_key.clone(),
+                        kline_series.clone(),
                         indicator_key.indicator_config.clone(),
                         node_id.clone(),
                         resp_tx,
@@ -91,22 +108,33 @@ impl IndicatorNodeContext {
                     let response = resp_rx.await.unwrap();
                     if response.success() {
                         match response {
-                            EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateIndicator(
+                            EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(
                                 calculate_indicator_response,
                             )) => {
-                                let indicator_data = calculate_indicator_response.indicator.unwrap();
-
-                                // 使用工具方法发送指标更新事件
-                                self.send_indicator_update_event(
-                                    output_handle_id.clone(),
-                                    &indicator_key,
-                                    &config_id,
-                                    indicator_data,
-                                    kline_update_event.play_index,
-                                    &node_id,
-                                    &node_name,
-                                    true,
-                                );
+                                let indicator_data = calculate_indicator_response.indicators;
+                                // 更新指标
+                                let (resp_tx, resp_rx) = oneshot::channel();
+                                let last_indicator = indicator_data.last().unwrap();
+                                let update_indicator_params = UpdateIndicatorDataParams::new(
+                                    node_id.clone(), 
+                                    indicator_key.clone(), 
+                                    last_indicator.clone(), 
+                                    resp_tx);
+                                self.get_node_command_sender().send(update_indicator_params.into()).await.unwrap();
+                                let response = resp_rx.await.unwrap();
+                                if response.success() {
+                                    // 使用工具方法发送指标更新事件
+                                    self.send_indicator_update_event(
+                                        output_handle_id.clone(),
+                                        &indicator_key,
+                                        &config_id,
+                                        last_indicator.clone(),
+                                        kline_update_event.play_index,
+                                        &node_id,
+                                        &node_name,
+                                        true,
+                                    );
+                                }
                             }
                             _ => {}
                         }
@@ -119,15 +147,17 @@ impl IndicatorNodeContext {
                         let _ = self.get_output_handle(output_handle_id).send(trigger_event.into());
                     }
                 }
-            } else {
-                // 遍历指标缓存键，获取指标
+            } 
+            // 如果当前k线key是最小周期交易对，则直接发送指标更新事件
+            else {
+                // 遍历指标缓存键，从策略中获取指标数据
                 for (indicator_key, (config_id, output_handle_id)) in self.indicator_keys.iter() {
                     // 获取指标缓存数据，增加错误处理
                     let indicator_cache_data = match self
-                        .get_backtest_indicator_cache(&indicator_key, kline_update_event.play_index)
+                        .get_indicator_data(&indicator_key, kline_update_event.play_index)
                         .await
                     {
-                        Ok(data) => data.as_indicator().unwrap(),
+                        Ok(data) => data,
 
                         Err(e) => {
                             tracing::error!(

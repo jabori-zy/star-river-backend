@@ -429,19 +429,19 @@ impl BacktestNodeTrait for IndicatorNode {
 
         // 循环检查是否已经注册指标
         // 检查交易所是否注册成功，并且K线流是否订阅成功
-        loop {
-            let is_registered = {
-                let state_guard = self.context.read().await;
-                let indicator_node_context = state_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
-                let is_registered = indicator_node_context.is_registered.read().await.clone();
-                tracing::info!("{}: 检查是否已经注册指标: {}", self.get_node_id().await, is_registered);
-                is_registered
-            };
-            if is_registered {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
+        // loop {
+        //     let is_registered = {
+        //         let state_guard = self.context.read().await;
+        //         let indicator_node_context = state_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
+        //         let is_registered = indicator_node_context.is_registered.read().await.clone();
+        //         tracing::info!("{}: 检查是否已经注册指标: {}", self.get_node_id().await, is_registered);
+        //         is_registered
+        //     };
+        //     if is_registered {
+        //         break;
+        //     }
+        //     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        // }
 
         tracing::info!(
             "{:?}: 初始化完成",
@@ -563,8 +563,16 @@ impl BacktestNodeTrait for IndicatorNode {
                         self.listen_strategy_command().await;
                     }
 
+                    IndicatorNodeStateAction::InitIndicatorLookback => {
+                        let context = self.get_context();
+                        let mut context_guard = context.write().await;
+                        let indicator_node_context = context_guard.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
+                        indicator_node_context.init_indicator_lookback().await;
+                        tracing::info!("[{node_name})] init indicator lookback complete");
+
+                    }
+
                     IndicatorNodeStateAction::GetMinIntervalSymbols => {
-                        tracing::info!("[{node_name}({node_id})] start to get min interval symbols");
                         let context = self.get_context();
 
                         let mut context_guard = context.write().await;
@@ -587,32 +595,7 @@ impl BacktestNodeTrait for IndicatorNode {
                         }
                     }
 
-                    IndicatorNodeStateAction::RegisterIndicatorKey => {
-                        tracing::info!("[{node_name}({node_id})] starting to register indicator cache key");
 
-                        let log_message = RegisterIndicatorCacheKeyMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IndicatorNodeStateAction::RegisterIndicatorKey.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-
-                        let mut context = self.context.write().await;
-                        let context = context.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
-                        let is_all_success = context.register_indicator_cache_key().await.unwrap();
-                        if is_all_success {
-                            if is_all_success {
-                                *context.is_registered.write().await = true;
-                                tracing::info!("[{node_name}({node_id})] register indicator cache key success");
-                            } else {
-                                tracing::error!("[{node_name}({node_id})] register indicator cache key failed");
-                            }
-                        }
-                    }
                     IndicatorNodeStateAction::CalculateIndicator => {
                         tracing::info!("[{node_name}({node_id})] starting to calculate indicator");
                         let log_message = CalculateIndicatorMsg::new(node_id.clone(), node_name.clone());

@@ -129,8 +129,8 @@ pub enum BacktestStrategyResponse {
     GetStrategyCacheKeys(GetStrategyCacheKeysResponse),
     GetMinIntervalSymbols(GetMinIntervalSymbolsResponse),
     GetCurrentTime(GetCurrentTimeResponse),
-    InitBacktestKlineData(InitBacktestKlineDataResponse),
-    InitBacktestIndicatorData(InitBacktestIndicatorDataResponse),
+    InittKlineData(InitKlineDataResponse),
+    InitIndicatorData(InitIndicatorDataResponse),
     GetKlineData(GetKlineDataResponse),
     GetIndicatorData(GetIndicatorDataResponse),
     UpdateKlineData(UpdateKlineDataResponse),
@@ -147,10 +147,10 @@ impl NodeResponseTrait for BacktestStrategyResponse {
                 get_min_interval_symbols_response.success
             }
             BacktestStrategyResponse::GetCurrentTime(get_current_time_response) => get_current_time_response.success,
-            BacktestStrategyResponse::InitBacktestKlineData(init_backtest_kline_data_response) => {
+            BacktestStrategyResponse::InittKlineData(init_backtest_kline_data_response) => {
                 init_backtest_kline_data_response.success
             }
-            BacktestStrategyResponse::InitBacktestIndicatorData(init_backtest_indicator_data_response) => {
+            BacktestStrategyResponse::InitIndicatorData(init_backtest_indicator_data_response) => {
                 init_backtest_indicator_data_response.success
             }
             BacktestStrategyResponse::GetKlineData(get_kline_data_response) => {
@@ -179,10 +179,10 @@ impl NodeResponseTrait for BacktestStrategyResponse {
             BacktestStrategyResponse::GetCurrentTime(get_current_time_response) => {
                 get_current_time_response.error.as_ref().unwrap().clone()
             }
-            BacktestStrategyResponse::InitBacktestKlineData(init_backtest_kline_data_response) => {
+            BacktestStrategyResponse::InittKlineData(init_backtest_kline_data_response) => {
                 init_backtest_kline_data_response.error.as_ref().unwrap().clone()
             }
-            BacktestStrategyResponse::InitBacktestIndicatorData(init_backtest_indicator_data_response) => {
+            BacktestStrategyResponse::InitIndicatorData(init_backtest_indicator_data_response) => {
                 init_backtest_indicator_data_response.error.as_ref().unwrap().clone()
             }
             BacktestStrategyResponse::GetKlineData(get_kline_data_response) => {
@@ -209,10 +209,10 @@ impl NodeResponseTrait for BacktestStrategyResponse {
                 get_min_interval_symbols_response.datetime
             }
             BacktestStrategyResponse::GetCurrentTime(get_current_time_response) => get_current_time_response.datetime,
-            BacktestStrategyResponse::InitBacktestKlineData(init_backtest_kline_data_response) => {
+            BacktestStrategyResponse::InittKlineData(init_backtest_kline_data_response) => {
                 init_backtest_kline_data_response.datetime
             }
-            BacktestStrategyResponse::InitBacktestIndicatorData(init_backtest_indicator_data_response) => {
+            BacktestStrategyResponse::InitIndicatorData(init_backtest_indicator_data_response) => {
                 init_backtest_indicator_data_response.datetime
             }
             BacktestStrategyResponse::GetKlineData(get_kline_data_response) => {
@@ -310,14 +310,14 @@ impl From<GetCurrentTimeResponse> for NodeResponse {
 
 #[derive(Debug)]
 
-pub struct InitBacktestKlineDataResponse {
+pub struct InitKlineDataResponse {
     pub node_id: NodeId,
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
     pub datetime: DateTimeUtc,
 }
 
-impl InitBacktestKlineDataResponse {
+impl InitKlineDataResponse {
     pub fn success(node_id: NodeId) -> Self {
         Self {
             node_id,
@@ -328,16 +328,16 @@ impl InitBacktestKlineDataResponse {
     }
 }
 
-impl From<InitBacktestKlineDataResponse> for NodeResponse {
-    fn from(response: InitBacktestKlineDataResponse) -> Self {
-        NodeResponse::BacktestNode(BacktestStrategyResponse::InitBacktestKlineData(response))
+impl From<InitKlineDataResponse> for NodeResponse {
+    fn from(response: InitKlineDataResponse) -> Self {
+        NodeResponse::BacktestNode(BacktestStrategyResponse::InittKlineData(response))
     }
 }
 
 
 
 #[derive(Debug)]
-pub struct InitBacktestIndicatorDataResponse {
+pub struct InitIndicatorDataResponse {
     pub node_id: NodeId,
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
@@ -345,7 +345,7 @@ pub struct InitBacktestIndicatorDataResponse {
 }
 
 
-impl InitBacktestIndicatorDataResponse {
+impl InitIndicatorDataResponse {
     pub fn success(node_id: NodeId) -> Self {
         Self {
             node_id,
@@ -356,9 +356,9 @@ impl InitBacktestIndicatorDataResponse {
     }
 }
 
-impl From<InitBacktestIndicatorDataResponse> for NodeResponse {
-    fn from(response: InitBacktestIndicatorDataResponse) -> Self {
-        NodeResponse::BacktestNode(BacktestStrategyResponse::InitBacktestIndicatorData(response))
+impl From<InitIndicatorDataResponse> for NodeResponse {
+    fn from(response: InitIndicatorDataResponse) -> Self {
+        NodeResponse::BacktestNode(BacktestStrategyResponse::InitIndicatorData(response))
     }
 }
 
@@ -394,12 +394,12 @@ impl From<GetKlineDataResponse> for NodeResponse {
 pub struct GetIndicatorDataResponse {
     pub success: bool,
     pub error: Option<Arc<dyn StarRiverErrorTrait>>,
-    pub data: Indicator,
+    pub data: Vec<Indicator>,
     pub datetime: DateTimeUtc,
 }
 
 impl GetIndicatorDataResponse {
-    pub fn success(data: Indicator) -> Self {
+    pub fn success(data: Vec<Indicator>) -> Self {
         Self {
             success: true,
             error: None,
