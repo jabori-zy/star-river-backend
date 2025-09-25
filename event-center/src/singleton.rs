@@ -1,6 +1,6 @@
 use crate::communication::engine::{EngineCommand, EngineCommandReceiver, EngineCommandSender};
 use crate::event_center_error::*;
-use crate::{Channel, CommandPublisher, Event, EventCenter, EventCenterError, EventPublisher, EventReceiver};
+use crate::{Channel, Event, EventCenter, EventCenterError, EventPublisher, EventReceiver};
 use star_river_core::engine::EngineName;
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -41,16 +41,6 @@ impl EventCenterSingleton {
 
         let center = instance.read().await;
         Ok(center.get_event_publisher())
-    }
-
-    /// 获取命令发布器
-    pub async fn command_publisher() -> Result<CommandPublisher, EventCenterError> {
-        let instance = EVENT_CENTER_INSTANCE
-            .get()
-            .ok_or_else(|| EventCenterInstanceNotInitializedSnafu {}.build())?;
-
-        let center = instance.read().await;
-        Ok(center.get_command_publisher())
     }
 
     /// 订阅事件通道

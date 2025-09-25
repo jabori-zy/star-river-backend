@@ -4,7 +4,8 @@ pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
 
-use event_center::communication::engine::cache_engine::{CacheEngineCommand, CacheEngineResponse, GetCacheParams};
+use event_center::communication::engine::cache_engine::GetCacheCmdPayload;
+use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetCacheCommand};
 use star_river_core::cache::Key;
 use star_river_core::cache::key::KlineKey;
 use star_river_core::custom_type::*;
@@ -26,6 +27,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
+use event_center::communication::Response;
 
 /// 虚拟交易系统
 ///
@@ -324,34 +326,31 @@ impl VirtualTradingSystem {
     // 从缓存引擎获取k线数据
     async fn get_close_price(&self, kline_key: Key) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = GetCacheParams::new(
-            -1,
-            "virtual_trading_system".to_string(),
-            kline_key,
-            Some(self.get_play_index() as u32),
-            Some(1),
-            "virtual_trading_system".to_string(),
-            resp_tx,
+        let payload = GetCacheCmdPayload::new(
+            -1, 
+            "virtual_trading_system".to_string(), 
+            kline_key, 
+            Some(self.get_play_index() as u32), 
+            Some(1)
         );
-
-        let get_cache_command = CacheEngineCommand::GetCache(params);
-        // self.command_publisher.send(get_cache_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(get_cache_command.into())
+        let cmd: CacheEngineCommand = GetCacheCommand::new(
+            "virtual_trading_system".to_string(), 
+            resp_tx, 
+            Some(payload)
+        ).into();
+        EventCenterSingleton::send_command(cmd.into())
             .await
             .unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.success() {
-            if let Ok(CacheEngineResponse::GetCacheData(get_cache_data_response)) =
-                CacheEngineResponse::try_from(response)
-            {
-                if get_cache_data_response.cache_data.is_empty() {
-                    return Err("get cache data response is empty".to_string());
-                }
-                let kline = get_cache_data_response.cache_data[0].as_kline().unwrap();
-                return Ok(kline);
+        if response.is_success() {
+
+            if response.data.is_empty() {
+                return Err("get cache data response is empty".to_string());
             }
+            let kline = response.data[0].as_kline().unwrap();
+            return Ok(kline);
         }
         Err("get history kline cache failed".to_string())
     }

@@ -4,6 +4,7 @@ use crate::exchange_engine::ExchangeEngine;
 use async_trait::async_trait;
 use database::mutation::account_info_mutation::AccountInfoMutation;
 use database::query::account_config_query::AccountConfigQuery;
+use event_center::communication::Response;
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::exchange_engine::*;
@@ -98,10 +99,15 @@ impl AccountEngineContext {
         accounts.remove(index);
         // 同时向exchange_engine发送注销交易所的命令
         let (resp_tx, resp_rx) = oneshot::channel();
-        let unregister_params = UnregisterExchangeParams::new(account_id, "account_engine".to_string(), resp_tx);
-        let command_event = ExchangeEngineCommand::UnregisterExchange(unregister_params);
-        // self.get_command_publisher().send(command_event.into()).await.unwrap();
+        let payload = UnregisterExchangeCmdPayload::new(account_id);
+        let cmd = UnregisterExchangeCommand::new(
+             "account_engine".to_string(), 
+             resp_tx,
+             Some(payload),
+        );
+        let command_event = ExchangeEngineCommand::UnregisterExchange(cmd);
         EventCenterSingleton::send_command(command_event.into()).await.unwrap();
+        let _response = resp_rx.await.unwrap();
     }
 
     // 更新监控账户
@@ -323,36 +329,27 @@ impl AccountEngineContext {
         let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id)
             .await
             .unwrap();
-        let register_params = RegisterExchangeParams::new(
-            account_config.id,
-            account_config.exchange,
-            "account_engine".to_string(),
+        let payload = RegisterExchangeCmdPayload::new(account_config.id, account_config.exchange);
+        let cmd: ExchangeEngineCommand = RegisterExchangeCommand::new(
+            "account_engine".to_string(), 
             resp_tx,
-        );
-
-        let register_exchange_command = ExchangeEngineCommand::RegisterExchange(register_params);
-        // self.get_command_publisher().send(register_exchange_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(register_exchange_command.into())
+            Some(payload),
+        ).into();
+        EventCenterSingleton::send_command(cmd.into())
             .await
             .unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.success() {
-            let exchange_engine_response = ExchangeEngineResponse::try_from(response);
-            if let Ok(exchange_engine_response) = exchange_engine_response {
-                match exchange_engine_response {
-                    ExchangeEngineResponse::RegisterExchange(register_exchange_response) => {
-                        tracing::info!("账户引擎收到注册交易所响应: {:?}", register_exchange_response);
-                        let mut accounts = self.monitor_account_list.write().await;
-                        let index = accounts
-                            .iter()
-                            .position(|account| account.get_account_id() == register_exchange_response.account_id)
-                            .unwrap();
-                        accounts[index].set_exchange_status(ExchangeStatus::Registed);
-                    }
-                }
-            }
+        if response.is_success() {
+            tracing::info!("账户引擎收到注册交易所响应: {:?}", response);
+            let mut accounts = self.monitor_account_list.write().await;
+            let index = accounts
+                .iter()
+                .position(|account| account.get_account_id() == response.account_id)
+                .unwrap();
+            accounts[index].set_exchange_status(ExchangeStatus::Registed);
+                    
         }
         Ok(())
     }

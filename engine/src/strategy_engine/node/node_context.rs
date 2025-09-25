@@ -7,7 +7,7 @@ use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::common_event::{
     CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
 };
-use event_center::{CommandPublisher, event::EventReceiver};
+use event_center::event::EventReceiver;
 
 use event_center::event::node_event::BacktestNodeEvent;
 use star_river_core::custom_type::PlayIndex;
@@ -55,9 +55,9 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_event_receivers(&self) -> &Vec<EventReceiver> {
         &self.get_base_context().event_receivers
     }
-    fn get_command_publisher(&self) -> &CommandPublisher {
-        &self.get_base_context().command_publisher
-    }
+    // fn get_command_publisher(&self) -> &CommandPublisher {
+    //     &self.get_base_context().command_publisher
+    // }
     fn get_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
         self.get_base_context().command_receiver.clone()
     }
@@ -150,7 +150,7 @@ pub struct LiveBaseNodeContext {
     pub cancel_token: CancellationToken,
     pub event_publisher: EventPublisher,
     pub event_receivers: Vec<EventReceiver>, // 事件接收器
-    pub command_publisher: CommandPublisher,
+    // pub command_publisher: CommandPublisher,
     pub command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
     pub message_receivers: Vec<NodeInputHandle>,
     pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
@@ -179,7 +179,7 @@ impl Clone for LiveBaseNodeContext {
             is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),
             from_node_id: self.from_node_id.clone(),
-            command_publisher: self.command_publisher.clone(),
+            // command_publisher: self.command_publisher.clone(),
             command_receiver: self.command_receiver.clone(),
             strategy_command_sender: self.strategy_command_sender.clone(),
         }
@@ -194,7 +194,7 @@ impl LiveBaseNodeContext {
         node_type: NodeType,
         event_publisher: EventPublisher,
         event_receivers: Vec<EventReceiver>,
-        command_publisher: CommandPublisher,
+        // command_publisher: CommandPublisher,
         command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
         state_machine: Box<dyn LiveNodeStateMachine>,
         strategy_command_sender: NodeCommandSender,
@@ -210,7 +210,7 @@ impl LiveBaseNodeContext {
             cancel_token: CancellationToken::new(),
             message_receivers: Vec::new(),
             event_receivers,
-            command_publisher,
+            // command_publisher,
             command_receiver,
             state_machine,
             from_node_id: Vec::new(),

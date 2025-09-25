@@ -6,11 +6,11 @@ mod utils;
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use event_center::communication::backtest_strategy::{GetKlineDataCmdPayload, GetKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand, NodeResponse};
+use event_center::communication::engine::exchange_engine::{ExchangeEngineCommand, RegisterExchangeCmdPayload, RegisterExchangeCommand, RegisterExchangeRespPayload};
+use event_center::communication::engine::market_engine::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
 use event_center::communication::Response;
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::engine::exchange_engine::RegisterExchangeParams;
-use event_center::communication::engine::market_engine::{GetKlineHistoryParams, MarketEngineResponse};
 use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload,
 };
@@ -102,7 +102,7 @@ impl KlineNodeContext {
 
     // 注册交易所
     #[instrument(skip(self))]
-    pub async fn register_exchange(&mut self) -> Result<EngineResponse, String> {
+    pub async fn register_exchange(&mut self) -> Result<EngineResponse<RegisterExchangeRespPayload>, String> {
         let account_id = self
             .backtest_config
             .exchange_mode_config
@@ -125,9 +125,13 @@ impl KlineNodeContext {
         tracing::info!("[{}] start to register exchange [{}]", node_name, exchange);
 
         let (resp_tx, resp_rx) = oneshot::channel();
-        let register_param = RegisterExchangeParams::new(account_id, exchange, node_id, resp_tx);
+        let payload = RegisterExchangeCmdPayload::new(
+            account_id, 
+            exchange
+        );
+        let cmd: ExchangeEngineCommand = RegisterExchangeCommand::new(node_id, resp_tx, Some(payload)).into();
 
-        EventCenterSingleton::send_command(register_param.into()).await.unwrap();
+        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
@@ -168,7 +172,7 @@ impl KlineNodeContext {
                 continue;
             }
             let (resp_tx, resp_rx) = oneshot::channel();
-            let get_kline_history_params = GetKlineHistoryParams::new(
+            let payload = GetKlineHistoryCmdPayload::new(
                 strategy_id,
                 node_id.clone(),
                 account_id.clone(),
@@ -176,49 +180,45 @@ impl KlineNodeContext {
                 symbol_key.get_symbol(),
                 symbol_key.get_interval(),
                 symbol_key.get_time_range().unwrap(),
-                node_id.clone(),
-                resp_tx,
             );
-            EventCenterSingleton::send_command(get_kline_history_params.into())
+            let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(),resp_tx,Some(payload)).into();
+            EventCenterSingleton::send_command(cmd.into())
                 .await
                 .unwrap();
 
             let response = resp_rx.await.unwrap();
-            if response.success() {
-                match response {
-                    EngineResponse::MarketEngine(MarketEngineResponse::GetKlineHistory(resp)) => {
-                        let kline_history = resp.kline_history;
-                        tracing::debug!(
-                            "[{}] get kline history from exchange success, symbol: {}-{}, kline history length: {:#?}",
-                            self.get_node_name(),
-                            symbol_key.get_symbol(),
-                            symbol_key.get_interval(),
-                            kline_history.len()
-                        );
-                        let (resp_tx, resp_rx) = oneshot::channel();
-                        let payload = InitKlineDataCmdPayload::new(
-                            symbol_key.clone(),
-                            kline_history,
-                        );
-                        
-                        let init_kline_data_command= InitKlineDataCommand::new(
-                            self.get_node_id().clone(),
-                            resp_tx,
-                            Some(payload),
-                        );
+            if response.is_success() {
+                let kline_history = response.kline_history.clone();
+                tracing::debug!(
+                    "[{}] get kline history from exchange success, symbol: {}-{}, kline history length: {:#?}",
+                    self.get_node_name(),
+                    symbol_key.get_symbol(),
+                    symbol_key.get_interval(),
+                    kline_history.len()
+                );
 
-                        self.get_strategy_command_sender()
-                            .send(init_kline_data_command.into())
-                            .await
-                            .unwrap();
+                let (resp_tx, resp_rx) = oneshot::channel();
+                let payload = InitKlineDataCmdPayload::new(
+                    symbol_key.clone(),
+                    kline_history,
+                );
+                
+                let init_kline_data_command= InitKlineDataCommand::new(
+                    self.get_node_id().clone(),
+                    resp_tx,
+                    Some(payload),
+                );
 
-                        let response = resp_rx.await.unwrap();
-                        if response.is_success() {
-                            continue;
-                        }
-                    }
-                    _ => {}
+                self.get_strategy_command_sender()
+                    .send(init_kline_data_command.into())
+                    .await
+                    .unwrap();
+
+                let response = resp_rx.await.unwrap();
+                if response.is_success() {
+                    continue;
                 }
+                
             }
 
             else {

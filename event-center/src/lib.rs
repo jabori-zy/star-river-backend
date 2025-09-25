@@ -123,30 +123,21 @@ impl EventCenter {
         Ok(())
     }
 
-    // 获取指定通道的发布者
-    // pub fn get_publisher(&self, channel: Channel) -> Result<broadcast::Sender<Event>, EventCenterError> {
-    //     let sender = self
-    //         .channels
-    //         .get(&channel)
-    //         .ok_or(EventCenterError::ChannelError(format!("Channel {} not found", channel)))?;
-    //     Ok(sender.clone())
-    // }
-
     pub fn get_event_publisher(&self) -> EventPublisher {
         // 现在需要包装成 Arc<Mutex<>> 来保持兼容性
         EventPublisher::new(Arc::new(Mutex::new(self.broadcast_channels.clone())))
     }
 
-    pub fn get_command_publisher(&self) -> CommandPublisher {
-        // 提取所有的 CommandSender
-        let command_senders: HashMap<EngineName, EngineCommandSender> = self
-            .command_channels
-            .iter()
-            .map(|(name, (sender, _receiver))| (name.clone(), sender.clone()))
-            .collect();
+    // pub fn get_command_publisher(&self) -> CommandPublisher {
+    //     // 提取所有的 CommandSender
+    //     let command_senders: HashMap<EngineName, EngineCommandSender> = self
+    //         .command_channels
+    //         .iter()
+    //         .map(|(name, (sender, _receiver))| (name.clone(), sender.clone()))
+    //         .collect();
 
-        CommandPublisher::new(Arc::new(Mutex::new(command_senders)))
-    }
+    //     CommandPublisher::new(Arc::new(Mutex::new(command_senders)))
+    // }
 
     // 获取指定引擎的命令接收器
     pub async fn get_command_receiver(
@@ -210,30 +201,6 @@ impl EventPublisher {
 
         sender.send(event)?;
 
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct CommandPublisher {
-    channels: Arc<Mutex<HashMap<EngineName, EngineCommandSender>>>,
-}
-
-impl CommandPublisher {
-    pub fn new(channels: Arc<Mutex<HashMap<EngineName, EngineCommandSender>>>) -> Self {
-        Self { channels }
-    }
-
-    pub async fn send(&self, command: EngineCommand) -> Result<(), EventCenterError> {
-        let engine_name = command.get_engine_name();
-        let channels = self.channels.lock().await;
-        let sender = channels.get(&engine_name).ok_or(
-            EngineCommandSenderNotFoundSnafu {
-                engine_name: engine_name.to_string(),
-            }
-            .build(),
-        )?;
-        sender.send(command).await?;
         Ok(())
     }
 }

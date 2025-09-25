@@ -2,12 +2,15 @@ use super::CacheEngineContext;
 use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
+use event_center::communication::Command;
 use event_center::communication::engine::cache_engine::CacheEngineCommand;
 use event_center::communication::engine::cache_engine::*;
 use event_center::communication::engine::{EngineCommand, EngineResponse};
 use event_center::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
+use star_river_core::cache::CacheItem;
 
 #[async_trait]
 impl EngineContext for CacheEngineContext {
@@ -44,50 +47,61 @@ impl EngineContext for CacheEngineContext {
             EngineCommand::CacheEngine(command) => {
                 match command {
                     // 添加缓存
-                    CacheEngineCommand::AddKey(params) => {
-                        self.add_key(params.key.clone(), params.max_size, params.duration)
+                    CacheEngineCommand::AddKey(cmd) => {
+                        self.add_key(cmd.key.clone(), cmd.max_size, cmd.duration)
                             .await
                             .unwrap();
-                        let response = AddCacheKeyResponse::success(params.key);
-                        let response_event = EngineResponse::CacheEngine(CacheEngineResponse::AddCacheKey(response));
-
-                        params.responder.send(response_event.into()).unwrap();
+                        let payload = AddKeyRespPayload::new(cmd.key.clone());
+                        let response = AddKeyResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
 
                     // 处理获取缓存数据命令
-                    CacheEngineCommand::GetCache(params) => {
-                        let data = self.get_cache(&params.key, params.index, params.limit).await;
-                        let response = GetCacheDataResponse::success(params.key, data);
-                        let response = CacheEngineResponse::GetCacheData(response);
-                        params.responder.send(response.into()).unwrap();
+                    CacheEngineCommand::GetCache(cmd) => {
+                        let data = self.get_cache(&cmd.key, cmd.index, cmd.limit).await;
+                        let payload = GetCacheRespPayload::new(data);
+                        let response = GetCacheResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
-                    CacheEngineCommand::GetCacheMulti(params) => {
-                        let multi_data = self.get_cache_multi(&params.keys, params.index, params.limit).await;
-                        let response = GetCacheDataMultiResponse::success(multi_data);
-                        let response = CacheEngineResponse::GetCacheDataMulti(response);
-                        params.responder.send(response.into()).unwrap();
+                    CacheEngineCommand::GetCacheMulti(cmd) => {
+                        let multi_data = self.get_cache_multi(&cmd.keys, cmd.index, cmd.limit).await;
+
+                        let multi_data_result = multi_data
+                            .into_iter()
+                            .map(|(cache_key, data)| {
+                                (
+                                    cache_key.get_key_str(),
+                                    data.into_iter().map(|cache_value| cache_value.to_list()).collect(),
+                                )
+                            })
+                            .collect();
+                        let payload = GetCacheMultiRespPayload::new(multi_data_result);
+                        let response = GetCacheMultiResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
-                    CacheEngineCommand::GetCacheLengthMulti(params) => {
+                    CacheEngineCommand::GetCacheLengthMulti(cmd) => {
                         let mut length_result = HashMap::new();
-                        for key in params.keys.iter() {
+                        for key in cmd.keys.iter() {
                             length_result.insert(key.clone(), self.get_cache_length(key).await);
                         }
 
-                        let get_cache_length_multi_response = GetCacheLengthMultiResponse::success(length_result);
-                        let response = CacheEngineResponse::GetCacheLengthMulti(get_cache_length_multi_response);
-                        params.responder.send(response.into()).unwrap();
+                        let payload = GetCacheLengthMultiRespPayload::new(cmd.keys.clone(), length_result);
+                        let response = GetCacheLengthMultiResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
                     // 更新缓存
-                    CacheEngineCommand::UpdateCache(params) => {
-                        self.update_cache(params.key.clone(), params.cache_value).await;
-                        let response: CacheEngineResponse = UpdateCacheResponse::success(params.key).into();
-                        params.responder.send(response.into()).unwrap();
+                    CacheEngineCommand::UpdateCache(cmd) => {
+                        self.update_cache(cmd.key.clone(), cmd.value.as_ref().clone()).await;
+                        let payload = UpdateCacheRespPayload::new(cmd.key.clone());
+                        let response = UpdateCacheResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
                     // 清空缓存
-                    CacheEngineCommand::ClearCache(params) => {
-                        self.clear_cache(params.key.clone()).await;
-                        let response: CacheEngineResponse = ClearCacheResponse::success(params.key).into();
-                        params.responder.send(response.into()).unwrap();
+                    CacheEngineCommand::ClearCache(cmd) => {
+                        self.clear_cache(cmd.key.clone()).await;
+                        let payload = ClearCacheRespPayload::new(cmd.key.clone());
+                        let response = ClearCacheResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
                     _ => {}
                 }

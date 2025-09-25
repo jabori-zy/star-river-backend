@@ -24,3 +24,4 @@ logs/
 *.pyo
 CLAUDE.md
 .mermaid
+AGENTS.md

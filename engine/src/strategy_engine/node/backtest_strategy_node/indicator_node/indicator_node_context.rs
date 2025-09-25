@@ -5,19 +5,15 @@ mod data_handler;
 
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use event_center::communication::engine::indicator_engine::{CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, IndicatorEngineCommand};
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::backtest_strategy::{GetIndicatorDataCmdPayload, GetIndicatorDataCommand, GetKlineDataCmdPayload, GetKlineDataCommand, InitIndicatorDataCmdPayload, InitIndicatorDataCommand, NodeResponse};
 use event_center::EventCenterSingleton;
-use event_center::communication::engine::cache_engine::CacheEngineResponse;
-use event_center::communication::engine::cache_engine::{AddKeyParams, GetCacheParams};
-use event_center::communication::engine::indicator_engine::{CalculateHistoryIndicatorParams, IndicatorEngineResponse};
-use star_river_core::cache::CacheValue;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
 use star_river_core::indicator::Indicator;
 use star_river_core::market::Kline;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::time::Duration;
 use event_center::communication::Response;
@@ -64,33 +60,33 @@ impl IndicatorNodeContext {
     }
 
     // 注册指标（初始化指标）向指标引擎发送注册请求
-    pub async fn register_indicator_cache_key(&self) -> Result<bool, String> {
-        let mut is_all_success = true;
-        // 遍历已配置的指标，注册指标缓存键
-        for (indicator_key, _) in self.indicator_keys.iter() {
-            let (resp_tx, resp_rx) = oneshot::channel();
+    // pub async fn register_indicator_cache_key(&self) -> Result<bool, String> {
+    //     let mut is_all_success = true;
+    //     // 遍历已配置的指标，注册指标缓存键
+    //     for (indicator_key, _) in self.indicator_keys.iter() {
+    //         let (resp_tx, resp_rx) = oneshot::channel();
 
-            let register_indicator_params = AddKeyParams::new(
-                self.get_strategy_id().clone(),
-                indicator_key.clone().into(),
-                None,
-                Duration::from_secs(30),
-                self.get_node_id().to_string(),
-                resp_tx,
-            );
-            // self.get_command_publisher().send(register_indicator_command).await.unwrap();
-            EventCenterSingleton::send_command(register_indicator_params.into())
-                .await
-                .unwrap();
-            let response = resp_rx.await.unwrap();
-            if !response.success() {
-                is_all_success = false;
-                break;
-            }
-        }
+    //         let register_indicator_params = AddKeyParams::new(
+    //             self.get_strategy_id().clone(),
+    //             indicator_key.clone().into(),
+    //             None,
+    //             Duration::from_secs(30),
+    //             self.get_node_id().to_string(),
+    //             resp_tx,
+    //         );
+    //         // self.get_command_publisher().send(register_indicator_command).await.unwrap();
+    //         EventCenterSingleton::send_command(register_indicator_params.into())
+    //             .await
+    //             .unwrap();
+    //         let response = resp_rx.await.unwrap();
+    //         if !response.success() {
+    //             is_all_success = false;
+    //             break;
+    //         }
+    //     }
 
-        Ok(is_all_success)
-    }
+    //     Ok(is_all_success)
+    // }
 
     // 获取已经计算好的回测指标数据
     async fn get_indicator_data(
@@ -158,39 +154,36 @@ impl IndicatorNodeContext {
             if response.is_success() {
 
                 let (resp_tx, resp_rx) = oneshot::channel();
-                let cal_ind_cmd = CalculateHistoryIndicatorParams::new(
+                let payload = CalculateHistoryIndicatorCmdPayload::new(
                     strategy_id.clone(),
                     node_id.clone(),
                     kline_key.clone().into(),
                     response.kline_series.clone(),
                     ind_key.indicator_config.clone(),
+                );
+                let cmd: IndicatorEngineCommand = CalculateHistoryIndicatorCommand::new(
                     node_id.clone(),
                     resp_tx,
-                );
-                EventCenterSingleton::send_command(cal_ind_cmd.into()).await.unwrap();
+                    Some(payload),
+                ).into();
+                
+                EventCenterSingleton::send_command(cmd.into()).await.unwrap();
                 let response = resp_rx.await.unwrap();
-                if response.success() {
-                    match response {
-                        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(resp)) => {
-                            let (resp_tx, resp_rx) = oneshot::channel();
-                            let payload = InitIndicatorDataCmdPayload::new(
-                                ind_key.clone(),
-                                resp.indicators,
-                            );
-                            let update_indicator_params = InitIndicatorDataCommand::new(
-                                node_id.clone(),
-                                resp_tx,
-                                Some(payload),
-                            );
-                            self.get_strategy_command_sender().send(update_indicator_params.into()).await.unwrap();
-                            let response = resp_rx.await.unwrap();
-                            if response.is_success() {
-                                continue;
-                            }
-
-
-                        }
-                        _ => {}
+                if response.is_success() {
+                    let (resp_tx, resp_rx) = oneshot::channel();
+                    let payload = InitIndicatorDataCmdPayload::new(
+                        ind_key.clone(),
+                        response.indicators.clone(),
+                    );
+                    let update_indicator_params = InitIndicatorDataCommand::new(
+                        node_id.clone(),
+                        resp_tx,
+                        Some(payload),
+                    );
+                    self.get_strategy_command_sender().send(update_indicator_params.into()).await.unwrap();
+                    let response = resp_rx.await.unwrap();
+                    if response.is_success() {
+                        continue;
                     }
                 } else {
                     is_all_success = false;

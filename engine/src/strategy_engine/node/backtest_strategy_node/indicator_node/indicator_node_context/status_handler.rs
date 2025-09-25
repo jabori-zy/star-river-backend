@@ -1,4 +1,4 @@
-use event_center::{communication::engine::{indicator_engine::{GetIndicatorLookbackParams, IndicatorEngineResponse}, EngineResponse}, EventCenterSingleton};
+use event_center::{communication::{engine::indicator_engine::{GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand, IndicatorEngineCommand}, Response}, EventCenterSingleton};
 use tokio::sync::oneshot;
 
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
@@ -10,22 +10,16 @@ impl IndicatorNodeContext {
     pub(crate) async fn init_indicator_lookback(&mut self) {
         for keys in self.indicator_keys.keys() {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let get_indicator_lookback_params = GetIndicatorLookbackParams::new(
+            let payload = GetIndicatorLookbackCmdPayload::new(
                 self.get_strategy_id().clone(),
                 self.get_node_id().clone(),
                 keys.clone(),
-                self.get_node_id().clone(),
-                resp_tx,
             );
-            EventCenterSingleton::send_command(get_indicator_lookback_params.into()).await.unwrap();
+            let cmd: IndicatorEngineCommand = GetIndicatorLookbackCommand::new(self.get_node_id().clone(), resp_tx, Some(payload)).into();
+            EventCenterSingleton::send_command(cmd.into()).await.unwrap();
             let response = resp_rx.await.unwrap();
-            if response.success() {
-                match response {
-                    EngineResponse::IndicatorEngine(IndicatorEngineResponse::GetIndicatorLookback(resp)) => {
-                        self.indicator_lookback.insert(keys.clone(), resp.lookback);
-                    }
-                    _ => {}
-                }
+            if response.is_success() {
+                self.indicator_lookback.insert(keys.clone(), response.lookback);
             }
         }
         tracing::debug!("[{}] init indicator lookback complete. lookback: {:#?}", self.get_node_id(), self.indicator_lookback);

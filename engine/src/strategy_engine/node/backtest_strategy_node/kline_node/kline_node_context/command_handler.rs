@@ -1,7 +1,12 @@
 use super::KlineNodeContext;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
-use event_center::EventCenterSingleton;
-use event_center::communication::engine::cache_engine::ClearCacheParams;
+use event_center::{
+    communication::{
+        engine::cache_engine::{CacheEngineCommand, ClearCacheCmdPayload, ClearCacheCommand},
+        Response,
+    },
+    EventCenterSingleton,
+};
 use tokio::sync::oneshot;
 
 impl KlineNodeContext {
@@ -11,15 +16,19 @@ impl KlineNodeContext {
         for (kline_key, _) in self.selected_symbol_keys.iter() {
             if !self.min_interval_symbols.contains(kline_key) {
                 let (resp_tx, resp_rx) = oneshot::channel();
-                let clear_cache_params = ClearCacheParams::new(
+                let payload = ClearCacheCmdPayload::new(
                     self.get_strategy_id().clone(),
                     kline_key.clone().into(),
+                );
+                let cmd: CacheEngineCommand = ClearCacheCommand::new(
                     self.get_node_id().clone(),
                     resp_tx,
-                );
-                let _ = EventCenterSingleton::send_command(clear_cache_params.into()).await;
+                    Some(payload),
+                ).into();
+                
+                let _ = EventCenterSingleton::send_command(cmd.into()).await;
                 let response = resp_rx.await.unwrap();
-                if response.success() {
+                if response.is_success() {
                     tracing::debug!("删除k线缓存成功");
                 } else {
                     tracing::error!("删除k线缓存失败: {:#?}", response);

@@ -7,10 +7,8 @@ use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
 use event_center::communication::backtest_strategy::GetStrategyKeysCommand;
-use event_center::communication::engine::cache_engine::CacheEngineResponse;
-use event_center::communication::engine::cache_engine::GetCacheParams;
+use event_center::communication::engine::cache_engine::GetCacheCmdPayload;
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::backtest_strategy::NodeResetResponse;
 use event_center::communication::Response;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
@@ -206,93 +204,6 @@ impl FuturesOrderNodeContext {
             return Ok(response.keys.clone());
         } else {
             return Err("获取策略缓存键失败".to_string());
-        }
-    }
-
-    // 获取K线缓存数据
-    // 获取interval最小的K线缓存数据
-    async fn get_kline_cache_data(&mut self) -> Result<Vec<Arc<CacheValue>>, String> {
-        // 如果min_kline_interval为None，则获取策略的缓存键
-        if self.min_kline_interval.is_none() {
-            let cache_keys = self.get_strategy_keys().await;
-            // 获取成功
-            if let Ok(cache_keys) = cache_keys {
-                // 过滤出K线缓存key
-                let kline_keys = cache_keys
-                    .iter()
-                    .filter(|k| matches!(k, Key::Kline(_)))
-                    .collect::<Vec<&Key>>();
-                // 获取interval最小的K线缓存数据
-                // 如果列表长度为1，则唯一的key就是最小interval的key
-                if kline_keys.len() == 1 {
-                    self.min_kline_interval = Some(kline_keys[0].get_interval());
-                } else if !kline_keys.is_empty() {
-                    // 如果列表长度大于1，则需要根据interval排序，获取最小的interval的key
-                    let min_interval_key = kline_keys.iter().min_by_key(|k| k.get_interval()).unwrap(); // 这里可以安全unwrap，因为我们已经检查了不为空
-                    self.min_kline_interval = Some(min_interval_key.get_interval());
-                }
-            }
-        }
-        // 如果min_kline_interval不为None，则获取K线缓存数据
-        if let Some(min_kline_interval) = &self.min_kline_interval {
-            let cache_key = KlineKey::new(
-                self.backtest_config
-                    .exchange_mode_config
-                    .as_ref()
-                    .unwrap()
-                    .selected_account
-                    .exchange
-                    .clone(),
-                self.backtest_config.futures_order_configs[0].symbol.clone(),
-                min_kline_interval.clone(),
-                Some(
-                    self.backtest_config
-                        .exchange_mode_config
-                        .as_ref()
-                        .unwrap()
-                        .time_range
-                        .start_date
-                        .to_string(),
-                ),
-                Some(
-                    self.backtest_config
-                        .exchange_mode_config
-                        .as_ref()
-                        .unwrap()
-                        .time_range
-                        .end_date
-                        .to_string(),
-                ),
-            );
-
-            let play_index = self.get_play_index() as u32;
-
-            let (tx, rx) = oneshot::channel();
-            let get_cache_params = GetCacheParams::new(
-                self.base_context.strategy_id.clone(),
-                self.base_context.node_id.clone(),
-                cache_key.clone().into(),
-                Some(play_index),
-                Some(1),
-                self.base_context.node_id.clone(),
-                tx,
-            );
-
-            // self.get_command_publisher().send(get_cache_command.into()).await.unwrap();
-            EventCenterSingleton::send_command(get_cache_params.into())
-                .await
-                .unwrap();
-
-            let reponse = rx.await.unwrap();
-            match reponse {
-                EngineResponse::CacheEngine(CacheEngineResponse::GetCacheData(get_cache_data_response)) => {
-                    // tracing::info!("{}: 获取K线缓存数据成功: {:?}", self.get_node_id(), get_cache_data_response.cache_data);
-                    return Ok(get_cache_data_response.cache_data);
-                }
-                _ => return Err("获取K线缓存数据失败".to_string()),
-            }
-        } else {
-            return Err("获取K线缓存数据失败".to_string());
         }
     }
 }

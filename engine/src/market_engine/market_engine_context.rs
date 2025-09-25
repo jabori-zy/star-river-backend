@@ -4,6 +4,7 @@ use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use crate::market_engine::market_engine_type::KlineSubKey;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
+use event_center::communication::Command;
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::cache_engine::*;
@@ -68,62 +69,57 @@ impl EngineContext for MarketEngineContext {
 
     async fn handle_command(&mut self, command: EngineCommand) {
         match command {
-            EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(command_params)) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(cmd)) => {
                 self.subscribe_kline_stream(
-                    command_params.strategy_id,
-                    command_params.account_id,
-                    command_params.exchange.clone(),
-                    command_params.symbol.clone(),
-                    command_params.interval.clone(),
-                    command_params.cache_size,
-                    command_params.frequency,
+                    cmd.strategy_id,
+                    cmd.account_id,
+                    cmd.exchange.clone(),
+                    cmd.symbol.clone(),
+                    cmd.interval.clone(),
+                    cmd.cache_size,
+                    cmd.frequency,
                 )
                 .await
                 .unwrap();
-                tracing::debug!("市场数据引擎订阅K线流成功, 请求节点: {}", command_params.node_id);
+                tracing::debug!("市场数据引擎订阅K线流成功, 请求节点: {}", cmd.node_id);
 
-                // 都成功后，发送响应事件
-                let subscribe_kline_stream_response = SubscribeKlineStreamResponse::success(
-                    command_params.exchange,
-                    command_params.symbol,
-                    command_params.interval,
+                let payload = SubscribeKlineStreamRespPayload::new(
+                    cmd.exchange.clone(),
+                    cmd.symbol.clone(),
+                    cmd.interval.clone(),
                 );
-                command_params
-                    .responder
-                    .send(subscribe_kline_stream_response.into())
-                    .unwrap();
+                let response = SubscribeKlineStreamResponse::success(Some(payload));
+                cmd.respond(response);
             }
 
-            EngineCommand::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(command_params)) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::UnsubscribeKlineStream(cmd)) => {
                 self.unsubscribe_kline_stream(
-                    command_params.strategy_id,
-                    command_params.account_id,
-                    command_params.exchange.clone(),
-                    command_params.symbol.clone(),
-                    command_params.interval.clone(),
-                    command_params.frequency,
+                    cmd.strategy_id,
+                    cmd.account_id,
+                    cmd.exchange.clone(),
+                    cmd.symbol.clone(),
+                    cmd.interval.clone(),
+                    cmd.frequency,
                 )
                 .await
                 .unwrap();
-                let unsubscribe_kline_stream_response = UnsubscribeKlineStreamResponse::success(
-                    command_params.exchange,
-                    command_params.symbol,
-                    command_params.interval,
+                let payload = UnsubscribeKlineStreamRespPayload::new(
+                    cmd.exchange.clone(),
+                    cmd.symbol.clone(),
+                    cmd.interval.clone(),
                 );
-                command_params
-                    .responder
-                    .send(unsubscribe_kline_stream_response.into())
-                    .unwrap();
+                let response = UnsubscribeKlineStreamResponse::success(Some(payload));
+                cmd.respond(response);
             }
-            EngineCommand::MarketEngine(MarketEngineCommand::GetKlineHistory(params)) => {
+            EngineCommand::MarketEngine(MarketEngineCommand::GetKlineHistory(cmd)) => {
                 let kline_history = self
                     .get_kline_history(
-                        params.strategy_id,
-                        params.account_id,
-                        params.exchange.clone(),
-                        params.symbol.clone(),
-                        params.interval.clone(),
-                        params.time_range.clone(),
+                        cmd.strategy_id,
+                        cmd.account_id,
+                        cmd.exchange.clone(),
+                        cmd.symbol.clone(),
+                        cmd.interval.clone(),
+                        cmd.time_range.clone(),
                     )
                     .await
                     .unwrap();
@@ -141,9 +137,14 @@ impl EngineContext for MarketEngineContext {
                 // EventCenterSingleton::publish(exchange_kline_history_update_event.into())
                 //     .await
                 //     .unwrap();
-
-                let resp = GetKlineHistoryResponse::success(params.exchange, params.symbol, params.interval, kline_history);
-                params.responder.send(resp.into()).unwrap();
+                let payload = GetKlineHistoryRespPayload::new(
+                    cmd.exchange.clone(),
+                    cmd.symbol.clone(),
+                    cmd.interval.clone(),
+                    kline_history,
+                );
+                let resp = GetKlineHistoryResponse::success(Some(payload));
+                cmd.respond(resp);
             }
             _ => {}
         }
@@ -170,19 +171,20 @@ impl MarketEngineContext {
             end_time,
         });
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = AddKeyParams::new(
+        let payload = AddKeyCmdPayload::new(
             strategy_id,
             key,
             Some(max_size),
             Duration::from_millis(10),
+        );
+        let cmd: CacheEngineCommand = AddKeyCommand::new(
             format!("strategy_{}", strategy_id),
             resp_tx,
-        );
-
-        let add_key_command = CacheEngineCommand::AddKey(params);
+            Some(payload),
+        ).into();
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(add_key_command.into())
+        EventCenterSingleton::send_command(cmd.into())
             .await
             .unwrap();
 
@@ -209,19 +211,19 @@ impl MarketEngineContext {
             end_time: Some(time_range.end_date.to_string()),
         });
         let (resp_tx, resp_rx) = oneshot::channel();
-        let params = AddKeyParams::new(
-            strategy_id,
-            key,
-            None,
-            Duration::from_millis(10),
+        let payload = AddKeyCmdPayload::new(
+            strategy_id, 
+            key, 
+            None, 
+            Duration::from_millis(10));
+        let cmd: CacheEngineCommand = AddKeyCommand::new(
             format!("strategy_{}", strategy_id),
             resp_tx,
-        );
-
-        let add_key_command = CacheEngineCommand::AddKey(params);
+            Some(payload),
+        ).into();
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(add_key_command.into())
+        EventCenterSingleton::send_command(cmd.into())
             .await
             .unwrap();
 

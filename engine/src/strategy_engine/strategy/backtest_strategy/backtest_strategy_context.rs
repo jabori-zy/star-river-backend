@@ -13,8 +13,6 @@ use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state
 use chrono::{DateTime, Utc};
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::engine::cache_engine::GetCacheParams;
-use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheLengthMultiParams};
 use event_center::communication::backtest_strategy::BacktestStrategyCommand;
 use event_center::communication::backtest_strategy::StrategyResponse;
 use event_center::communication::backtest_strategy::*;

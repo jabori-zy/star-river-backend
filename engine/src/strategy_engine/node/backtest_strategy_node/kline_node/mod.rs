@@ -29,6 +29,7 @@ use super::node_message::common_log_message::*;
 use super::node_message::kline_node_log_message::*;
 use star_river_core::custom_type::{StrategyId, NodeId, NodeName};
 use snafu::ResultExt;
+use event_center::communication::Response;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -387,7 +388,7 @@ impl BacktestNodeTrait for KlineNode {
 
                             // 2. register exchange
                             let response = kline_node_context.register_exchange().await.unwrap();
-                            if response.success() {
+                            if response.is_success() {
                                 *kline_node_context.exchange_is_registered.write().await = true;
 
                                 let log_message = RegisterExchangeSuccessMsg::new(
@@ -408,7 +409,7 @@ impl BacktestNodeTrait for KlineNode {
                                 let _ = strategy_output_handle.send(log_event.into());
                             } else {
                                 // 转换状态 Failed
-                                let error = response.error();
+                                let error = response.get_error();
                                 let kline_error = RegisterExchangeSnafu {
                                     node_id: node_id.clone(),
                                     node_name: node_name.clone(),

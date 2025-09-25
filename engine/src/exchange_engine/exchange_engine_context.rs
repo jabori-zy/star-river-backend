@@ -2,6 +2,7 @@ use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
 use database::query::account_config_query::AccountConfigQuery;
+use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::exchange_engine::*;
 use event_center::event::Event;
@@ -16,7 +17,7 @@ use star_river_core::error::exchange_client_error::*;
 use star_river_core::market::Exchange;
 use std::any::Any;
 use std::collections::HashMap;
-use tracing::instrument;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -65,26 +66,23 @@ impl EngineContext for ExchangeEngineContext {
         match command {
             EngineCommand::ExchangeEngine(exchange_engine_command) => {
                 match exchange_engine_command {
-                    ExchangeEngineCommand::RegisterExchange(register_exchange_command) => {
-                        let result = self.register_exchange(register_exchange_command.account_id).await;
+                    ExchangeEngineCommand::RegisterExchange(cmd) => {
+                        let result = self.register_exchange(cmd.account_id).await;
 
                         let response = if let Ok(()) = result {
                             // success
-                            RegisterExchangeResponse::success(
-                                register_exchange_command.account_id,
-                                register_exchange_command.exchange,
-                            )
+                            let payload = RegisterExchangeRespPayload::new(
+                                cmd.account_id,
+                                cmd.exchange.clone(),
+                            );
+                            RegisterExchangeResponse::success(Some(payload))
                         } else {
                             // 注册失败
                             let error = result.unwrap_err();
-                            RegisterExchangeResponse::error(
-                                register_exchange_command.account_id,
-                                register_exchange_command.exchange,
-                                error,
-                            )
+                            RegisterExchangeResponse::error(Arc::new(error))
                         };
                         // 发送响应事件
-                        register_exchange_command.responder.send(response.into()).unwrap();
+                        cmd.respond(response);
                     }
                     _ => {}
                 }
@@ -342,7 +340,7 @@ impl ExchangeEngineContext {
     //     Ok(())
     // }
 
-    pub async fn unregister_exchange(&mut self, unregister_params: UnregisterExchangeParams) -> Result<(), String> {
+    pub async fn unregister_exchange(&mut self, unregister_params: UnregisterExchangeCommand) -> Result<(), String> {
         // tracing::debug!("接收到命令: {:?}", unregister_params);
         // 先获取实例
         let mut exchange = self.get_exchange(&unregister_params.account_id).await?;

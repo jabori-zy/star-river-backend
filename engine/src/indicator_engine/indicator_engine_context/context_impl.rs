@@ -9,6 +9,7 @@ use event_center::event::Event;
 use event_center::event::ExchangeEvent;
 use std::any::Any;
 use std::sync::Arc;
+use event_center::communication::Command;
 
 #[async_trait]
 impl EngineContext for IndicatorEngineContext {
@@ -70,25 +71,34 @@ impl EngineContext for IndicatorEngineContext {
                     // }
                     IndicatorEngineCommand::GetIndicatorLookback(cmd) => {
                         let lookback = TALib::lookback(&cmd.indicator_key.indicator_config);
-                        let response = GetIndicatorLookbackResponse::success(cmd.indicator_key, lookback);
-                        cmd.responder.send(response.into()).unwrap();
+                        let payload = GetIndicatorLookbackRespPayload::new(
+                            cmd.indicator_key.clone(), 
+                            lookback);
+
+                        let response = GetIndicatorLookbackResponse::success(Some(payload));
+                        cmd.respond(response);
                     }
                     // 计算指标
-                    IndicatorEngineCommand::CalculateHistoryIndicator(cal_history_ind_params) => {
+                    IndicatorEngineCommand::CalculateHistoryIndicator(cmd) => {
                         let cal_result = CalculateIndicatorFunction::calculate_indicator(
-                            cal_history_ind_params.kline_series.clone(),
-                            cal_history_ind_params.indicator_config.clone(),
+                            cmd.kline_series.clone(),
+                            cmd.indicator_config.clone(),
                         )
                         .await;
                         match cal_result {
                             Ok(indicators) => {
-                                let response = CalculateHistoryIndicatorResponse::success(cal_history_ind_params.kline_key.clone(), cal_history_ind_params.indicator_config.clone(), indicators);
-                                cal_history_ind_params.responder.send(response.into()).unwrap();
+                                let payload = CalculateHistoryIndicatorRespPayload::new(
+                                    cmd.kline_key.clone(),
+                                    cmd.indicator_config.clone(),
+                                    indicators,
+                                );
+                                let response = CalculateHistoryIndicatorResponse::success(Some(payload));
+                                cmd.respond(response);
                             }
                             Err(error) => {
                                 let error = Arc::new(error);
-                                let response = CalculateHistoryIndicatorResponse::error(error, cal_history_ind_params.kline_key.clone(), cal_history_ind_params.indicator_config.clone());
-                                cal_history_ind_params.responder.send(response.into()).unwrap();
+                                let response = CalculateHistoryIndicatorResponse::error(error);
+                                cmd.respond(response);
                             }
                         }
                     }
