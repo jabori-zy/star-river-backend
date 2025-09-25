@@ -1,4 +1,4 @@
-use star_river_core::cache::key::KlineKey;
+use star_river_core::key::key::KlineKey;
 use star_river_core::market::{Exchange, KlineInterval};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

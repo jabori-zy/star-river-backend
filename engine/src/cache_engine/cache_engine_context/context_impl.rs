@@ -5,12 +5,14 @@ use async_trait::async_trait;
 use event_center::communication::Command;
 use event_center::communication::engine::cache_engine::CacheEngineCommand;
 use event_center::communication::engine::cache_engine::*;
-use event_center::communication::engine::{EngineCommand, EngineResponse};
+use event_center::communication::engine::EngineCommand;
 use event_center::event::Event;
+use star_river_core::key::Key;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use star_river_core::cache::CacheItem;
+use star_river_core::key::KeyTrait;
+use star_river_core::market::QuantData;
 
 #[async_trait]
 impl EngineContext for CacheEngineContext {
@@ -46,64 +48,32 @@ impl EngineContext for CacheEngineContext {
         match command {
             EngineCommand::CacheEngine(command) => {
                 match command {
-                    // 添加缓存
-                    CacheEngineCommand::AddKey(cmd) => {
-                        self.add_key(cmd.key.clone(), cmd.max_size, cmd.duration)
-                            .await
-                            .unwrap();
-                        let payload = AddKeyRespPayload::new(cmd.key.clone());
-                        let response = AddKeyResponse::success(Some(payload));
-                        cmd.respond(response);
-                    }
-
-                    // 处理获取缓存数据命令
-                    CacheEngineCommand::GetCache(cmd) => {
-                        let data = self.get_cache(&cmd.key, cmd.index, cmd.limit).await;
-                        let payload = GetCacheRespPayload::new(data);
-                        let response = GetCacheResponse::success(Some(payload));
-                        cmd.respond(response);
-                    }
-                    CacheEngineCommand::GetCacheMulti(cmd) => {
-                        let multi_data = self.get_cache_multi(&cmd.keys, cmd.index, cmd.limit).await;
-
-                        let multi_data_result = multi_data
-                            .into_iter()
-                            .map(|(cache_key, data)| {
-                                (
-                                    cache_key.get_key_str(),
-                                    data.into_iter().map(|cache_value| cache_value.to_list()).collect(),
-                                )
-                            })
-                            .collect();
-                        let payload = GetCacheMultiRespPayload::new(multi_data_result);
-                        let response = GetCacheMultiResponse::success(Some(payload));
-                        cmd.respond(response);
-                    }
-                    CacheEngineCommand::GetCacheLengthMulti(cmd) => {
-                        let mut length_result = HashMap::new();
-                        for key in cmd.keys.iter() {
-                            length_result.insert(key.clone(), self.get_cache_length(key).await);
-                        }
-
-                        let payload = GetCacheLengthMultiRespPayload::new(cmd.keys.clone(), length_result);
-                        let response = GetCacheLengthMultiResponse::success(Some(payload));
-                        cmd.respond(response);
-                    }
+                    // 添加缓存键
+                    CacheEngineCommand::AddKlineKey(cmd) => self.handle_add_kline_key(cmd).await,
+                    // 获取K线缓存
+                    CacheEngineCommand::GetKlineCache(cmd) => self.handle_get_kline_cache(cmd).await,
+                    // 批量获取K线缓存
+                    CacheEngineCommand::GetKlineCacheMulti(cmd) => self.handle_get_kline_cache_multi(cmd).await,
+                    // 获取K线缓存长度
+                    CacheEngineCommand::GetKlineCacheLengthMulti(cmd) => self.handle_get_kline_cache_length_multi(cmd).await,
                     // 更新缓存
-                    CacheEngineCommand::UpdateCache(cmd) => {
-                        self.update_cache(cmd.key.clone(), cmd.value.as_ref().clone()).await;
-                        let payload = UpdateCacheRespPayload::new(cmd.key.clone());
-                        let response = UpdateCacheResponse::success(Some(payload));
-                        cmd.respond(response);
-                    }
+                    CacheEngineCommand::UpdateKlineCache(cmd) => self.handle_update_kline_cache(cmd).await,
                     // 清空缓存
-                    CacheEngineCommand::ClearCache(cmd) => {
-                        self.clear_cache(cmd.key.clone()).await;
-                        let payload = ClearCacheRespPayload::new(cmd.key.clone());
-                        let response = ClearCacheResponse::success(Some(payload));
-                        cmd.respond(response);
-                    }
+                    CacheEngineCommand::ClearKlineCache(cmd) => self.handle_clear_kline_cache(cmd).await,
+                    // 添加指标缓存键
+                    CacheEngineCommand::AddIndicatorKey(cmd) => self.handle_add_indicator_key(cmd).await,
+                    // 获取指标缓存
+                    CacheEngineCommand::GetIndicatorCache(cmd) => self.handle_get_indicator_cache(cmd).await,
+                    // 批量获取指标缓存
+                    CacheEngineCommand::GetIndicatorCacheMulti(cmd) => self.handle_get_indicator_cache_multi(cmd).await,
+                    // 获取指标缓存长度
+                    CacheEngineCommand::GetIndicatorCacheLengthMulti(cmd) => self.handle_get_indicator_cache_length_multi(cmd).await,
+                    // 更新指标缓存
+                    CacheEngineCommand::UpdateIndicatorCache(cmd) => self.handle_update_indicator_cache(cmd).await,
+                    // 清空指标缓存
+                    CacheEngineCommand::ClearIndicatorCache(cmd) => self.handle_clear_indicator_cache(cmd).await,
                     _ => {}
+                    
                 }
             }
             _ => {}

@@ -20,8 +20,8 @@ tokio-stream.workspace = true
 futures.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
-petgraph = "0.8.1"
-deepsize = { version = "0.2.0", features=["chrono"]}
+
+deepsize.workspace = true
 utoipa.workspace = true
 ordered-float = {version = "5.0.0", features=["serde"]}
 paste = "1.0.15"

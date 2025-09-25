@@ -7,8 +7,7 @@ use axum::http::StatusCode;
 use engine::strategy_engine::StrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::CacheItem;
-use star_river_core::cache::Key;
+use star_river_core::key::Key;
 use star_river_core::engine::EngineName;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
@@ -353,10 +352,7 @@ pub async fn get_strategy_data(
         Ok(key) => strategy_engine
             .get_strategy_data(strategy_id, params.play_index, key)
             .await
-            .map(|data| {
-                let result: Vec<serde_json::Value> = data.iter().map(|cache_value| cache_value.to_json()).collect();
-                (StatusCode::OK, Json(NewApiResponse::success(result)))
-            })
+            .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
             .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }

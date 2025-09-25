@@ -1,12 +1,10 @@
 use super::{
-    BacktestStrategyContext, BacktestStrategyError, CacheValue,
+    BacktestStrategyContext, BacktestStrategyError,
     EventCenterSingleton, GetDataFailedSnafu, Key, PlayIndex, StatsSnapshot,
     VirtualOrder, VirtualPosition, VirtualTransaction, KlineDataLengthNotSameSnafu,
 };
-use std::sync::Arc;
-use event_center::communication::{engine::cache_engine::{CacheEngineCommand, GetCacheCmdPayload, GetCacheCommand, GetCacheLengthMultiCmdPayload, GetCacheLengthMultiCommand}, Response};
 use tokio::sync::oneshot;
-use tracing::instrument;
+use star_river_core::market::QuantData;
 
 impl BacktestStrategyContext {
     // 获取所有的virtual order
@@ -66,7 +64,7 @@ impl BacktestStrategyContext {
         &self,
         play_index: PlayIndex,
         key: Key,
-    ) -> Result<Vec<Arc<CacheValue>>, BacktestStrategyError> {
+    ) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
         // 安全检查：验证key是否属于当前策略
         let keys_map = self.keys.read().await;
         if !keys_map.contains_key(&key) {
@@ -78,8 +76,6 @@ impl BacktestStrategyContext {
             .fail()?);
         }
         drop(keys_map); // 释放锁
-
-        let (resp_tx, resp_rx) = oneshot::channel();
 
         let index = match &key {
             Key::Kline(kline_key) => {
@@ -99,36 +95,21 @@ impl BacktestStrategyContext {
             }
         };
 
-        let payload = GetCacheCmdPayload::new(
-            self.strategy_id,
-            "".to_string(),
-            key.clone(),
-            index,
-            None,
-        );
-        let cmd: CacheEngineCommand = GetCacheCommand::new(
-            self.strategy_name.clone(),
-            resp_tx,
-            Some(payload),
-        ).into();
-        
-
-        EventCenterSingleton::send_command(cmd.into())
-            .await
-            .unwrap();
-
-        let response = resp_rx.await.unwrap();
-
-        if response.is_success() {
-             Ok(response.data.clone())
-        } else {
-            Err(GetDataFailedSnafu {
-                strategy_name: self.strategy_name.clone(),
-                key: key.get_key_str(),
-                play_index: play_index as u32,
+        match key {
+            Key::Kline(kline_key) => {
+                let kline_data_guard = self.kline_data.read().await;
+                let kline_data = kline_data_guard.get(&kline_key).unwrap();
+                let kline_data = kline_data.iter().map(|kline| kline.to_json()).collect();
+                Ok(kline_data)
             }
-            .fail()?)
+            Key::Indicator(indicator_key) => {
+                let indicator_data_guard = self.indicator_data.read().await;
+                let indicator_data = indicator_data_guard.get(&indicator_key).unwrap();
+                let indicator_data = indicator_data.iter().map(|indicator| indicator.to_json()).collect();
+                Ok(indicator_data)
+            }
         }
+
     }
 
 

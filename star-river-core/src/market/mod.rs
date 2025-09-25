@@ -5,7 +5,6 @@ pub use symbol::Symbol;
 
 use std::fmt::Debug;
 
-use crate::cache::{CacheItem, CacheValue};
 use crate::error::star_river_error::*;
 use crate::system::DateTimeUtc;
 use deepsize::DeepSizeOf;
@@ -236,8 +235,12 @@ impl KlineInterval {
     }
 }
 
-pub trait MarketData: Serialize + Clone + Debug {
+// 量化数据
+pub trait QuantData: Serialize + Clone + Debug {
+    fn get_datetime(&self) -> DateTimeUtc;
     fn to_json(&self) -> serde_json::Value;
+    fn to_list(&self) -> Vec<f64>;
+    fn to_json_with_time(&self) -> serde_json::Value;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
@@ -248,12 +251,6 @@ pub struct Kline {
     pub low: f64,
     pub close: f64,
     pub volume: f64,
-}
-
-impl From<Kline> for CacheValue {
-    fn from(kline: Kline) -> Self {
-        CacheValue::Kline(kline)
-    }
 }
 
 impl Kline {
@@ -293,27 +290,15 @@ impl Kline {
     }
 }
 
-impl CacheItem for Kline {
+impl QuantData for Kline {
     fn get_datetime(&self) -> DateTimeUtc {
         self.datetime
     }
-
-    fn get_timestamp(&self) -> i64 {
-        self.datetime.timestamp_millis() //13位毫秒时间戳
-    }
-
     fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }
     fn to_list(&self) -> Vec<f64> {
-        vec![
-            self.datetime.timestamp_millis() as f64,
-            self.open,
-            self.high,
-            self.low,
-            self.close,
-            self.volume,
-        ]
+        vec![self.datetime.timestamp_millis() as f64, self.open, self.high, self.low, self.close, self.volume]
     }
     fn to_json_with_time(&self) -> serde_json::Value {
         json!(
@@ -327,12 +312,7 @@ impl CacheItem for Kline {
             }
         )
     }
-}
 
-impl MarketData for Kline {
-    fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap()
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -343,11 +323,7 @@ pub struct KlineSeries {
     pub series: Vec<Kline>,
 }
 
-impl MarketData for KlineSeries {
-    fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap()
-    }
-}
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TickerPrice {
@@ -355,10 +331,4 @@ pub struct TickerPrice {
     pub symbol: String,
     pub price: f64,
     pub timestamp: i64,
-}
-
-impl MarketData for TickerPrice {
-    fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap()
-    }
 }

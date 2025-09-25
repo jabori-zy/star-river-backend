@@ -13,12 +13,12 @@ pub use if_else_node_event::IfElseNodeEvent;
 pub use indicator_node_event::IndicatorNodeEvent;
 pub use kline_node_event::KlineNodeEvent;
 pub use position_management_node_event::PositionManagementNodeEvent;
+use star_river_core::market::{Kline, QuantData};
 pub use start_node_event::StartNodeEvent;
 pub use variable_node_event::VariableNodeEvent;
 
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::{CacheItem, CacheValue};
 use std::sync::Arc;
 use strum::Display;
 
@@ -60,7 +60,7 @@ pub enum BacktestNodeEvent {
 
 // 通用的序列化函数
 #[allow(dead_code)]
-fn serialize_cache_value_vec<S>(data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_cache_value_vec<S>(data: &Vec<Kline>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -76,7 +76,7 @@ where
 
 // 通用的反序列化函数
 #[allow(dead_code)]
-fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Arc<CacheValue>>, D::Error>
+fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Kline>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

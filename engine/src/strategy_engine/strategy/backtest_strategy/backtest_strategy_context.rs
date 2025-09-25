@@ -12,11 +12,8 @@ use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_state_machine::*;
 use chrono::{DateTime, Utc};
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use event_center::communication::engine::EngineResponse;
 use event_center::communication::backtest_strategy::BacktestStrategyCommand;
-use event_center::communication::backtest_strategy::StrategyResponse;
 use event_center::communication::backtest_strategy::*;
-use event_center::communication::backtest_strategy::NodeCommandReceiver;
 use event_center::event::Event;
 use event_center::event::node_event::NodeEventTrait;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
@@ -33,9 +30,8 @@ use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
-use star_river_core::cache::CacheValue;
-use star_river_core::cache::Key;
-use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::key::Key;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use star_river_core::indicator::Indicator;
@@ -91,8 +87,8 @@ pub struct BacktestStrategyContext {
     pub(super) running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>,  // 运行日志
     pub(super) keys: Arc<RwLock<HashMap<Key, NodeId>>>,                 // 缓存键 -> 其所属节点id
     pub(super) min_interval_symbols: Vec<KlineKey>,                     // 最小周期交易对
-    pub(super) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,  // 最小周期交易对k线数据
-    pub(super) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 指标数据
+    pub(super) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,  // 所有k线数据
+    pub(super) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 所有指标数据
 }
 
 impl BacktestStrategyContext {

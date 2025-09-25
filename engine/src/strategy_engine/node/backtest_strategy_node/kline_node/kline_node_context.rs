@@ -15,8 +15,8 @@ use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload,
 };
 use heartbeat::Heartbeat;
-use star_river_core::cache::KeyTrait;
-use star_river_core::cache::key::KlineKey;
+use star_river_core::key::KeyTrait;
+use star_river_core::key::key::KlineKey;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::node_error::backtest_strategy_node_error::kline_node_error::*;
 use star_river_core::market::Kline;

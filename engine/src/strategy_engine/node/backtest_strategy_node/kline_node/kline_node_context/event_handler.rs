@@ -2,23 +2,22 @@ use super::KlineNodeContext;
 use super::utils::is_cross_interval;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use event_center::communication::backtest_strategy::{GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsCommand, NodeResponse, UpdateKlineDataCmdPayload, UpdateKlineDataCommand};
+use event_center::communication::backtest_strategy::{GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCommand, UpdateKlineDataCmdPayload, UpdateKlineDataCommand};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, TimeUpdateEvent, TimeUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::start_node_event::KlinePlayEvent;
 use snafu::Report;
-use star_river_core::cache::key::KlineKey;
-use star_river_core::cache::{CacheItem, CacheValue};
-use star_river_core::cache::{Key, KeyTrait};
+use star_river_core::key::key::KlineKey;
+use star_river_core::key::KeyTrait;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::node_error::kline_node_error::{GetKlineDataSnafu, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu};
 use star_river_core::error::engine_error::node_error::KlineNodeError;
 use star_river_core::market::Kline;
-use std::sync::Arc;
 use tokio::sync::oneshot;
 use event_center::communication::Response;
+use star_river_core::market::QuantData;
 
 impl KlineNodeContext {
     pub(super) async fn send_kline(&self, play_event: KlinePlayEvent) {
@@ -303,7 +302,7 @@ impl KlineNodeContext {
         pre_kline_timestamp: &mut i64,
     ) -> Result<(), KlineNodeError> {
         let kline = self.get_kline(symbol_key, current_play_index).await?;
-        let kline_timestamp = kline.last().unwrap().get_timestamp();
+        let kline_timestamp = kline.last().unwrap().get_datetime().timestamp_millis();
 
         // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
         if *pre_kline_timestamp != kline_timestamp && *pre_kline_timestamp == 0 {

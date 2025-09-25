@@ -7,15 +7,14 @@ use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
 use event_center::communication::backtest_strategy::GetStrategyKeysCommand;
-use event_center::communication::engine::cache_engine::GetCacheCmdPayload;
+use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::Response;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use star_river_core::cache::key::KlineKey;
-use star_river_core::cache::CacheValue;
-use star_river_core::cache::Key;
+use star_river_core::key::key::KlineKey;
+use star_river_core::key::Key;
 use star_river_core::custom_type::InputHandleId;
 use star_river_core::custom_type::OrderId;
 use star_river_core::market::KlineInterval;

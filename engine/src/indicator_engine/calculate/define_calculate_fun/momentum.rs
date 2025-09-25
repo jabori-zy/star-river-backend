@@ -2,7 +2,6 @@ use crate::calculate_fn;
 use crate::calculate_fn_snake;
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::talib::TALib;
-use star_river_core::cache::CacheValue;
 use star_river_core::error::engine_error::indicator_engine_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::market::Kline;

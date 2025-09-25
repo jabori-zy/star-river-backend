@@ -1,12 +1,12 @@
 use event_center::communication::backtest_strategy::*;
 use event_center::communication::Command;
-use star_river_core::cache::CacheItem;
 use super::{
     BacktestStrategyCommand, BacktestNodeEvent, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event,
     EventCenterSingleton, FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse,
     GetStrategyKeysResponse, IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait,
     PositionManagementNodeEvent, StrategyStatsEvent,
 };
+use star_river_core::market::QuantData;
 
 impl BacktestStrategyContext {
     pub async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) -> Result<(), String> {
@@ -125,7 +125,7 @@ impl BacktestStrategyContext {
                 } else {
                     // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k线
                     if let Some(last_kline) = kline_data.last() {
-                        if last_kline.get_timestamp() == cmd.kline.get_timestamp() {
+                        if last_kline.datetime() == cmd.kline.datetime() {
                             kline_data.pop();
                             kline_data.push(cmd.kline.clone());
                         } else {
@@ -234,7 +234,7 @@ impl BacktestStrategyContext {
                 } else {
                     // 如果最新的一条数据时间戳等于最后一个指标的时间戳，则更新最后一条指标
                     if let Some(last_indicator) = indicator_data.last() {
-                        if last_indicator.get_timestamp() == cmd.indicator.get_timestamp() {
+                        if last_indicator.get_datetime() == cmd.indicator.get_datetime() {
                             indicator_data.pop();
                             indicator_data.push(cmd.indicator.clone());
                         } else {

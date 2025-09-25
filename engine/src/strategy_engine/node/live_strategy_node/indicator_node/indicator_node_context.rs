@@ -19,7 +19,6 @@ use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
-use star_river_core::cache::CacheValue;
 use star_river_core::strategy::node_event::{
     BacktestNodeEvent, IndicatorNodeEvent, LiveIndicatorUpdateEvent,
 };

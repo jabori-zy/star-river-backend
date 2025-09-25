@@ -16,8 +16,8 @@ use event_center::event::node_event::backtest_node_event::indicator_node_event::
     IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use star_river_core::cache::key::KlineKey;
-use star_river_core::cache::KeyTrait;
+use star_river_core::key::key::KlineKey;
+use star_river_core::key::KeyTrait;
 use star_river_core::indicator::Indicator;
 use tokio::sync::oneshot;
 use event_center::communication::Response;
@@ -27,7 +27,7 @@ impl IndicatorNodeContext {
     fn send_indicator_update_event(
         &self,
         handle_id: String,
-        indicator_key: &star_river_core::cache::key::IndicatorKey,
+        indicator_key: &star_river_core::key::key::IndicatorKey,
         config_id: &i32,
         indicator_value: Indicator,
         play_index: i32,

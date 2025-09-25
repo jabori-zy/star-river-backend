@@ -14,7 +14,7 @@ use event_center::event::{
     ExchangeEvent,
     exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
 };
-use star_river_core::cache::{Key, key::KlineKey};
+use star_river_core::key::{Key, key::KlineKey};
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
@@ -163,21 +163,21 @@ impl MarketEngineContext {
         max_size: u32,
     ) {
         // 调用缓存器的订阅事件
-        let key = Key::Kline(KlineKey {
+        let key = KlineKey {
             exchange,
             symbol,
             interval,
             start_time,
             end_time,
-        });
+        };
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = AddKeyCmdPayload::new(
+        let payload = AddKlineKeyCmdPayload::new(
             strategy_id,
             key,
             Some(max_size),
             Duration::from_millis(10),
         );
-        let cmd: CacheEngineCommand = AddKeyCommand::new(
+        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(
             format!("strategy_{}", strategy_id),
             resp_tx,
             Some(payload),
@@ -203,20 +203,20 @@ impl MarketEngineContext {
         time_range: TimeRange,
     ) {
         // 调用缓存器的订阅事件
-        let key = Key::Kline(KlineKey {
+        let key = KlineKey {
             exchange: exchange,
             symbol: symbol.to_string(),
             interval: interval.clone(),
             start_time: Some(time_range.start_date.to_string()),
             end_time: Some(time_range.end_date.to_string()),
-        });
+        };
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = AddKeyCmdPayload::new(
+        let payload = AddKlineKeyCmdPayload::new(
             strategy_id, 
-            key, 
+            key,
             None, 
             Duration::from_millis(10));
-        let cmd: CacheEngineCommand = AddKeyCommand::new(
+        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(
             format!("strategy_{}", strategy_id),
             resp_tx,
             Some(payload),

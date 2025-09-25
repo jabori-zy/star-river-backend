@@ -12,7 +12,7 @@ use event_center::event::Event;
 use event_center::event::ExchangeEvent;
 use event_center::event::exchange_event::ExchangeKlineUpdateEvent;
 use heartbeat::Heartbeat;
-use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::market::{Exchange, KlineInterval};

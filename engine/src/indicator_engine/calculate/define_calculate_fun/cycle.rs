@@ -1,11 +1,9 @@
 use crate::indicator_engine::talib::TALib;
 use crate::{calculate_fn, calculate_fn_snake};
-use star_river_core::cache::CacheValue;
 use star_river_core::error::engine_error::indicator_engine_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::indicator::indicator_define::cycle::*;
 use star_river_core::market::Kline;
-use std::sync::Arc;
 
 use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 

@@ -1,16 +1,13 @@
 pub mod indicator_macros;
 pub mod utils;
-// pub mod indicator;
 pub mod indicator_define;
 
-use crate::cache::{CacheItem, CacheValue};
 use crate::market::{Exchange, KlineInterval};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-// use crate::indicator::indicator::*;
 use crate::error::star_river_error::*;
 use crate::indicator::indicator_define::cycle::*;
 use crate::indicator::indicator_define::momentum::*;
@@ -20,9 +17,9 @@ use crate::indicator::indicator_define::price_transform::*;
 use crate::indicator::indicator_define::volatility::*;
 use crate::indicator::indicator_define::volume::*;
 use crate::{impl_indicator, impl_indicator_config};
-use chrono::{DateTime, Utc};
 use deepsize::DeepSizeOf;
 use strum::{Display, EnumString};
+use chrono::{DateTime, Utc};
 
 use crate::error::indicator_error::*;
 use snafu::ResultExt;
@@ -81,11 +78,11 @@ pub trait IndicatorConfigTrait {
         Self: Sized; // 创建指标配置,有可能失败
 }
 
-pub trait IndicatorTrait {
-    fn to_json(&self) -> serde_json::Value;
-    fn to_list(&self) -> Vec<f64>;
-    fn to_json_with_time(&self) -> serde_json::Value;
-}
+// pub trait IndicatorTrait {
+//     fn to_json(&self) -> serde_json::Value;
+//     fn to_list(&self) -> Vec<f64>;
+//     fn to_json_with_time(&self) -> serde_json::Value;
+// }
 
 // 2. 为枚举使用enum_dispatch
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -779,11 +776,11 @@ impl_indicator!(
     CDLXSIDEGAP3METHODS
 );
 
-impl From<Indicator> for CacheValue {
-    fn from(indicator: Indicator) -> Self {
-        CacheValue::Indicator(indicator)
-    }
-}
+// impl From<Indicator> for CacheValue {
+//     fn from(indicator: Indicator) -> Self {
+//         CacheValue::Indicator(indicator)
+//     }
+// }
 
 #[typetag::serde(tag = "type")]
 pub trait IndicatorData: Debug + Send + Sync {

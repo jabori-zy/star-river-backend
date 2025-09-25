@@ -3,12 +3,13 @@ use super::super::NodeEvent;
 use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::cache::key::KlineKey;
-use star_river_core::cache::{CacheItem, CacheValue, KeyTrait};
+use star_river_core::key::key::KlineKey;
+use star_river_core::key::KeyTrait;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Kline;
 use std::sync::Arc;
 use strum::Display;
+use star_river_core::market::QuantData;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
@@ -82,7 +83,7 @@ where
     serializer.serialize_str(&kline_key_str)
 }
 
-fn serialize_kline_data<S>(kline_data: &Vec<Arc<CacheValue>>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_kline_data<S>(kline_data: &Vec<Kline>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -91,8 +92,8 @@ where
     let mut seq = serializer.serialize_seq(Some(kline_data.len()))?;
     kline_data
         .iter()
-        .map(|cache_value| {
-            let json_value = cache_value.to_json();
+        .map(|v| {
+            let json_value = v.to_json();
             seq.serialize_element(&json_value)
         })
         .collect::<Result<(), S::Error>>()?;
@@ -100,7 +101,7 @@ where
 }
 
 // 反序列化函数
-fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Arc<CacheValue>>, D::Error>
+fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Kline>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

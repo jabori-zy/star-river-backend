@@ -37,13 +37,16 @@ macro_rules! define_indicator_output {
                 }
             }
 
-            impl From<$indicator_name> for crate::cache::CacheValue {
-                fn from(indicator: $indicator_name) -> Self {
-                    crate::cache::CacheValue::Indicator(indicator.into())
-                }
-            }
+            // impl From<$indicator_name> for crate::cache::CacheValue {
+            //     fn from(indicator: $indicator_name) -> Self {
+            //         crate::cache::CacheValue::Indicator(indicator.into())
+            //     }
+            // }
 
-            impl crate::indicator::IndicatorTrait for $indicator_name {
+            impl crate::market::QuantData for $indicator_name {
+                fn get_datetime(&self) -> crate::system::DateTimeUtc {
+                    self.datetime
+                }
                 fn to_json(&self) -> serde_json::Value {
                     serde_json::to_value(self).unwrap()
                 }
@@ -66,28 +69,28 @@ macro_rules! define_indicator_output {
                 }
             }
 
-            impl crate::cache::CacheItem for $indicator_name {
+            // impl $indicator_name {
 
-                fn get_datetime(&self) -> DateTime<Utc> {
-                    self.datetime
-                }
+            //     fn get_datetime(&self) -> DateTime<Utc> {
+            //         self.datetime
+            //     }
 
-                fn to_json(&self) -> serde_json::Value {
-                    crate::indicator::IndicatorTrait::to_json(self)
-                }
+            //     fn to_json(&self) -> serde_json::Value {
+            //         crate::market::QuantData::to_json(self)
+            //     }
 
-                fn to_list(&self) -> Vec<f64> {
-                    crate::indicator::IndicatorTrait::to_list(self)
-                }
+            //     fn to_list(&self) -> Vec<f64> {
+            //         crate::market::QuantData::to_list(self)
+            //     }
 
-                fn get_timestamp(&self) -> i64 {
-                    self.datetime.timestamp_millis()
-                }
+            //     fn get_timestamp(&self) -> i64 {
+            //         self.datetime.timestamp_millis()
+            //     }
 
-                fn to_json_with_time(&self) -> serde_json::Value {
-                    crate::indicator::IndicatorTrait::to_json_with_time(self)
-                }
-            }
+            //     fn to_json_with_time(&self) -> serde_json::Value {
+            //         crate::market::QuantData::to_json_with_time(self)
+            //     }
+            // }
         }
     };
 }
@@ -438,11 +441,18 @@ macro_rules! define_indicator {
 // 为Indicator枚举创建所有trait方法的宏
 macro_rules! impl_indicator {
     ($enum_name:ident, $($variant:ident),+) => {
-        impl IndicatorTrait for $enum_name {
+        impl crate::market::QuantData for $enum_name {
+            fn get_datetime(&self) -> crate::system::DateTimeUtc {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => inner.get_datetime(),
+                    )+
+                }
+            }
             fn to_json(&self) -> serde_json::Value {
                 match self {
                     $(
-                        $enum_name::$variant(inner) => IndicatorTrait::to_json(inner),
+                        $enum_name::$variant(inner) => crate::market::QuantData::to_json(inner),
                     )+
                 }
             }
@@ -450,7 +460,7 @@ macro_rules! impl_indicator {
             fn to_list(&self) -> Vec<f64> {
                 match self {
                     $(
-                        $enum_name::$variant(inner) => IndicatorTrait::to_list(inner),
+                        $enum_name::$variant(inner) => crate::market::QuantData::to_list(inner),
                     )+
                 }
             }
@@ -458,55 +468,55 @@ macro_rules! impl_indicator {
             fn to_json_with_time(&self) -> serde_json::Value {
                 match self {
                     $(
-                        $enum_name::$variant(inner) => IndicatorTrait::to_json_with_time(inner),
+                        $enum_name::$variant(inner) => crate::market::QuantData::to_json_with_time(inner),
                     )+
                 }
             }
         }
 
-        impl CacheItem for $enum_name {
+        // impl $enum_name {
 
 
-            fn get_datetime(&self) -> DateTime<Utc> {
-                match self {
-                    $(
-                        $enum_name::$variant(inner) => inner.datetime,
-                    )+
-                }
-            }
+        //     fn get_datetime(&self) -> DateTime<Utc> {
+        //         match self {
+        //             $(
+        //                 $enum_name::$variant(inner) => inner.datetime,
+        //             )+
+        //         }
+        //     }
 
-            fn get_timestamp(&self) -> i64 {
-                match self {
-                    $(
-                        $enum_name::$variant(inner) => inner.datetime.timestamp_millis(),
-                    )+
-                }
-            }
+        //     fn get_timestamp(&self) -> i64 {
+        //         match self {
+        //             $(
+        //                 $enum_name::$variant(inner) => inner.datetime.timestamp_millis(),
+        //             )+
+        //         }
+        //     }
 
-            fn to_json(&self) -> serde_json::Value {
-                match self {
-                    $(
-                        $enum_name::$variant(inner) => CacheItem::to_json(inner),
-                    )+
-                }
-            }
+        //     fn to_json(&self) -> serde_json::Value {
+        //         match self {
+        //             $(
+        //                 $enum_name::$variant(inner) => CacheItem::to_json(inner),
+        //             )+
+        //         }
+        //     }
 
-            fn to_list(&self) -> Vec<f64> {
-                match self {
-                    $(
-                        $enum_name::$variant(inner) => CacheItem::to_list(inner),
-                    )+
-                }
-            }
+        //     fn to_list(&self) -> Vec<f64> {
+        //         match self {
+        //             $(
+        //                 $enum_name::$variant(inner) => CacheItem::to_list(inner),
+        //             )+
+        //         }
+        //     }
 
-            fn to_json_with_time(&self) -> serde_json::Value {
-                match self {
-                    $(
-                        $enum_name::$variant(inner) => CacheItem::to_json_with_time(inner),
-                    )+
-                }
-            }
-        }
+        //     fn to_json_with_time(&self) -> serde_json::Value {
+        //         match self {
+        //             $(
+        //                 $enum_name::$variant(inner) => CacheItem::to_json_with_time(inner),
+        //             )+
+        //         }
+        //     }
+        // }
     };
 }
 

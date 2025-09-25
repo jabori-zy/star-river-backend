@@ -2,7 +2,7 @@ use super::KlineNodeContext;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use event_center::{
     communication::{
-        engine::cache_engine::{CacheEngineCommand, ClearCacheCmdPayload, ClearCacheCommand},
+        engine::cache_engine::{CacheEngineCommand, ClearKlineCacheCmdPayload, ClearKlineCacheCommand},
         Response,
     },
     EventCenterSingleton,
@@ -16,11 +16,11 @@ impl KlineNodeContext {
         for (kline_key, _) in self.selected_symbol_keys.iter() {
             if !self.min_interval_symbols.contains(kline_key) {
                 let (resp_tx, resp_rx) = oneshot::channel();
-                let payload = ClearCacheCmdPayload::new(
+                let payload = ClearKlineCacheCmdPayload::new(
                     self.get_strategy_id().clone(),
                     kline_key.clone().into(),
                 );
-                let cmd: CacheEngineCommand = ClearCacheCommand::new(
+                let cmd: CacheEngineCommand = ClearKlineCacheCommand::new(
                     self.get_node_id().clone(),
                     resp_tx,
                     Some(payload),

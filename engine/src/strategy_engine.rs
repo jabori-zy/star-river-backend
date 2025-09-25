@@ -12,8 +12,7 @@ use event_center::event::strategy_event::StrategyRunningLogEvent;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use snafu::Report;
-use star_river_core::cache::CacheValue;
-use star_river_core::cache::Key;
+use star_river_core::key::Key;
 use star_river_core::custom_type::NodeId;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::*;
@@ -265,7 +264,7 @@ impl StrategyEngine {
         strategy_id: i32,
         play_index: i32,
         key: Key,
-    ) -> Result<Vec<Arc<CacheValue>>, StrategyEngineError> {
+    ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context

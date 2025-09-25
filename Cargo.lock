@@ -3296,7 +3296,6 @@ dependencies = [
  "futures",
  "ordered-float 5.0.0",
  "paste",
- "petgraph",
  "reqwest",
  "sea-orm",
  "serde",
@@ -3473,18 +3472,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "chrono-tz",
-]
-
-[[package]]
-name = "test_talib"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "engine",
- "ordered-float 5.0.0",
- "paste",
- "serde_json",
- "star-river-core",
 ]
 
 [[package]]

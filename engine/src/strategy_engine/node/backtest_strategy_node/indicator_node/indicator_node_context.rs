@@ -9,7 +9,7 @@ use event_center::communication::engine::indicator_engine::{CalculateHistoryIndi
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::backtest_strategy::{GetIndicatorDataCmdPayload, GetIndicatorDataCommand, GetKlineDataCmdPayload, GetKlineDataCommand, InitIndicatorDataCmdPayload, InitIndicatorDataCommand, NodeResponse};
 use event_center::EventCenterSingleton;
-use star_river_core::cache::key::{IndicatorKey, KlineKey};
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::indicator::Indicator;
 use star_river_core::market::Kline;
 use std::collections::HashMap;
@@ -17,6 +17,7 @@ use std::fmt::Debug;
 use tokio::sync::oneshot;
 use tokio::time::Duration;
 use event_center::communication::Response;
+use star_river_core::market::QuantData;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {

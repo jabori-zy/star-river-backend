@@ -4,10 +4,10 @@ pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
 
-use event_center::communication::engine::cache_engine::GetCacheCmdPayload;
-use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetCacheCommand};
-use star_river_core::cache::Key;
-use star_river_core::cache::key::KlineKey;
+use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
+use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetKlineCacheCommand};
+use star_river_core::key::Key;
+use star_river_core::key::key::KlineKey;
 use star_river_core::custom_type::*;
 use star_river_core::order::OrderType;
 use star_river_core::order::virtual_order::VirtualOrder;
@@ -229,7 +229,7 @@ impl VirtualTradingSystem {
 
         let mut timestamp_list = vec![];
         for kline_key in keys {
-            let kline = self.get_close_price(kline_key.clone().into()).await;
+            let kline = self.get_close_price(kline_key.clone()).await;
             if let Ok(kline) = kline {
                 timestamp_list.push(kline.datetime);
                 self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
@@ -324,16 +324,16 @@ impl VirtualTradingSystem {
     }
 
     // 从缓存引擎获取k线数据
-    async fn get_close_price(&self, kline_key: Key) -> Result<Kline, String> {
+    async fn get_close_price(&self, kline_key: KlineKey) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetCacheCmdPayload::new(
+        let payload = GetKlineCacheCmdPayload::new(
             -1, 
             "virtual_trading_system".to_string(), 
             kline_key, 
             Some(self.get_play_index() as u32), 
             Some(1)
         );
-        let cmd: CacheEngineCommand = GetCacheCommand::new(
+        let cmd: CacheEngineCommand = GetKlineCacheCommand::new(
             "virtual_trading_system".to_string(), 
             resp_tx, 
             Some(payload)
@@ -349,7 +349,7 @@ impl VirtualTradingSystem {
             if response.data.is_empty() {
                 return Err("get cache data response is empty".to_string());
             }
-            let kline = response.data[0].as_kline().unwrap();
+            let kline = response.data[0].clone();
             return Ok(kline);
         }
         Err("get history kline cache failed".to_string())

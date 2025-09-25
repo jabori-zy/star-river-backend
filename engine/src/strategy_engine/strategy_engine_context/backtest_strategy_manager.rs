@@ -5,8 +5,7 @@ use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use snafu::{Report, ResultExt};
-use star_river_core::cache::CacheValue;
-use star_river_core::cache::Key;
+use star_river_core::key::Key;
 use star_river_core::custom_type::NodeId;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::strategy_engine_error::*;
@@ -237,7 +236,7 @@ impl StrategyEngineContext {
         strategy_id: i32,
         play_index: i32,
         key: Key,
-    ) -> Result<Vec<Arc<CacheValue>>, StrategyEngineError> {
+    ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
         Ok(strategy.get_strategy_data(play_index, key).await?)
     }
