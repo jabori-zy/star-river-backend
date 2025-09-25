@@ -8,7 +8,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, Backte
 use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
-use event_center::communication::strategy::{NodeCommandSender, StrategyCommandReceiver};
+use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::strategy_event::NodeStateLogEvent;
 use heartbeat::Heartbeat;
@@ -42,8 +42,8 @@ impl PositionManagementNode {
         node_config: serde_json::Value,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
@@ -57,8 +57,8 @@ impl PositionManagementNode {
             node_name.clone(),
             NodeType::PositionManagementNode,
             Box::new(PositionNodeStateMachine::new(node_id, node_name)),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

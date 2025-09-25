@@ -494,71 +494,71 @@ impl TALib {
                     let lookback = TA_CDLMORNINGSTAR_Lookback(cdlmorningstar_config.penetration.into());
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLONNECK(cdlonneck_config) => {
+                IndicatorConfig::CDLONNECK(_cdlonneck_config) => {
                     let lookback = TA_CDLONNECK_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLPIERCING(cdlpiercing_config) => {
+                IndicatorConfig::CDLPIERCING(_cdlpiercing_config) => {
                     let lookback = TA_CDLPIERCING_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLRICKSHAWMAN(cdlrickshawman_config) => {
+                IndicatorConfig::CDLRICKSHAWMAN(_cdlrickshawman_config) => {
                     let lookback = TA_CDLRICKSHAWMAN_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLRISEFALL3METHODS(cdlrisefall3methods_config) => {
+                IndicatorConfig::CDLRISEFALL3METHODS(_) => {
                     let lookback = TA_CDLRISEFALL3METHODS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLSEPARATINGLINES(cdlseparatinglines_config) => {
+                IndicatorConfig::CDLSEPARATINGLINES(_) => {
                     let lookback = TA_CDLSEPARATINGLINES_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLSHOOTINGSTAR(cdlshootingstar_config) => {
+                IndicatorConfig::CDLSHOOTINGSTAR(_) => {
                     let lookback = TA_CDLSHOOTINGSTAR_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLSHORTLINE(cdlshortline_config) => {
+                IndicatorConfig::CDLSHORTLINE(_) => {
                     let lookback = TA_CDLSHORTLINE_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLSPINNINGTOP(cdlspinningtop_config) => {
+                IndicatorConfig::CDLSPINNINGTOP(_) => {
                     let lookback = TA_CDLSPINNINGTOP_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLSTALLEDPATTERN(cdlstalledpattern_config) => {
+                IndicatorConfig::CDLSTALLEDPATTERN(_) => {
                     let lookback = TA_CDLSTALLEDPATTERN_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLSTICKSANDWICH(cdlsticksandwich_config) => {
+                IndicatorConfig::CDLSTICKSANDWICH(_) => {
                     let lookback = TA_CDLSTICKSANDWICH_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLTAKURI(cdltakuri_config) => {
+                IndicatorConfig::CDLTAKURI(_) => {
                     let lookback = TA_CDLTAKURI_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLTASUKIGAP(cdltasukigap_config) => {
+                IndicatorConfig::CDLTASUKIGAP(_) => {
                     let lookback = TA_CDLTASUKIGAP_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLTHRUSTING(cdlthrusting_config) => {
+                IndicatorConfig::CDLTHRUSTING(_) => {
                     let lookback = TA_CDLTHRUSTING_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLTRISTAR(cdltristar_config) => {
+                IndicatorConfig::CDLTRISTAR(_) => {
                     let lookback = TA_CDLTRISTAR_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLUNIQUE3RIVER(cdlunique3river_config) => {
+                IndicatorConfig::CDLUNIQUE3RIVER(_) => {
                     let lookback = TA_CDLUNIQUE3RIVER_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLUPSIDEGAP2CROWS(cdlupsidegap2crows_config) => {
+                IndicatorConfig::CDLUPSIDEGAP2CROWS(_) => {
                     let lookback = TA_CDLUPSIDEGAP2CROWS_Lookback();
                     return lookback as usize;
                 }
-                IndicatorConfig::CDLXSIDEGAP3METHODS(cdlxsidegap3methods_config) => {
+                IndicatorConfig::CDLXSIDEGAP3METHODS(_) => {
                     let lookback = TA_CDLXSIDEGAP3METHODS_Lookback();
                     return lookback as usize;
                 }

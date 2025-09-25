@@ -2,7 +2,7 @@ use super::node_types::*;
 use crate::strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
 use event_center::EventPublisher;
-use event_center::communication::strategy::{NodeCommandSender, StrategyCommand, StrategyCommandReceiver};
+use event_center::communication::backtest_strategy::{NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender, NodeCommandReceiver, BacktestNodeCommand};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::common_event::{
     CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
@@ -233,7 +233,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent);
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand);
+    async fn handle_node_command(&mut self, node_command: BacktestNodeCommand);
 
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 
@@ -258,13 +258,13 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         self.get_base_context().is_leaf_node
     }
 
-    fn get_node_command_sender(&self) -> &NodeCommandSender {
-        &self.get_base_context().node_command_sender
+    fn get_strategy_command_sender(&self) -> &StrategyCommandSender {
+        &self.get_base_context().strategy_command_sender
     }
 
     // 获取策略命令接收器
-    fn get_strategy_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
-        self.get_base_context().strategy_command_receiver.clone()
+    fn get_node_command_receiver(&self) -> Arc<Mutex<NodeCommandReceiver>> {
+        self.get_base_context().node_command_receiver.clone()
     }
 
     fn get_cancel_token(&self) -> &CancellationToken {
@@ -402,8 +402,8 @@ pub struct BacktestBaseNodeContext {
     pub is_enable_event_publish: bool,                       // 是否启用事件发布
     pub state_machine: Box<dyn BacktestNodeStateMachine>,    // 状态机
     pub from_node_id: Vec<String>,                           // 来源节点ID
-    pub node_command_sender: NodeCommandSender,              // 向策略发送命令
-    pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+    pub strategy_command_sender: StrategyCommandSender,              // 向策略发送命令
+    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,              // 向节点发送命令
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }
 
@@ -423,9 +423,9 @@ impl Clone for BacktestBaseNodeContext {
             from_node_id: self.from_node_id.clone(),
             // command_publisher: self.command_publisher.clone(),
             // command_receiver: self.command_receiver.clone(),
-            node_command_sender: self.node_command_sender.clone(),
+            strategy_command_sender: self.strategy_command_sender.clone(),
+            node_command_receiver: self.node_command_receiver.clone(),
             strategy_inner_event_receiver: self.strategy_inner_event_receiver.resubscribe(),
-            strategy_command_receiver: self.strategy_command_receiver.clone(),
             play_index_watch_rx: self.play_index_watch_rx.clone(),
         }
     }
@@ -438,8 +438,8 @@ impl BacktestBaseNodeContext {
         node_name: String,
         node_type: NodeType,
         state_machine: Box<dyn BacktestNodeStateMachine>,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
@@ -459,8 +459,8 @@ impl BacktestBaseNodeContext {
             // command_receiver,
             state_machine,
             from_node_id: Vec::new(),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         }

@@ -4,7 +4,7 @@ use crate::strategy_engine::node::BacktestNodeTrait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
-use event_center::communication::strategy::{StrategyCommand, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandSender, BacktestNodeCommand};
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
@@ -14,10 +14,10 @@ impl BacktestStrategyFunction {
     pub async fn add_start_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        node_command_sender: NodeCommandSender,
+        strategy_command_sender: StrategyCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), StartNodeError> {
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
         let (heartbeat, virtual_trading_system, strategy_stats, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
@@ -31,8 +31,8 @@ impl BacktestStrategyFunction {
         let mut node = StartNode::new(
             node_config,
             heartbeat,
-            node_command_sender,
-            Arc::new(Mutex::new(strategy_command_rx)),
+            strategy_command_sender,
+            Arc::new(Mutex::new(node_command_rx)),
             strategy_inner_event_receiver,
             virtual_trading_system,
             strategy_stats,
@@ -43,11 +43,7 @@ impl BacktestStrategyFunction {
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;
-
-        let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
-        strategy_command_publisher
-            .add_sender(node_id.to_string(), strategy_command_tx)
-            .await;
+        strategy_context_guard.add_node_command_sender(node_id.to_string(), node_command_tx).await;
 
         let node = Box::new(node);
 

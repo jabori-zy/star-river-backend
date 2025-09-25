@@ -2,13 +2,7 @@ use super::KlineNodeContext;
 use super::utils::is_cross_interval;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use event_center::EventCenterSingleton;
-use event_center::communication::engine::EngineResponse;
-use event_center::communication::engine::cache_engine::CacheEngineResponse;
-use event_center::communication::engine::cache_engine::{GetCacheParams, UpdateCacheParams};
-use event_center::communication::strategy::{GetKlineDataParams, NodeResponse, UpdateKlineDataParams};
-use event_center::communication::strategy::backtest_strategy::command::GetMinIntervalSymbolsParams;
-use event_center::communication::strategy::backtest_strategy::response::BacktestStrategyResponse;
+use event_center::communication::backtest_strategy::{GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsCommand, NodeResponse, UpdateKlineDataCmdPayload, UpdateKlineDataCommand};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, TimeUpdateEvent, TimeUpdatePayload,
@@ -24,6 +18,7 @@ use star_river_core::error::engine_error::node_error::KlineNodeError;
 use star_river_core::market::Kline;
 use std::sync::Arc;
 use tokio::sync::oneshot;
+use event_center::communication::Response;
 
 impl KlineNodeContext {
     pub(super) async fn send_kline(&self, play_event: KlinePlayEvent) {
@@ -191,16 +186,20 @@ impl KlineNodeContext {
         min_interval_kline: &Kline,
     ) -> Result<(), KlineNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let update_cache_params = UpdateKlineDataParams::new(
-            self.get_node_id().clone(),
+        let update_paylod = UpdateKlineDataCmdPayload::new(
             symbol_key.clone(),
-            min_interval_kline.clone(),
-            resp_tx,
+            min_interval_kline.clone()
         );
-        let _ = self.get_node_command_sender().send(update_cache_params.into()).await;
+        let update_cmd = UpdateKlineDataCommand::new(
+            self.get_node_id().clone(), 
+            resp_tx,
+            Some(update_paylod),
+        );
+        
+        let _ = self.get_strategy_command_sender().send(update_cmd.into()).await;
         let response = resp_rx.await.unwrap();
 
-        if response.success() {
+        if response.is_success() {
             // 发送K线事件
             self.send_kline_events(
                 symbol_info,
@@ -211,7 +210,7 @@ impl KlineNodeContext {
             );
             Ok(())
         } else {
-            let error = response.error();
+            let error = response.get_error();
             tracing::error!("{}", Report::from_error(error));
             return Ok(());
         }
@@ -227,28 +226,20 @@ impl KlineNodeContext {
     ) -> Result<(), KlineNodeError> {
         // 先获取缓存引擎中的最后一个值
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_last_kline_params = GetKlineDataParams::new(
-            self.get_node_id().clone(),
-            symbol_key.clone().into(),
+        let payload = GetKlineDataCmdPayload::new(
+            symbol_key.clone(),
             None,
             Some(1),
-            resp_tx,
         );
-        let _ = self.get_node_command_sender().send(get_last_kline_params.into()).await;
+        let get_last_kline_cmd = GetKlineDataCommand::new(
+            self.get_node_id().clone(),
+            resp_tx,
+            Some(payload),
+        );
+        let _ = self.get_strategy_command_sender().send(get_last_kline_cmd.into()).await;
         let response = resp_rx.await.unwrap();
-
-        if !response.success() {
-            return Err(GetKlineDataSnafu {
-                node_name: self.get_node_name().clone(),
-                kline_key: symbol_key.get_key_str(),
-                play_index: current_play_index as u32,
-            }
-            .fail()?);
-        }
-
-        match response {
-            NodeResponse::BacktestNode(BacktestStrategyResponse::GetKlineData(resp)) => {
-                let last_kline = resp.data.last().unwrap();
+        if response.is_success() {
+                let last_kline = response.kline_series.last().unwrap();
 
                 // 最小间隔k线当前的开盘价，收盘价，最高价，最低价
                 let min_interval_close = min_interval_kline.close();
@@ -270,31 +261,37 @@ impl KlineNodeContext {
 
                 // 更新到缓存引擎
                 let (resp_tx, resp_rx) = oneshot::channel();
-                let update_cache_params = UpdateKlineDataParams::new(
-                    self.get_node_id().clone(),
+                let payload = UpdateKlineDataCmdPayload::new(
                     symbol_key.clone(),
-                    new_kline.clone().into(),
-                    resp_tx,
+                    new_kline.clone(),
                 );
-                let _ = self.get_node_command_sender().send(update_cache_params.into()).await;
+                let update_cache_params = UpdateKlineDataCommand::new(
+                    self.get_node_id().clone(),
+                    resp_tx,
+                    Some(payload),
+                );
+                let _ = self.get_strategy_command_sender().send(update_cache_params.into()).await;
                 let response = resp_rx.await.unwrap();
 
-                if response.success() {
+                if response.is_success() {
                     // 使用通用方法发送K线事件
                     self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline);
                     Ok(())
                 } else {
-                    let error = response.error();
+                    let error = response.get_error();
                     tracing::error!("{}", Report::from_error(error));
                     return Ok(());
                 }
             }
-            _ => {
-                let error = response.error();
-                tracing::error!("{}", Report::from_error(error));
-                return Ok(());
+            else {
+                return Err(GetKlineDataSnafu {
+                    node_name: self.get_node_name().clone(),
+                    kline_key: symbol_key.get_key_str(),
+                    play_index: current_play_index as u32,
+                }
+                .fail()?);
             }
-        }
+        
     }
 
     // 处理最小周期K线的独立方法
@@ -348,19 +345,23 @@ impl KlineNodeContext {
 
     pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {
         let (tx, rx) = oneshot::channel();
-        let get_min_interval_symbols_params = GetMinIntervalSymbolsParams::new(self.get_node_id().clone(), tx);
+        let cmd = GetMinIntervalSymbolsCommand::new(
+            self.get_node_id().clone(), 
+            tx, 
+            None
+        );
 
-        self.get_node_command_sender()
-            .send(get_min_interval_symbols_params.into())
+        self.get_strategy_command_sender()
+            .send(cmd.into())
             .await
             .unwrap();
 
-        let response = rx.await.unwrap();
-        match response {
-            NodeResponse::BacktestNode(BacktestStrategyResponse::GetMinIntervalSymbols(
-                get_min_interval_symbols_response,
-            )) => return Ok(get_min_interval_symbols_response.keys),
-            _ => return Err("获取最小周期交易对失败".to_string()),
+        let response: event_center::communication::backtest_strategy::StrategyResponse<event_center::communication::backtest_strategy::GetMinIntervalSymbolsRespPayload> = rx.await.unwrap();
+        if response.is_success() {
+            return Ok(response.keys.clone());
+        }
+        else {
+            return Err("获取最小周期交易对失败".to_string());
         }
     }
 }

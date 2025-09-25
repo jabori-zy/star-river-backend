@@ -1,6 +1,6 @@
 use super::{
     BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey,
-    NodeCommand, StrategyInnerEvent,
+    BacktestStrategyCommand, StrategyInnerEvent,
 };
 use snafu::IntoError;
 use star_river_core::error::engine_error::strategy_error::backtest_strategy_error::*;
@@ -9,13 +9,13 @@ use tokio::sync::{broadcast, mpsc};
 
 impl BacktestStrategy {
     pub async fn add_node(&mut self) -> Result<(), BacktestStrategyError> {
-        let (node_command_tx, node_command_rx) = mpsc::channel::<NodeCommand>(100);
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<BacktestStrategyCommand>(100);
         let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
 
         // setting strategy context properties
         {
             let mut context_guard = self.context.write().await;
-            context_guard.set_node_command_receiver(node_command_rx);
+            context_guard.set_strategy_command_receiver(strategy_command_rx);
             context_guard.set_strategy_inner_event_publisher(strategy_inner_event_tx);
         } // context lock end
 
@@ -42,7 +42,7 @@ impl BacktestStrategy {
             let result = BacktestStrategyFunction::add_node(
                 context.clone(),
                 node_config,
-                node_command_tx.clone(),
+                strategy_command_tx.clone(),
                 strategy_inner_event_rx.resubscribe(),
             )
             .await;

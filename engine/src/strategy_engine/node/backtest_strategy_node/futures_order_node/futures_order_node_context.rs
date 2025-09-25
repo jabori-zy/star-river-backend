@@ -3,25 +3,15 @@ mod event_handler;
 mod order_handler;
 
 use super::futures_order_node_types::*;
-use crate::strategy_engine::node::backtest_strategy_node::node_message::futures_order_node_log_message::*;
 use crate::strategy_engine::node::node_context::{
     BacktestBaseNodeContext, BacktestNodeContextTrait,
 };
-use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use async_trait::async_trait;
+use event_center::communication::backtest_strategy::GetStrategyKeysCommand;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::GetCacheParams;
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
-use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::backtest_strategy::GetStrategyKeysParams;
-use event_center::communication::strategy::{BacktestStrategyResponse, NodeResponse, StrategyCommand};
-use event_center::event::node_event::backtest_node_event::futures_order_node_event::*;
-use event_center::event::node_event::backtest_node_event::common_event::{
-    TriggerEvent, TriggerPayload, CommonEvent,
-};
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::Event;
+use event_center::communication::backtest_strategy::NodeResetResponse;
+use event_center::communication::Response;
 use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -33,13 +23,9 @@ use star_river_core::custom_type::OrderId;
 use star_river_core::market::KlineInterval;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::OrderStatus;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
-use star_river_core::virtual_trading_system::event::{
-    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver,
-};
-use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType};
-use std::any::Any;
+use star_river_core::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -47,8 +33,6 @@ use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use virtual_trading::VirtualTradingSystem;
-use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::futures_order_node_error::*;
-use chrono::Utc;
 
 #[derive(Debug)]
 pub struct FuturesOrderNodeContext {
@@ -209,19 +193,19 @@ impl FuturesOrderNodeContext {
 
     async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
-        let get_strategy_cache_keys_params = GetStrategyKeysParams::new(self.get_node_id().clone(), tx);
+        
+        let cmd = GetStrategyKeysCommand::new(self.get_node_id().clone(), tx, None);
 
-        self.get_node_command_sender()
-            .send(get_strategy_cache_keys_params.into())
+        self.get_strategy_command_sender()
+            .send(cmd.into())
             .await
             .unwrap();
 
         let response = rx.await.unwrap();
-        match response {
-            NodeResponse::BacktestNode(BacktestStrategyResponse::GetStrategyCacheKeys(
-                get_strategy_cache_keys_response,
-            )) => return Ok(get_strategy_cache_keys_response.keys),
-            _ => return Err("获取策略缓存键失败".to_string()),
+        if response.is_success() {
+            return Ok(response.keys.clone());
+        } else {
+            return Err("获取策略缓存键失败".to_string());
         }
     }
 

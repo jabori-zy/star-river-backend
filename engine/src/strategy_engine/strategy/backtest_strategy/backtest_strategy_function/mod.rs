@@ -92,11 +92,11 @@ impl BacktestStrategyFunction {
         });
     }
 
-    pub async fn listen_node_command(context: Arc<RwLock<BacktestStrategyContext>>) {
+    pub async fn listen_strategy_command(context: Arc<RwLock<BacktestStrategyContext>>) {
         let (strategy_name, command_receiver) = {
             let context_guard = context.read().await;
             let strategy_name = context_guard.get_strategy_name();
-            let command_receiver = context_guard.get_node_command_receiver();
+            let command_receiver = context_guard.get_strategy_command_receiver();
             (strategy_name, command_receiver)
         };
         tracing::debug!("{}: 开始监听节点命令", strategy_name);
@@ -119,7 +119,7 @@ impl BacktestStrategyFunction {
                 // tracing::debug!("{}: 收到命令: {:?}", strategy_name, command);
                 // 然后再获取context的写锁处理命令
                 let mut context_guard = context.write().await;
-                context_guard.handle_node_command(command).await.unwrap();
+                context_guard.handle_strategy_command(command).await.unwrap();
             }
         });
     }

@@ -17,7 +17,7 @@ use futures_order_node_types::*;
 use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use event_center::communication::strategy::{StrategyCommandReceiver, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandReceiver, NodeCommandSender, StrategyCommandSender, NodeCommandReceiver};
 use crate::strategy_engine::node::node_state_machine::*;
 use virtual_trading::VirtualTradingSystem;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
@@ -45,8 +45,8 @@ impl FuturesOrderNode {
         node_config: serde_json::Value,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
@@ -59,8 +59,8 @@ impl FuturesOrderNode {
             node_name.clone(),
             NodeType::OrderNode,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

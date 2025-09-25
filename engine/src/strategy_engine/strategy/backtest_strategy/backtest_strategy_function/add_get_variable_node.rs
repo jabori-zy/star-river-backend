@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use crate::strategy_engine::node::backtest_strategy_node::variable_node::VariableNode;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use tokio::sync::mpsc;
-use event_center::communication::strategy::{StrategyCommand, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandSender, BacktestNodeCommand};
 use tokio::sync::RwLock;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
@@ -14,11 +14,10 @@ impl BacktestStrategyFunction {
     pub async fn add_variable_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
-        // response_event_receiver: EventReceiver,
-        node_command_sender: NodeCommandSender,
+        strategy_command_sender: StrategyCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), GetVariableNodeError> {
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<StrategyCommand>(100);
+        let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
         let (heartbeat, virtual_trading_system, database, play_index_watch_rx) = {
             let strategy_context_guard = context.read().await;
@@ -34,14 +33,10 @@ impl BacktestStrategyFunction {
 
         let mut node = VariableNode::new(
             node_config,
-            // event_publisher,
-            // command_publisher,
-            // command_receiver,
-            // response_event_receiver,
             heartbeat,
             database,
-            node_command_sender,
-            Arc::new(Mutex::new(strategy_command_rx)),
+            strategy_command_sender,
+            Arc::new(Mutex::new(node_command_rx)),
             virtual_trading_system,
             strategy_inner_event_receiver,
             play_index_watch_rx,
@@ -51,10 +46,7 @@ impl BacktestStrategyFunction {
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;
-        let strategy_command_publisher = &strategy_context_guard.strategy_command_publisher;
-        strategy_command_publisher
-            .add_sender(node_id.to_string(), strategy_command_tx)
-            .await;
+        strategy_context_guard.add_node_command_sender(node_id.to_string(), node_command_tx).await;
 
         let node = Box::new(node);
 

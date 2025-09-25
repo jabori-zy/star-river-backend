@@ -1,9 +1,9 @@
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::strategy::StrategyCommand;
-use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
-use event_center::communication::strategy::{BacktestNodeCommand, GetStartNodeConfigResponse};
+use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetResponse};
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse};
+use event_center::communication::Command;
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::{
@@ -84,23 +84,20 @@ impl BacktestNodeContextTrait for StartNodeContext {
         // }
     }
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
+    async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);
-        match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestNodeCommand::GetStartNodeConfig(
-                get_start_node_config_params,
-            )) => {
+        match node_command {
+            BacktestNodeCommand::GetStartNodeConfig(cmd) => {
                 let start_node_config = self.node_config.read().await.clone();
 
-                let response =
-                    GetStartNodeConfigResponse::success(self.base_context.node_id.clone(), start_node_config);
-
-                get_start_node_config_params.responder.send(response.into()).unwrap();
+                let payload = GetStartNodeConfigRespPayload::new(start_node_config);
+                let response = GetStartNodeConfigResponse::success(self.get_node_id().clone(), Some(payload));
+                cmd.respond(response);
             }
-            StrategyCommand::BacktestStrategy(BacktestNodeCommand::NodeReset(node_reset_params)) => {
-                if self.get_node_id() == &node_reset_params.node_id {
-                    let response = NodeResetResponse::success(self.get_node_id().clone());
-                    node_reset_params.responder.send(response.into()).unwrap();
+            BacktestNodeCommand::NodeReset(cmd) => {
+                if self.get_node_id() == &cmd.node_id() {
+                    let response = NodeResetResponse::success(self.get_node_id().clone(), None);
+                    cmd.respond(response);
                 }
             }
         }

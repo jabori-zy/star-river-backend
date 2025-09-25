@@ -1,18 +1,13 @@
 mod context_impl;
 mod event_handler;
 
-use async_trait::async_trait;
-use event_center::event::Event;
-use event_center::event::node_event::NodeEventTrait;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{
-    CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
+    CommonEvent, TriggerEvent, TriggerPayload,
 };
 use event_center::event::node_event::backtest_node_event::if_else_node_event::{
     ConditionMatchEvent, ConditionMatchPayload, IfElseNodeEvent,
 };
-use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
-use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -23,19 +18,14 @@ use crate::strategy_engine::node::backtest_strategy_node::node_message::if_else_
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use super::condition::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
 use star_river_core::custom_type::NodeId;
 use super::utils::{get_condition_variable_value};
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::communication::strategy::{StrategyCommand, NodeResponse, BacktestStrategyResponse};
-use event_center::communication::strategy::backtest_strategy::GetCurrentTimeParams;
-use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
+use event_center::communication::backtest_strategy::GetCurrentTimeCommand;
 use event_center::event::strategy_event::StrategyRunningLogSource;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use snafu::ResultExt;
 use star_river_core::system::DateTimeUtc;
-use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
-use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
+use event_center::communication::Response;
 
 pub type ConfigId = i32;
 
@@ -344,18 +334,18 @@ impl IfElseNodeContext {
 
     async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
         let (tx, rx) = oneshot::channel();
-        let get_current_time_params = GetCurrentTimeParams::new(self.get_node_id().clone(), tx);
-        self.get_node_command_sender()
-            .send(get_current_time_params.into())
+
+        let cmd = GetCurrentTimeCommand::new(self.get_node_id().clone(), tx, None);
+        self.get_strategy_command_sender()
+            .send(cmd.into())
             .await
             .unwrap();
 
         let response = rx.await.unwrap();
-        match response {
-            NodeResponse::BacktestNode(BacktestStrategyResponse::GetCurrentTime(get_current_time_response)) => {
-                return Ok(get_current_time_response.current_time);
-            }
-            _ => return Err("获取当前时间失败".to_string()),
+        if response.is_success() {
+            return Ok(response.current_time.clone());
+        } else {
+            return Err(response.get_error().to_string());
         }
     }
 }

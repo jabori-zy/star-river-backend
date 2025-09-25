@@ -15,7 +15,7 @@ use std::time::Duration;
 use indicator_node_context::IndicatorNodeContext;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
 use tokio::sync::Mutex;
-use event_center::communication::strategy::{StrategyCommandReceiver, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use indicator_node_type::IndicatorNodeBacktestConfig;
 use star_river_core::cache::key::{IndicatorKey, KlineKey};
@@ -47,8 +47,8 @@ pub struct IndicatorNode {
 impl IndicatorNode {
     pub fn new(
         node_config: serde_json::Value,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IndicatorNodeError> {
@@ -63,8 +63,8 @@ impl IndicatorNode {
                 node_id,
                 node_name,
             )),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

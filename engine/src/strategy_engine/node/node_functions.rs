@@ -334,7 +334,7 @@ impl BacktestNodeFunction {
     pub async fn listen_strategy_command(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
         let (strategy_command_receiver, cancel_token, node_id) = {
             let state_guard = context.read().await;
-            let receiver = state_guard.get_strategy_command_receiver();
+            let receiver = state_guard.get_node_command_receiver();
             let cancel_token = state_guard.get_cancel_token().clone();
             let node_id = state_guard.get_node_id().to_string();
             (receiver, cancel_token, node_id)
@@ -353,7 +353,7 @@ impl BacktestNodeFunction {
                     _ = async {
                         if let Some(received_command) = strategy_command_receiver.lock().await.recv().await {
                             let mut context_guard = context.write().await;
-                            context_guard.handle_strategy_command(received_command).await;
+                            context_guard.handle_node_command(received_command).await;
                         }
                     } => {}
                 }

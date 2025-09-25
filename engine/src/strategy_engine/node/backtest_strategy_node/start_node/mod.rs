@@ -12,7 +12,7 @@ use std::any::Any;
 use crate::*;
 use super::start_node::start_node_context::StartNodeContext;
 use star_river_core::strategy::{BacktestStrategyConfig};
-use event_center::communication::strategy::{StrategyCommandReceiver, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandReceiver, NodeCommandSender, StrategyCommandSender, NodeCommandReceiver};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
@@ -46,8 +46,8 @@ impl StartNode {
     pub fn new(
         start_node_config: serde_json::Value,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
@@ -62,8 +62,8 @@ impl StartNode {
             node_name.clone(),
             NodeType::StartNode,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

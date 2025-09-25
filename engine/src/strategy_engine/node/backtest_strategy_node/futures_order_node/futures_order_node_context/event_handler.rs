@@ -14,9 +14,9 @@ use super::super::super::node_message::futures_order_node_log_message::*;
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType};
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
-use event_center::communication::strategy::backtest_strategy::{GetCurrentTimeParams, BacktestStrategyResponse};
-use event_center::communication::strategy::NodeResponse;
+use event_center::communication::backtest_strategy::GetCurrentTimeCommand;
 use star_river_core::system::DateTimeUtc;
+use event_center::communication::Response;
 
 impl FuturesOrderNodeContext {
     /// 发送trigger事件到第一个有连接的output_handle
@@ -424,18 +424,17 @@ impl FuturesOrderNodeContext {
 
     pub(super) async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
         let (tx, rx) = oneshot::channel();
-        let get_current_time_params = GetCurrentTimeParams::new(self.get_node_id().clone(), tx);
-        self.get_node_command_sender()
-            .send(get_current_time_params.into())
+        let cmd = GetCurrentTimeCommand::new(self.get_node_id().clone(), tx, None);
+        self.get_strategy_command_sender()
+            .send(cmd.into())
             .await
             .unwrap();
 
         let response = rx.await.unwrap();
-        match response {
-            NodeResponse::BacktestNode(BacktestStrategyResponse::GetCurrentTime(get_current_time_response)) => {
-                return Ok(get_current_time_response.current_time);
-            }
-            _ => return Err("获取当前时间失败".to_string()),
+        if response.is_success() {
+            return Ok(response.current_time.clone());
+        } else {
+            return Err("获取当前时间失败".to_string());
         }
     }
 }

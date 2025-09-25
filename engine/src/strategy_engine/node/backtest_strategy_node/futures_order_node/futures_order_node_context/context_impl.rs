@@ -2,9 +2,9 @@ use super::FuturesOrderNodeContext;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::strategy::StrategyCommand;
-use event_center::communication::strategy::backtest_strategy::command::BacktestNodeCommand;
-use event_center::communication::strategy::backtest_strategy::response::NodeResetResponse;
+use event_center::communication::backtest_strategy::StrategyCommand;
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
+use event_center::communication::Command;
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
@@ -68,12 +68,12 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         // }
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {}
+    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
-    async fn handle_strategy_command(&mut self, strategy_command: StrategyCommand) {
-        match strategy_command {
-            StrategyCommand::BacktestStrategy(BacktestNodeCommand::NodeReset(node_reset_params)) => {
-                if self.get_node_id() == &node_reset_params.node_id {
+    async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
+        match node_command {
+            BacktestNodeCommand::NodeReset(cmd) => {
+                if self.get_node_id() == &cmd.node_id() {
                     let mut is_processing_order = self.is_processing_order.write().await;
                     is_processing_order.clear();
                     // 重置unfilled_virtual_order
@@ -83,8 +83,8 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
                     let mut virtual_order_history = self.virtual_order_history.write().await;
                     virtual_order_history.clear();
 
-                    let response = NodeResetResponse::success(self.get_node_id().clone());
-                    node_reset_params.responder.send(response.into()).unwrap();
+                    let response = NodeResetResponse::success(self.get_node_id().clone(), None);
+                    cmd.respond(response);
                 }
             }
             _ => {}

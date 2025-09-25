@@ -1,7 +1,8 @@
 use super::{
-    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyRunState, EventCenterSingleton, NodeResetParams,
+    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyRunState, EventCenterSingleton,
     PlayFinishedEvent,
 };
+use event_center::communication::backtest_strategy::NodeResetCommand;
 use star_river_core::custom_type::{PlayIndex, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use std::sync::Arc;
@@ -9,6 +10,7 @@ use tokio::sync::oneshot;
 use tokio::sync::{Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use event_center::communication::Response;
 
 #[derive(Debug)]
 struct PlayContext {
@@ -395,13 +397,14 @@ impl BacktestStrategyContext {
         let nodes = self.topological_sort();
         for node in nodes {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let node_reset_params = NodeResetParams::new(node.get_node_id().await, resp_tx);
-            self.strategy_command_publisher
-                .send(node_reset_params.into())
-                .await
-                .unwrap();
+            let node_reset_params = NodeResetCommand::new(node.get_node_id().await, resp_tx, None);
+            self.send_node_command(node_reset_params.into()).await;
             let response = resp_rx.await.unwrap();
-            tracing::info!("{}: 收到节点重置响应", response.node_id());
+            if response.is_success() {
+                tracing::info!("{}: 收到节点重置响应", response.node_id);
+            } else {
+                tracing::error!("{}: 收到节点重置响应失败", response.node_id);
+            }
         }
     }
 }

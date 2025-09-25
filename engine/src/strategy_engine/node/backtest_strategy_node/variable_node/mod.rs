@@ -19,7 +19,7 @@ use variable_node_context::VariableNodeContext;
 use variable_node_state_machine::{VariableNodeStateAction, VariableNodeStateMachine};
 
 use tokio::sync::Mutex;
-use event_center::communication::strategy::{StrategyCommandReceiver, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandReceiver, NodeCommandSender, StrategyCommandSender, NodeCommandReceiver};
 use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use virtual_trading::VirtualTradingSystem;
 use star_river_core::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
@@ -37,14 +37,10 @@ pub struct VariableNode {
 impl VariableNode {
     pub fn new(
         node_config: serde_json::Value,
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // response_event_receiver: EventReceiver,
         heartbeat: Arc<Mutex<Heartbeat>>,
         database: DatabaseConnection,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
@@ -55,13 +51,9 @@ impl VariableNode {
             node_id.clone(),
             node_name.clone(),
             NodeType::GetVariableNode,
-            // event_publisher,
-            // vec![response_event_receiver],
-            // command_publisher,
-            // command_receiver,
             Box::new(VariableNodeStateMachine::new(node_id, node_name)),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

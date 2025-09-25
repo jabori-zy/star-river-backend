@@ -1,7 +1,7 @@
 use super::BacktestStrategyFunction;
 use crate::strategy_engine::node::node_types::NodeType;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
-use event_center::communication::strategy::NodeCommandSender;
+use event_center::communication::backtest_strategy::{NodeCommandSender, StrategyCommandSender};
 use serde_json::Value;
 use snafu::Report;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::*;
@@ -15,7 +15,7 @@ impl BacktestStrategyFunction {
     pub async fn add_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: Value,
-        node_command_sender: NodeCommandSender,
+        strategy_command_sender: StrategyCommandSender,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), BacktestStrategyNodeError> {
         // 获取节点类型
@@ -24,31 +24,31 @@ impl BacktestStrategyFunction {
         // 根据节点类型，添加节点
         match node_type {
             NodeType::StartNode => {
-                Self::add_start_node(context, node_config, node_command_sender, strategy_inner_event_receiver).await?;
+                Self::add_start_node(context, node_config, strategy_command_sender, strategy_inner_event_receiver).await?;
                 Ok(())
             }
             // k线节点
             NodeType::KlineNode => {
-                Self::add_kline_node(context, node_config, node_command_sender, strategy_inner_event_receiver).await?;
+                Self::add_kline_node(context, node_config, strategy_command_sender, strategy_inner_event_receiver).await?;
                 Ok(())
             }
 
             // // 指标节点
             NodeType::IndicatorNode => {
-                Self::add_indicator_node(context, node_config, node_command_sender, strategy_inner_event_receiver)
+                Self::add_indicator_node(context, node_config, strategy_command_sender, strategy_inner_event_receiver)
                     .await?;
                 Ok(())
             }
 
             // // 条件分支节点
             NodeType::IfElseNode => {
-                Self::add_if_else_node(context, node_config, node_command_sender, strategy_inner_event_receiver)
+                Self::add_if_else_node(context, node_config, strategy_command_sender, strategy_inner_event_receiver)
                     .await?;
                 Ok(())
             }
             // // 订单节点
             NodeType::FuturesOrderNode => {
-                Self::add_futures_order_node(context, node_config, node_command_sender, strategy_inner_event_receiver)
+                Self::add_futures_order_node(context, node_config, strategy_command_sender, strategy_inner_event_receiver)
                     .await?;
                 Ok(())
             }
@@ -57,7 +57,7 @@ impl BacktestStrategyFunction {
                 Self::add_position_management_node(
                     context,
                     node_config,
-                    node_command_sender,
+                    strategy_command_sender,
                     strategy_inner_event_receiver,
                 )
                 .await?;
@@ -67,7 +67,7 @@ impl BacktestStrategyFunction {
             // }
             // // 获取变量节点
             NodeType::VariableNode => {
-                Self::add_variable_node(context, node_config, node_command_sender, strategy_inner_event_receiver)
+                Self::add_variable_node(context, node_config, strategy_command_sender, strategy_inner_event_receiver)
                     .await?;
                 Ok(())
             }

@@ -13,7 +13,7 @@ use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::node_types::NodeType;
 use async_trait::async_trait;
 use condition::Case;
-use event_center::communication::strategy::{NodeCommandSender, StrategyCommandReceiver};
+use event_center::communication::backtest_strategy::{NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender, NodeCommandReceiver};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::strategy_event::NodeStateLogEvent;
 use if_else_node_context::IfElseNodeContext;
@@ -42,8 +42,8 @@ pub struct IfElseNode {
 impl IfElseNode {
     pub fn new(
         node_config: serde_json::Value,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IfElseNodeError> {
@@ -58,8 +58,8 @@ impl IfElseNode {
                 node_id,
                 node_name,
             )),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

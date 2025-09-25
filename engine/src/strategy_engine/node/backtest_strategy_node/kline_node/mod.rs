@@ -15,7 +15,7 @@ use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,Backte
 use kline_node_context::{KlineNodeContext};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use event_center::communication::strategy::{StrategyCommandReceiver, NodeCommandSender};
+use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
 use kline_node_type::KlineNodeBacktestConfig;
 use star_river_core::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
@@ -39,8 +39,8 @@ impl KlineNode {
     pub fn new(
         node_config: serde_json::Value,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        node_command_sender: NodeCommandSender,
-        strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
+        strategy_command_sender: StrategyCommandSender,
+        node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, KlineNodeError> {
@@ -56,8 +56,8 @@ impl KlineNode {
                 node_name,
                 backtest_config.data_source.clone(),
             )),
-            node_command_sender,
-            strategy_command_receiver,
+            strategy_command_sender,
+            node_command_receiver,
             strategy_inner_event_receiver,
             play_index_watch_rx,
         );

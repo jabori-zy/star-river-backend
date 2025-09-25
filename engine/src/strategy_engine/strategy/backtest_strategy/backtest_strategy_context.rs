@@ -5,7 +5,7 @@ mod node_operation;
 mod playback_handler;
 mod strategy_operation;
 
-use super::super::StrategyCommandPublisher;
+
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
@@ -15,15 +15,10 @@ use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::engine::cache_engine::GetCacheParams;
 use event_center::communication::engine::cache_engine::{CacheEngineResponse, GetCacheLengthMultiParams};
-use event_center::communication::strategy::GetStartNodeConfigParams;
-use event_center::communication::strategy::NodeCommand;
-use event_center::communication::strategy::StrategyResponse;
-use event_center::communication::strategy::backtest_strategy::command::BacktestStrategyCommand;
-use event_center::communication::strategy::backtest_strategy::command::NodeResetParams;
-use event_center::communication::strategy::backtest_strategy::response::{
-    GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyCacheKeysResponse,
-};
-use event_center::communication::strategy::{BacktestNodeResponse, NodeCommandReceiver};
+use event_center::communication::backtest_strategy::BacktestStrategyCommand;
+use event_center::communication::backtest_strategy::StrategyResponse;
+use event_center::communication::backtest_strategy::*;
+use event_center::communication::backtest_strategy::NodeCommandReceiver;
 use event_center::event::Event;
 use event_center::event::node_event::NodeEventTrait;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
@@ -76,9 +71,9 @@ pub struct BacktestStrategyContext {
     pub all_node_output_handles: Vec<NodeOutputHandle>,         // 接收策略内所有节点的消息
     pub database: DatabaseConnection,                           // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>,                       // 心跳
-    // pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>,   // 注册的任务 任务名称-> 任务id
-    pub node_command_receiver: Arc<Mutex<Option<NodeCommandReceiver>>>, // 接收节点的命令
-    pub strategy_command_publisher: StrategyCommandPublisher,           // 节点命令发送器
+    // pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>,        // 注册的任务 任务名称-> 任务id
+    pub strategy_command_receiver: Arc<Mutex<Option<StrategyCommandReceiver>>>, // 接收节点的命令
+    pub node_command_sender: HashMap<NodeId, NodeCommandSender>,        // 节点命令发送器
     pub total_signal_count: Arc<RwLock<i32>>,                           // 信号计数
     pub play_index: Arc<RwLock<i32>>,                                   // 播放索引
     pub is_playing: Arc<RwLock<bool>>,                                  // 是否正在播放
@@ -141,8 +136,8 @@ impl BacktestStrategyContext {
             database,
             heartbeat,
             // registered_tasks: Arc::new(RwLock::new(HashMap::new())),
-            node_command_receiver: Arc::new(Mutex::new(None)),
-            strategy_command_publisher: StrategyCommandPublisher::new(),
+            strategy_command_receiver: Arc::new(Mutex::new(None)),
+            node_command_sender: HashMap::new(),
             total_signal_count: Arc::new(RwLock::new(0)),
             play_index: Arc::new(RwLock::new(-1)),
             is_playing: Arc::new(RwLock::new(false)),
@@ -193,8 +188,8 @@ impl BacktestStrategyContext {
         self.state_machine = state_machine;
     }
 
-    pub fn set_node_command_receiver(&mut self, node_command_receiver: NodeCommandReceiver) {
-        self.node_command_receiver = Arc::new(Mutex::new(Some(node_command_receiver)));
+    pub fn set_strategy_command_receiver(&mut self, strategy_command_receiver: StrategyCommandReceiver) {
+        self.strategy_command_receiver = Arc::new(Mutex::new(Some(strategy_command_receiver)));
     }
 
     pub fn set_strategy_inner_event_publisher(&mut self, strategy_inner_event_publisher: StrategyInnerEventPublisher) {
@@ -245,9 +240,23 @@ impl BacktestStrategyContext {
         self.cancel_task_token.clone()
     }
 
-    pub fn get_node_command_receiver(&self) -> Arc<Mutex<Option<NodeCommandReceiver>>> {
-        self.node_command_receiver.clone()
+    pub fn get_strategy_command_receiver(&self) -> Arc<Mutex<Option<StrategyCommandReceiver>>> {
+        self.strategy_command_receiver.clone()
+    }
+
+    // 添加节点命令发送器
+    pub async fn add_node_command_sender(&mut self, node_id: NodeId, sender: NodeCommandSender) {
+        self.node_command_sender.insert(node_id, sender);
+    }
+
+    pub async fn send_node_command(&self, node_command: BacktestNodeCommand) {
+        self.node_command_sender
+            .get(&node_command.node_id())
+            .expect(&format!("node [{}] not found", node_command.node_id()))
+            .send(node_command)
+            .await
+            .unwrap();
     }
 }
 
-impl BacktestStrategyContext {}
+

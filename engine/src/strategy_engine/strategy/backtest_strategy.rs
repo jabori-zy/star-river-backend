@@ -11,7 +11,7 @@ use backtest_strategy_function::BacktestStrategyFunction;
 use backtest_strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
 use chrono::Utc;
 use event_center::EventCenterSingleton;
-use event_center::communication::strategy::NodeCommand;
+use event_center::communication::backtest_strategy::BacktestStrategyCommand;
 use event_center::event::strategy_event::backtest_strategy_event::{BacktestStrategyEvent, StrategyStateLogEvent};
 use event_center::event::strategy_event::{LogLevel, StrategyRunningLogEvent};
 use heartbeat::Heartbeat;

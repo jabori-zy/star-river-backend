@@ -1,16 +1,17 @@
 use super::IndicatorNodeContext;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
+use event_center::communication::backtest_strategy::GetMinIntervalSymbolsCmdPayload;
+use event_center::communication::backtest_strategy::GetMinIntervalSymbolsCommand;
+use event_center::communication::backtest_strategy::UpdateIndicatorDataCmdPayload;
+use event_center::communication::backtest_strategy::UpdateIndicatorDataCommand;
 use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorParams;
-use event_center::communication::strategy::UpdateIndicatorDataParams;
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::engine::cache_engine::ClearCacheParams;
 use event_center::communication::engine::indicator_engine::CalculateIndicatorParams;
 use event_center::communication::engine::indicator_engine::IndicatorEngineResponse;
-use event_center::communication::strategy::NodeResponse;
-use event_center::communication::strategy::backtest_strategy::command::GetMinIntervalSymbolsParams;
-use event_center::communication::strategy::backtest_strategy::response::BacktestStrategyResponse;
+use event_center::communication::backtest_strategy::NodeResponse;
 use event_center::event::node_event::backtest_node_event::common_event::TriggerPayload;
 use event_center::event::node_event::backtest_node_event::common_event::{
     CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent,
@@ -26,6 +27,7 @@ use star_river_core::cache::{CacheValue, Key, KeyTrait};
 use star_river_core::indicator::Indicator;
 use std::sync::Arc;
 use tokio::sync::oneshot;
+use event_center::communication::Response;
 
 impl IndicatorNodeContext {
     /// 发送指标更新事件的工具方法
@@ -115,14 +117,18 @@ impl IndicatorNodeContext {
                                 // 更新指标
                                 let (resp_tx, resp_rx) = oneshot::channel();
                                 let last_indicator = indicator_data.last().unwrap();
-                                let update_indicator_params = UpdateIndicatorDataParams::new(
-                                    node_id.clone(), 
+                                let payload = UpdateIndicatorDataCmdPayload::new(
                                     indicator_key.clone(), 
-                                    last_indicator.clone(), 
-                                    resp_tx);
-                                self.get_node_command_sender().send(update_indicator_params.into()).await.unwrap();
+                                    last_indicator.clone(),
+                                );
+                                let cmd = UpdateIndicatorDataCommand::new(
+                                    node_id.clone(), 
+                                    resp_tx,
+                                    Some(payload),
+                                );
+                                self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
                                 let response = resp_rx.await.unwrap();
-                                if response.success() {
+                                if response.is_success() {
                                     // 使用工具方法发送指标更新事件
                                     self.send_indicator_update_event(
                                         output_handle_id.clone(),
@@ -202,19 +208,19 @@ impl IndicatorNodeContext {
 
     pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {
         let (tx, rx) = oneshot::channel();
-        let get_min_interval_symbols_params = GetMinIntervalSymbolsParams::new(self.get_node_id().clone(), tx);
+        let cmd = GetMinIntervalSymbolsCommand::new(self.get_node_id().clone(), tx, None);
 
-        self.get_node_command_sender()
-            .send(get_min_interval_symbols_params.into())
+        self.get_strategy_command_sender()
+            .send(cmd.into())
             .await
             .unwrap();
 
         let response = rx.await.unwrap();
-        match response {
-            NodeResponse::BacktestNode(BacktestStrategyResponse::GetMinIntervalSymbols(
-                get_min_interval_symbols_response,
-            )) => return Ok(get_min_interval_symbols_response.keys),
-            _ => return Err("获取最小周期交易对失败".to_string()),
+        if response.is_success() {
+            return Ok(response.keys.clone());
+        }
+        else {
+            return Err("获取最小周期交易对失败".to_string());
         }
     }
 

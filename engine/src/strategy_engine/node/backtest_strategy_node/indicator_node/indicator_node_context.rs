@@ -6,7 +6,7 @@ mod data_handler;
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use event_center::communication::engine::EngineResponse;
-use event_center::communication::strategy::{BacktestStrategyResponse, GetIndicatorDataParams, GetKlineDataParams, InitIndicatorDataParams, NodeResponse, UpdateIndicatorDataParams};
+use event_center::communication::backtest_strategy::{GetIndicatorDataCmdPayload, GetIndicatorDataCommand, GetKlineDataCmdPayload, GetKlineDataCommand, InitIndicatorDataCmdPayload, InitIndicatorDataCommand, NodeResponse};
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::cache_engine::CacheEngineResponse;
 use event_center::communication::engine::cache_engine::{AddKeyParams, GetCacheParams};
@@ -20,6 +20,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::time::Duration;
+use event_center::communication::Response;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
@@ -98,26 +99,27 @@ impl IndicatorNodeContext {
         play_index: i32,
     ) -> Result<Indicator, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_indicator_params = GetIndicatorDataParams::new(
-            self.base_context.node_id.clone(),
-            indicator_key.clone().into(),
+        let payload = GetIndicatorDataCmdPayload::new(
+            indicator_key.clone(),
             Some(play_index),
             Some(1),
-            resp_tx,
         );
-        self.get_node_command_sender().send(get_indicator_params.into()).await.unwrap();
+        let get_indicator_cmd = GetIndicatorDataCommand::new(
+            self.get_node_id().clone(),
+            resp_tx,
+            Some(payload),
+        );
+            
+        self.get_strategy_command_sender().send(get_indicator_cmd.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.success() {
-            match response {
-                NodeResponse::BacktestNode(BacktestStrategyResponse::GetIndicatorData(resp)) => {
-                    return Ok(resp.data.last().unwrap().clone());
-                }
-                _ => return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id)),
-            }
+        if response.is_success() {
+            return Ok(response.indicator_series.last().unwrap().clone());
         }
-        Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id))
+        else {
+            return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id));
+        }
     }
 
     // 计算指标(一次性将指标全部计算完成)
@@ -138,60 +140,64 @@ impl IndicatorNodeContext {
 
         for (ind_key, _) in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
-
-            // 获取所有K线
-            let get_kline_series_params = GetKlineDataParams::new(
-                node_id.clone(),
+            let payload = GetKlineDataCmdPayload::new(
                 kline_key.clone(),
                 None,
                 None,
-                resp_tx,
             );
-            self.get_node_command_sender().send(get_kline_series_params.into()).await.unwrap();
+
+            // 获取所有K线
+            let get_kline_series_cmd = GetKlineDataCommand::new(
+                node_id.clone(),
+                resp_tx,
+                Some(payload),
+            );
+                
+            self.get_strategy_command_sender().send(get_kline_series_cmd.into()).await.unwrap();
             let response = resp_rx.await.unwrap();
-            if response.success() {
-                match response {
-                    NodeResponse::BacktestNode(BacktestStrategyResponse::GetKlineData(resp)) => {
-                        let (resp_tx, resp_rx) = oneshot::channel();
-                        let cal_ind_cmd = CalculateHistoryIndicatorParams::new(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            kline_key.clone().into(),
-                            resp.data,
-                            ind_key.indicator_config.clone(),
-                            node_id.clone(),
-                            resp_tx,
-                        );
-                        EventCenterSingleton::send_command(cal_ind_cmd.into()).await.unwrap();
-                        let response = resp_rx.await.unwrap();
-                        if response.success() {
-                            match response {
-                                EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(resp)) => {
-                                    let (resp_tx, resp_rx) = oneshot::channel();
-                                    let update_indicator_params = InitIndicatorDataParams::new(
-                                        node_id.clone(),
-                                        ind_key.clone(),
-                                        resp.indicators,
-                                        resp_tx,
-                                    );
-                                    self.get_node_command_sender().send(update_indicator_params.into()).await.unwrap();
-                                    let response = resp_rx.await.unwrap();
-                                    if response.success() {
-                                        continue;
-                                    }
+            if response.is_success() {
 
-
-                                }
-                                _ => {}
+                let (resp_tx, resp_rx) = oneshot::channel();
+                let cal_ind_cmd = CalculateHistoryIndicatorParams::new(
+                    strategy_id.clone(),
+                    node_id.clone(),
+                    kline_key.clone().into(),
+                    response.kline_series.clone(),
+                    ind_key.indicator_config.clone(),
+                    node_id.clone(),
+                    resp_tx,
+                );
+                EventCenterSingleton::send_command(cal_ind_cmd.into()).await.unwrap();
+                let response = resp_rx.await.unwrap();
+                if response.success() {
+                    match response {
+                        EngineResponse::IndicatorEngine(IndicatorEngineResponse::CalculateHistoryIndicator(resp)) => {
+                            let (resp_tx, resp_rx) = oneshot::channel();
+                            let payload = InitIndicatorDataCmdPayload::new(
+                                ind_key.clone(),
+                                resp.indicators,
+                            );
+                            let update_indicator_params = InitIndicatorDataCommand::new(
+                                node_id.clone(),
+                                resp_tx,
+                                Some(payload),
+                            );
+                            self.get_strategy_command_sender().send(update_indicator_params.into()).await.unwrap();
+                            let response = resp_rx.await.unwrap();
+                            if response.is_success() {
+                                continue;
                             }
-                        } else {
-                            is_all_success = false;
-                            break;
+
 
                         }
+                        _ => {}
                     }
-                    _ => {}
+                } else {
+                    is_all_success = false;
+                    break;
+
                 }
+                
             }
 
             

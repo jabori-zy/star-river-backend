@@ -5,7 +5,8 @@ mod utils;
 
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use event_center::communication::strategy::{BacktestStrategyResponse, GetKlineDataParams, InitKlineDataParams, NodeCommand, NodeResponse};
+use event_center::communication::backtest_strategy::{GetKlineDataCmdPayload, GetKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand, NodeResponse};
+use event_center::communication::Response;
 use event_center::EventCenterSingleton;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::engine::exchange_engine::RegisterExchangeParams;
@@ -195,19 +196,24 @@ impl KlineNodeContext {
                             kline_history.len()
                         );
                         let (resp_tx, resp_rx) = oneshot::channel();
-                        let init_kline_data_command: NodeCommand = InitKlineDataParams::new(
-                            self.get_node_id().clone(),
+                        let payload = InitKlineDataCmdPayload::new(
                             symbol_key.clone(),
                             kline_history,
+                        );
+                        
+                        let init_kline_data_command= InitKlineDataCommand::new(
+                            self.get_node_id().clone(),
                             resp_tx,
-                        ).into();
-                        self.get_node_command_sender()
-                            .send(init_kline_data_command)
+                            Some(payload),
+                        );
+
+                        self.get_strategy_command_sender()
+                            .send(init_kline_data_command.into())
                             .await
                             .unwrap();
 
                         let response = resp_rx.await.unwrap();
-                        if response.success() {
+                        if response.is_success() {
                             continue;
                         }
                     }
@@ -230,26 +236,23 @@ impl KlineNodeContext {
         play_index: PlayIndex, // 播放索引
     ) -> Result<Vec<Kline>, KlineNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let get_kline_params = GetKlineDataParams::new(
-            self.get_node_id().clone(), 
+        let payload = GetKlineDataCmdPayload::new(
             kline_key.clone(),
-            Some(play_index), 
-            Some(1), 
-            resp_tx
+            Some(play_index),
+            Some(1),
+        );
+        let get_kline_params = GetKlineDataCommand::new(
+            self.get_node_id().clone(), 
+            resp_tx,
+            Some(payload),
         );
         
-
-        self.get_node_command_sender().send(get_kline_params.into()).await.unwrap();
+        self.get_strategy_command_sender().send(get_kline_params.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
-        if response.success() {
-            match response {
-                NodeResponse::BacktestNode(BacktestStrategyResponse::GetKlineData(resp)) => {
-                    return Ok(resp.data);
-                }
-                _ => {}
-            }
+        if response.is_success() {
+            return Ok(response.kline_series.clone());
         }
         Err(GetKlineDataSnafu {
             node_name: self.get_node_name().clone(),

@@ -196,7 +196,7 @@ impl BacktestStrategy {
                 }
                 BacktestStrategyStateAction::ListenAndHandleNodeCommand => {
                     tracing::info!("[{}] listen node command", strategy_name);
-                    BacktestStrategyFunction::listen_node_command(self.get_context()).await;
+                    BacktestStrategyFunction::listen_strategy_command(self.get_context()).await;
                 }
                 BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent => {
                     tracing::info!("[{}] listen strategy stats event", strategy_name);
