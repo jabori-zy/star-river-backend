@@ -1,5 +1,5 @@
-use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::indicator::IndicatorConfig;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::{Exchange, KlineInterval};
 
 // 指标的订阅键

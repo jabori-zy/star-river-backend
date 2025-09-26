@@ -6,8 +6,8 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use engine::cache_engine::CacheEngine;
 use serde::Deserialize;
-use star_river_core::key::Key;
 use star_river_core::engine::EngineName;
+use star_river_core::key::Key;
 use std::collections::HashMap;
 use std::str::FromStr;
 use utoipa::{IntoParams, ToSchema};
@@ -92,7 +92,10 @@ pub async fn get_cache_value(
     let mut engine_guard = engine.lock().await;
     let cache_engine = engine_guard.as_any_mut().downcast_mut::<CacheEngine>().unwrap();
     let key = Key::from_str(&key_str).unwrap();
-    let value = cache_engine.get_cache_value(&key, params.index, params.limit).await.unwrap();
+    let value = cache_engine
+        .get_cache_value(&key, params.index, params.limit)
+        .await
+        .unwrap();
     (
         StatusCode::OK,
         Json(ApiResponse {

@@ -1,30 +1,24 @@
-pub mod strategy_command;
 pub mod node_command;
-
+pub mod strategy_command;
 
 use derive_more::From;
-pub use strategy_command::*;
 pub use node_command::*;
+pub use strategy_command::*;
 
+use crate::communication::{Command, Response};
+use chrono::Utc;
 use star_river_core::custom_type::NodeId;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::system::DateTimeUtc;
-use std::sync::Arc;
-use tokio::sync::{oneshot, mpsc};
 use std::ops::Deref;
-use crate::communication::{Command, Response};
-use chrono::Utc;
-
-
+use std::sync::Arc;
+use tokio::sync::{mpsc, oneshot};
 
 pub type StrategyCommandSender = mpsc::Sender<BacktestStrategyCommand>;
 pub type StrategyCommandReceiver = mpsc::Receiver<BacktestStrategyCommand>;
 
-
 pub type NodeCommandSender = mpsc::Sender<BacktestNodeCommand>;
 pub type NodeCommandReceiver = mpsc::Receiver<BacktestNodeCommand>;
-
-
 
 // ================================ Strategy Command ================================
 #[derive(Debug)]
@@ -32,7 +26,6 @@ pub struct StrategyCommandBase<S> {
     pub node_id: NodeId,
     pub datetime: DateTimeUtc,
     pub responder: oneshot::Sender<StrategyResponse<S>>,
-
 }
 
 #[derive(Debug)]
@@ -41,9 +34,8 @@ pub struct StrategyCommand<T, S> {
     pub command_payload: Option<T>,
 }
 
-
 impl<T, S> StrategyCommand<T, S> {
-    pub fn new(node_id: NodeId,responder: oneshot::Sender<StrategyResponse<S>>, command_payload: Option<T>) -> Self {
+    pub fn new(node_id: NodeId, responder: oneshot::Sender<StrategyResponse<S>>, command_payload: Option<T>) -> Self {
         let command_base = StrategyCommandBase {
             node_id,
             datetime: Utc::now(),
@@ -60,10 +52,9 @@ impl<T, S> StrategyCommand<T, S> {
     }
 }
 
-impl<T,S> Command for StrategyCommand<T, S> {
+impl<T, S> Command for StrategyCommand<T, S> {
     type Response = StrategyResponse<S>;
 
-    
     fn datetime(&self) -> DateTimeUtc {
         self.command_base.datetime
     }
@@ -75,7 +66,10 @@ impl<T,S> Command for StrategyCommand<T, S> {
 impl<T, S> Deref for StrategyCommand<T, S> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.command_payload.as_ref().expect("Command payload should exist when accessing data")
+        &self
+            .command_payload
+            .as_ref()
+            .expect("Command payload should exist when accessing data")
     }
 }
 
@@ -91,7 +85,6 @@ pub struct StrategyResponse<S> {
     pub response_base: StrategyResponseBase,
     pub response_payload: Option<S>,
 }
-
 
 impl StrategyResponseBase {
     pub fn success() -> Self {
@@ -119,7 +112,6 @@ impl<S> StrategyResponse<S> {
         }
     }
 
-
     pub fn error(error: Arc<dyn StarRiverErrorTrait + Send + Sync>) -> Self {
         Self {
             response_base: StrategyResponseBase::error(error),
@@ -133,27 +125,25 @@ impl<S> Response for StrategyResponse<S> {
         self.response_base.success
     }
     fn get_error(&self) -> Arc<dyn StarRiverErrorTrait + Send + Sync> {
-        self.response_base.error
-          .clone()
-          .expect("Error should exist when success is false")
+        self.response_base
+            .error
+            .clone()
+            .expect("Error should exist when success is false")
     }
     fn datetime(&self) -> DateTimeUtc {
         self.response_base.datetime
     }
 }
 
-
 impl<S> Deref for StrategyResponse<S> {
     type Target = S;
     fn deref(&self) -> &Self::Target {
-        &self.response_payload.as_ref()
-              .expect("Response payload should exist when accessing data")
+        &self
+            .response_payload
+            .as_ref()
+            .expect("Response payload should exist when accessing data")
     }
 }
-
-
-
-
 
 #[derive(Debug, From)]
 pub enum BacktestStrategyCommand {
@@ -184,16 +174,12 @@ impl BacktestStrategyCommand {
     }
 }
 
-
-
-
 // ================================ Node Command ================================
 #[derive(Debug)]
 pub struct NodeCommandBase<S> {
     pub node_id: NodeId,
     pub datetime: DateTimeUtc,
     pub responder: oneshot::Sender<NodeResponse<S>>,
-
 }
 
 #[derive(Debug)]
@@ -201,7 +187,6 @@ pub struct NodeCommand<T, S> {
     pub command_base: NodeCommandBase<S>,
     pub command_payload: Option<T>,
 }
-
 
 impl<T, S> NodeCommand<T, S> {
     pub fn new(node_id: NodeId, responder: oneshot::Sender<NodeResponse<S>>, command_payload: Option<T>) -> Self {
@@ -221,7 +206,7 @@ impl<T, S> NodeCommand<T, S> {
     }
 }
 
-impl<T,S> Command for NodeCommand<T, S> {
+impl<T, S> Command for NodeCommand<T, S> {
     type Response = NodeResponse<S>;
     fn datetime(&self) -> DateTimeUtc {
         self.command_base.datetime
@@ -234,7 +219,10 @@ impl<T,S> Command for NodeCommand<T, S> {
 impl<T, S> Deref for NodeCommand<T, S> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.command_payload.as_ref().expect("Command payload should exist when accessing data")
+        &self
+            .command_payload
+            .as_ref()
+            .expect("Command payload should exist when accessing data")
     }
 }
 
@@ -251,7 +239,6 @@ pub struct NodeResponse<S> {
     pub response_base: NodeResponseBase,
     pub response_payload: Option<S>,
 }
-
 
 impl NodeResponseBase {
     pub fn success(node_id: NodeId) -> Self {
@@ -281,7 +268,6 @@ impl<S> NodeResponse<S> {
         }
     }
 
-
     pub fn error(node_id: NodeId, error: Arc<dyn StarRiverErrorTrait + Send + Sync>) -> Self {
         Self {
             response_base: NodeResponseBase::error(node_id, error),
@@ -299,21 +285,23 @@ impl<S> Response for NodeResponse<S> {
         self.response_base.success
     }
     fn get_error(&self) -> Arc<dyn StarRiverErrorTrait + Send + Sync> {
-        self.response_base.error
-          .clone()
-          .expect("Error should exist when success is false")
+        self.response_base
+            .error
+            .clone()
+            .expect("Error should exist when success is false")
     }
     fn datetime(&self) -> DateTimeUtc {
         self.response_base.datetime
     }
 }
 
-
 impl<S> Deref for NodeResponse<S> {
     type Target = S;
     fn deref(&self) -> &Self::Target {
-        &self.response_payload.as_ref()
-              .expect("Response payload should exist when accessing data")
+        &self
+            .response_payload
+            .as_ref()
+            .expect("Response payload should exist when accessing data")
     }
 }
 
@@ -322,7 +310,6 @@ pub trait NodeCommandTrait {
     fn datetime(&self) -> DateTimeUtc;
     fn node_id(&self) -> &NodeId;
 }
-
 
 #[derive(Debug, From)]
 pub enum BacktestNodeCommand {

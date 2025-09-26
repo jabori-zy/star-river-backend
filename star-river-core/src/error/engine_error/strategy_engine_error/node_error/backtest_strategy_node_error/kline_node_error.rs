@@ -42,10 +42,7 @@ pub enum KlineNodeError {
     },
 
     #[snafu(display("no min interval symbol found for [{symbol}]"))]
-    NoMinIntervalSymbol {
-        symbol: String,
-        backtrace: Backtrace,
-    },
+    NoMinIntervalSymbol { symbol: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -127,7 +124,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 } => {
                     format!("K线节点 [{node_name}] 获取K线数据失败，K线键: [{kline_key}]，播放索引: [{play_index}]")
                 }
-                KlineNodeError::KlineTimestampNotEqual { node_name, kline_key, play_index, .. } => {
+                KlineNodeError::KlineTimestampNotEqual {
+                    node_name,
+                    kline_key,
+                    play_index,
+                    ..
+                } => {
                     format!("K线节点 [{node_name}] K线时间戳不一致，K线键: [{kline_key}]，播放索引: [{play_index}]")
                 }
                 KlineNodeError::NoMinIntervalSymbol { symbol, .. } => {

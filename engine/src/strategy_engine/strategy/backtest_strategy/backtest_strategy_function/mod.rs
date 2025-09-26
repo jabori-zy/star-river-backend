@@ -105,13 +105,9 @@ impl BacktestStrategyFunction {
                 // 先获取命令并立即释放锁
                 let command = {
                     let mut command_receiver_guard = command_receiver.lock().await;
-                    if let Some(ref mut receiver) = *command_receiver_guard {
-                        let received_command = receiver.recv().await;
-                        if let Some(cmd) = received_command {
-                            cmd
-                        } else {
-                            continue;
-                        }
+                    let received_command = command_receiver_guard.recv().await;
+                    if let Some(cmd) = received_command {
+                        cmd
                     } else {
                         continue;
                     }

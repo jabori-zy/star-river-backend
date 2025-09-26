@@ -2,12 +2,12 @@ use super::KlineNodeContext;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::communication::Command;
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::StartNodeEvent;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+
 use std::any::Any;
 
 #[async_trait]
@@ -56,10 +56,6 @@ impl BacktestNodeContextTrait for KlineNodeContext {
             },
             _ => {}
         }
-    }
-
-    // 处理策略内部事件
-    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {
     }
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {

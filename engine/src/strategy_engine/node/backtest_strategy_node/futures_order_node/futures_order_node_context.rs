@@ -3,32 +3,30 @@ mod event_handler;
 mod order_handler;
 
 use super::futures_order_node_types::*;
-use crate::strategy_engine::node::node_context::{
-    BacktestBaseNodeContext, BacktestNodeContextTrait,
-};
-use event_center::communication::backtest_strategy::GetStrategyKeysCommand;
-use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
-use event_center::communication::engine::EngineResponse;
-use event_center::communication::Response;
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use event_center::EventCenterSingleton;
+use event_center::communication::Response;
+use event_center::communication::backtest_strategy::GetStrategyKeysCommand;
+use event_center::communication::engine::EngineResponse;
+use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use star_river_core::key::key::KlineKey;
-use star_river_core::key::Key;
 use star_river_core::custom_type::InputHandleId;
 use star_river_core::custom_type::OrderId;
+use star_river_core::key::Key;
+use star_river_core::key::key::KlineKey;
 use star_river_core::market::KlineInterval;
-use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::OrderStatus;
+use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use tokio::sync::oneshot;
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug)]
@@ -190,13 +188,10 @@ impl FuturesOrderNodeContext {
 
     async fn get_strategy_keys(&mut self) -> Result<Vec<Key>, String> {
         let (tx, rx) = oneshot::channel();
-        
+
         let cmd = GetStrategyKeysCommand::new(self.get_node_id().clone(), tx, None);
 
-        self.get_strategy_command_sender()
-            .send(cmd.into())
-            .await
-            .unwrap();
+        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
         let response = rx.await.unwrap();
         if response.is_success() {

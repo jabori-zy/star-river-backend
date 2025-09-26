@@ -298,7 +298,14 @@ impl QuantData for Kline {
         serde_json::to_value(self).unwrap()
     }
     fn to_list(&self) -> Vec<f64> {
-        vec![self.datetime.timestamp_millis() as f64, self.open, self.high, self.low, self.close, self.volume]
+        vec![
+            self.datetime.timestamp_millis() as f64,
+            self.open,
+            self.high,
+            self.low,
+            self.close,
+            self.volume,
+        ]
     }
     fn to_json_with_time(&self) -> serde_json::Value {
         json!(
@@ -312,7 +319,6 @@ impl QuantData for Kline {
             }
         )
     }
-
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -322,8 +328,6 @@ pub struct KlineSeries {
     pub interval: KlineInterval,
     pub series: Vec<Kline>,
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TickerPrice {

@@ -1,12 +1,8 @@
-
-
-use super::{GenericEngineCommand, EngineResponse};
+use super::{EngineResponse, GenericEngineCommand};
 use derive_more::From;
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::{Exchange, Kline, KlineInterval};
 use star_river_core::strategy::TimeRange;
-
-
 
 #[derive(Debug, From)]
 pub enum MarketEngineCommand {
@@ -15,12 +11,13 @@ pub enum MarketEngineCommand {
     GetKlineHistory(GetKlineHistoryCommand),
 }
 
-
 // ============ Command and Response Type Definitions ============
-pub type SubscribeKlineStreamCommand = GenericEngineCommand<SubscribeKlineStreamCmdPayload, SubscribeKlineStreamRespPayload>;
+pub type SubscribeKlineStreamCommand =
+    GenericEngineCommand<SubscribeKlineStreamCmdPayload, SubscribeKlineStreamRespPayload>;
 pub type SubscribeKlineStreamResponse = EngineResponse<SubscribeKlineStreamRespPayload>;
 
-pub type UnsubscribeKlineStreamCommand = GenericEngineCommand<UnsubscribeKlineStreamCmdPayload, UnsubscribeKlineStreamRespPayload>;
+pub type UnsubscribeKlineStreamCommand =
+    GenericEngineCommand<UnsubscribeKlineStreamCmdPayload, UnsubscribeKlineStreamRespPayload>;
 pub type UnsubscribeKlineStreamResponse = EngineResponse<UnsubscribeKlineStreamRespPayload>;
 
 pub type GetKlineHistoryCommand = GenericEngineCommand<GetKlineHistoryCmdPayload, GetKlineHistoryRespPayload>;
@@ -48,7 +45,11 @@ pub struct SubscribeKlineStreamRespPayload {
 
 impl SubscribeKlineStreamRespPayload {
     pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
-        Self { exchange, symbol, interval }
+        Self {
+            exchange,
+            symbol,
+            interval,
+        }
     }
 }
 
@@ -73,7 +74,11 @@ pub struct UnsubscribeKlineStreamRespPayload {
 
 impl UnsubscribeKlineStreamRespPayload {
     pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval) -> Self {
-        Self { exchange, symbol, interval }
+        Self {
+            exchange,
+            symbol,
+            interval,
+        }
     }
 }
 
@@ -90,8 +95,24 @@ pub struct GetKlineHistoryCmdPayload {
 }
 
 impl GetKlineHistoryCmdPayload {
-    pub fn new(strategy_id: StrategyId, node_id: String, account_id: AccountId, exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange) -> Self {
-        Self { strategy_id, node_id, account_id, exchange, symbol, interval, time_range }
+    pub fn new(
+        strategy_id: StrategyId,
+        node_id: String,
+        account_id: AccountId,
+        exchange: Exchange,
+        symbol: String,
+        interval: KlineInterval,
+        time_range: TimeRange,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            account_id,
+            exchange,
+            symbol,
+            interval,
+            time_range,
+        }
     }
 }
 
@@ -105,6 +126,11 @@ pub struct GetKlineHistoryRespPayload {
 
 impl GetKlineHistoryRespPayload {
     pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, kline_history: Vec<Kline>) -> Self {
-        Self { exchange, symbol, interval, kline_history }
+        Self {
+            exchange,
+            symbol,
+            interval,
+            kline_history,
+        }
     }
 }

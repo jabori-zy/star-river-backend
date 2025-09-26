@@ -4,11 +4,14 @@ pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
 
+use event_center::communication::backtest_strategy::{
+    BacktestStrategyCommand, GetKlineDataCmdPayload, GetKlineDataCommand, StrategyCommandSender,
+};
 use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
 use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetKlineCacheCommand};
+use star_river_core::custom_type::*;
 use star_river_core::key::Key;
 use star_river_core::key::key::KlineKey;
-use star_river_core::custom_type::*;
 use star_river_core::order::OrderType;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
@@ -17,6 +20,7 @@ use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
 use chrono::{DateTime, Utc};
 use event_center::EventCenterSingleton;
+use event_center::communication::Response;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
@@ -27,19 +31,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
-use event_center::communication::Response;
 
 /// 虚拟交易系统
 ///
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
     current_datetime: DateTime<Utc>, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
-    kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳)
-    // pub command_publisher: CommandPublisher, // 命令发布者
+    kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub event_receiver: VirtualTradingSystemEventReceiver, // 事件接收器
+    pub strategy_command_sender: StrategyCommandSender, // 向策略发送命令
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
-    pub leverage: Leverage,                               // 杠杆
+    pub leverage: Leverage,                // 杠杆
 
     // 资金相关
     pub initial_balance: Balance,   // 初始资金
@@ -68,9 +71,11 @@ pub struct VirtualTradingSystem {
 
 // 虚拟交易系统get方法
 impl VirtualTradingSystem {
-    pub fn new(play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>) -> Self {
-        let (virtual_trading_system_event_tx, virtual_trading_system_event_rx) =
-            broadcast::channel::<VirtualTradingSystemEvent>(100);
+    pub fn new(
+        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        strategy_command_sender: StrategyCommandSender,
+    ) -> Self {
+        let (tx, rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
         Self {
             current_datetime: Utc::now(),
             kline_price: HashMap::new(),
@@ -89,9 +94,10 @@ impl VirtualTradingSystem {
             history_positions: vec![],
             orders: vec![],
             transactions: vec![],
-            event_publisher: virtual_trading_system_event_tx,
-            event_receiver: virtual_trading_system_event_rx,
+            event_publisher: tx,
+            event_receiver: rx,
             play_index_watch_rx,
+            strategy_command_sender,
         }
     }
 
@@ -103,63 +109,71 @@ impl VirtualTradingSystem {
         self.event_publisher.clone()
     }
 
-    // 添加k线缓存key，只保留interval最小的那一个
-    pub fn add_kline_key(&mut self, kline_key: KlineKey) {
-        // 判断CacheKey是否存在
-        if !self.kline_price.contains_key(&kline_key) {
-            // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_key
-            let filtered_kline_keys = self
-                .kline_price
-                .keys()
-                .filter(|key| {
-                    key.exchange == kline_key.exchange
-                        && key.symbol == kline_key.symbol
-                        && key.start_time == kline_key.start_time
-                        && key.end_time == kline_key.end_time
-                })
-                .collect::<Vec<&KlineKey>>();
-            //比较interval，保留interval最小的那一个
-            // 过滤出的列表长度一定为1，因为除了interval不同，其他都相同
-            if filtered_kline_keys.len() == 1 {
-                // 比较要插入的key的interval和过滤出的key的interval
-                // 如果要插入的key的interval小于过滤出的key的interval，则插入
-                if kline_key.interval < filtered_kline_keys[0].interval {
-                    self.kline_price.insert(
-                        kline_key,
-                        Kline {
-                            datetime: Utc::now(),
-                            open: 0.0,
-                            high: 0.0,
-                            low: 0.0,
-                            close: 0.0,
-                            volume: 0.0,
-                        },
-                    );
-                }
-                // 如果要插入的key的interval大于过滤出的key的interval，则不插入
-                else {
-                    tracing::warn!(
-                        "{}: 要插入的k线缓存key的interval大于过滤出的k线缓存key的interval，不插入",
-                        kline_key.symbol
-                    );
-                }
-            }
-            // 如果过滤出的列表长度为0，则直接插入
-            else {
-                self.kline_price.insert(
-                    kline_key,
-                    Kline {
-                        datetime: Utc::now(),
-                        open: 0.0,
-                        high: 0.0,
-                        low: 0.0,
-                        close: 0.0,
-                        volume: 0.0,
-                    },
-                );
-            }
-        }
+    pub fn set_kline_price(&mut self, kline_price: HashMap<KlineKey, Kline>) {
+        self.kline_price = kline_price;
     }
+
+    pub fn get_strategy_command_sender(&self) -> &StrategyCommandSender {
+        &self.strategy_command_sender
+    }
+
+    // 添加k线缓存key，只保留interval最小的那一个
+    // pub fn add_kline_key(&mut self, kline_key: KlineKey) {
+    //     // 判断CacheKey是否存在
+    //     if !self.kline_price.contains_key(&kline_key) {
+    //         // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_key
+    //         let filtered_kline_keys = self
+    //             .kline_price
+    //             .keys()
+    //             .filter(|key| {
+    //                 key.exchange == kline_key.exchange
+    //                     && key.symbol == kline_key.symbol
+    //                     && key.start_time == kline_key.start_time
+    //                     && key.end_time == kline_key.end_time
+    //             })
+    //             .collect::<Vec<&KlineKey>>();
+    //         //比较interval，保留interval最小的那一个
+    //         // 过滤出的列表长度一定为1，因为除了interval不同，其他都相同
+    //         if filtered_kline_keys.len() == 1 {
+    //             // 比较要插入的key的interval和过滤出的key的interval
+    //             // 如果要插入的key的interval小于过滤出的key的interval，则插入
+    //             if kline_key.interval < filtered_kline_keys[0].interval {
+    //                 self.kline_price.insert(
+    //                     kline_key,
+    //                     Kline {
+    //                         datetime: Utc::now(),
+    //                         open: 0.0,
+    //                         high: 0.0,
+    //                         low: 0.0,
+    //                         close: 0.0,
+    //                         volume: 0.0,
+    //                     },
+    //                 );
+    //             }
+    //             // 如果要插入的key的interval大于过滤出的key的interval，则不插入
+    //             else {
+    //                 tracing::warn!(
+    //                     "{}: 要插入的k线缓存key的interval大于过滤出的k线缓存key的interval，不插入",
+    //                     kline_key.symbol
+    //                 );
+    //             }
+    //         }
+    //         // 如果过滤出的列表长度为0，则直接插入
+    //         else {
+    //             self.kline_price.insert(
+    //                 kline_key,
+    //                 Kline {
+    //                     datetime: Utc::now(),
+    //                     open: 0.0,
+    //                     high: 0.0,
+    //                     low: 0.0,
+    //                     close: 0.0,
+    //                     volume: 0.0,
+    //                 },
+    //             );
+    //         }
+    //     }
+    // }
 
     pub fn get_datetime(&self) -> DateTime<Utc> {
         self.current_datetime
@@ -192,7 +206,7 @@ impl VirtualTradingSystem {
     // 设置k线缓存索引, 并更新所有数据
     pub async fn update_system(&mut self) {
         // 当k线索引更新后，更新k线缓存key的最新收盘价
-        // self.update_kline_price().await;
+        self.update_kline_price().await;
         // 更新时间戳
         self.update_timestamp();
 
@@ -326,30 +340,18 @@ impl VirtualTradingSystem {
     // 从缓存引擎获取k线数据
     async fn get_close_price(&self, kline_key: KlineKey) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetKlineCacheCmdPayload::new(
-            -1, 
-            "virtual_trading_system".to_string(), 
-            kline_key, 
-            Some(self.get_play_index() as u32), 
-            Some(1)
-        );
-        let cmd: CacheEngineCommand = GetKlineCacheCommand::new(
-            "virtual_trading_system".to_string(), 
-            resp_tx, 
-            Some(payload)
-        ).into();
-        EventCenterSingleton::send_command(cmd.into())
-            .await
-            .unwrap();
+        let payload = GetKlineDataCmdPayload::new(kline_key, Some(self.get_play_index()), Some(1));
+        let cmd: BacktestStrategyCommand =
+            GetKlineDataCommand::new("virtual_trading_system".to_string(), resp_tx, Some(payload)).into();
+        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.is_success() {
-
-            if response.data.is_empty() {
+            if response.kline_series.is_empty() {
                 return Err("get cache data response is empty".to_string());
             }
-            let kline = response.data[0].clone();
+            let kline = response.kline_series[0].clone();
             return Ok(kline);
         }
         Err("get history kline cache failed".to_string())
@@ -357,6 +359,7 @@ impl VirtualTradingSystem {
 
     // 根据交易所和symbol获取k线缓存key
     fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
+        tracing::debug!("kline_price keys: {:?}", self.kline_price.keys());
         for kline_key in self.kline_price.keys() {
             if &kline_key.exchange == exchange && &kline_key.symbol == symbol {
                 return Some(kline_key.clone());

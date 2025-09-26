@@ -393,12 +393,6 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         BacktestNodeFunction::listen_node_events(context).await;
     }
 
-    // 监听内部事件
-    async fn listen_strategy_inner_events(&self) {
-        let context = self.get_context();
-        BacktestNodeFunction::listen_strategy_inner_events(context).await;
-    }
-
     // 监听策略命令
     async fn listen_strategy_command(&self) {
         let context = self.get_context();

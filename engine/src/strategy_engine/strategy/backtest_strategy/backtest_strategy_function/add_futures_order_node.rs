@@ -3,7 +3,6 @@ use super::BacktestStrategyFunction;
 use crate::strategy_engine::node::backtest_strategy_node::futures_order_node::FuturesOrderNode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use tokio::sync::mpsc;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, StrategyCommandSender};
 use tokio::sync::RwLock;
@@ -15,7 +14,6 @@ impl BacktestStrategyFunction {
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), FuturesOrderNodeError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
@@ -46,7 +44,6 @@ impl BacktestStrategyFunction {
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
             virtual_trading_system,
-            strategy_inner_event_receiver,
             virtual_trading_system_event_receiver,
             play_index_watch_rx,
         )?;
@@ -55,7 +52,9 @@ impl BacktestStrategyFunction {
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;
-        strategy_context_guard.add_node_command_sender(node_id.to_string(), node_command_tx).await;
+        strategy_context_guard
+            .add_node_command_sender(node_id.to_string(), node_command_tx)
+            .await;
 
         let node = Box::new(node);
 

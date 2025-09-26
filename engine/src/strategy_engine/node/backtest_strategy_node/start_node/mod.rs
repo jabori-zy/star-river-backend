@@ -15,7 +15,6 @@ use star_river_core::strategy::{BacktestStrategyConfig};
 use event_center::communication::backtest_strategy::{StrategyCommandReceiver, NodeCommandSender, StrategyCommandSender, NodeCommandReceiver};
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use tokio::sync::broadcast;
 use virtual_trading::VirtualTradingSystem;
@@ -48,7 +47,6 @@ impl StartNode {
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
@@ -64,7 +62,6 @@ impl StartNode {
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
         Ok(StartNode {
@@ -270,20 +267,6 @@ impl BacktestNodeTrait for StartNode {
                             current_state,
                             transition_result.get_new_state()
                         );
-                    }
-                    StartNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            StartNodeStateAction::ListenAndHandleInnerEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-                        self.listen_strategy_inner_events().await;
                     }
                     StartNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("[{node_name}({node_id})] starting to listen strategy command");

@@ -2,12 +2,12 @@ use super::FuturesOrderNodeContext;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
+use event_center::communication::Command;
 use event_center::communication::backtest_strategy::StrategyCommand;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
-use event_center::communication::Command;
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+
 use std::any::Any;
 
 #[async_trait]
@@ -67,8 +67,6 @@ impl BacktestNodeContextTrait for FuturesOrderNodeContext {
         //     _ => {}
         // }
     }
-
-    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {

@@ -1,19 +1,8 @@
 use super::{
-    KlineNodeContext,
-    KlineKey,
-    PlayIndex,
-    Kline,
-    KlineNodeError,
-    GetKlineDataCmdPayload,
-    GetKlineDataCommand,
-    BacktestNodeContextTrait,
-    Response,
-    GetKlineDataSnafu,
-    KeyTrait
+    BacktestNodeContextTrait, GetKlineDataCmdPayload, GetKlineDataCommand, GetKlineDataSnafu, KeyTrait, Kline,
+    KlineKey, KlineNodeContext, KlineNodeError, PlayIndex, Response,
 };
 use tokio::sync::oneshot;
-
-
 
 impl KlineNodeContext {
     // 从策略中获取k线数据
@@ -23,18 +12,13 @@ impl KlineNodeContext {
         play_index: PlayIndex, // 播放索引
     ) -> Result<Vec<Kline>, KlineNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetKlineDataCmdPayload::new(
-            kline_key.clone(),
-            Some(play_index),
-            Some(1),
-        );
-        let get_kline_params = GetKlineDataCommand::new(
-            self.get_node_id().clone(), 
-            resp_tx,
-            Some(payload),
-        );
-        
-        self.get_strategy_command_sender().send(get_kline_params.into()).await.unwrap();
+        let payload = GetKlineDataCmdPayload::new(kline_key.clone(), Some(play_index), Some(1));
+        let get_kline_params = GetKlineDataCommand::new(self.get_node_id().clone(), resp_tx, Some(payload));
+
+        self.get_strategy_command_sender()
+            .send(get_kline_params.into())
+            .await
+            .unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();

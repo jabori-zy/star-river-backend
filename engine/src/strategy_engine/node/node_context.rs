@@ -2,17 +2,18 @@ use super::node_types::*;
 use crate::strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
 use event_center::EventPublisher;
-use event_center::communication::backtest_strategy::{NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender, NodeCommandReceiver, BacktestNodeCommand};
+use event_center::communication::backtest_strategy::{
+    BacktestNodeCommand, NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender,
+};
 use event_center::event::Event;
+use event_center::event::EventReceiver;
 use event_center::event::node_event::backtest_node_event::common_event::{
     CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
 };
-use event_center::event::EventReceiver;
 
 use event_center::event::node_event::BacktestNodeEvent;
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -231,8 +232,6 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent);
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent);
-
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand);
 
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
@@ -341,13 +340,6 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &mut self.get_base_context_mut().input_handles
     }
 
-    fn get_strategy_inner_event_receiver(&self) -> &StrategyInnerEventReceiver {
-        &self.get_base_context().strategy_inner_event_receiver
-    }
-
-    fn get_enable_event_publish_mut(&mut self) -> &mut bool {
-        &mut self.get_base_context_mut().is_enable_event_publish
-    }
     fn set_state_machine(&mut self, state_machine: Box<dyn BacktestNodeStateMachine>) {
         self.get_base_context_mut().state_machine = state_machine;
     }
@@ -365,6 +357,10 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     }
 
     async fn send_execute_over_event(&self) {
+        // 非叶子节点不发送执行结束事件
+        if !self.is_leaf_node() {
+            return;
+        }
         let payload = ExecuteOverPayload::new(self.get_play_index());
         let execute_over_event: CommonEvent = ExecuteOverEvent::new(
             self.get_node_id().clone(),
@@ -375,6 +371,23 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         .into();
         let strategy_output_handle = self.get_strategy_output_handle();
         let _ = strategy_output_handle.send(execute_over_event.into());
+    }
+
+    async fn send_trigger_event(&self, handle_id: &String) {
+        // 叶子节点不发送触发事件
+        if self.is_leaf_node() {
+            return;
+        }
+        let payload = TriggerPayload::new(self.get_play_index());
+        let trigger_event: CommonEvent = TriggerEvent::new(
+            self.get_node_id().clone(),
+            self.get_node_name().clone(),
+            handle_id.clone(),
+            payload,
+        )
+        .into();
+        let output_handle = self.get_output_handle(handle_id);
+        output_handle.send(trigger_event.into()).unwrap();
     }
 
     // async fn set_play_index(&mut self, play_index: PlayIndex) {
@@ -396,14 +409,13 @@ pub struct BacktestBaseNodeContext {
     pub node_name: String,
     is_leaf_node: bool, // 是否是叶子节点
     pub cancel_token: CancellationToken,
-    pub input_handles: Vec<NodeInputHandle>,                 // 节点事件接收器
-    pub output_handles: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
-    pub strategy_inner_event_receiver: StrategyInnerEventReceiver, // 策略内部事件接收器
-    pub is_enable_event_publish: bool,                       // 是否启用事件发布
-    pub state_machine: Box<dyn BacktestNodeStateMachine>,    // 状态机
-    pub from_node_id: Vec<String>,                           // 来源节点ID
-    pub strategy_command_sender: StrategyCommandSender,              // 向策略发送命令
-    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,              // 向节点发送命令
+    pub input_handles: Vec<NodeInputHandle>,                    // 节点事件接收器
+    pub output_handles: HashMap<HandleId, NodeOutputHandle>,    // 节点输出句柄
+    pub is_enable_event_publish: bool,                          // 是否启用事件发布
+    pub state_machine: Box<dyn BacktestNodeStateMachine>,       // 状态机
+    pub from_node_id: Vec<String>,                              // 来源节点ID
+    pub strategy_command_sender: StrategyCommandSender,         // 向策略发送命令
+    pub node_command_receiver: Arc<Mutex<NodeCommandReceiver>>, // 向节点发送命令
     pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }
 
@@ -421,11 +433,8 @@ impl Clone for BacktestBaseNodeContext {
             is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),
             from_node_id: self.from_node_id.clone(),
-            // command_publisher: self.command_publisher.clone(),
-            // command_receiver: self.command_receiver.clone(),
             strategy_command_sender: self.strategy_command_sender.clone(),
             node_command_receiver: self.node_command_receiver.clone(),
-            strategy_inner_event_receiver: self.strategy_inner_event_receiver.resubscribe(),
             play_index_watch_rx: self.play_index_watch_rx.clone(),
         }
     }
@@ -440,7 +449,6 @@ impl BacktestBaseNodeContext {
         state_machine: Box<dyn BacktestNodeStateMachine>,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
         Self {
@@ -450,18 +458,13 @@ impl BacktestBaseNodeContext {
             node_type,
             is_leaf_node: false,
             output_handles: HashMap::new(),
-            // event_publisher,
             is_enable_event_publish: false,
             cancel_token: CancellationToken::new(),
             input_handles: Vec::new(),
-            // event_receivers,
-            // command_publisher,
-            // command_receiver,
             state_machine,
             from_node_id: Vec::new(),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         }
     }

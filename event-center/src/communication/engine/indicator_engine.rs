@@ -1,14 +1,11 @@
-use super::{GenericEngineCommand, EngineResponse};
+use super::{EngineResponse, GenericEngineCommand};
 
 use derive_more::From;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
-use star_river_core::key::Key;
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::indicator::{Indicator, IndicatorConfig};
+use star_river_core::key::Key;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::{Exchange, Kline, KlineInterval};
-
-
-
 
 #[derive(Debug, From)]
 pub enum IndicatorEngineCommand {
@@ -18,19 +15,19 @@ pub enum IndicatorEngineCommand {
     GetIndicatorLookback(GetIndicatorLookbackCommand),
 }
 
-
-
 // ============ Command and Response Type Definitions ============
 pub type RegisterIndicatorCommand = GenericEngineCommand<RegisterIndicatorCmdPayload, RegisterIndicatorRespPayload>;
 pub type RegisterIndicatorResponse = EngineResponse<RegisterIndicatorRespPayload>;
 
-pub type CalculateHistoryIndicatorCommand = GenericEngineCommand<CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorRespPayload>;
+pub type CalculateHistoryIndicatorCommand =
+    GenericEngineCommand<CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorRespPayload>;
 pub type CalculateHistoryIndicatorResponse = EngineResponse<CalculateHistoryIndicatorRespPayload>;
 
 pub type CalculateIndicatorCommand = GenericEngineCommand<CalculateIndicatorCmdPayload, CalculateIndicatorRespPayload>;
 pub type CalculateIndicatorResponse = EngineResponse<CalculateIndicatorRespPayload>;
 
-pub type GetIndicatorLookbackCommand = GenericEngineCommand<GetIndicatorLookbackCmdPayload, GetIndicatorLookbackRespPayload>;
+pub type GetIndicatorLookbackCommand =
+    GenericEngineCommand<GetIndicatorLookbackCmdPayload, GetIndicatorLookbackRespPayload>;
 pub type GetIndicatorLookbackResponse = EngineResponse<GetIndicatorLookbackRespPayload>;
 
 // ============ Register Indicator Command ============
@@ -65,11 +62,22 @@ pub struct CalculateHistoryIndicatorCmdPayload {
 }
 
 impl CalculateHistoryIndicatorCmdPayload {
-    pub fn new(strategy_id: StrategyId, node_id: NodeId, kline_key: KlineKey, kline_series: Vec<Kline>, indicator_config: IndicatorConfig) -> Self {
-        Self { strategy_id, node_id, kline_key, kline_series, indicator_config }
+    pub fn new(
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        kline_key: KlineKey,
+        kline_series: Vec<Kline>,
+        indicator_config: IndicatorConfig,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            kline_key,
+            kline_series,
+            indicator_config,
+        }
     }
 }
-
 
 #[derive(Debug)]
 pub struct CalculateHistoryIndicatorRespPayload {
@@ -80,7 +88,11 @@ pub struct CalculateHistoryIndicatorRespPayload {
 
 impl CalculateHistoryIndicatorRespPayload {
     pub fn new(kline_key: KlineKey, indicator_config: IndicatorConfig, indicators: Vec<Indicator>) -> Self {
-        Self { kline_key, indicator_config, indicators }
+        Self {
+            kline_key,
+            indicator_config,
+            indicators,
+        }
     }
 }
 
@@ -109,7 +121,11 @@ pub struct GetIndicatorLookbackCmdPayload {
 
 impl GetIndicatorLookbackCmdPayload {
     pub fn new(strategy_id: StrategyId, node_id: NodeId, indicator_key: IndicatorKey) -> Self {
-        Self { strategy_id, node_id, indicator_key }
+        Self {
+            strategy_id,
+            node_id,
+            indicator_key,
+        }
     }
 }
 
@@ -121,6 +137,9 @@ pub struct GetIndicatorLookbackRespPayload {
 
 impl GetIndicatorLookbackRespPayload {
     pub fn new(indicator_key: IndicatorKey, lookback: usize) -> Self {
-        Self { indicator_key, lookback }
+        Self {
+            indicator_key,
+            lookback,
+        }
     }
 }

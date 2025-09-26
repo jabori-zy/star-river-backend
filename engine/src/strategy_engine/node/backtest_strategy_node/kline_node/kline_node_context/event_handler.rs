@@ -2,22 +2,27 @@ use super::KlineNodeContext;
 use super::utils::is_cross_interval;
 use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
-use event_center::communication::backtest_strategy::{GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCommand, UpdateKlineDataCmdPayload, UpdateKlineDataCommand};
+use event_center::communication::Response;
+use event_center::communication::backtest_strategy::{
+    GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCommand, UpdateKlineDataCmdPayload,
+    UpdateKlineDataCommand,
+};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::kline_node_event::{
     KlineNodeEvent, TimeUpdateEvent, TimeUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::start_node_event::KlinePlayEvent;
 use snafu::Report;
-use star_river_core::key::key::KlineKey;
-use star_river_core::key::KeyTrait;
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::error::engine_error::node_error::kline_node_error::{GetKlineDataSnafu, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu};
 use star_river_core::error::engine_error::node_error::KlineNodeError;
+use star_river_core::error::engine_error::node_error::kline_node_error::{
+    GetKlineDataSnafu, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu,
+};
+use star_river_core::key::KeyTrait;
+use star_river_core::key::key::KlineKey;
 use star_river_core::market::Kline;
-use tokio::sync::oneshot;
-use event_center::communication::Response;
 use star_river_core::market::QuantData;
+use tokio::sync::oneshot;
 
 impl KlineNodeContext {
     pub(super) async fn send_kline(&self, play_event: KlinePlayEvent) {
@@ -124,10 +129,12 @@ impl KlineNodeContext {
             .min_interval_symbols
             .iter()
             .find(|k| k.get_symbol() == symbol_key.get_symbol())
-            .ok_or_else(|| NoMinIntervalSymbolSnafu {
-                symbol: symbol_key.get_symbol().clone(),
-            }
-            .build())?;
+            .ok_or_else(|| {
+                NoMinIntervalSymbolSnafu {
+                    symbol: symbol_key.get_symbol().clone(),
+                }
+                .build()
+            })?;
 
         // 从缓存引擎获取k线数据
         let min_interval_kline_data = self
@@ -171,7 +178,13 @@ impl KlineNodeContext {
                 .await
             } else {
                 // 如果当前不是新的周期，则更新缓存引擎中的值
-                self.update_existing_kline(symbol_key, symbol_info, current_play_index, &min_interval_kline_data.last().unwrap()).await
+                self.update_existing_kline(
+                    symbol_key,
+                    symbol_info,
+                    current_play_index,
+                    &min_interval_kline_data.last().unwrap(),
+                )
+                .await
             }
         }
     }
@@ -185,16 +198,9 @@ impl KlineNodeContext {
         min_interval_kline: &Kline,
     ) -> Result<(), KlineNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let update_paylod = UpdateKlineDataCmdPayload::new(
-            symbol_key.clone(),
-            min_interval_kline.clone()
-        );
-        let update_cmd = UpdateKlineDataCommand::new(
-            self.get_node_id().clone(), 
-            resp_tx,
-            Some(update_paylod),
-        );
-        
+        let update_paylod = UpdateKlineDataCmdPayload::new(symbol_key.clone(), min_interval_kline.clone());
+        let update_cmd = UpdateKlineDataCommand::new(self.get_node_id().clone(), resp_tx, Some(update_paylod));
+
         let _ = self.get_strategy_command_sender().send(update_cmd.into()).await;
         let response = resp_rx.await.unwrap();
 
@@ -225,72 +231,58 @@ impl KlineNodeContext {
     ) -> Result<(), KlineNodeError> {
         // 先获取缓存引擎中的最后一个值
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetKlineDataCmdPayload::new(
-            symbol_key.clone(),
-            None,
-            Some(1),
-        );
-        let get_last_kline_cmd = GetKlineDataCommand::new(
-            self.get_node_id().clone(),
-            resp_tx,
-            Some(payload),
-        );
+        let payload = GetKlineDataCmdPayload::new(symbol_key.clone(), None, Some(1));
+        let get_last_kline_cmd = GetKlineDataCommand::new(self.get_node_id().clone(), resp_tx, Some(payload));
         let _ = self.get_strategy_command_sender().send(get_last_kline_cmd.into()).await;
         let response = resp_rx.await.unwrap();
         if response.is_success() {
-                let last_kline = response.kline_series.last().unwrap();
+            let last_kline = response.kline_series.last().unwrap();
 
-                // 最小间隔k线当前的开盘价，收盘价，最高价，最低价
-                let min_interval_close = min_interval_kline.close();
-                let min_interval_high = min_interval_kline.high();
-                let min_interval_low = min_interval_kline.low();
-                let min_interval_volume = min_interval_kline.volume();
+            // 最小间隔k线当前的开盘价，收盘价，最高价，最低价
+            let min_interval_close = min_interval_kline.close();
+            let min_interval_high = min_interval_kline.high();
+            let min_interval_low = min_interval_kline.low();
+            let min_interval_volume = min_interval_kline.volume();
 
-                // 计算当前k线的开盘价，收盘价，最高价，最低价
-                let new_high = last_kline.high().max(min_interval_high);
-                let new_low = last_kline.low().min(min_interval_low);
-                let new_kline = Kline::new(
-                    last_kline.datetime(), // 时间必须和last_kline的时间一致，因为是基于last_kline的更新
-                    last_kline.open(),     // 相同的时间的开盘价相同
-                    new_high,              // 最高价
-                    new_low,               // 最低价
-                    min_interval_close,    // 收盘价
-                    last_kline.volume() + min_interval_volume, // 成交量累计
-                );
+            // 计算当前k线的开盘价，收盘价，最高价，最低价
+            let new_high = last_kline.high().max(min_interval_high);
+            let new_low = last_kline.low().min(min_interval_low);
+            let new_kline = Kline::new(
+                last_kline.datetime(), // 时间必须和last_kline的时间一致，因为是基于last_kline的更新
+                last_kline.open(),     // 相同的时间的开盘价相同
+                new_high,              // 最高价
+                new_low,               // 最低价
+                min_interval_close,    // 收盘价
+                last_kline.volume() + min_interval_volume, // 成交量累计
+            );
 
-                // 更新到缓存引擎
-                let (resp_tx, resp_rx) = oneshot::channel();
-                let payload = UpdateKlineDataCmdPayload::new(
-                    symbol_key.clone(),
-                    new_kline.clone(),
-                );
-                let update_cache_params = UpdateKlineDataCommand::new(
-                    self.get_node_id().clone(),
-                    resp_tx,
-                    Some(payload),
-                );
-                let _ = self.get_strategy_command_sender().send(update_cache_params.into()).await;
-                let response = resp_rx.await.unwrap();
+            // 更新到缓存引擎
+            let (resp_tx, resp_rx) = oneshot::channel();
+            let payload = UpdateKlineDataCmdPayload::new(symbol_key.clone(), new_kline.clone());
+            let update_cache_params = UpdateKlineDataCommand::new(self.get_node_id().clone(), resp_tx, Some(payload));
+            let _ = self
+                .get_strategy_command_sender()
+                .send(update_cache_params.into())
+                .await;
+            let response = resp_rx.await.unwrap();
 
-                if response.is_success() {
-                    // 使用通用方法发送K线事件
-                    self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline);
-                    Ok(())
-                } else {
-                    let error = response.get_error();
-                    tracing::error!("{}", Report::from_error(error));
-                    return Ok(());
-                }
+            if response.is_success() {
+                // 使用通用方法发送K线事件
+                self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline);
+                Ok(())
+            } else {
+                let error = response.get_error();
+                tracing::error!("{}", Report::from_error(error));
+                return Ok(());
             }
-            else {
-                return Err(GetKlineDataSnafu {
-                    node_name: self.get_node_name().clone(),
-                    kline_key: symbol_key.get_key_str(),
-                    play_index: current_play_index as u32,
-                }
-                .fail()?);
+        } else {
+            return Err(GetKlineDataSnafu {
+                node_name: self.get_node_name().clone(),
+                kline_key: symbol_key.get_key_str(),
+                play_index: current_play_index as u32,
             }
-        
+            .fail()?);
+        }
     }
 
     // 处理最小周期K线的独立方法
@@ -337,29 +329,29 @@ impl KlineNodeContext {
         }
 
         // 使用通用方法发送K线事件
-        self.send_kline_events(symbol_info, symbol_key, false, current_play_index, kline.last().unwrap().clone());
+        self.send_kline_events(
+            symbol_info,
+            symbol_key,
+            false,
+            current_play_index,
+            kline.last().unwrap().clone(),
+        );
 
         Ok(())
     }
 
     pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {
         let (tx, rx) = oneshot::channel();
-        let cmd = GetMinIntervalSymbolsCommand::new(
-            self.get_node_id().clone(), 
-            tx, 
-            None
-        );
+        let cmd = GetMinIntervalSymbolsCommand::new(self.get_node_id().clone(), tx, None);
 
-        self.get_strategy_command_sender()
-            .send(cmd.into())
-            .await
-            .unwrap();
+        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
-        let response: event_center::communication::backtest_strategy::StrategyResponse<event_center::communication::backtest_strategy::GetMinIntervalSymbolsRespPayload> = rx.await.unwrap();
+        let response: event_center::communication::backtest_strategy::StrategyResponse<
+            event_center::communication::backtest_strategy::GetMinIntervalSymbolsRespPayload,
+        > = rx.await.unwrap();
         if response.is_success() {
             return Ok(response.keys.clone());
-        }
-        else {
+        } else {
             return Err("获取最小周期交易对失败".to_string());
         }
     }

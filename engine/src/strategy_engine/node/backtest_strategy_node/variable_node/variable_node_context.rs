@@ -1,8 +1,8 @@
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse, StrategyCommand};
 use event_center::communication::Command;
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse, StrategyCommand};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, TriggerEvent, TriggerPayload};
 use event_center::event::node_event::backtest_node_event::variable_node_event::{
@@ -13,7 +13,7 @@ use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::node::variable_node::GetVariableType;
 use star_river_core::node::variable_node::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+
 use star_river_core::strategy::sys_varibale::SysVariable;
 use std::any::Any;
 use std::collections::HashMap;
@@ -104,8 +104,6 @@ impl BacktestNodeContextTrait for VariableNodeContext {
             _ => {}
         }
     }
-
-    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {

@@ -2,9 +2,7 @@ mod context_impl;
 mod event_handler;
 
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::backtest_node_event::common_event::{
-    CommonEvent, TriggerEvent, TriggerPayload,
-};
+use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, TriggerEvent, TriggerPayload};
 use event_center::event::node_event::backtest_node_event::if_else_node_event::{
     ConditionMatchEvent, ConditionMatchPayload, IfElseNodeEvent,
 };
@@ -336,10 +334,7 @@ impl IfElseNodeContext {
         let (tx, rx) = oneshot::channel();
 
         let cmd = GetCurrentTimeCommand::new(self.get_node_id().clone(), tx, None);
-        self.get_strategy_command_sender()
-            .send(cmd.into())
-            .await
-            .unwrap();
+        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
         let response = rx.await.unwrap();
         if response.is_success() {

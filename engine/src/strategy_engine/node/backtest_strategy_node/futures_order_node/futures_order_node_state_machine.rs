@@ -10,8 +10,6 @@ pub enum OrderNodeStateAction {
     ListenAndHandleExternalEvents, // 处理外部事件
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
-    #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents, // 处理内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     #[strum(serialize = "ListenAndHandleVirtualTradingSystemEvent")]
@@ -101,7 +99,6 @@ impl BacktestNodeStateMachine for OrderNodeStateMachine {
                         Box::new(OrderNodeStateAction::LogTransition),
                         Box::new(OrderNodeStateAction::ListenAndHandleExternalEvents),
                         Box::new(OrderNodeStateAction::ListenAndHandleNodeEvents),
-                        Box::new(OrderNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(OrderNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent),
                         Box::new(OrderNodeStateAction::RegisterTask),

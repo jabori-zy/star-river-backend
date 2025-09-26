@@ -1,18 +1,12 @@
-use super::{GenericEngineCommand, EngineResponse};
+use super::{EngineResponse, GenericEngineCommand};
 use derive_more::From;
 use star_river_core::market::Exchange;
-
-
-
 
 #[derive(Debug, From)]
 pub enum ExchangeEngineCommand {
     RegisterExchange(RegisterExchangeCommand),
     UnregisterExchange(UnregisterExchangeCommand),
 }
-
-
-
 
 // ============ Command and Response Type Definitions ============
 pub type RegisterExchangeCommand = GenericEngineCommand<RegisterExchangeCmdPayload, RegisterExchangeRespPayload>;
@@ -46,7 +40,6 @@ impl RegisterExchangeRespPayload {
     }
 }
 
-
 // ============ Unregister Exchange Command ============
 #[derive(Debug)]
 pub struct UnregisterExchangeCmdPayload {
@@ -58,7 +51,6 @@ impl UnregisterExchangeCmdPayload {
         Self { account_id }
     }
 }
-
 
 #[derive(Debug)]
 pub struct UnregisterExchangeRespPayload {

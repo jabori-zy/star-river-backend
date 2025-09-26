@@ -1,15 +1,9 @@
+use super::{
+    BacktestNodeContextTrait, Kline, KlineKey, KlineNodeContext, KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload,
+};
 use chrono::{Datelike, Timelike, Weekday};
 use star_river_core::market::KlineInterval;
 use star_river_core::system::DateTimeUtc;
-use super::{
-    KlineNodeContext,
-    KlineKey,
-    Kline,
-    KlineNodeEvent,
-    KlineUpdateEvent,
-    KlineUpdatePayload,
-    BacktestNodeContextTrait,
-};
 
 // 判断当前最小周期时间点是否到达更大周期的起点
 // 例如：min_interval=1m, interval=1h
@@ -78,10 +72,8 @@ pub fn is_cross_interval(
     }
 }
 
-
-
 impl KlineNodeContext {
-    pub(super)fn get_kline_update_event(
+    pub(super) fn get_kline_update_event(
         &self,
         handle_id: String,
         config_id: i32,

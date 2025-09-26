@@ -1,24 +1,14 @@
 use super::{
     BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey,
-    BacktestStrategyCommand, StrategyInnerEvent,
 };
+use chrono::Utc;
 use snafu::IntoError;
-use star_river_core::error::engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::{error::engine_error::strategy_error::backtest_strategy_error::*, market::Kline};
 use std::collections::HashMap;
 use tokio::sync::{broadcast, mpsc};
 
 impl BacktestStrategy {
     pub async fn add_node(&mut self) -> Result<(), BacktestStrategyError> {
-        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<BacktestStrategyCommand>(100);
-        let (strategy_inner_event_tx, strategy_inner_event_rx) = broadcast::channel::<StrategyInnerEvent>(100);
-
-        // setting strategy context properties
-        {
-            let mut context_guard = self.context.write().await;
-            context_guard.set_strategy_command_receiver(strategy_command_rx);
-            context_guard.set_strategy_inner_event_publisher(strategy_inner_event_tx);
-        } // context lock end
-
         // get strategy config
         let node_config_list = {
             let context_guard = self.context.read().await;
@@ -37,15 +27,15 @@ impl BacktestStrategy {
             node_config_list.clone()
         };
 
+        let strategy_command_tx = {
+            let context = self.get_context();
+            let context_guard = context.read().await;
+            context_guard.strategy_command_sender.clone()
+        };
         let context = self.get_context();
         for node_config in node_config_list {
-            let result = BacktestStrategyFunction::add_node(
-                context.clone(),
-                node_config,
-                strategy_command_tx.clone(),
-                strategy_inner_event_rx.resubscribe(),
-            )
-            .await;
+            let result =
+                BacktestStrategyFunction::add_node(context.clone(), node_config, strategy_command_tx.clone()).await;
             if let Err(e) = result {
                 let error = NodeCheckSnafu {}.into_error(e);
                 return Err(error);
@@ -97,88 +87,81 @@ impl BacktestStrategy {
 
     // 检查策略的symbol配置
     pub async fn check_symbol_config(&mut self) -> Result<(), BacktestStrategyError> {
+        let strategy_name = self.get_strategy_name().await;
+        tracing::info!("[{}] start check symbol config", strategy_name);
         let context = self.get_context();
 
-        // 先获取keys，然后立即释放读锁
         let keys = {
             let context_guard = context.read().await;
             context_guard.get_keys().await
-        }; // 读锁在这里被释放
-
-        // 检查不同symbol的最小interval是否相同
-
-        // 1. 按symbol分组
-        let mut symbol_groups = HashMap::new();
-        for (key, _) in keys.iter() {
-            if matches!(key, Key::Kline(_)) {
-                match key {
-                    Key::Kline(kline_key) => {
-                        symbol_groups
-                            .entry(kline_key.get_symbol())
-                            .or_insert_with(Vec::new)
-                            .push(kline_key.clone());
-                    }
-                    _ => return Err(IntervalNotSameSnafu { symbols: vec![] }.build()),
-                }
-            }
-        }
-        // tracing::debug!("symbol_groups: {:#?}", symbol_groups);
-
-        // 2. 检查key(symbol) 的个数
-        // 如果只有一个symbol，则直接返回
-        if symbol_groups.keys().len() == 1 {
-            // 如果只有一个symbol，则找到最小的interval的key
-            if let Some(keys) = symbol_groups.values().next() {
-                if let Some(min_interval_symbol) = keys.iter().min_by_key(|key| key.get_interval()) {
-                    let mut context_guard = context.write().await;
-                    context_guard.set_min_interval_symbols(vec![min_interval_symbol.clone()]);
-                    return Ok(());
-                }
-            }
-            // 如果无法找到有效的symbol或key，返回错误
-            return Err(IntervalNotSameSnafu { symbols: vec![] }.build());
-        }
-
-        // 3. 获取每个symbol组内interval最小的key
-        let min_interval_symbols: Vec<KlineKey> = symbol_groups
-            .values()
-            .filter_map(|keys| keys.iter().min_by_key(|key| key.get_interval()).cloned())
-            .collect();
-        // tracing::debug!("min_interval_symbols: {:#?}", min_interval_symbols);
-
-        // 4. 检查列表内的所有interval是否相同.(去重之后是否等于1)
-        let min_interval_intervals = min_interval_symbols
-            .iter()
-            .map(|key| key.get_interval())
-            .collect::<Vec<KlineInterval>>();
-        let min_interval_intervals_unique = if min_interval_intervals.is_empty() {
-            0
-        } else {
-            let first_interval = &min_interval_intervals[0];
-            if min_interval_intervals.iter().all(|interval| interval == first_interval) {
-                1 // 所有元素都相同
-            } else {
-                2 // 存在不同元素（大于1即可）
-            }
         };
 
-        // tracing::debug!("min_interval_intervals: {:#?}", min_interval_intervals);
-        // tracing::debug!("unique interval count: {}", min_interval_intervals_unique);
+        let mut min_symbol_map: HashMap<String, KlineKey> = HashMap::new();
+        for (key, _) in keys {
+            if let Key::Kline(kline_key) = key {
+                let symbol = kline_key.get_symbol();
+                let interval = kline_key.get_interval();
+                let should_replace = min_symbol_map
+                    .get(&symbol)
+                    .map(|existing| interval < existing.get_interval())
+                    .unwrap_or(true);
+                if should_replace {
+                    min_symbol_map.insert(symbol, kline_key);
+                }
+            }
+        }
 
-        // 如果去重后的interval数量大于1，说明不同symbol的最小interval不相同
-        if min_interval_intervals_unique > 1 {
+        if min_symbol_map.is_empty() {
+            tracing::warn!("[{}] no kline symbols configured", strategy_name);
+            let mut context_guard = context.write().await;
+            context_guard.set_min_interval_symbols(Vec::new());
+            context_guard
+                .virtual_trading_system
+                .lock()
+                .await
+                .set_kline_price(HashMap::<KlineKey, Kline>::new());
+            return Ok(());
+        }
+
+        if min_symbol_map.len() == 1 {
+            tracing::info!("[{}] have only one symbol", strategy_name);
+        }
+
+        let mut min_interval_symbols: Vec<KlineKey> = min_symbol_map.into_values().collect();
+        let reference_interval = min_interval_symbols[0].get_interval();
+        if min_interval_symbols
+            .iter()
+            .any(|key| key.get_interval() != reference_interval)
+        {
             return Err(IntervalNotSameSnafu {
                 symbols: min_interval_symbols
                     .iter()
                     .map(|key| (key.get_symbol(), key.get_interval().to_string()))
-                    .collect::<Vec<(String, String)>>(),
+                    .collect(),
             }
             .build());
         }
 
-        // 最后获取写锁并设置结果
         let mut context_guard = context.write().await;
-        context_guard.set_min_interval_symbols(min_interval_symbols);
+        context_guard.set_min_interval_symbols(min_interval_symbols.clone());
+
+        let mut virtual_trading_system_guard = context_guard.virtual_trading_system.lock().await;
+        let now = Utc::now();
+        let mut kline_price = HashMap::with_capacity(min_interval_symbols.len());
+        for kline_key in min_interval_symbols {
+            kline_price.insert(
+                kline_key,
+                Kline {
+                    datetime: now,
+                    open: 0.0,
+                    high: 0.0,
+                    low: 0.0,
+                    close: 0.0,
+                    volume: 0.0,
+                },
+            );
+        }
+        virtual_trading_system_guard.set_kline_price(kline_price);
         Ok(())
     }
 }

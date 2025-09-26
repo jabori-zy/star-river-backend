@@ -10,8 +10,6 @@ pub enum IfElseNodeStateAction {
     ListenAndHandleStrategySignal, // 处理策略信号
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents,
-    #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents,
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     #[strum(serialize = "InitReceivedData")]
@@ -103,7 +101,6 @@ impl BacktestNodeStateMachine for IfElseNodeStateManager {
                         Box::new(IfElseNodeStateAction::LogTransition),
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategySignal),
                         Box::new(IfElseNodeStateAction::ListenAndHandleNodeEvents),
-                        Box::new(IfElseNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(IfElseNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(IfElseNodeStateAction::InitReceivedData),
                     ],

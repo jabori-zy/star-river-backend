@@ -326,5 +326,4 @@ impl CalculateIndicatorFunction {
 
         Ok((timestamp_list, open_list, high_list, low_list, close_list, volume_list))
     }
-
 }

@@ -1,8 +1,8 @@
 // pub mod response;
+pub mod communication;
 pub mod event;
 pub mod event_center_error;
 pub mod singleton;
-pub mod communication;
 
 use crate::communication::engine::EngineCommand;
 use crate::event::strategy_event::StrategyEvent;

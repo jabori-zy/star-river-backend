@@ -3,16 +3,16 @@ use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
 use event_center::communication::Command;
+use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::cache_engine::CacheEngineCommand;
 use event_center::communication::engine::cache_engine::*;
-use event_center::communication::engine::EngineCommand;
 use event_center::event::Event;
 use star_river_core::key::Key;
+use star_river_core::key::KeyTrait;
+use star_river_core::market::QuantData;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use star_river_core::key::KeyTrait;
-use star_river_core::market::QuantData;
 
 #[async_trait]
 impl EngineContext for CacheEngineContext {
@@ -55,7 +55,9 @@ impl EngineContext for CacheEngineContext {
                     // 批量获取K线缓存
                     CacheEngineCommand::GetKlineCacheMulti(cmd) => self.handle_get_kline_cache_multi(cmd).await,
                     // 获取K线缓存长度
-                    CacheEngineCommand::GetKlineCacheLengthMulti(cmd) => self.handle_get_kline_cache_length_multi(cmd).await,
+                    CacheEngineCommand::GetKlineCacheLengthMulti(cmd) => {
+                        self.handle_get_kline_cache_length_multi(cmd).await
+                    }
                     // 更新缓存
                     CacheEngineCommand::UpdateKlineCache(cmd) => self.handle_update_kline_cache(cmd).await,
                     // 清空缓存
@@ -67,13 +69,14 @@ impl EngineContext for CacheEngineContext {
                     // 批量获取指标缓存
                     CacheEngineCommand::GetIndicatorCacheMulti(cmd) => self.handle_get_indicator_cache_multi(cmd).await,
                     // 获取指标缓存长度
-                    CacheEngineCommand::GetIndicatorCacheLengthMulti(cmd) => self.handle_get_indicator_cache_length_multi(cmd).await,
+                    CacheEngineCommand::GetIndicatorCacheLengthMulti(cmd) => {
+                        self.handle_get_indicator_cache_length_multi(cmd).await
+                    }
                     // 更新指标缓存
                     CacheEngineCommand::UpdateIndicatorCache(cmd) => self.handle_update_indicator_cache(cmd).await,
                     // 清空指标缓存
                     CacheEngineCommand::ClearIndicatorCache(cmd) => self.handle_clear_indicator_cache(cmd).await,
                     _ => {}
-                    
                 }
             }
             _ => {}

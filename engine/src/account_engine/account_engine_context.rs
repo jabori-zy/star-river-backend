@@ -4,8 +4,8 @@ use crate::exchange_engine::ExchangeEngine;
 use async_trait::async_trait;
 use database::mutation::account_info_mutation::AccountInfoMutation;
 use database::query::account_config_query::AccountConfigQuery;
-use event_center::communication::Response;
 use event_center::EventCenterSingleton;
+use event_center::communication::Response;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::exchange_engine::*;
 use event_center::event::Event;
@@ -100,11 +100,7 @@ impl AccountEngineContext {
         // 同时向exchange_engine发送注销交易所的命令
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = UnregisterExchangeCmdPayload::new(account_id);
-        let cmd = UnregisterExchangeCommand::new(
-             "account_engine".to_string(), 
-             resp_tx,
-             Some(payload),
-        );
+        let cmd = UnregisterExchangeCommand::new("account_engine".to_string(), resp_tx, Some(payload));
         let command_event = ExchangeEngineCommand::UnregisterExchange(cmd);
         EventCenterSingleton::send_command(command_event.into()).await.unwrap();
         let _response = resp_rx.await.unwrap();
@@ -330,14 +326,9 @@ impl AccountEngineContext {
             .await
             .unwrap();
         let payload = RegisterExchangeCmdPayload::new(account_config.id, account_config.exchange);
-        let cmd: ExchangeEngineCommand = RegisterExchangeCommand::new(
-            "account_engine".to_string(), 
-            resp_tx,
-            Some(payload),
-        ).into();
-        EventCenterSingleton::send_command(cmd.into())
-            .await
-            .unwrap();
+        let cmd: ExchangeEngineCommand =
+            RegisterExchangeCommand::new("account_engine".to_string(), resp_tx, Some(payload)).into();
+        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
         // 等待响应
         let response = resp_rx.await.unwrap();
@@ -349,7 +340,6 @@ impl AccountEngineContext {
                 .position(|account| account.get_account_id() == response.account_id)
                 .unwrap();
             accounts[index].set_exchange_status(ExchangeStatus::Registed);
-                    
         }
         Ok(())
     }

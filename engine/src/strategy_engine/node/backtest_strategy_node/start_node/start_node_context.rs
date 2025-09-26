@@ -1,9 +1,11 @@
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetRespPayload, NodeResetResponse};
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse};
 use event_center::communication::Command;
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse};
+use event_center::communication::backtest_strategy::{
+    GetStartNodeConfigRespPayload, NodeResetRespPayload, NodeResetResponse,
+};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::{
@@ -11,7 +13,7 @@ use event_center::event::node_event::backtest_node_event::start_node_event::{
 };
 use heartbeat::Heartbeat;
 use star_river_core::strategy::BacktestStrategyConfig;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+
 use std::any::Any;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
@@ -61,8 +63,6 @@ impl BacktestNodeContextTrait for StartNodeContext {
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
     }
-
-    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);

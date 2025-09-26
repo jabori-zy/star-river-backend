@@ -10,8 +10,6 @@ pub enum PositionManagementNodeStateAction {
     ListenAndHandleExternalEvents, // 处理外部事件
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
-    #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents, // 处理内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     #[strum(serialize = "ListenAndHandleVirtualTradingSystemEvent")]
@@ -99,7 +97,6 @@ impl BacktestNodeStateMachine for PositionNodeStateMachine {
                         Box::new(PositionManagementNodeStateAction::LogTransition),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleExternalEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleNodeEvents),
-                        Box::new(PositionManagementNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent),
                         Box::new(PositionManagementNodeStateAction::RegisterTask),

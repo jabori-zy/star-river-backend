@@ -1,11 +1,11 @@
-use event_center::communication::backtest_strategy::*;
-use event_center::communication::Command;
 use super::{
-    BacktestStrategyCommand, BacktestNodeEvent, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event,
+    BacktestNodeEvent, BacktestStrategyCommand, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event,
     EventCenterSingleton, FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse,
-    GetStrategyKeysResponse, IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait,
-    PositionManagementNodeEvent, StrategyStatsEvent,
+    GetStrategyKeysResponse, IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent,
+    StrategyStatsEvent,
 };
+use event_center::communication::Command;
+use event_center::communication::backtest_strategy::*;
 
 impl BacktestStrategyContext {
     pub async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) -> Result<(), String> {
@@ -52,13 +52,16 @@ impl BacktestStrategyContext {
             }
 
             BacktestStrategyCommand::InitIndicatorData(cmd) => {
-                self.init_indicator_data(&cmd.indicator_key, cmd.indicator_series.clone()).await;
+                self.init_indicator_data(&cmd.indicator_key, cmd.indicator_series.clone())
+                    .await;
                 let resp = InitIndicatorDataResponse::success(None);
                 cmd.respond(resp);
             }
 
             BacktestStrategyCommand::GetIndicatorData(cmd) => {
-                let result_data = self.get_indicator_data(&cmd.indicator_key, cmd.play_index, cmd.limit).await;
+                let result_data = self
+                    .get_indicator_data(&cmd.indicator_key, cmd.play_index, cmd.limit)
+                    .await;
                 let payload = GetIndicatorDataRespPayload::new(result_data);
                 let response = GetIndicatorDataResponse::success(Some(payload));
                 cmd.respond(response);

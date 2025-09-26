@@ -1,11 +1,10 @@
+mod command_handler;
 mod data_handler;
 mod event_handler;
 mod node_lifecycle;
 mod node_operation;
 mod playback_handler;
 mod strategy_operation;
-mod command_handler;
-
 
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::node_state_machine::BacktestNodeRunState;
@@ -31,15 +30,15 @@ use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
-use star_river_core::key::Key;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use star_river_core::indicator::Indicator;
+use star_river_core::key::Key;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
+use star_river_core::market::QuantData;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventPublisher;
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
@@ -48,11 +47,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
-use star_river_core::market::QuantData;
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -68,7 +67,8 @@ pub struct BacktestStrategyContext {
     pub database: DatabaseConnection,                           // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>,                       // 心跳
     // pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>,        // 注册的任务 任务名称-> 任务id
-    pub strategy_command_receiver: Arc<Mutex<Option<StrategyCommandReceiver>>>, // 接收节点的命令
+    pub strategy_command_sender: StrategyCommandSender,
+    pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>, // 接收节点的命令
     pub node_command_sender: HashMap<NodeId, NodeCommandSender>,        // 节点命令发送器
     pub total_signal_count: Arc<RwLock<i32>>,                           // 信号计数
     pub play_index: Arc<RwLock<i32>>,                                   // 播放索引
@@ -76,7 +76,6 @@ pub struct BacktestStrategyContext {
     pub initial_play_speed: Arc<RwLock<u32>>,                           // 初始播放速度 （从策略配置中加载）
     pub cancel_play_token: CancellationToken,                           // 取消播放令牌
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,       // 虚拟交易系统
-    pub strategy_inner_event_publisher: Option<StrategyInnerEventPublisher>, // 策略内部事件发布器
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,             // 策略统计模块
     pub strategy_stats_event_receiver: StrategyStatsEventReceiver,      // 策略统计事件接收器
     pub(super) play_index_watch_tx: tokio::sync::watch::Sender<i32>,    // 播放索引监听器
@@ -104,8 +103,16 @@ impl BacktestStrategyContext {
         let cancel_task_token = CancellationToken::new();
         let cancel_play_token = CancellationToken::new();
 
+        // strategy command sender and receiver
+        let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<BacktestStrategyCommand>(100);
+
         let (play_index_watch_tx, play_index_watch_rx) = tokio::sync::watch::channel::<PlayIndex>(-1);
-        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(play_index_watch_rx.clone())));
+
+        // new virtual trading system
+        let virtual_trading_system = Arc::new(Mutex::new(VirtualTradingSystem::new(
+            play_index_watch_rx.clone(),
+            strategy_command_tx.clone(),
+        )));
 
         let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
         let strategy_stats: Arc<RwLock<BacktestStrategyStats>> = Arc::new(RwLock::new(BacktestStrategyStats::new(
@@ -131,8 +138,8 @@ impl BacktestStrategyContext {
             all_node_output_handles: vec![],
             database,
             heartbeat,
-            // registered_tasks: Arc::new(RwLock::new(HashMap::new())),
-            strategy_command_receiver: Arc::new(Mutex::new(None)),
+            strategy_command_sender: strategy_command_tx,
+            strategy_command_receiver: Arc::new(Mutex::new(strategy_command_rx)),
             node_command_sender: HashMap::new(),
             total_signal_count: Arc::new(RwLock::new(0)),
             play_index: Arc::new(RwLock::new(-1)),
@@ -140,7 +147,6 @@ impl BacktestStrategyContext {
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token,
             virtual_trading_system,
-            strategy_inner_event_publisher: None,
             execute_over_notify: Arc::new(Notify::new()),
             strategy_stats,
             strategy_stats_event_receiver: strategy_stats_event_rx,
@@ -182,14 +188,6 @@ impl BacktestStrategyContext {
 
     pub fn set_state_machine(&mut self, state_machine: BacktestStrategyStateMachine) {
         self.state_machine = state_machine;
-    }
-
-    pub fn set_strategy_command_receiver(&mut self, strategy_command_receiver: StrategyCommandReceiver) {
-        self.strategy_command_receiver = Arc::new(Mutex::new(Some(strategy_command_receiver)));
-    }
-
-    pub fn set_strategy_inner_event_publisher(&mut self, strategy_inner_event_publisher: StrategyInnerEventPublisher) {
-        self.strategy_inner_event_publisher = Some(strategy_inner_event_publisher);
     }
 
     pub async fn get_current_time(&self) -> DateTime<Utc> {
@@ -236,7 +234,7 @@ impl BacktestStrategyContext {
         self.cancel_task_token.clone()
     }
 
-    pub fn get_strategy_command_receiver(&self) -> Arc<Mutex<Option<StrategyCommandReceiver>>> {
+    pub fn get_strategy_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
         self.strategy_command_receiver.clone()
     }
 
@@ -254,5 +252,3 @@ impl BacktestStrategyContext {
             .unwrap();
     }
 }
-
-

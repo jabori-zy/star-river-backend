@@ -23,7 +23,7 @@ impl From<KlineKey> for Key {
     }
 }
 
-//todo:: 之后处理，With this change KlineKey::get_key_str still emits short keys like "kline|binance|BTCUSDT|1m" whenever no start/end time       
+//todo:: 之后处理，With this change KlineKey::get_key_str still emits short keys like "kline|binance|BTCUSDT|1m" whenever no start/end time
 // is set, but the new FromStr implementation now hard-requires exactly six pipe-delimited fields.
 impl FromStr for KlineKey {
     type Err = StarRiverError;

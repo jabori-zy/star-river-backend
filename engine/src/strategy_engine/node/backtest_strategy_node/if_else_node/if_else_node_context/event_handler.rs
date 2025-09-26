@@ -49,7 +49,7 @@ impl IfElseNodeContext {
 
             if handle.connect_count > 0 {
                 let payload = TriggerPayload::new(self.get_play_index());
-                let condition_not_match_event: CommonEvent = TriggerEvent::new(
+                let trigger_event: CommonEvent = TriggerEvent::new(
                     self.get_node_id().clone(),
                     self.get_node_name().clone(),
                     handle_id.clone(),
@@ -57,7 +57,7 @@ impl IfElseNodeContext {
                 )
                 .into();
 
-                let _ = handle.send(condition_not_match_event.into());
+                let _ = handle.send(trigger_event.into());
             }
         }
     }

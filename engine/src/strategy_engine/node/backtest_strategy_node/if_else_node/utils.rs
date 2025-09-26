@@ -4,8 +4,8 @@ use event_center::event::node_event::backtest_node_event::kline_node_event::Klin
 use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
 use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IndicatorNodeEvent};
 use star_river_core::custom_type::NodeId;
-use std::collections::HashMap;
 use star_river_core::market::QuantData;
+use std::collections::HashMap;
 
 // 获取变量值
 pub fn get_variable_value(

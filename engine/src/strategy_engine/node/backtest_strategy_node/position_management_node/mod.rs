@@ -8,7 +8,7 @@ use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, Backte
 use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
-use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
+use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::strategy_event::NodeStateLogEvent;
 use heartbeat::Heartbeat;
@@ -20,7 +20,6 @@ use snafu::ResultExt;
 use star_river_core::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
 use star_river_core::error::engine_error::node_error::position_management_node_error::*;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 use std::any::Any;
 use std::sync::Arc;
@@ -45,7 +44,6 @@ impl PositionManagementNode {
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, PositionManagementNodeError> {
@@ -59,7 +57,6 @@ impl PositionManagementNode {
             Box::new(PositionNodeStateMachine::new(node_id, node_name)),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
         Ok(Self {
@@ -374,20 +371,6 @@ impl BacktestNodeTrait for PositionManagementNode {
                         );
                         let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
-                    }
-                    PositionManagementNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-                        self.listen_strategy_inner_events().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("[{node_name}({node_id})] starting to listen strategy command");

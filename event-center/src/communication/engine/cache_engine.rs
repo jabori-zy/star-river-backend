@@ -1,14 +1,11 @@
-
-use std::collections::HashMap;
-use super::{GenericEngineCommand, EngineResponse};
+use super::{EngineResponse, GenericEngineCommand};
 use derive_more::From;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::{NodeId, StrategyId};
 use star_river_core::indicator::Indicator;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
+use std::collections::HashMap;
 use tokio::time::Duration;
-
-
 
 #[derive(Debug, From)]
 pub enum CacheEngineCommand {
@@ -30,7 +27,6 @@ pub enum CacheEngineCommand {
     ClearIndicatorCache(ClearIndicatorCacheCommand),
 }
 
-
 // ============ Kline Cache Command ============
 pub type AddKlineKeyCommand = GenericEngineCommand<AddKlineKeyCmdPayload, AddKlineKeyRespPayload>;
 pub type AddKlineKeyResponse = EngineResponse<AddKlineKeyRespPayload>;
@@ -44,11 +40,13 @@ pub type GetKlineCacheMultiCommand = GenericEngineCommand<GetKlineCacheMultiCmdP
 pub type GetKlineCacheMultiResponse = EngineResponse<GetKlineCacheMultiRespPayload>;
 
 // ============ Get Kline Cache Length Command ============
-pub type GetKlineCacheLengthCommand = GenericEngineCommand<GetKlineCacheLengthCmdPayload, GetKlineCacheLengthRespPayload>;
+pub type GetKlineCacheLengthCommand =
+    GenericEngineCommand<GetKlineCacheLengthCmdPayload, GetKlineCacheLengthRespPayload>;
 pub type GetKlineCacheLengthResponse = EngineResponse<GetKlineCacheLengthRespPayload>;
 
 // ============ Get Kline Cache Length Multi Command ============
-pub type GetKlineCacheLengthMultiCommand = GenericEngineCommand<GetKlineCacheLengthMultiCmdPayload, GetKlineCacheLengthMultiRespPayload>;
+pub type GetKlineCacheLengthMultiCommand =
+    GenericEngineCommand<GetKlineCacheLengthMultiCmdPayload, GetKlineCacheLengthMultiRespPayload>;
 pub type GetKlineCacheLengthMultiResponse = EngineResponse<GetKlineCacheLengthMultiRespPayload>;
 
 // ============ Update Kline Cache Command ============
@@ -58,7 +56,6 @@ pub type UpdateKlineCacheResponse = EngineResponse<UpdateKlineCacheRespPayload>;
 // ============ Clear Kline Cache Command ============
 pub type ClearKlineCacheCommand = GenericEngineCommand<ClearKlineCacheCmdPayload, ClearKlineCacheRespPayload>;
 pub type ClearKlineCacheResponse = EngineResponse<ClearKlineCacheRespPayload>;
-
 
 // ============ Add Key Command ============
 #[derive(Debug)]
@@ -71,14 +68,18 @@ pub struct AddKlineKeyCmdPayload {
 
 impl AddKlineKeyCmdPayload {
     pub fn new(strategy_id: StrategyId, key: KlineKey, max_size: Option<u32>, duration: Duration) -> Self {
-        Self { strategy_id, key, max_size, duration }
+        Self {
+            strategy_id,
+            key,
+            max_size,
+            duration,
+        }
     }
 }
 
-
 #[derive(Debug)]
 pub struct AddKlineKeyRespPayload {
-    pub key: KlineKey
+    pub key: KlineKey,
 }
 
 impl AddKlineKeyRespPayload {
@@ -86,7 +87,6 @@ impl AddKlineKeyRespPayload {
         Self { key }
     }
 }
-
 
 // ============ Get Cache Command ============
 #[derive(Debug)]
@@ -99,8 +99,20 @@ pub struct GetKlineCacheCmdPayload {
 }
 
 impl GetKlineCacheCmdPayload {
-    pub fn new(strategy_id: StrategyId, node_id: NodeId, key: KlineKey, index: Option<u32>, limit: Option<u32>) -> Self {
-        Self { strategy_id, node_id, key, index, limit }
+    pub fn new(
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        key: KlineKey,
+        index: Option<u32>,
+        limit: Option<u32>,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            key,
+            index,
+            limit,
+        }
     }
 }
 
@@ -114,7 +126,6 @@ impl GetKlineCacheRespPayload {
         Self { data }
     }
 }
-
 
 // ============ Get Cache Multi Command ============
 #[derive(Debug)]
@@ -149,7 +160,6 @@ pub struct GetKlineCacheLengthRespPayload {
     pub length: u32,
 }
 
-
 // ============ Get Cache Length Multi Command ============
 #[derive(Debug)]
 pub struct GetKlineCacheLengthMultiCmdPayload {
@@ -175,7 +185,6 @@ impl GetKlineCacheLengthMultiRespPayload {
     }
 }
 
-
 // ============ Update Cache Command ============
 #[derive(Debug)]
 pub struct UpdateKlineCacheCmdPayload {
@@ -194,9 +203,6 @@ impl UpdateKlineCacheRespPayload {
         Self { key }
     }
 }
-
-
-
 
 // ============ Clear Cache Command ============
 #[derive(Debug)]
@@ -222,7 +228,6 @@ impl ClearKlineCacheRespPayload {
     }
 }
 
-
 // ============ Indicator Cache Command ============
 pub type AddIndicatorKeyCommand = GenericEngineCommand<AddIndicatorKeyCmdPayload, AddIndicatorKeyRespPayload>;
 pub type AddIndicatorKeyResponse = EngineResponse<AddIndicatorKeyRespPayload>;
@@ -232,25 +237,29 @@ pub type GetIndicatorCacheCommand = GenericEngineCommand<GetIndicatorCacheCmdPay
 pub type GetIndicatorCacheResponse = EngineResponse<GetIndicatorCacheRespPayload>;
 
 // ============ Get Indicator Cache Multi Command ============
-pub type GetIndicatorCacheMultiCommand = GenericEngineCommand<GetIndicatorCacheMultiCmdPayload, GetIndicatorCacheMultiRespPayload>;
+pub type GetIndicatorCacheMultiCommand =
+    GenericEngineCommand<GetIndicatorCacheMultiCmdPayload, GetIndicatorCacheMultiRespPayload>;
 pub type GetIndicatorCacheMultiResponse = EngineResponse<GetIndicatorCacheMultiRespPayload>;
 
 // ============ Get Indicator Cache Length Command ============
-pub type GetIndicatorCacheLengthCommand = GenericEngineCommand<GetIndicatorCacheLengthCmdPayload, GetIndicatorCacheLengthRespPayload>;
+pub type GetIndicatorCacheLengthCommand =
+    GenericEngineCommand<GetIndicatorCacheLengthCmdPayload, GetIndicatorCacheLengthRespPayload>;
 pub type GetIndicatorCacheLengthResponse = EngineResponse<GetIndicatorCacheLengthRespPayload>;
 
 // ============ Get Indicator Cache Length Multi Command ============
-pub type GetIndicatorCacheLengthMultiCommand = GenericEngineCommand<GetIndicatorCacheLengthMultiCmdPayload, GetIndicatorCacheLengthMultiRespPayload>;
+pub type GetIndicatorCacheLengthMultiCommand =
+    GenericEngineCommand<GetIndicatorCacheLengthMultiCmdPayload, GetIndicatorCacheLengthMultiRespPayload>;
 pub type GetIndicatorCacheLengthMultiResponse = EngineResponse<GetIndicatorCacheLengthMultiRespPayload>;
 
 // ============ Update Indicator Cache Command ============
-pub type UpdateIndicatorCacheCommand = GenericEngineCommand<UpdateIndicatorCacheCmdPayload, UpdateIndicatorCacheRespPayload>;
+pub type UpdateIndicatorCacheCommand =
+    GenericEngineCommand<UpdateIndicatorCacheCmdPayload, UpdateIndicatorCacheRespPayload>;
 pub type UpdateIndicatorCacheResponse = EngineResponse<UpdateIndicatorCacheRespPayload>;
 
 // ============ Clear Indicator Cache Command ============
-pub type ClearIndicatorCacheCommand = GenericEngineCommand<ClearIndicatorCacheCmdPayload, ClearIndicatorCacheRespPayload>;
+pub type ClearIndicatorCacheCommand =
+    GenericEngineCommand<ClearIndicatorCacheCmdPayload, ClearIndicatorCacheRespPayload>;
 pub type ClearIndicatorCacheResponse = EngineResponse<ClearIndicatorCacheRespPayload>;
-
 
 // ============ Add Key Command ============
 #[derive(Debug)]
@@ -263,14 +272,18 @@ pub struct AddIndicatorKeyCmdPayload {
 
 impl AddIndicatorKeyCmdPayload {
     pub fn new(strategy_id: StrategyId, key: IndicatorKey, max_size: Option<u32>, duration: Duration) -> Self {
-        Self { strategy_id, key, max_size, duration }
+        Self {
+            strategy_id,
+            key,
+            max_size,
+            duration,
+        }
     }
 }
 
-
 #[derive(Debug)]
 pub struct AddIndicatorKeyRespPayload {
-    pub key: IndicatorKey
+    pub key: IndicatorKey,
 }
 
 impl AddIndicatorKeyRespPayload {
@@ -278,7 +291,6 @@ impl AddIndicatorKeyRespPayload {
         Self { key }
     }
 }
-
 
 // ============ Get Cache Command ============
 #[derive(Debug)]
@@ -291,8 +303,20 @@ pub struct GetIndicatorCacheCmdPayload {
 }
 
 impl GetIndicatorCacheCmdPayload {
-    pub fn new(strategy_id: StrategyId, node_id: NodeId, key: IndicatorKey, index: Option<u32>, limit: Option<u32>) -> Self {
-        Self { strategy_id, node_id, key, index, limit }
+    pub fn new(
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        key: IndicatorKey,
+        index: Option<u32>,
+        limit: Option<u32>,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            key,
+            index,
+            limit,
+        }
     }
 }
 
@@ -306,7 +330,6 @@ impl GetIndicatorCacheRespPayload {
         Self { data }
     }
 }
-
 
 // ============ Get Cache Multi Command ============
 #[derive(Debug)]
@@ -341,7 +364,6 @@ pub struct GetIndicatorCacheLengthRespPayload {
     pub length: u32,
 }
 
-
 // ============ Get Cache Length Multi Command ============
 #[derive(Debug)]
 pub struct GetIndicatorCacheLengthMultiCmdPayload {
@@ -367,7 +389,6 @@ impl GetIndicatorCacheLengthMultiRespPayload {
     }
 }
 
-
 // ============ Update Cache Command ============
 #[derive(Debug)]
 pub struct UpdateIndicatorCacheCmdPayload {
@@ -386,9 +407,6 @@ impl UpdateIndicatorCacheRespPayload {
         Self { key }
     }
 }
-
-
-
 
 // ============ Clear Cache Command ============
 #[derive(Debug)]

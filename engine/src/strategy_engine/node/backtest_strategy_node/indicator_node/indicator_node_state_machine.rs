@@ -15,9 +15,6 @@ pub enum IndicatorNodeStateAction {
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
 
-    #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents, // 处理内部事件
-
     #[strum(serialize = "InitIndicatorLookback")]
     InitIndicatorLookback, // 初始化指标lookback
 
@@ -116,7 +113,6 @@ impl BacktestNodeStateMachine for IndicatorNodeStateManager {
                         Box::new(IndicatorNodeStateAction::ListenAndHandleExternalEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(IndicatorNodeStateAction::ListenAndHandleStrategyCommand),
-                        Box::new(IndicatorNodeStateAction::ListenAndHandleInnerEvents),
                         Box::new(IndicatorNodeStateAction::InitIndicatorLookback),
                         Box::new(IndicatorNodeStateAction::GetMinIntervalSymbols),
                         Box::new(IndicatorNodeStateAction::CalculateIndicator),

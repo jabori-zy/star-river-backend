@@ -20,7 +20,6 @@ use tokio::sync::Mutex;
 use event_center::communication::backtest_strategy::{StrategyCommandReceiver, NodeCommandSender, StrategyCommandSender, NodeCommandReceiver};
 use crate::strategy_engine::node::node_state_machine::*;
 use virtual_trading::VirtualTradingSystem;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use star_river_core::order::OrderType;
 use tokio_stream::wrappers::BroadcastStream;
@@ -48,7 +47,6 @@ impl FuturesOrderNode {
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, FuturesOrderNodeError> {
@@ -61,7 +59,6 @@ impl FuturesOrderNode {
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
         Ok(Self {
@@ -456,20 +453,6 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         );
                         let _ = strategy_output_handle.send(log_event.into());
                         self.listen_external_events().await;
-                    }
-                    OrderNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            order_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-                        self.listen_strategy_inner_events().await;
                     }
                     OrderNodeStateAction::RegisterTask => {
                         tracing::info!("[{node_name}({node_id})] registering heartbeat monitoring task");

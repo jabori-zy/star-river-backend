@@ -1,24 +1,24 @@
 mod context_impl;
+mod data_handler;
 mod event_handler;
 mod status_handler;
-mod data_handler;
 
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use event_center::communication::engine::indicator_engine::{
-    CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, IndicatorEngineCommand,
-    GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand,
-};
-use event_center::communication::backtest_strategy::*;
 use event_center::EventCenterSingleton;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
+use event_center::communication::Response;
+use event_center::communication::backtest_strategy::*;
+use event_center::communication::engine::indicator_engine::{
+    CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, GetIndicatorLookbackCmdPayload,
+    GetIndicatorLookbackCommand, IndicatorEngineCommand,
+};
 use star_river_core::indicator::Indicator;
+use star_river_core::key::KeyTrait;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
+use star_river_core::market::QuantData;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use event_center::communication::Response;
-use star_river_core::market::QuantData;
-use star_river_core::key::KeyTrait;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
@@ -26,8 +26,8 @@ pub struct IndicatorNodeContext {
     pub backtest_config: IndicatorNodeBacktestConfig,
     selected_kline_key: KlineKey,                         // 回测K线缓存键
     indicator_keys: HashMap<IndicatorKey, (i32, String)>, // 指标缓存键 -> (配置id, 输出句柄id)
-    kline_value: HashMap<IndicatorKey, Vec<Kline>>, // 指标缓存键 -> 指标值
-    indicator_lookback: HashMap<IndicatorKey, usize>, // 指标缓存键 -> lookback
+    kline_value: HashMap<IndicatorKey, Vec<Kline>>,       // 指标缓存键 -> 指标值
+    indicator_lookback: HashMap<IndicatorKey, usize>,     // 指标缓存键 -> lookback
     min_interval_symbols: Vec<KlineKey>,
 }
 
@@ -60,8 +60,4 @@ impl IndicatorNodeContext {
     pub fn get_indicator_keys_ref(&self) -> &HashMap<IndicatorKey, (i32, String)> {
         &self.indicator_keys
     }
-
-    
-
-    
 }

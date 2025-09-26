@@ -2,9 +2,8 @@ use super::BacktestStrategyFunction;
 use crate::strategy_engine::node::BacktestNodeTrait;
 use crate::strategy_engine::node::backtest_strategy_node::if_else_node::IfElseNode;
 use crate::strategy_engine::strategy::backtest_strategy::backtest_strategy_context::BacktestStrategyContext;
-use event_center::communication::backtest_strategy::{StrategyCommandSender, BacktestNodeCommand};
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, StrategyCommandSender};
 use star_river_core::error::engine_error::strategy_engine_error::node_error::if_else_node_error::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
@@ -15,7 +14,6 @@ impl BacktestStrategyFunction {
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
     ) -> Result<(), IfElseNodeError> {
         tracing::info!("start to add if else node.");
         let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
@@ -30,7 +28,6 @@ impl BacktestStrategyFunction {
             node_config,
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         )?;
         let node_id = node.get_node_id().await;
@@ -38,7 +35,9 @@ impl BacktestStrategyFunction {
 
         let mut strategy_context_guard = context.write().await;
 
-        strategy_context_guard.add_node_command_sender(node_id.to_string(), node_command_tx).await;
+        strategy_context_guard
+            .add_node_command_sender(node_id.to_string(), node_command_tx)
+            .await;
 
         let node = Box::new(node);
 

@@ -20,11 +20,15 @@ use event_center::communication::Response;
 
 impl FuturesOrderNodeContext {
     /// 发送trigger事件到第一个有连接的output_handle
-    fn send_trigger_event(&self) -> bool {
+    async fn send_trigger_event_spec(&self) {
+        if self.is_leaf_node() {
+            self.send_execute_over_event().await;
+            return;
+        }
         let all_output_handles = self.get_all_output_handles();
         let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
 
-        // 使用filter过滤出符合条件的handle，然后取第一个
+        // 使用filter过滤出连接数大于0的handle，然后取第一个
         if let Some((handle_id, handle)) = all_output_handles
             .iter()
             .filter(|(handle_id, handle)| handle_id != &&strategy_output_handle_id && handle.connect_count > 0)
@@ -38,9 +42,8 @@ impl FuturesOrderNodeContext {
                 payload,
             );
             let _ = handle.send(BacktestNodeEvent::Common(trigger_event.into()));
-            true
         } else {
-            false
+            return;
         }
     }
 
@@ -54,7 +57,7 @@ impl FuturesOrderNodeContext {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(trigger_evt) => {
                     if trigger_evt.play_index == self.get_play_index() {
-                        self.send_trigger_event();
+                        self.send_trigger_event_spec().await;
                     }
                 }
 
@@ -80,7 +83,7 @@ impl FuturesOrderNodeContext {
                     let create_order_result = self.create_order(&order_config).await;
                     if let Err(e) = create_order_result {
                         // 发送trigger事件
-                        self.send_trigger_event();
+                        self.send_trigger_event_spec().await;
                         return Err(e);
                     }
                 } else {
@@ -118,7 +121,7 @@ impl FuturesOrderNodeContext {
             tracing::debug!(
                 "all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event"
             );
-            self.send_trigger_event();
+            self.send_trigger_event_spec().await;
             return;
         }
 
@@ -425,10 +428,7 @@ impl FuturesOrderNodeContext {
     pub(super) async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
         let (tx, rx) = oneshot::channel();
         let cmd = GetCurrentTimeCommand::new(self.get_node_id().clone(), tx, None);
-        self.get_strategy_command_sender()
-            .send(cmd.into())
-            .await
-            .unwrap();
+        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
         let response = rx.await.unwrap();
         if response.is_success() {

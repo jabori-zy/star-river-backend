@@ -1,20 +1,19 @@
+use super::{StrategyCommand, StrategyResponse};
 use derive_more::From;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::indicator::Indicator;
+use star_river_core::key::Key;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
 use star_river_core::system::DateTimeUtc;
-use star_river_core::key::Key;
-use super::{StrategyCommand, StrategyResponse};
-
-
 
 // define type aliases
 // get strategy keys
 pub type GetStrategyKeysCommand = StrategyCommand<GetStrategyKeysCmdPayload, GetStrategyKeysRespPayload>;
 pub type GetStrategyKeysResponse = StrategyResponse<GetStrategyKeysRespPayload>;
 // get min interval symbols
-pub type GetMinIntervalSymbolsCommand = StrategyCommand<GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsRespPayload>;
+pub type GetMinIntervalSymbolsCommand =
+    StrategyCommand<GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsRespPayload>;
 pub type GetMinIntervalSymbolsResponse = StrategyResponse<GetMinIntervalSymbolsRespPayload>;
 // get current time
 pub type GetCurrentTimeCommand = StrategyCommand<GetCurrentTimeCmdPayload, GetCurrentTimeRespPayload>;
@@ -33,11 +32,10 @@ pub type GetIndicatorDataCommand = StrategyCommand<GetIndicatorDataCmdPayload, G
 pub type GetIndicatorDataResponse = StrategyResponse<GetIndicatorDataRespPayload>;
 // update kline data
 pub type UpdateKlineDataCommand = StrategyCommand<UpdateKlineDataCmdPayload, UpdateKlineDataRespPayload>;
-    pub type UpdateKlineDataResponse = StrategyResponse<UpdateKlineDataRespPayload>;
+pub type UpdateKlineDataResponse = StrategyResponse<UpdateKlineDataRespPayload>;
 // update indicator data
 pub type UpdateIndicatorDataCommand = StrategyCommand<UpdateIndicatorDataCmdPayload, UpdateIndicatorDataRespPayload>;
 pub type UpdateIndicatorDataResponse = StrategyResponse<UpdateIndicatorDataRespPayload>;
-
 
 // ============ Get Strategy Keys ============
 #[derive(Debug, From)]
@@ -54,7 +52,6 @@ impl GetStrategyKeysRespPayload {
     }
 }
 
-
 // ============ Get Min Interval Symbols ============
 #[derive(Debug)]
 pub struct GetMinIntervalSymbolsCmdPayload;
@@ -69,7 +66,6 @@ impl GetMinIntervalSymbolsRespPayload {
         Self { keys }
     }
 }
-
 
 // ============ Get Current Time ============
 #[derive(Debug)]
@@ -86,7 +82,6 @@ impl GetCurrentTimeRespPayload {
     }
 }
 
-
 // ============ Init Kline Data ============
 #[derive(Debug, From)]
 pub struct InitKlineDataCmdPayload {
@@ -96,14 +91,15 @@ pub struct InitKlineDataCmdPayload {
 
 impl InitKlineDataCmdPayload {
     pub fn new(kline_key: KlineKey, init_kline_data: Vec<Kline>) -> Self {
-        Self { kline_key, init_kline_data }
+        Self {
+            kline_key,
+            init_kline_data,
+        }
     }
 }
 
-
 #[derive(Debug)]
 pub struct InitKlineDataRespPayload;
-
 
 // ============ Init Indicator Data ============
 #[derive(Debug)]
@@ -114,13 +110,15 @@ pub struct InitIndicatorDataCmdPayload {
 
 impl InitIndicatorDataCmdPayload {
     pub fn new(indicator_key: IndicatorKey, indicator_series: Vec<Indicator>) -> Self {
-        Self { indicator_key, indicator_series }
+        Self {
+            indicator_key,
+            indicator_series,
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct InitIndicatorDataRespPayload;
-
 
 // ============ Get Kline Data ============
 #[derive(Debug)]
@@ -132,10 +130,13 @@ pub struct GetKlineDataCmdPayload {
 
 impl GetKlineDataCmdPayload {
     pub fn new(kline_key: KlineKey, play_index: Option<PlayIndex>, limit: Option<i32>) -> Self {
-        Self { kline_key, play_index, limit }
+        Self {
+            kline_key,
+            play_index,
+            limit,
+        }
     }
 }
-
 
 #[derive(Debug)]
 pub struct GetKlineDataRespPayload {
@@ -148,7 +149,6 @@ impl GetKlineDataRespPayload {
     }
 }
 
-
 // ============ Get Indicator Data ============
 #[derive(Debug)]
 pub struct GetIndicatorDataCmdPayload {
@@ -159,10 +159,13 @@ pub struct GetIndicatorDataCmdPayload {
 
 impl GetIndicatorDataCmdPayload {
     pub fn new(indicator_key: IndicatorKey, play_index: Option<PlayIndex>, limit: Option<i32>) -> Self {
-        Self { indicator_key, play_index, limit }
+        Self {
+            indicator_key,
+            play_index,
+            limit,
+        }
     }
 }
-
 
 #[derive(Debug)]
 pub struct GetIndicatorDataRespPayload {
@@ -174,7 +177,6 @@ impl GetIndicatorDataRespPayload {
         Self { indicator_series: data }
     }
 }
-
 
 // ============ Update Kline Data ============
 #[derive(Debug)]
@@ -189,7 +191,6 @@ impl UpdateKlineDataCmdPayload {
     }
 }
 
-
 #[derive(Debug)]
 pub struct UpdateKlineDataRespPayload {
     pub data: Kline,
@@ -201,7 +202,6 @@ impl UpdateKlineDataRespPayload {
     }
 }
 
-
 // ============ Update Indicator Data ============
 #[derive(Debug)]
 pub struct UpdateIndicatorDataCmdPayload {
@@ -211,7 +211,10 @@ pub struct UpdateIndicatorDataCmdPayload {
 
 impl UpdateIndicatorDataCmdPayload {
     pub fn new(indicator_key: IndicatorKey, indicator: Indicator) -> Self {
-        Self { indicator_key, indicator }
+        Self {
+            indicator_key,
+            indicator,
+        }
     }
 }
 

@@ -135,12 +135,11 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
     KlineDataLengthNotSame {
         strategy_name: String,
         backtrace: Backtrace,
-    }
+    },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -336,16 +335,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 } => {
                     format!("获取数据失败: 策略 [{strategy_name}] 数据键: {key}, 缓存索引: {play_index}")
                 }
-                BacktestStrategyError::GetStartNodeConfigFailed {
-                    strategy_name,
-                    ..
-                } => {
+                BacktestStrategyError::GetStartNodeConfigFailed { strategy_name, .. } => {
                     format!("[{strategy_name}] 获取开始节点配置失败")
                 }
-                BacktestStrategyError::KlineDataLengthNotSame {
-                    strategy_name,
-                    ..
-                } => {
+                BacktestStrategyError::KlineDataLengthNotSame { strategy_name, .. } => {
                     format!("[{strategy_name}] kline数据长度不相同")
                 }
             },

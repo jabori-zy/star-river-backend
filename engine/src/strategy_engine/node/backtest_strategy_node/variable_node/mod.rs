@@ -19,8 +19,7 @@ use variable_node_context::VariableNodeContext;
 use variable_node_state_machine::{VariableNodeStateAction, VariableNodeStateMachine};
 
 use tokio::sync::Mutex;
-use event_center::communication::backtest_strategy::{StrategyCommandReceiver, NodeCommandSender, StrategyCommandSender, NodeCommandReceiver};
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
 use virtual_trading::VirtualTradingSystem;
 use star_river_core::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
 use star_river_core::error::engine_error::node_error::get_variable_node::ConfigFieldValueNullSnafu;
@@ -42,7 +41,6 @@ impl VariableNode {
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, GetVariableNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_get_variable_node_config(node_config)?;
@@ -54,7 +52,6 @@ impl VariableNode {
             Box::new(VariableNodeStateMachine::new(node_id, node_name)),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
         Ok(Self {
@@ -302,20 +299,6 @@ impl BacktestNodeTrait for VariableNode {
                         );
                         let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
-                    }
-                    VariableNodeStateAction::ListenAndHandleStrategyInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            variable_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-                        self.listen_strategy_inner_events().await;
                     }
                     VariableNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("[{node_name}({node_id})] starting to listen strategy command");

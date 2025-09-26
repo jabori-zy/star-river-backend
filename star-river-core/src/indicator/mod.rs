@@ -1,13 +1,7 @@
+pub mod indicator_define;
 pub mod indicator_macros;
 pub mod utils;
-pub mod indicator_define;
 
-use crate::market::{Exchange, KlineInterval};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::any::Any;
-use std::collections::HashMap;
-use std::fmt::Debug;
 use crate::error::star_river_error::*;
 use crate::indicator::indicator_define::cycle::*;
 use crate::indicator::indicator_define::momentum::*;
@@ -16,10 +10,16 @@ use crate::indicator::indicator_define::pattern_recognition::*;
 use crate::indicator::indicator_define::price_transform::*;
 use crate::indicator::indicator_define::volatility::*;
 use crate::indicator::indicator_define::volume::*;
+use crate::market::{Exchange, KlineInterval};
 use crate::{impl_indicator, impl_indicator_config};
-use deepsize::DeepSizeOf;
-use strum::{Display, EnumString};
 use chrono::{DateTime, Utc};
+use deepsize::DeepSizeOf;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::any::Any;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use strum::{Display, EnumString};
 
 use crate::error::indicator_error::*;
 use snafu::ResultExt;

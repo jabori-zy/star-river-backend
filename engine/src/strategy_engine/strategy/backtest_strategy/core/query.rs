@@ -1,9 +1,9 @@
 use super::{
-    BacktestStrategy, BacktestStrategyError, StatsSnapshot, StrategyRunningLogEvent, VirtualOrder,
-    VirtualPosition, VirtualTransaction,
+    BacktestStrategy, BacktestStrategyError, StatsSnapshot, StrategyRunningLogEvent, VirtualOrder, VirtualPosition,
+    VirtualTransaction,
 };
-use star_river_core::key::Key;
 use star_river_core::custom_type::PlayIndex;
+use star_river_core::key::Key;
 
 impl BacktestStrategy {
     pub async fn get_play_index(&self) -> i32 {

@@ -1,10 +1,10 @@
 use super::{
     BacktestNodeTrait, BacktestStrategyConfig, BacktestStrategyContext, BacktestStrategyError,
-    GetStartNodeConfigFailedSnafu
+    GetStartNodeConfigFailedSnafu,
 };
+use event_center::communication::Response;
 use event_center::communication::backtest_strategy::GetStartNodeConfigCommand;
 use tokio::sync::oneshot;
-use event_center::communication::Response;
 
 impl BacktestStrategyContext {
     // 拓扑排序
@@ -20,9 +20,9 @@ impl BacktestStrategyContext {
     pub async fn get_start_node_config(&self) -> Result<BacktestStrategyConfig, BacktestStrategyError> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let cmd = GetStartNodeConfigCommand::new("start_node".to_string(), resp_tx, None);
-        
+
         self.send_node_command(cmd.into()).await;
-        
+
         let response = resp_rx.await.unwrap();
         if response.is_success() {
             Ok(response.backtest_strategy_config.clone())

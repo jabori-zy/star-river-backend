@@ -1,10 +1,9 @@
 use super::{
-    BacktestStrategyContext, BacktestStrategyError,
-    EventCenterSingleton, GetDataFailedSnafu, Key, PlayIndex, StatsSnapshot,
-    VirtualOrder, VirtualPosition, VirtualTransaction, KlineDataLengthNotSameSnafu,
+    BacktestStrategyContext, BacktestStrategyError, EventCenterSingleton, GetDataFailedSnafu, Key,
+    KlineDataLengthNotSameSnafu, PlayIndex, StatsSnapshot, VirtualOrder, VirtualPosition, VirtualTransaction,
 };
-use tokio::sync::oneshot;
 use star_river_core::market::QuantData;
+use tokio::sync::oneshot;
 
 impl BacktestStrategyContext {
     // 获取所有的virtual order
@@ -37,12 +36,14 @@ impl BacktestStrategyContext {
         strategy_stats.get_stats_history(play_index).await
     }
 
-
     pub async fn get_signal_count(&self) -> Result<i32, BacktestStrategyError> {
         let kline_data_guard = self.kline_data.read().await;
         // 获取每一个key对应列表的长度
-        let kline_data_lengths = kline_data_guard.values().map(|data| data.len() as i32).collect::<Vec<i32>>();
-        
+        let kline_data_lengths = kline_data_guard
+            .values()
+            .map(|data| data.len() as i32)
+            .collect::<Vec<i32>>();
+
         // 如果只有一个key，则返回该key的长度
         if kline_data_lengths.len() == 1 {
             return Ok(kline_data_lengths[0]);
@@ -57,7 +58,6 @@ impl BacktestStrategyContext {
                 .build());
             }
         }
-
     }
 
     pub async fn get_strategy_data(
@@ -107,12 +107,7 @@ impl BacktestStrategyContext {
                 Ok(indicator_data)
             }
         }
-
     }
-
-
-    
-
 
     pub(super) async fn clear_data(&mut self) {
         let mut kline_data_guard = self.kline_data.write().await;

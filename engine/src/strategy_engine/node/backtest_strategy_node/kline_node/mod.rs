@@ -17,7 +17,6 @@ use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
 use kline_node_type::KlineNodeBacktestConfig;
-use star_river_core::strategy::strategy_inner_event::{StrategyInnerEventReceiver};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use star_river_core::custom_type::PlayIndex;
 use snafu::Report;
@@ -42,7 +41,6 @@ impl KlineNode {
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_kline_node_config(node_config)?;
@@ -59,7 +57,6 @@ impl KlineNode {
             )),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
         let context = KlineNodeContext::new(base_context, backtest_config, heartbeat);
@@ -309,21 +306,6 @@ impl BacktestNodeTrait for KlineNode {
                         );
                         let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
-                    }
-                    KlineNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            KlineNodeStateAction::ListenAndHandleInnerEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-
-                        self.listen_strategy_inner_events().await;
                     }
                     KlineNodeStateAction::GetMinIntervalSymbols => {
                         tracing::info!("[{node_name}({node_id})] start to get min interval symbols");

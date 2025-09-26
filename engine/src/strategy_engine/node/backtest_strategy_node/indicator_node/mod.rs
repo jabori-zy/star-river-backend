@@ -2,21 +2,21 @@ pub mod indicator_node_context;
 pub mod indicator_node_state_machine;
 pub mod indicator_node_type;
 
-use tokio::sync::broadcast;
-use std::fmt::Debug;
-use std::any::Any;
-use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
+use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_state_machine::*;
-use indicator_node_state_machine::{IndicatorNodeStateManager,IndicatorNodeStateAction};
-use std::time::Duration;
+use crate::strategy_engine::node::{BacktestNodeTrait, NodeType};
+use async_trait::async_trait;
+use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
 use indicator_node_context::IndicatorNodeContext;
-use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext,BacktestNodeContextTrait};
+use indicator_node_state_machine::{IndicatorNodeStateAction, IndicatorNodeStateManager};
+use std::any::Any;
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
-use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
+use tokio::sync::RwLock;
+use tokio::sync::broadcast;
+
 use indicator_node_type::IndicatorNodeBacktestConfig;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
@@ -49,7 +49,6 @@ impl IndicatorNode {
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IndicatorNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_indicator_node_config(node_config)?;
@@ -65,7 +64,6 @@ impl IndicatorNode {
             )),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
 
@@ -534,20 +532,6 @@ impl BacktestNodeTrait for IndicatorNode {
                         let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
                     }
-                    IndicatorNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IndicatorNodeStateAction::ListenAndHandleInnerEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-                        self.listen_strategy_inner_events().await;
-                    }
                     IndicatorNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
                         let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
@@ -566,10 +550,12 @@ impl BacktestNodeTrait for IndicatorNode {
                     IndicatorNodeStateAction::InitIndicatorLookback => {
                         let context = self.get_context();
                         let mut context_guard = context.write().await;
-                        let indicator_node_context = context_guard.as_any_mut().downcast_mut::<IndicatorNodeContext>().unwrap();
+                        let indicator_node_context = context_guard
+                            .as_any_mut()
+                            .downcast_mut::<IndicatorNodeContext>()
+                            .unwrap();
                         indicator_node_context.init_indicator_lookback().await;
                         tracing::info!("[{node_name})] init indicator lookback complete");
-
                     }
 
                     IndicatorNodeStateAction::GetMinIntervalSymbols => {
@@ -594,7 +580,6 @@ impl BacktestNodeTrait for IndicatorNode {
                             let _ = strategy_output_handle.send(log_event.into());
                         }
                     }
-
 
                     IndicatorNodeStateAction::CalculateIndicator => {
                         tracing::info!("[{node_name}({node_id})] starting to calculate indicator");

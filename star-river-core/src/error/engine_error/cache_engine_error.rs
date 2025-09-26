@@ -8,10 +8,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum CacheEngineError {
     #[snafu(display("key [{key}] not found"))]
-    KeyNotFound {
-        key: String,
-        backtrace: Backtrace,
-    }
+    KeyNotFound { key: String, backtrace: Backtrace },
 }
 
 impl StarRiverErrorTrait for CacheEngineError {
@@ -46,7 +43,8 @@ impl StarRiverErrorTrait for CacheEngineError {
         match language {
             Language::English => self.to_string(),
             Language::Chinese => match self {
-                CacheEngineError::KeyNotFound {key,..} => {format!("缓存key [{}] 不存在",key)
+                CacheEngineError::KeyNotFound { key, .. } => {
+                    format!("缓存key [{}] 不存在", key)
                 }
             },
         }

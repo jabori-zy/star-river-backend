@@ -1,5 +1,5 @@
 use super::node_context::{BacktestNodeContextTrait, LiveNodeContextTrait};
-use crate::{strategy_engine::node::node_types::NodeType};
+use crate::strategy_engine::node::node_types::NodeType;
 use event_center::Channel;
 use event_center::EventCenterSingleton;
 use event_center::event::Event;
@@ -272,50 +272,6 @@ impl BacktestNodeFunction {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut state_guard = state.write().await;
                                 state_guard.handle_node_event(message).await;
-                            }
-                            Some(Err(e)) => {
-                                tracing::error!("节点{}接收消息错误: {}", node_id, e);
-                            }
-                            None => {
-                                tracing::warn!("节点{}所有消息流已关闭", node_id);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    pub async fn listen_strategy_inner_events(context: Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>) {
-        let (inner_event_receiver, cancel_token, node_id) = {
-            let state_guard = context.read().await;
-            let receiver = state_guard.get_strategy_inner_event_receiver().resubscribe();
-            let cancel_token = state_guard.get_cancel_token().clone();
-            let node_id = state_guard.get_node_id().to_string();
-            (receiver, cancel_token, node_id)
-        };
-
-        // 创建一个流，用于接收节点传递过来的message
-        let mut stream = BroadcastStream::new(inner_event_receiver);
-        let state = context.clone();
-
-        // 节点接收数据
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    // 如果取消信号被触发，则中止任务
-                    _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 策略内部事件监听任务已中止", node_id);
-                        break;
-                    }
-                    // 接收消息
-                    receive_result = stream.next() => {
-                        match receive_result {
-                            Some(Ok(message)) => {
-                                // tracing::debug!("{} 收到消息: {:?}", node_id, message);
-                                let mut state_guard = state.write().await;
-                                state_guard.handle_strategy_inner_event(message).await;
                             }
                             Some(Err(e)) => {
                                 tracing::error!("节点{}接收消息错误: {}", node_id, e);

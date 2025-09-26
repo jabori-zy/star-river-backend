@@ -1,23 +1,10 @@
 use super::{
-    KlineNodeContext,
-    GetKlineHistoryCmdPayload,
-    GetKlineHistoryCommand,
-    MarketEngineCommand,
-    InitKlineDataCmdPayload,
-    InitKlineDataCommand,
-    EventCenterSingleton,
-    BacktestNodeContextTrait,
-    KeyTrait,
-    Response,
-    RegisterExchangeCmdPayload,
-    ExchangeEngineCommand,
-    EngineResponse,
-    RegisterExchangeRespPayload,
-    RegisterExchangeCommand
+    BacktestNodeContextTrait, EngineResponse, EventCenterSingleton, ExchangeEngineCommand, GetKlineHistoryCmdPayload,
+    GetKlineHistoryCommand, InitKlineDataCmdPayload, InitKlineDataCommand, KeyTrait, KlineNodeContext,
+    MarketEngineCommand, RegisterExchangeCmdPayload, RegisterExchangeCommand, RegisterExchangeRespPayload, Response,
 };
 use tokio::sync::oneshot;
 use tracing::instrument;
-
 
 impl KlineNodeContext {
     // 从交易所获取k线历史(仅获取最小interval的k线)
@@ -63,10 +50,8 @@ impl KlineNodeContext {
                 symbol_key.get_interval(),
                 symbol_key.get_time_range().unwrap(),
             );
-            let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(),resp_tx,Some(payload)).into();
-            EventCenterSingleton::send_command(cmd.into())
-                .await
-                .unwrap();
+            let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(), resp_tx, Some(payload)).into();
+            EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
             let response = resp_rx.await.unwrap();
             if response.is_success() {
@@ -80,16 +65,10 @@ impl KlineNodeContext {
                 );
 
                 let (resp_tx, resp_rx) = oneshot::channel();
-                let payload = InitKlineDataCmdPayload::new(
-                    symbol_key.clone(),
-                    kline_history,
-                );
-                
-                let init_kline_data_command= InitKlineDataCommand::new(
-                    self.get_node_id().clone(),
-                    resp_tx,
-                    Some(payload),
-                );
+                let payload = InitKlineDataCmdPayload::new(symbol_key.clone(), kline_history);
+
+                let init_kline_data_command =
+                    InitKlineDataCommand::new(self.get_node_id().clone(), resp_tx, Some(payload));
 
                 self.get_strategy_command_sender()
                     .send(init_kline_data_command.into())
@@ -100,17 +79,13 @@ impl KlineNodeContext {
                 if response.is_success() {
                     continue;
                 }
-                
-            }
-
-            else {
+            } else {
                 is_all_success = false;
                 break;
             }
         }
         Ok(is_all_success)
     }
-
 
     // 注册交易所
     #[instrument(skip(self))]
@@ -137,10 +112,7 @@ impl KlineNodeContext {
         tracing::info!("[{}] start to register exchange [{}]", node_name, exchange);
 
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = RegisterExchangeCmdPayload::new(
-            account_id, 
-            exchange
-        );
+        let payload = RegisterExchangeCmdPayload::new(account_id, exchange);
         let cmd: ExchangeEngineCommand = RegisterExchangeCommand::new(node_id, resp_tx, Some(payload)).into();
 
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();

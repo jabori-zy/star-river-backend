@@ -1,20 +1,13 @@
 use snafu::Report;
-use star_river_core::key::KeyTrait;
-use star_river_core::market::{QuantData, Kline};
 use star_river_core::indicator::Indicator;
-use star_river_core::key::key::{KlineKey, IndicatorKey};
+use star_river_core::key::KeyTrait;
+use star_river_core::key::key::{IndicatorKey, KlineKey};
+use star_river_core::market::{Kline, QuantData};
 use std::collections::HashMap;
 
 use super::{
-    CacheEngineContext,
-    Key,
-    Duration,
-    KlineCacheEntry,
-    IndicatorCacheEntry,
-    StrategyId,
-    CacheEntryTrait,
-    CacheEngineError,
-    KeyNotFoundSnafu
+    CacheEngineContext, CacheEngineError, CacheEntryTrait, Duration, IndicatorCacheEntry, Key, KeyNotFoundSnafu,
+    KlineCacheEntry, StrategyId,
 };
 
 mod kline {
@@ -22,7 +15,13 @@ mod kline {
 
     impl CacheEngineContext {
         // 添加K线缓存键
-        pub async fn add_kline_key(&mut self, strategy_id: StrategyId, key: KlineKey, max_size: Option<u32>, ttl: Duration) {
+        pub async fn add_kline_key(
+            &mut self,
+            strategy_id: StrategyId,
+            key: KlineKey,
+            max_size: Option<u32>,
+            ttl: Duration,
+        ) {
             let mut kline_cache = self.kline_cache.write().await;
             let mut kline_key_subscribe = self.kline_key_subscribe.write().await;
 
@@ -32,11 +31,18 @@ mod kline {
             }
 
             let key_clone = key.clone();
-            kline_cache.entry(key).or_insert_with(|| KlineCacheEntry::new(key_clone, max_size, ttl));
+            kline_cache
+                .entry(key)
+                .or_insert_with(|| KlineCacheEntry::new(key_clone, max_size, ttl));
         }
 
         // 获取K线缓存数据
-        pub async fn get_kline_cache(&self, key: &KlineKey, index: Option<u32>, limit: Option<u32>) -> Result<Vec<Kline>, CacheEngineError> {
+        pub async fn get_kline_cache(
+            &self,
+            key: &KlineKey,
+            index: Option<u32>,
+            limit: Option<u32>,
+        ) -> Result<Vec<Kline>, CacheEngineError> {
             let kline_cache = self.kline_cache.read().await;
             match kline_cache.get(key) {
                 Some(cache_entry) => Ok(cache_entry.get_data(index, limit)),
@@ -50,7 +56,12 @@ mod kline {
         }
 
         // 获取多个K线缓存数据
-        pub async fn get_kline_cache_multi(&self, keys: &Vec<KlineKey>, index: Option<u32>, limit: Option<u32>) -> Result<HashMap<KlineKey, Vec<Kline>>, CacheEngineError> {
+        pub async fn get_kline_cache_multi(
+            &self,
+            keys: &Vec<KlineKey>,
+            index: Option<u32>,
+            limit: Option<u32>,
+        ) -> Result<HashMap<KlineKey, Vec<Kline>>, CacheEngineError> {
             let kline_cache = self.kline_cache.read().await;
             let mut cache_data = HashMap::new();
 
@@ -85,7 +96,10 @@ mod kline {
         }
 
         // 获取多个K线缓存长度
-        pub async fn get_kline_cache_length_multi(&self, keys: &Vec<KlineKey>) -> Result<HashMap<KlineKey, u32>, CacheEngineError> {
+        pub async fn get_kline_cache_length_multi(
+            &self,
+            keys: &Vec<KlineKey>,
+        ) -> Result<HashMap<KlineKey, u32>, CacheEngineError> {
             let kline_cache = self.kline_cache.read().await;
             let mut cache_data = HashMap::new();
 
@@ -106,13 +120,19 @@ mod kline {
         }
 
         // 更新K线缓存数据
-        pub async fn update_kline_cache(&mut self, strategy_id: StrategyId, key: KlineKey, cache_value: Kline) -> Result<(), CacheEngineError> {
+        pub async fn update_kline_cache(
+            &mut self,
+            strategy_id: StrategyId,
+            key: KlineKey,
+            cache_value: Kline,
+        ) -> Result<(), CacheEngineError> {
             // 先检查键是否存在
             let key_exists = { self.kline_cache.read().await.contains_key(&key) };
 
             if !key_exists {
                 // 如果缓存键不存在，先添加键
-                self.add_kline_key(strategy_id, key.clone(), None, Duration::from_secs(10)).await;
+                self.add_kline_key(strategy_id, key.clone(), None, Duration::from_secs(10))
+                    .await;
             }
 
             // 重新获取锁并更新
@@ -156,7 +176,13 @@ mod indicator {
 
     impl CacheEngineContext {
         // 添加指标缓存键
-        pub async fn add_indicator_key(&mut self, strategy_id: StrategyId, key: IndicatorKey, max_size: Option<u32>, ttl: Duration) {
+        pub async fn add_indicator_key(
+            &mut self,
+            strategy_id: StrategyId,
+            key: IndicatorKey,
+            max_size: Option<u32>,
+            ttl: Duration,
+        ) {
             let mut indicator_cache = self.indicator_cache.write().await;
             let mut indicator_key_subscribe = self.indicator_key_subscribe.write().await;
 
@@ -166,11 +192,18 @@ mod indicator {
             }
 
             let key_clone = key.clone();
-            indicator_cache.entry(key).or_insert_with(|| IndicatorCacheEntry::new(key_clone, max_size, ttl));
+            indicator_cache
+                .entry(key)
+                .or_insert_with(|| IndicatorCacheEntry::new(key_clone, max_size, ttl));
         }
 
         // 获取指标缓存数据
-        pub async fn get_indicator_cache(&self, key: &IndicatorKey, index: Option<u32>, limit: Option<u32>) -> Result<Vec<Indicator>, CacheEngineError> {
+        pub async fn get_indicator_cache(
+            &self,
+            key: &IndicatorKey,
+            index: Option<u32>,
+            limit: Option<u32>,
+        ) -> Result<Vec<Indicator>, CacheEngineError> {
             let indicator_cache = self.indicator_cache.read().await;
             match indicator_cache.get(key) {
                 Some(cache_entry) => Ok(cache_entry.get_data(index, limit)),
@@ -184,7 +217,12 @@ mod indicator {
         }
 
         // 获取多个指标缓存数据
-        pub async fn get_indicator_cache_multi(&self, keys: &Vec<IndicatorKey>, index: Option<u32>, limit: Option<u32>) -> Result<HashMap<IndicatorKey, Vec<Indicator>>, CacheEngineError> {
+        pub async fn get_indicator_cache_multi(
+            &self,
+            keys: &Vec<IndicatorKey>,
+            index: Option<u32>,
+            limit: Option<u32>,
+        ) -> Result<HashMap<IndicatorKey, Vec<Indicator>>, CacheEngineError> {
             let indicator_cache = self.indicator_cache.read().await;
             let mut cache_data = HashMap::new();
 
@@ -219,7 +257,10 @@ mod indicator {
         }
 
         // 获取多个指标缓存长度
-        pub async fn get_indicator_cache_length_multi(&self, keys: &Vec<IndicatorKey>) -> Result<HashMap<IndicatorKey, u32>, CacheEngineError> {
+        pub async fn get_indicator_cache_length_multi(
+            &self,
+            keys: &Vec<IndicatorKey>,
+        ) -> Result<HashMap<IndicatorKey, u32>, CacheEngineError> {
             let indicator_cache = self.indicator_cache.read().await;
             let mut cache_data = HashMap::new();
             for key in keys {
@@ -239,13 +280,19 @@ mod indicator {
         }
 
         // 更新指标缓存数据
-        pub async fn update_indicator_cache(&mut self, strategy_id: StrategyId, key: IndicatorKey, cache_value: Indicator) -> Result<(), CacheEngineError> {
+        pub async fn update_indicator_cache(
+            &mut self,
+            strategy_id: StrategyId,
+            key: IndicatorKey,
+            cache_value: Indicator,
+        ) -> Result<(), CacheEngineError> {
             // 先检查键是否存在
             let key_exists = { self.indicator_cache.read().await.contains_key(&key) };
 
             if !key_exists {
                 // 如果缓存键不存在，先添加键
-                self.add_indicator_key(strategy_id, key.clone(), None, Duration::from_secs(10)).await;
+                self.add_indicator_key(strategy_id, key.clone(), None, Duration::from_secs(10))
+                    .await;
             }
 
             // 重新获取锁并更新

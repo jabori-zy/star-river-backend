@@ -3,20 +3,20 @@ pub mod exchange_engine;
 pub mod indicator_engine;
 pub mod market_engine;
 
+use crate::communication::{Command, Response};
 use cache_engine::CacheEngineCommand;
+use chrono::Utc;
+use derive_more::From;
 use exchange_engine::ExchangeEngineCommand;
 use indicator_engine::IndicatorEngineCommand;
 use market_engine::MarketEngineCommand;
+use star_river_core::engine::EngineName;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::system::DateTimeUtc;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
-use chrono::Utc;
-use derive_more::From;
-use std::ops::Deref;
-use crate::communication::{Command, Response};
-use star_river_core::engine::EngineName;
 pub type EngineCommandSender = mpsc::Sender<EngineCommand>; // 命令发送器
 pub type EngineCommandReceiver = mpsc::Receiver<EngineCommand>; // 命令接收器
 
@@ -67,7 +67,10 @@ impl<T, S> Command for GenericEngineCommand<T, S> {
 impl<T, S> Deref for GenericEngineCommand<T, S> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.command_payload.as_ref().expect("Command payload should exist when accessing data")
+        &self
+            .command_payload
+            .as_ref()
+            .expect("Command payload should exist when accessing data")
     }
 }
 
@@ -125,7 +128,8 @@ impl<S> Response for EngineResponse<S> {
     }
 
     fn get_error(&self) -> Arc<dyn StarRiverErrorTrait + Send + Sync> {
-        self.response_base.error
+        self.response_base
+            .error
             .clone()
             .expect("Error should exist when success is false")
     }
@@ -138,7 +142,9 @@ impl<S> Response for EngineResponse<S> {
 impl<S> Deref for EngineResponse<S> {
     type Target = S;
     fn deref(&self) -> &Self::Target {
-        &self.response_payload.as_ref()
+        &self
+            .response_payload
+            .as_ref()
             .expect("Response payload should exist when accessing data")
     }
 }
@@ -150,7 +156,6 @@ pub enum EngineCommand {
     ExchangeEngine(ExchangeEngineCommand),   // 交易所引擎命令
     MarketEngine(MarketEngineCommand),       // 市场引擎命令
 }
-
 
 impl EngineCommand {
     pub fn get_engine_name(&self) -> EngineName {

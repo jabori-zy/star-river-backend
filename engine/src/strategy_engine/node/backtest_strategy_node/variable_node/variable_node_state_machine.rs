@@ -8,8 +8,6 @@ use strum::Display;
 pub enum VariableNodeStateAction {
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
-    #[strum(serialize = "ListenAndHandleStrategyInnerEvents")]
-    ListenAndHandleStrategyInnerEvents, // 处理策略内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     #[strum(serialize = "RegisterTask")]
@@ -96,7 +94,6 @@ impl BacktestNodeStateMachine for VariableNodeStateMachine {
                     actions: vec![
                         Box::new(VariableNodeStateAction::LogTransition),
                         Box::new(VariableNodeStateAction::ListenAndHandleNodeEvents),
-                        Box::new(VariableNodeStateAction::ListenAndHandleStrategyInnerEvents),
                         Box::new(VariableNodeStateAction::ListenAndHandleStrategyCommand),
                     ],
                 }))

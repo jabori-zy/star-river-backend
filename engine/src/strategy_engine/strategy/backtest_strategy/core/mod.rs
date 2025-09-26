@@ -5,7 +5,6 @@ pub mod query;
 pub mod state_handler;
 
 use super::{
-    BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey,
-    BacktestStrategyCommand, StatsSnapshot, StrategyInnerEvent, StrategyRunningLogEvent, VirtualOrder, VirtualPosition,
-    VirtualTransaction,
+    BacktestStrategy, BacktestStrategyCommand, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait,
+    KlineInterval, KlineKey, StatsSnapshot, StrategyRunningLogEvent, VirtualOrder, VirtualPosition, VirtualTransaction,
 };

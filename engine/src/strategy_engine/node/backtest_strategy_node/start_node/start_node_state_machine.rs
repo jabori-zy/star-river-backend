@@ -8,8 +8,6 @@ use strum::Display;
 pub enum StartNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
     ListenAndHandleExternalEvents, // 处理外部事件
-    #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents, // 处理内部事件
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
     ListenAndHandlePlayIndex, // 处理播放索引
@@ -99,11 +97,10 @@ impl BacktestNodeStateMachine for StartNodeStateMachine {
                     new_state: BacktestNodeRunState::Initializing,
                     actions: vec![
                         Box::new(StartNodeStateAction::LogTransition),
-                        Box::new(StartNodeStateAction::ListenAndHandleInnerEvents), // 处理内部事件
                         Box::new(StartNodeStateAction::ListenAndHandleStrategyCommand), // 处理策略命令
-                        Box::new(StartNodeStateAction::ListenAndHandlePlayIndex),   // 处理播放索引
-                        Box::new(StartNodeStateAction::InitVirtualTradingSystem),   // 初始化虚拟交易系统
-                        Box::new(StartNodeStateAction::InitStrategyStats),          // 初始化策略统计
+                        Box::new(StartNodeStateAction::ListenAndHandlePlayIndex),       // 处理播放索引
+                        Box::new(StartNodeStateAction::InitVirtualTradingSystem),       // 初始化虚拟交易系统
+                        Box::new(StartNodeStateAction::InitStrategyStats),              // 初始化策略统计
                     ],
                 }))
             }

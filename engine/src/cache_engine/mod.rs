@@ -4,18 +4,18 @@ mod cache_entry;
 use crate::Engine;
 use crate::EngineContext;
 use crate::EngineName;
+use crate::cache_engine::cache_entry::CacheEntryTrait;
 use async_trait::async_trait;
 use cache_engine_context::CacheEngineContext;
+use serde_json;
 use star_river_core::key::Key;
+use star_river_core::key::KeyTrait;
+use star_river_core::market::QuantData;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use star_river_core::key::KeyTrait;
-use crate::cache_engine::cache_entry::CacheEntryTrait;
-use serde_json;
-use star_river_core::market::QuantData;
 
 #[derive(Debug, Clone)]
 pub struct CacheEngine {
@@ -69,18 +69,12 @@ impl CacheEngine {
             match key_type {
                 "kline" => {
                     let kline_cache = cache_engine_context.kline_cache.read().await;
-                    let keys = kline_cache
-                        .keys()
-                        .map(|key| key.get_key_str())
-                        .collect();
+                    let keys = kline_cache.keys().map(|key| key.get_key_str()).collect();
                     Ok(keys)
                 }
                 "indicator" => {
                     let indicator_cache = cache_engine_context.indicator_cache.read().await;
-                    let keys = indicator_cache
-                        .keys()
-                        .map(|key| key.get_key_str())
-                        .collect();
+                    let keys = indicator_cache.keys().map(|key| key.get_key_str()).collect();
                     Ok(keys)
                 }
                 _ => Err("Invalid cache key type".to_string()),
@@ -99,27 +93,33 @@ impl CacheEngine {
     }
 
     // 获取缓存值
-    pub async fn get_cache_value(&self, key: &Key, index: Option<u32>, limit: Option<u32>) -> Result<Vec<serde_json::Value>, String> {
+    pub async fn get_cache_value(
+        &self,
+        key: &Key,
+        index: Option<u32>,
+        limit: Option<u32>,
+    ) -> Result<Vec<serde_json::Value>, String> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();
 
         match key {
-            Key::Kline(kline_key) => {
-                match cache_engine_context.get_kline_cache(kline_key, index, limit).await {
-                    Ok(klines) => {
-                        let value: Vec<serde_json::Value> = klines.iter().map(|v| v.to_json()).collect();
-                        Ok(value)
-                    }
-                    Err(e) => Err(format!("获取K线缓存失败: {}", e))
+            Key::Kline(kline_key) => match cache_engine_context.get_kline_cache(kline_key, index, limit).await {
+                Ok(klines) => {
+                    let value: Vec<serde_json::Value> = klines.iter().map(|v| v.to_json()).collect();
+                    Ok(value)
                 }
-            }
+                Err(e) => Err(format!("获取K线缓存失败: {}", e)),
+            },
             Key::Indicator(indicator_key) => {
-                match cache_engine_context.get_indicator_cache(indicator_key, index, limit).await {
+                match cache_engine_context
+                    .get_indicator_cache(indicator_key, index, limit)
+                    .await
+                {
                     Ok(indicators) => {
                         let value: Vec<serde_json::Value> = indicators.iter().map(|v| v.to_json()).collect();
                         Ok(value)
                     }
-                    Err(e) => Err(format!("获取指标缓存失败: {}", e))
+                    Err(e) => Err(format!("获取指标缓存失败: {}", e)),
                 }
             }
         }

@@ -71,10 +71,7 @@ impl EngineContext for ExchangeEngineContext {
 
                         let response = if let Ok(()) = result {
                             // success
-                            let payload = RegisterExchangeRespPayload::new(
-                                cmd.account_id,
-                                cmd.exchange.clone(),
-                            );
+                            let payload = RegisterExchangeRespPayload::new(cmd.account_id, cmd.exchange.clone());
                             RegisterExchangeResponse::success(Some(payload))
                         } else {
                             // 注册失败

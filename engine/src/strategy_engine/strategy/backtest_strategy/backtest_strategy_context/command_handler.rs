@@ -1,12 +1,4 @@
-use super::{
-    BacktestStrategyContext,
-    KlineKey,
-    IndicatorKey,
-    Indicator,
-    Kline,
-    QuantData
-};
-
+use super::{BacktestStrategyContext, Indicator, IndicatorKey, Kline, KlineKey, QuantData};
 
 mod kline {
     use super::*;
@@ -24,7 +16,12 @@ mod kline {
             }
         }
 
-        pub async fn get_kline_data(&self, kline_key: &KlineKey, play_index: Option<i32>, limit: Option<i32>) -> Vec<Kline> {
+        pub async fn get_kline_data(
+            &self,
+            kline_key: &KlineKey,
+            play_index: Option<i32>,
+            limit: Option<i32>,
+        ) -> Vec<Kline> {
             let kline_data_guard = self.kline_data.read().await;
             if let Some(kline_data) = kline_data_guard.get(kline_key) {
                 match (play_index, limit) {
@@ -36,14 +33,10 @@ mod kline {
                         } else {
                             // 计算从索引开始向前取limit个元素
                             let end = play_index as usize + 1;
-                            let start = if limit as usize >= end {
-                                0
-                            } else {
-                                end - limit as usize
-                            };
+                            let start = if limit as usize >= end { 0 } else { end - limit as usize };
                             kline_data[start..end].to_vec()
                         }
-                    },
+                    }
                     // 有index，无limit
                     (Some(play_index), None) => {
                         // 如果索引超出范围，返回空
@@ -54,7 +47,7 @@ mod kline {
                             let end = play_index as usize + 1;
                             kline_data[0..end].to_vec()
                         }
-                    },
+                    }
                     // 无index，有limit
                     (None, Some(limit)) => {
                         // 从后往前取limit条数据
@@ -64,7 +57,7 @@ mod kline {
                             let start = kline_data.len().saturating_sub(limit as usize);
                             kline_data[start..].to_vec()
                         }
-                    },
+                    }
                     // 无index，无limit
                     (None, None) => {
                         // 如果limit和index都为None，则返回所有数据
@@ -75,7 +68,6 @@ mod kline {
                 Vec::new()
             }
         }
-
 
         pub async fn update_kline_data(&mut self, kline_key: &KlineKey, kline: &Kline) -> Kline {
             // 先检查键是否存在，释放锁
@@ -112,11 +104,7 @@ mod kline {
 
             kline.clone()
         }
-    
-    
     }
-
-
 }
 
 mod indicator {
@@ -134,7 +122,12 @@ mod indicator {
             }
         }
 
-        pub async fn get_indicator_data(&self, indicator_key: &IndicatorKey, play_index: Option<i32>, limit: Option<i32>) -> Vec<Indicator> {
+        pub async fn get_indicator_data(
+            &self,
+            indicator_key: &IndicatorKey,
+            play_index: Option<i32>,
+            limit: Option<i32>,
+        ) -> Vec<Indicator> {
             let indicator_data_guard = self.indicator_data.read().await;
             if let Some(indicator_data) = indicator_data_guard.get(indicator_key) {
                 match (play_index, limit) {
@@ -146,14 +139,10 @@ mod indicator {
                         } else {
                             // 计算从索引开始向前取limit个元素
                             let end = play_index as usize + 1;
-                            let start = if limit as usize >= end {
-                                0
-                            } else {
-                                end - limit as usize
-                            };
+                            let start = if limit as usize >= end { 0 } else { end - limit as usize };
                             indicator_data[start..end].to_vec()
                         }
-                    },
+                    }
                     // 有index，无limit
                     (Some(play_index), None) => {
                         // 如果索引超出范围，返回空Vec
@@ -164,7 +153,7 @@ mod indicator {
                             let end = play_index as usize + 1;
                             indicator_data[0..end].to_vec()
                         }
-                    },
+                    }
                     // 无index，有limit
                     (None, Some(limit)) => {
                         // 从后往前取limit条数据
@@ -174,7 +163,7 @@ mod indicator {
                             let start = indicator_data.len().saturating_sub(limit as usize);
                             indicator_data[start..].to_vec()
                         }
-                    },
+                    }
                     // 无index，无limit
                     (None, None) => {
                         // 如果limit和index都为None，则返回所有数据
@@ -186,7 +175,11 @@ mod indicator {
             }
         }
 
-        pub async fn update_indicator_data(&mut self, indicator_key: &IndicatorKey, indicator: &Indicator) -> Indicator {
+        pub async fn update_indicator_data(
+            &mut self,
+            indicator_key: &IndicatorKey,
+            indicator: &Indicator,
+        ) -> Indicator {
             // 先检查键是否存在，释放锁
             let key_exists = { self.indicator_data.read().await.contains_key(indicator_key) };
 
@@ -221,6 +214,5 @@ mod indicator {
 
             indicator.clone()
         }
-
     }
 }

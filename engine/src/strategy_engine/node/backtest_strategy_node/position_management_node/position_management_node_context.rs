@@ -2,8 +2,8 @@ use super::position_management_node_types::*;
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse, StrategyCommand};
 use event_center::communication::Command;
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse, StrategyCommand};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{
@@ -15,7 +15,7 @@ use event_center::event::node_event::backtest_node_event::position_management_no
 };
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEvent;
+
 use star_river_core::virtual_trading_system::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver};
 use std::any::Any;
 use std::sync::Arc;
@@ -130,25 +130,6 @@ impl BacktestNodeContextTrait for PositionNodeContext {
 
             _ => {}
         }
-    }
-
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
-        // match strategy_inner_event {
-        //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-        //         // 更新k线缓存索引
-        //         self.set_play_index(play_index_update_event.play_index).await;
-        //         let strategy_output_handle_id = format!("{}_strategy_output", self.get_node_id());
-        //         let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-        //             from_node_id: self.get_node_id().clone(),
-        //             from_node_name: self.get_node_name().clone(),
-        //             from_node_handle_id: strategy_output_handle_id.clone(),
-        //             play_index: self.get_play_index().await,
-        //             message_timestamp: get_utc8_timestamp_millis(),
-        //         }));
-        //         self.get_strategy_output_handle().send(signal).unwrap();
-        //     }
-        //     _ => {}
-        // }
     }
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {

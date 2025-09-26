@@ -1,18 +1,17 @@
 use super::CacheEngineContext;
 use event_center::communication::Command;
 use event_center::communication::engine::cache_engine::*;
-use std::sync::Arc;
 use star_river_core::key::KeyTrait;
 use star_river_core::market::QuantData;
-
-
+use std::sync::Arc;
 
 mod kline {
     use super::*;
 
     impl CacheEngineContext {
         pub async fn handle_add_kline_key(&mut self, cmd: AddKlineKeyCommand) {
-            self.add_kline_key(cmd.strategy_id, cmd.key.clone(), cmd.max_size, cmd.duration).await;
+            self.add_kline_key(cmd.strategy_id, cmd.key.clone(), cmd.max_size, cmd.duration)
+                .await;
             let payload = AddKlineKeyRespPayload::new(cmd.key.clone());
             let response = AddKlineKeyResponse::success(Some(payload));
             cmd.respond(response);
@@ -73,7 +72,9 @@ mod kline {
         }
 
         pub async fn handle_update_kline_cache(&mut self, cmd: UpdateKlineCacheCommand) {
-            let result = self.update_kline_cache(cmd.strategy_id, cmd.key.clone(), cmd.value.clone()).await;
+            let result = self
+                .update_kline_cache(cmd.strategy_id, cmd.key.clone(), cmd.value.clone())
+                .await;
             match result {
                 Ok(()) => {
                     let payload = UpdateKlineCacheRespPayload::new(cmd.key.clone());
@@ -109,7 +110,8 @@ mod indicator {
 
     impl CacheEngineContext {
         pub async fn handle_add_indicator_key(&mut self, cmd: AddIndicatorKeyCommand) {
-            self.add_indicator_key(cmd.strategy_id, cmd.key.clone(), cmd.max_size, cmd.duration).await;
+            self.add_indicator_key(cmd.strategy_id, cmd.key.clone(), cmd.max_size, cmd.duration)
+                .await;
             let payload = AddIndicatorKeyRespPayload::new(cmd.key.clone());
             let response = AddIndicatorKeyResponse::success(Some(payload));
             cmd.respond(response);
@@ -170,7 +172,9 @@ mod indicator {
         }
 
         pub async fn handle_update_indicator_cache(&mut self, cmd: UpdateIndicatorCacheCommand) {
-            let result = self.update_indicator_cache(cmd.strategy_id, cmd.key.clone(), cmd.value.clone()).await;
+            let result = self
+                .update_indicator_cache(cmd.strategy_id, cmd.key.clone(), cmd.value.clone())
+                .await;
             match result {
                 Ok(()) => {
                     let payload = UpdateIndicatorCacheRespPayload::new(cmd.key.clone());

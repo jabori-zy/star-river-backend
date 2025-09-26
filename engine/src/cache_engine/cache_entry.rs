@@ -1,16 +1,15 @@
 use chrono::Utc;
+use deepsize::DeepSizeOf;
 use sea_orm::prelude::DateTimeUtc;
+use star_river_core::indicator::Indicator;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::key::*;
-use star_river_core::indicator::Indicator;
 use star_river_core::market::{Kline, QuantData};
-use deepsize::DeepSizeOf;
 use std::collections::VecDeque;
-use std::time::Duration;
 use std::fmt::Debug;
+use std::time::Duration;
 
 pub trait CacheEntryTrait {
-
     type Key: KeyTrait;
     type Value: QuantData;
 
@@ -58,7 +57,6 @@ impl<K: KeyTrait, V: QuantData + DeepSizeOf> GenericCacheEntry<K, V> {
 impl<K: KeyTrait, V: QuantData + DeepSizeOf> CacheEntryTrait for GenericCacheEntry<K, V> {
     type Key = K;
     type Value = V;
-
 
     fn initialize(&mut self, data: Vec<Self::Value>) {
         self.data = data.into_iter().collect();
@@ -194,9 +192,7 @@ impl KlineCacheEntry {
     }
 }
 
-
 pub type IndicatorCacheEntry = GenericCacheEntry<IndicatorKey, Indicator>;
-
 
 impl IndicatorCacheEntry {
     pub fn new(key: IndicatorKey, max_size: Option<u32>, ttl: Duration) -> Self {

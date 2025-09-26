@@ -14,9 +14,6 @@ pub enum KlineNodeStateAction {
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 监听节点消息
 
-    #[strum(serialize = "ListenAndHandleInnerEvents")]
-    ListenAndHandleInnerEvents, // 监听内部事件
-
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
 
@@ -124,7 +121,6 @@ impl BacktestNodeStateMachine for KlineNodeStateMachine {
                                 Box::new(KlineNodeStateAction::LogTransition),
                                 Box::new(KlineNodeStateAction::ListenAndHandleExternalEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleNodeEvents),
-                                Box::new(KlineNodeStateAction::ListenAndHandleInnerEvents),
                                 Box::new(KlineNodeStateAction::ListenAndHandleStrategyCommand),
                                 Box::new(KlineNodeStateAction::GetMinIntervalSymbols), // 获取最小周期交易对
                                 Box::new(KlineNodeStateAction::RegisterExchange),      // 注册交易所

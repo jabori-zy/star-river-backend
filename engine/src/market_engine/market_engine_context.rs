@@ -4,8 +4,8 @@ use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use crate::market_engine::market_engine_type::KlineSubKey;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
-use event_center::communication::Command;
 use event_center::EventCenterSingleton;
+use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::cache_engine::*;
 use event_center::communication::engine::market_engine::*;
@@ -14,8 +14,8 @@ use event_center::event::{
     ExchangeEvent,
     exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
 };
-use star_river_core::key::{Key, key::KlineKey};
 use star_river_core::custom_type::{AccountId, StrategyId};
+use star_river_core::key::{Key, key::KlineKey};
 use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
 use star_river_core::market::KlineInterval;
@@ -171,22 +171,12 @@ impl MarketEngineContext {
             end_time,
         };
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = AddKlineKeyCmdPayload::new(
-            strategy_id,
-            key,
-            Some(max_size),
-            Duration::from_millis(10),
-        );
-        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(
-            format!("strategy_{}", strategy_id),
-            resp_tx,
-            Some(payload),
-        ).into();
+        let payload = AddKlineKeyCmdPayload::new(strategy_id, key, Some(max_size), Duration::from_millis(10));
+        let cmd: CacheEngineCommand =
+            AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(cmd.into())
-            .await
-            .unwrap();
+        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
         let response_event = resp_rx.await.unwrap();
         tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
@@ -211,21 +201,12 @@ impl MarketEngineContext {
             end_time: Some(time_range.end_date.to_string()),
         };
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = AddKlineKeyCmdPayload::new(
-            strategy_id, 
-            key,
-            None, 
-            Duration::from_millis(10));
-        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(
-            format!("strategy_{}", strategy_id),
-            resp_tx,
-            Some(payload),
-        ).into();
+        let payload = AddKlineKeyCmdPayload::new(strategy_id, key, None, Duration::from_millis(10));
+        let cmd: CacheEngineCommand =
+            AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(cmd.into())
-            .await
-            .unwrap();
+        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
         let response_event = resp_rx.await.unwrap();
         tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);

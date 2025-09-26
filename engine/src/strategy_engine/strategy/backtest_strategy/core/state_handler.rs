@@ -52,7 +52,12 @@ impl BacktestStrategy {
                     if let Ok(count) = signal_count {
                         let mut signal_count_guard = context_guard.total_signal_count.write().await;
                         *signal_count_guard = count;
-                        tracing::info!("[{}({})] init signal count success. signal count: {}", strategy_name, strategy_id, count);
+                        tracing::info!(
+                            "[{}({})] init signal count success. signal count: {}",
+                            strategy_name,
+                            strategy_id,
+                            count
+                        );
                     } else {
                         let report = Report::from_error(signal_count.unwrap_err());
                         tracing::error!("{}", report);
@@ -91,6 +96,7 @@ impl BacktestStrategy {
                 }
 
                 BacktestStrategyStateAction::CheckNode => {
+                    tracing::info!("[{}] start check node", strategy_name);
                     let (strategy_id, strategy_name, current_state) = {
                         let context_guard = self.context.read().await;
                         (

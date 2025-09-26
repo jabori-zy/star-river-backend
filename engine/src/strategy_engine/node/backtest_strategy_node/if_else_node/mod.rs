@@ -13,7 +13,9 @@ use crate::strategy_engine::node::node_state_machine::*;
 use crate::strategy_engine::node::node_types::NodeType;
 use async_trait::async_trait;
 use condition::Case;
-use event_center::communication::backtest_strategy::{NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender, NodeCommandReceiver};
+use event_center::communication::backtest_strategy::{
+    NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender,
+};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::strategy_event::NodeStateLogEvent;
 use if_else_node_context::IfElseNodeContext;
@@ -23,7 +25,6 @@ use star_river_core::custom_type::PlayIndex;
 use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::node_error::if_else_node_error::*;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
-use star_river_core::strategy::strategy_inner_event::StrategyInnerEventReceiver;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -44,7 +45,6 @@ impl IfElseNode {
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
-        strategy_inner_event_receiver: StrategyInnerEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IfElseNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
@@ -60,7 +60,6 @@ impl IfElseNode {
             )),
             strategy_command_sender,
             node_command_receiver,
-            strategy_inner_event_receiver,
             play_index_watch_rx,
         );
         Ok(Self {
@@ -351,20 +350,6 @@ impl BacktestNodeTrait for IfElseNode {
                         );
                         let _ = strategy_output_handle.send(log_event.into());
                         self.listen_node_events().await;
-                    }
-                    IfElseNodeStateAction::ListenAndHandleInnerEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy inner events");
-                        let log_message = ListenStrategyInnerEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::ListenAndHandleInnerEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
-                        self.listen_strategy_inner_events().await;
                     }
                     IfElseNodeStateAction::InitReceivedData => {
                         tracing::info!("[{node_name}({node_id})] initializing received data flags");

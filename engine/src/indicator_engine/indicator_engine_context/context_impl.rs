@@ -3,13 +3,13 @@ use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::talib::TALib;
 use crate::{EngineContext, EngineName};
 use async_trait::async_trait;
+use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::indicator_engine::*;
 use event_center::event::Event;
 use event_center::event::ExchangeEvent;
 use std::any::Any;
 use std::sync::Arc;
-use event_center::communication::Command;
 
 #[async_trait]
 impl EngineContext for IndicatorEngineContext {
@@ -71,9 +71,7 @@ impl EngineContext for IndicatorEngineContext {
                     // }
                     IndicatorEngineCommand::GetIndicatorLookback(cmd) => {
                         let lookback = TALib::lookback(&cmd.indicator_key.indicator_config);
-                        let payload = GetIndicatorLookbackRespPayload::new(
-                            cmd.indicator_key.clone(), 
-                            lookback);
+                        let payload = GetIndicatorLookbackRespPayload::new(cmd.indicator_key.clone(), lookback);
 
                         let response = GetIndicatorLookbackResponse::success(Some(payload));
                         cmd.respond(response);
@@ -102,47 +100,46 @@ impl EngineContext for IndicatorEngineContext {
                             }
                         }
                     }
-                    _ => {}
-                    // // 计算指标
-                    // IndicatorEngineCommand::CalculateIndicator(cal_ind_params) => {
-                    //     // 计算结果
-                    //     let calculate_result = CalculateIndicatorFunction::calculate_indicator(
-                    //         self.cache_engine.clone(),
-                    //         cal_ind_params.kline_key.clone().into(),
-                    //         cal_ind_params.indicator_config.clone(),
-                    //         false,
-                    //     )
-                    //     .await;
-                    //     match calculate_result {
-                    //         Ok(indicator) => {
-                    //             // 更新缓存
-                    //             let cache_engine_guard = self.cache_engine.lock().await;
-                    //             cache_engine_guard
-                    //                 .update_indicator_cache(
-                    //                     cal_ind_params.kline_key.clone(),
-                    //                     cal_ind_params.indicator_config.clone(),
-                    //                     indicator.last().unwrap().clone(),
-                    //                 )
-                    //                 .await;
-                    //             // 发送计算指标完成响应
-                    //             let indicator_key =
-                    //                 IndicatorKey::new(cal_ind_params.kline_key, cal_ind_params.indicator_config);
-                    //             let calculate_indicator_response: EngineResponse = CalculateIndicatorResponse::success(
-                    //                 indicator_key.into(),
-                    //                 indicator.last().unwrap().clone(),
-                    //             )
-                    //             .into();
-                    //             cal_ind_params.responder.send(calculate_indicator_response).unwrap();
-                    //         }
-                    //         Err(error) => {
-                    //             let indicator_key =
-                    //                 IndicatorKey::new(cal_ind_params.kline_key, cal_ind_params.indicator_config);
-                    //             let calculate_indicator_response: EngineResponse =
-                    //                 CalculateIndicatorResponse::error(Arc::new(error), indicator_key.into()).into();
-                    //             cal_ind_params.responder.send(calculate_indicator_response).unwrap();
-                    //         }
-                    //     }
-                    // }
+                    _ => {} // // 计算指标
+                            // IndicatorEngineCommand::CalculateIndicator(cal_ind_params) => {
+                            //     // 计算结果
+                            //     let calculate_result = CalculateIndicatorFunction::calculate_indicator(
+                            //         self.cache_engine.clone(),
+                            //         cal_ind_params.kline_key.clone().into(),
+                            //         cal_ind_params.indicator_config.clone(),
+                            //         false,
+                            //     )
+                            //     .await;
+                            //     match calculate_result {
+                            //         Ok(indicator) => {
+                            //             // 更新缓存
+                            //             let cache_engine_guard = self.cache_engine.lock().await;
+                            //             cache_engine_guard
+                            //                 .update_indicator_cache(
+                            //                     cal_ind_params.kline_key.clone(),
+                            //                     cal_ind_params.indicator_config.clone(),
+                            //                     indicator.last().unwrap().clone(),
+                            //                 )
+                            //                 .await;
+                            //             // 发送计算指标完成响应
+                            //             let indicator_key =
+                            //                 IndicatorKey::new(cal_ind_params.kline_key, cal_ind_params.indicator_config);
+                            //             let calculate_indicator_response: EngineResponse = CalculateIndicatorResponse::success(
+                            //                 indicator_key.into(),
+                            //                 indicator.last().unwrap().clone(),
+                            //             )
+                            //             .into();
+                            //             cal_ind_params.responder.send(calculate_indicator_response).unwrap();
+                            //         }
+                            //         Err(error) => {
+                            //             let indicator_key =
+                            //                 IndicatorKey::new(cal_ind_params.kline_key, cal_ind_params.indicator_config);
+                            //             let calculate_indicator_response: EngineResponse =
+                            //                 CalculateIndicatorResponse::error(Arc::new(error), indicator_key.into()).into();
+                            //             cal_ind_params.responder.send(calculate_indicator_response).unwrap();
+                            //         }
+                            //     }
+                            // }
                 }
             }
             _ => {}
