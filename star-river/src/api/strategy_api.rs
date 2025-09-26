@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use engine::backtest_strategy_engine::StrategyEngine;
+use engine::backtest_strategy_engine::BacktestStrategyEngine;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
 use star_river_core::custom_type::NodeId;
@@ -293,7 +293,7 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let result = strategy_engine.init_strategy(strategy_id).await;
     if let Err(e) = result {
         return (StatusCode::CONFLICT, Json(NewApiResponse::error(e)));
@@ -314,7 +314,7 @@ pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id)
             let engine_manager = star_river.engine_manager.lock().await;
             let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
             let mut engine_guard = engine.lock().await;
-            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
             strategy_engine.start_strategy(strategy_id).await.unwrap();
         })
         .await;
@@ -347,7 +347,7 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
             let engine_manager = star_river.engine_manager.lock().await;
             let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
             let mut engine_guard = engine.lock().await;
-            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
             strategy_engine.stop_strategy(strategy_id).await.unwrap();
         })
         .await;
@@ -399,7 +399,7 @@ pub async fn get_strategy_cache_keys(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
 
     if let Ok(keys_map) = cache_keys {
@@ -417,7 +417,7 @@ pub async fn enable_strategy_data_push(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     strategy_engine
         .enable_live_strategy_data_push(strategy_id)
         .await
@@ -440,7 +440,7 @@ pub async fn disable_strategy_data_push(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     strategy_engine
         .disable_live_strategy_data_push(strategy_id)
         .await

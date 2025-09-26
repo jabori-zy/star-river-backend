@@ -44,8 +44,10 @@ impl EngineContext for CacheEngineContext {
         }
     }
 
+
     async fn handle_command(&mut self, command: EngineCommand) {
         match command {
+            #[cfg(feature = "paid")]
             EngineCommand::CacheEngine(command) => {
                 match command {
                     // 添加缓存键

@@ -5,6 +5,9 @@ description.workspace = true
 authors.workspace = true
 edition.workspace = true
 
+[features]
+paid = ["star-river-core/paid"]
+
 [dependencies]
 star-river-core = { path = "../star-river-core" }
 derive_more = { version = "2.0.1", features = ["from"] }

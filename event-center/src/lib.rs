@@ -75,14 +75,16 @@ impl EventCenter {
 
     // 新增：初始化所有引擎的命令通道
     fn init_command_channels(&mut self) {
-        let engines = [
-            EngineName::CacheEngine,
+        let mut engines = vec![
             EngineName::ExchangeEngine,
             EngineName::MarketEngine,
             EngineName::IndicatorEngine,
             EngineName::StrategyEngine,
             EngineName::AccountEngine,
         ];
+        
+        #[cfg(feature = "paid")]
+        engines.push(EngineName::CacheEngine);
 
         for engine_name in engines.iter() {
             let (tx, rx) = mpsc::channel::<EngineCommand>(100);

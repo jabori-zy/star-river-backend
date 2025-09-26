@@ -4,7 +4,7 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
-use engine::backtest_strategy_engine::StrategyEngine;
+use engine::backtest_strategy_engine::BacktestStrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
 use star_river_core::engine::EngineName;
@@ -35,7 +35,7 @@ pub async fn get_virtual_orders(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let virtual_orders = strategy_engine.get_virtual_orders(strategy_id).await;
     if let Ok(virtual_orders) = virtual_orders {
         (
@@ -78,7 +78,7 @@ pub async fn get_current_positions(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let current_positions = strategy_engine.get_current_virtual_positions(strategy_id).await;
     if let Ok(current_positions) = current_positions {
         (
@@ -121,7 +121,7 @@ pub async fn get_virtual_transactions(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let virtual_transactions = strategy_engine.get_virtual_transactions(strategy_id).await;
     if let Ok(virtual_transactions) = virtual_transactions {
         (
@@ -179,7 +179,7 @@ pub async fn get_stats_history(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let stats_history = strategy_engine.get_stats_history(strategy_id, params.play_index).await;
     if let Ok(stats_history) = stats_history {
         (
@@ -222,7 +222,7 @@ pub async fn get_history_positions(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let history_positions = strategy_engine.get_history_virtual_positions(strategy_id).await;
     if let Ok(history_positions) = history_positions {
         (
@@ -265,7 +265,7 @@ pub async fn get_strategy_status(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let strategy_status = strategy_engine.get_strategy_status(strategy_id).await;
     if let Ok(strategy_status) = strategy_status {
         (StatusCode::OK, Json(NewApiResponse::success(strategy_status)))
@@ -294,7 +294,7 @@ pub async fn get_running_log(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let running_log = strategy_engine.get_running_log(strategy_id).await;
     if let Ok(running_log) = running_log {
         (StatusCode::OK, Json(NewApiResponse::success(running_log)))
@@ -340,7 +340,7 @@ pub async fn get_strategy_data(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
 
     match Key::from_str(&params.key) {
         Ok(key) => strategy_engine

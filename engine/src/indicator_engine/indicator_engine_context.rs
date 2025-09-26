@@ -1,31 +1,18 @@
 mod command_handler;
 mod context_impl;
 
-use crate::cache_engine::CacheEngine;
-use crate::indicator_engine::calculate::CalculateIndicatorFunction;
 use crate::indicator_engine::indicator_engine_type::IndicatorSubKey;
-use crate::{EngineContext, EngineName};
-use async_trait::async_trait;
-use event_center::communication::engine::EngineCommand;
-use event_center::communication::engine::indicator_engine::*;
-use event_center::event::Event;
-use event_center::event::ExchangeEvent;
-use event_center::event::exchange_event::ExchangeKlineUpdateEvent;
+use crate::EngineName;
 use heartbeat::Heartbeat;
-use star_river_core::custom_type::{NodeId, StrategyId};
-use star_river_core::indicator::IndicatorConfig;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
+use star_river_core::custom_type::StrategyId;
 use star_river_core::market::{Exchange, KlineInterval};
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct IndicatorEngineContext {
     pub engine_name: EngineName,
-    pub cache_engine: Arc<Mutex<CacheEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub subscribe_indicators: Arc<Mutex<HashMap<IndicatorSubKey, Vec<StrategyId>>>>, // 已订阅的指标
 }
@@ -34,7 +21,6 @@ impl Clone for IndicatorEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            cache_engine: self.cache_engine.clone(),
             heartbeat: self.heartbeat.clone(),
             subscribe_indicators: self.subscribe_indicators.clone(),
         }

@@ -4,7 +4,7 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path};
 use axum::http::StatusCode;
-use engine::backtest_strategy_engine::StrategyEngine;
+use engine::backtest_strategy_engine::BacktestStrategyEngine;
 use star_river_core::engine::EngineName;
 
 #[utoipa::path(
@@ -23,7 +23,7 @@ pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let result = strategy_engine.play(strategy_id).await;
     if let Ok(()) = result {
         (StatusCode::OK, Json(NewApiResponse::success(())))
@@ -52,7 +52,7 @@ pub async fn play_one(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let played_signal_count = strategy_engine.play_one_kline(strategy_id).await;
     if let Ok(played_signal_count) = played_signal_count {
         (
@@ -86,7 +86,7 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let result = strategy_engine.pause(strategy_id).await;
     if let Ok(()) = result {
         (StatusCode::OK, Json(NewApiResponse::success(())))
@@ -115,7 +115,7 @@ pub async fn get_play_index(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let play_index = strategy_engine.get_play_index(strategy_id).await;
     if let Ok(play_index) = play_index {
         (
@@ -157,7 +157,7 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<StrategyEngine>().unwrap();
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
     let result = strategy_engine.reset(strategy_id).await;
     if let Ok(()) = result {
         (StatusCode::OK, Json(NewApiResponse::success(())))

@@ -1,22 +1,31 @@
 // 路由模块组织
 pub mod account_routes;
-pub mod cache_routes;
+
+#[cfg(not(feature = "paid"))]
 pub mod doc;
+#[cfg(feature = "paid")]
+pub mod doc_paid;
 pub mod market_routes;
 pub mod sse_routes;
 pub mod strategy_routes;
 pub mod system_routes;
-// pub mod websocket_routes;
+
+#[cfg(feature = "paid")]
+pub mod cache_routes;
+
 
 use crate::star_river::StarRiver;
 use axum::Router;
+#[cfg(not(feature = "paid"))]
 use doc::ApiDoc;
+#[cfg(feature = "paid")]
+use doc_paid::ApiDoc;
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
 // 创建完整的应用路由
 pub fn create_app_routes(star_river: StarRiver) -> Router {
-    Router::new()
+    let mut router = Router::new()
         // 嵌套策略相关路由
         .nest("/api/v1/strategy", strategy_routes::create_strategy_routes())
         .nest("/api/v1/strategy/live", strategy_routes::create_live_strategy_routes())
@@ -24,9 +33,15 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
         // 嵌套账户相关路由
         .nest("/api/v1/account", account_routes::create_account_routes())
         // 嵌套市场相关路由
-        .nest("/api/v1/market", market_routes::create_market_routes())
-        // 嵌套缓存相关路由
-        .nest("/api/v1/cache", cache_routes::create_cache_routes())
+        .nest("/api/v1/market", market_routes::create_market_routes());
+
+    // 条件性地添加缓存路由
+    #[cfg(feature = "paid")]
+    {
+        router = router.nest("/api/v1/cache", cache_routes::create_cache_routes());
+    }
+
+    router
         // 嵌套实时数据流路由
         .nest("/api/v1/sse", sse_routes::create_sse_routes())
         // 嵌套系统相关路由

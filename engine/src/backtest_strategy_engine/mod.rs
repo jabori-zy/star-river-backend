@@ -27,12 +27,12 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
-pub struct StrategyEngine {
+pub struct BacktestStrategyEngine {
     pub context: Arc<RwLock<Box<dyn EngineContext>>>,
 }
 
 #[async_trait]
-impl Engine for StrategyEngine {
+impl Engine for BacktestStrategyEngine {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -50,31 +50,17 @@ impl Engine for StrategyEngine {
     }
 }
 
-impl StrategyEngine {
+impl BacktestStrategyEngine {
     pub fn new(
-        // event_publisher: EventPublisher,
-        // command_publisher: CommandPublisher,
-        // command_receiver: CommandReceiver,
-        // market_event_receiver: EventReceiver,
-        // request_event_receiver: EventReceiver,
-        // response_event_receiver: EventReceiver,
         database: DatabaseConnection,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         heartbeat: Arc<Mutex<Heartbeat>>,
     ) -> Self {
         let context = StrategyEngineContext {
             engine_name: EngineName::StrategyEngine,
-            // event_publisher,
-            // event_receiver: vec![market_event_receiver.resubscribe()],
-            // command_publisher,
-            // command_receiver: Arc::new(Mutex::new(command_receiver)),
             database,
-            // live_strategy_list: HashMap::new(),
             strategy_list: Arc::new(Mutex::new(HashMap::new())),
             initializing_strategies: Arc::new(Mutex::new(HashSet::new())),
-            // market_event_receiver,
-            // request_event_receiver,
-            // response_event_receiver,
             exchange_engine,
             heartbeat,
         };
@@ -164,7 +150,7 @@ impl StrategyEngine {
 }
 
 // 回测策略
-impl StrategyEngine {
+impl BacktestStrategyEngine {
     // 播放策略
     pub async fn play(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         let mut context = self.context.write().await;
@@ -259,7 +245,7 @@ impl StrategyEngine {
 }
 
 // 实盘策略控制
-impl StrategyEngine {
+impl BacktestStrategyEngine {
     // 开启策略数据推送
     pub async fn enable_live_strategy_data_push(&mut self, strategy_id: i32) -> Result<(), String> {
         let mut context = self.context.write().await;

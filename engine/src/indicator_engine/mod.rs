@@ -3,10 +3,9 @@ pub mod indicator_engine_context;
 pub mod indicator_engine_type;
 pub mod talib;
 pub mod talib_bindings;
-// pub mod talib_error;
+
 
 use crate::EngineName;
-use crate::cache_engine::CacheEngine;
 use crate::indicator_engine::indicator_engine_context::IndicatorEngineContext;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
@@ -41,10 +40,9 @@ impl Engine for IndicatorEngine {
 }
 
 impl IndicatorEngine {
-    pub fn new(heartbeat: Arc<Mutex<Heartbeat>>, cache_engine: Arc<Mutex<CacheEngine>>) -> Self {
+    pub fn new(heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
         let context = IndicatorEngineContext {
             heartbeat,
-            cache_engine,
             engine_name: EngineName::IndicatorEngine,
             subscribe_indicators: Arc::new(Mutex::new(HashMap::new())),
         };

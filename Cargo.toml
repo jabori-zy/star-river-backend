@@ -13,11 +13,19 @@ members = [
     "virtual-trading", 
     "entity", "strategy-stats"]
 
+[workspace.lints]
+rust.unused_must_use = "warn"
+
 [workspace.package]
 version = "0.1.0"
 description = "Star River Backend Workspace"
 authors = ["Jabori"]
 edition = "2024"
+
+
+[features]
+default = []
+paid = ["star-river/paid"]
 
 
 
@@ -27,7 +35,7 @@ axum = { version = "0.8.4", features = ["macros", "ws", "query","json"] }
 axum-extra = {version = "0.10.1", features = ["typed-header"]}
 headers = "0.4.0"
 tokio-stream = {version = "0.1.17", features = ["sync"]}
-tokio = { version = "1.46.1", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = {version = "0.7.14"}
 tracing = "0.1.41"
 tracing-subscriber = {version = "0.3.19", features = ["env-filter", "fmt", "std", "time"]}
@@ -42,7 +50,7 @@ time = {version="0.3.41", features= ["local-offset"]}
 strum = {version = "0.27.2", features = ["derive"]}
 strum_macros = "0.27.2"
 futures = "0.3.31"
-tokio-tungstenite = { version = "0.27.0",features = ["native-tls"] }
+tokio-tungstenite = { version = "0.28.0",features = ["native-tls"] }
 zip = "5.0.0"
 sysinfo = {version="0.37.0", features = [] }
 async-trait = {version = "0.1.89"}

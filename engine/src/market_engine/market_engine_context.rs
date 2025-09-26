@@ -140,65 +140,65 @@ impl EngineContext for MarketEngineContext {
 }
 
 impl MarketEngineContext {
-    async fn add_kline_key(
-        &self,
-        strategy_id: i32,
-        exchange: Exchange,
-        symbol: String,
-        interval: KlineInterval,
-        start_time: Option<String>,
-        end_time: Option<String>,
-        max_size: u32,
-    ) {
-        // 调用缓存器的订阅事件
-        let key = KlineKey {
-            exchange,
-            symbol,
-            interval,
-            start_time,
-            end_time,
-        };
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = AddKlineKeyCmdPayload::new(strategy_id, key, Some(max_size), Duration::from_millis(10));
-        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
+    // async fn add_kline_key(
+    //     &self,
+    //     strategy_id: i32,
+    //     exchange: Exchange,
+    //     symbol: String,
+    //     interval: KlineInterval,
+    //     start_time: Option<String>,
+    //     end_time: Option<String>,
+    //     max_size: u32,
+    // ) {
+    //     // 调用缓存器的订阅事件
+    //     let key = KlineKey {
+    //         exchange,
+    //         symbol,
+    //         interval,
+    //         start_time,
+    //         end_time,
+    //     };
+    //     let (resp_tx, resp_rx) = oneshot::channel();
+    //     let payload = AddKlineKeyCmdPayload::new(strategy_id, key, Some(max_size), Duration::from_millis(10));
+    //     let cmd: CacheEngineCommand = AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
 
-        // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+    //     // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
+    //     EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
-        let response_event = resp_rx.await.unwrap();
-        tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
+    //     let response_event = resp_rx.await.unwrap();
+    //     tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
 
-        // self.get_event_publisher().publish(command_event.clone().into()).unwrap();
-    }
+    //     // self.get_event_publisher().publish(command_event.clone().into()).unwrap();
+    // }
 
-    async fn add_history_kline_key(
-        &self,
-        strategy_id: i32,
-        exchange: Exchange,
-        symbol: String,
-        interval: KlineInterval,
-        time_range: TimeRange,
-    ) {
-        // 调用缓存器的订阅事件
-        let key = KlineKey {
-            exchange: exchange,
-            symbol: symbol.to_string(),
-            interval: interval.clone(),
-            start_time: Some(time_range.start_date.to_string()),
-            end_time: Some(time_range.end_date.to_string()),
-        };
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = AddKlineKeyCmdPayload::new(strategy_id, key, None, Duration::from_millis(10));
-        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
+    // async fn add_history_kline_key(
+    //     &self,
+    //     strategy_id: i32,
+    //     exchange: Exchange,
+    //     symbol: String,
+    //     interval: KlineInterval,
+    //     time_range: TimeRange,
+    // ) {
+    //     // 调用缓存器的订阅事件
+    //     let key = KlineKey {
+    //         exchange: exchange,
+    //         symbol: symbol.to_string(),
+    //         interval: interval.clone(),
+    //         start_time: Some(time_range.start_date.to_string()),
+    //         end_time: Some(time_range.end_date.to_string()),
+    //     };
+    //     let (resp_tx, resp_rx) = oneshot::channel();
+    //     let payload = AddKlineKeyCmdPayload::new(strategy_id, key, None, Duration::from_millis(10));
+    //     let cmd: CacheEngineCommand = AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
 
-        // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
-        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+    //     // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
+    //     EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
-        let response_event = resp_rx.await.unwrap();
-        tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
+    //     let response_event = resp_rx.await.unwrap();
+    //     tracing::debug!("市场数据引擎添加缓存key成功, 请求id: {:?}", response_event);
 
-        // self.get_event_publisher().publish(command_event.clone().into()).unwrap();
-    }
+    //     // self.get_event_publisher().publish(command_event.clone().into()).unwrap();
+    // }
 
     async fn exchange_is_registered(&self, account_id: AccountId) -> bool {
         let exchange_engine_guard = self.exchange_engine.lock().await;
@@ -217,16 +217,16 @@ impl MarketEngineContext {
     ) -> Result<(), String> {
         // tracing::debug!("市场数据引擎订阅K线流: {:?}", params);
         // 添加缓存key
-        self.add_kline_key(
-            strategy_id,
-            exchange.clone(),
-            symbol.clone(),
-            interval.clone(),
-            None,
-            None,
-            cache_size,
-        )
-        .await;
+        // self.add_kline_key(
+        //     strategy_id,
+        //     exchange.clone(),
+        //     symbol.clone(),
+        //     interval.clone(),
+        //     None,
+        //     None,
+        //     cache_size,
+        // )
+        // .await;
 
         // 1. 先检查注册状态
         let is_registered = self.exchange_is_registered(account_id).await;

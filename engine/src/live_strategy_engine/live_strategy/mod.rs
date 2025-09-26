@@ -40,11 +40,6 @@ pub struct LiveStrategy {
 impl LiveStrategy {
     pub async fn new(
         strategy: StrategyConfig,
-        // event_publisher: EventPublisher, 
-        // command_publisher: CommandPublisher,
-        // command_receiver: Arc<Mutex<CommandReceiver>>,
-        // market_event_receiver: EventReceiver, 
-        // response_event_receiver: EventReceiver,
         exchange_engine: Arc<Mutex<ExchangeEngine>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>

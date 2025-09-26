@@ -1,5 +1,6 @@
 use crate::api::account_api::ExchangeType;
 use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
+use crate::api::cache_api::CacheKeyType;
 use crate::api::response::ApiResponse;
 use crate::api::system_api::SystemConfigUpdateParams;
 use star_river_core::account::AccountConfig;
@@ -47,6 +48,10 @@ use utoipa::OpenApi;
         crate::api::account_api::update_account_is_available,
         crate::api::account_api::start_mt5_terminal,
         crate::sse::account_sse::account_sse_handler,
+        // 缓存相关路径 - 付费版本专有
+        crate::api::cache_api::get_cache_keys,
+        crate::api::cache_api::get_cache_value,
+        crate::api::cache_api::get_memory_size,
         // 市场相关路径
         crate::api::market_api::get_symbol_list,
         crate::api::market_api::get_support_kline_intervals,
@@ -80,6 +85,9 @@ use utoipa::OpenApi;
             AccountConfig,
             ExchangeType,
 
+            // 缓存相关类型 - 付费版本专有
+            CacheKeyType,
+
             // 系统配置相关类型
             SystemConfigUpdateParams,
         )
@@ -88,13 +96,13 @@ use utoipa::OpenApi;
         (name = "策略管理", description = "策略创建、更新、删除、查询等管理功能"),
         (name = "策略控制", description = "策略运行、停止、播放、暂停等控制功能"),
         (name = "账户管理", description = "账户配置管理和MT5账户操作"),
-        (name = "缓存管理", description = "缓存数据查询和内存管理"),
+        (name = "缓存管理", description = "缓存数据查询和内存管理 - 付费功能"),
         (name = "实时数据", description = "SSE实时数据推送"),
         (name = "市场", description = "市场数据"),
     ),
     info(
-        title = "Star River API",
-        description = "Star River 量化交易系统 API",
+        title = "Star River API (付费版)",
+        description = "Star River 量化交易系统 API - 包含所有高级功能",
         version = "1.0.0",
         contact(
             name = "Star River Team",
