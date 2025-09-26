@@ -1,26 +1,26 @@
-use super::IndicatorNodeContext;
-use crate::strategy_engine::node::node_context::BacktestNodeContextTrait;
-use event_center::communication::backtest_strategy::GetMinIntervalSymbolsCommand;
-use event_center::communication::backtest_strategy::UpdateIndicatorDataCmdPayload;
-use event_center::communication::backtest_strategy::UpdateIndicatorDataCommand;
-use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorCmdPayload;
-use event_center::communication::engine::indicator_engine::CalculateHistoryIndicatorCommand;
-use event_center::communication::engine::indicator_engine::IndicatorEngineCommand;
-use event_center::EventCenterSingleton;
-use event_center::communication::engine::EngineResponse;
-use event_center::event::node_event::backtest_node_event::common_event::TriggerPayload;
+use super::{
+    IndicatorNodeContext,
+    GetMinIntervalSymbolsCommand,
+    UpdateIndicatorDataCmdPayload,
+    UpdateIndicatorDataCommand,
+    CalculateHistoryIndicatorCmdPayload,
+    CalculateHistoryIndicatorCommand,
+    IndicatorEngineCommand,
+    BacktestNodeContextTrait,
+    KeyTrait,
+    KlineKey,
+    Indicator,
+    EventCenterSingleton,
+    Response,
+};
 use event_center::event::node_event::backtest_node_event::common_event::{
-    CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent,
+    TriggerPayload,CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent,
 };
 use event_center::event::node_event::backtest_node_event::indicator_node_event::{
     IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
 };
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use star_river_core::key::key::KlineKey;
-use star_river_core::key::KeyTrait;
-use star_river_core::indicator::Indicator;
 use tokio::sync::oneshot;
-use event_center::communication::Response;
 
 impl IndicatorNodeContext {
     /// 发送指标更新事件的工具方法
@@ -87,7 +87,6 @@ impl IndicatorNodeContext {
                         tracing::warn!("指标缓存数据长度小于lookback, skip. lookback: {}, kline_series_len: {}", lookback, kline_series.len());
                         continue;
                     }
-                    tracing::debug!("计算指标: {:#?}", indicator_key.indicator_config);
                     let (resp_tx, resp_rx) = oneshot::channel();
                     let payload = CalculateHistoryIndicatorCmdPayload::new(
                         strategy_id,
@@ -148,12 +147,8 @@ impl IndicatorNodeContext {
                 // 遍历指标缓存键，从策略中获取指标数据
                 for (indicator_key, (config_id, output_handle_id)) in self.indicator_keys.iter() {
                     // 获取指标缓存数据，增加错误处理
-                    let indicator_cache_data = match self
-                        .get_indicator_data(&indicator_key, kline_update_event.play_index)
-                        .await
-                    {
+                    let indicator_data = match self.get_indicator_data(&indicator_key, kline_update_event.play_index).await{
                         Ok(data) => data,
-
                         Err(e) => {
                             tracing::error!(
                                 node_id = %self.base_context.node_id,
@@ -170,7 +165,7 @@ impl IndicatorNodeContext {
                         output_handle_id.clone(),
                         &indicator_key,
                         &config_id,
-                        indicator_cache_data,
+                        indicator_data,
                         kline_update_event.play_index,
                         &node_id,
                         &node_name,
@@ -211,31 +206,5 @@ impl IndicatorNodeContext {
         else {
             return Err("获取最小周期交易对失败".to_string());
         }
-    }
-
-    // 节点重置
-    pub(super) async fn handle_node_reset(&self) {
-        // 将缓存引擎中的，不在min_interval_symbols中的指标缓存键删除
-        // if !self.min_interval_symbols.contains(&self.selected_kline_key) {
-        //     for (indicator_key, _) in self.indicator_keys.iter() {
-        //         let (resp_tx, resp_rx) = oneshot::channel();
-        //         let 
-        //         let clear_cache_params = ClearCacheParams::new(
-        //             self.get_strategy_id().clone(),
-        //             indicator_key.clone().into(),
-        //             self.get_node_id().clone(),
-        //             resp_tx,
-        //         );
-        //         let _ = EventCenterSingleton::send_command(clear_cache_params.into()).await;
-        //         let response = resp_rx.await.unwrap();
-        //         if response.success() {
-        //             tracing::debug!("删除指标缓存成功");
-        //         } else {
-        //             tracing::error!("删除指标缓存失败: {:#?}", response);
-        //         }
-        //     }
-        // } else {
-        //     tracing::debug!("节点重置，无需删除指标缓存");
-        // }
     }
 }

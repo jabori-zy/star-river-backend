@@ -38,7 +38,7 @@ impl BacktestStrategyContext {
     }
 
 
-    pub async fn get_signal_count_new(&self) -> Result<i32, BacktestStrategyError> {
+    pub async fn get_signal_count(&self) -> Result<i32, BacktestStrategyError> {
         let kline_data_guard = self.kline_data.read().await;
         // 获取每一个key对应列表的长度
         let kline_data_lengths = kline_data_guard.values().map(|data| data.len() as i32).collect::<Vec<i32>>();
@@ -80,7 +80,7 @@ impl BacktestStrategyContext {
         let index = match &key {
             Key::Kline(kline_key) => {
                 if self.min_interval_symbols.contains(kline_key) {
-                    Some(play_index as u32)
+                    Some(play_index)
                 } else {
                     None
                 }
@@ -88,7 +88,7 @@ impl BacktestStrategyContext {
             Key::Indicator(indicator_key) => {
                 let kline_key = indicator_key.get_kline_key();
                 if self.min_interval_symbols.contains(&kline_key) {
-                    Some(play_index as u32)
+                    Some(play_index)
                 } else {
                     None
                 }
@@ -97,14 +97,12 @@ impl BacktestStrategyContext {
 
         match key {
             Key::Kline(kline_key) => {
-                let kline_data_guard = self.kline_data.read().await;
-                let kline_data = kline_data_guard.get(&kline_key).unwrap();
+                let kline_data = self.get_kline_data(&kline_key, index, None).await;
                 let kline_data = kline_data.iter().map(|kline| kline.to_json()).collect();
                 Ok(kline_data)
             }
             Key::Indicator(indicator_key) => {
-                let indicator_data_guard = self.indicator_data.read().await;
-                let indicator_data = indicator_data_guard.get(&indicator_key).unwrap();
+                let indicator_data = self.get_indicator_data(&indicator_key, index, None).await;
                 let indicator_data = indicator_data.iter().map(|indicator| indicator.to_json()).collect();
                 Ok(indicator_data)
             }
@@ -113,9 +111,13 @@ impl BacktestStrategyContext {
     }
 
 
+    
+
+
     pub(super) async fn clear_data(&mut self) {
         let mut kline_data_guard = self.kline_data.write().await;
         kline_data_guard.iter_mut().for_each(|(key, kline_data)| {
+            // 如果key不在min_interval_symbols中，则清空数据
             if !self.min_interval_symbols.contains(key) {
                 kline_data.clear();
             }
@@ -123,6 +125,7 @@ impl BacktestStrategyContext {
         let mut indicator_data_guard = self.indicator_data.write().await;
         indicator_data_guard.iter_mut().for_each(|(key, indicator_data)| {
             let kline_key = key.get_kline_key();
+            // 如果kline_key不在min_interval_symbols中，则清空数据
             if !self.min_interval_symbols.contains(&kline_key) {
                 indicator_data.clear();
             }

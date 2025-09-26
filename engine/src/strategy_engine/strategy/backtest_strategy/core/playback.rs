@@ -18,8 +18,7 @@ impl BacktestStrategy {
 
     pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.get_strategy_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        tracing::info!("[{}({})] reset play", strategy_name, strategy_id);
+        tracing::info!("[{}] reset play", strategy_name);
         let mut context_guard = self.context.write().await;
         context_guard.reset().await?;
         // 重置虚拟交易系统

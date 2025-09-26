@@ -33,7 +33,4 @@ impl GetStartNodeConfigRespPayload {
 #[derive(Debug)]
 pub struct NodeResetCmdPayload;
 #[derive(Debug)]
-pub struct NodeResetRespPayload {
-    pub node_id: NodeId,
-}
-
+pub struct NodeResetRespPayload;

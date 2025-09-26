@@ -12,7 +12,7 @@ use crate::strategy_engine::node::{BacktestNodeTrait,NodeType};
 use crate::strategy_engine::node::node_state_machine::*;
 use kline_node_state_machine::{KlineNodeStateMachine, KlineNodeStateAction};
 use crate::strategy_engine::node::node_context::{BacktestNodeContextTrait,BacktestBaseNodeContext};
-use kline_node_context::{KlineNodeContext};
+use kline_node_context::KlineNodeContext;
 use heartbeat::Heartbeat;
 use tokio::sync::Mutex;
 use event_center::communication::backtest_strategy::{StrategyCommandSender, NodeCommandReceiver};

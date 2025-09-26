@@ -288,6 +288,10 @@ impl<S> NodeResponse<S> {
             response_payload: None,
         }
     }
+
+    pub fn node_id(&self) -> NodeId {
+        self.response_base.node_id.clone()
+    }
 }
 
 impl<S> Response for NodeResponse<S> {

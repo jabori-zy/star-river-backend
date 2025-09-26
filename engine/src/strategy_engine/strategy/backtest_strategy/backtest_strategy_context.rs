@@ -4,6 +4,7 @@ mod node_lifecycle;
 mod node_operation;
 mod playback_handler;
 mod strategy_operation;
+mod command_handler;
 
 
 use crate::strategy_engine::node::BacktestNodeTrait;
@@ -51,6 +52,7 @@ use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
+use star_river_core::market::QuantData;
 
 #[derive(Debug)]
 // 回测策略上下文

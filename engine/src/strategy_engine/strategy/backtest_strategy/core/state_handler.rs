@@ -47,7 +47,7 @@ impl BacktestStrategy {
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
                     let context_guard = self.context.read().await;
-                    let signal_count = context_guard.get_signal_count_new().await;
+                    let signal_count = context_guard.get_signal_count().await;
 
                     if let Ok(count) = signal_count {
                         let mut signal_count_guard = context_guard.total_signal_count.write().await;

@@ -53,7 +53,7 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.get_node_id() == &cmd.node_id() {
-                    self.handle_node_reset().await;
+                    self.kline_value.clear();
                     let response = NodeResetResponse::success(self.get_node_id().clone(), None);
                     cmd.respond(response);
                 }

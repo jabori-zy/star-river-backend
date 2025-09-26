@@ -1,7 +1,7 @@
 use crate::strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetResponse};
+use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetRespPayload, NodeResetResponse};
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse};
 use event_center::communication::Command;
 use event_center::event::Event;
@@ -62,27 +62,7 @@ impl BacktestNodeContextTrait for StartNodeContext {
         tracing::info!("{}: 收到消息: {:?}", self.base_context.node_id, message);
     }
 
-    async fn handle_strategy_inner_event(&mut self, strategy_inner_event: StrategyInnerEvent) {
-        // match strategy_inner_event {
-        //     StrategyInnerEvent::PlayIndexUpdate(play_index_update_event) => {
-        //         // 更新播放索引
-        //         self.set_play_index(play_index_update_event.play_index).await;
-        //         let strategy_output_handle = self.get_strategy_output_handle();
-        //         // 更新完成后，发送索引已更新事件
-        //         let signal = BacktestNodeEvent::Signal(SignalEvent::PlayIndexUpdated(PlayIndexUpdateEvent {
-        //             from_node_id: self.get_node_id().clone(),
-        //             from_node_name: self.get_node_name().clone(),
-        //             from_node_handle_id: strategy_output_handle.output_handle_id.clone(),
-        //             play_index: self.get_play_index().await,
-        //             message_timestamp: get_utc8_timestamp_millis(),
-        //         }));
-        //         strategy_output_handle.send(signal).unwrap();
-        //     },
-        //     StrategyInnerEvent::NodeReset => {
-        //         tracing::info!("{}: 收到节点重置事件", self.base_context.node_id);
-        //     }
-        // }
-    }
+    async fn handle_strategy_inner_event(&mut self, _strategy_inner_event: StrategyInnerEvent) {}
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         // tracing::info!("{}: 收到策略命令: {:?}", self.base_context.node_id, strategy_command);

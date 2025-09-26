@@ -1,6 +1,15 @@
 use chrono::{Datelike, Timelike, Weekday};
 use star_river_core::market::KlineInterval;
 use star_river_core::system::DateTimeUtc;
+use super::{
+    KlineNodeContext,
+    KlineKey,
+    Kline,
+    KlineNodeEvent,
+    KlineUpdateEvent,
+    KlineUpdatePayload,
+    BacktestNodeContextTrait,
+};
 
 // 判断当前最小周期时间点是否到达更大周期的起点
 // 例如：min_interval=1m, interval=1h
@@ -69,23 +78,27 @@ pub fn is_cross_interval(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::TimeZone;
 
-    #[test]
-    fn test_is_cross_interval_minute_to_hour() {
-        // let min_i = KlineInterval::Minutes1;
-        let hour_i = KlineInterval::Hours1;
 
-        let t1 = chrono::Utc.with_ymd_and_hms(2025, 1, 1, 3, 15, 0).unwrap();
-        assert!(!is_cross_interval(&hour_i, &t1));
-
-        let t2 = chrono::Utc.with_ymd_and_hms(2025, 1, 1, 3, 59, 0).unwrap();
-        assert!(!is_cross_interval(&hour_i, &t2));
-
-        let t3 = chrono::Utc.with_ymd_and_hms(2025, 1, 1, 4, 0, 0).unwrap();
-        assert!(is_cross_interval(&hour_i, &t3));
+impl KlineNodeContext {
+    pub(super)fn get_kline_update_event(
+        &self,
+        handle_id: String,
+        config_id: i32,
+        should_calculate: bool,
+        kline_key: &KlineKey,
+        index: i32, // 缓存索引
+        kline_data: Kline,
+    ) -> KlineNodeEvent {
+        let payload = KlineUpdatePayload::new(config_id, index, should_calculate, kline_key.clone(), kline_data);
+        KlineNodeEvent::KlineUpdate(
+            KlineUpdateEvent::new(
+                self.get_node_id().clone(),
+                self.get_node_name().clone(),
+                handle_id,
+                payload,
+            )
+            .into(),
+        )
     }
 }

@@ -270,8 +270,6 @@ impl BacktestStrategyContext {
 
     // 重置播放
     pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
-        tracing::info!("[{}]: reset play", self.strategy_name.clone());
-
         // 更新策略状态为ready
         self.update_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase())
             .await?;
@@ -397,13 +395,15 @@ impl BacktestStrategyContext {
         let nodes = self.topological_sort();
         for node in nodes {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let node_reset_params = NodeResetCommand::new(node.get_node_id().await, resp_tx, None);
-            self.send_node_command(node_reset_params.into()).await;
+            tracing::info!("{}: 发送节点重置命令", node.get_node_id().await);
+            let cmd = NodeResetCommand::new(node.get_node_id().await, resp_tx, None);
+
+            self.send_node_command(cmd.into()).await;
             let response = resp_rx.await.unwrap();
             if response.is_success() {
-                tracing::info!("{}: 收到节点重置响应", response.node_id);
+                tracing::info!("{}: 收到节点重置响应", response.node_id());
             } else {
-                tracing::error!("{}: 收到节点重置响应失败", response.node_id);
+                tracing::error!("{}: 收到节点重置响应失败", response.node_id());
             }
         }
     }
