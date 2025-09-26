@@ -25,7 +25,7 @@ impl StrategyEngineContext {
     pub async fn backtest_strategy_init(&mut self, strategy_id: i32) -> Result<(), StrategyEngineError> {
         // 检查是否已经在初始化或已存在
         if self.initializing_strategies.lock().await.contains(&strategy_id)
-            || self.backtest_strategy_list.lock().await.contains_key(&strategy_id)
+            || self.strategy_list.lock().await.contains_key(&strategy_id)
         {
             tracing::warn!("策略已存在或正在初始化中, 不进行初始化");
             return Err(StrategyIsExistSnafu { strategy_id }.fail()?);
@@ -35,7 +35,7 @@ impl StrategyEngineContext {
         self.initializing_strategies.lock().await.insert(strategy_id);
         let strategy_config: star_river_core::strategy::StrategyConfig = self.get_strategy_info_by_id(strategy_id).await.unwrap();
 
-        let strategy_list = self.backtest_strategy_list.clone();
+        let strategy_list = self.strategy_list.clone();
         let database = self.database.clone();
         let heartbeat = self.heartbeat.clone();
         let initializing_set = self.initializing_strategies.clone();

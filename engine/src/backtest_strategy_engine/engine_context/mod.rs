@@ -26,8 +26,7 @@ pub struct StrategyEngineContext {
     pub database: DatabaseConnection,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
-    // pub live_strategy_list: HashMap<StrategyId, LiveStrategy>,
-    pub backtest_strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>,
+    pub strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>, // 回测策略列表
     pub initializing_strategies: Arc<Mutex<HashSet<StrategyId>>>,
 }
 
@@ -35,7 +34,7 @@ impl Clone for StrategyEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            backtest_strategy_list: self.backtest_strategy_list.clone(),
+            strategy_list: self.strategy_list.clone(),
             database: self.database.clone(),
             exchange_engine: self.exchange_engine.clone(),
             heartbeat: self.heartbeat.clone(),
@@ -89,7 +88,7 @@ impl StrategyEngineContext {
     // }
 
     pub async fn get_backtest_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, StrategyEngineError> {
-        let backtest_strategy_list = self.backtest_strategy_list.lock().await;
+        let backtest_strategy_list = self.strategy_list.lock().await;
         if let Some(strategy) = backtest_strategy_list.get(&strategy_id) {
             Ok(strategy.clone())
         } else {
@@ -120,7 +119,7 @@ impl StrategyEngineContext {
             //     tracing::info!("实盘策略实例已移除，策略id: {}", strategy_id);
             // }
             TradeMode::Backtest => {
-                self.backtest_strategy_list.lock().await.remove(&strategy_id);
+                self.strategy_list.lock().await.remove(&strategy_id);
                 tracing::info!("回测策略实例已移除，策略id: {}", strategy_id);
             }
             _ => {

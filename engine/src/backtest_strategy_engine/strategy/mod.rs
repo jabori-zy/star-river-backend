@@ -1,6 +1,6 @@
 pub(super) mod strategy_context;
 pub(super) mod workflow;
-pub(super) mod backtest_strategy_log_message;
+pub(super) mod strategy_log_message;
 pub(super) mod strategy_core;
 pub(super) mod strategy_state_machine;
 
@@ -22,7 +22,7 @@ use strategy_state_machine::*;
 use strategy_state_machine::{BacktestStrategyStateAction, BacktestStrategyStateMachine};
 use virtual_trading::VirtualTradingSystem;
 
-use backtest_strategy_log_message::StrategyStateLogMsg;
+use strategy_log_message::StrategyStateLogMsg;
 use event_center::EventCenterSingleton;
 use event_center::event::strategy_event::LogLevel;
 use event_center::event::strategy_event::backtest_strategy_event::{BacktestStrategyEvent, StrategyStateLogEvent};

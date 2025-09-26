@@ -70,7 +70,7 @@ impl StrategyEngine {
             // command_receiver: Arc::new(Mutex::new(command_receiver)),
             database,
             // live_strategy_list: HashMap::new(),
-            backtest_strategy_list: Arc::new(Mutex::new(HashMap::new())),
+            strategy_list: Arc::new(Mutex::new(HashMap::new())),
             initializing_strategies: Arc::new(Mutex::new(HashSet::new())),
             // market_event_receiver,
             // request_event_receiver,
