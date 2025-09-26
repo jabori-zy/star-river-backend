@@ -6,11 +6,7 @@ pub struct StrategyConfigQuery;
 
 impl StrategyConfigQuery {
     // 分页查询策略列表
-    pub async fn get_strategy_list_in_page(
-        db: &DbConn,
-        page: u64,
-        strategy_per_page: u64,
-    ) -> Result<(Vec<StrategyConfig>, u64), DbErr> {
+    pub async fn get_strategy_list_in_page(db: &DbConn, page: u64, strategy_per_page: u64) -> Result<(Vec<StrategyConfig>, u64), DbErr> {
         let paginator = StrategyConfigEntity::find()
             // 只查询未删除的策略
             .filter(strategy_config::Column::IsDeleted.eq(false))

@@ -36,7 +36,7 @@ use tokio::sync::broadcast;
 ///
 #[derive(Debug)]
 pub struct VirtualTradingSystem {
-    current_datetime: DateTime<Utc>, // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
+    current_datetime: DateTime<Utc>,       // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub event_receiver: VirtualTradingSystemEventReceiver, // 事件接收器
@@ -71,10 +71,7 @@ pub struct VirtualTradingSystem {
 
 // 虚拟交易系统get方法
 impl VirtualTradingSystem {
-    pub fn new(
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-        strategy_command_sender: StrategyCommandSender,
-    ) -> Self {
+    pub fn new(play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, strategy_command_sender: StrategyCommandSender) -> Self {
         let (tx, rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
         Self {
             current_datetime: Utc::now(),
@@ -233,9 +230,7 @@ impl VirtualTradingSystem {
         self.update_margin_ratio();
 
         // 发送事件
-        self.event_publisher
-            .send(VirtualTradingSystemEvent::UpdateFinished)
-            .unwrap();
+        self.event_publisher.send(VirtualTradingSystemEvent::UpdateFinished).unwrap();
     }
 
     async fn update_kline_price(&mut self) {
@@ -341,8 +336,7 @@ impl VirtualTradingSystem {
     async fn get_close_price(&self, kline_key: KlineKey) -> Result<Kline, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = GetKlineDataCmdPayload::new(kline_key, Some(self.get_play_index()), Some(1));
-        let cmd: BacktestStrategyCommand =
-            GetKlineDataCommand::new("virtual_trading_system".to_string(), resp_tx, Some(payload)).into();
+        let cmd: BacktestStrategyCommand = GetKlineDataCommand::new("virtual_trading_system".to_string(), resp_tx, Some(payload)).into();
         self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
         // 等待响应

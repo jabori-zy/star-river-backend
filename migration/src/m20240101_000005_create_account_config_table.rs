@@ -54,9 +54,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(AccountConfig::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(AccountConfig::Table).to_owned()).await
     }
 }
 

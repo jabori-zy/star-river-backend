@@ -30,11 +30,7 @@ impl Clone for ExchangeEngineContext {
     fn clone(&self) -> Self {
         Self {
             engine_name: self.engine_name.clone(),
-            exchanges: self
-                .exchanges
-                .iter()
-                .map(|(id, client)| (id.clone(), client.clone_box()))
-                .collect(),
+            exchanges: self.exchanges.iter().map(|(id, client)| (id.clone(), client.clone_box())).collect(),
             database: self.database.clone(),
         }
     }
@@ -357,10 +353,7 @@ impl ExchangeEngineContext {
                         }
                         // 停止尝试但失败
                         Ok(false) => {
-                            tracing::error!(
-                                "MT5服务停止失败，但仍将移除实例，账户ID: {}",
-                                unregister_params.account_id
-                            );
+                            tracing::error!("MT5服务停止失败，但仍将移除实例，账户ID: {}", unregister_params.account_id);
                             self.exchanges.remove(&unregister_params.account_id);
                         }
                         // 函数执行出错
@@ -408,10 +401,7 @@ impl ExchangeEngineContext {
     }
 
     // 添加一个获取可变引用的方法
-    pub async fn get_exchange_mut<'a>(
-        &'a mut self,
-        account_id: &i32,
-    ) -> Result<&'a mut Box<dyn ExchangeClient>, String> {
+    pub async fn get_exchange_mut<'a>(&'a mut self, account_id: &i32) -> Result<&'a mut Box<dyn ExchangeClient>, String> {
         match self.exchanges.get_mut(account_id) {
             Some(client) => Ok(client),
             None => Err(format!("交易所 {:?} 未注册", account_id)),

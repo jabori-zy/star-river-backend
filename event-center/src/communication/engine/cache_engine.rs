@@ -40,13 +40,11 @@ pub type GetKlineCacheMultiCommand = GenericEngineCommand<GetKlineCacheMultiCmdP
 pub type GetKlineCacheMultiResponse = EngineResponse<GetKlineCacheMultiRespPayload>;
 
 // ============ Get Kline Cache Length Command ============
-pub type GetKlineCacheLengthCommand =
-    GenericEngineCommand<GetKlineCacheLengthCmdPayload, GetKlineCacheLengthRespPayload>;
+pub type GetKlineCacheLengthCommand = GenericEngineCommand<GetKlineCacheLengthCmdPayload, GetKlineCacheLengthRespPayload>;
 pub type GetKlineCacheLengthResponse = EngineResponse<GetKlineCacheLengthRespPayload>;
 
 // ============ Get Kline Cache Length Multi Command ============
-pub type GetKlineCacheLengthMultiCommand =
-    GenericEngineCommand<GetKlineCacheLengthMultiCmdPayload, GetKlineCacheLengthMultiRespPayload>;
+pub type GetKlineCacheLengthMultiCommand = GenericEngineCommand<GetKlineCacheLengthMultiCmdPayload, GetKlineCacheLengthMultiRespPayload>;
 pub type GetKlineCacheLengthMultiResponse = EngineResponse<GetKlineCacheLengthMultiRespPayload>;
 
 // ============ Update Kline Cache Command ============
@@ -99,13 +97,7 @@ pub struct GetKlineCacheCmdPayload {
 }
 
 impl GetKlineCacheCmdPayload {
-    pub fn new(
-        strategy_id: StrategyId,
-        node_id: NodeId,
-        key: KlineKey,
-        index: Option<u32>,
-        limit: Option<u32>,
-    ) -> Self {
+    pub fn new(strategy_id: StrategyId, node_id: NodeId, key: KlineKey, index: Option<u32>, limit: Option<u32>) -> Self {
         Self {
             strategy_id,
             node_id,
@@ -237,13 +229,11 @@ pub type GetIndicatorCacheCommand = GenericEngineCommand<GetIndicatorCacheCmdPay
 pub type GetIndicatorCacheResponse = EngineResponse<GetIndicatorCacheRespPayload>;
 
 // ============ Get Indicator Cache Multi Command ============
-pub type GetIndicatorCacheMultiCommand =
-    GenericEngineCommand<GetIndicatorCacheMultiCmdPayload, GetIndicatorCacheMultiRespPayload>;
+pub type GetIndicatorCacheMultiCommand = GenericEngineCommand<GetIndicatorCacheMultiCmdPayload, GetIndicatorCacheMultiRespPayload>;
 pub type GetIndicatorCacheMultiResponse = EngineResponse<GetIndicatorCacheMultiRespPayload>;
 
 // ============ Get Indicator Cache Length Command ============
-pub type GetIndicatorCacheLengthCommand =
-    GenericEngineCommand<GetIndicatorCacheLengthCmdPayload, GetIndicatorCacheLengthRespPayload>;
+pub type GetIndicatorCacheLengthCommand = GenericEngineCommand<GetIndicatorCacheLengthCmdPayload, GetIndicatorCacheLengthRespPayload>;
 pub type GetIndicatorCacheLengthResponse = EngineResponse<GetIndicatorCacheLengthRespPayload>;
 
 // ============ Get Indicator Cache Length Multi Command ============
@@ -252,13 +242,11 @@ pub type GetIndicatorCacheLengthMultiCommand =
 pub type GetIndicatorCacheLengthMultiResponse = EngineResponse<GetIndicatorCacheLengthMultiRespPayload>;
 
 // ============ Update Indicator Cache Command ============
-pub type UpdateIndicatorCacheCommand =
-    GenericEngineCommand<UpdateIndicatorCacheCmdPayload, UpdateIndicatorCacheRespPayload>;
+pub type UpdateIndicatorCacheCommand = GenericEngineCommand<UpdateIndicatorCacheCmdPayload, UpdateIndicatorCacheRespPayload>;
 pub type UpdateIndicatorCacheResponse = EngineResponse<UpdateIndicatorCacheRespPayload>;
 
 // ============ Clear Indicator Cache Command ============
-pub type ClearIndicatorCacheCommand =
-    GenericEngineCommand<ClearIndicatorCacheCmdPayload, ClearIndicatorCacheRespPayload>;
+pub type ClearIndicatorCacheCommand = GenericEngineCommand<ClearIndicatorCacheCmdPayload, ClearIndicatorCacheRespPayload>;
 pub type ClearIndicatorCacheResponse = EngineResponse<ClearIndicatorCacheRespPayload>;
 
 // ============ Add Key Command ============
@@ -303,13 +291,7 @@ pub struct GetIndicatorCacheCmdPayload {
 }
 
 impl GetIndicatorCacheCmdPayload {
-    pub fn new(
-        strategy_id: StrategyId,
-        node_id: NodeId,
-        key: IndicatorKey,
-        index: Option<u32>,
-        limit: Option<u32>,
-    ) -> Self {
+    pub fn new(strategy_id: StrategyId, node_id: NodeId, key: IndicatorKey, index: Option<u32>, limit: Option<u32>) -> Self {
         Self {
             strategy_id,
             node_id,

@@ -78,11 +78,8 @@ impl EngineContext for IndicatorEngineContext {
                     }
                     // 计算指标
                     IndicatorEngineCommand::CalculateHistoryIndicator(cmd) => {
-                        let cal_result = CalculateIndicatorFunction::calculate_indicator(
-                            cmd.kline_series.clone(),
-                            cmd.indicator_config.clone(),
-                        )
-                        .await;
+                        let cal_result =
+                            CalculateIndicatorFunction::calculate_indicator(cmd.kline_series.clone(), cmd.indicator_config.clone()).await;
                         match cal_result {
                             Ok(indicators) => {
                                 let payload = CalculateHistoryIndicatorRespPayload::new(

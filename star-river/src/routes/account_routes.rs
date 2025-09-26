@@ -4,8 +4,7 @@ use axum::{
 };
 
 use crate::api::account_api::{
-    add_account_config, delete_account_config, get_account_configs, start_mt5_terminal, update_account_config,
-    update_account_is_available,
+    add_account_config, delete_account_config, get_account_configs, start_mt5_terminal, update_account_config, update_account_is_available,
 };
 use crate::star_river::StarRiver;
 

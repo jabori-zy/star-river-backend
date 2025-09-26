@@ -55,9 +55,7 @@ impl EngineContext for CacheEngineContext {
                     // 批量获取K线缓存
                     CacheEngineCommand::GetKlineCacheMulti(cmd) => self.handle_get_kline_cache_multi(cmd).await,
                     // 获取K线缓存长度
-                    CacheEngineCommand::GetKlineCacheLengthMulti(cmd) => {
-                        self.handle_get_kline_cache_length_multi(cmd).await
-                    }
+                    CacheEngineCommand::GetKlineCacheLengthMulti(cmd) => self.handle_get_kline_cache_length_multi(cmd).await,
                     // 更新缓存
                     CacheEngineCommand::UpdateKlineCache(cmd) => self.handle_update_kline_cache(cmd).await,
                     // 清空缓存
@@ -69,9 +67,7 @@ impl EngineContext for CacheEngineContext {
                     // 批量获取指标缓存
                     CacheEngineCommand::GetIndicatorCacheMulti(cmd) => self.handle_get_indicator_cache_multi(cmd).await,
                     // 获取指标缓存长度
-                    CacheEngineCommand::GetIndicatorCacheLengthMulti(cmd) => {
-                        self.handle_get_indicator_cache_length_multi(cmd).await
-                    }
+                    CacheEngineCommand::GetIndicatorCacheLengthMulti(cmd) => self.handle_get_indicator_cache_length_multi(cmd).await,
                     // 更新指标缓存
                     CacheEngineCommand::UpdateIndicatorCache(cmd) => self.handle_update_indicator_cache(cmd).await,
                     // 清空指标缓存

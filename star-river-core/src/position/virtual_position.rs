@@ -104,14 +104,7 @@ impl VirtualPosition {
         }
     }
 
-    pub fn update(
-        &mut self,
-        current_price: Price,
-        datetime: DateTime<Utc>,
-        margin: Margin,
-        margin_ratio: MarginRatio,
-        force_price: Price,
-    ) {
+    pub fn update(&mut self, current_price: Price, datetime: DateTime<Utc>, margin: Margin, margin_ratio: MarginRatio, force_price: Price) {
         self.current_price = current_price;
         self.update_time = datetime;
         self.unrealized_profit = match self.position_side {

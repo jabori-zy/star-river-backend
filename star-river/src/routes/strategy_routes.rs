@@ -1,6 +1,6 @@
 use crate::api::strategy_api::{
-    create_strategy, delete_strategy, disable_strategy_data_push, enable_strategy_data_push, get_strategy_by_id,
-    get_strategy_cache_keys, get_strategy_list, init_strategy, run_strategy, stop_strategy, update_strategy,
+    create_strategy, delete_strategy, disable_strategy_data_push, enable_strategy_data_push, get_strategy_by_id, get_strategy_cache_keys,
+    get_strategy_list, init_strategy, run_strategy, stop_strategy, update_strategy,
 };
 use axum::{
     Router,
@@ -8,9 +8,9 @@ use axum::{
 };
 
 use crate::api::strategy_api::backtest::{
-    get_backtest_chart_config, get_current_positions, get_history_positions, get_play_index, get_running_log,
-    get_stats_history, get_strategy_data, get_strategy_status, get_virtual_orders, get_virtual_transactions, pause,
-    play, play_one, reset, update_backtest_chart_config,
+    get_backtest_chart_config, get_current_positions, get_history_positions, get_play_index, get_running_log, get_stats_history,
+    get_strategy_data, get_strategy_status, get_virtual_orders, get_virtual_transactions, pause, play, play_one, reset,
+    update_backtest_chart_config,
 };
 
 use crate::star_river::StarRiver;

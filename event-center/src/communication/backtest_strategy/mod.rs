@@ -125,10 +125,7 @@ impl<S> Response for StrategyResponse<S> {
         self.response_base.success
     }
     fn get_error(&self) -> Arc<dyn StarRiverErrorTrait + Send + Sync> {
-        self.response_base
-            .error
-            .clone()
-            .expect("Error should exist when success is false")
+        self.response_base.error.clone().expect("Error should exist when success is false")
     }
     fn datetime(&self) -> DateTimeUtc {
         self.response_base.datetime
@@ -285,10 +282,7 @@ impl<S> Response for NodeResponse<S> {
         self.response_base.success
     }
     fn get_error(&self) -> Arc<dyn StarRiverErrorTrait + Send + Sync> {
-        self.response_base
-            .error
-            .clone()
-            .expect("Error should exist when success is false")
+        self.response_base.error.clone().expect("Error should exist when success is false")
     }
     fn datetime(&self) -> DateTimeUtc {
         self.response_base.datetime

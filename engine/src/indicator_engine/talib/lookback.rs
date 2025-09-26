@@ -99,11 +99,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::APO(apo_config) => {
-                    let lookback = TA_APO_Lookback(
-                        apo_config.fast_period,
-                        apo_config.slow_period,
-                        apo_config.ma_type.clone() as i32,
-                    );
+                    let lookback = TA_APO_Lookback(apo_config.fast_period, apo_config.slow_period, apo_config.ma_type.clone() as i32);
                     return lookback as usize;
                 }
                 IndicatorConfig::AROON(aroon_config) => {
@@ -131,11 +127,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::MACD(macd_config) => {
-                    let lookback = TA_MACD_Lookback(
-                        macd_config.fast_period,
-                        macd_config.slow_period,
-                        macd_config.signal_period,
-                    );
+                    let lookback = TA_MACD_Lookback(macd_config.fast_period, macd_config.slow_period, macd_config.signal_period);
                     return lookback as usize;
                 }
                 IndicatorConfig::MACDEXT(macdext_config) => {
@@ -178,11 +170,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::PPO(ppo_config) => {
-                    let lookback = TA_PPO_Lookback(
-                        ppo_config.fast_period,
-                        ppo_config.slow_period,
-                        ppo_config.ma_type.clone() as i32,
-                    );
+                    let lookback = TA_PPO_Lookback(ppo_config.fast_period, ppo_config.slow_period, ppo_config.ma_type.clone() as i32);
                     return lookback as usize;
                 }
                 IndicatorConfig::ROC(roc_config) => {
@@ -237,11 +225,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::ULTOSC(ultosc_config) => {
-                    let lookback = TA_ULTOSC_Lookback(
-                        ultosc_config.time_period1,
-                        ultosc_config.time_period2,
-                        ultosc_config.time_period3,
-                    );
+                    let lookback = TA_ULTOSC_Lookback(ultosc_config.time_period1, ultosc_config.time_period2, ultosc_config.time_period3);
                     return lookback as usize;
                 }
                 IndicatorConfig::WILLR(willr_config) => {

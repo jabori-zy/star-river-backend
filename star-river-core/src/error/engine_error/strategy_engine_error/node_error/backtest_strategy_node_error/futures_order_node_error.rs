@@ -11,10 +11,7 @@ pub enum FuturesOrderNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("futures order node backtest config deserialization failed. reason: {source}"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(transparent)]
     VirtualTradingSystem {
@@ -26,10 +23,7 @@ pub enum FuturesOrderNodeError {
     CannotCreateOrder { backtrace: Backtrace },
 
     #[snafu(display("order config not found for input handle id: {input_handle_id}"))]
-    OrderConfigNotFound {
-        input_handle_id: String,
-        backtrace: Backtrace,
-    },
+    OrderConfigNotFound { input_handle_id: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for FuturesOrderNodeError
@@ -70,8 +64,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
         // All FuturesOrderNodeError variants either have no source or
         // have external sources (serde_json::Error) that don't implement our trait
         match self {
-            FuturesOrderNodeError::ConfigFieldValueNull { .. }
-            | FuturesOrderNodeError::ConfigDeserializationFailed { .. } => vec![self.error_code()],
+            FuturesOrderNodeError::ConfigFieldValueNull { .. } | FuturesOrderNodeError::ConfigDeserializationFailed { .. } => {
+                vec![self.error_code()]
+            }
             FuturesOrderNodeError::VirtualTradingSystem { source, .. } => source.error_code_chain(),
             FuturesOrderNodeError::CannotCreateOrder { .. } => vec![self.error_code()],
             FuturesOrderNodeError::OrderConfigNotFound { .. } => vec![self.error_code()],

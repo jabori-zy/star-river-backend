@@ -58,13 +58,7 @@ pub struct KlineUpdatePayload {
 }
 
 impl KlineUpdatePayload {
-    pub fn new(
-        config_id: i32,
-        play_index: PlayIndex,
-        should_calculate: bool,
-        kline_key: KlineKey,
-        kline: Kline,
-    ) -> Self {
+    pub fn new(config_id: i32, play_index: PlayIndex, should_calculate: bool, kline_key: KlineKey, kline: Kline) -> Self {
         Self {
             config_id,
             play_index,

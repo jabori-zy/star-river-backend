@@ -31,7 +31,7 @@ use tokio::time::Duration;
 #[derive(Debug)]
 pub struct MarketEngineContext {
     pub engine_name: EngineName,
-    pub exchange_engine: Arc<Mutex<ExchangeEngine>>, // 交易所引擎
+    pub exchange_engine: Arc<Mutex<ExchangeEngine>>,                         // 交易所引擎
     pub subscribe_klines: Arc<Mutex<HashMap<KlineSubKey, Vec<StrategyId>>>>, // 已订阅的k线
 }
 
@@ -83,11 +83,7 @@ impl EngineContext for MarketEngineContext {
                 .unwrap();
                 tracing::debug!("市场数据引擎订阅K线流成功, 请求节点: {}", cmd.node_id);
 
-                let payload = SubscribeKlineStreamRespPayload::new(
-                    cmd.exchange.clone(),
-                    cmd.symbol.clone(),
-                    cmd.interval.clone(),
-                );
+                let payload = SubscribeKlineStreamRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone());
                 let response = SubscribeKlineStreamResponse::success(Some(payload));
                 cmd.respond(response);
             }
@@ -103,11 +99,7 @@ impl EngineContext for MarketEngineContext {
                 )
                 .await
                 .unwrap();
-                let payload = UnsubscribeKlineStreamRespPayload::new(
-                    cmd.exchange.clone(),
-                    cmd.symbol.clone(),
-                    cmd.interval.clone(),
-                );
+                let payload = UnsubscribeKlineStreamRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone());
                 let response = UnsubscribeKlineStreamResponse::success(Some(payload));
                 cmd.respond(response);
             }
@@ -137,12 +129,8 @@ impl EngineContext for MarketEngineContext {
                 // EventCenterSingleton::publish(exchange_kline_history_update_event.into())
                 //     .await
                 //     .unwrap();
-                let payload = GetKlineHistoryRespPayload::new(
-                    cmd.exchange.clone(),
-                    cmd.symbol.clone(),
-                    cmd.interval.clone(),
-                    kline_history,
-                );
+                let payload =
+                    GetKlineHistoryRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone(), kline_history);
                 let resp = GetKlineHistoryResponse::success(Some(payload));
                 cmd.respond(resp);
             }
@@ -172,8 +160,7 @@ impl MarketEngineContext {
         };
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = AddKlineKeyCmdPayload::new(strategy_id, key, Some(max_size), Duration::from_millis(10));
-        let cmd: CacheEngineCommand =
-            AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
+        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();
@@ -202,8 +189,7 @@ impl MarketEngineContext {
         };
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = AddKlineKeyCmdPayload::new(strategy_id, key, None, Duration::from_millis(10));
-        let cmd: CacheEngineCommand =
-            AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
+        let cmd: CacheEngineCommand = AddKlineKeyCommand::new(format!("strategy_{}", strategy_id), resp_tx, Some(payload)).into();
 
         // self.get_command_publisher().send(add_key_command.into()).await.unwrap();
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();
@@ -259,10 +245,7 @@ impl MarketEngineContext {
         let context_read = exchange_engine_context.read().await;
         let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange_client = exchange_engine_context_guard
-            .get_exchange_ref(&account_id)
-            .await
-            .unwrap();
+        let exchange_client = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
 
         // 先获取历史k线
         // 初始的k线
@@ -270,12 +253,8 @@ impl MarketEngineContext {
             .get_kline_series(&symbol, interval.clone(), cache_size)
             .await
             .map_err(|e| e.to_string())?;
-        let exchange_klineseries_update = ExchangeKlineSeriesUpdateEvent::new(
-            exchange,
-            symbol.to_string(),
-            interval.clone().into(),
-            initail_kline_series.clone(),
-        );
+        let exchange_klineseries_update =
+            ExchangeKlineSeriesUpdateEvent::new(exchange, symbol.to_string(), interval.clone().into(), initail_kline_series.clone());
         let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update);
         EventCenterSingleton::publish(exchange_klineseries_update_event.into())
             .await
@@ -320,10 +299,7 @@ impl MarketEngineContext {
         let context_read = exchange_engine_context.read().await;
         let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange = exchange_engine_context_guard
-            .get_exchange_ref(&account_id)
-            .await
-            .unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
         exchange
             .unsubscribe_kline_stream(&symbol, interval.clone(), frequency)
             .await
@@ -370,10 +346,7 @@ impl MarketEngineContext {
         let exchange_engine_ctx_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange = exchange_engine_ctx_guard.get_exchange_ref(&account_id).await.unwrap();
-        let kline_history = exchange
-            .get_kline_history(&symbol, interval.clone(), time_range)
-            .await
-            .unwrap();
+        let kline_history = exchange.get_kline_history(&symbol, interval.clone(), time_range).await.unwrap();
 
         Ok(kline_history)
     }
@@ -386,10 +359,7 @@ impl MarketEngineContext {
         let context_read = exchange_engine_context.read().await;
         let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange = exchange_engine_context_guard
-            .get_exchange_ref(&account_id)
-            .await
-            .unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
         let symbol_list = exchange.get_symbol_list().await.unwrap();
         Ok(symbol_list)
     }
@@ -402,10 +372,7 @@ impl MarketEngineContext {
         let context_read = exchange_engine_context.read().await;
         let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange = exchange_engine_context_guard
-            .get_exchange_ref(&account_id)
-            .await
-            .unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
         let support_kline_intervals = exchange.get_support_kline_intervals();
         support_kline_intervals
     }

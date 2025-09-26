@@ -22,24 +22,9 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(StrategyConfigNew::Name).string().not_null())
                     .col(ColumnDef::new(StrategyConfigNew::Description).string().not_null())
-                    .col(
-                        ColumnDef::new(StrategyConfigNew::Status)
-                            .string()
-                            .not_null()
-                            .default("stopped"),
-                    )
-                    .col(
-                        ColumnDef::new(StrategyConfigNew::IsDeleted)
-                            .boolean()
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
-                        ColumnDef::new(StrategyConfigNew::TradeMode)
-                            .string()
-                            .not_null()
-                            .default("backtest"),
-                    )
+                    .col(ColumnDef::new(StrategyConfigNew::Status).string().not_null().default("stopped"))
+                    .col(ColumnDef::new(StrategyConfigNew::IsDeleted).boolean().not_null().default(false))
+                    .col(ColumnDef::new(StrategyConfigNew::TradeMode).string().not_null().default("backtest"))
                     .col(ColumnDef::new(StrategyConfigNew::Config).json())
                     .col(ColumnDef::new(StrategyConfigNew::Nodes).json())
                     .col(ColumnDef::new(StrategyConfigNew::Edges).json())
@@ -81,17 +66,11 @@ impl MigrationTrait for Migration {
         manager.get_connection().execute_unprepared(sql).await?;
 
         // 3. 删除原表
-        manager
-            .drop_table(Table::drop().table(StrategyConfig::Table).to_owned())
-            .await?;
+        manager.drop_table(Table::drop().table(StrategyConfig::Table).to_owned()).await?;
 
         // 4. 将新表重命名为原表名
         manager
-            .rename_table(
-                Table::rename()
-                    .table(StrategyConfigNew::Table, StrategyConfig::Table)
-                    .to_owned(),
-            )
+            .rename_table(Table::rename().table(StrategyConfigNew::Table, StrategyConfig::Table).to_owned())
             .await
     }
 
@@ -112,24 +91,9 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(StrategyConfigOld::Name).string().not_null())
                     .col(ColumnDef::new(StrategyConfigOld::Description).string().not_null())
-                    .col(
-                        ColumnDef::new(StrategyConfigOld::Status)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    )
-                    .col(
-                        ColumnDef::new(StrategyConfigOld::IsDeleted)
-                            .boolean()
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
-                        ColumnDef::new(StrategyConfigOld::TradeMode)
-                            .string()
-                            .not_null()
-                            .default("backtest"),
-                    )
+                    .col(ColumnDef::new(StrategyConfigOld::Status).integer().not_null().default(0))
+                    .col(ColumnDef::new(StrategyConfigOld::IsDeleted).boolean().not_null().default(false))
+                    .col(ColumnDef::new(StrategyConfigOld::TradeMode).string().not_null().default("backtest"))
                     .col(ColumnDef::new(StrategyConfigOld::Config).json())
                     .col(ColumnDef::new(StrategyConfigOld::Nodes).json())
                     .col(ColumnDef::new(StrategyConfigOld::Edges).json())
@@ -171,17 +135,11 @@ impl MigrationTrait for Migration {
         manager.get_connection().execute_unprepared(sql).await?;
 
         // 3. 删除当前表
-        manager
-            .drop_table(Table::drop().table(StrategyConfig::Table).to_owned())
-            .await?;
+        manager.drop_table(Table::drop().table(StrategyConfig::Table).to_owned()).await?;
 
         // 4. 将临时表重命名为原表名
         manager
-            .rename_table(
-                Table::rename()
-                    .table(StrategyConfigOld::Table, StrategyConfig::Table)
-                    .to_owned(),
-            )
+            .rename_table(Table::rename().table(StrategyConfigOld::Table, StrategyConfig::Table).to_owned())
             .await
     }
 }

@@ -93,12 +93,7 @@ impl CacheEngine {
     }
 
     // 获取缓存值
-    pub async fn get_cache_value(
-        &self,
-        key: &Key,
-        index: Option<u32>,
-        limit: Option<u32>,
-    ) -> Result<Vec<serde_json::Value>, String> {
+    pub async fn get_cache_value(&self, key: &Key, index: Option<u32>, limit: Option<u32>) -> Result<Vec<serde_json::Value>, String> {
         let context = self.context.read().await;
         let cache_engine_context = context.as_any().downcast_ref::<CacheEngineContext>().unwrap();
 
@@ -110,18 +105,13 @@ impl CacheEngine {
                 }
                 Err(e) => Err(format!("获取K线缓存失败: {}", e)),
             },
-            Key::Indicator(indicator_key) => {
-                match cache_engine_context
-                    .get_indicator_cache(indicator_key, index, limit)
-                    .await
-                {
-                    Ok(indicators) => {
-                        let value: Vec<serde_json::Value> = indicators.iter().map(|v| v.to_json()).collect();
-                        Ok(value)
-                    }
-                    Err(e) => Err(format!("获取指标缓存失败: {}", e)),
+            Key::Indicator(indicator_key) => match cache_engine_context.get_indicator_cache(indicator_key, index, limit).await {
+                Ok(indicators) => {
+                    let value: Vec<serde_json::Value> = indicators.iter().map(|v| v.to_json()).collect();
+                    Ok(value)
                 }
-            }
+                Err(e) => Err(format!("获取指标缓存失败: {}", e)),
+            },
         }
     }
 

@@ -19,10 +19,7 @@ pub struct NodeEvent<T> {
 impl<T> NodeEvent<T> {
     pub fn new(from_node_id: String, from_node_name: String, from_node_handle_id: String, payload: T) -> Self {
         let node_event_base = NodeEventBase::new(from_node_id, from_node_name, from_node_handle_id);
-        Self {
-            node_event_base,
-            payload,
-        }
+        Self { node_event_base, payload }
     }
 }
 

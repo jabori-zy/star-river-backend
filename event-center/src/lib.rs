@@ -87,8 +87,7 @@ impl EventCenter {
         for engine_name in engines.iter() {
             let (tx, rx) = mpsc::channel::<EngineCommand>(100);
             // 成对保存发送器和接收器
-            self.command_channels
-                .insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
+            self.command_channels.insert(engine_name.clone(), (tx, Arc::new(Mutex::new(rx))));
             tracing::debug!("Command channel initialized for engine: {:?}", engine_name);
         }
     }
@@ -140,10 +139,7 @@ impl EventCenter {
     // }
 
     // 获取指定引擎的命令接收器
-    pub async fn get_command_receiver(
-        &self,
-        engine_name: &EngineName,
-    ) -> Result<Arc<Mutex<EngineCommandReceiver>>, EventCenterError> {
+    pub async fn get_command_receiver(&self, engine_name: &EngineName) -> Result<Arc<Mutex<EngineCommandReceiver>>, EventCenterError> {
         self.command_channels
             .get(engine_name)
             .map(|(_sender, receiver)| receiver.clone())

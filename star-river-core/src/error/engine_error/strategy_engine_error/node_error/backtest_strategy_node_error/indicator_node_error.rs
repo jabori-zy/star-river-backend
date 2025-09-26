@@ -11,10 +11,7 @@ pub enum IndicatorNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("indicator node backtest config deserialization failed. reason: {source}"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("{config_name} should be greater than or equal to zero, but got {config_value}"))]
     ValueNotGreaterThanOrEqualToZero {
@@ -31,10 +28,7 @@ pub enum IndicatorNodeError {
     },
 
     #[snafu(transparent)]
-    IndicatorError {
-        source: IndicatorError,
-        backtrace: Backtrace,
-    },
+    IndicatorError { source: IndicatorError, backtrace: Backtrace },
 
     #[snafu(display("data source [{data_source}] parse failed. reason: [{source}]"))]
     DataSourceParseFailed {
@@ -93,8 +87,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
             | IndicatorNodeError::ValueNotGreaterThanZero { .. } => vec![self.error_code()],
 
             // For errors with external sources that don't implement our trait
-            IndicatorNodeError::ConfigDeserializationFailed { .. }
-            | IndicatorNodeError::DataSourceParseFailed { .. } => vec![self.error_code()],
+            IndicatorNodeError::ConfigDeserializationFailed { .. } | IndicatorNodeError::DataSourceParseFailed { .. } => {
+                vec![self.error_code()]
+            }
         }
     }
 
@@ -109,25 +104,19 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
                     format!("指标节点回测配置反序列化失败，原因: {}", source)
                 }
                 IndicatorNodeError::ValueNotGreaterThanOrEqualToZero {
-                    config_name,
-                    config_value,
-                    ..
+                    config_name, config_value, ..
                 } => {
                     format!("配置 {} 应该大于等于零，但得到了 {}", config_name, config_value)
                 }
                 IndicatorNodeError::ValueNotGreaterThanZero {
-                    config_name,
-                    config_value,
-                    ..
+                    config_name, config_value, ..
                 } => {
                     format!("配置 {} 应该大于零，但得到了 {}", config_name, config_value)
                 }
                 IndicatorNodeError::IndicatorError { source, .. } => {
                     format!("指标错误: {}", source)
                 }
-                IndicatorNodeError::DataSourceParseFailed {
-                    data_source, source, ..
-                } => {
+                IndicatorNodeError::DataSourceParseFailed { data_source, source, .. } => {
                     format!("数据源 [{}] 解析失败，原因: [{}]", data_source, source)
                 }
             },

@@ -62,8 +62,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for VirtualTradingSystemErro
         match self {
             // CreateIndicatorFailed has source but serde_json::Error doesn't implement our trait
             // So we start the chain here
-            VirtualTradingSystemError::UnsupportedOrderType { .. }
-            | VirtualTradingSystemError::KlineKeyNotFound { .. } => vec![self.error_code()],
+            VirtualTradingSystemError::UnsupportedOrderType { .. } | VirtualTradingSystemError::KlineKeyNotFound { .. } => {
+                vec![self.error_code()]
+            }
         }
     }
 }

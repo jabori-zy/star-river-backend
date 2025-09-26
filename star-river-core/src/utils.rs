@@ -3,8 +3,7 @@ use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use std::sync::LazyLock;
 
 // UTC+8 时区常量，使用 LazyLock 延迟初始化
-static UTC8_OFFSET: LazyLock<FixedOffset> =
-    LazyLock::new(|| FixedOffset::east_opt(8 * 3600).expect("Invalid UTC+8 offset"));
+static UTC8_OFFSET: LazyLock<FixedOffset> = LazyLock::new(|| FixedOffset::east_opt(8 * 3600).expect("Invalid UTC+8 offset"));
 
 // 获取utc+8的时间戳
 pub fn get_utc8_timestamp_millis() -> i64 {

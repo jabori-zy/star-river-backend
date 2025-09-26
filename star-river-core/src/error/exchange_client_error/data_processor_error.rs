@@ -8,10 +8,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum DataProcessorError {
     #[snafu(display("JSON parsing failed"))]
-    JsonParsing {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    JsonParsing { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("Stream data processing failed: {message}"))]
     StreamProcessing {
@@ -98,14 +95,8 @@ pub enum DataProcessorError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display(
-        "Invalid kline array format: expected 6 elements [timestamp, open, high, low, close, volume], got {length}"
-    ))]
-    InvalidKlineArrayFormat {
-        length: usize,
-        data: String,
-        backtrace: Backtrace,
-    },
+    #[snafu(display("Invalid kline array format: expected 6 elements [timestamp, open, high, low, close, volume], got {length}"))]
+    InvalidKlineArrayFormat { length: usize, data: String, backtrace: Backtrace },
 
     #[snafu(display("{message}. {field} value is {value}"))]
     DataValidation {
@@ -144,10 +135,7 @@ pub enum DataProcessorError {
     Internal { message: String, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    DateTime {
-        source: DateTimeError,
-        backtrace: Backtrace,
-    },
+    DateTime { source: DateTimeError, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for DataProcessorError
@@ -193,9 +181,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
     fn context(&self) -> HashMap<&'static str, String> {
         let mut ctx = HashMap::new();
         match self {
-            DataProcessorError::StreamProcessing {
-                data_type: Some(dt), ..
-            } => {
+            DataProcessorError::StreamProcessing { data_type: Some(dt), .. } => {
                 ctx.insert("data_type", dt.clone());
             }
             DataProcessorError::MissingField { field, context, .. } => {
@@ -328,10 +314,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                     }
                 }
                 DataProcessorError::KlineDataParsing {
-                    message,
-                    symbol,
-                    interval,
-                    ..
+                    message, symbol, interval, ..
                 } => {
                     let mut msg = format!("解析K线数据失败: {}", message);
                     if let Some(sym) = symbol {
@@ -349,9 +332,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                         format!("解析订单数据失败: {}", message)
                     }
                 }
-                DataProcessorError::PositionDataParsing {
-                    message, position_id, ..
-                } => {
+                DataProcessorError::PositionDataParsing { message, position_id, .. } => {
                     if let Some(id) = position_id {
                         format!("解析持仓数据失败: {}, 持仓ID: {}", message, id)
                     } else {
@@ -365,22 +346,15 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
                         format!("解析交易数据失败: {}", message)
                     }
                 }
-                DataProcessorError::AccountInfoParsing {
-                    message, account_id, ..
-                } => {
+                DataProcessorError::AccountInfoParsing { message, account_id, .. } => {
                     if let Some(id) = account_id {
                         format!("解析账户信息失败: {}, 账户ID: {}", message, id)
                     } else {
                         format!("解析账户信息失败: {}", message)
                     }
                 }
-                DataProcessorError::ArrayParsing {
-                    actual_type, context, ..
-                } => {
-                    format!(
-                        "数组数据解析失败: 期望数组格式，实际类型 {} (上下文: {})",
-                        actual_type, context
-                    )
+                DataProcessorError::ArrayParsing { actual_type, context, .. } => {
+                    format!("数组数据解析失败: 期望数组格式，实际类型 {} (上下文: {})", actual_type, context)
                 }
                 DataProcessorError::InvalidKlineArrayFormat { length, data, .. } => {
                     format!(

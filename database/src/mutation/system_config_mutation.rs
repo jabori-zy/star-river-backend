@@ -7,11 +7,7 @@ pub struct SystemConfigMutation;
 
 impl SystemConfigMutation {
     // 更新系统配置
-    pub async fn update_system_config(
-        db: &DbConn,
-        localization: Localization,
-        timezone: String,
-    ) -> Result<SystemConfig, DbErr> {
+    pub async fn update_system_config(db: &DbConn, localization: Localization, timezone: String) -> Result<SystemConfig, DbErr> {
         // 使用 find() 选择所有数据，然后 limit(1) 只取第一条
         let system_config: system_config::ActiveModel = system_config::Entity::find()
             .limit(1)

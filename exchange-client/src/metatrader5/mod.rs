@@ -534,10 +534,7 @@ impl MetaTrader5 {
                     // 仅通过PID结束进程
                     if let Some(pid) = child.id() {
                         // 完整命令: taskkill /F /T /PID <pid>
-                        match StdCommand::new("taskkill")
-                            .args(&["/F", "/T", "/PID", &pid.to_string()])
-                            .output()
-                        {
+                        match StdCommand::new("taskkill").args(&["/F", "/T", "/PID", &pid.to_string()]).output() {
                             Ok(_) => tracing::info!("强制终止MT5-{}进程成功，PID: {}", self.terminal_id, pid),
                             Err(e) => {
                                 tracing::warn!("强制终止MT5-{}进程失败，PID: {}, 错误: {}", self.terminal_id, pid, e)
@@ -582,15 +579,9 @@ impl MetaTrader5 {
                     } else {
                         // 如果仍然存在进程，再次尝试终止
                         if attempt < 3 {
-                            tracing::warn!(
-                                "MT5-{}进程仍在运行，尝试再次终止 (尝试 {}/3)",
-                                self.terminal_id,
-                                attempt
-                            );
+                            tracing::warn!("MT5-{}进程仍在运行，尝试再次终止 (尝试 {}/3)", self.terminal_id, attempt);
                             // 完整命令: taskkill /F /IM <process_name>
-                            let _ = StdCommand::new("taskkill")
-                                .args(&["/F", "/IM", &self.process_name])
-                                .output();
+                            let _ = StdCommand::new("taskkill").args(&["/F", "/IM", &self.process_name]).output();
                             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                         } else {
                             tracing::error!("无法停止MT5-{}进程，多次尝试后仍在运行", self.terminal_id);
@@ -606,11 +597,7 @@ impl MetaTrader5 {
                 success = true;
             }
 
-            tracing::info!(
-                "MT5-{} 服务已{}停止",
-                self.terminal_id,
-                if success { "成功" } else { "尝试" }
-            );
+            tracing::info!("MT5-{} 服务已{}停止", self.terminal_id, if success { "成功" } else { "尝试" });
         } else {
             // 如果没有进程，释放锁
             drop(mt5_process);
@@ -635,10 +622,7 @@ impl MetaTrader5 {
                     // 发现同名进程，尝试终止
                     tracing::warn!("发现同名的MT5-{}进程，尝试终止", self.terminal_id);
                     // 完整命令: taskkill /F /IM <process_name>
-                    match StdCommand::new("taskkill")
-                        .args(&["/F", "/IM", &self.process_name])
-                        .output()
-                    {
+                    match StdCommand::new("taskkill").args(&["/F", "/IM", &self.process_name]).output() {
                         Ok(_) => {
                             // 等待进程终止
                             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -787,22 +771,13 @@ impl ExchangeClient for MetaTrader5 {
         Ok(serde_json::Value::Null)
     }
 
-    async fn get_kline_series(
-        &self,
-        symbol: &str,
-        interval: KlineInterval,
-        limit: u32,
-    ) -> Result<Vec<Kline>, ExchangeClientError> {
+    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, ExchangeClientError> {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_series = mt5_http_client
-                .get_kline_series(symbol, mt5_interval.clone(), limit)
-                .await?;
+            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await?;
             let data_processor = self.data_processor.lock().await;
-            let kline_series = data_processor
-                .process_kline_series(symbol, mt5_interval, kline_series)
-                .await?;
+            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await?;
             Ok(kline_series)
         } else {
             return HttpClientNotCreatedSnafu {
@@ -814,31 +789,19 @@ impl ExchangeClient for MetaTrader5 {
     }
 
     async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
-        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port)
-            .await
-            .context(WebSocketSnafu {
-                message: "connect to metatrader5 websocket server failed".to_string(),
-                account_id: self.terminal_id,
-                url: format!("ws://localhost:{}/ws", self.server_port),
-            })?;
+        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.context(WebSocketSnafu {
+            message: "connect to metatrader5 websocket server failed".to_string(),
+            account_id: self.terminal_id,
+            url: format!("ws://localhost:{}/ws", self.server_port),
+        })?;
         self.websocket_state.lock().await.replace(websocket_state);
         Ok(())
     }
 
-    async fn subscribe_kline_stream(
-        &self,
-        symbol: &str,
-        interval: KlineInterval,
-        frequency: u32,
-    ) -> Result<(), ExchangeClientError> {
+    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
-        tracing::debug!(
-            "Metatrader5订阅k线流: {:?}, {:?}, {:?}",
-            symbol,
-            mt5_interval,
-            frequency
-        );
+        tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
         if let Some(state) = mt5_ws_client.as_mut() {
             let params = json!({
                 "symbol": symbol,
@@ -854,12 +817,7 @@ impl ExchangeClient for MetaTrader5 {
         Ok(())
     }
 
-    async fn unsubscribe_kline_stream(
-        &self,
-        symbol: &str,
-        interval: KlineInterval,
-        frequency: u32,
-    ) -> Result<(), ExchangeClientError> {
+    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
         tracing::info!("取消订阅k线流: {:?}", symbol);
         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
         let mut mt5_ws_client = self.websocket_state.lock().await;
@@ -918,8 +876,8 @@ impl ExchangeClient for MetaTrader5 {
                             tracing::debug!("收到pong帧");
                         }
                         Message::Text(text) => {
-                            let stream_json = serde_json::from_str::<serde_json::Value>(&text.to_string())
-                                .expect("解析WebSocket消息JSON失败");
+                            let stream_json =
+                                serde_json::from_str::<serde_json::Value>(&text.to_string()).expect("解析WebSocket消息JSON失败");
                             // tracing::debug!("收到消息: {:?}", stream_json);
                             let data_processor = data_processor.lock().await;
                             if let Err(e) = data_processor.process_stream(stream_json).await {
@@ -948,13 +906,9 @@ impl ExchangeClient for MetaTrader5 {
         let mt5_interval = Mt5KlineInterval::from(interval);
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_history = mt5_http_client
-                .get_kline_history(symbol, mt5_interval.clone(), time_range)
-                .await?;
+            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await?;
             let data_processor = self.data_processor.lock().await;
-            let klines = data_processor
-                .process_kline_series(symbol, mt5_interval, kline_history)
-                .await?;
+            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await?;
             Ok(klines)
         } else {
             return HttpClientNotCreatedSnafu {
@@ -1115,10 +1069,7 @@ impl ExchangeClient for MetaTrader5 {
         }
     }
 
-    async fn get_position_number(
-        &self,
-        position_number_request: GetPositionNumberParams,
-    ) -> Result<PositionNumber, ExchangeClientError> {
+    async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, ExchangeClientError> {
         let mt5_http_client = self.mt5_http_client.lock().await;
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let mt5_position_number_request = Mt5GetPositionNumberParams::from(position_number_request);
@@ -1146,9 +1097,7 @@ impl ExchangeClient for MetaTrader5 {
         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
             let account_info = mt5_http_client.get_account_info().await?;
             let data_processor = self.data_processor.lock().await;
-            let account_info = data_processor
-                .process_account_info(self.terminal_id, account_info)
-                .await?;
+            let account_info = data_processor.process_account_info(self.terminal_id, account_info).await?;
             Ok(account_info)
         } else {
             return HttpClientNotCreatedSnafu {

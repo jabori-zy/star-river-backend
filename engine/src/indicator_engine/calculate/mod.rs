@@ -18,9 +18,7 @@ impl CalculateIndicatorFunction {
     ) -> Result<Vec<Indicator>, IndicatorEngineError> {
         match &indicator_config {
             // Overlap
-            IndicatorConfig::BBANDS(bbands_config) => {
-                CalculateIndicatorFunction::calculate_bbands(kline_series, bbands_config)
-            }
+            IndicatorConfig::BBANDS(bbands_config) => CalculateIndicatorFunction::calculate_bbands(kline_series, bbands_config),
             IndicatorConfig::DEMA(dema_config) => CalculateIndicatorFunction::calculate_dema(kline_series, dema_config),
             IndicatorConfig::EMA(ema_config) => CalculateIndicatorFunction::calculate_ema(kline_series, ema_config),
             IndicatorConfig::HtTrendline(ht_trendline_config) => {
@@ -29,89 +27,51 @@ impl CalculateIndicatorFunction {
             IndicatorConfig::KAMA(kama_config) => CalculateIndicatorFunction::calculate_kama(kline_series, kama_config),
             IndicatorConfig::MA(ma_config) => CalculateIndicatorFunction::calculate_ma(kline_series, ma_config),
             IndicatorConfig::MAMA(mama_config) => CalculateIndicatorFunction::calculate_mama(kline_series, mama_config),
-            IndicatorConfig::MIDPOINT(midpoint_config) => {
-                CalculateIndicatorFunction::calculate_midpoint(kline_series, midpoint_config)
-            }
-            IndicatorConfig::MIDPRICE(midprice_config) => {
-                CalculateIndicatorFunction::calculate_midprice(kline_series, midprice_config)
-            }
+            IndicatorConfig::MIDPOINT(midpoint_config) => CalculateIndicatorFunction::calculate_midpoint(kline_series, midpoint_config),
+            IndicatorConfig::MIDPRICE(midprice_config) => CalculateIndicatorFunction::calculate_midprice(kline_series, midprice_config),
             IndicatorConfig::SAR(sar_config) => CalculateIndicatorFunction::calculate_sar(kline_series, sar_config),
-            IndicatorConfig::SAREXT(sarext_config) => {
-                CalculateIndicatorFunction::calculate_sarext(kline_series, sarext_config)
-            }
+            IndicatorConfig::SAREXT(sarext_config) => CalculateIndicatorFunction::calculate_sarext(kline_series, sarext_config),
             IndicatorConfig::SMA(sma_config) => CalculateIndicatorFunction::calculate_sma(kline_series, sma_config),
             IndicatorConfig::T3(t3_config) => CalculateIndicatorFunction::calculate_t3(kline_series, t3_config),
             IndicatorConfig::TEMA(tema_config) => CalculateIndicatorFunction::calculate_tema(kline_series, tema_config),
-            IndicatorConfig::TRIMA(trima_config) => {
-                CalculateIndicatorFunction::calculate_trima(kline_series, trima_config)
-            }
+            IndicatorConfig::TRIMA(trima_config) => CalculateIndicatorFunction::calculate_trima(kline_series, trima_config),
             IndicatorConfig::WMA(wma_config) => CalculateIndicatorFunction::calculate_wma(kline_series, wma_config),
 
             // Momentum
             IndicatorConfig::ADX(adx_config) => CalculateIndicatorFunction::calculate_adx(kline_series, adx_config),
             IndicatorConfig::ADXR(adxr_config) => CalculateIndicatorFunction::calculate_adxr(kline_series, adxr_config),
             IndicatorConfig::APO(apo_config) => CalculateIndicatorFunction::calculate_apo(kline_series, apo_config),
-            IndicatorConfig::AROON(aroon_config) => {
-                CalculateIndicatorFunction::calculate_aroon(kline_series, aroon_config)
-            }
-            IndicatorConfig::AROONOSC(aroonosc_config) => {
-                CalculateIndicatorFunction::calculate_aroonosc(kline_series, aroonosc_config)
-            }
+            IndicatorConfig::AROON(aroon_config) => CalculateIndicatorFunction::calculate_aroon(kline_series, aroon_config),
+            IndicatorConfig::AROONOSC(aroonosc_config) => CalculateIndicatorFunction::calculate_aroonosc(kline_series, aroonosc_config),
             IndicatorConfig::BOP(_) => CalculateIndicatorFunction::calculate_bop(kline_series),
             IndicatorConfig::CCI(cci_config) => CalculateIndicatorFunction::calculate_cci(kline_series, cci_config),
             IndicatorConfig::CMO(cmo_config) => CalculateIndicatorFunction::calculate_cmo(kline_series, cmo_config),
             IndicatorConfig::DX(dx_config) => CalculateIndicatorFunction::calculate_dx(kline_series, dx_config),
             IndicatorConfig::MACD(macd_config) => CalculateIndicatorFunction::calculate_macd(kline_series, macd_config),
-            IndicatorConfig::MACDEXT(macdext_config) => {
-                CalculateIndicatorFunction::calculate_macdext(kline_series, macdext_config)
-            }
-            IndicatorConfig::MACDFIX(macdfix_config) => {
-                CalculateIndicatorFunction::calculate_macdfix(kline_series, macdfix_config)
-            }
+            IndicatorConfig::MACDEXT(macdext_config) => CalculateIndicatorFunction::calculate_macdext(kline_series, macdext_config),
+            IndicatorConfig::MACDFIX(macdfix_config) => CalculateIndicatorFunction::calculate_macdfix(kline_series, macdfix_config),
             IndicatorConfig::MFI(mfi_config) => CalculateIndicatorFunction::calculate_mfi(kline_series, mfi_config),
-            IndicatorConfig::MinusDi(minusdi_config) => {
-                CalculateIndicatorFunction::calculate_minus_di(kline_series, minusdi_config)
-            }
-            IndicatorConfig::MinusDm(minusdm_config) => {
-                CalculateIndicatorFunction::calculate_minus_dm(kline_series, minusdm_config)
-            }
+            IndicatorConfig::MinusDi(minusdi_config) => CalculateIndicatorFunction::calculate_minus_di(kline_series, minusdi_config),
+            IndicatorConfig::MinusDm(minusdm_config) => CalculateIndicatorFunction::calculate_minus_dm(kline_series, minusdm_config),
             IndicatorConfig::MOM(mom_config) => CalculateIndicatorFunction::calculate_mom(kline_series, mom_config),
-            IndicatorConfig::PlusDi(plusdi_config) => {
-                CalculateIndicatorFunction::calculate_plus_di(kline_series, plusdi_config)
-            }
-            IndicatorConfig::PlusDm(plusdm_config) => {
-                CalculateIndicatorFunction::calculate_plus_dm(kline_series, plusdm_config)
-            }
+            IndicatorConfig::PlusDi(plusdi_config) => CalculateIndicatorFunction::calculate_plus_di(kline_series, plusdi_config),
+            IndicatorConfig::PlusDm(plusdm_config) => CalculateIndicatorFunction::calculate_plus_dm(kline_series, plusdm_config),
             IndicatorConfig::PPO(ppo_config) => CalculateIndicatorFunction::calculate_ppo(kline_series, ppo_config),
             IndicatorConfig::ROC(roc_config) => CalculateIndicatorFunction::calculate_roc(kline_series, roc_config),
             IndicatorConfig::ROCP(rocp_config) => CalculateIndicatorFunction::calculate_rocp(kline_series, rocp_config),
             IndicatorConfig::ROCR(rocr_config) => CalculateIndicatorFunction::calculate_rocr(kline_series, rocr_config),
-            IndicatorConfig::ROCR100(rocr100_config) => {
-                CalculateIndicatorFunction::calculate_rocr100(kline_series, rocr100_config)
-            }
+            IndicatorConfig::ROCR100(rocr100_config) => CalculateIndicatorFunction::calculate_rocr100(kline_series, rocr100_config),
             IndicatorConfig::RSI(rsi_config) => CalculateIndicatorFunction::calculate_rsi(kline_series, rsi_config),
-            IndicatorConfig::STOCH(stoch_config) => {
-                CalculateIndicatorFunction::calculate_stoch(kline_series, stoch_config)
-            }
-            IndicatorConfig::STOCHF(stochf_config) => {
-                CalculateIndicatorFunction::calculate_stochf(kline_series, stochf_config)
-            }
-            IndicatorConfig::STOCHRSI(stochrsi_config) => {
-                CalculateIndicatorFunction::calculate_stochrsi(kline_series, stochrsi_config)
-            }
+            IndicatorConfig::STOCH(stoch_config) => CalculateIndicatorFunction::calculate_stoch(kline_series, stoch_config),
+            IndicatorConfig::STOCHF(stochf_config) => CalculateIndicatorFunction::calculate_stochf(kline_series, stochf_config),
+            IndicatorConfig::STOCHRSI(stochrsi_config) => CalculateIndicatorFunction::calculate_stochrsi(kline_series, stochrsi_config),
             IndicatorConfig::TRIX(trix_config) => CalculateIndicatorFunction::calculate_trix(kline_series, trix_config),
-            IndicatorConfig::ULTOSC(ultosc_config) => {
-                CalculateIndicatorFunction::calculate_ultosc(kline_series, ultosc_config)
-            }
-            IndicatorConfig::WILLR(willr_config) => {
-                CalculateIndicatorFunction::calculate_willr(kline_series, willr_config)
-            }
+            IndicatorConfig::ULTOSC(ultosc_config) => CalculateIndicatorFunction::calculate_ultosc(kline_series, ultosc_config),
+            IndicatorConfig::WILLR(willr_config) => CalculateIndicatorFunction::calculate_willr(kline_series, willr_config),
 
             // Volume
             IndicatorConfig::AD(_) => CalculateIndicatorFunction::calculate_ad(kline_series),
-            IndicatorConfig::ADOSC(adosc_config) => {
-                CalculateIndicatorFunction::calculate_adosc(kline_series, adosc_config)
-            }
+            IndicatorConfig::ADOSC(adosc_config) => CalculateIndicatorFunction::calculate_adosc(kline_series, adosc_config),
             IndicatorConfig::OBV(_) => CalculateIndicatorFunction::calculate_obv(kline_series),
 
             // Cycle
@@ -121,12 +81,8 @@ impl CalculateIndicatorFunction {
             IndicatorConfig::HtDcphase(ht_dcphase_config) => {
                 CalculateIndicatorFunction::calculate_ht_dcphase(kline_series, &ht_dcphase_config)
             }
-            IndicatorConfig::HtPhasor(ht_phasor_config) => {
-                CalculateIndicatorFunction::calculate_ht_phasor(kline_series, &ht_phasor_config)
-            }
-            IndicatorConfig::HtSine(ht_sine_config) => {
-                CalculateIndicatorFunction::calculate_ht_sine(kline_series, &ht_sine_config)
-            }
+            IndicatorConfig::HtPhasor(ht_phasor_config) => CalculateIndicatorFunction::calculate_ht_phasor(kline_series, &ht_phasor_config),
+            IndicatorConfig::HtSine(ht_sine_config) => CalculateIndicatorFunction::calculate_ht_sine(kline_series, &ht_sine_config),
             IndicatorConfig::HtTrendmode(ht_trendmode_config) => {
                 CalculateIndicatorFunction::calculate_ht_trendmode(kline_series, &ht_trendmode_config)
             }
@@ -148,35 +104,23 @@ impl CalculateIndicatorFunction {
             IndicatorConfig::CDL3INSIDE(_) => CalculateIndicatorFunction::calculate_cdl3inside(kline_series),
             IndicatorConfig::CDL3LINESTRIKE(_) => CalculateIndicatorFunction::calculate_cdl3linestrike(kline_series),
             IndicatorConfig::CDL3OUTSIDE(_) => CalculateIndicatorFunction::calculate_cdl3outside(kline_series),
-            IndicatorConfig::CDL3STARSINSOUTH(_) => {
-                CalculateIndicatorFunction::calculate_cdl3starsinsouth(kline_series)
-            }
-            IndicatorConfig::CDL3WHITESOLDIERS(_) => {
-                CalculateIndicatorFunction::calculate_cdl3whitesoldiers(kline_series)
-            }
+            IndicatorConfig::CDL3STARSINSOUTH(_) => CalculateIndicatorFunction::calculate_cdl3starsinsouth(kline_series),
+            IndicatorConfig::CDL3WHITESOLDIERS(_) => CalculateIndicatorFunction::calculate_cdl3whitesoldiers(kline_series),
             IndicatorConfig::CDLABANDONEDBABY(cdlabandonedbaby_config) => {
                 CalculateIndicatorFunction::calculate_cdlabandonedbaby(kline_series, cdlabandonedbaby_config)
             }
             IndicatorConfig::CDLADVANCEBLOCK(_) => CalculateIndicatorFunction::calculate_cdladvanceblock(kline_series),
             IndicatorConfig::CDLBELTHOLD(_) => CalculateIndicatorFunction::calculate_cdlbelthold(kline_series),
             IndicatorConfig::CDLBREAKAWAY(_) => CalculateIndicatorFunction::calculate_cdlbreakaway(kline_series),
-            IndicatorConfig::CDLCLOSINGMARUBOZU(_) => {
-                CalculateIndicatorFunction::calculate_cdlclosingmarubozu(kline_series)
-            }
-            IndicatorConfig::CDLCONCEALBABYSWALL(_) => {
-                CalculateIndicatorFunction::calculate_cdlconcealbabyswall(kline_series)
-            }
-            IndicatorConfig::CDLCOUNTERATTACK(_) => {
-                CalculateIndicatorFunction::calculate_cdlcounterattack(kline_series)
-            }
+            IndicatorConfig::CDLCLOSINGMARUBOZU(_) => CalculateIndicatorFunction::calculate_cdlclosingmarubozu(kline_series),
+            IndicatorConfig::CDLCONCEALBABYSWALL(_) => CalculateIndicatorFunction::calculate_cdlconcealbabyswall(kline_series),
+            IndicatorConfig::CDLCOUNTERATTACK(_) => CalculateIndicatorFunction::calculate_cdlcounterattack(kline_series),
             IndicatorConfig::CDLDARKCLOUDCOVER(cdldarkcloudcover_config) => {
                 CalculateIndicatorFunction::calculate_cdldarkcloudcover(kline_series, cdldarkcloudcover_config)
             }
             IndicatorConfig::CDLDOJI(_) => CalculateIndicatorFunction::calculate_cdldoji(kline_series),
             IndicatorConfig::CDLDOJISTAR(_) => CalculateIndicatorFunction::calculate_cdldojistar(kline_series),
-            IndicatorConfig::CDLDRAGONFLYDOJI(_) => {
-                CalculateIndicatorFunction::calculate_cdldragonflydoji(kline_series)
-            }
+            IndicatorConfig::CDLDRAGONFLYDOJI(_) => CalculateIndicatorFunction::calculate_cdldragonflydoji(kline_series),
             IndicatorConfig::CDLENGULFING(_) => CalculateIndicatorFunction::calculate_cdlengulfing(kline_series),
             IndicatorConfig::CDLEVENINGDOJISTAR(cdleveningdojistar_config) => {
                 CalculateIndicatorFunction::calculate_cdleveningdojistar(kline_series, cdleveningdojistar_config)
@@ -184,12 +128,8 @@ impl CalculateIndicatorFunction {
             IndicatorConfig::CDLEVENINGSTAR(cdleveningstar_config) => {
                 CalculateIndicatorFunction::calculate_cdleveningstar(kline_series, cdleveningstar_config)
             }
-            IndicatorConfig::CDLGAPSIDESIDEWHITE(_) => {
-                CalculateIndicatorFunction::calculate_cdlgapsidesidewhite(kline_series)
-            }
-            IndicatorConfig::CDLGRAVESTONEDOJI(_) => {
-                CalculateIndicatorFunction::calculate_cdlgravestonedoji(kline_series)
-            }
+            IndicatorConfig::CDLGAPSIDESIDEWHITE(_) => CalculateIndicatorFunction::calculate_cdlgapsidesidewhite(kline_series),
+            IndicatorConfig::CDLGRAVESTONEDOJI(_) => CalculateIndicatorFunction::calculate_cdlgravestonedoji(kline_series),
             IndicatorConfig::CDLHAMMER(_) => CalculateIndicatorFunction::calculate_cdlhammer(kline_series),
             IndicatorConfig::CDLHANGINGMAN(_) => CalculateIndicatorFunction::calculate_cdlhangingman(kline_series),
             IndicatorConfig::CDLHARAMI(_) => CalculateIndicatorFunction::calculate_cdlharami(kline_series),
@@ -198,21 +138,13 @@ impl CalculateIndicatorFunction {
             IndicatorConfig::CDLHIKKAKE(_) => CalculateIndicatorFunction::calculate_cdlhikkake(kline_series),
             IndicatorConfig::CDLHIKKAKEMOD(_) => CalculateIndicatorFunction::calculate_cdlhikkakemod(kline_series),
             IndicatorConfig::CDLHOMINGPIGEON(_) => CalculateIndicatorFunction::calculate_cdlhomingpigeon(kline_series),
-            IndicatorConfig::CDLIDENTICAL3CROWS(_) => {
-                CalculateIndicatorFunction::calculate_cdlidentical3crows(kline_series)
-            }
+            IndicatorConfig::CDLIDENTICAL3CROWS(_) => CalculateIndicatorFunction::calculate_cdlidentical3crows(kline_series),
             IndicatorConfig::CDLINNECK(_) => CalculateIndicatorFunction::calculate_cdlinneck(kline_series),
-            IndicatorConfig::CDLINVERTEDHAMMER(_) => {
-                CalculateIndicatorFunction::calculate_cdlinvertedhammer(kline_series)
-            }
+            IndicatorConfig::CDLINVERTEDHAMMER(_) => CalculateIndicatorFunction::calculate_cdlinvertedhammer(kline_series),
             IndicatorConfig::CDLKICKING(_) => CalculateIndicatorFunction::calculate_cdlkicking(kline_series),
-            IndicatorConfig::CDLKICKINGBYLENGTH(_) => {
-                CalculateIndicatorFunction::calculate_cdlkickingbylength(kline_series)
-            }
+            IndicatorConfig::CDLKICKINGBYLENGTH(_) => CalculateIndicatorFunction::calculate_cdlkickingbylength(kline_series),
             IndicatorConfig::CDLLADDERBOTTOM(_) => CalculateIndicatorFunction::calculate_cdlladderbottom(kline_series),
-            IndicatorConfig::CDLLONGLEGGEDDOJI(_) => {
-                CalculateIndicatorFunction::calculate_cdllongleggeddoji(kline_series)
-            }
+            IndicatorConfig::CDLLONGLEGGEDDOJI(_) => CalculateIndicatorFunction::calculate_cdllongleggeddoji(kline_series),
             IndicatorConfig::CDLLONGLINE(_) => CalculateIndicatorFunction::calculate_cdllongline(kline_series),
             IndicatorConfig::CDLMARUBOZU(_) => CalculateIndicatorFunction::calculate_cdlmarubozu(kline_series),
             IndicatorConfig::CDLMATCHINGLOW(_) => CalculateIndicatorFunction::calculate_cdlmatchinglow(kline_series),
@@ -228,32 +160,20 @@ impl CalculateIndicatorFunction {
             IndicatorConfig::CDLONNECK(_) => CalculateIndicatorFunction::calculate_cdlonneck(kline_series),
             IndicatorConfig::CDLPIERCING(_) => CalculateIndicatorFunction::calculate_cdlpiercing(kline_series),
             IndicatorConfig::CDLRICKSHAWMAN(_) => CalculateIndicatorFunction::calculate_cdlrickshawman(kline_series),
-            IndicatorConfig::CDLRISEFALL3METHODS(_) => {
-                CalculateIndicatorFunction::calculate_cdlrisefall3methods(kline_series)
-            }
-            IndicatorConfig::CDLSEPARATINGLINES(_) => {
-                CalculateIndicatorFunction::calculate_cdlseparatinglines(kline_series)
-            }
+            IndicatorConfig::CDLRISEFALL3METHODS(_) => CalculateIndicatorFunction::calculate_cdlrisefall3methods(kline_series),
+            IndicatorConfig::CDLSEPARATINGLINES(_) => CalculateIndicatorFunction::calculate_cdlseparatinglines(kline_series),
             IndicatorConfig::CDLSHOOTINGSTAR(_) => CalculateIndicatorFunction::calculate_cdlshootingstar(kline_series),
             IndicatorConfig::CDLSHORTLINE(_) => CalculateIndicatorFunction::calculate_cdlshortline(kline_series),
             IndicatorConfig::CDLSPINNINGTOP(_) => CalculateIndicatorFunction::calculate_cdlspinningtop(kline_series),
-            IndicatorConfig::CDLSTALLEDPATTERN(_) => {
-                CalculateIndicatorFunction::calculate_cdlstalledpattern(kline_series)
-            }
-            IndicatorConfig::CDLSTICKSANDWICH(_) => {
-                CalculateIndicatorFunction::calculate_cdlsticksandwich(kline_series)
-            }
+            IndicatorConfig::CDLSTALLEDPATTERN(_) => CalculateIndicatorFunction::calculate_cdlstalledpattern(kline_series),
+            IndicatorConfig::CDLSTICKSANDWICH(_) => CalculateIndicatorFunction::calculate_cdlsticksandwich(kline_series),
             IndicatorConfig::CDLTAKURI(_) => CalculateIndicatorFunction::calculate_cdltakuri(kline_series),
             IndicatorConfig::CDLTASUKIGAP(_) => CalculateIndicatorFunction::calculate_cdltasukigap(kline_series),
             IndicatorConfig::CDLTHRUSTING(_) => CalculateIndicatorFunction::calculate_cdlthrusting(kline_series),
             IndicatorConfig::CDLTRISTAR(_) => CalculateIndicatorFunction::calculate_cdltristar(kline_series),
             IndicatorConfig::CDLUNIQUE3RIVER(_) => CalculateIndicatorFunction::calculate_cdlunique3river(kline_series),
-            IndicatorConfig::CDLUPSIDEGAP2CROWS(_) => {
-                CalculateIndicatorFunction::calculate_cdlupsidegap2crows(kline_series)
-            }
-            IndicatorConfig::CDLXSIDEGAP3METHODS(_) => {
-                CalculateIndicatorFunction::calculate_cdlxsidegap3methods(kline_series)
-            }
+            IndicatorConfig::CDLUPSIDEGAP2CROWS(_) => CalculateIndicatorFunction::calculate_cdlupsidegap2crows(kline_series),
+            IndicatorConfig::CDLXSIDEGAP3METHODS(_) => CalculateIndicatorFunction::calculate_cdlxsidegap3methods(kline_series),
         }
     }
 

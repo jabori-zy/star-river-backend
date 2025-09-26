@@ -33,8 +33,7 @@ impl VirtualTradingSystem {
             FuturesOrderSide::CloseShort => PositionSide::Short,
         };
         let force_price = Formula::calculate_force_price(&position_side, self.leverage, current_price, order.quantity);
-        let margin_ratio =
-            Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price, order.quantity);
+        let margin_ratio = Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price, order.quantity);
         let virtual_position = VirtualPosition::new(
             position_id,
             position_side,
@@ -134,12 +133,7 @@ impl VirtualTradingSystem {
 
                     // 计算新的保证金信息
                     let margin = Formula::calculate_margin(self.leverage, current_price_val, quantity);
-                    let margin_ratio = Formula::calculate_margin_ratio(
-                        self.available_balance,
-                        self.leverage,
-                        current_price_val,
-                        quantity,
-                    );
+                    let margin_ratio = Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price_val, quantity);
                     let force_price = Formula::calculate_force_price(
                         &self.current_positions[i].position_side,
                         self.leverage,
@@ -149,13 +143,7 @@ impl VirtualTradingSystem {
 
                     // 更新仓位
                     let position = &mut self.current_positions[i];
-                    position.update(
-                        current_price_val,
-                        self.current_datetime,
-                        margin,
-                        margin_ratio,
-                        force_price,
-                    );
+                    position.update(current_price_val, self.current_datetime, margin, margin_ratio, force_price);
                     let position_updated_event = VirtualTradingSystemEvent::PositionUpdated(position.clone());
                     let _ = self.event_publisher.send(position_updated_event);
                 }
@@ -172,10 +160,7 @@ impl VirtualTradingSystem {
     }
 
     pub fn get_current_position(&self, position_id: PositionId) -> Option<VirtualPosition> {
-        self.current_positions
-            .iter()
-            .find(|p| p.position_id == position_id)
-            .cloned()
+        self.current_positions.iter().find(|p| p.position_id == position_id).cloned()
     }
 
     // 将仓位从当前持仓列表中移除，并添加到历史持仓列表中
@@ -225,8 +210,7 @@ impl VirtualTradingSystem {
 
                 // 生成交易明细
                 let transaction_id = self.get_transaction_id();
-                let virtual_transaction =
-                    VirtualTransaction::new(transaction_id, tp_order, &position, self.current_datetime);
+                let virtual_transaction = VirtualTransaction::new(transaction_id, tp_order, &position, self.current_datetime);
                 self.transactions.push(virtual_transaction.clone());
                 // 发送交易明细创建事件
                 let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);
@@ -297,8 +281,7 @@ impl VirtualTradingSystem {
 
                 // 生成交易明细
                 let transaction_id = self.get_transaction_id();
-                let virtual_transaction =
-                    VirtualTransaction::new(transaction_id, sl_order, &position, self.current_datetime);
+                let virtual_transaction = VirtualTransaction::new(transaction_id, sl_order, &position, self.current_datetime);
                 self.transactions.push(virtual_transaction.clone());
                 // 发送交易明细创建事件
                 let transaction_created_event = VirtualTradingSystemEvent::TransactionCreated(virtual_transaction);

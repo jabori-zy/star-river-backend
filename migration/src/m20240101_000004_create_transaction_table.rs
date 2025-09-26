@@ -16,23 +16,13 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Transaction::Table)
-                    .col(
-                        ColumnDef::new(Transaction::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Transaction::Id).integer().not_null().auto_increment().primary_key())
                     .col(ColumnDef::new(Transaction::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Transaction::NodeId).string().not_null())
                     .col(ColumnDef::new(Transaction::Exchange).string().not_null())
                     .col(ColumnDef::new(Transaction::Symbol).string().not_null())
                     .col(ColumnDef::new(Transaction::ExchangePositionId).big_integer().not_null())
-                    .col(
-                        ColumnDef::new(Transaction::ExchangeTransactionId)
-                            .big_integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Transaction::ExchangeTransactionId).big_integer().not_null())
                     .col(ColumnDef::new(Transaction::ExchangeOrderId).big_integer().not_null())
                     .col(ColumnDef::new(Transaction::TransactionType).string().not_null())
                     .col(ColumnDef::new(Transaction::TransactionSide).string().not_null())
@@ -52,9 +42,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(Transaction::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(Transaction::Table).to_owned()).await
     }
 }
 

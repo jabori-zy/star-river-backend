@@ -91,10 +91,7 @@ impl AccountEngineContext {
             let accounts = self.monitor_account_list.read().await;
             accounts.clone()
         };
-        let index = accounts
-            .iter()
-            .position(|account| account.get_account_id() == account_id)
-            .unwrap();
+        let index = accounts.iter().position(|account| account.get_account_id() == account_id).unwrap();
         let mut accounts = self.monitor_account_list.write().await;
         accounts.remove(index);
         // 同时向exchange_engine发送注销交易所的命令
@@ -121,9 +118,7 @@ impl AccountEngineContext {
     pub async fn monitor_accounts(&mut self) {
         // 获取所有的账户配置
         {
-            let all_account_config = AccountConfigQuery::get_all_account_config(&self.database)
-                .await
-                .unwrap();
+            let all_account_config = AccountConfigQuery::get_all_account_config(&self.database).await.unwrap();
             let account = all_account_config
                 .iter()
                 .map(|account_config| Account::new(account_config.clone(), None, ExchangeStatus::NotRegist))
@@ -279,9 +274,7 @@ impl AccountEngineContext {
                                     // 3.发布账户已更新事件
                                     let account_updated_event = AccountEvent::AccountUpdated(account.clone());
                                     // event_publisher.publish(account_updated_event.into()).await.unwrap();
-                                    EventCenterSingleton::publish(account_updated_event.into())
-                                        .await
-                                        .unwrap();
+                                    EventCenterSingleton::publish(account_updated_event.into()).await.unwrap();
                                 }
                                 Err(e) => {
                                     let mut accounts = accounts.write().await;
@@ -307,9 +300,7 @@ impl AccountEngineContext {
                             // 发布账户已更新事件
                             let account_updated_event = AccountEvent::AccountUpdated(account.clone());
                             // event_publisher.publish(account_updated_event.into()).await.unwrap();
-                            EventCenterSingleton::publish(account_updated_event.into())
-                                .await
-                                .unwrap();
+                            EventCenterSingleton::publish(account_updated_event.into()).await.unwrap();
                         }
                         _ => {}
                     }
@@ -326,8 +317,7 @@ impl AccountEngineContext {
             .await
             .unwrap();
         let payload = RegisterExchangeCmdPayload::new(account_config.id, account_config.exchange);
-        let cmd: ExchangeEngineCommand =
-            RegisterExchangeCommand::new("account_engine".to_string(), resp_tx, Some(payload)).into();
+        let cmd: ExchangeEngineCommand = RegisterExchangeCommand::new("account_engine".to_string(), resp_tx, Some(payload)).into();
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
         // 等待响应

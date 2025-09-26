@@ -35,9 +35,7 @@ use event_center::EventCenterSingleton;
     params(),
     security()
 )]
-pub async fn account_sse_handler(
-    State(star_river): State<StarRiver>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn account_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Account SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;

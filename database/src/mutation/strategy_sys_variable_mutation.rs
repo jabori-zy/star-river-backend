@@ -22,11 +22,7 @@ impl StrategySysVariableMutation {
         Ok(strategy_sys_variable_model.into())
     }
 
-    pub async fn update_position_number(
-        db: &DbConn,
-        strategy_id: i32,
-        position_number: i32,
-    ) -> Result<StrategySysVariable, DbErr> {
+    pub async fn update_position_number(db: &DbConn, strategy_id: i32, position_number: i32) -> Result<StrategySysVariable, DbErr> {
         let strategy: strategy_sys_variable::ActiveModel = StrategySysVariableEntity::find_by_id(strategy_id)
             .one(db)
             .await?

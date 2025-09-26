@@ -92,10 +92,7 @@ pub async fn get_cache_value(
     let mut engine_guard = engine.lock().await;
     let cache_engine = engine_guard.as_any_mut().downcast_mut::<CacheEngine>().unwrap();
     let key = Key::from_str(&key_str).unwrap();
-    let value = cache_engine
-        .get_cache_value(&key, params.index, params.limit)
-        .await
-        .unwrap();
+    let value = cache_engine.get_cache_value(&key, params.index, params.limit).await.unwrap();
     (
         StatusCode::OK,
         Json(ApiResponse {
@@ -115,9 +112,7 @@ pub async fn get_cache_value(
         (status = 200, body = ApiResponse<HashMap<String, u32>>)
     )
 )]
-pub async fn get_memory_size(
-    State(star_river): State<StarRiver>,
-) -> (StatusCode, Json<ApiResponse<HashMap<String, u32>>>) {
+pub async fn get_memory_size(State(star_river): State<StarRiver>) -> (StatusCode, Json<ApiResponse<HashMap<String, u32>>>) {
     let engine = star_river.engine_manager.lock().await.get_cache_engine().await;
     let engine_guard = engine.lock().await;
     let memory_size = engine_guard.get_memory_size().await.unwrap();

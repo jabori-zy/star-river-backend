@@ -72,9 +72,7 @@ mod kline {
         }
 
         pub async fn handle_update_kline_cache(&mut self, cmd: UpdateKlineCacheCommand) {
-            let result = self
-                .update_kline_cache(cmd.strategy_id, cmd.key.clone(), cmd.value.clone())
-                .await;
+            let result = self.update_kline_cache(cmd.strategy_id, cmd.key.clone(), cmd.value.clone()).await;
             match result {
                 Ok(()) => {
                     let payload = UpdateKlineCacheRespPayload::new(cmd.key.clone());

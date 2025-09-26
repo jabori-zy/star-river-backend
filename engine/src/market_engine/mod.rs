@@ -58,9 +58,7 @@ impl MarketEngine {
     pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Vec<KlineInterval> {
         let context_read = self.context.read().await;
         let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
-        let support_kline_intervals = market_engine_context_guard
-            .get_support_kline_intervals(account_id)
-            .await;
+        let support_kline_intervals = market_engine_context_guard.get_support_kline_intervals(account_id).await;
         support_kline_intervals
     }
 }

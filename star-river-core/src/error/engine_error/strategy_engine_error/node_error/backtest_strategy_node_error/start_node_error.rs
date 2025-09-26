@@ -10,15 +10,10 @@ pub enum StartNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("start node backtest config deserialization failed. reason: [{source}]"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
     // >= 0
-    #[snafu(display(
-        "start node config [{config_name}] should be greater than or equal to(>= 0) zero, but got [{config_value}]"
-    ))]
+    #[snafu(display("start node config [{config_name}] should be greater than or equal to(>= 0) zero, but got [{config_value}]"))]
     ValueNotGreaterThanOrEqualToZero {
         node_name: String,
         node_id: String,

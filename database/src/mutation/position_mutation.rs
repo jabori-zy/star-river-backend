@@ -75,11 +75,7 @@ impl PositionMutation {
         Ok(position_model.into())
     }
 
-    pub async fn update_position_state(
-        db: &DbConn,
-        position_id: i32,
-        position_state: PositionState,
-    ) -> Result<Position, DbErr> {
+    pub async fn update_position_state(db: &DbConn, position_id: i32, position_state: PositionState) -> Result<Position, DbErr> {
         let position: position::ActiveModel = position::Entity::find_by_id(position_id)
             .one(db)
             .await?

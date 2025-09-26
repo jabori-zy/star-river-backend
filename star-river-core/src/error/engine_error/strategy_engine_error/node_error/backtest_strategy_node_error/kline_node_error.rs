@@ -20,10 +20,7 @@ pub enum KlineNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("kline node backtest config deserialization failed. reason: [{source}]"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("[{node_name}] get kline data failed. kline key: [{kline_key}], play index: [{play_index}]"))]
     GetKlineData {

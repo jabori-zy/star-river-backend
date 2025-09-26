@@ -189,10 +189,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn bind_with_retry(
-    addr: SocketAddr,
-    max_retries: u32,
-) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
+async fn bind_with_retry(addr: SocketAddr, max_retries: u32) -> Result<tokio::net::TcpListener, Box<dyn std::error::Error>> {
     let mut retries = 0;
     loop {
         match tokio::net::TcpListener::bind(addr).await {
@@ -264,9 +261,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
                 // 逐个清理找到的进程
                 for process_name in found_processes {
                     // 完整命令: taskkill /F /IM <process_name>
-                    let kill_result = std::process::Command::new("taskkill")
-                        .args(&["/F", "/IM", &process_name])
-                        .output();
+                    let kill_result = std::process::Command::new("taskkill").args(&["/F", "/IM", &process_name]).output();
 
                     match kill_result {
                         Ok(_) => tracing::info!("成功清理进程: {}", process_name),
@@ -293,9 +288,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
                 tracing::warn!("发现MetaTrader5相关进程: {}, 正在清理...", process_name);
 
                 // 完整命令: taskkill /F /IM <process_name>
-                let kill_result = std::process::Command::new("taskkill")
-                    .args(&["/F", "/IM", process_name])
-                    .output();
+                let kill_result = std::process::Command::new("taskkill").args(&["/F", "/IM", process_name]).output();
 
                 match kill_result {
                     Ok(_) => {
@@ -337,11 +330,7 @@ fn clean_mei_temp_dirs() {
 /// 打印服务启动信息和文档链接（简洁版）
 #[instrument]
 fn print_startup_info(addr: SocketAddr) {
-    let host = if addr.ip().is_unspecified() {
-        "localhost"
-    } else {
-        "localhost"
-    };
+    let host = if addr.ip().is_unspecified() { "localhost" } else { "localhost" };
     let port = addr.port();
     let base_url = format!("http://{}:{}", host, port);
 

@@ -36,11 +36,9 @@ impl FromStr for KlineKey {
 
         let exchange = parts[1].parse::<Exchange>()?;
         let symbol = parts[2].to_string();
-        let interval = parts[3]
-            .parse::<KlineInterval>()
-            .context(ParseKlineIntervalFailedSnafu {
-                interval: parts[3].to_string(),
-            })?;
+        let interval = parts[3].parse::<KlineInterval>().context(ParseKlineIntervalFailedSnafu {
+            interval: parts[3].to_string(),
+        })?;
         // 使用Box::leak将字符串转换为静态引用
         let start_time = Some(parts[4].to_string());
         let end_time = Some(parts[5].to_string());
@@ -49,13 +47,7 @@ impl FromStr for KlineKey {
 }
 
 impl KlineKey {
-    pub fn new(
-        exchange: Exchange,
-        symbol: String,
-        interval: KlineInterval,
-        start_time: Option<String>,
-        end_time: Option<String>,
-    ) -> Self {
+    pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, start_time: Option<String>, end_time: Option<String>) -> Self {
         Self {
             exchange,
             symbol,
@@ -80,12 +72,7 @@ impl KeyTrait for KlineKey {
                 )
             }
             _ => {
-                format!(
-                    "kline|{}|{}|{}",
-                    self.exchange.to_string(),
-                    self.symbol,
-                    self.interval.to_string()
-                )
+                format!("kline|{}|{}|{}", self.exchange.to_string(), self.symbol, self.interval.to_string())
             }
         }
     }
@@ -133,11 +120,9 @@ impl FromStr for IndicatorKey {
 
         let exchange = parts[1].parse::<Exchange>()?;
         let symbol = parts[2].to_string();
-        let interval = parts[3]
-            .parse::<KlineInterval>()
-            .context(ParseKlineIntervalFailedSnafu {
-                interval: parts[3].to_string(),
-            })?;
+        let interval = parts[3].parse::<KlineInterval>().context(ParseKlineIntervalFailedSnafu {
+            interval: parts[3].to_string(),
+        })?;
         let indicator_config = IndicatorConfig::from_str(parts[4])?;
         let start_time = Some(parts[5].to_string());
         let end_time = Some(parts[6].to_string());

@@ -128,10 +128,7 @@ impl<S> Response for EngineResponse<S> {
     }
 
     fn get_error(&self) -> Arc<dyn StarRiverErrorTrait + Send + Sync> {
-        self.response_base
-            .error
-            .clone()
-            .expect("Error should exist when success is false")
+        self.response_base.error.clone().expect("Error should exist when success is false")
     }
 
     fn datetime(&self) -> DateTimeUtc {

@@ -4,20 +4,12 @@ use crate::utils::Formula;
 impl VirtualTradingSystem {
     // 更新未实现盈亏
     pub fn update_unrealized_pnl(&mut self) {
-        self.unrealized_pnl = self
-            .current_positions
-            .iter()
-            .map(|position| position.unrealized_profit)
-            .sum();
+        self.unrealized_pnl = self.current_positions.iter().map(|position| position.unrealized_profit).sum();
     }
 
     // 更新已实现盈亏
     pub fn update_realized_pnl(&mut self) {
-        self.realized_pnl = self
-            .transactions
-            .iter()
-            .map(|transaction| transaction.profit.unwrap_or(0.0))
-            .sum();
+        self.realized_pnl = self.transactions.iter().map(|transaction| transaction.profit.unwrap_or(0.0)).sum();
     }
 
     // 更新已使用保证金

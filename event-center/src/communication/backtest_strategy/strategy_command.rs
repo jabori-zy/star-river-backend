@@ -12,8 +12,7 @@ use star_river_core::system::DateTimeUtc;
 pub type GetStrategyKeysCommand = StrategyCommand<GetStrategyKeysCmdPayload, GetStrategyKeysRespPayload>;
 pub type GetStrategyKeysResponse = StrategyResponse<GetStrategyKeysRespPayload>;
 // get min interval symbols
-pub type GetMinIntervalSymbolsCommand =
-    StrategyCommand<GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsRespPayload>;
+pub type GetMinIntervalSymbolsCommand = StrategyCommand<GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsRespPayload>;
 pub type GetMinIntervalSymbolsResponse = StrategyResponse<GetMinIntervalSymbolsRespPayload>;
 // get current time
 pub type GetCurrentTimeCommand = StrategyCommand<GetCurrentTimeCmdPayload, GetCurrentTimeRespPayload>;
@@ -211,10 +210,7 @@ pub struct UpdateIndicatorDataCmdPayload {
 
 impl UpdateIndicatorDataCmdPayload {
     pub fn new(indicator_key: IndicatorKey, indicator: Indicator) -> Self {
-        Self {
-            indicator_key,
-            indicator,
-        }
+        Self { indicator_key, indicator }
     }
 }
 

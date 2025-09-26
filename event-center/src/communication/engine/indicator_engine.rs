@@ -19,15 +19,13 @@ pub enum IndicatorEngineCommand {
 pub type RegisterIndicatorCommand = GenericEngineCommand<RegisterIndicatorCmdPayload, RegisterIndicatorRespPayload>;
 pub type RegisterIndicatorResponse = EngineResponse<RegisterIndicatorRespPayload>;
 
-pub type CalculateHistoryIndicatorCommand =
-    GenericEngineCommand<CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorRespPayload>;
+pub type CalculateHistoryIndicatorCommand = GenericEngineCommand<CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorRespPayload>;
 pub type CalculateHistoryIndicatorResponse = EngineResponse<CalculateHistoryIndicatorRespPayload>;
 
 pub type CalculateIndicatorCommand = GenericEngineCommand<CalculateIndicatorCmdPayload, CalculateIndicatorRespPayload>;
 pub type CalculateIndicatorResponse = EngineResponse<CalculateIndicatorRespPayload>;
 
-pub type GetIndicatorLookbackCommand =
-    GenericEngineCommand<GetIndicatorLookbackCmdPayload, GetIndicatorLookbackRespPayload>;
+pub type GetIndicatorLookbackCommand = GenericEngineCommand<GetIndicatorLookbackCmdPayload, GetIndicatorLookbackRespPayload>;
 pub type GetIndicatorLookbackResponse = EngineResponse<GetIndicatorLookbackRespPayload>;
 
 // ============ Register Indicator Command ============
@@ -137,9 +135,6 @@ pub struct GetIndicatorLookbackRespPayload {
 
 impl GetIndicatorLookbackRespPayload {
     pub fn new(indicator_key: IndicatorKey, lookback: usize) -> Self {
-        Self {
-            indicator_key,
-            lookback,
-        }
+        Self { indicator_key, lookback }
     }
 }

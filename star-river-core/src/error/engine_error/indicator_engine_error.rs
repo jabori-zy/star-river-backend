@@ -22,10 +22,7 @@ pub enum IndicatorEngineError {
     Talib { ret_code: i32, backtrace: Backtrace },
 
     #[snafu(display("data length not equal: {data_length:?}"))]
-    DataLengthNotEqual {
-        data_length: Vec<usize>,
-        backtrace: Backtrace,
-    },
+    DataLengthNotEqual { data_length: Vec<usize>, backtrace: Backtrace },
 }
 
 impl StarRiverErrorTrait for IndicatorEngineError {
@@ -72,10 +69,7 @@ impl StarRiverErrorTrait for IndicatorEngineError {
                     data_length,
                     ..
                 } => {
-                    format!(
-                        "指标 [{}] 数据长度 {} 小于 lookback {}",
-                        indicator_name, data_length, lookback
-                    )
+                    format!("指标 [{}] 数据长度 {} 小于 lookback {}", indicator_name, data_length, lookback)
                 }
                 IndicatorEngineError::InvalidKlineData { index, .. } => {
                     format!("在index为{}的位置是无效的k线数据", index)
@@ -86,11 +80,7 @@ impl StarRiverErrorTrait for IndicatorEngineError {
                 IndicatorEngineError::DataLengthNotEqual { data_length, .. } => {
                     format!(
                         "数据长度不一致: {}",
-                        data_length
-                            .iter()
-                            .map(|x| x.to_string())
-                            .collect::<Vec<String>>()
-                            .join(", ")
+                        data_length.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")
                     )
                 }
             },

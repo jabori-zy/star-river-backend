@@ -10,12 +10,6 @@ pub struct KlineSubKey {
 
 impl From<KlineSubKey> for KlineKey {
     fn from(kline_sub_key: KlineSubKey) -> Self {
-        KlineKey::new(
-            kline_sub_key.exchange,
-            kline_sub_key.symbol,
-            kline_sub_key.interval,
-            None,
-            None,
-        )
+        KlineKey::new(kline_sub_key.exchange, kline_sub_key.symbol, kline_sub_key.interval, None, None)
     }
 }

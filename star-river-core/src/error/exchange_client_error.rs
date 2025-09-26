@@ -15,10 +15,7 @@ pub enum ExchangeClientError {
     MetaTrader5 { source: Mt5Error, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    DataProcessor {
-        source: DataProcessorError,
-        backtrace: Backtrace,
-    },
+    DataProcessor { source: DataProcessorError, backtrace: Backtrace },
 
     #[snafu(display("Binance error: {message}"))]
     Binance { message: String, backtrace: Backtrace },

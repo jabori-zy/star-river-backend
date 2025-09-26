@@ -16,13 +16,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(AccountInfo::Table)
-                    .col(
-                        ColumnDef::new(AccountInfo::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(AccountInfo::Id).integer().not_null().auto_increment().primary_key())
                     .col(ColumnDef::new(AccountInfo::AccountId).integer().not_null()) //账户配置id
                     .col(ColumnDef::new(AccountInfo::Info).json()) //账户信息
                     .col(
@@ -44,9 +38,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(AccountInfo::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(AccountInfo::Table).to_owned()).await
     }
 }
 

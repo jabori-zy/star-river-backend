@@ -41,12 +41,8 @@ pub async fn update_system_config(
     let database = star_river.database.lock().await;
     let conn = &database.conn;
 
-    let update_result = SystemConfigMutation::update_system_config(
-        conn,
-        system_config_params.localization,
-        system_config_params.timezone,
-    )
-    .await;
+    let update_result =
+        SystemConfigMutation::update_system_config(conn, system_config_params.localization, system_config_params.timezone).await;
 
     match update_result {
         Ok(system_config) => {
@@ -87,9 +83,7 @@ pub async fn update_system_config(
     )
 )]
 #[instrument(skip(star_river))]
-pub async fn get_system_config(
-    State(star_river): State<StarRiver>,
-) -> (StatusCode, Json<NewApiResponse<SystemConfig>>) {
+pub async fn get_system_config(State(star_river): State<StarRiver>) -> (StatusCode, Json<NewApiResponse<SystemConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
 

@@ -87,11 +87,7 @@ impl AccountConfigMutation {
     }
 
     // 更新账户配置的is_available
-    pub async fn update_account_config_is_available(
-        db: &DbConn,
-        id: i32,
-        is_available: bool,
-    ) -> Result<AccountConfig, DbErr> {
+    pub async fn update_account_config_is_available(db: &DbConn, id: i32, is_available: bool) -> Result<AccountConfig, DbErr> {
         let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
             .one(db)
             .await?

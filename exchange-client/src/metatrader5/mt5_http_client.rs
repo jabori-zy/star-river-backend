@@ -89,13 +89,7 @@ impl Mt5HttpClient {
 
     // 初始化MT5客户端
     #[instrument(skip(self, password, terminal_path), fields(login = %login, server = %server))]
-    pub async fn initialize_terminal(
-        &self,
-        login: i64,
-        password: &str,
-        server: &str,
-        terminal_path: &str,
-    ) -> Result<(), Mt5Error> {
+    pub async fn initialize_terminal(&self, login: i64, password: &str, server: &str, terminal_path: &str) -> Result<(), Mt5Error> {
         let url = self.get_url(Mt5HttpUrl::InitializeTerminal);
         #[derive(Debug, Serialize)]
         struct InitializeTerminalRequest {
@@ -199,10 +193,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get terminal info response success is {}",
-                            is_success
-                        ))
+                        .unwrap_or(&format!("unknown error, the get terminal info response success is {}", is_success))
                         .to_string();
                     tracing::error!(is_success = %is_success, error = %error_message, "Failed to get terminal info");
                     return GetTerminalInfoSnafu {
@@ -296,12 +287,7 @@ impl Mt5HttpClient {
 
     // 获取K线系列
     #[instrument(skip(self))]
-    pub async fn get_kline_series(
-        &self,
-        symbol: &str,
-        interval: Mt5KlineInterval,
-        limit: u32,
-    ) -> Result<serde_json::Value, Mt5Error> {
+    pub async fn get_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, limit: u32) -> Result<serde_json::Value, Mt5Error> {
         let url = format!(
             "{}?symbol={}&interval={}&limit={}",
             self.get_url(Mt5HttpUrl::GetKlineSeries),
@@ -983,10 +969,7 @@ impl Mt5HttpClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_position_number(
-        &self,
-        position_number_request: Mt5GetPositionNumberParams,
-    ) -> Result<serde_json::Value, Mt5Error> {
+    pub async fn get_position_number(&self, position_number_request: Mt5GetPositionNumberParams) -> Result<serde_json::Value, Mt5Error> {
         let symbol = &position_number_request.symbol;
         let position_side = position_number_request.position_side;
 
@@ -1032,10 +1015,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get position number response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get position number response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, symbol = %symbol, position_side = ?position_side, "Failed to get position number");
                     return GetPositionNumberSnafu {
@@ -1115,10 +1095,7 @@ impl Mt5HttpClient {
                     let error_message = response_data
                         .get("message")
                         .and_then(|m| m.as_str())
-                        .unwrap_or(&format!(
-                            "unknown error, the get account info response code is {}",
-                            code
-                        ))
+                        .unwrap_or(&format!("unknown error, the get account info response code is {}", code))
                         .to_string();
                     tracing::error!(code = %code, error = %error_message, "Failed to get account info");
                     return GetAccountInfoSnafu {

@@ -13,9 +13,7 @@ pub struct Mt5WsClient;
 
 impl Mt5WsClient {
     #[instrument]
-    pub async fn connect(
-        url: &str,
-    ) -> Result<(WebSocketState, Response), tokio_tungstenite::tungstenite::error::Error> {
+    pub async fn connect(url: &str) -> Result<(WebSocketState, Response), tokio_tungstenite::tungstenite::error::Error> {
         let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
         let duration = start.elapsed();
@@ -28,9 +26,7 @@ impl Mt5WsClient {
         Ok((WebSocketState::new(socket), response))
     }
 
-    pub async fn connect_default(
-        port: u16,
-    ) -> Result<(WebSocketState, Response), tokio_tungstenite::tungstenite::error::Error> {
+    pub async fn connect_default(port: u16) -> Result<(WebSocketState, Response), tokio_tungstenite::tungstenite::error::Error> {
         let url = format!("ws://localhost:{}/ws", port);
         tracing::debug!("ws url: {:?}", url);
         Mt5WsClient::connect(&url).await

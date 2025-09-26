@@ -6,8 +6,8 @@ use star_river_core::market::{Kline, QuantData};
 use std::collections::HashMap;
 
 use super::{
-    CacheEngineContext, CacheEngineError, CacheEntryTrait, Duration, IndicatorCacheEntry, Key, KeyNotFoundSnafu,
-    KlineCacheEntry, StrategyId,
+    CacheEngineContext, CacheEngineError, CacheEntryTrait, Duration, IndicatorCacheEntry, Key, KeyNotFoundSnafu, KlineCacheEntry,
+    StrategyId,
 };
 
 mod kline {
@@ -15,13 +15,7 @@ mod kline {
 
     impl CacheEngineContext {
         // 添加K线缓存键
-        pub async fn add_kline_key(
-            &mut self,
-            strategy_id: StrategyId,
-            key: KlineKey,
-            max_size: Option<u32>,
-            ttl: Duration,
-        ) {
+        pub async fn add_kline_key(&mut self, strategy_id: StrategyId, key: KlineKey, max_size: Option<u32>, ttl: Duration) {
             let mut kline_cache = self.kline_cache.write().await;
             let mut kline_key_subscribe = self.kline_key_subscribe.write().await;
 
@@ -96,10 +90,7 @@ mod kline {
         }
 
         // 获取多个K线缓存长度
-        pub async fn get_kline_cache_length_multi(
-            &self,
-            keys: &Vec<KlineKey>,
-        ) -> Result<HashMap<KlineKey, u32>, CacheEngineError> {
+        pub async fn get_kline_cache_length_multi(&self, keys: &Vec<KlineKey>) -> Result<HashMap<KlineKey, u32>, CacheEngineError> {
             let kline_cache = self.kline_cache.read().await;
             let mut cache_data = HashMap::new();
 
@@ -131,8 +122,7 @@ mod kline {
 
             if !key_exists {
                 // 如果缓存键不存在，先添加键
-                self.add_kline_key(strategy_id, key.clone(), None, Duration::from_secs(10))
-                    .await;
+                self.add_kline_key(strategy_id, key.clone(), None, Duration::from_secs(10)).await;
             }
 
             // 重新获取锁并更新
@@ -176,13 +166,7 @@ mod indicator {
 
     impl CacheEngineContext {
         // 添加指标缓存键
-        pub async fn add_indicator_key(
-            &mut self,
-            strategy_id: StrategyId,
-            key: IndicatorKey,
-            max_size: Option<u32>,
-            ttl: Duration,
-        ) {
+        pub async fn add_indicator_key(&mut self, strategy_id: StrategyId, key: IndicatorKey, max_size: Option<u32>, ttl: Duration) {
             let mut indicator_cache = self.indicator_cache.write().await;
             let mut indicator_key_subscribe = self.indicator_key_subscribe.write().await;
 

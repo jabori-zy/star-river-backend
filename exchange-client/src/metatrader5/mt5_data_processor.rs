@@ -200,13 +200,10 @@ impl Mt5DataProcessor {
                 interval: Some(interval.to_string()),
             })?;
             //1757649600 10 digits
-            let datetime = Utc
-                .timestamp_opt(timestamp, 0)
-                .single()
-                .context(TimestampConversionSnafu {
-                    message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
-                    timestamp: Some(timestamp),
-                })?;
+            let datetime = Utc.timestamp_opt(timestamp, 0).single().context(TimestampConversionSnafu {
+                message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
+                timestamp: Some(timestamp),
+            })?;
 
             let open = arr[1].as_f64().context(KlineDataParsingSnafu {
                 message: format!("Invalid open price at index {}: {:?}", index, arr[1]),
@@ -267,10 +264,7 @@ impl Mt5DataProcessor {
     }
 
     // 处理订单信息
-    pub async fn process_order(
-        &self,
-        order_info: serde_json::Value,
-    ) -> Result<Box<dyn OriginalOrder>, DataProcessorError> {
+    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn OriginalOrder>, DataProcessorError> {
         let data_array = order_info
             .get("data")
             .context(MissingFieldSnafu {
@@ -296,11 +290,7 @@ impl Mt5DataProcessor {
         Ok(Box::new(order))
     }
 
-    pub async fn update_order(
-        &self,
-        new_order_info: serde_json::Value,
-        old_order: Order,
-    ) -> Result<Order, DataProcessorError> {
+    pub async fn update_order(&self, new_order_info: serde_json::Value, old_order: Order) -> Result<Order, DataProcessorError> {
         tracing::debug!("订单信息: {:?}", new_order_info);
 
         let data_array = new_order_info
@@ -369,10 +359,7 @@ impl Mt5DataProcessor {
         Ok(order)
     }
 
-    pub async fn process_position(
-        &self,
-        mut position_json: serde_json::Value,
-    ) -> Result<Box<dyn OriginalPosition>, DataProcessorError> {
+    pub async fn process_position(&self, mut position_json: serde_json::Value) -> Result<Box<dyn OriginalPosition>, DataProcessorError> {
         position_json["server"] = self.server.clone().into();
 
         tracing::debug!("仓位信息 :{:?}", position_json);
@@ -393,20 +380,19 @@ impl Mt5DataProcessor {
         // tracing::debug!("最新仓位信息: {:?}", new_position_json);
         // 仓位数据
         new_position_json["server"] = self.server.clone().into();
-        let new_mt_position =
-            serde_json::from_value::<Mt5Position>(new_position_json).context(PositionDataParsingSnafu {
-                message: "Failed to deserialize position data".to_string(),
-                position_id: Some(old_position.position_id.into()),
-            })?;
+        let new_mt_position = serde_json::from_value::<Mt5Position>(new_position_json).context(PositionDataParsingSnafu {
+            message: "Failed to deserialize position data".to_string(),
+            position_id: Some(old_position.position_id.into()),
+        })?;
 
         // Validate timestamp conversion
-        let create_time =
-            Utc.timestamp_millis_opt(new_mt_position.time_msc)
-                .single()
-                .context(TimestampConversionSnafu {
-                    message: "Invalid create timestamp".to_string(),
-                    timestamp: Some(new_mt_position.time_msc),
-                })?;
+        let create_time = Utc
+            .timestamp_millis_opt(new_mt_position.time_msc)
+            .single()
+            .context(TimestampConversionSnafu {
+                message: "Invalid create timestamp".to_string(),
+                timestamp: Some(new_mt_position.time_msc),
+            })?;
 
         let update_time = Utc
             .timestamp_millis_opt(new_mt_position.time_update_msc)
@@ -440,10 +426,7 @@ impl Mt5DataProcessor {
         Ok(new_position)
     }
 
-    pub async fn process_deal(
-        &self,
-        deal_info: serde_json::Value,
-    ) -> Result<Box<dyn OriginalTransaction>, DataProcessorError> {
+    pub async fn process_deal(&self, deal_info: serde_json::Value) -> Result<Box<dyn OriginalTransaction>, DataProcessorError> {
         let data_array = deal_info
             .get("data")
             .context(MissingFieldSnafu {
@@ -468,10 +451,7 @@ impl Mt5DataProcessor {
         Ok(Box::new(deal))
     }
 
-    pub async fn process_position_number(
-        &self,
-        position_number_info: serde_json::Value,
-    ) -> Result<PositionNumber, DataProcessorError> {
+    pub async fn process_position_number(&self, position_number_info: serde_json::Value) -> Result<PositionNumber, DataProcessorError> {
         let position_number_data = position_number_info.get("data").context(MissingFieldSnafu {
             field: "data".to_string(),
             context: "position number info".to_string(),
@@ -536,11 +516,10 @@ impl Mt5DataProcessor {
         // 把account_id 添加到account_info_data中
         account_info["account_id"] = account_id.into();
 
-        let account_info =
-            serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParsingSnafu {
-                message: "Failed to deserialize account info".to_string(),
-                account_id: Some(account_id),
-            })?;
+        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParsingSnafu {
+            message: "Failed to deserialize account info".to_string(),
+            account_id: Some(account_id),
+        })?;
 
         Ok(Box::new(account_info))
     }

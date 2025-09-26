@@ -4,8 +4,8 @@ pub mod indicator_engine;
 pub mod market_engine; // 市场引擎 // 指标引擎
 
 pub mod account_engine; // 账户引擎
-pub mod cache_engine;
-pub mod strategy_engine; // 策略引擎
+pub mod backtest_strategy_engine;
+pub mod cache_engine; // 回测策略引擎
 
 use async_trait::async_trait;
 use event_center::Channel;
@@ -127,10 +127,7 @@ impl EngineFunction {
             return;
         }
 
-        let streams: Vec<_> = event_receivers
-            .into_iter()
-            .map(|receiver| BroadcastStream::new(receiver))
-            .collect();
+        let streams: Vec<_> = event_receivers.into_iter().map(|receiver| BroadcastStream::new(receiver)).collect();
 
         let mut combined_stream = select_all(streams);
 

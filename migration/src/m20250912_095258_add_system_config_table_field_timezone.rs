@@ -10,12 +10,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(SystemConfig::Table)
-                    .add_column(
-                        ColumnDef::new(SystemConfig::Timezone)
-                            .string()
-                            .not_null()
-                            .default("Asia/Shanghai"),
-                    )
+                    .add_column(ColumnDef::new(SystemConfig::Timezone).string().not_null().default("Asia/Shanghai"))
                     .to_owned(),
             )
             .await

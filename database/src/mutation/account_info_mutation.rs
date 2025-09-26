@@ -6,11 +6,7 @@ use star_river_core::account::AccountInfo;
 pub struct AccountInfoMutation;
 
 impl AccountInfoMutation {
-    pub async fn insert_account_info(
-        db: &DbConn,
-        account_id: i32,
-        info: serde_json::Value,
-    ) -> Result<AccountInfo, DbErr> {
+    pub async fn insert_account_info(db: &DbConn, account_id: i32, info: serde_json::Value) -> Result<AccountInfo, DbErr> {
         let account_info = account_info::ActiveModel {
             id: NotSet,
             account_id: Set(account_id),
@@ -22,11 +18,7 @@ impl AccountInfoMutation {
         Ok(account_info.into())
     }
 
-    pub async fn update_account_info(
-        db: &DbConn,
-        account_id: i32,
-        info: serde_json::Value,
-    ) -> Result<AccountInfo, DbErr> {
+    pub async fn update_account_info(db: &DbConn, account_id: i32, info: serde_json::Value) -> Result<AccountInfo, DbErr> {
         // 先查询，如果存在则更新，否则插入
         let account_info_model_option = account_info::Entity::find()
             .filter(account_info::Column::AccountId.eq(account_id))

@@ -16,24 +16,14 @@ impl Formula {
     }
 
     // 计算保证金率
-    pub fn calculate_margin_ratio(
-        current_balance: Balance,
-        leverage: Leverage,
-        price: Price,
-        quantity: f64,
-    ) -> MarginRatio {
+    pub fn calculate_margin_ratio(current_balance: Balance, leverage: Leverage, price: Price, quantity: f64) -> MarginRatio {
         // 保证金率 = 保证金 / 保证金余额
         let margin_ratio = Self::calculate_margin(leverage, price, quantity) / current_balance;
         margin_ratio
     }
 
     // 计算强平价格
-    pub fn calculate_force_price(
-        position_side: &PositionSide,
-        leverage: Leverage,
-        price: Price,
-        quantity: f64,
-    ) -> Price {
+    pub fn calculate_force_price(position_side: &PositionSide, leverage: Leverage, price: Price, quantity: f64) -> Price {
         // 计算强平价格
         // 强平价格 = 开仓价格 - 保证金 / 持仓量
         let force_price = match position_side {

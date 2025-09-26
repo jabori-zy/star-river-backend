@@ -78,9 +78,7 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display(
-        "strategy [{strategy_name}({strategy_id})] invalid state transition: current state: {current_state}, event: {event}"
-    ))]
+    #[snafu(display("strategy [{strategy_name}({strategy_id})] invalid state transition: current state: {current_state}, event: {event}"))]
     StrategyStateInvalidStateTransition {
         strategy_id: i32,
         strategy_name: String,
@@ -130,16 +128,10 @@ pub enum BacktestStrategyError {
     },
 
     #[snafu(display("[{strategy_name}] get start node config failed"))]
-    GetStartNodeConfigFailed {
-        strategy_name: String,
-        backtrace: Backtrace,
-    },
+    GetStartNodeConfigFailed { strategy_name: String, backtrace: Backtrace },
 
     #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
-    KlineDataLengthNotSame {
-        strategy_name: String,
-        backtrace: Backtrace,
-    },
+    KlineDataLengthNotSame { strategy_name: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -152,24 +144,24 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
         let prefix = self.get_prefix();
         let code = match self {
             // HTTP and JSON errors (1001-1004)
-            BacktestStrategyError::NodeCheck { .. } => 1000, // 节点检查错误
-            BacktestStrategyError::NodeInit { .. } => 1001,  // 节点初始化错误
-            BacktestStrategyError::NodeInitTimeout { .. } => 1002, // 节点初始化超时
-            BacktestStrategyError::TokioTaskFailed { .. } => 1003, // 执行任务失败
-            BacktestStrategyError::NodeStateNotReady { .. } => 1004, // 节点状态未就绪
-            BacktestStrategyError::NodeConfigNull { .. } => 1005, // 节点配置为空
-            BacktestStrategyError::EdgeConfigNull { .. } => 1006, // 边配置为空
+            BacktestStrategyError::NodeCheck { .. } => 1000,           // 节点检查错误
+            BacktestStrategyError::NodeInit { .. } => 1001,            // 节点初始化错误
+            BacktestStrategyError::NodeInitTimeout { .. } => 1002,     // 节点初始化超时
+            BacktestStrategyError::TokioTaskFailed { .. } => 1003,     // 执行任务失败
+            BacktestStrategyError::NodeStateNotReady { .. } => 1004,   // 节点状态未就绪
+            BacktestStrategyError::NodeConfigNull { .. } => 1005,      // 节点配置为空
+            BacktestStrategyError::EdgeConfigNull { .. } => 1006,      // 边配置为空
             BacktestStrategyError::EdgeConfigMissField { .. } => 1007, // 边配置缺少字段
-            BacktestStrategyError::NodeNotFound { .. } => 1008, // 节点未找到
+            BacktestStrategyError::NodeNotFound { .. } => 1008,        // 节点未找到
             BacktestStrategyError::StrategyStateInvalidStateTransition { .. } => 1009, // 策略状态转换无效
             BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1010, // 更新策略状态失败
             BacktestStrategyError::WaitAllNodesStoppedTimeout { .. } => 1011, // 等待所有节点停止超时
-            BacktestStrategyError::PlayFinished { .. } => 1012, // 所有回测数据播放完毕
-            BacktestStrategyError::AlreadyPlaying { .. } => 1013, // 策略正在播放，无法再次播放
-            BacktestStrategyError::AlreadyPausing { .. } => 1014, // 策略正在暂停，无法再次暂停
-            BacktestStrategyError::IntervalNotSame { .. } => 1015, // 不同symbol的最小周期不相同
-            BacktestStrategyError::Node { .. } => 1016,      // 节点错误
-            BacktestStrategyError::GetDataFailed { .. } => 1017, // 获取数据失败
+            BacktestStrategyError::PlayFinished { .. } => 1012,        // 所有回测数据播放完毕
+            BacktestStrategyError::AlreadyPlaying { .. } => 1013,      // 策略正在播放，无法再次播放
+            BacktestStrategyError::AlreadyPausing { .. } => 1014,      // 策略正在暂停，无法再次暂停
+            BacktestStrategyError::IntervalNotSame { .. } => 1015,     // 不同symbol的最小周期不相同
+            BacktestStrategyError::Node { .. } => 1016,                // 节点错误
+            BacktestStrategyError::GetDataFailed { .. } => 1017,       // 获取数据失败
             BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1018, // 获取开始节点配置失败
             BacktestStrategyError::KlineDataLengthNotSame { .. } => 1019, // kline数据长度不相同
         };
@@ -222,10 +214,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     node_type,
                     ..
                 } => {
-                    format!(
-                        "回测策略节点状态未就绪: {}({}) {} 节点未准备好",
-                        node_name, node_id, node_type
-                    )
+                    format!("回测策略节点状态未就绪: {}({}) {} 节点未准备好", node_name, node_id, node_type)
                 }
                 BacktestStrategyError::NodeInitTimeout {
                     node_name,
@@ -233,10 +222,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     node_type,
                     ..
                 } => {
-                    format!(
-                        "回测策略节点初始化超时: {}({}) {} 节点初始化超时",
-                        node_name, node_id, node_type
-                    )
+                    format!("回测策略节点初始化超时: {}({}) {} 节点初始化超时", node_name, node_id, node_type)
                 }
                 BacktestStrategyError::TokioTaskFailed {
                     task_name,
@@ -245,10 +231,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     node_type,
                     ..
                 } => {
-                    format!(
-                        "执行 {} 任务失败，节点: {}({}) {}",
-                        task_name, node_name, node_id, node_type
-                    )
+                    format!("执行 {} 任务失败，节点: {}({}) {}", task_name, node_name, node_id, node_type)
                 }
                 BacktestStrategyError::NodeConfigNull {
                     strategy_name,
@@ -281,10 +264,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     node_id,
                     ..
                 } => {
-                    format!(
-                        "节点未找到: 策略 [{}({})] 节点 {} 未找到",
-                        strategy_name, strategy_id, node_id
-                    )
+                    format!("节点未找到: 策略 [{}({})] 节点 {} 未找到", strategy_name, strategy_id, node_id)
                 }
                 BacktestStrategyError::StrategyStateInvalidStateTransition {
                     strategy_name,

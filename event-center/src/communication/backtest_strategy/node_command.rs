@@ -20,9 +20,7 @@ pub struct GetStartNodeConfigRespPayload {
 
 impl GetStartNodeConfigRespPayload {
     pub fn new(backtest_strategy_config: BacktestStrategyConfig) -> Self {
-        Self {
-            backtest_strategy_config,
-        }
+        Self { backtest_strategy_config }
     }
 }
 

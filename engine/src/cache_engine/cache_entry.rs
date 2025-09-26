@@ -104,11 +104,7 @@ impl<K: KeyTrait, V: QuantData + DeepSizeOf> CacheEntryTrait for GenericCacheEnt
 
                 // 计算从索引开始向前取limit个元素
                 let end = idx as usize + 1;
-                let start = if limit_val as usize >= end {
-                    0
-                } else {
-                    end - limit_val as usize
-                };
+                let start = if limit_val as usize >= end { 0 } else { end - limit_val as usize };
 
                 self.data.range(start..end).cloned().collect()
             }

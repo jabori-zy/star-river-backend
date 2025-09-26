@@ -4,7 +4,7 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path};
 use axum::http::StatusCode;
-use engine::strategy_engine::StrategyEngine;
+use engine::backtest_strategy_engine::StrategyEngine;
 use star_river_core::engine::EngineName;
 
 #[utoipa::path(
@@ -19,10 +19,7 @@ use star_river_core::engine::EngineName;
         (status = 200, description = "播放策略成功")
     )
 )]
-pub async fn play(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<NewApiResponse<()>>) {
+pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
@@ -31,10 +28,7 @@ pub async fn play(
     if let Ok(()) = result {
         (StatusCode::OK, Json(NewApiResponse::success(())))
     } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(result.unwrap_err())),
-        )
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(result.unwrap_err())))
     }
 }
 
@@ -88,10 +82,7 @@ pub async fn play_one(
         (status = 400, description = "暂停策略失败")
     )
 )]
-pub async fn pause(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<NewApiResponse<()>>) {
+pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
@@ -100,10 +91,7 @@ pub async fn pause(
     if let Ok(()) = result {
         (StatusCode::OK, Json(NewApiResponse::success(())))
     } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(result.unwrap_err())),
-        )
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(result.unwrap_err())))
     }
 }
 
@@ -165,10 +153,7 @@ pub async fn get_play_index(
         (status = 400, description = "重置策略失败")
     )
 )]
-pub async fn reset(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<NewApiResponse<()>>) {
+pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
     let mut engine_guard = engine.lock().await;
@@ -177,9 +162,6 @@ pub async fn reset(
     if let Ok(()) = result {
         (StatusCode::OK, Json(NewApiResponse::success(())))
     } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(result.unwrap_err())),
-        )
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(result.unwrap_err())))
     }
 }

@@ -10,16 +10,10 @@ pub enum IfElseNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("if else node backtest config deserialization failed. reason: {source}"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("if else node evaluate result serialization failed. reason: {source}"))]
-    EvaluateResultSerializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    EvaluateResultSerializationFailed { source: serde_json::Error, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for IfElseNodeError

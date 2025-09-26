@@ -32,10 +32,7 @@ pub async fn backtest_strategy_running_log_sse_handler() -> Sse<impl Stream<Item
     }
     impl Drop for Guard {
         fn drop(&mut self) {
-            tracing::info!(
-                "{} Backtest Strategy Running Log SSE connection disconnected",
-                self.channel_name
-            );
+            tracing::info!("{} Backtest Strategy Running Log SSE connection disconnected", self.channel_name);
         }
     }
 

@@ -12,12 +12,10 @@ pub enum MarketEngineCommand {
 }
 
 // ============ Command and Response Type Definitions ============
-pub type SubscribeKlineStreamCommand =
-    GenericEngineCommand<SubscribeKlineStreamCmdPayload, SubscribeKlineStreamRespPayload>;
+pub type SubscribeKlineStreamCommand = GenericEngineCommand<SubscribeKlineStreamCmdPayload, SubscribeKlineStreamRespPayload>;
 pub type SubscribeKlineStreamResponse = EngineResponse<SubscribeKlineStreamRespPayload>;
 
-pub type UnsubscribeKlineStreamCommand =
-    GenericEngineCommand<UnsubscribeKlineStreamCmdPayload, UnsubscribeKlineStreamRespPayload>;
+pub type UnsubscribeKlineStreamCommand = GenericEngineCommand<UnsubscribeKlineStreamCmdPayload, UnsubscribeKlineStreamRespPayload>;
 pub type UnsubscribeKlineStreamResponse = EngineResponse<UnsubscribeKlineStreamRespPayload>;
 
 pub type GetKlineHistoryCommand = GenericEngineCommand<GetKlineHistoryCmdPayload, GetKlineHistoryRespPayload>;

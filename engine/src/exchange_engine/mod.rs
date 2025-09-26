@@ -70,10 +70,7 @@ impl ExchangeEngine {
 
     pub async fn get_exchange_mut(&self, account_id: &i32) -> Box<dyn ExchangeClient> {
         let mut context_guard = self.context.write().await;
-        let exchange_context = context_guard
-            .as_any_mut()
-            .downcast_mut::<ExchangeEngineContext>()
-            .unwrap();
+        let exchange_context = context_guard.as_any_mut().downcast_mut::<ExchangeEngineContext>().unwrap();
         let client = exchange_context.get_exchange_mut(account_id).await.unwrap();
         client.clone_box()
     }

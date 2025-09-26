@@ -16,13 +16,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Order::Table)
-                    .col(
-                        ColumnDef::new(Order::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Order::Id).integer().not_null().auto_increment().primary_key())
                     .col(ColumnDef::new(Order::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Order::NodeId).string().not_null())
                     .col(ColumnDef::new(Order::ExchangeOrderId).big_integer().not_null())

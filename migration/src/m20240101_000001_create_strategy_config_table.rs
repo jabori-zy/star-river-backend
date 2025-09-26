@@ -26,18 +26,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(StrategyConfig::Name).string().not_null())
                     .col(ColumnDef::new(StrategyConfig::Description).string().not_null())
                     .col(ColumnDef::new(StrategyConfig::Status).integer().not_null().default(0))
-                    .col(
-                        ColumnDef::new(StrategyConfig::IsDeleted)
-                            .boolean()
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
-                        ColumnDef::new(StrategyConfig::TradeMode)
-                            .string()
-                            .not_null()
-                            .default("backtest"),
-                    )
+                    .col(ColumnDef::new(StrategyConfig::IsDeleted).boolean().not_null().default(false))
+                    .col(ColumnDef::new(StrategyConfig::TradeMode).string().not_null().default("backtest"))
                     .col(ColumnDef::new(StrategyConfig::Config).json())
                     .col(ColumnDef::new(StrategyConfig::Nodes).json())
                     .col(ColumnDef::new(StrategyConfig::Edges).json())
@@ -68,9 +58,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(StrategyConfig::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(StrategyConfig::Table).to_owned()).await
     }
 }
 

@@ -18,11 +18,11 @@ impl EventCenterSingleton {
     pub async fn init() -> Result<(), EventCenterError> {
         let event_center = Arc::new(RwLock::new(EventCenter::new().init_channel().await));
 
-        EVENT_CENTER_INSTANCE.set(event_center).map_err(|_| {
-            EventCenterError::EventCenterInstanceAlreadyInitialized {
+        EVENT_CENTER_INSTANCE
+            .set(event_center)
+            .map_err(|_| EventCenterError::EventCenterInstanceAlreadyInitialized {
                 backtrace: snafu::Backtrace::capture(),
-            }
-        })?;
+            })?;
 
         tracing::info!("EventCenter singleton initialized successfully");
         Ok(())
@@ -104,9 +104,7 @@ impl EventCenterSingleton {
     }
 
     /// 获取指定引擎的命令接收器
-    pub async fn get_command_receiver(
-        engine_name: &EngineName,
-    ) -> Result<Arc<Mutex<EngineCommandReceiver>>, EventCenterError> {
+    pub async fn get_command_receiver(engine_name: &EngineName) -> Result<Arc<Mutex<EngineCommandReceiver>>, EventCenterError> {
         let instance = EVENT_CENTER_INSTANCE
             .get()
             .ok_or_else(|| EventCenterInstanceNotInitializedSnafu {}.build())?;

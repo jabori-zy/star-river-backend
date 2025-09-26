@@ -22,17 +22,13 @@ use event_center::EventCenterSingleton;
 use event_center::event::Event as EventCenterEvent;
 use event_center::event::StrategyEvent;
 
-pub async fn market_sse_handler(
-    State(star_river): State<StarRiver>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn market_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Market SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;
 
     // let market_event_receiver = event_center.subscribe(&Channel::Market).await.expect("订阅Market通道失败");
-    let market_event_receiver = EventCenterSingleton::subscribe(&Channel::Market)
-        .await
-        .expect("订阅Market通道失败");
+    let market_event_receiver = EventCenterSingleton::subscribe(&Channel::Market).await.expect("订阅Market通道失败");
 
     let stream = tokio_stream::wrappers::BroadcastStream::new(market_event_receiver)
         .map(|result| {
@@ -52,9 +48,7 @@ pub async fn market_sse_handler(
     )
 }
 
-pub async fn indicator_sse_handler(
-    State(star_river): State<StarRiver>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn indicator_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Indicator SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;

@@ -115,20 +115,12 @@ impl IndicatorEngineContext {
     // }
 
     // 判断是否需要计算指标
-    async fn should_calculate(
-        &self,
-        kline_exchange: Exchange,
-        kline_symbol: String,
-        kline_interval: KlineInterval,
-    ) -> bool {
+    async fn should_calculate(&self, kline_exchange: Exchange, kline_symbol: String, kline_interval: KlineInterval) -> bool {
         let sub_indicators = self.subscribe_indicators.lock().await.clone();
         // 判断指标subkey的exchange, symbol, interval是否与k线更新事件的exchange, symbol, interval相同
         let mut should_calculate = false;
         for (sub_key, _) in sub_indicators.iter() {
-            if sub_key.exchange == kline_exchange
-                && sub_key.symbol == kline_symbol
-                && sub_key.interval == kline_interval
-            {
+            if sub_key.exchange == kline_exchange && sub_key.symbol == kline_symbol && sub_key.interval == kline_interval {
                 should_calculate = true;
                 break;
             }

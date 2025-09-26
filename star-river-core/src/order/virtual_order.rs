@@ -96,12 +96,7 @@ impl VirtualOrder {
         }
     }
 
-    fn calculate_tp(
-        open_price: f64,
-        tp: Option<f64>,
-        tp_type: &Option<TpslType>,
-        order_side: &FuturesOrderSide,
-    ) -> Option<f64> {
+    fn calculate_tp(open_price: f64, tp: Option<f64>, tp_type: &Option<TpslType>, order_side: &FuturesOrderSide) -> Option<f64> {
         // 止盈
         if let Some(tp) = tp {
             if let Some(tp_type) = tp_type.clone() {
@@ -125,12 +120,7 @@ impl VirtualOrder {
         None
     }
 
-    fn calculate_sl(
-        open_price: f64,
-        sl: Option<f64>,
-        sl_type: &Option<TpslType>,
-        order_side: &FuturesOrderSide,
-    ) -> Option<f64> {
+    fn calculate_sl(open_price: f64, sl: Option<f64>, sl_type: &Option<TpslType>, order_side: &FuturesOrderSide) -> Option<f64> {
         // 止损
         if let Some(sl) = sl {
             if let Some(sl_type) = sl_type.clone() {

@@ -10,10 +10,7 @@ pub enum PositionManagementNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("position management node backtest config deserialization failed. reason: {source}"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for PositionManagementNodeError
@@ -41,8 +38,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for PositionManagementNodeEr
     fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            PositionManagementNodeError::ConfigFieldValueNull { .. }
-                | PositionManagementNodeError::ConfigDeserializationFailed { .. }
+            PositionManagementNodeError::ConfigFieldValueNull { .. } | PositionManagementNodeError::ConfigDeserializationFailed { .. }
         )
     }
 

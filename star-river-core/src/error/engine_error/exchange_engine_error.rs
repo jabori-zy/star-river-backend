@@ -220,9 +220,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
             ExchangeEngineError::Mt5 { source } => return source.context(),
 
             ExchangeEngineError::RegisterExchangeFailed {
-                account_id,
-                exchange_type,
-                ..
+                account_id, exchange_type, ..
             } => {
                 ctx.insert("account_id", account_id.to_string());
                 ctx.insert("exchange_type", format!("{:?}", exchange_type));
@@ -279,9 +277,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 }
             }
             ExchangeEngineError::CommandHandlingFailed {
-                account_id,
-                command_type,
-                ..
+                account_id, command_type, ..
             } => {
                 ctx.insert("command_type", command_type.clone());
                 if let Some(acc_id) = account_id {
@@ -360,10 +356,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     exchange_type,
                     ..
                 } => {
-                    format!(
-                        "账户 {} 注册交易所失败: {}, 交易所类型: {:?}",
-                        account_id, message, exchange_type
-                    )
+                    format!("账户 {} 注册交易所失败: {}, 交易所类型: {:?}", account_id, message, exchange_type)
                 }
                 ExchangeEngineError::UnregistrationFailed {
                     message,
@@ -371,18 +364,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     exchange_type,
                     ..
                 } => {
-                    format!(
-                        "账户 {} 注销交易所失败: {}, 交易所类型: {:?}",
-                        account_id, message, exchange_type
-                    )
+                    format!("账户 {} 注销交易所失败: {}, 交易所类型: {:?}", account_id, message, exchange_type)
                 }
                 ExchangeEngineError::Database { source, .. } => {
                     format!("数据库错误: {}", source)
                 }
                 ExchangeEngineError::UnsupportedExchangeType {
-                    exchange_type,
-                    account_id,
-                    ..
+                    exchange_type, account_id, ..
                 } => {
                     format!("账户 {} 的交易所类型 {:?} 不支持", account_id, exchange_type)
                 }
@@ -442,9 +430,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     }
                     msg
                 }
-                ExchangeEngineError::DatabaseConnectionFailed {
-                    message, database_url, ..
-                } => {
+                ExchangeEngineError::DatabaseConnectionFailed { message, database_url, .. } => {
                     let url_str = if let Some(url) = database_url {
                         format!(", 数据库URL: {}", url)
                     } else {
@@ -460,10 +446,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     retry_count,
                     ..
                 } => {
-                    let mut msg = format!(
-                        "操作超时: {}, 操作: {}, 超时时长: {}",
-                        message, operation, timeout_duration
-                    );
+                    let mut msg = format!("操作超时: {}, 操作: {}, 超时时长: {}", message, operation, timeout_duration);
                     if let Some(acc_id) = account_id {
                         msg.push_str(&format!(", 账户: {}", acc_id));
                     }
@@ -557,10 +540,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     exchange_type,
                     ..
                 } => {
-                    format!(
-                        "功能未实现: {}, 功能: {}, 交易所类型: {:?}",
-                        message, feature, exchange_type
-                    )
+                    format!("功能未实现: {}, 功能: {}, 交易所类型: {:?}", message, feature, exchange_type)
                 }
             },
         }

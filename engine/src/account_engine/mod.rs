@@ -47,11 +47,7 @@ impl Engine for AccountEngine {
 }
 
 impl AccountEngine {
-    pub fn new(
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
-        database: DatabaseConnection,
-        heartbeat: Arc<Mutex<Heartbeat>>,
-    ) -> Self {
+    pub fn new(exchange_engine: Arc<Mutex<ExchangeEngine>>, database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
         let context = AccountEngineContext {
             engine_name: EngineName::AccountEngine,
             exchange_engine,

@@ -18,10 +18,7 @@ pub enum StrategyEngineError {
     },
 
     #[snafu(display("strategy type {} is unsupported", strategy_type))]
-    UnsupportedStrategyType {
-        strategy_type: String,
-        backtrace: Backtrace,
-    },
+    UnsupportedStrategyType { strategy_type: String, backtrace: Backtrace },
 
     #[snafu(display("strategy {} is exists", strategy_id))]
     StrategyIsExist { strategy_id: i32, backtrace: Backtrace },
@@ -119,9 +116,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
                 StrategyEngineError::UnsupportedTradeMode { trade_mode, .. } => {
                     format!("不支持的交易模式: {}", trade_mode)
                 }
-                StrategyEngineError::StrategyConfigNotFound {
-                    strategy_id, source, ..
-                } => {
+                StrategyEngineError::StrategyConfigNotFound { strategy_id, source, .. } => {
                     format!("策略 {} 配置不存在: {}", strategy_id, source)
                 }
             },

@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
-use engine::strategy_engine::StrategyEngine;
+use engine::backtest_strategy_engine::StrategyEngine;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
 use star_river_core::custom_type::NodeId;
@@ -251,10 +251,7 @@ pub async fn update_strategy(
         (status = 400, description = "策略删除失败", content_type = "application/json")
     )
 )]
-pub async fn delete_strategy(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn delete_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match StrategyConfigMutation::delete_strategy(conn, strategy_id).await {
@@ -291,10 +288,7 @@ pub async fn delete_strategy(
     )
 )]
 #[instrument(skip(star_river))]
-pub async fn init_strategy(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<NewApiResponse<()>>) {
+pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     tracing::info!(strategy_id = strategy_id, "initialize strategy");
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
@@ -313,10 +307,7 @@ pub async fn init_strategy(
 // start_strategy: 负责策略的初始化和启动，确保策略可以正常运行（比如检查配置、建立连接等）
 // 实际的策略运行逻辑应该在一个单独的异步任务中进行
 // 例如，strategy_engine 的实现可能是这样的
-pub async fn run_strategy(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let heartbeat = star_river.heartbeat.lock().await;
     heartbeat
         .run_async_task_once(format!("启动策略{}", strategy_id), async move {
@@ -349,10 +340,7 @@ pub async fn run_strategy(
         (status = 200, description = "Stop strategy successfully", content_type = "application/json")
     )
 )]
-pub async fn stop_strategy(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
+pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
     let heartbeat = star_river.heartbeat.lock().await;
     heartbeat
         .run_async_task_once("Stop strategy".to_string(), async move {
@@ -415,16 +403,10 @@ pub async fn get_strategy_cache_keys(
     let cache_keys = strategy_engine.get_strategy_cache_keys(strategy_id).await;
 
     if let Ok(keys_map) = cache_keys {
-        let keys_str = keys_map
-            .keys()
-            .map(|cache_key| cache_key.get_key_str())
-            .collect::<Vec<String>>();
+        let keys_str = keys_map.keys().map(|cache_key| cache_key.get_key_str()).collect::<Vec<String>>();
         (StatusCode::OK, Json(NewApiResponse::success(keys_str)))
     } else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(cache_keys.unwrap_err())),
-        );
+        return (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(cache_keys.unwrap_err())));
     }
 }
 

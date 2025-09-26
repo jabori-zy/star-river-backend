@@ -7,10 +7,7 @@ use std::collections::HashMap;
 #[snafu(visibility(pub))]
 pub enum IndicatorError {
     #[snafu(display("indicator type [{indicator_type}] is unsupported"))]
-    UnsupportedIndicatorType {
-        indicator_type: String,
-        backtrace: Backtrace,
-    },
+    UnsupportedIndicatorType { indicator_type: String, backtrace: Backtrace },
 
     #[snafu(display("create indicator [{indicator_type}] failed. reason: [{source}]"))]
     CreateIndicatorFailed {

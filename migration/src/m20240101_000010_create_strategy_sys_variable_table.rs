@@ -24,12 +24,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(StrategySysVariable::StrategyId).integer().not_null()) //策略id
-                    .col(
-                        ColumnDef::new(StrategySysVariable::PositionNumber)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    ) //持仓数量
+                    .col(ColumnDef::new(StrategySysVariable::PositionNumber).integer().not_null().default(0)) //持仓数量
                     .col(
                         ColumnDef::new(StrategySysVariable::CreateTime)
                             .timestamp()
@@ -49,9 +44,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(StrategySysVariable::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(StrategySysVariable::Table).to_owned()).await
     }
 }
 

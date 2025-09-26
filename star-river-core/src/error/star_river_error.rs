@@ -18,10 +18,7 @@ pub enum StarRiverError {
     InvalidKeyType { key_type: String, backtrace: Backtrace },
 
     #[snafu(display("invalid indicator type: {indicator_type}"))]
-    InvalidIndicatorType {
-        indicator_type: String,
-        backtrace: Backtrace,
-    },
+    InvalidIndicatorType { indicator_type: String, backtrace: Backtrace },
 
     #[snafu(display("invalid key format: {key_str}"))]
     InvalidKeyFormat { key_str: String, backtrace: Backtrace },
@@ -39,22 +36,13 @@ pub enum StarRiverError {
     #[snafu(display(
         "invalid indicator config format: {indicator_config}. the format should be 'indicator_name(param1=value1 param2=value2 ...)"
     ))]
-    InvalidIndicatorConfigFormat {
-        indicator_config: String,
-        backtrace: Backtrace,
-    },
+    InvalidIndicatorConfigFormat { indicator_config: String, backtrace: Backtrace },
 
     #[snafu(display("indicator param empty: {indicator_config}"))]
-    IndicatorParamEmpty {
-        indicator_config: String,
-        backtrace: Backtrace,
-    },
+    IndicatorParamEmpty { indicator_config: String, backtrace: Backtrace },
 
     #[snafu(display("indicator param format invalid: {indicator_config}. the format should be 'key=value'"))]
-    IndicatorParamFormatInvalid {
-        indicator_config: String,
-        backtrace: Backtrace,
-    },
+    IndicatorParamFormatInvalid { indicator_config: String, backtrace: Backtrace },
 
     #[snafu(display("indicator config miss param {param}"))]
     IndicatorConfigMissParam { param: String, backtrace: Backtrace },
@@ -90,20 +78,20 @@ impl StarRiverErrorTrait for StarRiverError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            StarRiverError::UpdateSystemConfigFailed { .. } => 1001, // 更新系统配置失败
-            StarRiverError::GetSystemConfigFailed { .. } => 1002,    // 获取系统配置失败
-            StarRiverError::InvalidKeyType { .. } => 1003,           // 无效的缓存键类型
-            StarRiverError::InvalidIndicatorType { .. } => 1004,     // 无效的指标类型
-            StarRiverError::InvalidIndicatorConfigFormat { .. } => 1005, // 无效的指标配置格式
-            StarRiverError::IndicatorParamEmpty { .. } => 1006,      // 指标参数为空
-            StarRiverError::IndicatorParamFormatInvalid { .. } => 1007, // 指标参数格式无效
-            StarRiverError::IndicatorConfigMissParam { .. } => 1008, // 指标配置缺少参数
-            StarRiverError::ParseIntIndicatorParamFailed { .. } => 1009, // 指标参数解析失败
-            StarRiverError::ParseFloatIndicatorParamFailed { .. } => 1010, // 指标参数解析失败
+            StarRiverError::UpdateSystemConfigFailed { .. } => 1001,         // 更新系统配置失败
+            StarRiverError::GetSystemConfigFailed { .. } => 1002,            // 获取系统配置失败
+            StarRiverError::InvalidKeyType { .. } => 1003,                   // 无效的缓存键类型
+            StarRiverError::InvalidIndicatorType { .. } => 1004,             // 无效的指标类型
+            StarRiverError::InvalidIndicatorConfigFormat { .. } => 1005,     // 无效的指标配置格式
+            StarRiverError::IndicatorParamEmpty { .. } => 1006,              // 指标参数为空
+            StarRiverError::IndicatorParamFormatInvalid { .. } => 1007,      // 指标参数格式无效
+            StarRiverError::IndicatorConfigMissParam { .. } => 1008,         // 指标配置缺少参数
+            StarRiverError::ParseIntIndicatorParamFailed { .. } => 1009,     // 指标参数解析失败
+            StarRiverError::ParseFloatIndicatorParamFailed { .. } => 1010,   // 指标参数解析失败
             StarRiverError::ParseSpecialIndicatorParamFailed { .. } => 1011, // 指标参数解析失败
-            StarRiverError::InvalidKeyFormat { .. } => 1012,         // 无效的缓存键格式
-            StarRiverError::ParseExchangeFailed { .. } => 1013,      // 解析交易所失败
-            StarRiverError::ParseKlineIntervalFailed { .. } => 1014, // 解析K线周期失败
+            StarRiverError::InvalidKeyFormat { .. } => 1012,                 // 无效的缓存键格式
+            StarRiverError::ParseExchangeFailed { .. } => 1013,              // 解析交易所失败
+            StarRiverError::ParseKlineIntervalFailed { .. } => 1014,         // 解析K线周期失败
         };
         format!("{}_{:04}", prefix, code)
     }

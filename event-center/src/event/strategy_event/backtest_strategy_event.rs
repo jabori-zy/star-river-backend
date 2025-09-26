@@ -1,7 +1,7 @@
 use super::super::node_event::backtest_node_event::futures_order_node_event::{
-    FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent, StopLossOrderCanceledEvent,
-    StopLossOrderCreatedEvent, StopLossOrderFilledEvent, TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent,
-    TakeProfitOrderFilledEvent, TransactionCreatedEvent,
+    FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent, StopLossOrderCanceledEvent, StopLossOrderCreatedEvent,
+    StopLossOrderFilledEvent, TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent, TakeProfitOrderFilledEvent,
+    TransactionCreatedEvent,
 };
 use super::super::node_event::backtest_node_event::indicator_node_event::IndicatorUpdateEvent;
 use super::super::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;

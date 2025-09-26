@@ -286,18 +286,9 @@ fn test_current_utc8_time() {
     let from_timestamp = Utc.timestamp_millis_opt(timestamp).unwrap();
     let current_utc8_3 = from_timestamp.with_timezone(&utc8_offset);
 
-    println!(
-        "  方法1 - 直接转换: {}",
-        current_utc8_1.format("%Y-%m-%d %H:%M:%S%.3f %z")
-    );
-    println!(
-        "  方法2 - UTC转换:  {}",
-        current_utc8_2.format("%Y-%m-%d %H:%M:%S%.3f %z")
-    );
-    println!(
-        "  方法3 - 时间戳转换: {}",
-        current_utc8_3.format("%Y-%m-%d %H:%M:%S%.3f %z")
-    );
+    println!("  方法1 - 直接转换: {}", current_utc8_1.format("%Y-%m-%d %H:%M:%S%.3f %z"));
+    println!("  方法2 - UTC转换:  {}", current_utc8_2.format("%Y-%m-%d %H:%M:%S%.3f %z"));
+    println!("  方法3 - 时间戳转换: {}", current_utc8_3.format("%Y-%m-%d %H:%M:%S%.3f %z"));
 
     // 不同格式展示
     println!("  格式化展示:");

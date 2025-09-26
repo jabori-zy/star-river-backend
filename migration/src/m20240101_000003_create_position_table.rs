@@ -16,13 +16,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Position::Table)
-                    .col(
-                        ColumnDef::new(Position::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Position::Id).integer().not_null().auto_increment().primary_key())
                     .col(ColumnDef::new(Position::StrategyId).big_integer().not_null())
                     .col(ColumnDef::new(Position::NodeId).string().not_null())
                     .col(ColumnDef::new(Position::ExchangePositionId).big_integer().not_null())
@@ -63,9 +57,7 @@ impl MigrationTrait for Migration {
 
     // Define how to rollback this migration: Drop the Chef table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(Position::Table).to_owned())
-            .await
+        manager.drop_table(Table::drop().table(Position::Table).to_owned()).await
     }
 }
 

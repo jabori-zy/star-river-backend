@@ -120,10 +120,7 @@ impl FromStr for Exchange {
                         Ok(Exchange::Metatrader5(String::new()))
                     }
                 } else {
-                    Err(ParseExchangeFailedSnafu {
-                        exchange: s.to_string(),
-                    }
-                    .build())
+                    Err(ParseExchangeFailedSnafu { exchange: s.to_string() }.build())
                 }
             }
         }

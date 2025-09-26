@@ -6,11 +6,7 @@ use star_river_core::strategy::StrategyConfig;
 pub struct StrategyConfigMutation;
 
 impl StrategyConfigMutation {
-    pub async fn create_strategy(
-        db: &DbConn,
-        strategy_name: String,
-        strategy_description: String,
-    ) -> Result<StrategyConfig, DbErr> {
+    pub async fn create_strategy(db: &DbConn, strategy_name: String, strategy_description: String) -> Result<StrategyConfig, DbErr> {
         let strategy_config_model = strategy_config::ActiveModel {
             id: NotSet,
             name: Set(strategy_name),
@@ -100,11 +96,7 @@ impl StrategyConfigMutation {
         Ok(strategy_config_model.backtest_chart_config.unwrap_or(JsonValue::Null))
     }
 
-    pub async fn update_strategy_status(
-        db: &DbConn,
-        strategy_id: i32,
-        strategy_status: String,
-    ) -> Result<StrategyConfig, DbErr> {
+    pub async fn update_strategy_status(db: &DbConn, strategy_id: i32, strategy_status: String) -> Result<StrategyConfig, DbErr> {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?

@@ -10,10 +10,7 @@ pub enum GetVariableNodeError {
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
     #[snafu(display("get variable node backtest config deserialization failed. reason: {source}"))]
-    ConfigDeserializationFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for GetVariableNodeError
@@ -41,8 +38,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for GetVariableNodeError {
     fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            GetVariableNodeError::ConfigFieldValueNull { .. }
-                | GetVariableNodeError::ConfigDeserializationFailed { .. }
+            GetVariableNodeError::ConfigFieldValueNull { .. } | GetVariableNodeError::ConfigDeserializationFailed { .. }
         )
     }
 

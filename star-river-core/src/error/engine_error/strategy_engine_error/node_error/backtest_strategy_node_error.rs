@@ -34,28 +34,16 @@ pub enum BacktestStrategyNodeError {
     UnsupportedNodeType { node_type: String, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    StartNode {
-        source: StartNodeError,
-        backtrace: Backtrace,
-    },
+    StartNode { source: StartNodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    KlineNode {
-        source: KlineNodeError,
-        backtrace: Backtrace,
-    },
+    KlineNode { source: KlineNodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    IndicatorNode {
-        source: IndicatorNodeError,
-        backtrace: Backtrace,
-    },
+    IndicatorNode { source: IndicatorNodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    IfElseNode {
-        source: IfElseNodeError,
-        backtrace: Backtrace,
-    },
+    IfElseNode { source: IfElseNodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
     GetVariableNode {
@@ -136,9 +124,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
                     BacktestStrategyNodeError::IfElseNode { source, .. } => source.get_error_message(language),
                     BacktestStrategyNodeError::GetVariableNode { source, .. } => source.get_error_message(language),
                     BacktestStrategyNodeError::FuturesOrderNode { source, .. } => source.get_error_message(language),
-                    BacktestStrategyNodeError::PositionManagementNode { source, .. } => {
-                        source.get_error_message(language)
-                    }
+                    BacktestStrategyNodeError::PositionManagementNode { source, .. } => source.get_error_message(language),
 
                     // non-transparent errors - use custom message
                     BacktestStrategyNodeError::UnsupportedNodeType { node_type, .. } => {

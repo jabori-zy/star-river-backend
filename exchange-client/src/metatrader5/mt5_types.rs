@@ -467,9 +467,7 @@ impl OriginalPosition for Mt5Position {
         }))
     }
     fn get_create_time(&self) -> DateTimeUtc {
-        Utc.timestamp_millis_opt(self.time_msc)
-            .single()
-            .expect("时间戳转换为日期时间失败")
+        Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
     }
     fn get_update_time(&self) -> DateTimeUtc {
         Utc.timestamp_millis_opt(self.time_update_msc)
@@ -549,9 +547,7 @@ impl OriginalTransaction for Mt5Deal {
         self.price
     }
     fn get_create_time(&self) -> DateTimeUtc {
-        Utc.timestamp_millis_opt(self.time_msc)
-            .single()
-            .expect("时间戳转换为日期时间失败")
+        Utc.timestamp_millis_opt(self.time_msc).single().expect("时间戳转换为日期时间失败")
     }
     fn get_symbol(&self) -> String {
         self.symbol.clone()

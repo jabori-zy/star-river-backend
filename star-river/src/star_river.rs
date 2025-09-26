@@ -36,9 +36,7 @@ impl StarRiver {
         )
         .await;
 
-        let system_config = SystemConfigQuery::get_system_config(&database.get_conn())
-            .await
-            .unwrap();
+        let system_config = SystemConfigQuery::get_system_config(&database.get_conn()).await.unwrap();
         tracing::info!("system_config: {:?}", system_config);
         // 初始化时区
         SystemConfigManager::initialize_from_db(system_config);

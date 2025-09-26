@@ -74,8 +74,7 @@ impl VirtualTradingSystem {
                     self.orders.push(market_order.clone());
 
                     // 创建完成后，直接成交订单
-                    self.execute_order(&market_order, current_price, current_datetime)
-                        .unwrap();
+                    self.execute_order(&market_order, current_price, current_datetime).unwrap();
                 }
                 // 限价单
                 OrderType::Limit => {
@@ -145,12 +144,7 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn update_order_position_id(
-        &mut self,
-        order_id: OrderId,
-        position_id: PositionId,
-        datetime: DateTime<Utc>,
-    ) -> Result<(), String> {
+    pub fn update_order_position_id(&mut self, order_id: OrderId, position_id: PositionId, datetime: DateTime<Utc>) -> Result<(), String> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             order.position_id = Some(position_id);
             order.update_time = datetime;
@@ -190,16 +184,14 @@ impl VirtualTradingSystem {
                                     // 限价开多：最低价格 <= 订单价格时执行
                                     if low_price <= order.open_price {
                                         // 限价单的成交价格应该是挂单的价格
-                                        self.execute_order(&order, order.open_price, self.current_datetime)
-                                            .unwrap();
+                                        self.execute_order(&order, order.open_price, self.current_datetime).unwrap();
                                     }
                                 }
                                 FuturesOrderSide::OpenShort => {
                                     // 限价开空：最高价格 >= 订单价格时执行
                                     if high_price >= order.open_price {
                                         // 限价单的成交价格应该是挂单的价格
-                                        self.execute_order(&order, order.open_price, self.current_datetime)
-                                            .unwrap();
+                                        self.execute_order(&order, order.open_price, self.current_datetime).unwrap();
                                     }
                                 }
                                 _ => {}

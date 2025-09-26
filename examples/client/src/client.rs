@@ -61,11 +61,7 @@ async fn spawn_client(who: usize) {
     let mut send_task = tokio::spawn(async move {
         for i in 1..30 {
             // In any websocket error, break loop.
-            if sender
-                .send(Message::Text(format!("Message number {i}...").into()))
-                .await
-                .is_err()
-            {
+            if sender.send(Message::Text(format!("Message number {i}...").into())).await.is_err() {
                 //just as with server, if send fails there is nothing we can do but exit.
                 return;
             }

@@ -64,13 +64,7 @@ pub struct ExchangeKlineHistoryUpdateEvent {
 }
 
 impl ExchangeKlineHistoryUpdateEvent {
-    pub fn new(
-        exchange: Exchange,
-        symbol: String,
-        interval: KlineInterval,
-        time_range: TimeRange,
-        kline_history: Vec<Kline>,
-    ) -> Self {
+    pub fn new(exchange: Exchange, symbol: String, interval: KlineInterval, time_range: TimeRange, kline_history: Vec<Kline>) -> Self {
         Self {
             exchange,
             symbol,

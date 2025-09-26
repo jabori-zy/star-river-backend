@@ -42,17 +42,10 @@ pub enum Mt5Error {
     },
 
     #[snafu(display("http client not created: terminal_id={terminal_id}, port={port}"))]
-    HttpClientNotCreated {
-        terminal_id: i32,
-        port: u16,
-        backtrace: Backtrace,
-    },
+    HttpClientNotCreated { terminal_id: i32, port: u16, backtrace: Backtrace },
 
     #[snafu(display("json parsing error"))]
-    Json {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    Json { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("failed to initialize terminal: {message}"))]
     InitializeTerminal {
@@ -63,11 +56,7 @@ pub enum Mt5Error {
     },
 
     #[snafu(display("terminal {terminal_id} not initialized: port={port}"))]
-    TerminalNotInitialized {
-        terminal_id: i32,
-        port: u16,
-        backtrace: Backtrace,
-    },
+    TerminalNotInitialized { terminal_id: i32, port: u16, backtrace: Backtrace },
 
     #[snafu(display("failed to get terminal info: {message}"))]
     GetTerminalInfo {
@@ -186,18 +175,10 @@ pub enum Mt5Error {
     },
 
     #[snafu(display("Failed to get retcode: terminal_id={terminal_id}, port={port}"))]
-    Retcode {
-        terminal_id: i32,
-        port: u16,
-        backtrace: Backtrace,
-    },
+    Retcode { terminal_id: i32, port: u16, backtrace: Backtrace },
 
     #[snafu(display("Failed to get order id: terminal_id={terminal_id}, port={port}"))]
-    OrderId {
-        terminal_id: i32,
-        port: u16,
-        backtrace: Backtrace,
-    },
+    OrderId { terminal_id: i32, port: u16, backtrace: Backtrace },
 
     #[snafu(display("Ping failed: {message}, terminal_id={terminal_id}, port={port}"))]
     Ping {
@@ -217,10 +198,7 @@ pub enum Mt5Error {
     },
 
     #[snafu(display("Data processor error"))]
-    DataProcessor {
-        source: DataProcessorError,
-        backtrace: Backtrace,
-    },
+    DataProcessor { source: DataProcessorError, backtrace: Backtrace },
 
     #[snafu(display("MetaTrader5 connection error: message={message}, terminal_id={terminal_id}, port={port}"))]
     Connection {
@@ -437,10 +415,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     status_code,
                     ..
                 } => {
-                    format!(
-                        "服务器错误: 终端ID={}, URL={}, 状态码={}",
-                        terminal_id, url, status_code
-                    )
+                    format!("服务器错误: 终端ID={}, URL={}, 状态码={}", terminal_id, url, status_code)
                 }
                 Mt5Error::Response { terminal_id, url, .. } => {
                     format!("响应错误: 终端ID={}, URL={}", terminal_id, url)
@@ -477,10 +452,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     port,
                     ..
                 } => {
-                    format!(
-                        "获取交易品种列表失败: {}, 终端ID={}, 端口={}",
-                        message, terminal_id, port
-                    )
+                    format!("获取交易品种列表失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
                 }
                 Mt5Error::GetKlineData { symbol, message, .. } => {
                     format!("获取 '{}' K线数据失败: {}", symbol, message)
@@ -491,14 +463,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 Mt5Error::GetOrder { order_id, message, .. } => {
                     format!("获取订单 {} 失败: {}", order_id, message)
                 }
-                Mt5Error::GetPosition {
-                    position_id, message, ..
-                } => {
+                Mt5Error::GetPosition { position_id, message, .. } => {
                     format!("获取持仓 {} 失败: {}", position_id, message)
                 }
-                Mt5Error::GetDealByPositionId {
-                    position_id, message, ..
-                } => {
+                Mt5Error::GetDealByPositionId { position_id, message, .. } => {
                     format!("通过持仓ID {} 获取交易失败: {}", position_id, message)
                 }
                 Mt5Error::GetDeal {
@@ -557,15 +525,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     format!("Ping失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
                 }
                 Mt5Error::WebSocket {
-                    message,
-                    account_id,
-                    url,
-                    ..
+                    message, account_id, url, ..
                 } => {
-                    format!(
-                        "MetaTrader5 WebSocket错误: {}, 账户ID: {}, URL: {}",
-                        message, account_id, url
-                    )
+                    format!("MetaTrader5 WebSocket错误: {}, 账户ID: {}, URL: {}", message, account_id, url)
                 }
                 Mt5Error::DataProcessor { source, .. } => {
                     format!("数据处理器错误: {}", source.get_error_message(language))
@@ -576,10 +538,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     port,
                     ..
                 } => {
-                    format!(
-                        "MetaTrader5 连接错误: {}, 终端ID={}, 端口={}",
-                        message, terminal_id, port
-                    )
+                    format!("MetaTrader5 连接错误: {}, 终端ID={}, 端口={}", message, terminal_id, port)
                 }
                 Mt5Error::Initialization { message, .. } => {
                     format!("MetaTrader5 初始化错误: {}", message)
@@ -613,10 +572,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
             }
 
             // Errors with source that don't implement our trait - start chain here
-            Mt5Error::Network { .. }
-            | Mt5Error::Response { .. }
-            | Mt5Error::Json { .. }
-            | Mt5Error::WebSocket { .. } => {
+            Mt5Error::Network { .. } | Mt5Error::Response { .. } | Mt5Error::Json { .. } | Mt5Error::WebSocket { .. } => {
                 vec![self.error_code()]
             }
 

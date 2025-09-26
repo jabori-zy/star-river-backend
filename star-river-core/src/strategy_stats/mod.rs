@@ -80,11 +80,7 @@ impl StatsSnapshot {
 
     /// 获取净值（相对于初始资金的比例）
     pub fn get_net_value(&self) -> f64 {
-        if self.balance != 0.0 {
-            self.equity / self.balance
-        } else {
-            1.0
-        }
+        if self.balance != 0.0 { self.equity / self.balance } else { 1.0 }
     }
 }
 

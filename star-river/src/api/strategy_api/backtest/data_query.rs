@@ -4,7 +4,7 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
-use engine::strategy_engine::StrategyEngine;
+use engine::backtest_strategy_engine::StrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
 use star_river_core::engine::EngineName;
@@ -270,10 +270,7 @@ pub async fn get_strategy_status(
     if let Ok(strategy_status) = strategy_status {
         (StatusCode::OK, Json(NewApiResponse::success(strategy_status)))
     } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(strategy_status.unwrap_err())),
-        )
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_status.unwrap_err())))
     }
 }
 
@@ -302,10 +299,7 @@ pub async fn get_running_log(
     if let Ok(running_log) = running_log {
         (StatusCode::OK, Json(NewApiResponse::success(running_log)))
     } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(running_log.unwrap_err())),
-        )
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(running_log.unwrap_err())))
     }
 }
 
