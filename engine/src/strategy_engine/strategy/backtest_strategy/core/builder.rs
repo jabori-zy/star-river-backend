@@ -127,7 +127,7 @@ impl BacktestStrategy {
             tracing::info!("[{}] have only one symbol", strategy_name);
         }
 
-        let mut min_interval_symbols: Vec<KlineKey> = min_symbol_map.into_values().collect();
+        let min_interval_symbols: Vec<KlineKey> = min_symbol_map.into_values().collect();
         let reference_interval = min_interval_symbols[0].get_interval();
         if min_interval_symbols
             .iter()
@@ -137,7 +137,7 @@ impl BacktestStrategy {
                 symbols: min_interval_symbols
                     .iter()
                     .map(|key| (key.get_symbol(), key.get_interval().to_string()))
-                    .collect(),
+                    .collect::<Vec<(String, String)>>(),
             }
             .build());
         }
