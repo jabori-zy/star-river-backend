@@ -53,6 +53,8 @@ use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
+use star_river_core::key::KeyTrait;
+use event_center::communication::Command;
 
 #[derive(Debug)]
 // 回测策略上下文

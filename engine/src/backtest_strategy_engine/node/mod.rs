@@ -6,6 +6,7 @@ pub mod node_message;
 pub mod position_management_node;
 pub mod start_node;
 pub mod variable_node;
+pub mod node_utils;
 
 pub mod node_context;
 pub mod node_functions;
@@ -42,6 +43,9 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
+use star_river_core::error::StarRiverErrorTrait;
+use event_center::event::strategy_event::NodeStateLogEvent;
+
 
 #[async_trait]
 pub trait LiveNodeTrait: Debug + Send + Sync + 'static {
@@ -402,13 +406,6 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
         let context = self.get_context();
         BacktestNodeFunction::listen_strategy_command(context).await;
     }
-
-    // 监听播放索引
-    // async fn listen_play_index(&self) -> Result<(), String> {
-    //     let context = self.get_context();
-    //     BacktestNodeFunction::listen_play_index(context).await;
-    //     Ok(())
-    // }
 
     // 取消所有异步任务
     async fn cancel_task(&self) {

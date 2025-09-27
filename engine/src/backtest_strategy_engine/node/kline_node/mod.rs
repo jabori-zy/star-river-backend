@@ -29,6 +29,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
+use super::node_utils::NodeUtils;
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
@@ -230,53 +231,31 @@ impl BacktestNodeTrait for KlineNode {
                 match kline_node_state_action {
                     KlineNodeStateAction::LogTransition => {
                         tracing::debug!(
-                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            "[{node_name}] state transition: {:?} -> {:?}",
                             current_state,
                             transition_result.get_new_state()
                         );
                     }
                     KlineNodeStateAction::LogNodeState => {
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            KlineNodeStateAction::LogNodeState.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
                     }
                     KlineNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
-                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            KlineNodeStateAction::ListenAndHandleExternalEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::ListenAndHandleExternalEvents.to_string(), &strategy_output_handle).await;
+                        
                         self.listen_external_events().await;
                     }
                     KlineNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            KlineNodeStateAction::ListenAndHandleNodeEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen node events");
+                        let log_message = ListenNodeEventsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::ListenAndHandleNodeEvents.to_string(), &strategy_output_handle).await;
+                        
                         self.listen_node_events().await;
                     }
                     KlineNodeStateAction::GetMinIntervalSymbols => {
-                        tracing::info!("[{node_name}({node_id})] start to get min interval symbols");
+                        tracing::info!("[{node_name}] start to get min interval symbols");
                         let context = self.get_context();
 
                         let mut context_guard = context.write().await;
@@ -284,20 +263,12 @@ impl BacktestNodeTrait for KlineNode {
                             let min_interval_symbols = kline_node_context.get_min_interval_symbols().await.unwrap();
                             kline_node_context.set_min_interval_symbols(min_interval_symbols);
 
-                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_id.clone(), node_name.clone());
-                            let log_event = NodeStateLogEvent::success(
-                                strategy_id.clone(),
-                                node_id.clone(),
-                                node_name.clone(),
-                                current_state.to_string(),
-                                KlineNodeStateAction::GetMinIntervalSymbols.to_string(),
-                                log_message.to_string(),
-                            );
-                            let _ = strategy_output_handle.send(log_event.into());
+                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
+                            NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::GetMinIntervalSymbols.to_string(), &strategy_output_handle).await;
                         }
                     }
                     KlineNodeStateAction::RegisterExchange => {
-                        tracing::info!("[{node_name}({node_id})] start to register exchange");
+                        tracing::info!("[{node_name}] start to register exchange");
 
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
@@ -311,42 +282,19 @@ impl BacktestNodeTrait for KlineNode {
                                 .selected_account
                                 .exchange
                                 .clone();
-                            let account_id = kline_node_context
-                                .backtest_config
-                                .exchange_mode_config
-                                .as_ref()
-                                .unwrap()
-                                .selected_account
-                                .account_id
-                                .clone();
-                            let log_message =
-                                StartRegisterExchangeMsg::new(node_id.clone(), node_name.clone(), exchange.clone(), account_id);
-                            let log_event = NodeStateLogEvent::success(
-                                strategy_id.clone(),
-                                node_id.clone(),
-                                node_name.clone(),
-                                current_state.to_string(),
-                                KlineNodeStateAction::RegisterExchange.to_string(),
-                                log_message.to_string(),
-                            );
-                            let _ = strategy_output_handle.send(log_event.into());
+                            let log_message = StartRegisterExchangeMsg::new(node_name.clone(), exchange.clone());
+                            NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::RegisterExchange.to_string(), &strategy_output_handle).await;
+                            
 
                             // 2. register exchange
                             let response = kline_node_context.register_exchange().await.unwrap();
                             if response.is_success() {
                                 *kline_node_context.exchange_is_registered.write().await = true;
 
-                                let log_message = RegisterExchangeSuccessMsg::new(node_id.clone(), node_name.clone(), exchange, account_id);
+                                let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
+                                NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::RegisterExchange.to_string(), &strategy_output_handle).await;
 
-                                let log_event = NodeStateLogEvent::success(
-                                    strategy_id.clone(),
-                                    node_id.clone(),
-                                    node_name.clone(),
-                                    current_state.to_string(),
-                                    KlineNodeStateAction::RegisterExchange.to_string(),
-                                    log_message.to_string(),
-                                );
-                                let _ = strategy_output_handle.send(log_event.into());
+                                
                             } else {
                                 // 转换状态 Failed
                                 let error = response.get_error();
@@ -370,7 +318,7 @@ impl BacktestNodeTrait for KlineNode {
                         }
                     }
                     KlineNodeStateAction::LoadHistoryFromExchange => {
-                        tracing::info!("[{node_name}({node_id})] starting to load kline data from exchange");
+                        tracing::info!("[{node_name}] starting to load kline data from exchange");
                         let context = self.get_context();
                         let mut context_guard = context.write().await;
                         if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
@@ -378,23 +326,23 @@ impl BacktestNodeTrait for KlineNode {
                             if is_all_success {
                                 // 加载K线历史成功后，设置data_is_loaded=true
                                 *kline_node_context.data_is_loaded.write().await = true;
-                                tracing::info!("[{node_name}({node_id})] load kline history from exchange success");
+                                tracing::info!("[{node_name}] load kline history from exchange success");
                             } else {
-                                tracing::error!("[{node_name}({node_id})] load kline history from exchange failed");
+                                tracing::error!("[{node_name}] load kline history from exchange failed");
                             }
                         }
                     }
                     KlineNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}({node_id})] start to listen strategy command");
+                        tracing::info!("[{node_name}] start to listen strategy command");
                         self.listen_strategy_command().await;
                     }
 
                     KlineNodeStateAction::CancelAsyncTask => {
-                        tracing::info!("[{node_name}({node_id})] cancel node task");
+                        tracing::info!("[{node_name}] cancel node task");
                         self.cancel_task().await;
                     }
                     KlineNodeStateAction::LogError(error) => {
-                        tracing::error!("[{node_name}({node_id})] node failed: {:?}", error);
+                        tracing::error!("[{node_name}] node failed: {:?}", error);
                     }
                     _ => {}
                 }

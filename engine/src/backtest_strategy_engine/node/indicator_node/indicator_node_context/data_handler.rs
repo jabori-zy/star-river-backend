@@ -1,8 +1,13 @@
 use super::{
     BacktestNodeContextTrait, GetIndicatorDataCmdPayload, GetIndicatorDataCommand, Indicator, IndicatorKey, IndicatorNodeContext, Kline,
-    QuantData, Response,
+    QuantData, Response,IndicatorNodeError,GetKlineDataCmdPayload, GetKlineDataCommand, GetKlineDataFailedSnafu,
+    CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, IndicatorEngineCommand, EventCenterSingleton, CalculateIndicatorFailedSnafu,
+    InitIndicatorDataCmdPayload, InitIndicatorDataCommand
+
 };
 use tokio::sync::oneshot;
+use snafu::IntoError;
+
 
 impl IndicatorNodeContext {
     // 更新当前节点缓存的用于计算的k线数据
@@ -55,4 +60,55 @@ impl IndicatorNodeContext {
             return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id));
         }
     }
+
+
+    pub(super) async fn get_kline_data(&self, indicator_key: &IndicatorKey) -> Result<Vec<Kline>, IndicatorNodeError> {
+        let (resp_tx, resp_rx) = oneshot::channel();
+            let payload = GetKlineDataCmdPayload::new(self.selected_kline_key.clone(), None, None);
+            // 获取所有K线
+            let get_kline_series_cmd = GetKlineDataCommand::new(self.get_node_id().clone(), resp_tx, Some(payload));
+
+            self.get_strategy_command_sender().send(get_kline_series_cmd.into()).await.unwrap();
+            let response = resp_rx.await.unwrap();
+            if response.is_success() {
+                return Ok(response.kline_series.clone());
+            } else {
+                let error = response.get_error();
+                let e = GetKlineDataFailedSnafu{}.into_error(error);
+                return Err(e);
+            }
+    }
+
+
+    pub(super) async fn calculate_single_indicator(&self, indicator_key: &IndicatorKey, kline_data: &Vec<Kline>) -> Result<Vec<Indicator>, IndicatorNodeError> {
+        let (resp_tx, resp_rx) = oneshot::channel();
+        let payload = CalculateHistoryIndicatorCmdPayload::new(
+            self.get_strategy_id().clone(),
+            self.get_node_id().clone(),
+            indicator_key.get_kline_key(),
+            kline_data.clone(),
+            indicator_key.indicator_config.clone(),
+        );
+        let cmd: IndicatorEngineCommand = CalculateHistoryIndicatorCommand::new(self.get_node_id().clone(), resp_tx, Some(payload)).into();
+        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+        let response = resp_rx.await.unwrap();
+        if response.is_success() {
+            return Ok(response.indicators.clone());
+        } else {
+            let e = CalculateIndicatorFailedSnafu{}.into_error(response.get_error());
+            return Err(e);
+        }
+    }
+
+
+    pub(super) async fn init_stragegy_indicator_data(&self, indicator_key: &IndicatorKey, indicators: &Vec<Indicator>) -> Result<(), IndicatorNodeError> {
+        let (resp_tx, resp_rx) = oneshot::channel();
+        let payload = InitIndicatorDataCmdPayload::new(indicator_key.clone(), indicators.clone());
+        let cmd = InitIndicatorDataCommand::new(self.get_node_id().clone(), resp_tx, Some(payload));
+        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
+        let _ = resp_rx.await.unwrap();
+        Ok(())
+        
+    }
 }
+

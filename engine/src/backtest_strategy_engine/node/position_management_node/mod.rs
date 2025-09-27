@@ -10,7 +10,6 @@ use crate::backtest_strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
 use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::strategy_event::NodeStateLogEvent;
 use heartbeat::Heartbeat;
 use position_management_node_context::PositionNodeContext;
 use position_management_node_state_machine::*;
@@ -30,6 +29,7 @@ use tokio::sync::broadcast;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
+use super::node_utils::NodeUtils;
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {
@@ -278,101 +278,54 @@ impl BacktestNodeTrait for PositionManagementNode {
                 match position_node_state_action {
                     PositionManagementNodeStateAction::LogTransition => {
                         tracing::info!(
-                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            "[{node_name}] state transition: {:?} -> {:?}",
                             current_state,
                             transition_result.get_new_state()
                         );
                     }
                     PositionManagementNodeStateAction::LogNodeState => {
-                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
+                        tracing::info!("[{node_name}] current state: {:?}", current_state);
 
                         // 发送节点状态日志事件
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), PositionManagementNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen external events");
-                        let log_message = ListenExternalEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen external events");
+                        let log_message = ListenExternalEventsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), PositionManagementNodeStateAction::ListenAndHandleExternalEvents.to_string(), &strategy_output_handle).await;
+                        
                         self.listen_external_events().await;
                     }
                     PositionManagementNodeStateAction::RegisterTask => {
-                        tracing::info!("[{node_name}({node_id})] registering position monitoring task");
-                        let log_message = RegisterTaskMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] registering position monitoring task");
+                        let log_message = RegisterTaskMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), PositionManagementNodeStateAction::RegisterTask.to_string(), &strategy_output_handle).await;
 
                         let mut context_guard = self.context.write().await;
                         let _position_node_context = context_guard.as_any_mut().downcast_mut::<PositionNodeContext>().unwrap();
                         // position_node_context.monitor_unfilled_order().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen node events");
+                        let log_message = ListenNodeEventsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), PositionManagementNodeStateAction::ListenAndHandleNodeEvents.to_string(), &strategy_output_handle).await;
                         self.listen_node_events().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
-                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), PositionManagementNodeStateAction::ListenAndHandleStrategyCommand.to_string(), &strategy_output_handle).await;
                         self.listen_strategy_command().await;
                     }
                     PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen virtual trading system events");
-                        let log_message = ListenVirtualTradingSystemEventMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            position_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen virtual trading system events");
+                        let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), PositionManagementNodeStateAction::ListenAndHandleVirtualTradingSystemEvent.to_string(), &strategy_output_handle).await;
                         let _ = self.listen_virtual_trading_system_events().await;
                     }
                     PositionManagementNodeStateAction::LogError(error) => {
-                        tracing::error!("[{node_name}({node_id})] error occurred: {}", error);
+                        tracing::error!("[{node_name}] error occurred: {}", error);
                     }
                 }
             }

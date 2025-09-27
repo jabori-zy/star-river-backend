@@ -27,6 +27,7 @@ use star_river_core::error::engine_error::strategy_engine_error::node_error::bac
 use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
+use super::node_utils::NodeUtils;
 
 #[derive(Debug, Clone)]
 pub struct VariableNode {
@@ -212,50 +213,28 @@ impl BacktestNodeTrait for VariableNode {
                 match variable_node_state_action {
                     VariableNodeStateAction::LogTransition => {
                         tracing::info!(
-                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            "[{node_name}] state transition: {:?} -> {:?}",
                             current_state,
                             transition_result.get_new_state()
                         );
 
                         // 发送状态转换日志事件
                         let log_message = format!("状态转换: {:?} -> {:?}", current_state, transition_result.get_new_state());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            variable_node_state_action.to_string(),
-                            log_message,
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message, current_state.to_string(), variable_node_state_action.to_string(), &strategy_output_handle).await;
+                        
                     }
                     VariableNodeStateAction::LogNodeState => {
-                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
+                        tracing::info!("[{node_name}] current state: {:?}", current_state);
 
                         // 发送节点状态日志事件
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            variable_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), variable_node_state_action.to_string(), &strategy_output_handle).await;
                     }
                     VariableNodeStateAction::RegisterTask => {
-                        tracing::info!("[{node_name}({node_id})] registering variable retrieval task");
-                        let log_message = RegisterTaskMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            variable_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] registering variable retrieval task");
+                        let log_message = RegisterTaskMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), variable_node_state_action.to_string(), &strategy_output_handle).await;
+                        
 
                         // 注册任务的具体实现(当前已注释)
                         // let context = self.get_context();
@@ -270,31 +249,17 @@ impl BacktestNodeTrait for VariableNode {
                         // }
                     }
                     VariableNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            variable_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen node events");
+                        let log_message = ListenNodeEventsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), variable_node_state_action.to_string(), &strategy_output_handle).await;
+                        
                         self.listen_node_events().await;
                     }
                     VariableNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
-                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            variable_node_state_action.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        let log_message = ListenStrategyCommandMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), variable_node_state_action.to_string(), &strategy_output_handle).await;
+                        
                         self.listen_strategy_command().await;
                     }
                     VariableNodeStateAction::LogError(error) => {

@@ -8,124 +8,113 @@ pub mod common_log_message {
     log_message!(
         NodeStateLogMsg,
         params: (
-            node_id: String,
             node_name: String,
             node_state: String,
         ),
-        en: "Node [{node_name}({node_id})] current state is: {node_state}",
-        zh: "{node_name} ({node_id}) 当前状态是: {node_state}"
+        en: "[{node_name}] current state is: {node_state}",
+        zh: "[{node_name}] 当前状态是: {node_state}"
     );
 
     // 监听其他节点事件 - 大部分节点都有
     log_message!(
         ListenNodeEventsMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] starting to listen other node events",
-        zh: "{node_name} ({node_id}) 开始监听其他节点事件"
+        en: "[{node_name}] starting to listen other node events",
+        zh: "[{node_name}] 开始监听其他节点事件"
     );
 
     // 监听策略内部事件 - 大部分节点都有
     log_message!(
         ListenStrategyInnerEventsMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] starting to listen strategy inner events",
-        zh: "{node_name} ({node_id}) 开始监听策略内部事件"
+        en: "[{node_name}] starting to listen strategy inner events",
+        zh: "[{node_name}] 开始监听策略内部事件"
     );
 
     // 监听策略命令 - 大部分节点都有
     log_message!(
         ListenStrategyCommandMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] starting to listen strategy command",
-        zh: "{node_name} ({node_id}) 开始监听策略命令"
+        en: "[{node_name}] starting to listen strategy command",
+        zh: "[{node_name}] 开始监听策略命令"
     );
 
     // 监听外部事件 - 部分节点有
     log_message!(
         ListenExternalEventsMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] starting to listen external events",
-        zh: "{node_name} ({node_id}) 开始监听外部事件"
+        en: "[{node_name}] starting to listen external events",
+        zh: "[{node_name}] 开始监听外部事件"
     );
 
     // 监听虚拟交易系统事件 - 部分节点有
     log_message!(
         ListenVirtualTradingSystemEventMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] starting to listen virtual trading system events",
-        zh: "{node_name} ({node_id}) 开始监听虚拟交易系统事件"
+        en: "[{node_name}] starting to listen virtual trading system events",
+        zh: "[{node_name}] 开始监听虚拟交易系统事件"
     );
 
     // 取消异步任务 - 所有节点都有
     log_message!(
         CancelAsyncTaskMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] canceling async tasks",
-        zh: "{node_name} ({node_id}) 取消异步任务"
+        en: "[{node_name}] canceling async tasks",
+        zh: "[{node_name}] 取消异步任务"
     );
 
     // 取消异步任务成功 - 大部分节点有
     log_message!(
         CancelAsyncTaskSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] async tasks canceled successfully",
-        zh: "{node_name} ({node_id}) 异步任务取消成功"
+        en: "[{node_name}] async tasks canceled successfully",
+        zh: "[{node_name}] 异步任务取消成功"
     );
 
     // 注册任务消息 - 部分节点有
     log_message!(
         RegisterTaskMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] registering task",
-        zh: "{node_name} ({node_id}) 注册任务"
+        en: "[{node_name}] registering task",
+        zh: "[{node_name}] 注册任务"
     );
 
     // 注册任务成功消息 - 部分节点有
     log_message!(
         RegisterTaskSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] task registration successful",
-        zh: "{node_name} ({node_id}) 任务注册成功"
+        en: "[{node_name}] task registration successful",
+        zh: "[{node_name}] 任务注册成功"
     );
 
     // 事件发送成功消息 - 多个节点有
     log_message!(
         SendEventSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             output_handle_id: String,
             event_type: String
         ),
-        en: "Node [{node_name}({node_id})] event sent successfully - Output: {output_handle_id}, Type: {event_type}",
-        zh: "{node_name} ({node_id}) 事件发送成功 - 输出: {output_handle_id}, 类型: {event_type}"
+        en: "[{node_name}] event sent successfully - Output: {output_handle_id}, Type: {event_type}",
+        zh: "[{node_name}] 事件发送成功 - 输出: {output_handle_id}, 类型: {event_type}"
     );
 
     // 事件发送失败消息 - 多个节点有
@@ -165,22 +154,20 @@ pub mod common_log_message {
     log_message!(
         GetMinIntervalSymbolsSuccessMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization successful",
-        zh: "{node_name} ({node_id}) 最小周期交易对初始化成功"
+        en: "[{node_name}] min interval symbols initialization successful",
+        zh: "[{node_name}] 最小周期交易对初始化成功"
     );
 
     log_message!(
         GetMinIntervalSymbolsFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Kline Node [{node_name}({node_id})] min interval symbols initialization failed: {error}",
-        zh: "{node_name} ({node_id}) 最小周期交易对初始化失败: {error}"
+        en: "[{node_name}] min interval symbols initialization failed: {error}",
+        zh: "[{node_name}] 最小周期交易对初始化失败: {error}"
     );
 }
 
@@ -193,95 +180,86 @@ pub mod start_node_log_message {
     log_message!(
         ListenPlayIndexChangeMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Node [{node_name}({node_id})] starting to listen play index change",
-        zh: "{node_name} ({node_id}) 开始监听播放索引变化"
+        en: "[{node_name}] starting to listen play index change",
+        zh: "[{node_name}] 开始监听播放索引变化"
     );
 
     log_message!(
         InitVirtualTradingSystemMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Start Node [{node_name}({node_id})] initializing virtual trading system",
-        zh: "{node_name} ({node_id}) 开始初始化虚拟交易系统"
+        en: "[{node_name}] initializing virtual trading system",
+        zh: "[{node_name}] 开始初始化虚拟交易系统"
     );
 
     log_message!(
         InitVirtualTradingSystemSuccessMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Start Node [{node_name}({node_id})] virtual trading system initialization successful",
-        zh: "{node_name} ({node_id}) 虚拟交易系统初始化成功"
+        en: "[{node_name}] virtual trading system initialization successful",
+        zh: "[{node_name}] 虚拟交易系统初始化成功"
     );
 
     log_message!(
         InitVirtualTradingSystemFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Start Node [{node_name}({node_id})] virtual trading system initialization failed: {error}",
-        zh: "{node_name} ({node_id}) 虚拟交易系统初始化失败: {error}"
+        en: "[{node_name}] virtual trading system initialization failed: {error}",
+        zh: "[{node_name}] 虚拟交易系统初始化失败: {error}"
     );
 
     log_message!(
         InitStrategyStatsMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Start Node [{node_name}({node_id})] initializing strategy statistics",
-        zh: "{node_name} ({node_id}) 开始初始化策略统计"
+        en: "[{node_name}] initializing strategy statistics",
+        zh: "[{node_name}] 开始初始化策略统计"
     );
 
     log_message!(
         InitStrategyStatsSuccessMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Start Node [{node_name}({node_id})] strategy statistics initialization successful",
-        zh: "{node_name} ({node_id}) 策略统计初始化成功"
+        en: "[{node_name}] strategy statistics initialization successful",
+        zh: "[{node_name}] 策略统计初始化成功"
     );
 
     log_message!(
         InitStrategyStatsFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Start Node [{node_name}({node_id})] strategy statistics initialization failed: {error}",
-        zh: "{node_name} ({node_id}) 策略统计初始化失败: {error}"
+        en: "[{node_name}] strategy statistics initialization failed: {error}",
+        zh: "[{node_name}] 策略统计初始化失败: {error}"
     );
 
     log_message!(
         HandlePlayIndexMsg,
         params: (
-            node_id: String,
             node_name: String,
             play_index: i32
         ),
-        en: "Start Node [{node_name}({node_id})] handling play index change: {play_index}",
-        zh: "{node_name} ({node_id}) 处理播放索引变化: {play_index}"
+        en: "[{node_name}] handling play index change: {play_index}",
+        zh: "[{node_name}] 处理播放索引变化: {play_index}"
     );
 
     log_message!(
         SendFinishSignalMsg,
         params: (
-            node_id: String,
             node_name: String,
             signal_index: i32
         ),
-        en: "Start Node [{node_name}({node_id})] sending finish signal: {signal_index}",
-        zh: "{node_name} ({node_id}) 发送完成信号: {signal_index}"
+        en: "[{node_name}] sending finish signal: {signal_index}",
+        zh: "[{node_name}] 发送完成信号: {signal_index}"
     );
 
     log_message!(
@@ -317,126 +295,114 @@ pub mod indicator_node_log_message {
     log_message!(
         RegisterIndicatorCacheKeyMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] starting to register indicator cache keys",
-        zh: "{node_name} ({node_id}) 开始注册指标缓存键"
+        en: "[{node_name}] starting to register indicator cache keys",
+        zh: "[{node_name}] 开始注册指标缓存键"
     );
 
     log_message!(
         RegisterIndicatorCacheKeySuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             indicator_count: usize
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator cache keys registration successful, registered {indicator_count} indicators",
-        zh: "{node_name} ({node_id}) 指标缓存键注册成功，已注册 {indicator_count} 个指标"
+        en: "[{node_name}] indicator cache keys registration successful, registered {indicator_count} indicators",
+        zh: "[{node_name}] 指标缓存键注册成功，已注册 {indicator_count} 个指标"
     );
 
     log_message!(
         RegisterIndicatorCacheKeyFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator cache keys registration failed: {error}",
-        zh: "{node_name} ({node_id}) 指标缓存键注册失败: {error}"
+        en: "[{node_name}] indicator cache keys registration failed: {error}",
+        zh: "[{node_name}] 指标缓存键注册失败: {error}"
     );
 
     log_message!(
         CalculateIndicatorMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] starting to calculate indicators",
-        zh: "{node_name} ({node_id}) 开始计算指标"
+        en: "[{node_name}] start to calculate indicators",
+        zh: "[{node_name}] 开始计算指标"
     );
 
     log_message!(
         CalculateIndicatorSuccessMsg,
         params: (
-            node_id: String,
-            node_name: String,
-            indicator_count: usize
+            node_name: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator calculation successful, calculated {indicator_count} indicators",
-        zh: "{node_name} ({node_id}) 指标计算成功，已计算 {indicator_count} 个指标"
+        en: "[{node_name}] indicator calculation successful",
+        zh: "[{node_name}] 指标计算成功"
     );
 
     log_message!(
         CalculateIndicatorFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator calculation failed: {error}",
-        zh: "{node_name} ({node_id}) 指标计算失败: {error}"
+        en: "[{node_name}] indicator calculation failed: {error}",
+        zh: "[{node_name}] 指标计算失败: {error}"
     );
 
     log_message!(
         IndicatorCacheKeyRegisteredMsg,
         params: (
-            node_id: String,
             node_name: String,
             indicator_type: String,
             cache_key: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator cache key registered - Type: {indicator_type}, Key: {cache_key}",
-        zh: "{node_name} ({node_id}) 指标缓存键已注册 - 类型: {indicator_type}, 键: {cache_key}"
+        en: "[{node_name}] indicator cache key registered - Type: {indicator_type}, Key: {cache_key}",
+        zh: "[{node_name}] 指标缓存键已注册 - 类型: {indicator_type}, 键: {cache_key}"
     );
 
     log_message!(
         IndicatorCalculatedMsg,
         params: (
-            node_id: String,
             node_name: String,
             indicator_type: String,
             data_points: usize
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator calculated successfully - Type: {indicator_type}, Data points: {data_points}",
-        zh: "{node_name} ({node_id}) 指标计算成功 - 类型: {indicator_type}, 数据点: {data_points}"
+        en: "[{node_name}] indicator calculated successfully - Type: {indicator_type}, Data points: {data_points}",
+        zh: "[{node_name}] 指标计算成功 - 类型: {indicator_type}, 数据点: {data_points}"
     );
 
     log_message!(
         IndicatorCalculationErrorMsg,
         params: (
-            node_id: String,
             node_name: String,
             indicator_type: String,
             error: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator calculation error - Type: {indicator_type}, Error: {error}",
-        zh: "{node_name} ({node_id}) 指标计算错误 - 类型: {indicator_type}, 错误: {error}"
+        en: "[{node_name}] indicator calculation error - Type: {indicator_type}, Error: {error}",
+        zh: "[{node_name}] 指标计算错误 - 类型: {indicator_type}, 错误: {error}"
     );
 
     log_message!(
         SendIndicatorEventSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             indicator_type: String,
             output_handle_id: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator event sent successfully - Type: {indicator_type}, Output: {output_handle_id}",
-        zh: "{node_name} ({node_id}) 指标事件发送成功 - 类型: {indicator_type}, 输出: {output_handle_id}"
+        en: "[{node_name}] indicator event sent successfully - Type: {indicator_type}, Output: {output_handle_id}",
+        zh: "[{node_name}] 指标事件发送成功 - 类型: {indicator_type}, 输出: {output_handle_id}"
     );
 
     log_message!(
         SendIndicatorEventFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             indicator_type: String,
             output_handle_id: String,
             error: String
         ),
-        en: "Indicator Node [{node_name}({node_id})] indicator event sending failed - Type: {indicator_type}, Output: {output_handle_id}, Error: {error}",
-        zh: "{node_name} ({node_id}) 指标事件发送失败 - 类型: {indicator_type}, 输出: {output_handle_id}, 错误: {error}"
+        en: "[{node_name}] indicator event sending failed - Type: {indicator_type}, Output: {output_handle_id}, Error: {error}",
+        zh: "[{node_name}] 指标事件发送失败 - 类型: {indicator_type}, 输出: {output_handle_id}, 错误: {error}"
     );
 }
 
@@ -450,114 +416,102 @@ pub mod kline_node_log_message {
     log_message!(
         StartRegisterExchangeMsg,
         params: (
-            node_id: String,
             node_name: String,
             exchange: Exchange,
-            account_id: i32
         ),
-        en: "Kline Node [{node_name}({node_id})] start to register exchange [{exchange} (account_id: {account_id})]",
-        zh: "{node_name} ({node_id}) 开始注册交易所: {exchange} (账户: {account_id})"
+        en: "[{node_name}] start to register exchange [{exchange}]",
+        zh: "[{node_name}] 开始注册交易所: {exchange}"
     );
 
     log_message!(
         RegisterExchangeSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             exchange: Exchange,
-            account_id: i32
         ),
-        en: "Kline Node [{node_name}({node_id})] exchange [{exchange}(account_id: {account_id})] register successful",
-        zh: "{node_name} ({node_id}) 交易所注册成功"
+        en: "[{node_name}] exchange [{exchange}] register successful",
+        zh: "[{node_name}] 交易所注册成功"
     );
 
     log_message!(
         RegisterExchangeFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Node [{node_name}({node_id})] exchange registration failed: {error}",
-        zh: "{node_name} ({node_id}) 交易所注册失败: {error}"
+        en: "[{node_name}] exchange registration failed: {error}",
+        zh: "[{node_name}] 交易所注册失败: {error}"
     );
 
     log_message!(
         StartLoadKlineDataMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Node [{node_name}({node_id})] starting to load kline data from exchange",
-        zh: "{node_name} ({node_id}) 开始从交易所加载K线数据"
+        en: "[{node_name}] starting to load kline data from exchange",
+        zh: "[{node_name}] 开始从交易所加载K线数据"
     );
 
     log_message!(
         LoadKlineDataSuccessMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Node [{node_name}({node_id})] kline data loading successful",
-        zh: "{node_name} ({node_id}) K线数据加载成功"
+        en: "[{node_name}] kline data loading successful",
+        zh: "[{node_name}] K线数据加载成功"
     );
 
     log_message!(
         LoadKlineDataFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             error: String
         ),
-        en: "Node [{node_name}({node_id})] kline data loading failed: {error}",
-        zh: "{node_name} ({node_id}) K线数据加载失败: {error}"
+        en: "[{node_name}] kline data loading failed: {error}",
+        zh: "[{node_name}] K线数据加载失败: {error}"
     );
 
     log_message!(
         ProcessKlineSignalMsg,
         params: (
-            node_id: String,
             node_name: String,
             signal_index: i32,
             play_index: i32
         ),
-        en: "Node [{node_name}({node_id})] received kline play signal, signal index: {signal_index}, node index: {play_index}",
-        zh: "{node_name} ({node_id}) 接收到K线播放信号，信号索引: {signal_index}, 节点索引: {play_index}"
+        en: "[{node_name}] received kline play signal, signal index: {signal_index}, node index: {play_index}",
+        zh: "[{node_name}] 接收到K线播放信号，信号索引: {signal_index}, 节点索引: {play_index}"
     );
 
     log_message!(
         KlineIndexMismatchMsg,
         params: (
-            node_id: String,
             node_name: String,
             cache_index: i32,
             signal_index: i32
         ),
-        en: "Node [{node_name}({node_id})] kline cache index mismatch - cache index: {cache_index}, signal index: {signal_index}",
-        zh: "{node_name}({node_id}) K线缓存索引不匹配 - 缓存索引: {cache_index}, 信号索引: {signal_index}"
+        en: "[{node_name}] kline cache index mismatch - cache index: {cache_index}, signal index: {signal_index}",
+        zh: "[{node_name}] K线缓存索引不匹配 - 缓存索引: {cache_index}, 信号索引: {signal_index}"
     );
 
     log_message!(
         SendKlineEventSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             symbol: String
         ),
-        en: "Kline Node [{node_name}({node_id})] kline event sent successfully - Symbol: {symbol}",
-        zh: "{node_name} ({node_id}) K线事件发送成功 - 交易对: {symbol}"
+        en: "[{node_name}] kline event sent successfully - Symbol: {symbol}",
+        zh: "[{node_name}] K线事件发送成功 - 交易对: {symbol}"
     );
 
     log_message!(
         SendKlineEventFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             symbol: String,
             error: String
         ),
-        en: "Kline Node [{node_name}({node_id})] kline event sending failed - Symbol: {symbol}, Error: {error}",
-        zh: "{node_name} ({node_id}) K线事件发送失败 - 交易对: {symbol}, 错误: {error}"
+        en: "[{node_name}] kline event sending failed - Symbol: {symbol}, Error: {error}",
+        zh: "[{node_name}] K线事件发送失败 - 交易对: {symbol}, 错误: {error}"
     );
 }
 
@@ -570,42 +524,38 @@ pub mod if_else_node_log_message {
     log_message!(
         ListenStrategySignalMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Node [{node_name}({node_id})] starting to listen strategy signal",
-        zh: "{node_name} ({node_id}) 开始监听策略信号"
+        en: "[{node_name}] starting to listen strategy signal",
+        zh: "[{node_name}] 开始监听策略信号"
     );
 
     log_message!(
         InitReceivedDataMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "IfElse Node [{node_name}({node_id})] initializing received data flags",
-        zh: "{node_name} ({node_id}) 初始化接收数据标记"
+        en: "[{node_name}] initializing received data flags",
+        zh: "[{node_name}] 初始化接收数据标记"
     );
 
     log_message!(
         InitReceivedDataSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             case_count: usize
         ),
-        en: "IfElse Node [{node_name}({node_id})] received data flags initialization successful, initialized {case_count} cases",
-        zh: "{node_name} ({node_id}) 接收数据标记初始化成功，已初始化 {case_count} 个条件"
+        en: "[{node_name}] received data flags initialization successful, initialized {case_count} cases",
+        zh: "[{node_name}] 接收数据标记初始化成功，已初始化 {case_count} 个条件"
     );
 
     log_message!(
         StartConditionEvaluationMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "IfElse Node [{node_name}({node_id})] starting condition evaluation process",
-        zh: "{node_name} ({node_id}) 开始条件评估进程"
+        en: "[{node_name}] starting condition evaluation process",
+        zh: "[{node_name}] 开始条件评估进程"
     );
 
     log_message!(

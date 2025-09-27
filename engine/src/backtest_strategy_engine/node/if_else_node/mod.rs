@@ -14,7 +14,7 @@ use crate::backtest_strategy_engine::node::node_types::NodeType;
 use async_trait::async_trait;
 use condition::Case;
 use event_center::communication::backtest_strategy::{
-    NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender,
+    NodeCommandReceiver, StrategyCommandSender,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::strategy_event::NodeStateLogEvent;
@@ -33,6 +33,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
+use super::node_utils::NodeUtils;
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -285,64 +286,36 @@ impl BacktestNodeTrait for IfElseNode {
                 match if_else_node_state_action {
                     IfElseNodeStateAction::LogTransition => {
                         tracing::info!(
-                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            "[{node_name}] state transition: {:?} -> {:?}",
                             current_state,
                             transition_result.get_new_state()
                         );
                     }
                     IfElseNodeStateAction::ListenAndHandleStrategySignal => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy signal");
-                        let log_message = ListenStrategySignalMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::ListenAndHandleStrategySignal.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen strategy signal");
+                        let log_message = ListenStrategySignalMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::ListenAndHandleStrategySignal.to_string(), &strategy_output_handle).await;
+                        
                     }
                     IfElseNodeStateAction::LogNodeState => {
-                        tracing::info!("[{node_name}({node_id})] current state: {:?}", current_state);
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::LogNodeState.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] current state: {:?}", current_state);
+                        let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
+                        
                     }
 
                     IfElseNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen node events");
-                        let log_message = ListenNodeEventsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::ListenAndHandleNodeEvents.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen node events");
+                        let log_message = ListenNodeEventsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::ListenAndHandleNodeEvents.to_string(), &strategy_output_handle).await;
+                        
                         self.listen_node_events().await;
                     }
                     IfElseNodeStateAction::InitReceivedData => {
-                        tracing::info!("[{node_name}({node_id})] initializing received data flags");
-                        let log_message = InitReceivedDataMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::InitReceivedData.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] initializing received data flags");
+                        let log_message = InitReceivedDataMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::InitReceivedData.to_string(), &strategy_output_handle).await;
+                        
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
@@ -350,36 +323,20 @@ impl BacktestNodeTrait for IfElseNode {
                         }
                     }
                     IfElseNodeStateAction::Evaluate => {
-                        tracing::info!("[{node_name}({node_id})] starting condition evaluation");
-                        let log_message = StartConditionEvaluationMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::Evaluate.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting condition evaluation");
+                        let log_message = StartConditionEvaluationMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::Evaluate.to_string(), &strategy_output_handle).await;
                         self.evaluate().await;
                     }
                     IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
-                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            IfElseNodeStateAction::ListenAndHandleStrategyCommand.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::ListenAndHandleStrategyCommand.to_string(), &strategy_output_handle).await;
                         self.listen_strategy_command().await;
                     }
 
                     IfElseNodeStateAction::CancelAsyncTask => {
-                        tracing::debug!("[{node_name}({node_id})] cancel async task");
+                        tracing::debug!("[{node_name}] cancel async task");
                         self.cancel_task().await;
                     }
                     _ => {}

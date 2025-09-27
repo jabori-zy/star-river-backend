@@ -8,7 +8,7 @@ use crate::backtest_strategy_engine::node::node_state_machine::BacktestNodeState
 use crate::backtest_strategy_engine::node::{BacktestNodeTrait, NodeType};
 use crate::*;
 use event_center::communication::backtest_strategy::{
-    NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender,
+    NodeCommandReceiver, StrategyCommandSender,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use heartbeat::Heartbeat;
@@ -25,10 +25,10 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
 use virtual_trading::VirtualTradingSystem;
-// use start_node_log_message::*;
 use super::node_message::common_log_message::*;
 use super::node_message::start_node_log_message::*;
 use event_center::event::strategy_event::NodeStateLogEvent;
+use super::node_utils::NodeUtils;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -251,14 +251,14 @@ impl BacktestNodeTrait for StartNode {
                 match start_action {
                     StartNodeStateAction::LogTransition => {
                         tracing::debug!(
-                            "[{node_name}({node_id})] state transition: {:?} -> {:?}",
+                            "[{node_name}] state transition: {:?} -> {:?}",
                             current_state,
                             transition_result.get_new_state()
                         );
                     }
                     StartNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen strategy command");
-                        let log_message = ListenStrategyCommandMsg::new(node_id.clone(), node_name.clone());
+                        tracing::info!("[{node_name}] starting to listen strategy command");
+                        let log_message = ListenStrategyCommandMsg::new(node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
                             node_id.clone(),
@@ -271,31 +271,15 @@ impl BacktestNodeTrait for StartNode {
                         self.listen_strategy_command().await;
                     }
                     StartNodeStateAction::ListenAndHandlePlayIndex => {
-                        tracing::info!("[{node_name}({node_id})] starting to listen play index change");
-                        let log_message = ListenPlayIndexChangeMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            StartNodeStateAction::ListenAndHandlePlayIndex.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] starting to listen play index change");
+                        let log_message = ListenPlayIndexChangeMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::ListenAndHandlePlayIndex.to_string(), &strategy_output_handle).await;
                         self.listen_play_index_change().await;
                     }
                     StartNodeStateAction::InitVirtualTradingSystem => {
-                        tracing::info!("[{node_name}({node_id})] start to init virtual trading system");
-                        let log_message = InitVirtualTradingSystemMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            StartNodeStateAction::InitVirtualTradingSystem.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] start to init virtual trading system");
+                        let log_message = InitVirtualTradingSystemMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::InitVirtualTradingSystem.to_string(), &strategy_output_handle).await;
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
@@ -303,17 +287,9 @@ impl BacktestNodeTrait for StartNode {
                         }
                     }
                     StartNodeStateAction::InitStrategyStats => {
-                        tracing::info!("[{node_name}({node_id})] start to init strategy stats");
-                        let log_message = InitStrategyStatsMsg::new(node_id.clone(), node_name.clone());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            StartNodeStateAction::InitStrategyStats.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        tracing::info!("[{node_name}] start to init strategy stats");
+                        let log_message = InitStrategyStatsMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::InitStrategyStats.to_string(), &strategy_output_handle).await;
                         let context = self.get_context();
                         let mut state_guard = context.write().await;
                         if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
@@ -321,19 +297,12 @@ impl BacktestNodeTrait for StartNode {
                         }
                     }
                     StartNodeStateAction::LogNodeState => {
-                        let log_message = NodeStateLogMsg::new(node_id.clone(), node_name.clone(), current_state.to_string());
-                        let log_event = NodeStateLogEvent::success(
-                            strategy_id.clone(),
-                            node_id.clone(),
-                            node_name.clone(),
-                            current_state.to_string(),
-                            StartNodeStateAction::LogNodeState.to_string(),
-                            log_message.to_string(),
-                        );
-                        let _ = strategy_output_handle.send(log_event.into());
+                        let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
+                        
                     }
                     StartNodeStateAction::CancelAsyncTask => {
-                        tracing::debug!("[{node_name}({node_id})] cancel async task");
+                        tracing::debug!("[{node_name}] cancel async task");
                         self.cancel_task().await;
                     }
                     _ => {}

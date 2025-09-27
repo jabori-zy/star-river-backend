@@ -1,9 +1,8 @@
 use super::{
-    BacktestStrategyContext, BacktestStrategyError, EventCenterSingleton, GetDataFailedSnafu, Key, KlineDataLengthNotSameSnafu, PlayIndex,
+    BacktestStrategyContext, BacktestStrategyError, GetDataFailedSnafu, Key, KlineDataLengthNotSameSnafu, PlayIndex,
     StatsSnapshot, VirtualOrder, VirtualPosition, VirtualTransaction,
 };
 use star_river_core::market::QuantData;
-use tokio::sync::oneshot;
 
 impl BacktestStrategyContext {
     // 获取所有的virtual order
@@ -90,7 +89,7 @@ impl BacktestStrategyContext {
 
         match key {
             Key::Kline(kline_key) => {
-                let kline_data = self.get_kline_data(&kline_key, index, None).await;
+                let kline_data = self.get_kline_data(&kline_key, index, None).await?;
                 let kline_data = kline_data.iter().map(|kline| kline.to_json()).collect();
                 Ok(kline_data)
             }

@@ -1,6 +1,10 @@
-use super::{BacktestStrategyContext, Indicator, IndicatorKey, Kline, KlineKey, QuantData};
+use super::{
+    BacktestStrategyContext, Indicator, IndicatorKey, Kline, KlineKey, QuantData, BacktestStrategyError, KeyTrait,
+    PlayIndexOutOfRangeSnafu, KlineKeyNotFoundSnafu,
+};
 
 mod kline {
+
     use super::*;
 
     impl BacktestStrategyContext {
@@ -16,51 +20,52 @@ mod kline {
             }
         }
 
-        pub async fn get_kline_data(&self, kline_key: &KlineKey, play_index: Option<i32>, limit: Option<i32>) -> Vec<Kline> {
+        pub async fn get_kline_data(&self, kline_key: &KlineKey, play_index: Option<i32>, limit: Option<i32>) -> Result<Vec<Kline>, BacktestStrategyError> {
             let kline_data_guard = self.kline_data.read().await;
             if let Some(kline_data) = kline_data_guard.get(kline_key) {
+                let kline_data_length = kline_data.len() as u32;
                 match (play_index, limit) {
                     // 有index，有limit
                     (Some(play_index), Some(limit)) => {
                         // 如果索引超出范围，返回空
-                        if play_index as usize >= kline_data.len() {
-                            Vec::new()
+                        if play_index as u32 >= kline_data_length {
+                            Err(PlayIndexOutOfRangeSnafu{kline_data_length: kline_data_length, play_index: play_index as u32}.build())
                         } else {
                             // 计算从索引开始向前取limit个元素
                             let end = play_index as usize + 1;
                             let start = if limit as usize >= end { 0 } else { end - limit as usize };
-                            kline_data[start..end].to_vec()
+                            Ok(kline_data[start..end].to_vec())
                         }
                     }
                     // 有index，无limit
                     (Some(play_index), None) => {
                         // 如果索引超出范围，返回空
-                        if play_index as usize >= kline_data.len() {
-                            Vec::new()
+                        if play_index as u32 >= kline_data_length {
+                            Err(PlayIndexOutOfRangeSnafu{kline_data_length: kline_data_length, play_index: play_index as u32}.build())
                         } else {
                             // 从索引开始向前取所有元素（到开头）
                             let end = play_index as usize + 1;
-                            kline_data[0..end].to_vec()
+                            Ok(kline_data[0..end].to_vec())
                         }
                     }
                     // 无index，有limit
                     (None, Some(limit)) => {
                         // 从后往前取limit条数据
-                        if limit as usize >= kline_data.len() {
-                            kline_data.clone()
+                        if limit as u32 >= kline_data_length {
+                            Ok(kline_data.clone())
                         } else {
-                            let start = kline_data.len().saturating_sub(limit as usize);
-                            kline_data[start..].to_vec()
+                            let start = (kline_data_length as usize).saturating_sub(limit as usize);
+                            Ok(kline_data[start..].to_vec())
                         }
                     }
                     // 无index，无limit
                     (None, None) => {
                         // 如果limit和index都为None，则返回所有数据
-                        kline_data.clone()
+                        Ok(kline_data.clone())
                     }
                 }
             } else {
-                Vec::new()
+                Err(KlineKeyNotFoundSnafu{kline_key: kline_key.get_key_str()}.build())
             }
         }
 
@@ -108,11 +113,14 @@ mod indicator {
         pub async fn init_indicator_data(&mut self, indicator_key: &IndicatorKey, indicator_series: Vec<Indicator>) {
             // 初始化指标数据
             let mut indicator_data_guard = self.indicator_data.write().await;
+            // 如果指标key存在
             if let Some(indicator_data) = indicator_data_guard.get(indicator_key) {
+                // 如果指标数据为空，则初始化指标数据
                 if indicator_data.len() == 0 {
                     indicator_data_guard.insert(indicator_key.clone(), indicator_series);
                 }
             } else {
+                // 如果指标key不存在，则初始化指标数据
                 indicator_data_guard.insert(indicator_key.clone(), indicator_series);
             }
         }

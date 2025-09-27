@@ -132,6 +132,12 @@ pub enum BacktestStrategyError {
 
     #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
     KlineDataLengthNotSame { strategy_name: String, backtrace: Backtrace },
+
+    #[snafu(display("kline key not found: {kline_key}"))]
+    KlineKeyNotFound { kline_key: String, backtrace: Backtrace },
+
+    #[snafu(display("play index out of range, kline data length: {kline_data_length}, play index: {play_index}"))]
+    PlayIndexOutOfRange { kline_data_length: u32, play_index: u32, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -164,6 +170,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::GetDataFailed { .. } => 1017,       // 获取数据失败
             BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1018, // 获取开始节点配置失败
             BacktestStrategyError::KlineDataLengthNotSame { .. } => 1019, // kline数据长度不相同
+            BacktestStrategyError::KlineKeyNotFound { .. } => 1020, // kline key未找到
+            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1021, // 播放索引超出范围
         };
         format!("{prefix}_{code}")
     }
@@ -195,6 +203,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 | BacktestStrategyError::GetDataFailed { .. }
                 | BacktestStrategyError::GetStartNodeConfigFailed { .. }
                 | BacktestStrategyError::KlineDataLengthNotSame { .. }
+                | BacktestStrategyError::KlineKeyNotFound { .. }
+                | BacktestStrategyError::PlayIndexOutOfRange { .. }
         )
     }
 
@@ -321,6 +331,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::KlineDataLengthNotSame { strategy_name, .. } => {
                     format!("[{strategy_name}] kline数据长度不相同")
                 }
+                BacktestStrategyError::KlineKeyNotFound { kline_key, .. } => {
+                    format!("kline key 不存在: {kline_key}")
+                }
+                BacktestStrategyError::PlayIndexOutOfRange { kline_data_length, play_index, .. } => {
+                    format!("播放索引超出范围, k线数据长度: {kline_data_length}, 播放索引: {play_index}")
+                }
             },
         }
     }
@@ -363,6 +379,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 vec![self.error_code()]
             }
             BacktestStrategyError::KlineDataLengthNotSame { .. } => {
+                vec![self.error_code()]
+            }
+            BacktestStrategyError::KlineKeyNotFound { .. } => {
+                vec![self.error_code()]
+            }
+            BacktestStrategyError::PlayIndexOutOfRange { .. } => {
                 vec![self.error_code()]
             }
             _ => vec![self.error_code()],

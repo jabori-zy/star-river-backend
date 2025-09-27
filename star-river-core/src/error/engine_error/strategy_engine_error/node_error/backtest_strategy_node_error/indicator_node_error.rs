@@ -1,8 +1,10 @@
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use crate::error::indicator_error::IndicatorError;
+use crate::error::error_trait::StarRiverErrorTrait;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -36,6 +38,14 @@ pub enum IndicatorNodeError {
         source: strum::ParseError,
         backtrace: Backtrace,
     },
+
+
+    #[snafu(display("get kline data failed"))]
+    GetKlineDataFailed { source: Arc<dyn StarRiverErrorTrait + Send + Sync>, backtrace: Backtrace },
+
+
+    #[snafu(display("calculate indicator failed"))]
+    CalculateIndicatorFailed { source: Arc<dyn StarRiverErrorTrait + Send + Sync>, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for IndicatorNodeError
@@ -48,12 +58,14 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
         let prefix = self.get_prefix();
         let code = match self {
             // HTTP and JSON errors (1001-1004)
-            IndicatorNodeError::ConfigFieldValueNull { .. } => 1001,
-            IndicatorNodeError::ConfigDeserializationFailed { .. } => 1002,
-            IndicatorNodeError::ValueNotGreaterThanOrEqualToZero { .. } => 1003,
-            IndicatorNodeError::ValueNotGreaterThanZero { .. } => 1004,
-            IndicatorNodeError::IndicatorError { .. } => 1005,
-            IndicatorNodeError::DataSourceParseFailed { .. } => 1006,
+            IndicatorNodeError::ConfigFieldValueNull { .. } => 1001, // 指标节点回测配置字段值为空
+            IndicatorNodeError::ConfigDeserializationFailed { .. } => 1002, // 指标节点回测配置反序列化失败
+            IndicatorNodeError::ValueNotGreaterThanOrEqualToZero { .. } => 1003, // 指标节点回测配置值不能小于零
+            IndicatorNodeError::ValueNotGreaterThanZero { .. } => 1004, // 指标节点回测配置值不能大于零
+            IndicatorNodeError::IndicatorError { .. } => 1005, // 指标错误
+            IndicatorNodeError::DataSourceParseFailed { .. } => 1006, // 数据源解析失败
+            IndicatorNodeError::GetKlineDataFailed { .. } => 1007, // 获取K线数据失败
+            IndicatorNodeError::CalculateIndicatorFailed { .. } => 1008, // 计算指标失败
         };
 
         format!("{}_{:04}", prefix, code)
@@ -73,13 +85,19 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
                 | IndicatorNodeError::ValueNotGreaterThanZero { .. }
                 | IndicatorNodeError::IndicatorError { .. }
                 | IndicatorNodeError::DataSourceParseFailed { .. }
+                | IndicatorNodeError::GetKlineDataFailed { .. }
+                | IndicatorNodeError::CalculateIndicatorFailed { .. }
         )
     }
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // For transparent errors, delegate to the inner error's chain
-            IndicatorNodeError::IndicatorError { source, .. } => source.error_code_chain(),
+            IndicatorNodeError::IndicatorError { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
 
             // For errors with external sources or no source
             IndicatorNodeError::ConfigFieldValueNull { .. }
@@ -90,6 +108,14 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::ConfigDeserializationFailed { .. } | IndicatorNodeError::DataSourceParseFailed { .. } => {
                 vec![self.error_code()]
             }
+            IndicatorNodeError::GetKlineDataFailed { source, .. } |
+            IndicatorNodeError::CalculateIndicatorFailed { source, .. }  => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
+
+
         }
     }
 
@@ -118,6 +144,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
                 }
                 IndicatorNodeError::DataSourceParseFailed { data_source, source, .. } => {
                     format!("数据源 [{}] 解析失败，原因: [{}]", data_source, source)
+                }
+                IndicatorNodeError::GetKlineDataFailed { source, .. } => {
+                    format!("获取K线数据失败: {}", source)
+                }
+                IndicatorNodeError::CalculateIndicatorFailed { source, .. } => {
+                    format!("计算指标失败: {}", source)
                 }
             },
         }

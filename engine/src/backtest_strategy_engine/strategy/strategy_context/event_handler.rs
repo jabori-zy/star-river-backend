@@ -1,10 +1,10 @@
 use super::{
     BacktestNodeEvent, BacktestStrategyCommand, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event, EventCenterSingleton,
     FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyKeysResponse, IndicatorNodeEvent,
-    KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,
+    KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,Command
 };
-use event_center::communication::Command;
 use event_center::communication::backtest_strategy::*;
+use std::sync::Arc;
 
 impl BacktestStrategyContext {
     pub async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) -> Result<(), String> {
@@ -38,10 +38,18 @@ impl BacktestStrategyContext {
             }
 
             BacktestStrategyCommand::GetKlineData(cmd) => {
-                let result_data = self.get_kline_data(&cmd.kline_key, cmd.play_index, cmd.limit).await;
-                let payload = GetKlineDataRespPayload::new(result_data);
-                let response = GetKlineDataResponse::success(Some(payload));
-                cmd.respond(response);
+                let result = self.get_kline_data(&cmd.kline_key, cmd.play_index, cmd.limit).await;
+                match result {
+                    Ok(data) => {
+                        let payload = GetKlineDataRespPayload::new(data);
+                        let response = GetKlineDataResponse::success(Some(payload));
+                        cmd.respond(response);
+                    }
+                    Err(error) => {
+                        let response = GetKlineDataResponse::error(Arc::new(error));
+                        cmd.respond(response);
+                    }
+                }
             }
             BacktestStrategyCommand::UpdateKlineData(cmd) => {
                 let updated_kline = self.update_kline_data(&cmd.kline_key, &cmd.kline).await;

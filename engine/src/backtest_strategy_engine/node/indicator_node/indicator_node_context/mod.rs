@@ -19,6 +19,7 @@ use star_river_core::market::Kline;
 use star_river_core::market::QuantData;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use star_river_core::error::engine_error::node_error::indicator_node_error::*;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
