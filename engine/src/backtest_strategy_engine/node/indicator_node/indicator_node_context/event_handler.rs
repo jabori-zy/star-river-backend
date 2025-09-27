@@ -3,9 +3,6 @@ use super::{
     GetMinIntervalSymbolsCommand, Indicator, IndicatorEngineCommand, IndicatorNodeContext, KeyTrait, KlineKey, Response,
     UpdateIndicatorDataCmdPayload, UpdateIndicatorDataCommand,
 };
-use event_center::event::node_event::backtest_node_event::common_event::{
-    CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
-};
 use event_center::event::node_event::backtest_node_event::indicator_node_event::{
     IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
 };

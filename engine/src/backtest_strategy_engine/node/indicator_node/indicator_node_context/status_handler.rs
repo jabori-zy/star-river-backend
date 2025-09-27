@@ -3,6 +3,7 @@ use super::{
     GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand, GetKlineDataCmdPayload, GetKlineDataCommand, IndicatorEngineCommand,
     IndicatorNodeContext, InitIndicatorDataCmdPayload, InitIndicatorDataCommand, Response,
 };
+use snafu::Report;
 use tokio::sync::oneshot;
 
 impl IndicatorNodeContext {
@@ -39,7 +40,6 @@ impl IndicatorNodeContext {
         for (ind_key, _) in self.indicator_keys.iter() {
             let (resp_tx, resp_rx) = oneshot::channel();
             let payload = GetKlineDataCmdPayload::new(kline_key.clone(), None, None);
-
             // 获取所有K线
             let get_kline_series_cmd = GetKlineDataCommand::new(node_id.clone(), resp_tx, Some(payload));
 
@@ -68,9 +68,12 @@ impl IndicatorNodeContext {
                         .unwrap();
                     let response = resp_rx.await.unwrap();
                     if response.is_success() {
+                        tracing::info!("indicator init success: {:?}", ind_key);
                         continue;
                     }
                 } else {
+                    let error = Report::from_error(response.get_error());
+                    tracing::error!("indicator init failed: {:#?}", error);
                     is_all_success = false;
                     break;
                 }

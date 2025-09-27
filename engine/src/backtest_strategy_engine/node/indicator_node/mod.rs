@@ -525,7 +525,7 @@ impl BacktestNodeTrait for IndicatorNode {
                     }
 
                     IndicatorNodeStateAction::CalculateIndicator => {
-                        tracing::info!("[{node_name}({node_id})] starting to calculate indicator");
+                        tracing::info!("[{node_name}] starting to calculate indicator");
                         let log_message = CalculateIndicatorMsg::new(node_id.clone(), node_name.clone());
                         let log_event = NodeStateLogEvent::success(
                             strategy_id.clone(),
@@ -541,13 +541,13 @@ impl BacktestNodeTrait for IndicatorNode {
                         let is_all_success = context.calculate_indicator().await.unwrap();
 
                         if is_all_success {
-                            tracing::info!("[{node_name}({node_id})] calculate indicator success");
+                            tracing::info!("[{node_name}] calculate indicator success");
                         } else {
-                            tracing::error!("[{node_name}({node_id})] calculate indicator failed");
+                            tracing::error!("[{node_name}] calculate indicator failed");
                         }
                     }
                     IndicatorNodeStateAction::CancelAsyncTask => {
-                        tracing::debug!("[{node_name}({node_id})] cancel async task");
+                        tracing::debug!("[{node_name}] cancel async task");
                         self.cancel_task().await;
                     }
                     _ => {}
