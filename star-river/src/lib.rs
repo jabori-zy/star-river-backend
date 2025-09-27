@@ -1,8 +1,12 @@
-pub mod api;
-pub mod routes;
-pub mod sse;
-pub mod star_river;
-pub mod websocket;
+mod api;
+mod routes;
+mod sse;
+mod star_river;
+mod websocket;
+mod engine_manager;
+
+
+pub(self) use engine_manager::EngineManager;
 
 use crate::routes::create_app_routes;
 use crate::star_river::StarRiver;

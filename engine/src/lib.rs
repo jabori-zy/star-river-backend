@@ -1,4 +1,4 @@
-pub mod engine_manager; // 引擎管理器
+
 pub mod exchange_engine; // 交易所引擎
 pub mod indicator_engine;
 pub mod market_engine; // 市场引擎 // 指标引擎
@@ -17,7 +17,7 @@ use event_center::communication::engine::EngineCommand;
 use event_center::event::Event;
 use futures::StreamExt;
 use futures::stream::select_all;
-use star_river_core::engine::EngineName;
+pub use star_river_core::engine::EngineName;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;

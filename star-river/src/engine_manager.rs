@@ -1,15 +1,15 @@
-use crate::Engine;
-use crate::EngineName;
-use crate::account_engine::AccountEngine;
-use crate::backtest_strategy_engine::BacktestStrategyEngine;
+use engine::Engine;
+use engine::EngineName;
+use engine::account_engine::AccountEngine;
+use engine::backtest_strategy_engine::BacktestStrategyEngine;
 
-use crate::exchange_engine::ExchangeEngine;
-use crate::indicator_engine::IndicatorEngine;
-use crate::market_engine::MarketEngine;
+use engine::exchange_engine::ExchangeEngine;
+use engine::indicator_engine::IndicatorEngine;
+use engine::market_engine::MarketEngine;
 #[cfg(feature = "paid")]
-use crate::live_strategy_engine::LiveStrategyEngine;
+use engine::live_strategy_engine::LiveStrategyEngine;
 #[cfg(feature = "paid")]
-use crate::cache_engine::CacheEngine;
+use engine::cache_engine::CacheEngine;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
@@ -58,7 +58,7 @@ impl EngineManager {
             strategy_engine: Arc::new(Mutex::new(strategy_engine)),
             account_engine: Arc::new(Mutex::new(account_engine)),
             #[cfg(feature = "paid")]
-            cache_engine: cache_engine,
+            cache_engine,
             #[cfg(feature = "paid")]
             live_strategy_engine: Arc::new(Mutex::new(live_strategy_engine)),
         }
