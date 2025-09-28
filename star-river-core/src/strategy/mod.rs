@@ -4,7 +4,7 @@ use crate::custom_type::FeeRate;
 use crate::market::Exchange;
 use crate::market::deserialize_exchange;
 use crate::system::DateTimeUtc;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Duration};
 use entity::strategy_config::Model as StrategyConfigModel;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -137,10 +137,39 @@ pub struct TimeRange {
 
 impl TimeRange {
     pub fn new(start_date_str: String, end_date_str: String) -> Self {
+        use chrono::NaiveDateTime;
+        
+        // 尝试解析RFC 3339格式（如：1971-01-01T00:00:00Z）
+        let start_date = match DateTimeUtc::from_str(&start_date_str) {
+            Ok(dt) => dt,
+            Err(_) => {
+                // 如果RFC 3339格式失败，尝试解析"YYYY-MM-DD HH:MM:SS"格式
+                match NaiveDateTime::parse_from_str(&start_date_str, "%Y-%m-%d %H:%M:%S") {
+                    Ok(naive_dt) => naive_dt.and_utc(),
+                    Err(e) => panic!("Failed to parse start_date '{}': {}", start_date_str, e),
+                }
+            }
+        };
+        
+        let end_date = match DateTimeUtc::from_str(&end_date_str) {
+            Ok(dt) => dt,
+            Err(_) => {
+                // 如果RFC 3339格式失败，尝试解析"YYYY-MM-DD HH:MM:SS"格式
+                match NaiveDateTime::parse_from_str(&end_date_str, "%Y-%m-%d %H:%M:%S") {
+                    Ok(naive_dt) => naive_dt.and_utc(),
+                    Err(e) => panic!("Failed to parse end_date '{}': {}", end_date_str, e),
+                }
+            }
+        };
+        
         Self {
-            start_date: DateTimeUtc::from_str(&start_date_str).unwrap(),
-            end_date: DateTimeUtc::from_str(&end_date_str).unwrap(),
+            start_date,
+            end_date,
         }
+    }
+
+    pub fn duration(&self) -> Duration {
+        self.end_date.signed_duration_since(self.start_date)
     }
 }
 

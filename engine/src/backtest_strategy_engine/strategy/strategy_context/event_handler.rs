@@ -37,6 +37,12 @@ impl BacktestStrategyContext {
                 cmd.respond(resp);
             }
 
+            BacktestStrategyCommand::AppendKlineData(cmd) => {
+                self.append_kline_data(&cmd.kline_key, cmd.kline_series.clone()).await;
+                let resp = AppendKlineDataResponse::success(None);
+                cmd.respond(resp);
+            }
+
             BacktestStrategyCommand::GetKlineData(cmd) => {
                 let result = self.get_kline_data(&cmd.kline_key, cmd.play_index, cmd.limit).await;
                 match result {
@@ -101,11 +107,11 @@ impl BacktestStrategyContext {
 
                     // 如果所有叶子节点都执行完毕，则通知等待的线程
                     if execute_over_node_ids.len() == self.leaf_node_ids.len() {
-                        tracing::debug!(
-                            "[{}]: notify waiting thread. leaf node ids: {:?}",
-                            self.strategy_name.clone(),
-                            execute_over_node_ids
-                        );
+                        // tracing::debug!(
+                        //     "[{}]: notify waiting thread. leaf node ids: {:?}",
+                        //     self.strategy_name.clone(),
+                        //     execute_over_node_ids
+                        // );
                         self.execute_over_notify.notify_waiters();
                         // 通知完成后，清空execute_over_node_ids
                         execute_over_node_ids.clear();

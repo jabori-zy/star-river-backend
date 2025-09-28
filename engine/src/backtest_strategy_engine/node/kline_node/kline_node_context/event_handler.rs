@@ -13,7 +13,7 @@ use snafu::Report;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::node_error::KlineNodeError;
 use star_river_core::error::engine_error::node_error::kline_node_error::{
-    GetKlineDataSnafu, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu,
+    GetPlayKlineDataFailedSnafu, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu,
 };
 use star_river_core::key::KeyTrait;
 use star_river_core::key::key::KlineKey;
@@ -255,7 +255,7 @@ impl KlineNodeContext {
                 return Ok(());
             }
         } else {
-            return Err(GetKlineDataSnafu {
+            return Err(GetPlayKlineDataFailedSnafu {
                 node_name: self.get_node_name().clone(),
                 kline_key: symbol_key.get_key_str(),
                 play_index: current_play_index as u32,

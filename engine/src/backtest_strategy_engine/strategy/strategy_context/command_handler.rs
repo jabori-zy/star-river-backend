@@ -20,6 +20,23 @@ mod kline {
             }
         }
 
+        pub async fn append_kline_data(&mut self, kline_key: &KlineKey, kline_series: Vec<Kline>) {
+            let mut kline_data_guard = self.kline_data.write().await;
+            if let Some(kline_data) = kline_data_guard.get_mut(kline_key) {
+                kline_data.extend(kline_series);
+                // 按时间戳排序，确保K线数据的时序正确性
+                kline_data.sort_by(|a, b| a.datetime().cmp(&b.datetime()));
+                // 去重：移除相同datetime的重复数据，保留最后一个
+                kline_data.dedup_by(|a, b| a.datetime() == b.datetime());
+            } else {
+                // 新插入的数据也需要排序和去重
+                let mut sorted_series = kline_series;
+                sorted_series.sort_by(|a, b| a.datetime().cmp(&b.datetime()));
+                sorted_series.dedup_by(|a, b| a.datetime() == b.datetime());
+                kline_data_guard.insert(kline_key.clone(), sorted_series);
+            }
+        }
+
         pub async fn get_kline_data(&self, kline_key: &KlineKey, play_index: Option<i32>, limit: Option<i32>) -> Result<Vec<Kline>, BacktestStrategyError> {
             let kline_data_guard = self.kline_data.read().await;
             if let Some(kline_data) = kline_data_guard.get(kline_key) {

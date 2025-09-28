@@ -9,40 +9,34 @@ use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use event_center::EventCenterSingleton;
 use event_center::communication::Response;
-use event_center::communication::backtest_strategy::{
-    GetKlineDataCmdPayload, GetKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand,
-};
+use event_center::communication::backtest_strategy::*;
 use event_center::communication::engine::EngineResponse;
 use event_center::communication::engine::exchange_engine::{
     ExchangeEngineCommand, RegisterExchangeCmdPayload, RegisterExchangeCommand, RegisterExchangeRespPayload,
 };
 use event_center::communication::engine::market_engine::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
 use event_center::event::node_event::backtest_node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload};
-use heartbeat::Heartbeat;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::error::engine_error::node_error::backtest_strategy_node_error::kline_node_error::*;
 use star_river_core::key::KeyTrait;
 use star_river_core::key::key::KlineKey;
 use star_river_core::market::Kline;
+use star_river_core::strategy::TimeRange;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
+use star_river_core::custom_type::AccountId;
+use star_river_core::market::KlineInterval;
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub exchange_is_registered: Arc<RwLock<bool>>,
-    pub data_is_loaded: Arc<RwLock<bool>>,
     pub backtest_config: KlineNodeBacktestConfig,
-    pub heartbeat: Arc<Mutex<Heartbeat>>,
     min_interval_symbols: Vec<KlineKey>,
     selected_symbol_keys: HashMap<KlineKey, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
 }
 
 impl KlineNodeContext {
-    pub fn new(base_context: BacktestBaseNodeContext, backtest_config: KlineNodeBacktestConfig, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
+    pub fn new(base_context: BacktestBaseNodeContext, backtest_config: KlineNodeBacktestConfig) -> Self {
         let exchange = backtest_config
             .exchange_mode_config
             .as_ref()
@@ -72,10 +66,7 @@ impl KlineNodeContext {
 
         Self {
             base_context,
-            exchange_is_registered: Arc::new(RwLock::new(false)),
-            data_is_loaded: Arc::new(RwLock::new(false)),
             backtest_config,
-            heartbeat,
             min_interval_symbols: vec![],
             selected_symbol_keys,
         }

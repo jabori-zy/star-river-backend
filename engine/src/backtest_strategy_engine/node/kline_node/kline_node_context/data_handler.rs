@@ -1,5 +1,5 @@
 use super::{
-    BacktestNodeContextTrait, GetKlineDataCmdPayload, GetKlineDataCommand, GetKlineDataSnafu, KeyTrait, Kline, KlineKey, KlineNodeContext,
+    BacktestNodeContextTrait, GetKlineDataCmdPayload, GetKlineDataCommand, GetPlayKlineDataFailedSnafu, KeyTrait, Kline, KlineKey, KlineNodeContext,
     KlineNodeError, PlayIndex, Response,
 };
 use tokio::sync::oneshot;
@@ -22,7 +22,7 @@ impl KlineNodeContext {
         if response.is_success() {
             return Ok(response.kline_series.clone());
         }
-        Err(GetKlineDataSnafu {
+        Err(GetPlayKlineDataFailedSnafu {
             node_name: self.get_node_name().clone(),
             kline_key: kline_key.get_key_str(),
             play_index: play_index as u32,

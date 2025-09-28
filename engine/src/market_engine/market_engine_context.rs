@@ -14,6 +14,7 @@ use event_center::event::{
     ExchangeEvent,
     exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
 };
+use snafu::Report;
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::key::{Key, key::KlineKey};
 use star_river_core::market::Exchange;
@@ -346,10 +347,17 @@ impl MarketEngineContext {
         let exchange_engine_ctx_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
         let exchange = exchange_engine_ctx_guard.get_exchange_ref(&account_id).await.unwrap();
-        let kline_history = exchange.get_kline_history(&symbol, interval.clone(), time_range).await.unwrap();
-
+        let kline_history = exchange.get_kline_history(&symbol, interval.clone(), time_range).await;
+        if let Err(e) = kline_history {
+            let report = Report::from_error(&e);
+            tracing::error!("{}", report);
+            return Err(e.to_string());
+        }
+        let kline_history = kline_history.unwrap();
         Ok(kline_history)
     }
+
+    
 
     pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, String> {
         let exchange_engine_context = {

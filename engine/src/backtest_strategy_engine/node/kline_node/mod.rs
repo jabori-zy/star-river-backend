@@ -39,7 +39,6 @@ pub struct KlineNode {
 impl KlineNode {
     pub fn new(
         node_config: serde_json::Value,
-        heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
@@ -56,7 +55,7 @@ impl KlineNode {
             node_command_receiver,
             play_index_watch_rx,
         );
-        let context = KlineNodeContext::new(base_context, backtest_config, heartbeat);
+        let context = KlineNodeContext::new(base_context, backtest_config);
         Ok(Self {
             context: Arc::new(RwLock::new(Box::new(context))),
         })
@@ -181,22 +180,8 @@ impl BacktestNodeTrait for KlineNode {
             tracing::error!("report: {}", report.to_string());
             return Err(error);
         }
+        
         tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
-
-        // 检查交易所是否注册成功，并且K线流是否订阅成功
-        loop {
-            let is_registered_and_data_loaded = {
-                let state_guard = self.context.read().await;
-                let kline_node_context = state_guard.as_any().downcast_ref::<KlineNodeContext>().unwrap();
-                let is_registered = kline_node_context.exchange_is_registered.read().await.clone();
-                let is_data_loaded = kline_node_context.data_is_loaded.read().await.clone();
-                is_registered && is_data_loaded
-            };
-            if is_registered_and_data_loaded {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
@@ -289,8 +274,6 @@ impl BacktestNodeTrait for KlineNode {
                             // 2. register exchange
                             let response = kline_node_context.register_exchange().await.unwrap();
                             if response.is_success() {
-                                *kline_node_context.exchange_is_registered.write().await = true;
-
                                 let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
                                 NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::RegisterExchange.to_string(), &strategy_output_handle).await;
 
@@ -298,7 +281,7 @@ impl BacktestNodeTrait for KlineNode {
                             } else {
                                 // 转换状态 Failed
                                 let error = response.get_error();
-                                let kline_error = RegisterExchangeSnafu {
+                                let kline_error = RegisterExchangeFailedSnafu {
                                     node_id: node_id.clone(),
                                     node_name: node_name.clone(),
                                 }
@@ -322,14 +305,19 @@ impl BacktestNodeTrait for KlineNode {
                         let context = self.get_context();
                         let mut context_guard = context.write().await;
                         if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            let is_all_success = kline_node_context.load_kline_history_from_exchange().await.unwrap();
-                            if is_all_success {
-                                // 加载K线历史成功后，设置data_is_loaded=true
-                                *kline_node_context.data_is_loaded.write().await = true;
-                                tracing::info!("[{node_name}] load kline history from exchange success");
-                            } else {
-                                tracing::error!("[{node_name}] load kline history from exchange failed");
+                            let load_result = kline_node_context.load_kline_history_from_exchange().await;
+                            match load_result {
+                                Ok(()) => {
+                                    tracing::info!("[{node_name}] load kline history from exchange success");
+                                    let log_message = LoadKlineDataSuccessMsg::new(node_name.clone());
+                                    NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &strategy_output_handle).await;
+                                }
+                                Err(e) => {
+                                    NodeUtils::send_error_status_event(strategy_id, node_id.clone(), node_name.clone(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &e, &strategy_output_handle).await;
+                                    return Err(e.into());
+                                }
                             }
+                            tracing::info!("[{node_name}] load kline history from exchange success");  
                         }
                     }
                     KlineNodeStateAction::ListenAndHandleStrategyCommand => {

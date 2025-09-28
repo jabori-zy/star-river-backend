@@ -1,7 +1,10 @@
 use super::{BacktestNodeContextTrait, Kline, KlineKey, KlineNodeContext, KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload};
 use chrono::{Datelike, Timelike, Weekday};
-use star_river_core::market::KlineInterval;
 use star_river_core::system::DateTimeUtc;
+use super:: {
+    TimeRange,
+    KlineInterval
+};
 
 // 判断当前最小周期时间点是否到达更大周期的起点
 // 例如：min_interval=1m, interval=1h
@@ -52,6 +55,19 @@ pub fn is_cross_interval(
         }
     }
 }
+
+
+pub fn bar_number(time_range: &TimeRange, interval: &KlineInterval) -> i64 {
+    let total_seconds = time_range.duration().num_seconds();
+    let interval_seconds = interval.to_seconds();
+
+    if interval_seconds <= 0 {
+        return 0;
+    }
+
+    total_seconds / interval_seconds
+}
+
 
 impl KlineNodeContext {
     pub(super) fn get_kline_update_event(

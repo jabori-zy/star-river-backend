@@ -56,6 +56,11 @@ impl KlineKey {
             end_time,
         }
     }
+
+    pub fn replace_time_range(&mut self, time_range: TimeRange) {
+        self.start_time = Some(time_range.start_date.to_string());
+        self.end_time = Some(time_range.end_date.to_string());
+    }
 }
 
 impl KeyTrait for KlineKey {

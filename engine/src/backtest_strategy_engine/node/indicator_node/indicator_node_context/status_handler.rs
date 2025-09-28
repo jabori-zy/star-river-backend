@@ -35,7 +35,7 @@ impl IndicatorNodeContext {
         }
 
         for (ind_key, _) in self.indicator_keys.iter() {
-            let kline_data = self.get_kline_data(ind_key).await?;
+            let kline_data = self.get_kline_data().await?;
             let indicators = self.calculate_single_indicator(ind_key, &kline_data).await?;
             self.init_stragegy_indicator_data(ind_key, &indicators).await?;
         }

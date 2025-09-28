@@ -23,6 +23,9 @@ pub type InitKlineDataResponse = StrategyResponse<InitKlineDataRespPayload>;
 // init indicator data
 pub type InitIndicatorDataCommand = StrategyCommand<InitIndicatorDataCmdPayload, InitIndicatorDataRespPayload>;
 pub type InitIndicatorDataResponse = StrategyResponse<InitIndicatorDataRespPayload>;
+// append kline data
+pub type AppendKlineDataCommand = StrategyCommand<AppendKlineDataCmdPayload, AppendKlineDataRespPayload>;
+pub type AppendKlineDataResponse = StrategyResponse<AppendKlineDataRespPayload>;
 // get kline data
 pub type GetKlineDataCommand = StrategyCommand<GetKlineDataCmdPayload, GetKlineDataRespPayload>;
 pub type GetKlineDataResponse = StrategyResponse<GetKlineDataRespPayload>;
@@ -118,6 +121,23 @@ impl InitIndicatorDataCmdPayload {
 
 #[derive(Debug)]
 pub struct InitIndicatorDataRespPayload;
+
+
+// ============ Append Kline Data ============
+#[derive(Debug)]
+pub struct AppendKlineDataCmdPayload {
+    pub kline_key: KlineKey,
+    pub kline_series: Vec<Kline>,
+}
+
+impl AppendKlineDataCmdPayload {
+    pub fn new(kline_key: KlineKey, kline_series: Vec<Kline>) -> Self {
+        Self { kline_key, kline_series }
+    }
+}
+
+#[derive(Debug)]
+pub struct AppendKlineDataRespPayload;
 
 // ============ Get Kline Data ============
 #[derive(Debug)]
