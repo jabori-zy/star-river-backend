@@ -26,6 +26,7 @@ pub trait ExchangeClient: Debug + Send + Sync + Any + 'static {
 
     // 交易对
     async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError>;
+    async fn get_symbol(&self, symbol: String) -> Result<Symbol, ExchangeClientError>;
     fn get_support_kline_intervals(&self) -> Vec<KlineInterval>;
 
     // 市场相关

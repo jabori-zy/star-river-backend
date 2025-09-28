@@ -1,18 +1,21 @@
 use crate::StarRiver;
-use crate::api::response::ApiResponse;
-use axum::extract::{Path, State};
+use crate::api::response::{ApiResponse, NewApiResponse};
+use axum::extract::{Path, State, Query};
 use axum::{Json, http::StatusCode};
 use engine::market_engine::MarketEngine;
 use star_river_core::custom_type::AccountId;
 use star_river_core::engine::EngineName;
 use star_river_core::market::KlineInterval;
 use star_river_core::market::Symbol;
+use serde::Deserialize;
+
+
 
 #[utoipa::path(
     get,
     path = "/api/v1/market/symbol_list/{account_id}",
     tag = "市场",
-    summary = "获取市场符号列表",
+    summary = "获取代币列表",
     params(
         ("account_id" = i32, Path, description = "account id")
     ),
@@ -84,4 +87,51 @@ pub async fn get_support_kline_intervals(
             data: Some(support_kline_intervals),
         }),
     )
+}
+
+
+
+#[derive(Deserialize)]
+pub struct SymbolQuery {
+    pub symbol: String,
+}
+
+
+// 获取单个symbol
+#[utoipa::path(
+    get,
+    path = "/api/v1/market/symbol/{account_id}",
+    tag = "市场",
+    summary = "获取单个交易对信息",
+    params(
+        ("account_id" = i32, Path, description = "account id"),
+        ("symbol" = String, Query, description = "symbol")
+    ),
+    responses(
+        (status = 200, description = "success", body = ApiResponse<Symbol>),
+        (status = 500, description = "internal server error")
+    )
+)]
+pub async fn get_symbol(
+    State(star_river): State<StarRiver>,
+    Path(account_id): Path<AccountId>,
+    Query(query): Query<SymbolQuery>,
+) -> (StatusCode, Json<NewApiResponse<Symbol>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::MarketEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let market_engine = engine_guard.as_any_mut().downcast_mut::<MarketEngine>().unwrap();
+    let symbol = market_engine.get_symbol(account_id, query.symbol).await;
+    match symbol {
+        Ok(symbol) => (
+            StatusCode::OK,
+            Json(NewApiResponse::success(symbol)),
+        ),
+        Err(e) => {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(NewApiResponse::error(e)),
+            )
+        }
+    }
 }

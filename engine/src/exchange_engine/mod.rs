@@ -10,6 +10,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use star_river_core::error::engine_error::ExchangeEngineError;
 /// 交易所引擎
 /// 负责管理交易所客户端，并提供交易所客户端的注册、注销、获取等功能
 
@@ -55,17 +56,10 @@ impl ExchangeEngine {
         exchange_context.is_registered(account_id).await
     }
 
-    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
+    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, ExchangeEngineError> {
         let context_guard = self.context.read().await;
         let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
-        let exchanges = exchange_context.get_exchange(account_id).await;
-        match exchanges {
-            Ok(exchange) => Ok(exchange),
-            Err(e) => {
-                // tracing::error!("获取交易所客户端失败: {}", e);
-                Err(e)
-            }
-        }
+        exchange_context.get_exchange(account_id).await
     }
 
     pub async fn get_exchange_mut(&self, account_id: &i32) -> Box<dyn ExchangeClient> {

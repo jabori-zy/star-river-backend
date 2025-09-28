@@ -1,3 +1,6 @@
+mod symbol_handler;
+
+
 use crate::EngineName;
 use crate::exchange_engine::ExchangeEngine;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
@@ -7,16 +10,14 @@ use async_trait::async_trait;
 use event_center::EventCenterSingleton;
 use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
-use event_center::communication::engine::cache_engine::*;
 use event_center::communication::engine::market_engine::*;
 use event_center::event::Event;
 use event_center::event::{
     ExchangeEvent,
-    exchange_event::{ExchangeKlineHistoryUpdateEvent, ExchangeKlineSeriesUpdateEvent},
+    exchange_event::ExchangeKlineSeriesUpdateEvent,
 };
 use snafu::Report;
 use star_river_core::custom_type::{AccountId, StrategyId};
-use star_river_core::key::{Key, key::KlineKey};
 use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
 use star_river_core::market::KlineInterval;
@@ -26,8 +27,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::sync::oneshot;
-use tokio::time::Duration;
+use star_river_core::error::engine_error::market_engine_error::*;
+
 
 #[derive(Debug)]
 pub struct MarketEngineContext {
@@ -357,20 +358,6 @@ impl MarketEngineContext {
         Ok(kline_history)
     }
 
-    
-
-    pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, String> {
-        let exchange_engine_context = {
-            let exchange_engine_guard = self.exchange_engine.lock().await;
-            exchange_engine_guard.get_context()
-        };
-        let context_read = exchange_engine_context.read().await;
-        let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
-
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
-        let symbol_list = exchange.get_symbol_list().await.unwrap();
-        Ok(symbol_list)
-    }
 
     pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Vec<KlineInterval> {
         let exchange_engine_context = {

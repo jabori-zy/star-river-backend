@@ -333,7 +333,7 @@ impl ExchangeEngineContext {
     //     Ok(())
     // }
 
-    pub async fn unregister_exchange(&mut self, unregister_params: UnregisterExchangeCommand) -> Result<(), String> {
+    pub async fn unregister_exchange(&mut self, unregister_params: UnregisterExchangeCommand) -> Result<(), ExchangeEngineError> {
         // tracing::debug!("接收到命令: {:?}", unregister_params);
         // 先获取实例
         let mut exchange = self.get_exchange(&unregister_params.account_id).await?;
@@ -383,28 +383,49 @@ impl ExchangeEngineContext {
         self.exchanges.contains_key(account_id)
     }
 
-    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, String> {
+    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, ExchangeEngineError> {
         match self.exchanges.get(account_id) {
             Some(client) => {
                 // 使用clone_box方法直接获取一个新的Box<dyn ExchangeClient>
                 Ok(client.clone_box())
             }
-            None => Err(format!("交易所 {:?} 未注册", account_id)),
+            None => {
+                let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, *account_id).await?;
+                Err(ExchangeClientNotRegisteredSnafu {
+                    account_id: *account_id,
+                    exchange_name: account_config.exchange.to_string(),
+                }
+                .build())
+            }
         }
     }
 
-    pub async fn get_exchange_ref<'a>(&'a self, account_id: &i32) -> Result<&'a Box<dyn ExchangeClient>, String> {
+    pub async fn get_exchange_ref<'a>(&'a self, account_id: &i32) -> Result<&'a Box<dyn ExchangeClient>, ExchangeEngineError> {
         match self.exchanges.get(account_id) {
             Some(client) => Ok(client),
-            None => Err(format!("交易所 {:?} 未注册", account_id)),
+            None => {
+                let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, *account_id).await?;
+                Err(ExchangeClientNotRegisteredSnafu {
+                    account_id: *account_id,
+                    exchange_name: account_config.exchange.to_string(),
+                }
+                .build())
+            }
         }
     }
 
     // 添加一个获取可变引用的方法
-    pub async fn get_exchange_mut<'a>(&'a mut self, account_id: &i32) -> Result<&'a mut Box<dyn ExchangeClient>, String> {
+    pub async fn get_exchange_mut<'a>(&'a mut self, account_id: &i32) -> Result<&'a mut Box<dyn ExchangeClient>, ExchangeEngineError> {
         match self.exchanges.get_mut(account_id) {
             Some(client) => Ok(client),
-            None => Err(format!("交易所 {:?} 未注册", account_id)),
+            None => {
+                let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, *account_id).await?;
+                Err(ExchangeClientNotRegisteredSnafu {
+                    account_id: *account_id,
+                    exchange_name: account_config.exchange.to_string(),
+                }
+                .build())
+            }
         }
     }
 }

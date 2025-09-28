@@ -1,5 +1,5 @@
+mod symbol_handler;
 mod mt5_http_client;
-
 mod mt5_data_processor;
 mod mt5_types;
 mod mt5_ws_client;
@@ -26,6 +26,7 @@ use snafu::OptionExt;
 use snafu::ResultExt;
 use star_river_core::account::OriginalAccountInfo;
 use star_river_core::error::exchange_client_error::*;
+use star_river_core::market::symbol;
 use star_river_core::market::KlineInterval;
 use star_river_core::market::MT5Server;
 use star_river_core::market::Symbol;
@@ -759,6 +760,25 @@ impl ExchangeClient for MetaTrader5 {
             .fail()?;
         }
     }
+
+    async fn get_symbol(&self, symbol: String) -> Result<Symbol, ExchangeClientError> {
+        let mt5_http_client = self.mt5_http_client.lock().await;
+        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+            let symbol = mt5_http_client.get_symbol_info(&symbol).await?;
+            let data_processor = self.data_processor.lock().await;
+            let symbol = data_processor.process_symbol(symbol).await?;
+            Ok(symbol)
+        } else {
+            return HttpClientNotCreatedSnafu {
+                terminal_id: self.terminal_id,
+                port: self.server_port,
+            }
+            .fail()?;
+        }
+    }
+
+
+    
 
     fn get_support_kline_intervals(&self) -> Vec<KlineInterval> {
         Mt5KlineInterval::to_list()

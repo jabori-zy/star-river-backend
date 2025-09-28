@@ -50,6 +50,7 @@ use utoipa::OpenApi;
         // 市场相关路径
         crate::api::market_api::get_symbol_list,
         crate::api::market_api::get_support_kline_intervals,
+        crate::api::market_api::get_symbol,
 
         //sse
         crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,

@@ -134,7 +134,7 @@ impl Mt5HttpClient {
                         .unwrap_or("unknown error")
                         .to_string();
                     tracing::error!(error = %error_message, "failed to initialize MT5 terminal");
-                    return InitializeTerminalSnafu {
+                    return InitializeTerminalFailedSnafu {
                         message: error_message,
                         terminal_id: self.terminal_id,
                         port: self.port,
@@ -282,6 +282,68 @@ impl Mt5HttpClient {
                 status_code: status_code,
             }
             .fail()?;
+        }
+    }
+
+
+    #[instrument(skip(self))]
+    pub async fn get_symbol_info(&self, symbol: &str) -> Result<serde_json::Value, Mt5Error> {
+        let url = format!("{}?symbol={}", self.get_url(Mt5HttpUrl::GetSymbolInfo), symbol);
+        tracing::debug!(url = %url, symbol = %symbol, "Getting symbol info");
+
+        let response = self
+            .client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+            .context(NetworkSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
+
+        if response.status().is_success() {
+            let response_data = response.json::<serde_json::Value>().await.context(ResponseSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+            })?;
+            if let Some(is_success) = response_data.get("success").and_then(|v| v.as_bool()) {
+                if is_success {
+                    let data = response_data.get("data").unwrap_or(&serde_json::Value::Null);
+                    Ok(data.clone())
+                } else {
+                    let error_message = response_data
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("unknown error")
+                        .to_string();
+                    return GetSymbolInfoSnafu {
+                        message: error_message,
+                        symbol: symbol.to_string(),
+                        terminal_id: self.terminal_id,
+                        port: self.port,
+                    }
+                    .fail()?;
+                }
+            } else {
+                let error_message = "No success field in the response".to_string();
+                return GetSymbolInfoSnafu {
+                    message: error_message,
+                    symbol: symbol.to_string(),
+                    terminal_id: self.terminal_id,
+                    port: self.port,
+                }
+                .fail()?;
+            }
+        }
+        else {
+            let status_code = response.status().as_u16();
+            return ServerSnafu {
+                terminal_id: self.terminal_id,
+                url: url.clone(),
+                status_code: status_code,
+            }
+            .fail();
         }
     }
 

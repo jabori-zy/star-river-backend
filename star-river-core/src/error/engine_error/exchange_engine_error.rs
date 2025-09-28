@@ -43,11 +43,10 @@ pub enum ExchangeEngineError {
     Mt5 { source: Mt5Error },
 
     // === Exchange Client Management Errors ===
-    #[snafu(display("exchange client not found for account {account_id}"))]
-    ExchangeClientNotFound {
-        message: String,
+    #[snafu(display("exchange {exchange_name} is not registered. account id is {account_id}"))]
+    ExchangeClientNotRegistered {
         account_id: AccountId,
-        requested_operation: Option<String>,
+        exchange_name: String,
         backtrace: Backtrace,
     },
 
@@ -175,34 +174,34 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 let prefix = "EXCHANGE_ENGINE";
                 let code = match self {
                     // Registration & Configuration (1001-1004)
-                    ExchangeEngineError::RegisterExchangeFailed { .. } => 1001,
-                    ExchangeEngineError::UnregistrationFailed { .. } => 1002,
-                    ExchangeEngineError::Database { .. } => 1003,
-                    ExchangeEngineError::UnsupportedExchangeType { .. } => 1004,
+                    ExchangeEngineError::RegisterExchangeFailed { .. } => 1001, // 注册交易所失败
+                    ExchangeEngineError::UnregistrationFailed { .. } => 1002, // 注销交易所失败
+                    ExchangeEngineError::Database { .. } => 1003, // 数据库错误
+                    ExchangeEngineError::UnsupportedExchangeType { .. } => 1004, // 不支持的交易所类型
 
                     // Exchange Client Management (1011-1013)
-                    ExchangeEngineError::ExchangeClientNotFound { .. } => 1011,
-                    ExchangeEngineError::ExchangeClientOperationFailed { .. } => 1012,
-                    ExchangeEngineError::ExchangeClientTypeConversionFailed { .. } => 1013,
+                    ExchangeEngineError::ExchangeClientNotRegistered { .. } => 1011, // 交易所客户端未找到
+                    ExchangeEngineError::ExchangeClientOperationFailed { .. } => 1012, // 交易所客户端操作失败
+                    ExchangeEngineError::ExchangeClientTypeConversionFailed { .. } => 1013, // 交易所客户端类型转换失败
 
                     // Database (1014-1015)
-                    ExchangeEngineError::DatabaseOperationFailed { .. } => 1014,
-                    ExchangeEngineError::DatabaseConnectionFailed { .. } => 1015,
+                    ExchangeEngineError::DatabaseOperationFailed { .. } => 1014, // 数据库操作失败
+                    ExchangeEngineError::DatabaseConnectionFailed { .. } => 1015, // 数据库连接失败
 
                     // Timeout (1016)
-                    ExchangeEngineError::OperationTimeout { .. } => 1016,
+                    ExchangeEngineError::OperationTimeout { .. } => 1016, // 操作超时
 
                     // Configuration (1017-1018)
-                    ExchangeEngineError::ConfigurationError { .. } => 1017,
-                    ExchangeEngineError::EnvironmentError { .. } => 1018,
+                    ExchangeEngineError::ConfigurationError { .. } => 1017, // 配置错误
+                    ExchangeEngineError::EnvironmentError { .. } => 1018, // 环境错误
 
                     // Event & Command (1019-1020)
-                    ExchangeEngineError::EventPublishingFailed { .. } => 1019,
-                    ExchangeEngineError::CommandHandlingFailed { .. } => 1020,
+                    ExchangeEngineError::EventPublishingFailed { .. } => 1019, // 事件发布失败
+                    ExchangeEngineError::CommandHandlingFailed { .. } => 1020, // 命令处理失败
 
                     // Generic (1021-1022)
-                    ExchangeEngineError::Internal { .. } => 1021,
-                    ExchangeEngineError::NotImplemented { .. } => 1022,
+                    ExchangeEngineError::Internal { .. } => 1021, // 内部错误
+                    ExchangeEngineError::NotImplemented { .. } => 1022, // 功能未实现
 
                     // This should never happen due to outer match, but needed for completeness
                     ExchangeEngineError::ExchangeClientError { .. } | ExchangeEngineError::Mt5 { .. } => unreachable!(),
@@ -288,7 +287,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 // For simpler error types, extract account_id if available
                 match self {
                     ExchangeEngineError::UnregistrationFailed { account_id, .. }
-                    | ExchangeEngineError::ExchangeClientNotFound { account_id, .. } => {
+                    | ExchangeEngineError::ExchangeClientNotRegistered { account_id, .. } => {
                         ctx.insert("account_id", account_id.to_string());
                     }
                     _ => {}
@@ -314,7 +313,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 // Exchange client operations may be recoverable
                 ExchangeEngineError::RegisterExchangeFailed { .. } |
                 ExchangeEngineError::ExchangeClientOperationFailed { .. } |
-                ExchangeEngineError::ExchangeClientNotFound { .. } |
+                ExchangeEngineError::ExchangeClientNotRegistered { .. } |
                 // Timeout errors are usually recoverable
                 ExchangeEngineError::OperationTimeout { .. } |
                 // Event and command handling failures may be recoverable
@@ -377,18 +376,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 ExchangeEngineError::Mt5 { source } => {
                     format!("MetaTrader5错误: {}", source.get_error_message(language))
                 }
-                ExchangeEngineError::ExchangeClientNotFound {
-                    message,
+                ExchangeEngineError::ExchangeClientNotRegistered {
+                    exchange_name,
                     account_id,
-                    requested_operation,
                     ..
                 } => {
-                    let op_str = if let Some(op) = requested_operation {
-                        format!(", 请求操作: {}", op)
-                    } else {
-                        String::new()
-                    };
-                    format!("账户 {} 未找到交易所客户端: {}{}", account_id, message, op_str)
+                    
+                    format!("客户端 {} 未注册。 客户端id: {}", exchange_name, account_id)
                 }
                 ExchangeEngineError::ExchangeClientOperationFailed {
                     message,

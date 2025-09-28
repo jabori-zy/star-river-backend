@@ -158,12 +158,56 @@ impl Mt5DataProcessor {
                     actual: "non-string".to_string(),
                     context: "parse symbol list".to_string(),
                 })?;
-            let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()));
+
+            let point = symbol.get("point").context(MissingFieldSnafu {
+                field: "point".to_string(),
+                context: "parse symbol list".to_string(),
+            })?
+            .as_f64()
+            .context(InvalidFieldTypeSnafu {
+                field: "point".to_string(),
+                expected: "number".to_string(),
+                actual: "non-number".to_string(),
+                context: "parse symbol list".to_string(),
+            })?;
+
+            let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()), point as f32);
             symbol_list.push(symbol);
         }
         // println!("symbol_list: {:?}", symbol_list);
         Ok(symbol_list)
     }
+
+
+    pub async fn process_symbol(&self, symbol_info: serde_json::Value) -> Result<Symbol, DataProcessorError> {
+        let symbol_name = symbol_info.get("name").context(MissingFieldSnafu {
+            field: "name".to_string(),
+            context: "parse symbol".to_string(),
+        })?
+        .as_str()
+        .context(InvalidFieldTypeSnafu {
+            field: "name".to_string(),
+            expected: "string".to_string(),
+            actual: "non-string".to_string(),
+            context: "parse symbol".to_string(),
+        })?;
+
+        let point = symbol_info.get("point").context(MissingFieldSnafu {
+            field: "point".to_string(),
+            context: "parse symbol".to_string(),
+        })?
+        .as_f64()
+        .context(InvalidFieldTypeSnafu {
+            field: "point".to_string(),
+            expected: "number".to_string(),
+            actual: "non-number".to_string(),
+            context: "parse symbol".to_string(),
+        })?;
+
+        let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()), point as f32);
+        Ok(symbol)
+    }
+    
 
     pub async fn process_kline_series(
         &self,

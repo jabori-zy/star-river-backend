@@ -48,7 +48,7 @@ pub enum Mt5Error {
     Json { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("failed to initialize terminal: {message}"))]
-    InitializeTerminal {
+    InitializeTerminalFailed {
         message: String,
         terminal_id: i32,
         port: u16,
@@ -69,6 +69,15 @@ pub enum Mt5Error {
     #[snafu(display("failed to get symbol list: {message}"))]
     GetSymbolList {
         message: String,
+        terminal_id: i32,
+        port: u16,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("get '{symbol}' info failed. terminal id is {terminal_id}, port is {port}"))]
+    GetSymbolInfo {
+        message: String,
+        symbol: String,
         terminal_id: i32,
         port: u16,
         backtrace: Backtrace,
@@ -243,53 +252,56 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 let prefix = self.get_prefix();
                 let code = match self {
                     // HTTP and JSON errors (1001-1004)
-                    Mt5Error::Network { .. } => 1001,
-                    Mt5Error::Server { .. } => 1002,
-                    Mt5Error::NoSuccessFieldInResponse { .. } => 1002,
-                    Mt5Error::HttpClientNotCreated { .. } => 1003,
-                    Mt5Error::Json { .. } => 1004,
-                    Mt5Error::Response { .. } => 1005,
+                    Mt5Error::Network { .. } => 1001, //网络错误
+                    Mt5Error::Server { .. } => 1002, //服务器错误
+                    Mt5Error::NoSuccessFieldInResponse { .. } => 1002, //响应中缺少成功字段
+                    Mt5Error::HttpClientNotCreated { .. } => 1003, //HTTP客户端未创建
+                    Mt5Error::Json { .. } => 1004, //JSON解析错误
+                    Mt5Error::Response { .. } => 1005, //响应错误
 
                     // Terminal operations (1005-1008)
-                    Mt5Error::InitializeTerminal { .. } => 1005,
-                    Mt5Error::GetTerminalInfo { .. } => 1006,
-                    Mt5Error::GetSymbolList { .. } => 1007,
-                    Mt5Error::Ping { .. } => 1008,
+                    Mt5Error::InitializeTerminalFailed { .. } => 1005, //初始化终端失败
+                    Mt5Error::GetTerminalInfo { .. } => 1006, //获取终端信息
+                    Mt5Error::GetSymbolList { .. } => 1007, //获取交易品种列表
+                    Mt5Error::GetSymbolInfo { .. } => 1008, //获取交易品种信息
+                    Mt5Error::Ping { .. } => 1009, //Ping
 
-                    // Market data operations (1009)
-                    Mt5Error::GetKlineData { .. } => 1009,
+                    // Market data operations (1010)
+                    Mt5Error::GetKlineData { .. } => 1010, //获取K线数据
 
                     // Trading operations (1010-1014)
-                    Mt5Error::CreateOrder { .. } => 1010,
-                    Mt5Error::GetOrder { .. } => 1011,
-                    Mt5Error::GetPosition { .. } => 1012,
-                    Mt5Error::GetDealByPositionId { .. } => 1013,
-                    Mt5Error::GetDeal { .. } => 1014,
-                    Mt5Error::GetDealByDealId { .. } => 1015,
-                    Mt5Error::GetDealByOrderId { .. } => 1016,
-                    Mt5Error::GetPositionNumber { .. } => 1017,
+                    Mt5Error::CreateOrder { .. } => 1011, //创建订单
+                    Mt5Error::GetOrder { .. } => 1012, //获取订单
+                    Mt5Error::GetPosition { .. } => 1013, //获取持仓
+                    Mt5Error::GetDealByPositionId { .. } => 1014, //通过持仓ID获取交易
+                    Mt5Error::GetDeal { .. } => 1015, //获取交易
+                    Mt5Error::GetDealByDealId { .. } => 1016, //通过交易ID获取交易
+                    Mt5Error::GetDealByOrderId { .. } => 1017, //通过订单ID获取交易
+                    Mt5Error::GetPositionNumber { .. } => 1018, //获取持仓数量
 
                     // Account operations (1018)
-                    Mt5Error::GetAccountInfo { .. } => 1018,
-                    Mt5Error::Retcode { .. } => 1019,
-                    Mt5Error::OrderId { .. } => 1020,
+                    Mt5Error::GetAccountInfo { .. } => 1019, //获取账户信息
+                    Mt5Error::Retcode { .. } => 1020, //获取返回码
+
+                    // Order operations (1020)
+                    Mt5Error::OrderId { .. } => 1021, //获取订单ID
 
                     // WebSocket errors (1016)
-                    Mt5Error::WebSocket { .. } => 1016,
+                    Mt5Error::WebSocket { .. } => 1022, //WebSocket错误
 
                     // Connection and initialization errors (1017-1019)
-                    Mt5Error::Connection { .. } => 1017,
-                    Mt5Error::Initialization { .. } => 1018,
-                    Mt5Error::TerminalNotInitialized { .. } => 1018,
-                    Mt5Error::Configuration { .. } => 1019,
+                    Mt5Error::Connection { .. } => 1023, //连接错误
+                    Mt5Error::Initialization { .. } => 1024, //初始化错误
+                    Mt5Error::TerminalNotInitialized { .. } => 1025,
+                    Mt5Error::Configuration { .. } => 1024,
 
                     // Server and service errors (1020-1022)
-                    Mt5Error::Timeout { .. } => 1020,
+                    Mt5Error::Timeout { .. } => 1026,
                     Mt5Error::Authentication { .. } => 1021,
-                    Mt5Error::Validation { .. } => 1022,
+                    Mt5Error::Validation { .. } => 1027,
 
                     // Internal errors (1023)
-                    Mt5Error::Other { .. } => 1023,
+                    Mt5Error::Other { .. } => 1028,
 
                     // This should never happen due to outer match, but needed for completeness
                     Mt5Error::DataProcessor { .. } => unreachable!(),
@@ -303,6 +315,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
         let mut ctx = HashMap::new();
         match self {
             Mt5Error::DataProcessor { source, .. } => return source.context(),
+            Mt5Error::GetSymbolInfo { symbol, message, .. } => {
+                ctx.insert("message", message.clone());
+                ctx.insert("symbol", symbol.clone());
+            }
             Mt5Error::GetKlineData { symbol, .. } => {
                 ctx.insert("symbol", symbol.clone());
             }
@@ -380,7 +396,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 Mt5Error::Ping { .. } |
                 Mt5Error::WebSocket { .. } |
                 // Terminal and initialization errors may be recoverable
-                Mt5Error::InitializeTerminal { .. } |
+                Mt5Error::InitializeTerminalFailed { .. } |
                 Mt5Error::GetTerminalInfo { .. } |
                 Mt5Error::TerminalNotInitialized { .. } |
                 Mt5Error::HttpClientNotCreated { .. } |
@@ -427,7 +443,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     format!("HTTP客户端未创建: 终端ID={}, 端口={}", terminal_id, port)
                 }
                 Mt5Error::Json { .. } => "JSON解析错误".to_string(),
-                Mt5Error::InitializeTerminal {
+                Mt5Error::InitializeTerminalFailed {
                     message,
                     terminal_id,
                     port,
@@ -453,6 +469,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     ..
                 } => {
                     format!("获取交易品种列表失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
+                }
+                Mt5Error::GetSymbolInfo { symbol, message, terminal_id, port, .. } => {
+                    format!("获取 '{}' 交易品种信息失败: {}, 终端ID 是{}, 端口是{}", symbol, message, terminal_id, port)
                 }
                 Mt5Error::GetKlineData { symbol, message, .. } => {
                     format!("获取 '{}' K线数据失败: {}", symbol, message)

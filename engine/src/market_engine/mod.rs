@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use star_river_core::error::engine_error::market_engine_error::*;
 
 #[derive(Clone, Debug)]
 pub struct MarketEngine {
@@ -60,5 +61,12 @@ impl MarketEngine {
         let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
         let support_kline_intervals = market_engine_context_guard.get_support_kline_intervals(account_id).await;
         support_kline_intervals
+    }
+
+    pub async fn get_symbol(&self, account_id: AccountId, symbol: String) -> Result<Symbol, MarketEngineError> {
+        let context_read = self.context.read().await;
+        let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
+        let symbol = market_engine_context_guard.get_symbol(account_id, symbol).await?;
+        Ok(symbol)
     }
 }

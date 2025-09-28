@@ -1,10 +1,10 @@
 // 路由模块组织
 pub mod account_routes;
 
-#[cfg(not(feature = "paid"))]
+// #[cfg(not(feature = "paid"))]
 pub mod doc;
-#[cfg(feature = "paid")]
-pub mod doc_paid;
+// #[cfg(feature = "paid")]
+// pub mod doc_paid;
 pub mod market_routes;
 pub mod sse_routes;
 pub mod strategy_routes;
@@ -16,10 +16,10 @@ pub mod cache_routes;
 
 use crate::star_river::StarRiver;
 use axum::Router;
-#[cfg(not(feature = "paid"))]
+// #[cfg(not(feature = "paid"))]
 use doc::ApiDoc;
-#[cfg(feature = "paid")]
-use doc_paid::ApiDoc;
+// #[cfg(feature = "paid")]
+// use doc_paid::ApiDoc;
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
