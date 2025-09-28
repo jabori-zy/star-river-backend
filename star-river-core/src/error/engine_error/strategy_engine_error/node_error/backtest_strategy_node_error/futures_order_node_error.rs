@@ -3,6 +3,8 @@ use crate::error::error_trait::Language;
 use crate::error::virtual_trading_system_error::VirtualTradingSystemError;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+use std::sync::Arc;
+use crate::error::StarRiverErrorTrait;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -24,6 +26,13 @@ pub enum FuturesOrderNodeError {
 
     #[snafu(display("order config not found for input handle id: {input_handle_id}"))]
     OrderConfigNotFound { input_handle_id: String, backtrace: Backtrace },
+
+    #[snafu(display("get symbol info failed for symbol: {symbol}"))]
+    GetSymbolInfoFailed { symbol: String, source: Arc<dyn StarRiverErrorTrait + Send + Sync>, backtrace: Backtrace },
+
+
+    #[snafu(display("symbol info not found for symbol: {symbol}"))]
+    SymbolInfoNotFound { symbol: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for FuturesOrderNodeError
@@ -36,11 +45,13 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
         let prefix = self.get_prefix();
         let code = match self {
             // HTTP and JSON errors (1001-1004)
-            FuturesOrderNodeError::ConfigFieldValueNull { .. } => 1001,
-            FuturesOrderNodeError::ConfigDeserializationFailed { .. } => 1002,
-            FuturesOrderNodeError::VirtualTradingSystem { .. } => 1003,
-            FuturesOrderNodeError::CannotCreateOrder { .. } => 1004,
-            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1005,
+            FuturesOrderNodeError::ConfigFieldValueNull { .. } => 1001, //Config字段值为空
+            FuturesOrderNodeError::ConfigDeserializationFailed { .. } => 1002, //Config反序列化失败
+            FuturesOrderNodeError::VirtualTradingSystem { .. } => 1003, //虚拟交易系统错误
+            FuturesOrderNodeError::CannotCreateOrder { .. } => 1004, //无法创建订单
+            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1005, //订单配置未找到
+            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1006, //获取交易对信息失败
+            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1007, //交易对信息未找到
         };
 
         format!("{}_{:04}", prefix, code)
@@ -57,6 +68,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
                 | FuturesOrderNodeError::ConfigDeserializationFailed { .. }
                 | FuturesOrderNodeError::CannotCreateOrder { .. }
                 | FuturesOrderNodeError::OrderConfigNotFound { .. }
+                | FuturesOrderNodeError::GetSymbolInfoFailed { .. }
+                | FuturesOrderNodeError::SymbolInfoNotFound { .. }
         )
     }
 
@@ -70,6 +83,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
             FuturesOrderNodeError::VirtualTradingSystem { source, .. } => source.error_code_chain(),
             FuturesOrderNodeError::CannotCreateOrder { .. } => vec![self.error_code()],
             FuturesOrderNodeError::OrderConfigNotFound { .. } => vec![self.error_code()],
+            FuturesOrderNodeError::GetSymbolInfoFailed { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
+            FuturesOrderNodeError::SymbolInfoNotFound { .. } => vec![self.error_code()],
         }
     }
 
@@ -91,6 +110,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
                 }
                 FuturesOrderNodeError::OrderConfigNotFound { input_handle_id, .. } => {
                     format!("订单配置未找到: {}", input_handle_id)
+                }
+                FuturesOrderNodeError::GetSymbolInfoFailed { symbol, .. } => {
+                    format!("获取交易对信息失败: {}", symbol)
+                }
+                FuturesOrderNodeError::SymbolInfoNotFound { symbol, .. } => {
+                    format!("交易对信息未找到: {}", symbol)
                 }
             },
         }

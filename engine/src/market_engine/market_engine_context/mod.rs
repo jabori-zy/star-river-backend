@@ -70,6 +70,7 @@ impl EngineContext for MarketEngineContext {
     }
 
     async fn handle_command(&mut self, command: EngineCommand) {
+        
         match command {
             EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(cmd)) => {
                 self.subscribe_kline_stream(
@@ -135,6 +136,20 @@ impl EngineContext for MarketEngineContext {
                     GetKlineHistoryRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone(), kline_history);
                 let resp = GetKlineHistoryResponse::success(Some(payload));
                 cmd.respond(resp);
+            }
+            EngineCommand::MarketEngine(MarketEngineCommand::GetSymbolInfo(cmd)) => {
+                let result = self.get_symbol(cmd.account_id, cmd.symbol.clone()).await;
+                match result {
+                    Ok(symbol) => {
+                        let payload = GetSymbolInfoRespPayload::new(symbol);
+                        let resp = GetSymbolInfoResponse::success(Some(payload));
+                        cmd.respond(resp);
+                    }
+                    Err(e) => {
+                        let resp = GetSymbolInfoResponse::error(Arc::new(e));
+                        cmd.respond(resp);
+                    }
+                }
             }
             _ => {}
         }

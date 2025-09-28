@@ -1,7 +1,7 @@
 use super::{EngineResponse, GenericEngineCommand};
 use derive_more::From;
 use star_river_core::custom_type::{AccountId, StrategyId};
-use star_river_core::market::{Exchange, Kline, KlineInterval};
+use star_river_core::market::{Exchange, Kline, KlineInterval, Symbol};
 use star_river_core::strategy::TimeRange;
 
 #[derive(Debug, From)]
@@ -9,6 +9,7 @@ pub enum MarketEngineCommand {
     SubscribeKlineStream(SubscribeKlineStreamCommand),
     UnsubscribeKlineStream(UnsubscribeKlineStreamCommand),
     GetKlineHistory(GetKlineHistoryCommand),
+    GetSymbolInfo(GetSymbolInfoCommand),
 }
 
 // ============ Command and Response Type Definitions ============
@@ -20,6 +21,9 @@ pub type UnsubscribeKlineStreamResponse = EngineResponse<UnsubscribeKlineStreamR
 
 pub type GetKlineHistoryCommand = GenericEngineCommand<GetKlineHistoryCmdPayload, GetKlineHistoryRespPayload>;
 pub type GetKlineHistoryResponse = EngineResponse<GetKlineHistoryRespPayload>;
+
+pub type GetSymbolInfoCommand = GenericEngineCommand<GetSymbolInfoCmdPayload, GetSymbolInfoRespPayload>;
+pub type GetSymbolInfoResponse = EngineResponse<GetSymbolInfoRespPayload>;
 
 // ============ Subscribe Kline Stream Command ============
 #[derive(Debug)]
@@ -130,5 +134,33 @@ impl GetKlineHistoryRespPayload {
             interval,
             kline_history,
         }
+    }
+}
+
+
+#[derive(Debug)]
+pub struct GetSymbolInfoCmdPayload {
+    pub account_id: AccountId,
+    pub symbol: String,
+}
+
+impl GetSymbolInfoCmdPayload {
+    pub fn new(account_id: AccountId, symbol: String) -> Self {
+        Self {
+            account_id,
+            symbol,
+        }
+    }
+}
+
+
+#[derive(Debug)]
+pub struct GetSymbolInfoRespPayload {
+    pub symbol: Symbol,
+}
+
+impl GetSymbolInfoRespPayload {
+    pub fn new(symbol: Symbol) -> Self {
+        Self { symbol }
     }
 }

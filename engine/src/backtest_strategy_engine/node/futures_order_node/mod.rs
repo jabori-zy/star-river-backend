@@ -6,6 +6,7 @@ use super::futures_order_node::futures_order_node_context::FuturesOrderNodeConte
 use super::futures_order_node::futures_order_node_state_machine::{OrderNodeStateAction, OrderNodeStateMachine};
 use super::node_message::common_log_message::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use crate::backtest_strategy_engine::node::node_message::futures_order_node_log_message::*;
 use crate::backtest_strategy_engine::node::node_state_machine::*;
 use crate::backtest_strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
@@ -53,7 +54,7 @@ impl FuturesOrderNode {
         virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, FuturesOrderNodeError> {
-        let (strategy_id, node_id, node_name, backtest_config) = Self::check_futures_order_node_config(node_config)?;
+        let (strategy_id, node_id, node_name, node_config) = Self::check_futures_order_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -64,20 +65,19 @@ impl FuturesOrderNode {
             node_command_receiver,
             play_index_watch_rx,
         );
+
+        let futures_order_node_context = FuturesOrderNodeContext::new(
+            base_context,
+            node_config,
+            database,
+            heartbeat,
+            virtual_trading_system,
+            virtual_trading_system_event_receiver,
+        );
+
+
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(FuturesOrderNodeContext {
-                base_context,
-                backtest_config,
-                is_processing_order: Arc::new(RwLock::new(HashMap::new())),
-                database,
-                heartbeat,
-                virtual_trading_system,
-                virtual_trading_system_event_receiver,
-                unfilled_virtual_order: Arc::new(RwLock::new(HashMap::new())),
-                virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
-                virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
-                min_kline_interval: None,
-            }))),
+            context: Arc::new(RwLock::new(Box::new(futures_order_node_context))),
         })
     }
 
@@ -134,9 +134,8 @@ impl FuturesOrderNode {
             })?
             .to_owned();
 
-        let backtest_config =
-            serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
-        Ok((strategy_id, node_id, node_name, backtest_config))
+        let node_config = serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+        Ok((strategy_id, node_id, node_name, node_config))
     }
 
     async fn listen_virtual_trading_system_events(&self) -> Result<(), String> {
@@ -219,7 +218,7 @@ impl BacktestNodeTrait for FuturesOrderNode {
             let context = self.get_context();
             let context_guard = context.read().await;
             let futures_order_node_context = context_guard.as_any().downcast_ref::<FuturesOrderNodeContext>().unwrap();
-            futures_order_node_context.backtest_config.futures_order_configs.clone()
+            futures_order_node_context.node_config.futures_order_configs.clone()
         };
         // 为每一个订单添加出口
         for order_config in futures_order_configs.iter() {
@@ -391,10 +390,27 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
                     }
                     OrderNodeStateAction::ListenAndHandleExternalEvents => {
-                        tracing::info!("[{node_name}] starting to listen external events");
+                        tracing::info!("[{node_name}] start to listen external events");
                         let log_message = ListenExternalEventsMsg::new(node_name.clone());
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::ListenAndHandleExternalEvents.to_string(), &strategy_output_handle).await;
                         self.listen_external_events().await;
+                    }
+
+                    OrderNodeStateAction::GetSymbolInfo => {
+                        tracing::info!("[{node_name}] start to get symbol info");
+                        let log_message = GetSymbolInfoMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::GetSymbolInfo.to_string(), &strategy_output_handle).await;
+                        let context = self.get_context();
+                        let mut context_guard = context.write().await;
+                        let futures_order_node_context = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap();
+                        let result = futures_order_node_context.get_symbol_info().await;
+                        if let Err(e) = result {
+                            NodeUtils::send_error_status_event(strategy_id, node_id.clone(), node_name.clone(), OrderNodeStateAction::GetSymbolInfo.to_string(), &e, &strategy_output_handle).await;
+                            return Err(e.into());
+                        }
+                        tracing::info!("[{node_name}] get symbol info success");
+                        
+
                     }
                     OrderNodeStateAction::RegisterTask => {
                         tracing::info!("[{node_name}] registering heartbeat monitoring task");
@@ -406,20 +422,20 @@ impl BacktestNodeTrait for FuturesOrderNode {
                         order_node_context.monitor_unfilled_order().await;
                     }
                     OrderNodeStateAction::ListenAndHandleNodeEvents => {
-                        tracing::info!("[{node_name}] starting to listen node events");
+                        tracing::info!("[{node_name}] start to listen node events");
                         let log_message = ListenNodeEventsMsg::new(node_name.clone());
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::ListenAndHandleNodeEvents.to_string(), &strategy_output_handle).await;
                         self.listen_node_events().await;
                     }
                     OrderNodeStateAction::ListenAndHandleStrategyCommand => {
-                        tracing::info!("[{node_name}] starting to listen strategy command");
+                        tracing::info!("[{node_name}] start to listen strategy command");
                         let log_message = ListenStrategyCommandMsg::new(node_name.clone());
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::ListenAndHandleStrategyCommand.to_string(), &strategy_output_handle).await;
                         self.listen_strategy_command().await;
                     }
 
                     OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent => {
-                        tracing::info!("[{node_name}] starting to listen virtual trading system events");
+                        tracing::info!("[{node_name}] start to listen virtual trading system events");
                         let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent.to_string(), &strategy_output_handle).await;
                         let _ = self.listen_virtual_trading_system_events().await;

@@ -1,5 +1,6 @@
 use super::{BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey};
 use chrono::Utc;
+use event_center::communication::engine::market_engine::GetSymbolInfoCmdPayload;
 use snafu::IntoError;
 use star_river_core::{error::engine_error::strategy_error::backtest_strategy_error::*, market::Kline};
 use std::collections::HashMap;
@@ -96,6 +97,7 @@ impl BacktestStrategy {
             if let Key::Kline(kline_key) = key {
                 let symbol = kline_key.get_symbol();
                 let interval = kline_key.get_interval();
+                // 是否需要替换（如果存在，且interval小于已存在的，则替换）
                 let should_replace = min_symbol_map
                     .get(&symbol)
                     .map(|existing| interval < existing.get_interval())
@@ -118,10 +120,6 @@ impl BacktestStrategy {
             return Ok(());
         }
 
-        if min_symbol_map.len() == 1 {
-            tracing::info!("[{}] have only one symbol", strategy_name);
-        }
-
         let min_interval_symbols: Vec<KlineKey> = min_symbol_map.into_values().collect();
         let reference_interval = min_interval_symbols[0].get_interval();
         if min_interval_symbols.iter().any(|key| key.get_interval() != reference_interval) {
@@ -138,13 +136,12 @@ impl BacktestStrategy {
         context_guard.set_min_interval_symbols(min_interval_symbols.clone());
 
         let mut virtual_trading_system_guard = context_guard.virtual_trading_system.lock().await;
-        let now = Utc::now();
         let mut kline_price = HashMap::with_capacity(min_interval_symbols.len());
         for kline_key in min_interval_symbols {
             kline_price.insert(
                 kline_key,
                 Kline {
-                    datetime: now,
+                    datetime: Utc::now(),
                     open: 0.0,
                     high: 0.0,
                     low: 0.0,

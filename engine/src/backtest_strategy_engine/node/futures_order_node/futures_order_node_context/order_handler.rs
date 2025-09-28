@@ -3,6 +3,7 @@ use super::super::futures_order_node_types::*;
 use super::FuturesOrderNodeContext;
 use crate::backtest_strategy_engine::node::node_context::BacktestNodeContextTrait;
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType};
+use snafu::OptionExt;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::futures_order_node_error::*;
 
 impl FuturesOrderNodeContext {
@@ -31,7 +32,7 @@ impl FuturesOrderNodeContext {
 
         let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
         let exchange = self
-            .backtest_config
+            .node_config
             .exchange_mode_config
             .as_ref()
             .unwrap()
@@ -39,6 +40,12 @@ impl FuturesOrderNodeContext {
             .exchange
             .clone();
         // 创建订单
+        // 获取symbol的point
+        let point = self.symbol_info
+            .iter()
+            .find(|s| s.name == order_config.symbol)
+            .context(SymbolInfoNotFoundSnafu { symbol: order_config.symbol.clone() })?
+            .point();
         let create_order_result = virtual_trading_system_guard.create_order(
             self.get_strategy_id().clone(),
             self.get_node_id().clone(),
@@ -53,6 +60,7 @@ impl FuturesOrderNodeContext {
             order_config.sl,
             order_config.tp_type.clone(),
             order_config.sl_type.clone(),
+            Some(point as f64),
         );
 
         drop(virtual_trading_system_guard);

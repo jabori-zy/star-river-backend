@@ -60,7 +60,7 @@ impl FuturesOrderNodeContext {
                 if condition_match_evt.play_index == self.get_play_index() {
                     // 根据input_handle_id获取订单配置
                     let order_config = {
-                        self.backtest_config
+                        self.node_config
                             .futures_order_configs
                             .iter()
                             .find(|config| config.input_handle_id == *input_handle_id)

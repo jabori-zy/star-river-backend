@@ -8,20 +8,31 @@ use strum::Display;
 pub enum OrderNodeStateAction {
     #[strum(serialize = "ListenAndHandleExternalEvents")]
     ListenAndHandleExternalEvents, // 处理外部事件
+
     #[strum(serialize = "ListenAndHandleNodeEvents")]
     ListenAndHandleNodeEvents, // 处理消息
+
     #[strum(serialize = "ListenAndHandleStrategyCommand")]
     ListenAndHandleStrategyCommand, // 处理策略命令
+
     #[strum(serialize = "ListenAndHandleVirtualTradingSystemEvent")]
     ListenAndHandleVirtualTradingSystemEvent, // 处理虚拟交易系统事件
+
+    #[strum(serialize = "GetSymbolInfo")]
+    GetSymbolInfo, // 获取交易对信息
+
     #[strum(serialize = "RegisterTask")]
     RegisterTask, // 注册任务
+
     #[strum(serialize = "LogNodeState")]
     LogNodeState, // 记录节点状态
+
     #[strum(serialize = "LogTransition")]
     LogTransition, // 记录状态转换
+
     #[strum(serialize = "LogError")]
     LogError(String), // 记录错误
+
     #[strum(serialize = "CancelAsyncTask")]
     CancelAsyncTask, // 取消异步任务
 }
@@ -101,6 +112,7 @@ impl BacktestNodeStateMachine for OrderNodeStateMachine {
                         Box::new(OrderNodeStateAction::ListenAndHandleNodeEvents),
                         Box::new(OrderNodeStateAction::ListenAndHandleStrategyCommand),
                         Box::new(OrderNodeStateAction::ListenAndHandleVirtualTradingSystemEvent),
+                        Box::new(OrderNodeStateAction::GetSymbolInfo),
                         Box::new(OrderNodeStateAction::RegisterTask),
                     ],
                 }))

@@ -7,11 +7,9 @@ pub(crate) mod utils;
 use event_center::communication::backtest_strategy::{
     BacktestStrategyCommand, GetKlineDataCmdPayload, GetKlineDataCommand, StrategyCommandSender,
 };
-use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
-use event_center::communication::engine::cache_engine::{CacheEngineCommand, GetKlineCacheCommand};
 use star_river_core::custom_type::*;
-use star_river_core::key::Key;
 use star_river_core::key::key::KlineKey;
+use star_river_core::market::Symbol;
 use star_river_core::order::OrderType;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
@@ -19,7 +17,6 @@ use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
 use chrono::{DateTime, Utc};
-use event_center::EventCenterSingleton;
 use event_center::communication::Response;
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::market::Exchange;

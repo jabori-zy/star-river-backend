@@ -74,6 +74,7 @@ impl VirtualOrder {
         sl: Option<f64>,
         tp_type: Option<TpslType>,
         sl_type: Option<TpslType>,
+        point: Option<f64>,
         datetime: DateTime<Utc>,
     ) -> Self {
         Self {
@@ -88,15 +89,15 @@ impl VirtualOrder {
             order_type,
             quantity,
             open_price,
-            tp: Self::calculate_tp(open_price, tp, &tp_type, &order_side),
-            sl: Self::calculate_sl(open_price, sl, &sl_type, &order_side),
+            tp: Self::calculate_tp(open_price, tp, &tp_type, &order_side, point),
+            sl: Self::calculate_sl(open_price, sl, &sl_type, &order_side, point),
             order_status: OrderStatus::Created,
             create_time: datetime,
             update_time: datetime,
         }
     }
 
-    fn calculate_tp(open_price: f64, tp: Option<f64>, tp_type: &Option<TpslType>, order_side: &FuturesOrderSide) -> Option<f64> {
+    fn calculate_tp(open_price: f64, tp: Option<f64>, tp_type: &Option<TpslType>, order_side: &FuturesOrderSide, point: Option<f64>) -> Option<f64> {
         // 止盈
         if let Some(tp) = tp {
             if let Some(tp_type) = tp_type.clone() {
@@ -112,7 +113,21 @@ impl VirtualOrder {
                             return Some(open_price * (1.0 - tp / 100.0));
                         }
                         _ => return None,
-                    },
+                    }
+                    TpslType::Point => {
+                        if let Some(point) = point {
+                            match order_side {
+                                FuturesOrderSide::OpenLong => {
+                                    return Some(open_price + tp * point);
+                                }
+                                FuturesOrderSide::OpenShort => {
+                                    return Some(open_price - tp * point);
+                                }
+                                    _ => return None,
+                                }
+                        }
+                        return None;
+                    }
                 }
             }
             return None;
@@ -120,7 +135,7 @@ impl VirtualOrder {
         None
     }
 
-    fn calculate_sl(open_price: f64, sl: Option<f64>, sl_type: &Option<TpslType>, order_side: &FuturesOrderSide) -> Option<f64> {
+    fn calculate_sl(open_price: f64, sl: Option<f64>, sl_type: &Option<TpslType>, order_side: &FuturesOrderSide, point: Option<f64>) -> Option<f64> {
         // 止损
         if let Some(sl) = sl {
             if let Some(sl_type) = sl_type.clone() {
@@ -136,7 +151,21 @@ impl VirtualOrder {
                             return Some(open_price * (1.0 + sl / 100.0));
                         }
                         _ => return None,
-                    },
+                    }
+                    TpslType::Point => {
+                        if let Some(point) = point {
+                            match order_side {
+                                FuturesOrderSide::OpenLong => {
+                                    return Some(open_price - sl * point);
+                                }
+                                FuturesOrderSide::OpenShort => {
+                                    return Some(open_price + sl * point);
+                                }
+                                    _ => return None,
+                            }
+                        }
+                        return None;
+                    }
                 }
             }
             return None;

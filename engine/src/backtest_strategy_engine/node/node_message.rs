@@ -125,8 +125,8 @@ pub mod common_log_message {
             event_type: String,
             error: String
         ),
-        en: "Node [{node_name}({node_id})] event sending failed - Output: {output_handle_id}, Type: {event_type}, Error: {error}",
-        zh: "{node_name} ({node_id}) 事件发送失败 - 输出: {output_handle_id}, 类型: {event_type}, 错误: {error}"
+        en: "Node [{node_name}] event sending failed - Output: {output_handle_id}, Type: {event_type}, Error: {error}",
+        zh: "{node_name}  事件发送失败 - 输出: {output_handle_id}, 类型: {event_type}, 错误: {error}"
     );
 
     // 获取K线缓存失败消息 - 多个节点有
@@ -136,8 +136,8 @@ pub mod common_log_message {
             symbol: String,
             error: String
         ),
-        en: "Node [{node_name}({node_id})] failed to get kline cache - Symbol: {symbol}, Error: {error}",
-        zh: "{node_name} ({node_id}) 获取K线缓存失败 - 交易对: {symbol}, 错误: {error}"
+        en: "Node [{node_name}] failed to get kline cache - Symbol: {symbol}, Error: {error}",
+        zh: "{node_name}  获取K线缓存失败 - 交易对: {symbol}, 错误: {error}"
     );
 
     // 虚拟交易系统事件监听终止消息 - 部分节点有
@@ -147,8 +147,8 @@ pub mod common_log_message {
             node_id: String,
             node_name: String,
         ),
-        en: "Node [{node_name}({node_id})] virtual trading system event monitoring terminated",
-        zh: "{node_name} ({node_id}) 虚拟交易系统事件监听已终止"
+        en: "Node [{node_name}] virtual trading system event monitoring terminated",
+        zh: "{node_name}  虚拟交易系统事件监听已终止"
     );
 
     log_message!(
@@ -269,8 +269,8 @@ pub mod start_node_log_message {
             node_name: String,
             signal_index: i32
         ),
-        en: "Start Node [{node_name}({node_id})] finish signal sent successfully: {signal_index}",
-        zh: "{node_name} ({node_id}) 完成信号发送成功: {signal_index}"
+        en: "Start Node [{node_name}] finish signal sent successfully: {signal_index}",
+        zh: "{node_name}  完成信号发送成功: {signal_index}"
     );
 
     log_message!(
@@ -281,8 +281,8 @@ pub mod start_node_log_message {
             signal_index: i32,
             error: String
         ),
-        en: "Start Node [{node_name}({node_id})] finish signal sending failed: {signal_index}, Error: {error}",
-        zh: "{node_name} ({node_id}) 完成信号发送失败: {signal_index}, 错误: {error}"
+        en: "Start Node [{node_name}] finish signal sending failed: {signal_index}, Error: {error}",
+        zh: "{node_name}  完成信号发送失败: {signal_index}, 错误: {error}"
     );
 }
 
@@ -583,8 +583,8 @@ pub mod position_management_node_log_message {
             operation_id: i32,
             operation_type: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] executing position operation - ID: {operation_id}, Type: {operation_type}",
-        zh: "{node_name} ({node_id}) 执行仓位操作 - ID: {operation_id}, 类型: {operation_type}"
+        en: "PositionManagement Node [{node_name}] executing position operation - ID: {operation_id}, Type: {operation_type}",
+        zh: "{node_name}  执行仓位操作 - ID: {operation_id}, 类型: {operation_type}"
     );
 
     log_message!(
@@ -595,8 +595,8 @@ pub mod position_management_node_log_message {
             operation_id: i32,
             operation_type: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] position operation successful - ID: {operation_id}, Type: {operation_type}",
-        zh: "{node_name} ({node_id}) 仓位操作成功 - ID: {operation_id}, 类型: {operation_type}"
+        en: "PositionManagement Node [{node_name}] position operation successful - ID: {operation_id}, Type: {operation_type}",
+        zh: "{node_name}  仓位操作成功 - ID: {operation_id}, 类型: {operation_type}"
     );
 
     log_message!(
@@ -608,8 +608,8 @@ pub mod position_management_node_log_message {
             operation_type: String,
             error: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] position operation failed - ID: {operation_id}, Type: {operation_type}, Error: {error}",
-        zh: "{node_name} ({node_id}) 仓位操作失败 - ID: {operation_id}, 类型: {operation_type}, 错误: {error}"
+        en: "PositionManagement Node [{node_name}] position operation failed - ID: {operation_id}, Type: {operation_type}, Error: {error}",
+        zh: "{node_name}  仓位操作失败 - ID: {operation_id}, 类型: {operation_type}, 错误: {error}"
     );
 
     log_message!(
@@ -619,8 +619,8 @@ pub mod position_management_node_log_message {
             node_name: String,
             symbol: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] getting current position for symbol: {symbol}",
-        zh: "{node_name} ({node_id}) 获取交易对当前仓位: {symbol}"
+        en: "PositionManagement Node [{node_name}] getting current position for symbol: {symbol}",
+        zh: "{node_name}  获取交易对当前仓位: {symbol}"
     );
 
     log_message!(
@@ -632,8 +632,8 @@ pub mod position_management_node_log_message {
             size: f64,
             side: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] current position - Symbol: {symbol}, Size: {size}, Side: {side}",
-        zh: "{node_name} ({node_id}) 当前仓位 - 交易对: {symbol}, 数量: {size}, 方向: {side}"
+        en: "PositionManagement Node [{node_name}] current position - Symbol: {symbol}, Size: {size}, Side: {side}",
+        zh: "{node_name}  当前仓位 - 交易对: {symbol}, 数量: {size}, 方向: {side}"
     );
 
     log_message!(
@@ -644,8 +644,8 @@ pub mod position_management_node_log_message {
             symbol: String,
             quantity: f64
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] closing position - Symbol: {symbol}, Quantity: {quantity}",
-        zh: "{node_name} ({node_id}) 平仓 - 交易对: {symbol}, 数量: {quantity}"
+        en: "PositionManagement Node [{node_name}] closing position - Symbol: {symbol}, Quantity: {quantity}",
+        zh: "{node_name}  平仓 - 交易对: {symbol}, 数量: {quantity}"
     );
 
     log_message!(
@@ -656,8 +656,8 @@ pub mod position_management_node_log_message {
             symbol: String,
             closed_quantity: f64
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] position closed successfully - Symbol: {symbol}, Closed Quantity: {closed_quantity}",
-        zh: "{node_name} ({node_id}) 平仓成功 - 交易对: {symbol}, 平仓数量: {closed_quantity}"
+        en: "PositionManagement Node [{node_name}] position closed successfully - Symbol: {symbol}, Closed Quantity: {closed_quantity}",
+        zh: "{node_name}  平仓成功 - 交易对: {symbol}, 平仓数量: {closed_quantity}"
     );
 
     log_message!(
@@ -668,8 +668,8 @@ pub mod position_management_node_log_message {
             symbol: String,
             error: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] position closing failed - Symbol: {symbol}, Error: {error}",
-        zh: "{node_name} ({node_id}) 平仓失败 - 交易对: {symbol}, 错误: {error}"
+        en: "PositionManagement Node [{node_name}] position closing failed - Symbol: {symbol}, Error: {error}",
+        zh: "{node_name}  平仓失败 - 交易对: {symbol}, 错误: {error}"
     );
 
     log_message!(
@@ -681,8 +681,8 @@ pub mod position_management_node_log_message {
             old_size: f64,
             new_size: f64
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] adjusting position size - Symbol: {symbol}, From: {old_size}, To: {new_size}",
-        zh: "{node_name} ({node_id}) 调整仓位大小 - 交易对: {symbol}, 从: {old_size}, 到: {new_size}"
+        en: "PositionManagement Node [{node_name}] adjusting position size - Symbol: {symbol}, From: {old_size}, To: {new_size}",
+        zh: "{node_name}  调整仓位大小 - 交易对: {symbol}, 从: {old_size}, 到: {new_size}"
     );
 
     log_message!(
@@ -694,8 +694,8 @@ pub mod position_management_node_log_message {
             unrealized_pnl: f64,
             realized_pnl: f64
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] position P&L calculated - Symbol: {symbol}, Unrealized: {unrealized_pnl}, Realized: {realized_pnl}",
-        zh: "{node_name} ({node_id}) 计算仓位盈亏 - 交易对: {symbol}, 浮动盈亏: {unrealized_pnl}, 已实现盈亏: {realized_pnl}"
+        en: "PositionManagement Node [{node_name}] position P&L calculated - Symbol: {symbol}, Unrealized: {unrealized_pnl}, Realized: {realized_pnl}",
+        zh: "{node_name}  计算仓位盈亏 - 交易对: {symbol}, 浮动盈亏: {unrealized_pnl}, 已实现盈亏: {realized_pnl}"
     );
 
     log_message!(
@@ -705,8 +705,8 @@ pub mod position_management_node_log_message {
             node_name: String,
             event_type: String
         ),
-        en: "PositionManagement Node [{node_name}({node_id})] handling virtual trading system event - Type: {event_type}",
-        zh: "{node_name} ({node_id}) 处理虚拟交易系统事件 - 类型: {event_type}"
+        en: "PositionManagement Node [{node_name}] handling virtual trading system event - Type: {event_type}",
+        zh: "{node_name}  处理虚拟交易系统事件 - 类型: {event_type}"
     );
 }
 
@@ -719,13 +719,12 @@ pub mod variable_node_log_message {
     log_message!(
         GetVariableMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             variable_type: String
         ),
-        en: "Variable Node [{node_name}({node_id})] getting variable - Name: {variable_name}, Type: {variable_type}",
-        zh: "{node_name} ({node_id}) 获取变量 - 名称: {variable_name}, 类型: {variable_type}"
+        en: "[{node_name}] getting variable - Name: {variable_name}, Type: {variable_type}",
+        zh: "[{node_name}] 获取变量 - 名称: {variable_name}, 类型: {variable_type}"
     );
 
     log_message!(
@@ -736,138 +735,127 @@ pub mod variable_node_log_message {
             variable_name: String,
             value: String
         ),
-        en: "Variable Node [{node_name}({node_id})] variable retrieved successfully - Name: {variable_name}, Value: {value}",
-        zh: "{node_name} ({node_id}) 变量获取成功 - 名称: {variable_name}, 值: {value}"
+        en: "[{node_name}] variable retrieved successfully - Name: {variable_name}, Value: {value}",
+        zh: "[{node_name}] 变量获取成功 - 名称: {variable_name}, 值: {value}"
     );
 
     log_message!(
         GetVariableFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             error: String
         ),
-        en: "Variable Node [{node_name}({node_id})] variable retrieval failed - Name: {variable_name}, Error: {error}",
-        zh: "{node_name} ({node_id}) 变量获取失败 - 名称: {variable_name}, 错误: {error}"
+        en: "[{node_name}] variable retrieval failed - Name: {variable_name}, Error: {error}",
+        zh: "[{node_name}] 变量获取失败 - 名称: {variable_name}, 错误: {error}"
     );
 
     log_message!(
         SetVariableMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             value: String
         ),
-        en: "Variable Node [{node_name}({node_id})] setting variable - Name: {variable_name}, Value: {value}",
-        zh: "{node_name} ({node_id}) 设置变量 - 名称: {variable_name}, 值: {value}"
+        en: "[{node_name}] setting variable - Name: {variable_name}, Value: {value}",
+        zh: "[{node_name}] 设置变量 - 名称: {variable_name}, 值: {value}"
     );
 
     log_message!(
         SetVariableSuccessMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             value: String
         ),
-        en: "Variable Node [{node_name}({node_id})] variable set successfully - Name: {variable_name}, Value: {value}",
-        zh: "{node_name} ({node_id}) 变量设置成功 - 名称: {variable_name}, 值: {value}"
+        en: "[{node_name}] variable set successfully - Name: {variable_name}, Value: {value}",
+        zh: "[{node_name}] 变量设置成功 - 名称: {variable_name}, 值: {value}"
     );
 
     log_message!(
         SetVariableFailedMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             error: String
         ),
-        en: "Variable Node [{node_name}({node_id})] variable setting failed - Name: {variable_name}, Error: {error}",
-        zh: "{node_name} ({node_id}) 变量设置失败 - 名称: {variable_name}, 错误: {error}"
+        en: "[{node_name}] variable setting failed - Name: {variable_name}, Error: {error}",
+        zh: "[{node_name}] 变量设置失败 - 名称: {variable_name}, 错误: {error}"
     );
 
     log_message!(
         ProcessVariableConfigMsg,
         params: (
-            node_id: String,
             node_name: String,
             config_id: i32,
             variable_count: usize
         ),
-        en: "Variable Node [{node_name}({node_id})] processing variable config - Config ID: {config_id}, Variable Count: {variable_count}",
-        zh: "{node_name} ({node_id}) 处理变量配置 - 配置ID: {config_id}, 变量数量: {variable_count}"
+        en: "[{node_name}] processing variable config - Config ID: {config_id}, Variable Count: {variable_count}",
+        zh: "[{node_name}] 处理变量配置 - 配置ID: {config_id}, 变量数量: {variable_count}"
     );
 
     log_message!(
         SendVariableValueMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             output_handle_id: String,
             value: String
         ),
-        en: "Variable Node [{node_name}({node_id})] sending variable value - Name: {variable_name}, Output: {output_handle_id}, Value: {value}",
-        zh: "{node_name} ({node_id}) 发送变量值 - 名称: {variable_name}, 输出: {output_handle_id}, 值: {value}"
+        en: "[{node_name}] sending variable value - Name: {variable_name}, Output: {output_handle_id}, Value: {value}",
+        zh: "[{node_name}] 发送变量值 - 名称: {variable_name}, 输出: {output_handle_id}, 值: {value}"
     );
 
     log_message!(
         HandleNodeEventMsg,
         params: (
-            node_id: String,
             node_name: String,
             from_node_id: String,
             event_type: String
         ),
-        en: "Variable Node [{node_name}({node_id})] handling node event - From: {from_node_id}, Type: {event_type}",
-        zh: "{node_name} ({node_id}) 处理节点事件 - 来源: {from_node_id}, 类型: {event_type}"
+        en: "[{node_name}] handling node event - From: {from_node_id}, Type: {event_type}",
+        zh: "[{node_name}] 处理节点事件 - 来源: {from_node_id}, 类型: {event_type}"
     );
 
     log_message!(
         VariableStorageMsg,
         params: (
-            node_id: String,
             node_name: String,
             operation: String,
             variable_name: String
         ),
-        en: "Variable Node [{node_name}({node_id})] variable storage operation - Operation: {operation}, Variable: {variable_name}",
-        zh: "{node_name} ({node_id}) 变量存储操作 - 操作: {operation}, 变量: {variable_name}"
+        en: "[{node_name}] variable storage operation - Operation: {operation}, Variable: {variable_name}",
+        zh: "[{node_name}] 变量存储操作 - 操作: {operation}, 变量: {variable_name}"
     );
 
     log_message!(
         ValidateVariableValueMsg,
         params: (
-            node_id: String,
             node_name: String,
             variable_name: String,
             value: String,
             is_valid: bool
         ),
-        en: "Variable Node [{node_name}({node_id})] variable value validation - Name: {variable_name}, Value: {value}, Valid: {is_valid}",
-        zh: "{node_name} ({node_id}) 变量值验证 - 名称: {variable_name}, 值: {value}, 有效: {is_valid}"
+        en: "[{node_name}] variable value validation - Name: {variable_name}, Value: {value}, Valid: {is_valid}",
+        zh: "[{node_name}] 变量值验证 - 名称: {variable_name}, 值: {value}, 有效: {is_valid}"
     );
 
     log_message!(
         RegisterVariableRetrievalTaskMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Variable Node [{node_name}({node_id})] registering variable retrieval task",
-        zh: "{node_name} ({node_id}) 注册变量获取任务"
+        en: "[{node_name}] registering variable retrieval task",
+        zh: "[{node_name}] 注册变量获取任务"
     );
 
     log_message!(
         RegisterVariableRetrievalTaskSuccessMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "Variable Node [{node_name}({node_id})] variable retrieval task registration successful",
-        zh: "{node_name} ({node_id}) 变量获取任务注册成功"
+        en: "[{node_name}] variable retrieval task registration successful",
+        zh: "[{node_name}] 变量获取任务注册成功"
     );
 }
 
@@ -890,11 +878,10 @@ pub mod futures_order_node_log_message {
     log_message!(
         MonitorUnfilledOrderMsg,
         params: (
-            node_id: String,
             node_name: String
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] starting to monitor unfilled orders",
-        zh: "{node_name} ({node_id}) 开始监控未成交订单"
+        en: "[{node_name}] starting to monitor unfilled orders",
+        zh: "{node_name}  开始监控未成交订单"
     );
 
     log_message!(
@@ -906,19 +893,18 @@ pub mod futures_order_node_log_message {
             side: String
         ),
         en: "order created successfully - Order ID: {order_id}, Config ID: {order_config_id} price: {price} side: {side}",
-        zh: "订单创建成功 - 订单ID: {order_id}, 配置ID: {order_config_id} 价格: {price} 方向: {side}"
+        zh: "[{node_name}] 订单创建成功 - 订单ID: {order_id}, 配置ID: {order_config_id} 价格: {price} 方向: {side}"
     );
 
     log_message!(
         OrderPlacedMsg,
         params: (
-            node_id: String,
             node_name: String,
             order_id: OrderId,
             order_config_id: i32
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order placed successfully - Order ID: {order_id}, Config ID: {order_config_id}",
-        zh: "{node_name} ({node_id}) 订单下单成功 - 订单ID: {order_id}, 配置ID: {order_config_id}"
+        en: "[{node_name}] order placed successfully - Order ID: {order_id}, Config ID: {order_config_id}",
+        zh: "[{node_name}] 订单下单成功 - 订单ID: {order_id}, 配置ID: {order_config_id}"
     );
 
     log_message!(
@@ -929,8 +915,8 @@ pub mod futures_order_node_log_message {
             filled_quantity: f64,
             remaining_quantity: f64
         ),
-        en: "[{node_name}({node_id})] order partially filled - Order ID: {order_id}, Filled: {filled_quantity}, Remaining: {remaining_quantity}",
-        zh: "{node_name} ({node_id}) 订单部分成交 - 订单ID: {order_id}, 已成交: {filled_quantity}, 剩余: {remaining_quantity}"
+        en: "[{node_name}] order partially filled - Order ID: {order_id}, Filled: {filled_quantity}, Remaining: {remaining_quantity}",
+        zh: "[{node_name}] 订单部分成交 - 订单ID: {order_id}, 已成交: {filled_quantity}, 剩余: {remaining_quantity}"
     );
 
     log_message!(
@@ -962,7 +948,7 @@ pub mod futures_order_node_log_message {
             order_id: OrderId
         ),
         en: "[{node_name}] order expired - Order ID: {order_id}",
-        zh: "{node_name} ({node_id}) 订单已过期 - 订单ID: {order_id}"
+        zh: "[{node_name}] 订单已过期 - 订单ID: {order_id}"
     );
 
     log_message!(
@@ -972,8 +958,8 @@ pub mod futures_order_node_log_message {
             order_id: String,
             reason: String
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order rejected - Order ID: {order_id}, Reason: {reason}",
-        zh: "{node_name} ({node_id}) 订单被拒绝 - 订单ID: {order_id}, 原因: {reason}"
+        en: "[{node_name}] order rejected - Order ID: {order_id}, Reason: {reason}",
+        zh: "[{node_name}] 订单被拒绝 - 订单ID: {order_id}, 原因: {reason}"
     );
 
     log_message!(
@@ -983,69 +969,75 @@ pub mod futures_order_node_log_message {
             order_id: String,
             error: String
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] order error - Order ID: {order_id}, Error: {error}",
-        zh: "{node_name} ({node_id}) 订单错误 - 订单ID: {order_id}, 错误: {error}"
+        en: "[{node_name}] order error - Order ID: {order_id}, Error: {error}",
+        zh: "[{node_name}] 订单错误 - 订单ID: {order_id}, 错误: {error}"
     );
 
     log_message!(
         HandleVirtualTradingSystemEventMsg,
         params: (
-            node_id: String,
             node_name: String,
             event_type: String
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] handling virtual trading system event - Type: {event_type}",
-        zh: "{node_name} ({node_id}) 处理虚拟交易系统事件 - 类型: {event_type}"
+        en: "FuturesOrder Node [{node_name}] handling virtual trading system event - Type: {event_type}",
+        zh: "{node_name}  处理虚拟交易系统事件 - 类型: {event_type}"
     );
 
     log_message!(
         HandleNodeEventForSpecificOrderMsg,
         params: (
-            node_id: String,
             node_name: String,
             input_handle_id: String,
             order_config_id: i32
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] handling node event for specific order - Input: {input_handle_id}, Order Config: {order_config_id}",
-        zh: "{node_name} ({node_id}) 处理特定订单的节点事件 - 输入: {input_handle_id}, 订单配置: {order_config_id}"
+        en: "[{node_name}] handling node event for specific order - Input: {input_handle_id}, Order Config: {order_config_id}",
+        zh: "[{node_name}] 处理特定订单的节点事件 - 输入: {input_handle_id}, 订单配置: {order_config_id}"
     );
 
     log_message!(
         TakeProfitTriggeredMsg,
         params: (
-            node_id: String,
             node_name: String,
             order_id: String,
             tp_price: f64,
             current_price: f64
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] take profit triggered - Order ID: {order_id}, TP Price: {tp_price}, Current Price: {current_price}",
-        zh: "{node_name} ({node_id}) 止盈触发 - 订单ID: {order_id}, 止盈价: {tp_price}, 当前价: {current_price}"
+        en: "[{node_name}] take profit triggered - Order ID: {order_id}, TP Price: {tp_price}, Current Price: {current_price}",
+        zh: "[{node_name}] 止盈触发 - 订单ID: {order_id}, 止盈价: {tp_price}, 当前价: {current_price}"
     );
 
     log_message!(
         StopLossTriggeredMsg,
         params: (
-            node_id: String,
             node_name: String,
             order_id: String,
             sl_price: f64,
             current_price: f64
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] stop loss triggered - Order ID: {order_id}, SL Price: {sl_price}, Current Price: {current_price}",
-        zh: "{node_name} ({node_id}) 止损触发 - 订单ID: {order_id}, 止损价: {sl_price}, 当前价: {current_price}"
+        en: "[{node_name}] stop loss triggered - Order ID: {order_id}, SL Price: {sl_price}, Current Price: {current_price}",
+        zh: "[{node_name}] 止损触发 - 订单ID: {order_id}, 止损价: {sl_price}, 当前价: {current_price}"
     );
 
     log_message!(
         NodeEventReceiverTerminatedMsg,
         params: (
-            node_id: String,
             node_name: String,
             input_handle_id: String
         ),
-        en: "FuturesOrder Node [{node_name}({node_id})] node event receiver terminated - Input: {input_handle_id}",
-        zh: "{node_name} ({node_id}) 节点事件接收器已终止 - 输入: {input_handle_id}"
+        en: "[{node_name}] node event receiver terminated - Input: {input_handle_id}",
+        zh: "[{node_name}] 节点事件接收器已终止 - 输入: {input_handle_id}"
     );
+
+    log_message!(
+        GetSymbolInfoMsg,
+        params: (
+            node_name: String
+        ),
+        en: "[{node_name}] starting to get symbol info",
+        zh: "[{node_name}] 开始获取交易对信息"
+    );
+        
+    
 }
 
 // OrderNode 特有的日志消息 (保留以便未来扩展)

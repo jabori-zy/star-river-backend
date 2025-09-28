@@ -69,7 +69,6 @@ pub struct BacktestStrategyContext {
     pub all_node_output_handles: Vec<NodeOutputHandle>,         // 接收策略内所有节点的消息
     pub database: DatabaseConnection,                           // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>,                       // 心跳
-    // pub registered_tasks: Arc<RwLock<HashMap<String, Uuid>>>,        // 注册的任务 任务名称-> 任务id
     pub strategy_command_sender: StrategyCommandSender,
     pub strategy_command_receiver: Arc<Mutex<StrategyCommandReceiver>>, // 接收节点的命令
     pub node_command_sender: HashMap<NodeId, NodeCommandSender>,        // 节点命令发送器

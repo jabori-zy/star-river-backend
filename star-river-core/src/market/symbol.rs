@@ -1,15 +1,17 @@
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{ToSchema};
+
 
 use super::Exchange;
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 pub struct Symbol {
     pub name: String,
     pub base: Option<String>,
     pub quote: Option<String>,
     pub exchange: Exchange,
-    pub point: f32,
+    #[schema(value_type = f32, example = "2024-01-01T12:00:00Z")]
+    pub point: ordered_float::OrderedFloat<f32>,
 }
 
 impl Symbol {
@@ -26,7 +28,7 @@ impl Symbol {
             base: base.map(|s| s.to_string()),
             quote: quote.map(|s| s.to_string()),
             exchange,
-            point,
+            point: ordered_float::OrderedFloat::from(point),
         }
     }
 
@@ -43,7 +45,7 @@ impl Symbol {
     }
 
     pub fn point(&self) -> f32 {
-        self.point
+        self.point.into_inner()
     }
 
     // /// Check if this is a BTC pair

@@ -32,6 +32,7 @@ impl VirtualTradingSystem {
         sl: Option<f64>,
         tp_type: Option<TpslType>,
         sl_type: Option<TpslType>,
+        point: Option<f64>,
     ) -> Result<(), VirtualTradingSystemError> {
         let order_id = self.generate_order_id();
         let kline_key = self.get_kline_key(&exchange, &symbol);
@@ -63,7 +64,9 @@ impl VirtualTradingSystem {
                         sl,
                         tp_type,
                         sl_type,
+                        point,
                         current_datetime,
+                        
                     );
                     tracing::debug!("market order created: {:?}", market_order);
 
@@ -95,6 +98,7 @@ impl VirtualTradingSystem {
                         sl,
                         tp_type,
                         sl_type,
+                        point,
                         current_datetime,
                     );
                     tracing::debug!("limit order created: {:?}", limit_order);
@@ -264,7 +268,9 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
+                None,
                 self.current_datetime,
+                
             );
             return Some(tp_order);
         }
@@ -297,7 +303,8 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
-                self.current_datetime,
+                None,
+                self.current_datetime
             );
             return Some(sl_order);
         }

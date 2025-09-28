@@ -1,26 +1,23 @@
 mod context_impl;
 mod event_handler;
 mod order_handler;
+mod status_handler;
 
 use super::futures_order_node_types::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use event_center::EventCenterSingleton;
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::GetStrategyKeysCommand;
-use event_center::communication::engine::EngineResponse;
-use event_center::communication::engine::cache_engine::GetKlineCacheCmdPayload;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::InputHandleId;
 use star_river_core::custom_type::OrderId;
 use star_river_core::key::Key;
-use star_river_core::key::key::KlineKey;
-use star_river_core::market::KlineInterval;
 use star_river_core::order::OrderStatus;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
-
+use star_river_core::error::engine_error::strategy_engine_error::node_error::futures_order_node_error::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -28,11 +25,13 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use virtual_trading::VirtualTradingSystem;
+use event_center::communication::engine::market_engine::{GetSymbolInfoCmdPayload, GetSymbolInfoCommand, MarketEngineCommand};
+use star_river_core::market::Symbol;
 
 #[derive(Debug)]
 pub struct FuturesOrderNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub backtest_config: FuturesOrderNodeBacktestConfig,
+    pub node_config: FuturesOrderNodeBacktestConfig,
     pub is_processing_order: Arc<RwLock<HashMap<InputHandleId, bool>>>, // 是否正在处理订单 input_handle_id -> is_processing_order
     pub database: DatabaseConnection,                                   // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>,                               // 心跳
@@ -41,14 +40,14 @@ pub struct FuturesOrderNodeContext {
     pub unfilled_virtual_order: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 未成交的虚拟订单列表 input_handle_id -> unfilled_virtual_order
     pub virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     pub virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
-    pub min_kline_interval: Option<KlineInterval>, // 最小K线间隔(最新价格只需要获取最小间隔的价格即可)
+    symbol_info: Vec<Symbol>, // 交易对信息
 }
 
 impl Clone for FuturesOrderNodeContext {
     fn clone(&self) -> Self {
         Self {
             base_context: self.base_context.clone(),
-            backtest_config: self.backtest_config.clone(),
+            node_config: self.node_config.clone(),
             is_processing_order: self.is_processing_order.clone(),
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
@@ -57,12 +56,40 @@ impl Clone for FuturesOrderNodeContext {
             unfilled_virtual_order: self.unfilled_virtual_order.clone(),
             virtual_order_history: self.virtual_order_history.clone(),
             virtual_transaction_history: self.virtual_transaction_history.clone(),
-            min_kline_interval: self.min_kline_interval.clone(),
+            symbol_info: self.symbol_info.clone(),
         }
     }
 }
 
 impl FuturesOrderNodeContext {
+
+
+    pub fn new(
+        base_context: BacktestBaseNodeContext, 
+        node_config: FuturesOrderNodeBacktestConfig, 
+        database: DatabaseConnection, 
+        heartbeat: Arc<Mutex<Heartbeat>>, 
+        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, 
+        virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver
+    ) -> Self {
+        Self {
+            base_context,
+            node_config,
+            database,
+            heartbeat,
+            virtual_trading_system,
+            virtual_trading_system_event_receiver,
+            is_processing_order: Arc::new(RwLock::new(HashMap::new())),
+            unfilled_virtual_order: Arc::new(RwLock::new(HashMap::new())),
+            virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
+            virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
+            symbol_info: vec![],
+        }
+    }
+
+
+
+
     async fn set_is_processing_order(&mut self, input_handle_id: &InputHandleId, is_processing_order: bool) {
         self.is_processing_order
             .write()
