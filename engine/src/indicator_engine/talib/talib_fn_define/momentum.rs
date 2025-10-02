@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use star_river_core::error::engine_error::indicator_engine_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::indicator::indicator_define::momentum::*;
+use super::MaTypeInt;
 
 impl TALib {
     //ADX  Average Directional Movement Index #平均方向性指数
@@ -32,7 +33,7 @@ impl TALib {
         APO,
         datetime => (datetime_list: &[DateTime<Utc>]),
         input => [(data: &[f64])],
-        talib_params => [(fast_period: i32), (slow_period: i32), (ma_type: i32)],
+        talib_params => [(fast_period: i32), (slow_period: i32), (ma_type: MaTypeInt)],
         output => [(apo: f64)],
     );
 
@@ -104,7 +105,7 @@ impl TALib {
         MACDEXT,
         datetime => (datetime_list: &[DateTime<Utc>]),
         input => [(data: &[f64])],
-        talib_params => [(fast_period: i32), (fast_ma_type: i32), (slow_period: i32), (slow_ma_type: i32), (signal_period: i32), (signal_ma_type: i32)],
+        talib_params => [(fast_period: i32), (fast_ma_type: MaTypeInt), (slow_period: i32), (slow_ma_type: MaTypeInt), (signal_period: i32), (signal_ma_type: MaTypeInt)],
         output => [(macd: f64), (signal: f64), (histogram: f64)],
     );
 
@@ -176,7 +177,7 @@ impl TALib {
         PPO,
         datetime => (datetime_list: &[DateTime<Utc>]),
         input => [(data: &[f64])],
-        talib_params => [(fast_period: i32), (slow_period: i32), (ma_type: i32)],
+        talib_params => [(fast_period: i32), (slow_period: i32), (ma_type: MaTypeInt)],
         output => [(ppo: f64)],
     );
 
@@ -230,7 +231,7 @@ impl TALib {
         STOCH,
         datetime => (datetime_list: &[DateTime<Utc>]),
         input => [(high: &[f64]), (low: &[f64]), (close: &[f64])],
-        talib_params => [(fast_k_period: i32), (slow_k_period: i32), (slow_k_ma_type: i32), (slow_d_period: i32), (slow_d_ma_type: i32)],
+        talib_params => [(fast_k_period: i32), (slow_k_period: i32), (slow_k_ma_type: MaTypeInt), (slow_d_period: i32), (slow_d_ma_type: MaTypeInt)],
         output => [(slow_k: f64), (slow_d: f64)],
     );
 
@@ -239,7 +240,7 @@ impl TALib {
         STOCHF,
         datetime => (datetime_list: &[DateTime<Utc>]),
         input => [(high: &[f64]), (low: &[f64]), (close: &[f64])],
-        talib_params => [(fast_k_period: i32), (fast_d_period: i32), (fast_d_ma_type: i32)],
+        talib_params => [(fast_k_period: i32), (fast_d_period: i32), (fast_d_ma_type: MaTypeInt)],
         output => [(fast_k: f64), (fast_d: f64)],
     );
 
@@ -248,7 +249,7 @@ impl TALib {
         STOCHRSI,
         datetime => (datetime_list: &[DateTime<Utc>]),
         input => [(data: &[f64])],
-        talib_params => [(time_period: i32), (fast_k_period: i32), (fast_d_period: i32), (fast_d_ma_type: i32)],
+        talib_params => [(time_period: i32), (fast_k_period: i32), (fast_d_period: i32), (fast_d_ma_type: MaTypeInt)],
         output => [(fast_k: f64), (fast_d: f64)],
     );
 

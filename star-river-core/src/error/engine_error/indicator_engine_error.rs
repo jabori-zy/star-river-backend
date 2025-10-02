@@ -19,7 +19,13 @@ pub enum IndicatorEngineError {
     InvalidKlineData { index: usize, backtrace: Backtrace },
 
     #[snafu(display("TA-Lib error code: {ret_code}"))]
-    Talib { ret_code: i32, backtrace: Backtrace },
+    Talib {
+        #[cfg(target_os="windows")]
+        ret_code: i32, 
+        #[cfg(target_os="macos")]
+        ret_code: u32,
+        backtrace: Backtrace
+    },
 
     #[snafu(display("data length not equal: {data_length:?}"))]
     DataLengthNotEqual { data_length: Vec<usize>, backtrace: Backtrace },

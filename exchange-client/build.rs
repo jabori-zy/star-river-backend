@@ -1,39 +1,42 @@
+#[cfg(target_os = "windows")]
 use std::fs;
+#[cfg(target_os = "windows")]
 use std::path::Path;
+#[cfg(target_os = "windows")]
 use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
-    let project_root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-
-    // 设置资源目录
-    // let resources_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
-    let target_dir = Path::new(&project_root)
-        .join("src")
-        .join("metatrader5")
-        .join("bin")
-        .join(match target_os.as_str() {
-            "windows" => "windows",
-            "macos" => "macos",
-            _ => "linux",
-        });
-
-    // 创建目录
-    fs::create_dir_all(&target_dir).unwrap();
-
-    // 打包 Python 脚本 - 只监控关键源代码文件
-    println!("cargo:rerun-if-changed=src/metatrader5/script/main.py");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/pyproject.toml");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/api");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/mt5_terminal");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/parse.py");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/util.py");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/start_terminals.py");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/mt5_terminal.py");
-    println!("cargo:rerun-if-changed=src/metatrader5/script/terminals_config.json");
-
+    // 只在 Windows 环境下执行构建逻辑
     #[cfg(target_os = "windows")]
     {
+        let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+        let project_root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+        // 设置资源目录
+        // let resources_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
+        let target_dir = Path::new(&project_root)
+            .join("src")
+            .join("metatrader5")
+            .join("bin")
+            .join(match target_os.as_str() {
+                "windows" => "windows",
+                "macos" => "macos",
+                _ => "linux",
+            });
+
+        // 创建目录
+        fs::create_dir_all(&target_dir).unwrap();
+
+        // 打包 Python 脚本 - 只监控关键源代码文件
+        println!("cargo:rerun-if-changed=src/metatrader5/script/main.py");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/pyproject.toml");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/api");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/mt5_terminal");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/parse.py");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/util.py");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/start_terminals.py");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/mt5_terminal.py");
+        println!("cargo:rerun-if-changed=src/metatrader5/script/terminals_config.json");
         // 设置script目录路径
         let script_dir = Path::new(&project_root).join("src").join("metatrader5").join("script");
 
@@ -90,6 +93,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             panic!("Failed to build Python executable with uv");
         }
+    }
+
+    // 在非 Windows 环境下（如 macOS、Linux），直接成功返回，不执行任何构建逻辑
+    #[cfg(not(target_os = "windows"))]
+    {
+        println!("cargo:warning=Skipping Python packaging on non-Windows platform");
     }
 
     Ok(())

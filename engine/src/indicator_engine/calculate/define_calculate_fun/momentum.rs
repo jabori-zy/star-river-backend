@@ -6,7 +6,6 @@ use star_river_core::error::engine_error::indicator_engine_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::indicator::indicator_define::momentum::*;
 use star_river_core::market::Kline;
-use std::sync::Arc;
 
 impl CalculateIndicatorFunction {
     // ADX - Average Directional Movement Index #平均方向性指数

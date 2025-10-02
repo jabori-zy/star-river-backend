@@ -8,6 +8,7 @@ use star_river_core::error::engine_error::indicator_engine_error::TalibSnafu;
 use star_river_core::error::engine_error::indicator_engine_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::indicator::indicator_define::overlap::*;
+use super::MaTypeInt;
 
 impl TALib {
     //Bollinger Bands #布林带
@@ -19,7 +20,7 @@ impl TALib {
             (time_period: i32),
             (dev_up: f64),
             (dev_down: f64),
-            (ma_type: i32),
+            (ma_type: MaTypeInt),
         ],
         output => [(upper: f64), (middle: f64), (lower: f64)],
     );
@@ -67,7 +68,7 @@ impl TALib {
         input => [(data: &[f64])],
         talib_params => [
             (time_period: i32),
-            (ma_type: i32),
+            (ma_type: MaTypeInt),
         ],
         output => [(ma: f64)],
     );

@@ -15,6 +15,7 @@ impl MigrationTrait for Migration {
         // 插入系统配置初始数据
         ::entity::system_config::ActiveModel {
             localization: Set(Localization::English.to_string()),
+            timezone: Set(String::from("Asia/Shanghai")),
             created_time: Set(Utc::now()),
             updated_time: Set(Utc::now()),
             ..Default::default()

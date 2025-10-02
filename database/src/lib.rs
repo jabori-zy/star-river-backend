@@ -64,11 +64,8 @@ impl DatabaseManager {
 
     pub async fn create_database(path: &PathBuf) -> Result<DatabaseConnection, DbErr> {
         // 创建数据库文件
-        // let db_path = path.join("db.sqlite");
-        // let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
-        let path = PathBuf::from("E:/project/star-river-backend/db/db.sqlite");
-        tracing::info!("path: {}", path.display());
-        let database_url = format!("sqlite:{}?mode=rwc", path.display());
+        let db_path = path.join("db.sqlite");
+        let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
         tracing::info!("数据库路径: {}", database_url);
 
         let mut opt = ConnectOptions::new(database_url);

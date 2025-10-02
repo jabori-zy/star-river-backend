@@ -12,7 +12,6 @@ use crate::indicator::indicator_define::volatility::*;
 use crate::indicator::indicator_define::volume::*;
 use crate::market::{Exchange, KlineInterval};
 use crate::{impl_indicator, impl_indicator_config};
-use chrono::{DateTime, Utc};
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -23,6 +22,14 @@ use strum::{Display, EnumString};
 
 use crate::error::indicator_error::*;
 use snafu::ResultExt;
+
+
+#[cfg(target_os="windows")]
+pub type MaTypeInt = i32;
+#[cfg(target_os="macos")]
+pub type MaTypeInt = u32;
+
+
 
 // 价格来源
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display)]
@@ -70,6 +77,39 @@ pub enum MAType {
     #[strum(serialize = "T3")]
     #[serde(rename = "T3")]
     T3, // Triple Exponential Moving Average (T3) 三重指数移动平均线
+}
+
+
+impl Into<MaTypeInt> for MAType {
+    #[cfg(target_os="windows")]
+    fn into(self) -> i32 {
+        match self {
+            MAType::SMA => 0,
+            MAType::EMA => 1,
+            MAType::WMA => 2,
+            MAType::DEMA => 3,
+            MAType::TEMA => 4,
+            MAType::TRIMA => 5,
+            MAType::KAMA => 6,
+            MAType::MAMA => 7,
+            MAType::T3 => 8,
+        }
+    }
+
+    #[cfg(target_os="macos")]
+    fn into(self) -> u32 {
+        match self {
+            MAType::SMA => 0,
+            MAType::EMA => 1,
+            MAType::WMA => 2,
+            MAType::DEMA => 3,
+            MAType::TEMA => 4,
+            MAType::TRIMA => 5,
+            MAType::KAMA => 6,
+            MAType::MAMA => 7,
+            MAType::T3 => 8,
+        }
+    }
 }
 
 pub trait IndicatorConfigTrait {

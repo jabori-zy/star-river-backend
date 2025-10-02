@@ -39,7 +39,7 @@ use star_river_core::strategy::TimeRange;
 use star_river_core::transaction::{OriginalTransaction, Transaction};
 use std::any::Any;
 use std::fs;
-use std::os::windows::process::ExitStatusExt;
+// use std::os::windows::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 use std::process::Stdio;
@@ -50,8 +50,9 @@ use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
-use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
+// use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 
+#[cfg(windows)]
 #[derive(Embed)]
 #[folder = "src/metatrader5/bin/windows/"]
 struct Asset;
@@ -78,6 +79,7 @@ static ORIGINAL_EXE_PATH: Lazy<PathBuf> = Lazy::new(|| {
 });
 
 // 从嵌入资源中提取原始exe文件，如果不存在或有更新
+#[cfg(windows)]
 #[instrument]
 fn ensure_original_exe_exists() -> Result<(), Mt5Error> {
     tracing::info!("ensure original executable file exists");
@@ -105,6 +107,7 @@ fn ensure_original_exe_exists() -> Result<(), Mt5Error> {
 }
 
 // 为特定终端创建唯一的exe副本，并清理旧文件
+#[cfg(windows)]
 #[instrument]
 fn create_terminal_exe(terminal_id: i32, process_name: &str) -> Result<PathBuf, Mt5Error> {
     tracing::info!(terminal_id = %terminal_id, process_name=%process_name, "start create terminal exe");

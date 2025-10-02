@@ -108,7 +108,7 @@ macro_rules! calculate_fn_snake {
 #[macro_export]
 macro_rules! parse_type {
     ($config:expr, $param_field:ident, MAType) => {
-        $config.$param_field.clone() as i32
+        $config.$param_field.clone().into()
     };
     ($config:expr, $param_field:ident, f64) => {
         $config.$param_field.into_inner()

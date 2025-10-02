@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
+
 // 通用日志消息 - 多个节点共同使用的日志消息
 pub mod common_log_message {
     use crate::backtest_strategy_engine::log_message::*;
