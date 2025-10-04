@@ -2,7 +2,7 @@ use crate::custom_type::AccountId;
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use crate::error::exchange_client_error::ExchangeClientError;
-use crate::error::exchange_client_error::Mt5Error;
+use crate::error::exchange_client_error::mt5_error::Mt5Error;
 use crate::market::Exchange;
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};

@@ -1,5 +1,5 @@
 mod utils;
-// pub mod binance;
+pub mod binance;
 pub mod metatrader5;
 pub mod exchange_trait;
 

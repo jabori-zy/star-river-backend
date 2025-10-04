@@ -15,7 +15,10 @@ use std::any::Any;
 use super::super::exchange_trait::*;
 use star_river_core::{
     market::{KlineInterval, Kline},
-    error::exchange_client_error::*,
+    error::exchange_client_error::{
+        ExchangeClientError,
+        mt5_error::*,
+    },
     account::OriginalAccountInfo,
 };
 use super::mt5_types::*;

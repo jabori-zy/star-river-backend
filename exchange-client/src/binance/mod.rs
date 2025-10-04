@@ -4,177 +4,41 @@ pub mod binance_ws_client;
 pub mod market_stream;
 pub(crate) mod url;
 pub mod websocket;
+mod binance_type;
+mod client;
+
+#[cfg(test)]
+mod test;
 use std::any::Any;
 use std::sync::atomic::AtomicBool;
 
-use crate::ExchangeClient;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
-use crate::binance::market_stream::klines;
-use crate::utils::deserialize_string_to_f64;
 use async_trait::async_trait;
 use binance_http_client::BinanceHttpClient;
-use binance_ws_client::BinanceWsClient;
 use binance_ws_client::WebSocketState;
 use event_center::EventPublisher;
-use futures::StreamExt;
-use serde::{Deserialize, Serialize};
-use star_river_core::order::CreateOrderParams;
-use star_river_core::order::GetTransactionDetailParams;
-use star_river_core::order::{Order, OriginalOrder};
-use star_river_core::position::GetPositionParam;
-use star_river_core::position::{OriginalPosition, Position};
-use star_river_core::{
-    market::{Exchange, Kline, KlineInterval, TickerPrice},
-    position::{PositionNumber, PositionNumberRequest},
-};
+use star_river_core::market::{Exchange, Kline, KlineInterval};
 use std::sync::Arc;
-use strum::Display;
-use strum::EnumString;
 use tokio::sync::Mutex;
-// use event_center::communication::order_engine_command::CreateOrderParams;
-// use event_center::command_event::position_engine_command::GetPositionParam;
-// use event_center::command_event::order_engine_command::GetTransactionDetailParams;
-use star_river_core::account::OriginalAccountInfo;
-use star_river_core::transaction::{OriginalTransaction, Transaction};
+use binance_type::*;
+use super::exchange_trait::*;
+use star_river_core::error::exchange_client_error::binance_error::*;
 
-#[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
-pub enum BinanceKlineInterval {
-    #[strum(serialize = "1m")]
-    Minutes1,
-    #[strum(serialize = "5m")]
-    Minutes5,
-    #[strum(serialize = "15m")]
-    Minutes15,
-    #[strum(serialize = "30m")]
-    Minutes30,
-    #[strum(serialize = "1h")]
-    Hours1,
-    #[strum(serialize = "2h")]
-    Hours2,
-    #[strum(serialize = "4h")]
-    Hours4,
-    #[strum(serialize = "6h")]
-    Hours6,
-    #[strum(serialize = "8h")]
-    Hours8,
-    #[strum(serialize = "12h")]
-    Hours12,
-    #[strum(serialize = "1d")]
-    Days1,
-    #[strum(serialize = "1w")]
-    Weeks1,
-    #[strum(serialize = "1M")]
-    Months1,
-}
 
-// 将KlineInterval转换为BinanceKlineInterval
-impl From<KlineInterval> for BinanceKlineInterval {
-    fn from(interval: KlineInterval) -> Self {
-        match interval {
-            KlineInterval::Minutes1 => BinanceKlineInterval::Minutes1,
-            KlineInterval::Minutes5 => BinanceKlineInterval::Minutes5,
-            KlineInterval::Minutes15 => BinanceKlineInterval::Minutes15,
-            KlineInterval::Minutes30 => BinanceKlineInterval::Minutes30,
-            KlineInterval::Hours1 => BinanceKlineInterval::Hours1,
-            KlineInterval::Hours2 => BinanceKlineInterval::Hours2,
-            KlineInterval::Hours4 => BinanceKlineInterval::Hours4,
-            KlineInterval::Hours6 => BinanceKlineInterval::Hours6,
-            KlineInterval::Hours8 => BinanceKlineInterval::Hours8,
-            KlineInterval::Hours12 => BinanceKlineInterval::Hours12,
-            KlineInterval::Days1 => BinanceKlineInterval::Days1,
-            KlineInterval::Weeks1 => BinanceKlineInterval::Weeks1,
-            KlineInterval::Months1 => BinanceKlineInterval::Months1,
-            _ => panic!("Invalid KlineInterval: {:?}", interval),
-        }
-    }
-}
 
-// 将BinanceKlineInterval转换为KlineInterval
-impl Into<KlineInterval> for BinanceKlineInterval {
-    fn into(self) -> KlineInterval {
-        match self {
-            BinanceKlineInterval::Minutes1 => KlineInterval::Minutes1,
-            BinanceKlineInterval::Minutes5 => KlineInterval::Minutes5,
-            BinanceKlineInterval::Minutes15 => KlineInterval::Minutes15,
-            BinanceKlineInterval::Minutes30 => KlineInterval::Minutes30,
-            BinanceKlineInterval::Hours1 => KlineInterval::Hours1,
-            BinanceKlineInterval::Hours2 => KlineInterval::Hours2,
-            BinanceKlineInterval::Hours4 => KlineInterval::Hours4,
-            BinanceKlineInterval::Hours6 => KlineInterval::Hours6,
-            BinanceKlineInterval::Hours8 => KlineInterval::Hours8,
-            BinanceKlineInterval::Hours12 => KlineInterval::Hours12,
-            BinanceKlineInterval::Days1 => KlineInterval::Days1,
-            BinanceKlineInterval::Weeks1 => KlineInterval::Weeks1,
-            BinanceKlineInterval::Months1 => KlineInterval::Months1,
-        }
-    }
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct BinanceTickerPrice {
-    pub symbol: String,
-    #[serde(deserialize_with = "deserialize_string_to_f64")]
-    pub price: f64,
-    #[serde(skip_deserializing)]
-    pub timestamp: i64,
-}
-
-impl From<BinanceTickerPrice> for TickerPrice {
-    fn from(ticker_price: BinanceTickerPrice) -> Self {
-        Self {
-            exchange: Exchange::Binance,
-            symbol: ticker_price.symbol,
-            price: ticker_price.price,
-            timestamp: ticker_price.timestamp,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BinanceKline {
-    pub timestamp: i64,
-    pub open: f64,
-    pub high: f64,
-    pub low: f64,
-    pub close: f64,
-    pub volume: f64,
-}
-
-impl From<BinanceKline> for Kline {
-    fn from(kline: BinanceKline) -> Self {
-        Self {
-            timestamp: kline.timestamp,
-            open: kline.open,
-            high: kline.high,
-            low: kline.low,
-            close: kline.close,
-            volume: kline.volume,
-        }
-    }
-}
-
-// 交易所信息
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct BinanceExchangeInfo {
-    pub timezone: String,
-    pub server_time: i64,
-    pub symbols: Option<Vec<String>>,
-}
 
 // 交易所
 #[derive(Clone, Debug)]
 pub struct BinanceExchange {
-    pub server_time: Option<i64>,
-    pub info: Option<BinanceExchangeInfo>,
     http_client: BinanceHttpClient,
     websocket_state: Arc<Mutex<Option<WebSocketState>>>, // 可以在线程间传递
     data_processor: Arc<Mutex<BinanceDataProcessor>>,
-    is_process_stream: Arc<AtomicBool>,
-    event_publisher: EventPublisher,
+    is_process_stream: Arc<AtomicBool>
 }
 
 #[async_trait]
-impl ExchangeClient for BinanceExchange {
+impl ExchangeClientCore for BinanceExchange {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -183,7 +47,7 @@ impl ExchangeClient for BinanceExchange {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn ExchangeClient> {
+    fn clone_box(&self) -> Box<dyn ExchangeClientCore> {
         Box::new(self.clone())
     }
 
@@ -191,152 +55,25 @@ impl ExchangeClient for BinanceExchange {
         Exchange::Binance
     }
 
-    async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
-        let ticker_price = self.http_client.get_ticker_price(symbol).await?;
-        Ok(ticker_price)
-    }
-
-    // 获取k线系列
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: Option<u32>) -> Result<(), String> {
-        let binance_interval = BinanceKlineInterval::from(interval);
-
-        let klines = self
-            .http_client
-            .get_kline(symbol, binance_interval.clone(), limit, None, None)
-            .await?;
-        // 发送到数据处理器，处理数据
-        let data_processor = self.data_processor.lock().await;
-        data_processor
-            .process_kline_series(symbol, binance_interval, klines, self.event_publisher.clone())
-            .await;
-        Ok(())
-    }
-
-    async fn connect_websocket(&mut self) -> Result<(), String> {
-        let (websocket_state, _) = BinanceWsClient::connect_default().await.unwrap();
-        self.websocket_state = Arc::new(Mutex::new(Some(websocket_state)));
-        Ok(())
-    }
-
-    // 订阅k线流
-    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
-        let _frequency = frequency;
-        let binance_interval = BinanceKlineInterval::from(interval.clone());
-
-        let mut websocket_state = self.websocket_state.lock().await;
-        if let Some(state) = websocket_state.as_mut() {
-            tracing::debug!("订阅k线流, symbol: {:?}, interval: {:?}", symbol, interval);
-            state.subscribe([&klines(symbol, binance_interval).into()]).await;
-        }
-        Ok(())
-    }
-
-    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), String> {
-        let _frequency = frequency;
-        let binance_interval = BinanceKlineInterval::from(interval.clone());
-        let mut websocket_state = self.websocket_state.lock().await;
-        if let Some(state) = websocket_state.as_mut() {
-            tracing::debug!("取消订阅k线流, symbol: {:?}, interval: {:?}", symbol, interval);
-            state.unsubscribe([&klines(symbol, binance_interval).into()]).await;
-        }
-        Ok(())
-    }
-
-    // 获取socket流，并处理数据
-    async fn get_socket_stream(&self) -> Result<(), String> {
-        // 判断当前是否正在处理流
-        if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
-            tracing::warn!("binance已开始处理流数据!");
-            return Ok(());
-        }
-        tracing::debug!("开始binance处理流数据");
-        // 如果当前没有处理流，则开始处理流,设置状态为true
-        self.is_process_stream.store(true, std::sync::atomic::Ordering::Relaxed);
-
-        let websocket_state = self.websocket_state.clone();
-        let data_processor = self.data_processor.clone();
-
-        let binance_publisher = self.event_publisher.clone();
-        let future = async move {
-            loop {
-                let receive_message = {
-                    let mut websocket_state = websocket_state.lock().await;
-                    if let Some(state) = websocket_state.as_mut() {
-                        state.as_mut().next().await
-                    } else {
-                        None
-                    }
-                }; // 锁在这里被释放
-
-                // 处理原始数据
-                if let Some(Ok(msg)) = receive_message {
-                    let stream_json = serde_json::from_str::<serde_json::Value>(&msg.to_string()).unwrap();
-                    // log::debug!("收到stream数据: {:?}", stream_json);
-                    let data_processor = data_processor.lock().await;
-                    data_processor.process_stream(stream_json, binance_publisher.clone()).await;
-                }
-            }
-        };
-        tokio::spawn(future);
-        Ok(())
-    }
-
-    async fn create_order(&self, order_request: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, String> {
-        unimplemented!()
-    }
-
-    async fn update_order(&self, order: Order) -> Result<Order, String> {
-        unimplemented!()
-    }
-
-    async fn get_position(&self, position_request: GetPositionParam) -> Result<Box<dyn OriginalPosition>, String> {
-        unimplemented!()
-    }
-
-    async fn get_latest_position(&self, position: &Position) -> Result<Position, String> {
-        unimplemented!()
-    }
-
-    async fn get_position_number(&self, position_number_request: PositionNumberRequest) -> Result<PositionNumber, String> {
-        let position_number = PositionNumber {
-            exchange: Exchange::Binance,
-            symbol: "BTCUSDT".to_string(),
-            position_side: None,
-            position_number: 3,
-        };
-        Ok(position_number)
-    }
-
-    async fn get_transaction_detail(
-        &self,
-        transaction_detail_request: GetTransactionDetailParams,
-    ) -> Result<Box<dyn OriginalTransaction>, String> {
-        unimplemented!()
-    }
-
-    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, String> {
-        unimplemented!()
-    }
 }
 
 impl BinanceExchange {
-    pub fn new(event_publisher: EventPublisher) -> Self {
+    pub fn new() -> Self {
         Self {
-            server_time: None,
-            info: None,
             http_client: BinanceHttpClient::new(),
             websocket_state: Arc::new(Mutex::new(None)),
-            data_processor: Arc::new(Mutex::new(BinanceDataProcessor::new())),
-            is_process_stream: Arc::new(AtomicBool::new(false)),
-            event_publisher,
+            data_processor: Arc::new(Mutex::new(BinanceDataProcessor{})),
+            is_process_stream: Arc::new(AtomicBool::new(false))
         }
     }
 
     pub async fn init_exchange(&mut self) -> Result<(), String> {
-        tracing::debug!("正在初始化binance交易所...");
+        use crate::binance::binance_ws_client::BinanceWsClient;
+
+        tracing::debug!("Initializing Binance exchange...");
         let (websocket_state, _) = BinanceWsClient::connect_default().await.unwrap();
         self.websocket_state = Arc::new(Mutex::new(Some(websocket_state)));
-        tracing::debug!("Binance 初始化成功！");
+        tracing::debug!("Binance initialized successfully!");
         Ok(())
     }
 }

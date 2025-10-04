@@ -148,32 +148,32 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
         let prefix = self.get_prefix();
         let code = match self {
             // JSON and serialization errors (1001-1002)
-            DataProcessorError::JsonParsing { .. } => 1001,
-            DataProcessorError::StreamProcessing { .. } => 1002,
+            DataProcessorError::JsonParsing { .. } => 1001, // JSON解析失败
+            DataProcessorError::StreamProcessing { .. } => 1002, // 流数据处理失败
             // Field and data structure errors (1003-1007)
-            DataProcessorError::MissingField { .. } => 1003,
-            DataProcessorError::ValueIsNone { .. } => 1004,
-            DataProcessorError::InvalidFieldType { .. } => 1005,
-            DataProcessorError::ArrayParsing { .. } => 1006,
-            DataProcessorError::InvalidKlineArrayFormat { .. } => 1007,
+            DataProcessorError::MissingField { .. } => 1003, // 缺少必需字段
+            DataProcessorError::ValueIsNone { .. } => 1004, // 字段值为空
+            DataProcessorError::InvalidFieldType { .. } => 1005, // 字段数据类型无效
+            DataProcessorError::ArrayParsing { .. } => 1006, // 数组数据解析失败
+            DataProcessorError::InvalidKlineArrayFormat { .. } => 1007, // K线数组格式无效
 
             // Type conversion and validation errors (1007-1010)
-            DataProcessorError::TypeConversion { .. } => 1007,
-            DataProcessorError::DataValidation { .. } => 1008,
-            DataProcessorError::EnumParsing { .. } => 1009,
-            DataProcessorError::TimestampConversion { .. } => 1010,
+            DataProcessorError::TypeConversion { .. } => 1007, // 数据转换失败
+            DataProcessorError::DataValidation { .. } => 1008, // 数据验证失败
+            DataProcessorError::EnumParsing { .. } => 1009, // 枚举解析失败
+            DataProcessorError::TimestampConversion { .. } => 1010, // 时间戳转换失败
 
             // Specific data parsing errors (1011-1016)
-            DataProcessorError::KlineDataParsing { .. } => 1011,
-            DataProcessorError::OrderDataParsing { .. } => 1012,
-            DataProcessorError::PositionDataParsing { .. } => 1013,
-            DataProcessorError::DealDataParsing { .. } => 1014,
-            DataProcessorError::AccountInfoParsing { .. } => 1015,
-            DataProcessorError::StreamDataFormat { .. } => 1016,
+            DataProcessorError::KlineDataParsing { .. } => 1011, // 解析K线数据失败
+            DataProcessorError::OrderDataParsing { .. } => 1012, // 解析订单数据失败
+            DataProcessorError::PositionDataParsing { .. } => 1013, // 解析持仓数据失败
+            DataProcessorError::DealDataParsing { .. } => 1014, // 解析交易数据失败
+            DataProcessorError::AccountInfoParsing { .. } => 1015, // 解析账户信息失败
+            DataProcessorError::StreamDataFormat { .. } => 1016, // 流数据格式错误
 
             // Internal errors (1017)
-            DataProcessorError::Internal { .. } => 1017,
-            DataProcessorError::DateTime { .. } => 1018,
+            DataProcessorError::Internal { .. } => 1017, // 内部错误
+            DataProcessorError::DateTime { .. } => 1018, // 时间戳转换失败
         };
         format!("{}_{:04}", prefix, code)
     }

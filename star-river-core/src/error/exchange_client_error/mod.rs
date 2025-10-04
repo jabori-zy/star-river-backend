@@ -1,12 +1,14 @@
 pub mod data_processor_error;
 pub mod mt5_error;
+pub mod binance_error;
 
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::{Language, StarRiverErrorTrait};
 pub use data_processor_error::*;
-pub use mt5_error::*;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+use mt5_error::Mt5Error;
+use binance_error::BinanceError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -15,10 +17,10 @@ pub enum ExchangeClientError {
     MetaTrader5 { source: Mt5Error, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    DataProcessor { source: DataProcessorError, backtrace: Backtrace },
+    Binance { source: BinanceError, backtrace: Backtrace },
 
-    #[snafu(display("Binance error: {message}"))]
-    Binance { message: String, backtrace: Backtrace },
+    #[snafu(transparent)]
+    DataProcessor { source: DataProcessorError, backtrace: Backtrace },
 
     #[snafu(display("Authentication error: {message}"))]
     Authentication { message: String, backtrace: Backtrace },
@@ -100,8 +102,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
                 ExchangeClientError::DataProcessor { source, .. } => {
                     format!("数据处理器错误: {}", source.get_error_message(language))
                 }
-                ExchangeClientError::Binance { message, .. } => {
-                    format!("币安错误: {}", message)
+                ExchangeClientError::Binance { source, .. } => {
+                    format!("币安错误: {}", source.get_error_message(language))
                 }
                 ExchangeClientError::Authentication { message, .. } => {
                     format!("认证错误: {}", message)
@@ -119,11 +121,24 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // transparent errors - delegate to source
-            ExchangeClientError::MetaTrader5 { source, .. } => source.error_code_chain(),
-            ExchangeClientError::DataProcessor { source, .. } => source.error_code_chain(),
+            ExchangeClientError::MetaTrader5 { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
+            ExchangeClientError::Binance { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
+            ExchangeClientError::DataProcessor { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(self.error_code());
+                chain
+            }
 
             // non-transparent errors - return own error code
             _ => vec![self.error_code()],
-        }
+        }            
     }
 }

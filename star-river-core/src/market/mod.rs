@@ -318,13 +318,13 @@ impl QuantData for Kline {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct KlineSeries {
-    pub exchange: Exchange,
-    pub symbol: String,
-    pub interval: KlineInterval,
-    pub series: Vec<Kline>,
-}
+// #[derive(Debug, Serialize, Deserialize, Clone)]
+// pub struct KlineSeries {
+//     pub exchange: Exchange,
+//     pub symbol: String,
+//     pub interval: KlineInterval,
+//     pub series: Vec<Kline>,
+// }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TickerPrice {

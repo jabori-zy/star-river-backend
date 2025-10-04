@@ -9,3 +9,6 @@ pub mod virtual_trading_system_error;
 pub type ErrorCode = String;
 
 pub use error_trait::StarRiverErrorTrait;
+
+
+pub use exchange_client_error::*;

@@ -1,54 +1,77 @@
-#![allow(dead_code, unused_imports)]
+
 use crate::binance::url::BinanceHttpUrl;
 use crate::utils::get_utc8_timestamp;
 use reqwest::{self, Response};
-use serde_json::json;
-
-use crate::utils::deserialize_string_to_f64;
 // 导入lib.rs中的Kline和TickerPrice
-use crate::binance::{BinanceKline, BinanceKlineInterval, BinanceTickerPrice};
+use super::{BinanceKline, BinanceKlineInterval};
 use star_river_core::market::{Kline, TickerPrice};
+use super::{
+    BinanceError,
+    PingFailedSnafu,
+    NetworkSnafu,
+    ResponseSnafu,
+    ParseServerTimeFailedSnafu,
+};
+use snafu::ResultExt;
 
 #[derive(Clone, Debug)]
 
 pub struct BinanceHttpClient {
-    client: reqwest::Client,
-    is_connected: bool,
+    client: reqwest::Client
 }
 
 impl BinanceHttpClient {
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new(),
-            is_connected: false,
+            client: reqwest::Client::new()
         }
     }
 
-    pub async fn ping(&mut self) -> Result<(), String> {
+    pub async fn ping(&mut self) -> Result<(), BinanceError> {
         let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::Ping);
 
-        let response = self.client.get(&url).send().await.expect("ping失败");
-        let body = response.text().await.expect("ping失败");
+        let result = self.client
+            .get(&url)
+            .send()
+            .await
+            .context(NetworkSnafu {
+                url: url.clone(),
+            })?
+            .json::<serde_json::Value>()
+            .await
+            .context(ResponseSnafu {
+                url: url.clone(),
+            })?;
         // 如果body为空，则认为连接成功
-        if body == "{}" {
-            self.is_connected = true;
+        if result == "{}" {
+            Ok(())
+        } else {
+            return Err(PingFailedSnafu {}.build());
         }
-        Ok(())
     }
 
-    pub async fn get_server_time(&self) -> Result<i64, String> {
+    pub async fn get_server_time(&self) -> Result<i64, BinanceError> {
         let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ServerTime);
-        let response = self.client.get(&url).send().await.expect("获取服务器时间失败");
-        let body = response.text().await.expect("获取服务器时间失败");
+        let result = self.client
+            .get(&url)
+            .send()
+            .await
+            .context(NetworkSnafu {
+                url: url.clone(),
+            })?
+            .text()
+            .await.context(ResponseSnafu {
+                url: url.clone(),
+            })?;
 
         // 解析JSON字符串
-        let result: serde_json::Value = serde_json::from_str(&body).map_err(|e| format!("解析服务器时间失败: {}", e))?;
+        let result: serde_json::Value = serde_json::from_str(&result).context(ParseServerTimeFailedSnafu {})?;
 
         // 提取时间戳
-        result
+        Ok(result
             .get("serverTime")
             .and_then(|v| v.as_i64())
-            .ok_or_else(|| "无法获取服务器时间戳".to_string())
+            .unwrap())
     }
 
     pub async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
@@ -79,7 +102,7 @@ impl BinanceHttpClient {
         limit: Option<u32>,
         start_time: Option<u64>,
         end_time: Option<u64>,
-    ) -> Result<Vec<serde_json::Value>, String> {
+    ) -> Result<Vec<serde_json::Value>, BinanceError> {
         // 如果limit为空，则设置为1000
         let limit = limit.unwrap_or(1000);
         // 如果start_time或end_time为空，则不传时间参数
@@ -111,10 +134,14 @@ impl BinanceHttpClient {
             .get(&url)
             .send()
             .await
-            .expect("获取k线数据失败")
+            .context(NetworkSnafu {
+                url: url.clone(),
+            })?
             .json::<Vec<serde_json::Value>>()
             .await
-            .expect("解析k线数据失败: {}");
+            .context(ResponseSnafu {
+                url: url.clone(),
+            })?;
 
         // log::debug!("kline: {:?}", raw_kline);
 

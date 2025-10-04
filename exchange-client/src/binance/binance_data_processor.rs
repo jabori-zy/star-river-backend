@@ -1,12 +1,14 @@
 use crate::binance::BinanceKlineInterval;
 use event_center::EventPublisher;
-use event_center::exchange_event::{ExchangeEvent, ExchangeKlineSeriesUpdateEvent, ExchangeKlineUpdateEvent};
-use star_river_core::market::{Exchange, Kline, KlineSeries};
-use star_river_core::utils::generate_batch_id;
-use star_river_core::utils::get_utc8_timestamp_millis;
+use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
+use star_river_core::market::{Exchange, Kline};
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
+use chrono::{TimeZone, Utc};
+use serde::Deserialize;
+use snafu::{ResultExt, OptionExt};
+use star_river_core::error::exchange_client_error::binance_error::*;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {
@@ -16,64 +18,54 @@ pub enum BinanceStreamEvent {
     AvgPrice,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct KlineCacheKey {
-    symbol: String,
-    interval: BinanceKlineInterval,
-}
-
 #[derive(Clone, Debug)]
-pub struct BinanceDataProcessor {
-    // event_center: Arc<Mutex<EventCenter>>,
-}
+pub struct BinanceDataProcessor;
 
 impl BinanceDataProcessor {
-    pub fn new() -> Self {
-        Self {
-            // event_center,
-        }
-    }
 
     // 处理k线系列
     pub async fn process_kline_series(
         &self,
-        symbol: &str,
-        interval: BinanceKlineInterval,
         raw_data: Vec<serde_json::Value>,
-        event_publisher: EventPublisher,
-    ) {
+    ) -> Result<Vec<Kline>, BinanceError> {
         let klines = raw_data
             .iter()
-            .map(|k| Kline {
-                timestamp: k[0].as_i64().unwrap_or(0),
-                open: k[1].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
-                high: k[2].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
-                low: k[3].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
-                close: k[4].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
-                volume: k[5].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
+            .map(|v| {
+                let raw: BinanceKlineRaw = serde_json::from_value(v.clone())
+                    .context(ParseRawDataFailedSnafu {
+                        data_name: "kline",
+                    })?;
+
+                Ok(Kline {
+                    datetime: Utc.timestamp_millis_opt(raw.0).single()
+                        .context(DateTimeParseFailedSnafu {
+                            timestamp: raw.0,
+                        })?,
+                    open: raw.1.parse::<f64>().context(ParseNumberFailedSnafu {
+                        field: "open".to_string(),
+                        value: raw.1.clone(),
+                    })?,
+                    high: raw.2.parse::<f64>().context(ParseNumberFailedSnafu {
+                        field: "high".to_string(),
+                        value: raw.2.clone(),
+                    })?,
+                    low: raw.3.parse::<f64>().context(ParseNumberFailedSnafu {
+                        field: "low".to_string(),
+                        value: raw.3.clone(),
+                    })?,
+                    close: raw.4.parse::<f64>().context(ParseNumberFailedSnafu {
+                        field: "close".to_string(),
+                        value: raw.4.clone(),
+                    })?,
+                    volume: raw.5.parse::<f64>().context(ParseNumberFailedSnafu {
+                        field: "volume".to_string(),
+                        value: raw.5.clone(),
+                    })?,
+                })
             })
-            .collect::<Vec<Kline>>();
-        // log::debug!("process_kline-binance: {:?}", klines);
-        let kline_series = KlineSeries {
-            exchange: Exchange::Binance,
-            symbol: symbol.to_string(),
-            interval: interval.clone().into(),
-            series: klines,
-        };
-        //
-        let exchange_klineseries_update_event_config = ExchangeKlineSeriesUpdateEvent {
-            exchange: Exchange::Binance,
-            event_timestamp: get_utc8_timestamp_millis(),
-            symbol: symbol.to_string(),
-            interval: interval.clone().into(),
-            kline_series,
-            batch_id: generate_batch_id(),
-        };
-        // 发送k线系列更新事件
-        let exchange_klineseries_update_event = ExchangeEvent::ExchangeKlineSeriesUpdate(exchange_klineseries_update_event_config).into();
-        // let event_center = self.event_center.lock().await;
-        // event_center.publish(exchange_klineseries_update_event).expect("发送k线系列更新事件失败");
-        event_publisher.publish(exchange_klineseries_update_event);
+            .collect::<Result<Vec<Kline>, BinanceError>>()?;
+
+        Ok(klines)
     }
 
     // 处理k线数据并且更新缓存，并且发送事件
@@ -95,7 +87,7 @@ impl BinanceDataProcessor {
             .parse::<BinanceKlineInterval>()
             .expect("interval不是KlineInterval");
         let new_kline = Kline {
-            timestamp: timestamp,
+            datetime: Utc.timestamp_opt(timestamp, 0).single().unwrap(),
             open: open,
             high: high,
             low: low,
@@ -108,8 +100,7 @@ impl BinanceDataProcessor {
             symbol: symbol.to_string(),
             interval: interval.clone().into(),
             kline: new_kline,
-            event_timestamp: get_utc8_timestamp_millis(),
-            batch_id: generate_batch_id(),
+            datetime: Utc::now(),
         };
 
         let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();
@@ -139,5 +130,135 @@ impl BinanceDataProcessor {
                 }
             }
         }
+    }
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct BinanceKlineRaw(
+    i64,    // 0: Open time (开盘时间)
+    String, // 1: Open price (开盘价)
+    String, // 2: High price (最高价)
+    String, // 3: Low price (最低价)
+    String, // 4: Close price (收盘价)
+    String, // 5: Volume (成交量)
+    i64,    // 6: Close time (收盘时间)
+    String, // 7: Quote asset volume (成交额)
+    i64,    // 8: Number of trades (成交笔数)
+    String, // 9: Taker buy base asset volume (主动买入成交量)
+    String, // 10: Taker buy quote asset volume (主动买入成交额)
+    String, // 11: Ignore (忽略)
+);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_process_kline_series() {
+        let processor = BinanceDataProcessor;
+
+        let raw_data = vec![
+            json!([
+                1499040000000i64,
+                "0.01634790",
+                "0.80000000",
+                "0.01575800",
+                "0.01577100",
+                "148976.11427815",
+                1499644799999i64,
+                "2434.19055334",
+                308,
+                "1756.87402397",
+                "28.46694368",
+                "17928899.62484339"
+            ])
+        ];
+
+        let result = processor.process_kline_series(raw_data).await;
+
+        assert!(result.is_ok());
+        let klines = result.unwrap();
+        assert_eq!(klines.len(), 1);
+
+        let kline = &klines[0];
+        assert_eq!(kline.datetime, Utc.timestamp_millis_opt(1499040000000).single().unwrap());
+        assert_eq!(kline.open, 0.01634790);
+        assert_eq!(kline.high, 0.80000000);
+        assert_eq!(kline.low, 0.01575800);
+        assert_eq!(kline.close, 0.01577100);
+        assert_eq!(kline.volume, 148976.11427815);
+    }
+
+    #[tokio::test]
+    async fn test_process_kline_series_multiple() {
+        let processor = BinanceDataProcessor;
+
+        let raw_data = vec![
+            json!([
+                1499040000000i64,
+                "0.01634790",
+                "0.80000000",
+                "0.01575800",
+                "0.01577100",
+                "148976.11427815",
+                1499644799999i64,
+                "2434.19055334",
+                308,
+                "1756.87402397",
+                "28.46694368",
+                "17928899.62484339"
+            ]),
+            json!([
+                1499040060000i64,
+                "0.01577100",
+                "0.85000000",
+                "0.01600000",
+                "0.01650000",
+                "150000.00000000",
+                1499644859999i64,
+                "2500.00000000",
+                310,
+                "1800.00000000",
+                "30.00000000",
+                "18000000.00000000"
+            ])
+        ];
+
+        let result = processor.process_kline_series(raw_data).await;
+
+        assert!(result.is_ok());
+        let klines = result.unwrap();
+        assert_eq!(klines.len(), 2);
+
+        assert_eq!(klines[0].open, 0.01634790);
+        assert_eq!(klines[1].open, 0.01577100);
+    }
+
+    #[tokio::test]
+    async fn test_process_kline_series_invalid_data() {
+        let processor = BinanceDataProcessor;
+
+        let raw_data = vec![
+            json!([
+                1499040000000i64,
+                "invalid_number",
+                "0.80000000",
+                "0.01575800",
+                "0.01577100",
+                "148976.11427815",
+                1499644799999i64,
+                "2434.19055334",
+                308,
+                "1756.87402397",
+                "28.46694368",
+                "17928899.62484339"
+            ])
+        ];
+
+        let result = processor.process_kline_series(raw_data).await;
+        assert!(result.is_err());
     }
 }
