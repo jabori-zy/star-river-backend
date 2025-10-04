@@ -6,10 +6,12 @@ mod mt5_ws_client;
 #[cfg(test)]
 mod test;
 mod url;
+mod client;
 
 use super::metatrader5::mt5_types::Mt5CreateOrderParams;
 use super::metatrader5::mt5_types::Mt5KlineInterval;
-use crate::ExchangeClient;
+// use crate::ExchangeClient;
+use super::exchange_trait::*;
 use async_trait::async_trait;
 use event_center::EventPublisher;
 use futures::SinkExt;
@@ -730,404 +732,404 @@ impl MetaTrader5 {
     }
 }
 
-#[async_trait]
-impl ExchangeClient for MetaTrader5 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+// #[async_trait]
+// impl ExchangeClient for MetaTrader5 {
+//     fn as_any(&self) -> &dyn Any {
+//         self
+//     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+//     fn as_any_mut(&mut self) -> &mut dyn Any {
+//         self
+//     }
 
-    fn clone_box(&self) -> Box<dyn ExchangeClient> {
-        Box::new(self.clone())
-    }
+//     fn clone_box(&self) -> Box<dyn ExchangeClient> {
+//         Box::new(self.clone())
+//     }
 
-    fn exchange_type(&self) -> Exchange {
-        Exchange::Metatrader5(self.server.clone())
-    }
+//     fn exchange_type(&self) -> Exchange {
+//         Exchange::Metatrader5(self.server.clone())
+//     }
 
-    async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let symbols = mt5_http_client.get_symbol_list().await?;
-            let data_processor = self.data_processor.lock().await;
-            let symbols = data_processor.process_symbol_list(symbols).await?;
-            Ok(symbols)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let symbols = mt5_http_client.get_symbol_list().await?;
+//             let data_processor = self.data_processor.lock().await;
+//             let symbols = data_processor.process_symbol_list(symbols).await?;
+//             Ok(symbols)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn get_symbol(&self, symbol: String) -> Result<Symbol, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let symbol = mt5_http_client.get_symbol_info(&symbol).await?;
-            let data_processor = self.data_processor.lock().await;
-            let symbol = data_processor.process_symbol(symbol).await?;
-            Ok(symbol)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     async fn get_symbol(&self, symbol: String) -> Result<Symbol, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let symbol = mt5_http_client.get_symbol_info(&symbol).await?;
+//             let data_processor = self.data_processor.lock().await;
+//             let symbol = data_processor.process_symbol(symbol).await?;
+//             Ok(symbol)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
 
     
 
-    fn get_support_kline_intervals(&self) -> Vec<KlineInterval> {
-        Mt5KlineInterval::to_list()
-            .iter()
-            .map(|interval| KlineInterval::from(interval.clone()))
-            .collect()
-    }
+//     fn get_support_kline_intervals(&self) -> Vec<KlineInterval> {
+//         Mt5KlineInterval::to_list()
+//             .iter()
+//             .map(|interval| KlineInterval::from(interval.clone()))
+//             .collect()
+//     }
 
-    async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, ExchangeClientError> {
-        Ok(serde_json::Value::Null)
-    }
+//     async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, ExchangeClientError> {
+//         Ok(serde_json::Value::Null)
+//     }
 
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, ExchangeClientError> {
-        let mt5_interval = Mt5KlineInterval::from(interval);
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await?;
-            let data_processor = self.data_processor.lock().await;
-            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await?;
-            Ok(kline_series)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, ExchangeClientError> {
+//         let mt5_interval = Mt5KlineInterval::from(interval);
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await?;
+//             let data_processor = self.data_processor.lock().await;
+//             let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await?;
+//             Ok(kline_series)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
-        let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.context(WebSocketSnafu {
-            message: "connect to metatrader5 websocket server failed".to_string(),
-            account_id: self.terminal_id,
-            url: format!("ws://localhost:{}/ws", self.server_port),
-        })?;
-        self.websocket_state.lock().await.replace(websocket_state);
-        Ok(())
-    }
+//     async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
+//         let (websocket_state, _) = Mt5WsClient::connect_default(self.server_port).await.context(WebSocketSnafu {
+//             message: "connect to metatrader5 websocket server failed".to_string(),
+//             account_id: self.terminal_id,
+//             url: format!("ws://localhost:{}/ws", self.server_port),
+//         })?;
+//         self.websocket_state.lock().await.replace(websocket_state);
+//         Ok(())
+//     }
 
-    async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
-        let mt5_interval = Mt5KlineInterval::from(interval).to_string();
-        let mut mt5_ws_client = self.websocket_state.lock().await;
-        tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
-        if let Some(state) = mt5_ws_client.as_mut() {
-            let params = json!({
-                "symbol": symbol,
-                "interval": mt5_interval,
-            });
-            tracing::debug!("Metatrader5订阅k线流参数: {:?}", params);
+//     async fn subscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
+//         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
+//         let mut mt5_ws_client = self.websocket_state.lock().await;
+//         tracing::debug!("Metatrader5订阅k线流: {:?}, {:?}, {:?}", symbol, mt5_interval, frequency);
+//         if let Some(state) = mt5_ws_client.as_mut() {
+//             let params = json!({
+//                 "symbol": symbol,
+//                 "interval": mt5_interval,
+//             });
+//             tracing::debug!("Metatrader5订阅k线流参数: {:?}", params);
 
-            state
-                .subscribe(Some("kline"), Some(params), Some(frequency))
-                .await
-                .expect("订阅k线流失败");
-        }
-        Ok(())
-    }
+//             state
+//                 .subscribe(Some("kline"), Some(params), Some(frequency))
+//                 .await
+//                 .expect("订阅k线流失败");
+//         }
+//         Ok(())
+//     }
 
-    async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
-        tracing::info!("取消订阅k线流: {:?}", symbol);
-        let mt5_interval = Mt5KlineInterval::from(interval).to_string();
-        let mut mt5_ws_client = self.websocket_state.lock().await;
-        if let Some(state) = mt5_ws_client.as_mut() {
-            let params = json!({
-                "symbol": symbol,
-                "interval": mt5_interval,
-            });
+//     async fn unsubscribe_kline_stream(&self, symbol: &str, interval: KlineInterval, frequency: u32) -> Result<(), ExchangeClientError> {
+//         tracing::info!("取消订阅k线流: {:?}", symbol);
+//         let mt5_interval = Mt5KlineInterval::from(interval).to_string();
+//         let mut mt5_ws_client = self.websocket_state.lock().await;
+//         if let Some(state) = mt5_ws_client.as_mut() {
+//             let params = json!({
+//                 "symbol": symbol,
+//                 "interval": mt5_interval,
+//             });
 
-            state
-                .unsubscribe(Some("kline"), Some(params), Some(frequency))
-                .await
-                .expect("取消订阅k线流失败");
-        }
-        Ok(())
-    }
+//             state
+//                 .unsubscribe(Some("kline"), Some(params), Some(frequency))
+//                 .await
+//                 .expect("取消订阅k线流失败");
+//         }
+//         Ok(())
+//     }
 
-    async fn get_socket_stream(&self) -> Result<(), ExchangeClientError> {
-        // 判断当前是否正在处理流
-        if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
-            tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
-            return Ok(());
-        }
-        tracing::debug!("metatrader5开始处理流数据");
-        // 如果当前没有处理流，则开始处理流,设置状态为true
-        self.is_process_stream.store(true, std::sync::atomic::Ordering::Relaxed);
+//     async fn get_socket_stream(&self) -> Result<(), ExchangeClientError> {
+//         // 判断当前是否正在处理流
+//         if self.is_process_stream.load(std::sync::atomic::Ordering::Relaxed) {
+//             tracing::warn!("metatrader5已开始处理流数据, 无需重复获取!");
+//             return Ok(());
+//         }
+//         tracing::debug!("metatrader5开始处理流数据");
+//         // 如果当前没有处理流，则开始处理流,设置状态为true
+//         self.is_process_stream.store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let websocket_state = self.websocket_state.clone();
-        let data_processor = self.data_processor.clone();
+//         let websocket_state = self.websocket_state.clone();
+//         let data_processor = self.data_processor.clone();
 
-        let future = async move {
-            loop {
-                let receive_message = {
-                    let mut websocket_state = websocket_state.lock().await;
-                    if let Some(state) = websocket_state.as_mut() {
-                        state.as_mut().next().await
-                    } else {
-                        None
-                    }
-                }; // 锁在这里被释放
+//         let future = async move {
+//             loop {
+//                 let receive_message = {
+//                     let mut websocket_state = websocket_state.lock().await;
+//                     if let Some(state) = websocket_state.as_mut() {
+//                         state.as_mut().next().await
+//                     } else {
+//                         None
+//                     }
+//                 }; // 锁在这里被释放
 
-                // 处理原始数据
-                if let Some(Ok(msg)) = receive_message {
-                    match msg {
-                        Message::Ping(data) => {
-                            // tracing::debug!("收到ping帧");
-                            let mut websocket_state = websocket_state.lock().await;
-                            if let Some(state) = websocket_state.as_mut() {
-                                // 回复pong帧
-                                let socket = state.as_mut();
-                                socket.send(Message::Pong(data)).await.expect("发送pong帧失败");
-                                // tracing::debug!("发送pong帧");
-                            }
-                        }
-                        Message::Pong(_) => {
-                            tracing::debug!("收到pong帧");
-                        }
-                        Message::Text(text) => {
-                            let stream_json =
-                                serde_json::from_str::<serde_json::Value>(&text.to_string()).expect("解析WebSocket消息JSON失败");
-                            // tracing::debug!("收到消息: {:?}", stream_json);
-                            let data_processor = data_processor.lock().await;
-                            if let Err(e) = data_processor.process_stream(stream_json).await {
-                                tracing::error!("Failed to process stream data: {}", e);
-                                // Consider reconnection logic
-                            }
-                        }
-                        _ => {
-                            tracing::debug!("收到其他类型的消息: {:?}", msg);
-                        }
-                    }
-                }
-            }
-        };
-        tokio::spawn(future);
-        Ok(())
-    }
+//                 // 处理原始数据
+//                 if let Some(Ok(msg)) = receive_message {
+//                     match msg {
+//                         Message::Ping(data) => {
+//                             // tracing::debug!("收到ping帧");
+//                             let mut websocket_state = websocket_state.lock().await;
+//                             if let Some(state) = websocket_state.as_mut() {
+//                                 // 回复pong帧
+//                                 let socket = state.as_mut();
+//                                 socket.send(Message::Pong(data)).await.expect("发送pong帧失败");
+//                                 // tracing::debug!("发送pong帧");
+//                             }
+//                         }
+//                         Message::Pong(_) => {
+//                             tracing::debug!("收到pong帧");
+//                         }
+//                         Message::Text(text) => {
+//                             let stream_json =
+//                                 serde_json::from_str::<serde_json::Value>(&text.to_string()).expect("解析WebSocket消息JSON失败");
+//                             // tracing::debug!("收到消息: {:?}", stream_json);
+//                             let data_processor = data_processor.lock().await;
+//                             if let Err(e) = data_processor.process_stream(stream_json).await {
+//                                 tracing::error!("Failed to process stream data: {}", e);
+//                                 // Consider reconnection logic
+//                             }
+//                         }
+//                         _ => {
+//                             tracing::debug!("收到其他类型的消息: {:?}", msg);
+//                         }
+//                     }
+//                 }
+//             }
+//         };
+//         tokio::spawn(future);
+//         Ok(())
+//     }
 
-    // 获取k线历史
-    async fn get_kline_history(
-        &self,
-        symbol: &str,
-        interval: KlineInterval,
-        time_range: TimeRange,
-    ) -> Result<Vec<Kline>, ExchangeClientError> {
-        let mt5_interval = Mt5KlineInterval::from(interval);
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await?;
-            let data_processor = self.data_processor.lock().await;
-            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await?;
-            Ok(klines)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     // 获取k线历史
+//     async fn get_kline_history(
+//         &self,
+//         symbol: &str,
+//         interval: KlineInterval,
+//         time_range: TimeRange,
+//     ) -> Result<Vec<Kline>, ExchangeClientError> {
+//         let mt5_interval = Mt5KlineInterval::from(interval);
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await?;
+//             let data_processor = self.data_processor.lock().await;
+//             let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await?;
+//             Ok(klines)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        let mt5_order_request = Mt5CreateOrderParams::from(params);
+//     async fn create_order(&self, params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         let mt5_order_request = Mt5CreateOrderParams::from(params);
 
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            // 创建订单
-            let create_order_result = mt5_http_client.create_order(mt5_order_request).await?;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             // 创建订单
+//             let create_order_result = mt5_http_client.create_order(mt5_order_request).await?;
 
-            // 获取返回码
-            let retcode = create_order_result["data"]["retcode"].as_i64().context(RetcodeSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            })?;
+//             // 获取返回码
+//             let retcode = create_order_result["data"]["retcode"].as_i64().context(RetcodeSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             })?;
 
-            if retcode != 10009 {
-                return RetcodeSnafu {
-                    terminal_id: self.terminal_id,
-                    port: self.server_port,
-                }
-                .fail()?;
-            }
+//             if retcode != 10009 {
+//                 return RetcodeSnafu {
+//                     terminal_id: self.terminal_id,
+//                     port: self.server_port,
+//                 }
+//                 .fail()?;
+//             }
 
-            // 获取订单ID
-            let order_id = create_order_result["data"]["order_id"].as_i64().context(OrderIdSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            })?;
+//             // 获取订单ID
+//             let order_id = create_order_result["data"]["order_id"].as_i64().context(OrderIdSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             })?;
 
-            // 获取订单详情
-            let order_info = mt5_http_client.get_order(&order_id).await?;
+//             // 获取订单详情
+//             let order_info = mt5_http_client.get_order(&order_id).await?;
 
-            // 处理订单数据
-            let data_processor = self.data_processor.lock().await;
-            let order = data_processor.process_order(order_info).await?;
-            Ok(order)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//             // 处理订单数据
+//             let data_processor = self.data_processor.lock().await;
+//             let order = data_processor.process_order(order_info).await?;
+//             Ok(order)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn update_order(&self, order: Order) -> Result<Order, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let order_info = mt5_http_client.get_order(&order.exchange_order_id).await?;
+//     async fn update_order(&self, order: Order) -> Result<Order, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let order_info = mt5_http_client.get_order(&order.exchange_order_id).await?;
 
-            let data_processor = self.data_processor.lock().await;
-            let updated_order = data_processor.update_order(order_info, order).await?;
-            Ok(updated_order)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//             let data_processor = self.data_processor.lock().await;
+//             let updated_order = data_processor.update_order(order_info, order).await?;
+//             Ok(updated_order)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn get_transaction_detail(
-        &self,
-        params: GetTransactionDetailParams,
-    ) -> Result<Box<dyn OriginalTransaction>, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let data_processor = self.data_processor.lock().await;
+//     async fn get_transaction_detail(
+//         &self,
+//         params: GetTransactionDetailParams,
+//     ) -> Result<Box<dyn OriginalTransaction>, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let data_processor = self.data_processor.lock().await;
 
-            if let Some(transaction_id) = params.transaction_id {
-                let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await?;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
-                return Ok(transaction_detail);
-            } else if let Some(position_id) = params.position_id {
-                let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await?;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
-                return Ok(transaction_detail);
-            } else if let Some(order_id) = params.order_id {
-                let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await?;
-                let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
-                return Ok(transaction_detail);
-            } else {
-                return OtherSnafu {
-                    message: "transaction_id, position_id, order_id cannot be None".to_string(),
-                }
-                .fail()?;
-            }
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//             if let Some(transaction_id) = params.transaction_id {
+//                 let transaction_detail_info = mt5_http_client.get_deal_by_deal_id(&transaction_id).await?;
+//                 let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
+//                 return Ok(transaction_detail);
+//             } else if let Some(position_id) = params.position_id {
+//                 let transaction_detail_info = mt5_http_client.get_deal_by_position_id(&position_id).await?;
+//                 let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
+//                 return Ok(transaction_detail);
+//             } else if let Some(order_id) = params.order_id {
+//                 let transaction_detail_info = mt5_http_client.get_deals_by_order_id(&order_id).await?;
+//                 let transaction_detail = data_processor.process_deal(transaction_detail_info).await?;
+//                 return Ok(transaction_detail);
+//             } else {
+//                 return OtherSnafu {
+//                     message: "transaction_id, position_id, order_id cannot be None".to_string(),
+//                 }
+//                 .fail()?;
+//             }
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let position_info = mt5_http_client.get_position(&params.position_id).await?;
-            let position_list = position_info["data"].clone();
-            // 如果仓位列表为空，则说明仓位已平仓
-            if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return OtherSnafu {
-                    message: "仓位已平仓".to_string(),
-                }
-                .fail()?;
-            }
-            let data_processor = self.data_processor.lock().await;
-            let position = data_processor.process_position(position_list[0].clone()).await?;
-            Ok(position)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     async fn get_position(&self, params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let position_info = mt5_http_client.get_position(&params.position_id).await?;
+//             let position_list = position_info["data"].clone();
+//             // 如果仓位列表为空，则说明仓位已平仓
+//             if position_list.as_array().expect("转换为array失败").len() == 0 {
+//                 return OtherSnafu {
+//                     message: "仓位已平仓".to_string(),
+//                 }
+//                 .fail()?;
+//             }
+//             let data_processor = self.data_processor.lock().await;
+//             let position = data_processor.process_position(position_list[0].clone()).await?;
+//             Ok(position)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn get_latest_position(&self, position: &Position) -> Result<Position, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let original_position_json = mt5_http_client
-                .get_position(&position.exchange_position_id)
-                .await
-                .expect("更新仓位失败");
-            let position_list = original_position_json["data"].clone();
-            // 如果仓位列表为空，则说明仓位已平仓
-            if position_list.as_array().expect("转换为array失败").len() == 0 {
-                return OtherSnafu {
-                    message: "仓位已平仓".to_string(),
-                }
-                .fail()?;
-            }
-            let data_processor = self.data_processor.lock().await;
-            let position = data_processor
-                .process_latest_position(position_list[0].clone(), position)
-                .await
-                .expect("处理仓位失败");
-            Ok(position)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     async fn get_latest_position(&self, position: &Position) -> Result<Position, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let original_position_json = mt5_http_client
+//                 .get_position(&position.exchange_position_id)
+//                 .await
+//                 .expect("更新仓位失败");
+//             let position_list = original_position_json["data"].clone();
+//             // 如果仓位列表为空，则说明仓位已平仓
+//             if position_list.as_array().expect("转换为array失败").len() == 0 {
+//                 return OtherSnafu {
+//                     message: "仓位已平仓".to_string(),
+//                 }
+//                 .fail()?;
+//             }
+//             let data_processor = self.data_processor.lock().await;
+//             let position = data_processor
+//                 .process_latest_position(position_list[0].clone(), position)
+//                 .await
+//                 .expect("处理仓位失败");
+//             Ok(position)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let mt5_position_number_request = Mt5GetPositionNumberParams::from(position_number_request);
-            let position_number_info = mt5_http_client
-                .get_position_number(mt5_position_number_request)
-                .await
-                .expect("获取仓位数量失败");
-            let mt5_data_processor = self.data_processor.lock().await;
-            let position_number = mt5_data_processor
-                .process_position_number(position_number_info)
-                .await
-                .expect("解析position_number数据失败");
-            Ok(position_number)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
+//     async fn get_position_number(&self, position_number_request: GetPositionNumberParams) -> Result<PositionNumber, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let mt5_position_number_request = Mt5GetPositionNumberParams::from(position_number_request);
+//             let position_number_info = mt5_http_client
+//                 .get_position_number(mt5_position_number_request)
+//                 .await
+//                 .expect("获取仓位数量失败");
+//             let mt5_data_processor = self.data_processor.lock().await;
+//             let position_number = mt5_data_processor
+//                 .process_position_number(position_number_info)
+//                 .await
+//                 .expect("解析position_number数据失败");
+//             Ok(position_number)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
 
-    async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let account_info = mt5_http_client.get_account_info().await?;
-            let data_processor = self.data_processor.lock().await;
-            let account_info = data_processor.process_account_info(self.terminal_id, account_info).await?;
-            Ok(account_info)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
-    }
-}
+//     async fn get_account_info(&self) -> Result<Box<dyn OriginalAccountInfo>, ExchangeClientError> {
+//         let mt5_http_client = self.mt5_http_client.lock().await;
+//         if let Some(mt5_http_client) = mt5_http_client.as_ref() {
+//             let account_info = mt5_http_client.get_account_info().await?;
+//             let data_processor = self.data_processor.lock().await;
+//             let account_info = data_processor.process_account_info(self.terminal_id, account_info).await?;
+//             Ok(account_info)
+//         } else {
+//             return HttpClientNotCreatedSnafu {
+//                 terminal_id: self.terminal_id,
+//                 port: self.server_port,
+//             }
+//             .fail()?;
+//         }
+//     }
+// }

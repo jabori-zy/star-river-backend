@@ -6,7 +6,7 @@ use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::exchange_engine::*;
 use event_center::event::Event;
-use exchange_client::ExchangeClient;
+use super::{ExchangeClientCore, ExchangeStreamExt};
 use exchange_client::metatrader5::MetaTrader5;
 use sea_orm::DatabaseConnection;
 use snafu::{Report, ResultExt};
@@ -22,7 +22,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
     pub engine_name: EngineName,
-    pub exchanges: HashMap<AccountId, Box<dyn ExchangeClient>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
+    pub exchanges: HashMap<AccountId, Box<dyn ExchangeClientCore>>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
     pub database: DatabaseConnection,
 }
 
@@ -193,7 +193,7 @@ impl ExchangeEngineContext {
         }
 
         // 存储交易所客户端
-        let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClient>;
+        let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClientCore>;
 
         tracing::info!("MT5-{} exchange register success!", account_config.id);
         self.exchanges.insert(account_config.id, mt5_exchange);
@@ -383,7 +383,7 @@ impl ExchangeEngineContext {
         self.exchanges.contains_key(account_id)
     }
 
-    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, ExchangeEngineError> {
+    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClientCore>, ExchangeEngineError> {
         match self.exchanges.get(account_id) {
             Some(client) => {
                 // 使用clone_box方法直接获取一个新的Box<dyn ExchangeClient>
@@ -400,7 +400,7 @@ impl ExchangeEngineContext {
         }
     }
 
-    pub async fn get_exchange_ref<'a>(&'a self, account_id: &i32) -> Result<&'a Box<dyn ExchangeClient>, ExchangeEngineError> {
+    pub async fn get_exchange_ref<'a>(&'a self, account_id: &i32) -> Result<&'a Box<dyn ExchangeClientCore>, ExchangeEngineError> {
         match self.exchanges.get(account_id) {
             Some(client) => Ok(client),
             None => {
@@ -415,7 +415,7 @@ impl ExchangeEngineContext {
     }
 
     // 添加一个获取可变引用的方法
-    pub async fn get_exchange_mut<'a>(&'a mut self, account_id: &i32) -> Result<&'a mut Box<dyn ExchangeClient>, ExchangeEngineError> {
+    pub async fn get_exchange_mut<'a>(&'a mut self, account_id: &i32) -> Result<&'a mut Box<dyn ExchangeClientCore>, ExchangeEngineError> {
         match self.exchanges.get_mut(account_id) {
             Some(client) => Ok(client),
             None => {

@@ -4,7 +4,7 @@ use crate::EngineName;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
 use crate::{Engine, EngineContext};
 use async_trait::async_trait;
-use exchange_client::ExchangeClient;
+use exchange_client::exchange_trait::*;
 use sea_orm::DatabaseConnection;
 use std::any::Any;
 use std::collections::HashMap;
@@ -56,13 +56,13 @@ impl ExchangeEngine {
         exchange_context.is_registered(account_id).await
     }
 
-    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClient>, ExchangeEngineError> {
+    pub async fn get_exchange(&self, account_id: &i32) -> Result<Box<dyn ExchangeClientCore>, ExchangeEngineError> {
         let context_guard = self.context.read().await;
         let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
         exchange_context.get_exchange(account_id).await
     }
 
-    pub async fn get_exchange_mut(&self, account_id: &i32) -> Box<dyn ExchangeClient> {
+    pub async fn get_exchange_mut(&self, account_id: &i32) -> Box<dyn ExchangeClientCore> {
         let mut context_guard = self.context.write().await;
         let exchange_context = context_guard.as_any_mut().downcast_mut::<ExchangeEngineContext>().unwrap();
         let client = exchange_context.get_exchange_mut(account_id).await.unwrap();

@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
 
-
 #[derive(Debug)]
 // 用于表示订阅的流
 pub struct Stream {
@@ -24,6 +23,3 @@ impl Display for Stream {
         write!(f, "{}", self.stream_name)
     }
 }
-
-
-

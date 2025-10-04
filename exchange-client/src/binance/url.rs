@@ -1,7 +1,5 @@
 use strum::Display;
 
-
-
 #[derive(Display, Debug, Clone)]
 pub(crate) enum BinanceHttpUrl {
     #[strum(serialize = "https://api.binance.com")]
@@ -23,4 +21,3 @@ pub(crate) enum BinanceWsUrl {
     #[strum(serialize = "wss://stream.binance.com:9443/stream")]
     BaseUrl,
 }
-
