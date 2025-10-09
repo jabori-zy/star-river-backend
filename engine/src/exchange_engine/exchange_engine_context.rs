@@ -8,6 +8,7 @@ use event_center::communication::engine::exchange_engine::*;
 use event_center::event::Event;
 use super::{ExchangeClientCore, ExchangeStreamExt};
 use exchange_client::metatrader5::MetaTrader5;
+use exchange_client::binance::Binance;
 use sea_orm::DatabaseConnection;
 use snafu::{Report, ResultExt};
 use star_river_core::account::AccountConfig;
@@ -106,8 +107,12 @@ impl ExchangeEngineContext {
                 {
                     // 开发环境
                     tracing::debug!("in the dev mode, direct connect to mt5 server");
-                    Self::register_mt5_exchange_in_dev(self, account_config).await
+                    self.register_mt5_exchange_in_dev(account_config).await
                 }
+            }
+            Exchange::Binance => {
+                self.register_binance_exchange(account_config).await
+
             }
             _ => {
                 let error = UnsupportedExchangeTypeSnafu {
@@ -197,6 +202,16 @@ impl ExchangeEngineContext {
 
         tracing::info!("MT5-{} exchange register success!", account_config.id);
         self.exchanges.insert(account_config.id, mt5_exchange);
+        Ok(())
+    }
+
+
+    async fn register_binance_exchange(&mut self, account_config: AccountConfig) -> Result<(), ExchangeEngineError> {
+        let mut binance = Binance::new();
+        binance.init_exchange().await.unwrap();
+        let binance_exchange = Box::new(binance) as Box<dyn ExchangeClientCore>;
+        self.exchanges.insert(account_config.id, binance_exchange);
+
         Ok(())
     }
 

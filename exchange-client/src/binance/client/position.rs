@@ -1,6 +1,6 @@
 use super::{
     ExchangePositionExt,
-    BinanceExchange,
+    Binance,
     ExchangeClientError,
     async_trait,
 };
@@ -8,7 +8,7 @@ use star_river_core::position::{GetPositionNumberParams, GetPositionParam, Origi
 use star_river_core::market::Exchange;
 
 #[async_trait]
-impl ExchangePositionExt for BinanceExchange {
+impl ExchangePositionExt for Binance {
     async fn get_position(&self, _params: GetPositionParam) -> Result<Box<dyn OriginalPosition>, ExchangeClientError> {
         todo!()
     }

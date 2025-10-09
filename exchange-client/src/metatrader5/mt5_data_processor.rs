@@ -144,7 +144,7 @@ impl Mt5DataProcessor {
             context: "symbol list".to_string(),
         })?;
         let mut symbol_list = Vec::new();
-        for (_, symbol) in symbols.iter().enumerate() {
+        for symbol in symbols.iter() {
             let symbol_name = symbol
                 .get("name")
                 .context(MissingFieldSnafu {

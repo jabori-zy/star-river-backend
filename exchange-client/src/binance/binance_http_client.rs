@@ -1,10 +1,7 @@
 
 use crate::binance::url::BinanceHttpUrl;
 use crate::utils::get_utc8_timestamp;
-use reqwest::{self, Response};
-// 导入lib.rs中的Kline和TickerPrice
-use super::{BinanceKline, BinanceKlineInterval};
-use star_river_core::market::{Kline, TickerPrice};
+use super::{BinanceKlineInterval};
 use super::{
     BinanceError,
     PingFailedSnafu,
@@ -148,14 +145,21 @@ impl BinanceHttpClient {
         Ok(raw_kline)
     }
 
-    pub async fn get_exchange_info(&self) -> Result<String, String> {
+    pub async fn get_exchange_info(&self) -> Result<serde_json::Value, BinanceError> {
         let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ExchangeInfo);
-        let response = self.client.get(&url).send().await.expect("获取交易所信息失败");
-        let body = response.text().await.expect("获取交易所信息失败");
+        let response = self.client
+            .get(&url)
+            .send()
+            .await
+            .context(NetworkSnafu {
+                url: url.clone(),
+            })?
+            .json::<serde_json::Value>()
+            .await
+            .context(ResponseSnafu {
+                url: url.clone(),
+            })?;
 
-        // let result: serde_json::Value = serde_json::from_str(&body)
-        //     .map_err(|e| format!("解析交易所信息失败: {}", e))?;
-
-        Ok(body)
+        Ok(response)
     }
 }

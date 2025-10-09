@@ -1,6 +1,6 @@
 use super:: {
     ExchangeMarketDataExt,
-    BinanceExchange,
+    Binance,
     KlineInterval,
     Kline,
     ExchangeClientError,
@@ -10,7 +10,7 @@ use super:: {
 };
 
 #[async_trait]
-impl ExchangeMarketDataExt for BinanceExchange {
+impl ExchangeMarketDataExt for Binance {
     async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, ExchangeClientError> {
         let binance_interval = BinanceKlineInterval::from(interval);
 

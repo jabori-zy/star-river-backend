@@ -125,14 +125,32 @@ pub async fn get_account_configs(
         "login": 76898751,
         "password": "HhazJ520....",
         "server": "Exness-MT5Trial5",
-        "terminal_path": "D:/Program Files/MetaTrader 5-1/terminal64.exe"
+        "terminalPath": "D:/Program Files/MetaTrader 5-1/terminal64.exe"
     })
 )]
 pub struct Mt5AccountConfigParams {
     login: i64,
     password: String,
     server: String,
+    #[serde(rename = "terminalPath")]
     terminal_path: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+#[schema(
+    title = "Binance账户配置",
+    description = "Binance交易账户的配置信息，包含API密钥和API密钥",
+    example = json!({
+        "apiKey": "1234567890",
+        "apiSecret": "1234567890"
+    })
+)]
+
+pub struct BinanceAccountConfigParams {
+    #[serde(rename = "apiKey")]
+    api_key: String,
+    #[serde(rename = "apiSecret")]
+    api_secret: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -146,6 +164,9 @@ pub enum AccountConfigType {
     /// MetaTrader 5账户配置
     #[schema(title = "MT5账户配置")]
     Mt5(Mt5AccountConfigParams),
+
+    #[schema(title = "Binance账户配置")]
+    Binance(BinanceAccountConfigParams),
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -159,7 +180,7 @@ pub enum AccountConfigType {
             "login": 76898751,
             "password": "HhazJ520....",
             "server":"Exness-MT5Trial5",
-            "terminal_path": "D:/Program Files/MetaTrader 5-1/terminal64.exe"
+            "terminalPath": "D:/Program Files/MetaTrader 5-1/terminal64.exe"
         }
     }),
 )]
@@ -290,7 +311,7 @@ pub async fn delete_account_config(
             "login": 76898751,
             "password": "HhazJ520....",
             "server": "Exness-MT5Trial5",
-            "terminal_path": "D:/Program Files/MetaTrader 5-1/terminal64.exe"
+            "terminalPath": "D:/Program Files/MetaTrader 5-1/terminal64.exe"
         },
         "is_available": true,
         "sort_index": 1

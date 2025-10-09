@@ -1,6 +1,6 @@
 use super::{
     ExchangeSymbolExt,
-    BinanceExchange,
+    Binance,
     KlineInterval,
     BinanceKlineInterval,
     ExchangeClientError,
@@ -9,9 +9,13 @@ use super::{
 use star_river_core::market::Symbol;
 
 #[async_trait]
-impl ExchangeSymbolExt for BinanceExchange {
+impl ExchangeSymbolExt for Binance {
     async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError> {
-        todo!()
+        let exchange_info = self.http_client.get_exchange_info().await?;
+        let processor = self.data_processor.lock().await;
+        let symbols = processor.process_symbol_list(exchange_info)?;
+        Ok(symbols)
+
     }
 
     async fn get_symbol(&self, _symbol: String) -> Result<Symbol, ExchangeClientError> {

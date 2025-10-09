@@ -30,7 +30,7 @@ use star_river_core::error::exchange_client_error::binance_error::*;
 
 // 交易所
 #[derive(Clone, Debug)]
-pub struct BinanceExchange {
+pub struct Binance {
     http_client: BinanceHttpClient,
     websocket_state: Arc<Mutex<Option<WebSocketState>>>, // 可以在线程间传递
     data_processor: Arc<Mutex<BinanceDataProcessor>>,
@@ -38,7 +38,7 @@ pub struct BinanceExchange {
 }
 
 #[async_trait]
-impl ExchangeClientCore for BinanceExchange {
+impl ExchangeClientCore for Binance {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -57,7 +57,7 @@ impl ExchangeClientCore for BinanceExchange {
 
 }
 
-impl BinanceExchange {
+impl Binance {
     pub fn new() -> Self {
         Self {
             http_client: BinanceHttpClient::new(),

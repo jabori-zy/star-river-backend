@@ -1,7 +1,6 @@
 use strum::{Display, EnumString};
 use serde::{Deserialize, Serialize};
-use star_river_core::market::{KlineInterval, Kline};
-use chrono::{TimeZone, Utc};
+use star_river_core::market::KlineInterval;
 
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
@@ -120,25 +119,73 @@ impl BinanceKlineInterval {
 
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BinanceKline {
-    pub timestamp: i64,
-    pub open: f64,
-    pub high: f64,
-    pub low: f64,
-    pub close: f64,
-    pub volume: f64,
-}
+#[derive(Debug, Deserialize)]
+pub struct BinanceKlineRaw(
+    pub i64,    // 0: Open time (开盘时间)
+    pub String, // 1: Open price (开盘价)
+    pub String, // 2: High price (最高价)
+    pub String, // 3: Low price (最低价)
+    pub String, // 4: Close price (收盘价)
+    pub String, // 5: Volume (成交量)
+    pub i64,    // 6: Close time (收盘时间)
+    pub String, // 7: Quote asset volume (成交额)
+    pub i64,    // 8: Number of trades (成交笔数)
+    pub String, // 9: Taker buy base asset volume (主动买入成交量)
+    pub String, // 10: Taker buy quote asset volume (主动买入成交额)
+    pub String, // 11: Ignore (忽略)
+);
 
-impl From<BinanceKline> for Kline {
-    fn from(kline: BinanceKline) -> Self {
-        Self {
-            datetime: Utc.timestamp_opt(kline.timestamp, 0).single().unwrap(),
-            open: kline.open,
-            high: kline.high,
-            low: kline.low,
-            close: kline.close,
-            volume: kline.volume,
-        }
-    }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BinanceSymbolRaw {
+    pub symbol: String,
+    pub status: String,
+
+    #[serde(rename = "baseAsset")]
+    pub base_asset: String,
+
+    #[serde(rename = "baseAssetPrecision")]
+    pub base_asset_precision: u32,
+
+    #[serde(rename = "quoteAsset")]
+    pub quote_asset: String,
+
+    #[serde(rename = "quotePrecision")]
+    pub quote_precision: u32,
+
+    #[serde(rename = "quoteAssetPrecision")]
+    pub quote_asset_precision: u32,
+
+    #[serde(rename = "orderTypes")]
+    pub order_types: Vec<String>,
+
+    #[serde(rename = "icebergAllowed")]
+    pub iceberg_allowed: bool,
+
+    #[serde(rename = "ocoAllowed")]
+    pub oco_allowed: bool,
+
+    #[serde(rename = "otoAllowed")]
+    pub oto_allowed: bool,
+
+    #[serde(rename = "quoteOrderQtyMarketAllowed")]
+    pub quote_order_qty_market_allowed: bool,
+
+    #[serde(rename = "allowTrailingStop")]
+    pub allow_trailing_stop: bool,
+
+    #[serde(rename = "cancelReplaceAllowed")]
+    pub cancel_replace_allowed: bool,
+
+    #[serde(rename = "amendAllowed")]
+    pub amend_allowed: bool,
+
+    #[serde(rename = "pegInstructionsAllowed")]
+    pub peg_instructions_allowed: bool,
+
+    #[serde(rename = "isSpotTradingAllowed")]
+    pub is_spot_trading_allowed: bool,
+
+    #[serde(rename = "isMarginTradingAllowed")]
+    pub is_margin_trading_allowed: bool,
 }

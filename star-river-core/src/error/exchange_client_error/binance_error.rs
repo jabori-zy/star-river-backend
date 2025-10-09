@@ -70,6 +70,19 @@ pub enum BinanceError {
         source: std::num::ParseFloatError,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("missing field: {field}"))]
+    MissingField {
+        field: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("invalid field type: {field}, expected: {expected}"))]
+    InvalidFieldType {
+        field: String,
+        expected: String,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for IndicatorError
@@ -90,6 +103,8 @@ impl StarRiverErrorTrait for BinanceError {
             BinanceError::DateTimeParseFailed { .. } => 1007, // 解析时间戳失败
             BinanceError::TypeConversionFailed { .. } => 1008, // 类型转换失败
             BinanceError::ParseNumberFailed { .. } => 1009, // 解析数字失败
+            BinanceError::MissingField { .. } => 1010, // 缺少字段
+            BinanceError::InvalidFieldType { .. } => 1011, // 字段类型无效
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -138,6 +153,12 @@ impl StarRiverErrorTrait for BinanceError {
                 BinanceError::ParseNumberFailed { field, value, source, .. } => {
                     format!("解析数字失败: 字段: {}, 值: {}, 错误: {}", field, value, source)
                 }
+                BinanceError::MissingField { field, .. } => {
+                    format!("缺少字段: {}", field)
+                }
+                BinanceError::InvalidFieldType { field, expected, .. } => {
+                    format!("字段类型无效: 字段: {}, 期望: {}", field, expected)
+                }
             },
         }
     }
@@ -154,7 +175,9 @@ impl StarRiverErrorTrait for BinanceError {
             BinanceError::ParseRawDataFailed { .. } |
             BinanceError::DateTimeParseFailed { .. } |
             BinanceError::TypeConversionFailed { .. } |
-            BinanceError::ParseNumberFailed { .. } => vec![self.error_code()],
+            BinanceError::ParseNumberFailed { .. } |
+            BinanceError::MissingField { .. } |
+            BinanceError::InvalidFieldType { .. } => vec![self.error_code()],
         }
     }
 }

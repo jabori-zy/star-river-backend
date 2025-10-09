@@ -374,7 +374,7 @@ impl MarketEngineContext {
     }
 
 
-    pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Vec<KlineInterval> {
+    pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Result<Vec<KlineInterval>, MarketEngineError> {
         let exchange_engine_context = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
             exchange_engine_guard.get_context()
@@ -382,9 +382,9 @@ impl MarketEngineContext {
         let context_read = exchange_engine_context.read().await;
         let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
+        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await?;
         let support_kline_intervals = exchange.get_support_kline_intervals();
-        support_kline_intervals
+        Ok(support_kline_intervals)
     }
 
     // pub async fn get_ticker_price(&self, exchange: Exchange, symbol: String) -> Result<serde_json::Value, String> {

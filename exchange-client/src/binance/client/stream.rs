@@ -1,5 +1,5 @@
 use super::{
-    BinanceExchange,
+    Binance,
     ExchangeStreamExt,
     KlineInterval,
     BinanceKlineInterval,
@@ -11,7 +11,7 @@ use futures::StreamExt;
 use std::sync::atomic::Ordering;
 
 #[async_trait]
-impl ExchangeStreamExt for BinanceExchange {
+impl ExchangeStreamExt for Binance {
     async fn connect_websocket(&mut self) -> Result<(), ExchangeClientError> {
         use crate::binance::binance_ws_client::BinanceWsClient;
         use std::sync::Arc;

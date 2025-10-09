@@ -12,7 +12,7 @@ use super:: {
     ExchangeAccountExt,
     ExchangeOrderExt,
     ExchangeSymbolExt,
-    BinanceExchange,
+    Binance,
     Kline,
     KlineInterval,
     BinanceKlineInterval

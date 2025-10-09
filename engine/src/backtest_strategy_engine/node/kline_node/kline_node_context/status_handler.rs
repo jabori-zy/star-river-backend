@@ -3,7 +3,7 @@ use super::{
     GetKlineHistoryCommand, InitKlineDataCmdPayload, InitKlineDataCommand, KeyTrait, KlineNodeContext, MarketEngineCommand,
     RegisterExchangeCmdPayload, RegisterExchangeCommand, RegisterExchangeRespPayload, Response, Kline, KlineNodeError, KlineKey,
     AccountId, LoadKlineHistoryFromExchangeFailedSnafu, InitKlineDataFailedSnafu, TimeRange, KlineInterval, AppendKlineDataCmdPayload, 
-    AppendKlineDataCommand, AppendKlineDataFailedSnafu, InsufficientKlineDataSnafu
+    AppendKlineDataCommand, AppendKlineDataFailedSnafu, InsufficientKlineDataSnafu, Exchange
 };
 use tokio::sync::{oneshot, Semaphore};
 use tracing::instrument;
@@ -27,75 +27,109 @@ impl KlineNodeContext {
             .account_id
             .clone();
 
+        let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+
         let time_range = self.backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
-        // 计算理论上的k线数量
-        let bar_number = bar_number(&time_range, &self.min_interval_symbols[0].get_interval());
-        tracing::debug!("[{}] bar number: {}", self.get_node_name(), bar_number);
-        
-        // 如果大于2000条, 则开启多线程加载
-        if bar_number >= 10000 {
-            tracing::info!("[{}] Large data set detected ({} bars), using concurrent loading", self.get_node_name(), bar_number);
+        match exchange {
+            Exchange::Metatrader5(_) => {
+                // 计算理论上的k线数量
+                let bar_number = bar_number(&time_range, &self.min_interval_symbols[0].get_interval());
+                tracing::debug!("[{}] bar number: {}", self.get_node_name(), bar_number);
+                
+                // 如果大于2000条, 则开启多线程加载
+                if bar_number >= 10000 {
+                    tracing::info!("[{}] Large data set detected ({} bars), using concurrent loading", self.get_node_name(), bar_number);
 
-            for (symbol_key, _) in self.selected_symbol_keys.iter() {
-                if !self.min_interval_symbols.contains(&symbol_key) {
-                    tracing::warn!(
-                        "[{}] symbol: {}-{}, is not min interval, skip",
-                        self.get_node_name(),
-                        symbol_key.get_symbol(),
-                        symbol_key.get_interval()
-                    );
-                    continue;
-                }
+                    for (symbol_key, _) in self.selected_symbol_keys.iter() {
+                        if !self.min_interval_symbols.contains(&symbol_key) {
+                            tracing::warn!(
+                                "[{}] symbol: {}-{}, is not min interval, skip",
+                                self.get_node_name(),
+                                symbol_key.get_symbol(),
+                                symbol_key.get_interval()
+                            );
+                            continue;
+                        }
 
-                let first_kline = self.request_first_kline(account_id.clone(), &symbol_key).await?;
-                // 第一根k线的时间
-                let first_kline_datetime = first_kline.first().unwrap().datetime();
-                // 如果第一根k线的时间小于start_time，则报错
-                let start_time = time_range.start_date;
-                if first_kline_datetime > start_time {
-                    InsufficientKlineDataSnafu{
-                        first_kline_datetime: first_kline_datetime.to_string(),
-                        start_time: start_time.to_string(),
-                        end_time: time_range.end_date.to_string(),
+                        let first_kline = self.request_first_kline(account_id.clone(), &symbol_key).await?;
+                        // 第一根k线的时间
+                        let first_kline_datetime = first_kline.first().unwrap().datetime();
+                        // 如果第一根k线的时间小于start_time，则报错
+                        let start_time = time_range.start_date;
+                        if first_kline_datetime > start_time {
+                            InsufficientKlineDataSnafu{
+                                first_kline_datetime: first_kline_datetime.to_string(),
+                                start_time: start_time.to_string(),
+                                end_time: time_range.end_date.to_string(),
+                            }
+                            .fail()?;
+
+                        }
+                        // 使用并发加载
+                        self.load_symbol_concurrently(account_id.clone(), symbol_key.clone()).await?;
                     }
-                    .fail()?;
+                } else {
+                    // 遍历每一个symbol，从交易所获取k线历史
+                    for (symbol_key, _) in self.selected_symbol_keys.iter() {
+                        // 如果key不在最小周期交易对列表中，则跳过
+                        if !self.min_interval_symbols.contains(&symbol_key) {
+                            tracing::warn!(
+                                "[{}] symbol: {}-{}, is not min interval, skip",
+                                self.get_node_name(),
+                                symbol_key.get_symbol(),
+                                symbol_key.get_interval()
+                            );
+                            continue;
+                        }
+                        let first_kline = self.request_first_kline(account_id.clone(), &symbol_key).await?;
+                        let first_kline_datetime = first_kline.first().unwrap().datetime();
+                        let start_time = time_range.start_date;
+                        if first_kline_datetime > start_time {
+                            InsufficientKlineDataSnafu{
+                                first_kline_datetime: first_kline_datetime.to_string(),
+                                start_time: start_time.to_string(),
+                                end_time: time_range.end_date.to_string(),
+                            }
+                            .fail()?;
 
-                }
-                // 使用并发加载
-                self.load_symbol_concurrently(account_id.clone(), symbol_key.clone()).await?;
-            }
-        } else {
-            // 遍历每一个symbol，从交易所获取k线历史
-            for (symbol_key, _) in self.selected_symbol_keys.iter() {
-                // 如果key不在最小周期交易对列表中，则跳过
-                if !self.min_interval_symbols.contains(&symbol_key) {
-                    tracing::warn!(
-                        "[{}] symbol: {}-{}, is not min interval, skip",
-                        self.get_node_name(),
-                        symbol_key.get_symbol(),
-                        symbol_key.get_interval()
-                    );
-                    continue;
-                }
-                let first_kline = self.request_first_kline(account_id.clone(), &symbol_key).await?;
-                let first_kline_datetime = first_kline.first().unwrap().datetime();
-                let start_time = time_range.start_date;
-                if first_kline_datetime > start_time {
-                    InsufficientKlineDataSnafu{
-                        first_kline_datetime: first_kline_datetime.to_string(),
-                        start_time: start_time.to_string(),
-                        end_time: time_range.end_date.to_string(),
+                        }
+
+                        let kline_history = self.request_kline_history(account_id.clone(), symbol_key).await?;
+                        self.init_kline_data(symbol_key, &kline_history).await?;
                     }
-                    .fail()?;
 
                 }
 
-                let kline_history = self.request_kline_history(account_id.clone(), symbol_key).await?;
-                self.init_kline_data(symbol_key, &kline_history).await?;
+
             }
 
+            Exchange::Binance => {
+                // 遍历每一个symbol，从交易所获取k线历史
+                for (symbol_key, _) in self.selected_symbol_keys.iter() {
+                    // 如果key不在最小周期交易对列表中，则跳过
+                    if !self.min_interval_symbols.contains(&symbol_key) {
+                        tracing::warn!(
+                            "[{}] symbol: {}-{}, is not min interval, skip",
+                            self.get_node_name(),
+                            symbol_key.get_symbol(),
+                            symbol_key.get_interval()
+                        );
+                        continue;
+                    }
+
+                    let kline_history = self.request_kline_history(account_id.clone(), symbol_key).await?;
+                    self.init_kline_data(symbol_key, &kline_history).await?;
+
+                }
+
+            }
+            _ => {
+                return Ok(());
+            }
         }
+
+        
         
         Ok(())
     }

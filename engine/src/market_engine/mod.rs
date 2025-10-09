@@ -49,18 +49,18 @@ impl MarketEngine {
         }
     }
 
-    pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, String> {
+    pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, MarketEngineError> {
         let context_read = self.context.read().await;
         let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
-        let symbol_list = market_engine_context_guard.get_symbol_list(account_id).await.unwrap();
+        let symbol_list = market_engine_context_guard.get_symbol_list(account_id).await?;
         Ok(symbol_list)
     }
 
-    pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Vec<KlineInterval> {
+    pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Result<Vec<KlineInterval>, MarketEngineError> {
         let context_read = self.context.read().await;
         let market_engine_context_guard = context_read.as_any().downcast_ref::<MarketEngineContext>().unwrap();
-        let support_kline_intervals = market_engine_context_guard.get_support_kline_intervals(account_id).await;
-        support_kline_intervals
+        let support_kline_intervals = market_engine_context_guard.get_support_kline_intervals(account_id).await?;
+        Ok(support_kline_intervals)
     }
 
     pub async fn get_symbol(&self, account_id: AccountId, symbol: String) -> Result<Symbol, MarketEngineError> {

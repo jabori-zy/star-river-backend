@@ -1,6 +1,6 @@
 use super::{
     ExchangeOrderExt,
-    BinanceExchange,
+    Binance,
     ExchangeClientError,
     async_trait,
 };
@@ -10,7 +10,7 @@ use star_river_core::{
 };
 
 #[async_trait]
-impl ExchangeOrderExt for BinanceExchange {
+impl ExchangeOrderExt for Binance {
     async fn create_order(&self, _params: CreateOrderParams) -> Result<Box<dyn OriginalOrder>, ExchangeClientError> {
         todo!()
     }

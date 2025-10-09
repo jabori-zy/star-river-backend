@@ -1,12 +1,12 @@
-use crate::binance::BinanceKlineInterval;
+use super::binance_type::{BinanceSymbolRaw, BinanceKlineRaw};
+use super::BinanceKlineInterval;
 use event_center::EventPublisher;
 use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
-use star_river_core::market::{Exchange, Kline};
+use star_river_core::market::{Exchange, Kline, Symbol};
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 use chrono::{TimeZone, Utc};
-use serde::Deserialize;
 use snafu::{ResultExt, OptionExt};
 use star_river_core::error::exchange_client_error::binance_error::*;
 
@@ -131,25 +131,45 @@ impl BinanceDataProcessor {
             }
         }
     }
+
+
+    pub fn process_symbol_list(&self,exchange_info: serde_json::Value) -> Result<Vec<Symbol>, BinanceError> {
+        let symbols = exchange_info
+            .get("symbols")
+            .context(MissingFieldSnafu {
+                field: "symbols".to_string()
+            })?
+            .as_array()
+            .context(InvalidFieldTypeSnafu {
+                field: "symbols".to_string(),
+                expected: "array".to_string(),
+            })?;
+        
+        let symbol_list = symbols
+            .iter()
+            .map(|symbol| {
+                let binance_symbol = serde_json::from_value::<BinanceSymbolRaw>(symbol.clone())
+                    .context(ParseRawDataFailedSnafu {
+                        data_name: "symbol".to_string(),
+                    })?;
+                Ok(Symbol::new(
+                    binance_symbol.symbol.as_str(),
+                    Some(binance_symbol.base_asset.as_str()),
+                    Some(binance_symbol.quote_asset.as_str()),
+                    Exchange::Binance,
+                    0.001,
+                ))
+            })
+            .collect::<Result<Vec<Symbol>, BinanceError>>()?;
+
+        Ok(symbol_list)
+        
+    }
 }
 
 
 
-#[derive(Debug, Deserialize)]
-struct BinanceKlineRaw(
-    i64,    // 0: Open time (开盘时间)
-    String, // 1: Open price (开盘价)
-    String, // 2: High price (最高价)
-    String, // 3: Low price (最低价)
-    String, // 4: Close price (收盘价)
-    String, // 5: Volume (成交量)
-    i64,    // 6: Close time (收盘时间)
-    String, // 7: Quote asset volume (成交额)
-    i64,    // 8: Number of trades (成交笔数)
-    String, // 9: Taker buy base asset volume (主动买入成交量)
-    String, // 10: Taker buy quote asset volume (主动买入成交额)
-    String, // 11: Ignore (忽略)
-);
+
 
 #[cfg(test)]
 mod tests {

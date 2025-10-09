@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::binance::BinanceExchange;
+    use crate::binance::Binance;
     use crate::exchange_trait::ExchangeMarketDataExt;
     use star_river_core::market::KlineInterval;
     use star_river_core::strategy::TimeRange;
@@ -8,7 +8,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Minutes1;
@@ -45,7 +45,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series_different_intervals() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "ETHUSDT";
         let intervals = vec![
@@ -66,7 +66,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series_invalid_symbol() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
         let symbol = "INVALIDSYMBOL123";
         let interval = KlineInterval::Minutes1;
         let limit = 10;
@@ -80,7 +80,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Hours1;
@@ -128,7 +128,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history_short_range() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "ETHUSDT";
         let interval = KlineInterval::Minutes15;
@@ -157,7 +157,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history_different_intervals() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let end_date = Utc::now();
@@ -187,7 +187,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series_default_limit() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Minutes1;
@@ -205,7 +205,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series_max_limit() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Minutes1;
@@ -223,7 +223,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series_exceed_max_limit() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Minutes1;
@@ -245,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_series_small_limit() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Minutes1;
@@ -263,7 +263,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history_large_range() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Days1;
@@ -290,7 +290,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history_2010() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Days1;
@@ -321,7 +321,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history_before_exchange_existed() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Hours1;
@@ -349,7 +349,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_kline_history_early_binance() {
-        let exchange = BinanceExchange::new();
+        let exchange = Binance::new();
 
         let symbol = "BTCUSDT";
         let interval = KlineInterval::Days1;
@@ -383,5 +383,65 @@ mod tests {
         } else {
             println!("2017-2018年期间没有BTCUSDT数据");
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_exchange_info() {
+        let exchange = Binance::new();
+
+        let result = exchange.http_client.get_exchange_info().await;
+
+        assert!(result.is_ok());
+        let info = result.unwrap();
+
+        // 验证返回的数据不为空
+        assert!(!info.is_null());
+
+        // 尝试解析JSON
+        let json: serde_json::Value = info;
+
+        // 验证包含必要的字段
+        assert!(json.get("timezone").is_some());
+        assert!(json.get("serverTime").is_some());
+        assert!(json.get("symbols").is_some());
+
+        // 验证symbols是数组
+        let symbols = json["symbols"].as_array().expect("symbols应该是数组");
+        assert!(!symbols.is_empty(), "symbols数组不应该为空");
+
+        // 验证第一个symbol包含必要字段
+        let first_symbol = &symbols[0];
+        assert!(first_symbol.get("symbol").is_some());
+        assert!(first_symbol.get("status").is_some());
+        assert!(first_symbol.get("baseAsset").is_some());
+        assert!(first_symbol.get("quoteAsset").is_some());
+
+        println!("交易所信息获取成功，包含 {} 个交易对", symbols.len());
+        // 打印第一个symbol
+        println!("第一个symbol: {:#?}", first_symbol);
+    }
+
+    #[tokio::test]
+    async fn test_get_symbol_list() {
+        use crate::exchange_trait::ExchangeSymbolExt;
+
+        let exchange = Binance::new();
+
+        let result = exchange.get_symbol_list().await;
+
+        assert!(result.is_ok());
+        let symbols = result.unwrap();
+
+        // 验证返回的数据不为空
+        assert!(!symbols.is_empty(), "交易对列表不应该为空");
+
+        // 验证第一个Symbol的字段
+        let first_symbol = &symbols[0];
+        assert!(!first_symbol.name.is_empty(), "symbol名称不应该为空");
+        assert!(first_symbol.base.is_some(), "base应该存在");
+        assert!(first_symbol.quote.is_some(), "quote应该存在");
+
+        println!("获取到 {} 个交易对", symbols.len());
+        println!("第一个交易对: {:?}", first_symbol);
     }
 }
