@@ -42,7 +42,8 @@ pub enum KlineNodeError {
     NoMinIntervalSymbol { symbol: String, backtrace: Backtrace },
 
     #[snafu(display("load kline history from exchange failed."))]
-    LoadKlineHistoryFromExchangeFailed {
+    LoadKlineFromExchangeFailed {
+        exchange: String,
         source: Arc<dyn StarRiverErrorTrait>,
         backtrace: Backtrace,
     },
@@ -86,7 +87,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::GetPlayKlineDataFailed { .. } => 1004, // 获取播放K线数据失败
             KlineNodeError::KlineTimestampNotEqual { .. } => 1005, // K线时间戳不一致
             KlineNodeError::NoMinIntervalSymbol { .. } => 1006,    // 没有最小周期K线
-            KlineNodeError::LoadKlineHistoryFromExchangeFailed { .. } => 1007, // 从交易所加载K线历史失败
+            KlineNodeError::LoadKlineFromExchangeFailed { .. } => 1007, // 从交易所加载K线历史失败
             KlineNodeError::InitKlineDataFailed { .. } => 1008,    // 初始化K线数据失败
             KlineNodeError::AppendKlineDataFailed { .. } => 1009,  // 追加K线数据失败
             KlineNodeError::InsufficientKlineData { .. } => 1010,  // 缺乏K线数据
@@ -108,7 +109,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 | KlineNodeError::ConfigDeserializationFailed { .. }
                 | KlineNodeError::KlineTimestampNotEqual { .. }
                 | KlineNodeError::NoMinIntervalSymbol { .. }
-                | KlineNodeError::LoadKlineHistoryFromExchangeFailed { .. }
+                | KlineNodeError::LoadKlineFromExchangeFailed { .. }
                 | KlineNodeError::InitKlineDataFailed { .. }
                 | KlineNodeError::AppendKlineDataFailed { .. }
                 | KlineNodeError::InsufficientKlineData { .. }
@@ -133,7 +134,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::GetPlayKlineDataFailed { .. } |
             KlineNodeError::KlineTimestampNotEqual { .. } |
             KlineNodeError::NoMinIntervalSymbol { .. } => vec![self.error_code()],
-            KlineNodeError::LoadKlineHistoryFromExchangeFailed { source, .. } |
+            KlineNodeError::LoadKlineFromExchangeFailed { source, .. } |
             KlineNodeError::InitKlineDataFailed { source, .. } |
             KlineNodeError::AppendKlineDataFailed { source, .. } => {
                 let mut chain = source.error_code_chain();
@@ -176,7 +177,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::NoMinIntervalSymbol { symbol, .. } => {
                     format!("K线节点没有找到最小周期K线，交易对: [{symbol}]")
                 }
-                KlineNodeError::LoadKlineHistoryFromExchangeFailed { source, .. } => {
+                KlineNodeError::LoadKlineFromExchangeFailed { source, .. } => {
                     format!("从交易所加载K线历史失败，原因: [{}]", source)
                 }
                 KlineNodeError::InitKlineDataFailed { source, .. } => {

@@ -118,7 +118,7 @@ impl BinanceKlineInterval {
 
 
 
-
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct BinanceKlineRaw(
     pub i64,    // 0: Open time (开盘时间)
@@ -135,7 +135,7 @@ pub struct BinanceKlineRaw(
     pub String, // 11: Ignore (忽略)
 );
 
-
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 pub struct BinanceSymbolRaw {
     pub symbol: String,

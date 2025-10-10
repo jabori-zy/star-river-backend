@@ -82,7 +82,14 @@ pub enum BinanceError {
         field: String,
         expected: String,
         backtrace: Backtrace,
-    }
+    },
+
+
+    #[snafu(display("symbol {symbol} not found"))]
+    SymbolNotFound {
+        symbol: String,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for IndicatorError
@@ -105,6 +112,7 @@ impl StarRiverErrorTrait for BinanceError {
             BinanceError::ParseNumberFailed { .. } => 1009, // 解析数字失败
             BinanceError::MissingField { .. } => 1010, // 缺少字段
             BinanceError::InvalidFieldType { .. } => 1011, // 字段类型无效
+            BinanceError::SymbolNotFound { .. } => 1012, // 交易对不存在
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -159,6 +167,9 @@ impl StarRiverErrorTrait for BinanceError {
                 BinanceError::InvalidFieldType { field, expected, .. } => {
                     format!("字段类型无效: 字段: {}, 期望: {}", field, expected)
                 }
+                BinanceError::SymbolNotFound { symbol, .. } => {
+                    format!("交易对 {} 不存在", symbol)
+                }
             },
         }
     }
@@ -177,7 +188,8 @@ impl StarRiverErrorTrait for BinanceError {
             BinanceError::TypeConversionFailed { .. } |
             BinanceError::ParseNumberFailed { .. } |
             BinanceError::MissingField { .. } |
-            BinanceError::InvalidFieldType { .. } => vec![self.error_code()],
+            BinanceError::InvalidFieldType { .. } |
+            BinanceError::SymbolNotFound { .. } => vec![self.error_code()],
         }
     }
 }

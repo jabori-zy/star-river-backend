@@ -18,8 +18,13 @@ impl ExchangeSymbolExt for Binance {
 
     }
 
-    async fn get_symbol(&self, _symbol: String) -> Result<Symbol, ExchangeClientError> {
-        todo!()
+    async fn get_symbol(&self, symbol: String) -> Result<Symbol, ExchangeClientError> {
+        let symbol_info = self.http_client.get_symbol_info(&symbol).await?;
+        tracing::debug!("symbol_info: {:#?}", symbol_info);
+        let processor = self.data_processor.lock().await;
+        let symbol = processor.process_symbol(symbol_info)?;
+        tracing::debug!("symbol: {:?}", symbol);
+        Ok(symbol)
     }
 
     fn get_support_kline_intervals(&self) -> Vec<KlineInterval> {

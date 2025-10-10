@@ -4,6 +4,8 @@ mod data_handler;
 mod event_handler;
 mod status_handler;
 mod utils;
+mod mt5_data_handler;
+mod binance_data_handler;
 
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};

@@ -343,7 +343,6 @@ impl MarketEngineContext {
         //     time_range.clone(),
         // )
         // .await;
-        tracing::debug!("strategy {} get kline history", strategy_id);
 
         // 1. 先检查注册状态
         let exchange_is_registered = self.exchange_is_registered(account_id).await;

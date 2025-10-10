@@ -1,14 +1,14 @@
-use super::binance_type::{BinanceSymbolRaw, BinanceKlineRaw};
 use super::BinanceKlineInterval;
+use super::binance_type::{BinanceKlineRaw, BinanceSymbolRaw};
+use chrono::{TimeZone, Utc};
 use event_center::EventPublisher;
 use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
+use snafu::{OptionExt, ResultExt};
+use star_river_core::error::exchange_client_error::binance_error::*;
 use star_river_core::market::{Exchange, Kline, Symbol};
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
-use chrono::{TimeZone, Utc};
-use snafu::{ResultExt, OptionExt};
-use star_river_core::error::exchange_client_error::binance_error::*;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {
@@ -22,25 +22,18 @@ pub enum BinanceStreamEvent {
 pub struct BinanceDataProcessor;
 
 impl BinanceDataProcessor {
-
     // 处理k线系列
-    pub async fn process_kline_series(
-        &self,
-        raw_data: Vec<serde_json::Value>,
-    ) -> Result<Vec<Kline>, BinanceError> {
+    pub async fn process_kline_series(&self, raw_data: Vec<serde_json::Value>) -> Result<Vec<Kline>, BinanceError> {
         let klines = raw_data
             .iter()
             .map(|v| {
-                let raw: BinanceKlineRaw = serde_json::from_value(v.clone())
-                    .context(ParseRawDataFailedSnafu {
-                        data_name: "kline",
-                    })?;
+                let raw: BinanceKlineRaw = serde_json::from_value(v.clone()).context(ParseRawDataFailedSnafu { data_name: "kline" })?;
 
                 Ok(Kline {
-                    datetime: Utc.timestamp_millis_opt(raw.0).single()
-                        .context(DateTimeParseFailedSnafu {
-                            timestamp: raw.0,
-                        })?,
+                    datetime: Utc
+                        .timestamp_millis_opt(raw.0)
+                        .single()
+                        .context(DateTimeParseFailedSnafu { timestamp: raw.0 })?,
                     open: raw.1.parse::<f64>().context(ParseNumberFailedSnafu {
                         field: "open".to_string(),
                         value: raw.1.clone(),
@@ -132,26 +125,24 @@ impl BinanceDataProcessor {
         }
     }
 
-
-    pub fn process_symbol_list(&self,exchange_info: serde_json::Value) -> Result<Vec<Symbol>, BinanceError> {
+    pub fn process_symbol_list(&self, exchange_info: serde_json::Value) -> Result<Vec<Symbol>, BinanceError> {
         let symbols = exchange_info
             .get("symbols")
             .context(MissingFieldSnafu {
-                field: "symbols".to_string()
+                field: "symbols".to_string(),
             })?
             .as_array()
             .context(InvalidFieldTypeSnafu {
                 field: "symbols".to_string(),
                 expected: "array".to_string(),
             })?;
-        
+
         let symbol_list = symbols
             .iter()
             .map(|symbol| {
-                let binance_symbol = serde_json::from_value::<BinanceSymbolRaw>(symbol.clone())
-                    .context(ParseRawDataFailedSnafu {
-                        data_name: "symbol".to_string(),
-                    })?;
+                let binance_symbol = serde_json::from_value::<BinanceSymbolRaw>(symbol.clone()).context(ParseRawDataFailedSnafu {
+                    data_name: "symbol".to_string(),
+                })?;
                 Ok(Symbol::new(
                     binance_symbol.symbol.as_str(),
                     Some(binance_symbol.base_asset.as_str()),
@@ -163,13 +154,47 @@ impl BinanceDataProcessor {
             .collect::<Result<Vec<Symbol>, BinanceError>>()?;
 
         Ok(symbol_list)
-        
+    }
+
+    pub fn process_symbol(&self, symbol_info: serde_json::Value) -> Result<Symbol, BinanceError> {
+
+        let symbol_info = symbol_info
+            .get("symbols")
+            .context(MissingFieldSnafu {
+                field: "symbols".to_string(),
+            })?
+            .as_array()
+            .context(InvalidFieldTypeSnafu {
+                field: "symbols".to_string(),
+                expected: "array".to_string(),
+            })?;
+
+        // determine the list lengh is 1
+        if symbol_info.len() != 1 {
+            return Err(SymbolNotFoundSnafu {
+                symbol: "symbol_info".to_string(),
+            }.build());
+        }
+
+        let symbol = Symbol::new(
+            symbol_info[0]
+                .get("symbol")
+                .context(MissingFieldSnafu {
+                    field: "symbol".to_string(),
+                })?
+                .as_str()
+                .context(InvalidFieldTypeSnafu {
+                    field: "symbol".to_string(),
+                    expected: "string".to_string(),
+                })?,
+            None,
+            None,
+            Exchange::Binance,
+            0.001,
+        );
+        Ok(symbol)
     }
 }
-
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -180,22 +205,20 @@ mod tests {
     async fn test_process_kline_series() {
         let processor = BinanceDataProcessor;
 
-        let raw_data = vec![
-            json!([
-                1499040000000i64,
-                "0.01634790",
-                "0.80000000",
-                "0.01575800",
-                "0.01577100",
-                "148976.11427815",
-                1499644799999i64,
-                "2434.19055334",
-                308,
-                "1756.87402397",
-                "28.46694368",
-                "17928899.62484339"
-            ])
-        ];
+        let raw_data = vec![json!([
+            1499040000000i64,
+            "0.01634790",
+            "0.80000000",
+            "0.01575800",
+            "0.01577100",
+            "148976.11427815",
+            1499644799999i64,
+            "2434.19055334",
+            308,
+            "1756.87402397",
+            "28.46694368",
+            "17928899.62484339"
+        ])];
 
         let result = processor.process_kline_series(raw_data).await;
 
@@ -244,7 +267,7 @@ mod tests {
                 "1800.00000000",
                 "30.00000000",
                 "18000000.00000000"
-            ])
+            ]),
         ];
 
         let result = processor.process_kline_series(raw_data).await;
@@ -261,22 +284,20 @@ mod tests {
     async fn test_process_kline_series_invalid_data() {
         let processor = BinanceDataProcessor;
 
-        let raw_data = vec![
-            json!([
-                1499040000000i64,
-                "invalid_number",
-                "0.80000000",
-                "0.01575800",
-                "0.01577100",
-                "148976.11427815",
-                1499644799999i64,
-                "2434.19055334",
-                308,
-                "1756.87402397",
-                "28.46694368",
-                "17928899.62484339"
-            ])
-        ];
+        let raw_data = vec![json!([
+            1499040000000i64,
+            "invalid_number",
+            "0.80000000",
+            "0.01575800",
+            "0.01577100",
+            "148976.11427815",
+            1499644799999i64,
+            "2434.19055334",
+            308,
+            "1756.87402397",
+            "28.46694368",
+            "17928899.62484339"
+        ])];
 
         let result = processor.process_kline_series(raw_data).await;
         assert!(result.is_err());
