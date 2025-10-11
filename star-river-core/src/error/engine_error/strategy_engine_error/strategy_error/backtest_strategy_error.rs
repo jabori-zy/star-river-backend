@@ -29,9 +29,8 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("backtest strategy node init timeout: {node_name}({node_id}) {node_type} node init timeout"))]
+    #[snafu(display("backtest strategy node init timeout: {node_name} [{node_type}] node init timeout"))]
     NodeInitTimeout {
-        node_id: String,
         node_name: String,
         node_type: String,
         source: tokio::time::error::Elapsed,
@@ -228,11 +227,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 }
                 BacktestStrategyError::NodeInitTimeout {
                     node_name,
-                    node_id,
                     node_type,
                     ..
                 } => {
-                    format!("回测策略节点初始化超时: {}({}) {} 节点初始化超时", node_name, node_id, node_type)
+                    format!("回测策略节点{}[{}]初始化超时", node_name, node_type)
                 }
                 BacktestStrategyError::TokioTaskFailed {
                     task_name,

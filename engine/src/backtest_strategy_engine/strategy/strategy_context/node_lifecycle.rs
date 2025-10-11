@@ -28,7 +28,7 @@ impl BacktestStrategyContext {
             let node_type = node.get_node_type().await;
 
             // 等待节点初始化完成（这里没有持有任何锁）
-            match tokio::time::timeout(Duration::from_secs(30), node_handle).await {
+            match tokio::time::timeout(Duration::from_secs(120), node_handle).await {
                 Ok(result) => {
                     if let Err(e) = result {
                         return Err(TokioTaskFailedSnafu {
@@ -46,7 +46,6 @@ impl BacktestStrategyContext {
                 }
                 Err(e) => {
                     return Err(NodeInitTimeoutSnafu {
-                        node_id,
                         node_name,
                         node_type: node_type.to_string(),
                     }
