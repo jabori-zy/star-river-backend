@@ -11,6 +11,7 @@ use star_river_core::strategy::TimeRange;
 use star_river_core::transaction::OriginalTransaction;
 use std::any::Any;
 use std::fmt::Debug;
+use star_river_core::market::ExchangeStatus;
 
 /// Core exchange client trait
 /// Provides basic type conversion and exchange identification
@@ -31,6 +32,9 @@ pub trait ExchangeClientCore:
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn clone_box(&self) -> Box<dyn ExchangeClientCore>;
     fn exchange_type(&self) -> Exchange;
+    fn get_status(&self) -> ExchangeStatus;
+    fn set_status(&mut self, status: ExchangeStatus);
+    
 }
 
 /// Market data query trait

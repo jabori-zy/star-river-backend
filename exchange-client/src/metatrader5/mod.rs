@@ -26,6 +26,7 @@ use std::sync::atomic::AtomicBool;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use tracing::instrument;
+use star_river_core::market::ExchangeStatus;
 
 #[cfg(windows)]
 #[derive(Embed)]
@@ -155,6 +156,7 @@ pub struct MetaTrader5 {
     // event_publisher: Arc<Mutex<EventPublisher>>,
     mt5_process: Arc<Mutex<Option<Child>>>,
     exe_path: Arc<Mutex<Option<PathBuf>>>,
+    status: ExchangeStatus,
 }
 
 impl MetaTrader5 {
@@ -183,6 +185,7 @@ impl MetaTrader5 {
             data_processor: Arc::new(Mutex::new(Mt5DataProcessor::new(server))),
             mt5_process: Arc::new(Mutex::new(None)),
             exe_path: Arc::new(Mutex::new(None)),
+            status: ExchangeStatus::NotRegist,
         }
     }
 

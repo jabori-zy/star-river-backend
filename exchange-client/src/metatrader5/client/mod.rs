@@ -8,7 +8,8 @@ mod order;
 use super::{
     MetaTrader5,
     Exchange,
-    ExchangeClientCore
+    ExchangeClientCore,
+    ExchangeStatus,
 };
 use async_trait::async_trait;
 use std::any::Any;
@@ -24,6 +25,7 @@ use star_river_core::{
 use super::mt5_types::*;
 use star_river_core::strategy::TimeRange;
 use super::mt5_ws_client::Mt5WsClient;
+
 
 
 
@@ -43,5 +45,13 @@ impl ExchangeClientCore for MetaTrader5 {
 
     fn exchange_type(&self) -> Exchange {
         Exchange::Metatrader5(self.server.clone())
+    }
+
+    fn get_status(&self) -> ExchangeStatus {
+        self.status.clone()
+    }
+
+    fn set_status(&mut self, status: ExchangeStatus) {
+        self.status = status;
     }
 }

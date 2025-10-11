@@ -52,6 +52,10 @@ use utoipa::OpenApi;
         crate::api::market_api::get_support_kline_intervals,
         crate::api::market_api::get_symbol,
 
+        // 交易所相关路径
+        crate::api::exchange_api::get_exchange_status,
+        crate::api::exchange_api::connect_exchange,
+
         //sse
         crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,
         crate::sse::backtest_strategy_event_sse::backtest_strategy_event_sse_handler,

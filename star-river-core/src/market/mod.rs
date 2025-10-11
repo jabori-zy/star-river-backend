@@ -51,6 +51,15 @@ impl Display for Exchange {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExchangeStatus {
+    NotRegist,      // 未注册
+    Registing,      // 注册中
+    Connected,      // 已连接
+    RegisterFailed, // 注册失败
+    Error,          // 错误
+}
+
 // impl ToString for Exchange {
 //     fn to_string(&self) -> String {
 //         match self {

@@ -19,6 +19,7 @@ use star_river_core::market::Exchange;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
+use star_river_core::market::ExchangeStatus;
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -88,7 +89,13 @@ impl EngineContext for ExchangeEngineContext {
 
 impl ExchangeEngineContext {
     pub async fn register_exchange(&mut self, account_id: AccountId) -> Result<(), ExchangeEngineError> {
-        tracing::info!("开始注册交易所，账户ID: {}", account_id);
+        tracing::debug!("start to register exchange, account id is {}", account_id);
+
+        // 判断账户是否已经注册
+        if self.exchanges.contains_key(&account_id) {
+            tracing::debug!("account {} already registered", account_id);
+            return Ok(());
+        }
 
         // 从数据库中获取账户配置
         let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, account_id).await?;
@@ -197,6 +204,7 @@ impl ExchangeEngineContext {
             }
         }
 
+        mt5.set_status(ExchangeStatus::Connected);
         // 存储交易所客户端
         let mt5_exchange = Box::new(mt5) as Box<dyn ExchangeClientCore>;
 
@@ -441,6 +449,14 @@ impl ExchangeEngineContext {
                 }
                 .build())
             }
+        }
+    }
+
+    pub(super) async fn get_exchange_status(&self, account_id: &AccountId) -> ExchangeStatus {
+        let exchange = self.get_exchange(account_id).await;
+        match exchange {
+            Ok(exchange) => exchange.get_status(),
+            Err(_) => ExchangeStatus::NotRegist,
         }
     }
 }

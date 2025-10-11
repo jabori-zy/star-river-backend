@@ -1,8 +1,7 @@
 pub mod mt5_account;
 
-use crate::market::Exchange;
+use crate::market::{Exchange, ExchangeStatus};
 use crate::system::DateTimeUtc;
-use crate::system::system_config::SystemConfigManager;
 use entity::account_config::Model as AccountConfigModel;
 use entity::account_info::Model as AccountInfoModel;
 use serde::{Deserialize, Serialize};
@@ -11,15 +10,7 @@ use std::fmt::Debug;
 use std::str::FromStr;
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExchangeStatus {
-    NotRegist,      // 未注册
-    Registing,      // 注册中
-    Registed,       // 已注册
-    RegisterFailed, // 注册失败
-    Error,          // 错误
-}
+
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // #[serde(untagged)]

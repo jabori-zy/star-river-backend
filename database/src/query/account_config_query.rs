@@ -26,7 +26,7 @@ impl AccountConfigQuery {
             .filter(account_config::Column::IsDelete.eq(false))
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find account config.".to_owned()))?;
+            .ok_or(DbErr::RecordNotFound(String::from(format!("account {} config not found.", account_id))))?;
 
         Ok(account_config_model.into())
     }

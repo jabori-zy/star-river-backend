@@ -13,14 +13,13 @@ use event_center::event::account_event::AccountEvent;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::account::Account;
-use star_river_core::account::ExchangeStatus;
+use star_river_core::market::ExchangeStatus;
 use star_river_core::market::Exchange;
 use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
-use exchange_client::exchange_trait::ExchangeAccountExt;
 
 #[derive(Debug)]
 pub struct AccountEngineContext {
@@ -212,7 +211,7 @@ impl AccountEngineContext {
                     continue;
                 }
                 // 已注册
-                ExchangeStatus::Registed => {
+                ExchangeStatus::Connected => {
                     // 通过exchange_engine二次确认
 
                     let exchange_engine_guard = exchange_engine.lock().await;
@@ -251,7 +250,7 @@ impl AccountEngineContext {
             // 先判断账户的交易所的注册状态
             let account_status = account.get_exchange_status();
             match account_status {
-                ExchangeStatus::Registed => {
+                ExchangeStatus::Connected => {
                     // 获取账户信息
                     let exchange = exchange_engine.lock().await;
                     let exchange = exchange.get_exchange(&account.get_account_id()).await;
@@ -330,7 +329,7 @@ impl AccountEngineContext {
                 .iter()
                 .position(|account| account.get_account_id() == response.account_id)
                 .unwrap();
-            accounts[index].set_exchange_status(ExchangeStatus::Registed);
+            accounts[index].set_exchange_status(ExchangeStatus::Connected);
         }
         Ok(())
     }
