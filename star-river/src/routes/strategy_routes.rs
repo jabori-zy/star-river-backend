@@ -7,11 +7,7 @@ use axum::{
     routing::{delete, get, post},
 };
 
-use crate::api::strategy_api::backtest::{
-    get_backtest_chart_config, get_current_positions, get_history_positions, get_play_index, get_running_log, get_stats_history,
-    get_strategy_data, get_strategy_status, get_virtual_orders, get_virtual_transactions, pause, play, play_one, reset,
-    update_backtest_chart_config,
-};
+use crate::api::strategy_api::backtest::*;
 
 use crate::star_river::StarRiver;
 
@@ -56,4 +52,5 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/status", get(get_strategy_status))
         .route("/{strategy_id}/running-log", get(get_running_log))
         .route("/{strategy_id}/data", get(get_strategy_data))
+        .route("/{strategy_id}/data-by-datetime", get(get_strategy_data_by_datetime))
 }

@@ -126,6 +126,15 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
+    #[snafu(display("[{strategy_name}] get data by timestamp failed. key: {key}, datetime: {datetime}"))]
+    GetDataByDatetimeFailed {
+        strategy_name: String,
+        key: String,
+        datetime: String,
+        backtrace: Backtrace,
+
+    },
+
     #[snafu(display("[{strategy_name}] get start node config failed"))]
     GetStartNodeConfigFailed { strategy_name: String, backtrace: Backtrace },
 
@@ -167,10 +176,11 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::IntervalNotSame { .. } => 1015,     // 不同symbol的最小周期不相同
             BacktestStrategyError::Node { .. } => 1016,                // 节点错误
             BacktestStrategyError::GetDataFailed { .. } => 1017,       // 获取数据失败
-            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1018, // 获取开始节点配置失败
-            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1019, // kline数据长度不相同
-            BacktestStrategyError::KlineKeyNotFound { .. } => 1020, // kline key未找到
-            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1021, // 播放索引超出范围
+            BacktestStrategyError::GetDataByDatetimeFailed { .. } => 1018, // 获取数据失败
+            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1019, // 获取开始节点配置失败
+            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1020, // kline数据长度不相同
+            BacktestStrategyError::KlineKeyNotFound { .. } => 1021, // kline key未找到
+            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1022 // 播放索引超出范围
         };
         format!("{prefix}_{code}")
     }
@@ -200,6 +210,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 | BacktestStrategyError::IntervalNotSame { .. }
                 | BacktestStrategyError::Node { .. }
                 | BacktestStrategyError::GetDataFailed { .. }
+                | BacktestStrategyError::GetDataByDatetimeFailed { .. }
                 | BacktestStrategyError::GetStartNodeConfigFailed { .. }
                 | BacktestStrategyError::KlineDataLengthNotSame { .. }
                 | BacktestStrategyError::KlineKeyNotFound { .. }
@@ -322,6 +333,14 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                     ..
                 } => {
                     format!("获取数据失败: 策略 [{strategy_name}] 数据键: {key}, 缓存索引: {play_index}")
+                }
+                BacktestStrategyError::GetDataByDatetimeFailed {
+                    strategy_name,
+                    key,
+                    datetime,
+                    ..
+                } => {
+                    format!("获取数据失败: 策略 [{strategy_name}] 数据键: {key}, 时间: {datetime}")
                 }
                 BacktestStrategyError::GetStartNodeConfigFailed { strategy_name, .. } => {
                     format!("[{strategy_name}] 获取开始节点配置失败")

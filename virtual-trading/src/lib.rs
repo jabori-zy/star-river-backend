@@ -350,7 +350,7 @@ impl VirtualTradingSystem {
 
     // 根据交易所和symbol获取k线缓存key
     fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
-        tracing::debug!("kline_price keys: {:?}", self.kline_price.keys());
+        // tracing::debug!("kline_price keys: {:?}", self.kline_price.keys());
         for kline_key in self.kline_price.keys() {
             if &kline_key.exchange == exchange && &kline_key.symbol == symbol {
                 return Some(kline_key.clone());

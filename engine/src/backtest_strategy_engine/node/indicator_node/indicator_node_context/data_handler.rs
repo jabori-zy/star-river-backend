@@ -54,7 +54,7 @@ impl IndicatorNodeContext {
         // 等待响应
         let response = resp_rx.await.unwrap();
         if response.is_success() {
-            tracing::info!("indicator series: {:?}", response.indicator_series);
+            // tracing::info!("indicator series: {:?}", response.indicator_series);
             return Ok(response.indicator_series.last().unwrap().clone());
         } else {
             return Err(format!("节点{}收到回测K线缓存数据失败", self.base_context.node_id));

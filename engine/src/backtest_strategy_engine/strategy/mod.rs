@@ -32,6 +32,7 @@ use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {

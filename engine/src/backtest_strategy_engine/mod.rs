@@ -20,6 +20,7 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::TradeMode;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::system::DateTimeUtc;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -237,10 +238,24 @@ impl BacktestStrategyEngine {
         strategy_id: i32,
         play_index: i32,
         key: Key,
+        limit: Option<i32>,
     ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
-        strategy_context.get_backtest_strategy_data(strategy_id, play_index, key).await
+        strategy_context.get_backtest_strategy_data(strategy_id, play_index, key, limit).await
+    }
+
+
+    pub async fn get_strategy_data_by_datetime(
+        &mut self,
+        strategy_id: i32,
+        key: Key,
+        datetime: DateTimeUtc,
+        limit: Option<i32>,
+    ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
+        let context = self.context.read().await;
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_strategy_data_by_datetime(strategy_id, key, datetime, limit).await
     }
 }
 

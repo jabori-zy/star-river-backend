@@ -17,7 +17,7 @@ use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 use tokio::sync::oneshot;
 
 impl FuturesOrderNodeContext {
-    /// 发送trigger事件到第一个有连接的output_handle
+    /// 使用第一个有连接的output_handle发送trigger事件
     async fn send_trigger_event_spec(&self) {
         if self.is_leaf_node() {
             self.send_execute_over_event().await;
@@ -45,7 +45,7 @@ impl FuturesOrderNodeContext {
         node_event: BacktestNodeEvent,
         input_handle_id: &InputHandleId,
     ) -> Result<(), FuturesOrderNodeError> {
-        // tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?} 来自节点: {}", self.get_node_id(), input_handle_id, node_event, from_node_id);
+        tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?}", self.get_node_id(), input_handle_id, node_event);
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(trigger_evt) => {

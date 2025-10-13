@@ -33,7 +33,6 @@ impl StarRiverErrorTrait for DateTimeError {
         match self {
             DateTimeError::InvalidTimestamp { .. } => HashMap::new(),
             DateTimeError::TransformTimestampFailed { .. } => HashMap::new(),
-            _ => HashMap::new(),
         }
     }
 

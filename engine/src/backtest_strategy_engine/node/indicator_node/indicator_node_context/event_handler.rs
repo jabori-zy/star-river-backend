@@ -73,11 +73,11 @@ impl IndicatorNodeContext {
                     let kline_series = self.kline_value.get(indicator_key).unwrap();
                     let lookback = self.indicator_lookback.get(indicator_key).unwrap();
                     if kline_series.len() < *lookback + 1 {
-                        tracing::warn!(
-                            "指标缓存数据长度小于lookback, skip. lookback: {}, kline_series_len: {}",
-                            lookback,
-                            kline_series.len()
-                        );
+                        // tracing::warn!(
+                        //     "指标缓存数据长度小于lookback, skip. lookback: {}, kline_series_len: {}",
+                        //     lookback,
+                        //     kline_series.len()
+                        // );
                         self.send_trigger_event(output_handle_id).await;
                         continue;
                     }

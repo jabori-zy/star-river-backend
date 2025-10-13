@@ -87,18 +87,24 @@ impl BacktestNodeContextTrait for VariableNodeContext {
                 }
             }
             BacktestNodeEvent::Common(CommonEvent::Trigger(_)) => {
-                tracing::debug!("{}: 条件不触发模式，不获取变量", self.get_node_name());
-                let payload = TriggerPayload::new(self.get_play_index());
-                let condition_not_match_event: CommonEvent = TriggerEvent::new(
-                    self.base_context.node_id.clone(),
-                    self.base_context.node_name.clone(),
-                    self.get_default_output_handle().output_handle_id.clone(),
-                    payload,
-                )
-                .into();
-                // 获取默认output_handle
+                tracing::debug!("{}: 接受到trigger事件，不获取变量", self.get_node_name());
+                // 叶子节点不发送trigger事件, 发送执行结束事件
+                if self.is_leaf_node() {
+                    self.send_execute_over_event().await;
+                    return;
+                }
+                // 每个条件输出handle都发送trigger事件
+                for config in self.backtest_config.variable_configs.iter() {
+                    let output_handle = self.get_output_handle(&config.output_handle_id);
+                    if output_handle.connect_count > 0 {
+                        self.send_trigger_event(&config.output_handle_id).await;
+                    }
+                }
+                // 默认输出handle发送trigger事件
                 let default_output_handle = self.get_default_output_handle();
-                let _ = default_output_handle.send(condition_not_match_event.into());
+                if default_output_handle.connect_count > 0 {
+                    self.send_trigger_event(&default_output_handle.output_handle_id).await;
+                }
             }
 
             _ => {}
@@ -175,7 +181,7 @@ impl VariableNodeContext {
                     .into();
 
                     let output_handle = self.get_output_handle(&var_config.output_handle_id);
-                    tracing::debug!("{}: 发送仓位数量更新事件: {:?}", self.get_node_id(), sys_variable_updated_event);
+                    // tracing::debug!("{}: 发送仓位数量更新事件: {:?}", self.get_node_id(), sys_variable_updated_event);
                     let _ = output_handle.send(sys_variable_updated_event.clone().into());
 
                     let default_output_handle = self.get_default_output_handle();

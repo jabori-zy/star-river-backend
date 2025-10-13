@@ -4,6 +4,7 @@ use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
+use chrono::NaiveDateTime;
 use engine::backtest_strategy_engine::BacktestStrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
@@ -315,6 +316,7 @@ pub async fn get_running_log(
 pub struct GetStrategyDataQuery {
     pub play_index: i32,
     pub key: String,
+    pub limit: Option<i32>,
 }
 
 #[utoipa::path(
@@ -344,7 +346,63 @@ pub async fn get_strategy_data(
 
     match Key::from_str(&params.key) {
         Ok(key) => strategy_engine
-            .get_strategy_data(strategy_id, params.play_index, key)
+            .get_strategy_data(strategy_id, params.play_index, key, params.limit)
+            .await
+            .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
+            .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    }
+}
+
+
+
+
+#[derive(Serialize, Deserialize, IntoParams, ToSchema, Debug)]
+#[schema(
+    title = "get strategy data by datetime",
+    description = "get strategy data by datetime",
+    example = json!({
+        "key": "",
+        "datetime": "2024-01-01T00:00:00.000Z",
+        "limit": 100
+    })
+)]
+pub struct GetStrategyDataByDatetimeQuery {
+    pub key: String,
+    pub datetime: String,
+    pub limit: Option<i32>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/data-by-datetime",
+    tag = "Backtest Strategy",
+    summary = "Get strategy data by datetime",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy data by datetime"),
+        ("key" = String, Query, description = "The key to get strategy data by datetime"),
+        ("datetime" = String, Query, description = "The datetime to get strategy data by datetime"),
+        ("limit" = Option<i32>, Query, description = "The limit to get strategy data by datetime")
+    ),
+    responses(
+        (status = 200, description = "Get strategy data by datetime successfully", body = NewApiResponse<Vec<utoipa::openapi::Object>>),
+        (status = 400, description = "Get strategy data by datetime failed", body = NewApiResponse<Vec<utoipa::openapi::Object>>)
+    )
+)]
+#[axum::debug_handler]
+pub async fn get_strategy_data_by_datetime(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+    Query(params): Query<GetStrategyDataByDatetimeQuery>,
+) -> (StatusCode, Json<NewApiResponse<Vec<serde_json::Value>>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+
+    match Key::from_str(&params.key) {
+        Ok(key) => strategy_engine
+            .get_strategy_data_by_datetime(strategy_id, key, NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ").unwrap().and_utc(), params.limit)
             .await
             .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
             .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),

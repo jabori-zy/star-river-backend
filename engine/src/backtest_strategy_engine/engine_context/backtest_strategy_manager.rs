@@ -15,6 +15,7 @@ use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::TradeMode;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use star_river_core::system::DateTimeUtc;
 use std::collections::HashMap;
 use tokio::time::Duration;
 
@@ -215,8 +216,20 @@ impl StrategyEngineContext {
         strategy_id: i32,
         play_index: i32,
         key: Key,
+        limit: Option<i32>,
     ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
-        Ok(strategy.get_strategy_data(play_index, key).await?)
+        Ok(strategy.get_strategy_data(play_index, key, limit).await?)
+    }
+
+    pub async fn get_strategy_data_by_datetime(
+        &self,
+        strategy_id: i32,
+        key: Key,
+        datetime: DateTimeUtc,
+        limit: Option<i32>,
+    ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
+        Ok(strategy.get_strategy_data_by_datetime(key, datetime, limit).await?)
     }
 }
