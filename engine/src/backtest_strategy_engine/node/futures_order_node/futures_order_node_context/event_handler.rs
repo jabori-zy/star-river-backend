@@ -45,7 +45,7 @@ impl FuturesOrderNodeContext {
         node_event: BacktestNodeEvent,
         input_handle_id: &InputHandleId,
     ) -> Result<(), FuturesOrderNodeError> {
-        tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?}", self.get_node_id(), input_handle_id, node_event);
+        // tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?}", self.get_node_id(), input_handle_id, node_event);
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(trigger_evt) => {
@@ -99,6 +99,17 @@ impl FuturesOrderNodeContext {
         let order_status_output_handle = self.get_output_handle(&order_status_output_handle_id);
         let config_all_status_output_handle = self.get_output_handle(&config_all_status_output_handle_id);
 
+        // 先发送到strategy_output_handle，确保事件一定会被发送
+        let order_event = self.genarate_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+        let strategy_output_handle = self.get_strategy_output_handle();
+        if let Some(order_event) = order_event {
+            tracing::debug!(
+                "send order event through strategy_output_handle: {}",
+                config_all_status_output_handle_id
+            );
+            let _ = strategy_output_handle.send(order_event.into());
+        }
+
         // 如果总输出与订单状态输出都没有连接，则发送trigger事件
         if config_all_status_output_handle.connect_count == 0 && order_status_output_handle.connect_count == 0 {
             tracing::debug!("all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event");
@@ -108,7 +119,7 @@ impl FuturesOrderNodeContext {
 
         // 如果all_status_output_handle的connect_count大于0，则发送事件
         if config_all_status_output_handle.connect_count > 0 {
-            let order_event = self.get_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+            let order_event = self.genarate_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
             if let Some(order_event) = order_event {
                 tracing::debug!(
                     "send order event through all_status_output_handle: {}",
@@ -118,7 +129,7 @@ impl FuturesOrderNodeContext {
             }
         }
         if order_status_output_handle.connect_count > 0 {
-            let order_event = self.get_order_node_event(order_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+            let order_event = self.genarate_order_node_event(order_status_output_handle_id.clone(), virtual_order.clone(), event_type);
             if let Some(order_event) = order_event {
                 tracing::debug!(
                     "send order event through order_status_output_handle: {}",
@@ -127,19 +138,10 @@ impl FuturesOrderNodeContext {
                 let _ = order_status_output_handle.send(order_event.into());
             }
         }
-
-        let order_event = self.get_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
-        let strategy_output_handle = self.get_strategy_output_handle();
-        if let Some(order_event) = order_event {
-            tracing::debug!(
-                "send order event through strategy_output_handle: {}",
-                config_all_status_output_handle_id
-            );
-            let _ = strategy_output_handle.send(order_event.into());
-        }
     }
 
-    fn get_order_node_event(
+    
+    fn genarate_order_node_event(
         &self,
         output_handle_id: String,
         virtual_order: VirtualOrder,
