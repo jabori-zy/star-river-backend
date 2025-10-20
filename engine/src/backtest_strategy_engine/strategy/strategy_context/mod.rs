@@ -55,6 +55,7 @@ use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 use star_river_core::key::KeyTrait;
 use event_center::communication::Command;
+use star_river_core::strategy::custom_variable::CustomVariable;
 use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
@@ -93,6 +94,7 @@ pub struct BacktestStrategyContext {
     pub(super) min_interval_symbols: Vec<KlineKey>,                     // 最小周期交易对
     pub(super) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,  // 所有k线数据
     pub(super) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 所有指标数据
+    pub(super) custom_variable: Arc<RwLock<HashMap<String, CustomVariable>>>, // var_name -> CustomVariable
 }
 
 impl BacktestStrategyContext {
@@ -155,6 +157,7 @@ impl BacktestStrategyContext {
             min_interval_symbols: vec![],
             kline_data: Arc::new(RwLock::new(HashMap::new())),
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
+            custom_variable: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

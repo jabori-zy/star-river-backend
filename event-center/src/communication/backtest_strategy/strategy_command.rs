@@ -1,10 +1,12 @@
 use super::{StrategyCommand, StrategyResponse};
-use derive_more::From;
+use derive_more::{derive, From};
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::indicator::Indicator;
 use star_river_core::key::Key;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
+use star_river_core::node::variable_node::variable_config::UpdateVariableConfig;
+use star_river_core::strategy::custom_variable::{CustomVariable, VariableValue};
 use star_river_core::system::DateTimeUtc;
 
 // define type aliases
@@ -38,6 +40,19 @@ pub type UpdateKlineDataResponse = StrategyResponse<UpdateKlineDataRespPayload>;
 // update indicator data
 pub type UpdateIndicatorDataCommand = StrategyCommand<UpdateIndicatorDataCmdPayload, UpdateIndicatorDataRespPayload>;
 pub type UpdateIndicatorDataResponse = StrategyResponse<UpdateIndicatorDataRespPayload>;
+// init custom variable value
+pub type InitCustomVariableValueCommand = StrategyCommand<InitCustomVariableValueCmdPayload, InitCustomVariableValueRespPayload>;
+pub type InitCustomVariableValueResponse = StrategyResponse<InitCustomVariableValueRespPayload>;
+
+// get custom variable value
+pub type GetCustomVariableValueCommand = StrategyCommand<GetCustomVariableValueCmdPayload, GetCustomVariableValueRespPayload>;
+pub type GetCustomVariableValueResponse = StrategyResponse<GetCustomVariableValueRespPayload>;
+// update custom variable value
+pub type UpdateCustomVariableValueCommand = StrategyCommand<UpdateCustomVariableValueCmdPayload, UpdateCustomVariableValueRespPayload>;
+pub type UpdateCustomVariableValueResponse = StrategyResponse<UpdateCustomVariableValueRespPayload>;
+// reset custom variable value
+pub type ResetCustomVariableValueCommand = StrategyCommand<ResetCustomVariableValueCmdPayload, ResetCustomVariableValueRespPayload>;
+pub type ResetCustomVariableValueResponse = StrategyResponse<ResetCustomVariableValueRespPayload>;
 
 // ============ Get Strategy Keys ============
 #[derive(Debug, From)]
@@ -85,7 +100,7 @@ impl GetCurrentTimeRespPayload {
 }
 
 // ============ Init Kline Data ============
-#[derive(Debug, From)]
+#[derive(Debug)]
 pub struct InitKlineDataCmdPayload {
     pub kline_key: KlineKey,
     pub init_kline_data: Vec<Kline>,
@@ -121,7 +136,6 @@ impl InitIndicatorDataCmdPayload {
 
 #[derive(Debug)]
 pub struct InitIndicatorDataRespPayload;
-
 
 // ============ Append Kline Data ============
 #[derive(Debug)]
@@ -242,5 +256,105 @@ pub struct UpdateIndicatorDataRespPayload {
 impl UpdateIndicatorDataRespPayload {
     pub fn new(data: Indicator) -> Self {
         Self { data }
+    }
+}
+
+
+
+// ============ Init Custom Variable Value ============
+#[derive(Debug)]
+pub struct InitCustomVariableValueCmdPayload {
+    pub custom_variables: Vec<CustomVariable>,
+}
+
+
+
+impl InitCustomVariableValueCmdPayload {
+    pub fn new(custom_variables: Vec<CustomVariable>) -> Self {
+        Self { custom_variables }
+    }
+}
+
+
+#[derive(Debug)]
+pub struct InitCustomVariableValueRespPayload;
+
+
+
+
+
+
+
+
+// ============ Get Custom Variable Value ============
+#[derive(Debug)]
+pub struct GetCustomVariableValueCmdPayload {
+    pub var_name: String,
+}
+
+impl GetCustomVariableValueCmdPayload {
+    pub fn new(var_name: String) -> Self {
+        Self { var_name }
+    }
+}
+
+#[derive(Debug)]
+pub struct GetCustomVariableValueRespPayload {
+    pub var_value: VariableValue,
+}
+
+impl GetCustomVariableValueRespPayload {
+    pub fn new(var_value: VariableValue) -> Self {
+        Self { var_value }
+    }
+}
+
+
+// ============ Update Custom Variable Value ============
+#[derive(Debug)]
+pub struct UpdateCustomVariableValueCmdPayload {
+    pub update_var_config: UpdateVariableConfig,
+}
+
+impl UpdateCustomVariableValueCmdPayload {
+    pub fn new(update_var_config: UpdateVariableConfig) -> Self {
+        Self { update_var_config }
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdateCustomVariableValueRespPayload {
+    pub var_value: VariableValue,
+}
+
+
+impl UpdateCustomVariableValueRespPayload {
+    pub fn new(var_value: VariableValue) -> Self {
+        Self { var_value }
+    }
+}
+
+
+
+// ============ Reset Custom Variable Value ============
+#[derive(Debug)]
+pub struct ResetCustomVariableValueCmdPayload {
+    pub var_name: String,
+}
+
+impl ResetCustomVariableValueCmdPayload {
+    pub fn new(var_name: String) -> Self {
+        Self { var_name }
+    }
+}
+
+#[derive(Debug)]
+pub struct ResetCustomVariableValueRespPayload {
+    pub initial_value: VariableValue,
+}
+
+impl ResetCustomVariableValueRespPayload {
+    pub fn new(initial_value: VariableValue) -> Self {
+        Self { initial_value }
     }
 }

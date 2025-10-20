@@ -154,6 +154,12 @@ pub enum BacktestStrategyCommand {
     GetIndicatorData(GetIndicatorDataCommand),
     UpdateKlineData(UpdateKlineDataCommand),
     UpdateIndicatorData(UpdateIndicatorDataCommand),
+    InitCustomVariableValue(InitCustomVariableValueCommand),
+    GetCustomVariableValue(GetCustomVariableValueCommand),
+    UpdateCustomVariableValue(UpdateCustomVariableValueCommand),
+    ResetCustomVariableValue(ResetCustomVariableValueCommand)
+
+
 }
 
 impl BacktestStrategyCommand {
@@ -169,6 +175,11 @@ impl BacktestStrategyCommand {
             BacktestStrategyCommand::GetIndicatorData(command) => command.node_id(),
             BacktestStrategyCommand::UpdateKlineData(command) => command.node_id(),
             BacktestStrategyCommand::UpdateIndicatorData(command) => command.node_id(),
+            BacktestStrategyCommand::InitCustomVariableValue(command) => command.node_id(),
+            BacktestStrategyCommand::GetCustomVariableValue(command) => command.node_id(),
+            BacktestStrategyCommand::UpdateCustomVariableValue(command) => command.node_id(),
+            BacktestStrategyCommand::ResetCustomVariableValue(command) => command.node_id(),
+
         }
     }
 }

@@ -26,6 +26,7 @@ chrono-tz.workspace = true
 deepsize.workspace = true
 utoipa.workspace = true
 ordered-float.workspace = true
+rust_decimal.workspace = true
 paste = "1.0.15"
 reqwest.workspace = true
 tokio-tungstenite.workspace = true

@@ -8,13 +8,11 @@ use event_center::event::node_event::backtest_node_event::if_else_node_event::{
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
-
-use super::if_else_node_type::IfElseNodeBacktestConfig;
 use event_center::event::strategy_event::{StrategyRunningLogEvent, StrategyRunningLogType};
 use tokio::sync::oneshot;
 
-use super::condition::*;
-use super::utils::get_condition_variable_value;
+use star_river_core::node::if_else_node::*;
+use super::utils::{get_condition_left_value, get_condition_right_value};
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_message::if_else_node_log_message::ConditionMatchedMsg;
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
@@ -25,6 +23,7 @@ use snafu::ResultExt;
 use star_river_core::custom_type::NodeId;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use star_river_core::system::DateTimeUtc;
+use super::utils::compare;
 
 pub type ConfigId = i32;
 
@@ -49,25 +48,20 @@ impl IfElseNodeContext {
         for case in &self.backtest_config.cases {
             for condition in &case.conditions {
                 // 处理左值
-                if let (Some(left_node_id), Some(left_variable_id)) =
-                    (condition.left_variable.node_id.clone(), condition.left_variable.variable_config_id)
-                {
-                    let key = (left_node_id, left_variable_id);
-                    self.received_flag.insert(key.clone(), false);
-                    self.received_message.insert(key, None);
-                }
+
+                let key = (condition.left.node_id.clone(), condition.left.var_config_id);
+                self.received_flag.insert(key.clone(), false);
+                self.received_message.insert(key, None);
+                
 
                 // 处理右值（如果是变量类型）
-                if matches!(condition.right_variable.var_type, VarType::Variable) {
-                    if let (Some(right_node_id), Some(right_variable_id)) = (
-                        condition.right_variable.node_id.clone(),
-                        condition.right_variable.variable_config_id,
-                    ) {
-                        let key = (right_node_id, right_variable_id);
-                        self.received_flag.insert(key.clone(), false);
-                        self.received_message.insert(key, None);
-                    }
+                if let FormulaRight::Variable(variable) = &condition.right {
+                    let key = (variable.node_id.clone(), variable.var_config_id);
+                    self.received_flag.insert(key.clone(), false);
+                    self.received_message.insert(key, None);
+
                 }
+
             }
         }
         tracing::debug!(node_id = %self.get_node_id(), "init received data success: {:?}, {:?}", self.received_flag, self.received_message);
@@ -135,7 +129,7 @@ impl IfElseNodeContext {
         let strategy_output_handle = self.get_strategy_output_handle();
 
         // 创建条件匹配事件
-        let payload = ConditionMatchPayload::new(play_index);
+        let payload = ConditionMatchPayload::new(play_index, Some(case.case_id));
         let condition_match_event: IfElseNodeEvent =
             ConditionMatchEvent::new(from_node_id.clone(), from_node_name.clone(), case_output_handle_id, payload).into();
 
@@ -194,7 +188,7 @@ impl IfElseNodeContext {
         } else {
             // 非叶子节点：发送事件到else输出句柄
             let else_output_handle = self.get_default_output_handle();
-            let payload = ConditionMatchPayload::new(self.get_play_index());
+            let payload = ConditionMatchPayload::new(self.get_play_index(), None);
             let else_event: IfElseNodeEvent = ConditionMatchEvent::new(
                 self.get_node_id().clone(),
                 self.get_node_name().clone(),
@@ -232,44 +226,26 @@ impl IfElseNodeContext {
         let received_value = &self.received_message;
 
         // 获取左值
-        let left_value = get_condition_variable_value(&condition.left_variable, received_value);
+        let left_value = get_condition_left_value(&condition.left, received_value);
 
         // 获取右值
-        let right_value = get_condition_variable_value(&condition.right_variable, received_value);
+        let right_value = get_condition_right_value(&condition.right, received_value);
 
         // 获取符号
         let comparison_symbol = &condition.comparison_symbol;
 
-        if let (Some(left_value), Some(right_value)) = (&left_value, &right_value) {
-            let condition_result = match comparison_symbol {
-                ComparisonSymbol::GreaterThan => left_value > right_value,
-                ComparisonSymbol::LessThan => left_value < right_value,
-                ComparisonSymbol::Equal => (left_value - right_value).abs() < f64::EPSILON, // 浮点数比较
-                ComparisonSymbol::GreaterThanOrEqual => left_value >= right_value,
-                ComparisonSymbol::LessThanOrEqual => left_value <= right_value,
-                ComparisonSymbol::NotEqual => (left_value - right_value).abs() >= f64::EPSILON,
-            };
-
+        let compare_result = compare(&left_value, &right_value, comparison_symbol);
+        if compare_result {
             tracing::debug!(
-                "当前play_index: {}, 左变量名：{:#?}, 左值={:.6}, 比较符号:{:?}, 右变量名：{:#?}, 右值={:.6}, 结果={}",
+                "当前play_index: {}, 左变量名：{:?}, 左值={:?}, 比较符号:{:?}, 右变量名：{:?}, 右值={:?}, 结果={}",
                 self.get_play_index(),
-                condition.left_variable.variable,
+                condition.left.var_name,
                 left_value,
                 comparison_symbol.to_string(),
-                condition.right_variable.variable,
+                condition.right,
                 right_value,
-                condition_result
+                compare_result
             );
-
-            ConditionResult {
-                condition_id: condition.condition_id,
-                left_variable: condition.left_variable.clone(),
-                right_variable: condition.right_variable.clone(),
-                comparison_symbol: condition.comparison_symbol.clone(),
-                left_value: Some(*left_value),
-                right_value: Some(*right_value),
-                condition_result: condition_result,
-            }
         } else {
             tracing::warn!(
                 "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前play_index: {}",
@@ -277,16 +253,9 @@ impl IfElseNodeContext {
                 right_value,
                 self.get_play_index()
             );
-            ConditionResult {
-                condition_id: condition.condition_id,
-                left_variable: condition.left_variable.clone(),
-                right_variable: condition.right_variable.clone(),
-                comparison_symbol: comparison_symbol.clone(),
-                left_value,
-                right_value,
-                condition_result: false,
-            }
         }
+
+        ConditionResult::new(condition, left_value, right_value, compare_result)
     }
 
     // 评估and条件组

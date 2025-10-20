@@ -157,4 +157,11 @@ impl BacktestStrategyContext {
             }
         });
     }
+
+    pub(super) async fn reset_all_custom_variables(&mut self) {
+        let mut custom_variable_guard = self.custom_variable.write().await;
+        custom_variable_guard.iter_mut().for_each(|(_, custom_variable)| {
+            custom_variable.var_value = custom_variable.initial_value.clone();
+        });
+    }
 }

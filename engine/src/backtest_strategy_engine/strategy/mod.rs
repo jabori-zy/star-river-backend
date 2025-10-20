@@ -3,6 +3,7 @@ pub(super) mod workflow;
 pub(super) mod strategy_log_message;
 pub(super) mod strategy_core;
 pub(super) mod strategy_state_machine;
+pub(super) mod strategy_utils;
 
 use super::node::*;
 use strategy_context::BacktestStrategyContext;

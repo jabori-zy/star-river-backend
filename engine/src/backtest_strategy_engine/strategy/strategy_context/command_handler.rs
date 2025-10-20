@@ -1,6 +1,6 @@
 use super::{
-    BacktestStrategyContext, Indicator, IndicatorKey, Kline, KlineKey, QuantData, BacktestStrategyError, KeyTrait,
-    PlayIndexOutOfRangeSnafu, KlineKeyNotFoundSnafu,
+    BacktestStrategyContext, BacktestStrategyError, CustomVariable, Indicator, IndicatorKey, KeyTrait, Kline, KlineKey,
+    KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu, QuantData,
 };
 
 mod kline {
@@ -37,7 +37,12 @@ mod kline {
             }
         }
 
-        pub async fn get_kline_data(&self, kline_key: &KlineKey, play_index: Option<i32>, limit: Option<i32>) -> Result<Vec<Kline>, BacktestStrategyError> {
+        pub async fn get_kline_data(
+            &self,
+            kline_key: &KlineKey,
+            play_index: Option<i32>,
+            limit: Option<i32>,
+        ) -> Result<Vec<Kline>, BacktestStrategyError> {
             let kline_data_guard = self.kline_data.read().await;
             if let Some(kline_data) = kline_data_guard.get(kline_key) {
                 let kline_data_length = kline_data.len() as u32;
@@ -46,7 +51,11 @@ mod kline {
                     (Some(play_index), Some(limit)) => {
                         // 如果索引超出范围，返回空
                         if play_index as u32 >= kline_data_length {
-                            Err(PlayIndexOutOfRangeSnafu{kline_data_length: kline_data_length, play_index: play_index as u32}.build())
+                            Err(PlayIndexOutOfRangeSnafu {
+                                kline_data_length: kline_data_length,
+                                play_index: play_index as u32,
+                            }
+                            .build())
                         } else {
                             // 计算从索引开始向前取limit个元素
                             let end = play_index as usize + 1;
@@ -58,7 +67,11 @@ mod kline {
                     (Some(play_index), None) => {
                         // 如果索引超出范围，返回空
                         if play_index as u32 >= kline_data_length {
-                            Err(PlayIndexOutOfRangeSnafu{kline_data_length: kline_data_length, play_index: play_index as u32}.build())
+                            Err(PlayIndexOutOfRangeSnafu {
+                                kline_data_length: kline_data_length,
+                                play_index: play_index as u32,
+                            }
+                            .build())
                         } else {
                             // 从索引开始向前取所有元素（到开头）
                             let end = play_index as usize + 1;
@@ -82,7 +95,10 @@ mod kline {
                     }
                 }
             } else {
-                Err(KlineKeyNotFoundSnafu{kline_key: kline_key.get_key_str()}.build())
+                Err(KlineKeyNotFoundSnafu {
+                    kline_key: kline_key.get_key_str(),
+                }
+                .build())
             }
         }
 
@@ -125,6 +141,7 @@ mod kline {
 }
 
 mod indicator {
+
     use super::*;
     impl BacktestStrategyContext {
         pub async fn init_indicator_data(&mut self, indicator_key: &IndicatorKey, indicator_series: Vec<Indicator>) {
@@ -229,6 +246,81 @@ mod indicator {
             }
 
             indicator.clone()
+        }
+    }
+}
+
+mod custom_variable {
+    use snafu::OptionExt;
+    use star_river_core::error::engine_error::strategy_error::{CustomVariableNotExistSnafu, CustomVariableUpdateOperationValueIsNoneSnafu, DivideByZeroSnafu, UnSupportVariableOperationSnafu};
+    use star_river_core::node::variable_node::variable_config::UpdateVariableConfig;
+    use star_river_core::node::variable_node::variable_operation::UpdateVarValueOperation;
+    use star_river_core::strategy::custom_variable::VariableValue;
+    use super::*;
+    impl BacktestStrategyContext {
+        pub async fn init_custom_variables(&mut self, custom_variables: Vec<CustomVariable>) {
+            tracing::info!("Initializing custom variables");
+            // 初始化自定义变量
+            let mut custom_var_guard = self.custom_variable.write().await;
+            for custom_var in custom_variables {
+                let var_name = custom_var.var_name.clone();
+                // 如果变量不存在，则插入；如果已存在，则不做修改
+                custom_var_guard.entry(var_name).or_insert(custom_var);
+            }
+            // 在写锁范围内直接使用 custom_var_guard 进行调试输出，避免死锁
+            tracing::debug!("custom_variable: {:#?}", *custom_var_guard);
+        }
+        
+        
+        pub async fn get_custom_variable_value(&mut self, var_name: String) -> Result<VariableValue, BacktestStrategyError> {
+            let custom_var_guard = self.custom_variable.read().await;
+            let custom_variable = custom_var_guard
+                .get(var_name.as_str())
+                .context(
+                    CustomVariableNotExistSnafu{ var_name }
+                )?;
+            let variable_value = custom_variable.var_value.clone();
+            Ok(variable_value)
+        }
+        
+        pub async fn update_custom_variable_value(&mut self, update_var_config: &UpdateVariableConfig) -> Result<VariableValue, BacktestStrategyError> {
+            use crate::backtest_strategy_engine::strategy::strategy_utils::apply_variable_operation;
+
+            let var_name = update_var_config.var_name.clone();
+            let operation = &update_var_config.update_var_value_operation;
+
+            let mut custom_var_guard = self.custom_variable.write().await;
+
+            let custom_var = custom_var_guard
+                .get_mut(&var_name)
+                .context(
+                    CustomVariableNotExistSnafu{ var_name: var_name.clone() }
+                )?;
+
+            // 使用工具函数计算新值
+            let new_value = apply_variable_operation(
+                &var_name,
+                &custom_var.var_value,
+                operation,
+                update_var_config.update_operation_value.as_ref(),
+            )?;
+
+            custom_var.var_value = new_value.clone();
+            Ok(new_value)
+        }
+        
+        pub async fn reset_custom_variables(&mut self, var_name: String) -> Result<VariableValue, BacktestStrategyError> {
+            let mut custom_var_guard = self.custom_variable.write().await;
+            // 直接获取可变引用，避免重复查找
+            let custom_var = custom_var_guard
+                .get_mut(&var_name)
+                .context(CustomVariableNotExistSnafu {
+                    var_name
+                })?;
+            // 将变量值重置为初始值
+            custom_var.var_value = custom_var.initial_value.clone();
+
+            Ok(custom_var.var_value.clone())
         }
     }
 }

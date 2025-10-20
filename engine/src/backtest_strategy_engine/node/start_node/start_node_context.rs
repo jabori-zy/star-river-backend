@@ -1,9 +1,9 @@
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::Command;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse};
-use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetRespPayload, NodeResetResponse};
+use event_center::communication::{Command, Response};
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse, InitCustomVariableValueCmdPayload, InitCustomVariableValueCommand};
+use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::{KlinePlayEvent, KlinePlayPayload, StartNodeEvent};
@@ -122,5 +122,23 @@ impl StartNodeContext {
 
     pub async fn handle_play_index(&self) {
         self.send_play_signal().await;
+    }
+
+
+
+    pub async fn init_custom_variables(&self) {
+        let custom_var_configs = {
+            let node_config_guard = self.node_config.read().await;
+            node_config_guard.custom_variables.clone()
+
+        };
+        let (resp_rx, resp_tx) = tokio::sync::oneshot::channel();
+        let init_var_payload = InitCustomVariableValueCmdPayload::new(custom_var_configs);
+        let init_var_cmd = InitCustomVariableValueCommand::new(self.get_node_id().clone(),resp_rx, Some(init_var_payload));
+        self.get_strategy_command_sender().send(init_var_cmd.into()).await.unwrap();
+        let response = resp_tx.await.unwrap();
+
+
+
     }
 }

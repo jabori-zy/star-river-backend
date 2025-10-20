@@ -257,7 +257,7 @@ impl KlineNodeContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{NaiveDateTime, Utc};
+    use chrono::NaiveDateTime;
 
     #[test]
     fn test_split_time_range_for_binance_1min_small_range() {

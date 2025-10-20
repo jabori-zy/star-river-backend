@@ -268,6 +268,9 @@ impl BacktestStrategyContext {
         // 清空数据
         self.clear_data().await;
 
+        // 重置所有自定义变量
+        self.reset_all_custom_variables().await;
+
         self.cancel_play_token.cancel();
         // 重置信号计数
         *self.play_index.write().await = -1; // 重置为-1，表示未播放

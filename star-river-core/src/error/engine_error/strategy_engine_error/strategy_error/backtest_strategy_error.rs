@@ -4,6 +4,7 @@ use crate::error::error_trait::Language;
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+use std::fmt::format;
 // use event_center::EventCenterError;
 
 #[derive(Debug, Snafu)]
@@ -146,6 +147,29 @@ pub enum BacktestStrategyError {
 
     #[snafu(display("play index out of range, kline data length: {kline_data_length}, play index: {play_index}"))]
     PlayIndexOutOfRange { kline_data_length: u32, play_index: u32, backtrace: Backtrace },
+
+    #[snafu(display("custom variable [{var_name}] not exists"))]
+    CustomVariableNotExist {
+        var_name: String,
+    },
+
+    #[snafu(display("the update operation value of custom variable [{var_name}] is none "))]
+    CustomVariableUpdateOperationValueIsNone {
+        var_name: String
+    },
+
+    #[snafu(display("unsupport variable operation: {operation} for custom variable [{var_name}] of type [{var_type}]"))]
+    UnSupportVariableOperation {
+        var_name: String,
+        var_type: String,
+        operation: String,
+    },
+
+
+    #[snafu(display("divide by zero for custom variable [{var_name}]"))]
+    DivideByZero {
+        var_name: String
+    }
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -180,7 +204,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1019, // 获取开始节点配置失败
             BacktestStrategyError::KlineDataLengthNotSame { .. } => 1020, // kline数据长度不相同
             BacktestStrategyError::KlineKeyNotFound { .. } => 1021, // kline key未找到
-            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1022 // 播放索引超出范围
+            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1022, // 播放索引超出范围
+            BacktestStrategyError::CustomVariableNotExist { .. } => 1023, // 自定义变量不存在
+            BacktestStrategyError::CustomVariableUpdateOperationValueIsNone { .. } => 1024, //变量的更新操作值为空
+            BacktestStrategyError::UnSupportVariableOperation { .. } => 1025, // 不支持的变量操作
+            BacktestStrategyError::DivideByZero { .. } => 1026, // 除零错误
+            
         };
         format!("{prefix}_{code}")
     }
@@ -353,6 +382,21 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 }
                 BacktestStrategyError::PlayIndexOutOfRange { kline_data_length, play_index, .. } => {
                     format!("播放索引超出范围, k线数据长度: {kline_data_length}, 播放索引: {play_index}")
+                }
+
+                BacktestStrategyError::CustomVariableNotExist { var_name} => {
+                    format!("自定义变量[{var_name}]不存在.")
+                }
+
+                BacktestStrategyError::CustomVariableUpdateOperationValueIsNone {var_name} => {
+                    format!("变量[{var_name}]的更新操作值为空")
+                }
+                BacktestStrategyError::UnSupportVariableOperation { var_name, var_type, operation, .. } => {
+                    format!("不支持的变量操作: 自定义变量[{var_name}({var_type})] 不支持{operation}操作")
+                }
+
+                BacktestStrategyError::DivideByZero { var_name } => {
+                    format!("除零错误: 自定义变量[{var_name}]")
                 }
             },
         }

@@ -4,11 +4,10 @@ use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContex
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::Command;
-use event_center::communication::backtest_strategy::StrategyCommand;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, TriggerEvent, TriggerPayload};
+use event_center::event::node_event::backtest_node_event::common_event::CommonEvent;
 use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
 use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
 use event_center::event::node_event::backtest_node_event::variable_node_event::VariableNodeEvent;
@@ -49,7 +48,7 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
 
-        // 检查是否需要更新接收事件
+        // 检查是否需要更新接收事件(play_index相同)
         let should_update = match &node_event {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
                 self.get_play_index() == indicator_update_event.play_index
@@ -57,7 +56,17 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
                 self.get_play_index() == kline_update_event.play_index
             }
-            BacktestNodeEvent::VariableNode(VariableNodeEvent::SysVariableUpdated(_)) => true,
+            BacktestNodeEvent::VariableNode(variable_node_event) => {
+                match variable_node_event {
+                    VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) => {
+                        self.get_play_index() == sys_variable_updated_event.play_index
+                    }
+                    VariableNodeEvent::CustomVariableUpdate(custom_variable_update_event) => {
+                        tracing::debug!("custom_variable_update: {:?}", custom_variable_update_event.var_value);
+                        self.get_play_index() == custom_variable_update_event.play_index
+                    }
+                }
+            }
             _ => false,
         };
 

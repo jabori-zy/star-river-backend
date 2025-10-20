@@ -247,6 +247,35 @@ pub mod start_node_log_message {
         zh: "[{node_name}] 策略统计初始化失败: {error}"
     );
 
+
+    log_message!(
+        InitCustomVariableMsg,
+        params: (
+            node_name: String
+        ),
+        en: "[{node_name}] initializing custom variables",
+        zh: "[{node_name}] 开始初始化策略统计"
+    );
+
+    log_message!(
+        InitCustomVariableSuccessMsg,
+        params: (
+            node_name: String
+        ),
+        en: "[{node_name}] custom variables initialization successful",
+        zh: "[{node_name}] 策略统计初始化成功"
+    );
+
+    log_message!(
+        InitCustomVariableFailedMsg,
+        params: (
+            node_name: String,
+            error: String
+        ),
+        en: "[{node_name}] custom variables initialization failed: {error}",
+        zh: "[{node_name}] 策略统计初始化失败: {error}"
+    );
+
     log_message!(
         HandlePlayIndexMsg,
         params: (

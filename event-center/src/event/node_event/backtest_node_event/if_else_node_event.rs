@@ -16,10 +16,11 @@ pub type ConditionMatchEvent = NodeEvent<ConditionMatchPayload>;
 pub struct ConditionMatchPayload {
     #[serde(rename = "playIndex")]
     pub play_index: PlayIndex,
+    pub case_id: Option<i32>,
 }
 
 impl ConditionMatchPayload {
-    pub fn new(play_index: PlayIndex) -> Self {
-        Self { play_index }
+    pub fn new(play_index: PlayIndex, case_id: Option<i32>) -> Self {
+        Self { play_index, case_id }
     }
 }

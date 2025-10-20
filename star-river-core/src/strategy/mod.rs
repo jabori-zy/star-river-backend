@@ -1,4 +1,6 @@
 pub mod sys_varibale;
+pub mod custom_variable;
+mod tests;
 
 use crate::custom_type::FeeRate;
 use crate::market::Exchange;
@@ -12,6 +14,7 @@ use std::fmt;
 use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+use custom_variable::CustomVariable;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StrategyConfig {
@@ -99,13 +102,7 @@ pub enum VariableType {
 }
 
 // 变量
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Variable {
-    pub var_type: VariableType,   // 变量类型
-    pub var_name: String,         // 变量名称
-    pub var_display_name: String, // 变量显示名称
-    pub var_value: String,        // 变量值
-}
+
 
 // 实盘模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,7 +110,7 @@ pub struct LiveStrategyConfig {
     #[serde(rename = "liveAccounts")]
     pub live_accounts: Vec<SelectedAccount>, // 账户ID列表
     #[serde(rename = "variables")]
-    pub variables: Option<HashMap<String, Variable>>, // 变量 var_name -> Variable
+    pub variables: Option<HashMap<String, CustomVariable>>, // 变量 var_name -> Variable
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
@@ -255,8 +252,8 @@ pub struct BacktestStrategyConfig {
     #[serde(rename = "playSpeed")]
     pub play_speed: i32, // 回放速度
 
-    #[serde(rename = "variables")]
-    pub variables: Vec<Variable>, // 变量 var_name -> Variable
+    #[serde(rename = "customVariables")]
+    pub custom_variables: Vec<CustomVariable>, // 变量 var_name -> Variable
 }
 
 impl Default for BacktestStrategyConfig {
@@ -268,7 +265,7 @@ impl Default for BacktestStrategyConfig {
             leverage: 10,
             fee_rate: 0.0001,
             play_speed: 1,
-            variables: Vec::new(),
+            custom_variables: Vec::new(),
         }
     }
 }
@@ -277,7 +274,7 @@ impl Default for BacktestStrategyConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulatedConfig {
     pub simulate_accounts: Vec<i32>,          // 账户ID列表
-    pub variables: HashMap<String, Variable>, // 变量 var_name -> Variable
+    pub variables: HashMap<String, CustomVariable>, // 变量 var_name -> Variable
 }
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -83,6 +83,52 @@ impl BacktestStrategyContext {
                 let response = UpdateIndicatorDataResponse::success(Some(payload));
                 cmd.respond(response);
             }
+
+            BacktestStrategyCommand::InitCustomVariableValue(cmd) => {
+                self.init_custom_variables(cmd.custom_variables.clone()).await;
+                let resp = InitCustomVariableValueResponse::success(None);
+                cmd.respond(resp);
+            }
+            BacktestStrategyCommand::GetCustomVariableValue(cmd) => {
+                let result = self.get_custom_variable_value(cmd.var_name.clone()).await;
+                if let Ok(value) = result {
+                    let payload = GetCustomVariableValueRespPayload::new(value);
+                    let resp = GetCustomVariableValueResponse::success(Some(payload));
+                    cmd.respond(resp);
+                } else {
+                    let err = result.unwrap_err();
+                    let resp = GetCustomVariableValueResponse::error(Arc::new(err));
+                    cmd.respond(resp);
+                }
+            }
+
+            BacktestStrategyCommand::UpdateCustomVariableValue(cmd) => {
+                let result = self.update_custom_variable_value(&cmd.update_var_config).await;
+                if let Ok(value) = result {
+                    let payload = UpdateCustomVariableValueRespPayload::new(value);
+                    let resp = UpdateCustomVariableValueResponse::success(Some(payload));
+                    cmd.respond(resp);
+                } else {
+                    let err = result.unwrap_err();
+                    let resp = UpdateCustomVariableValueResponse::error(Arc::new(err));
+                    cmd.respond(resp);
+                }
+            }
+
+            BacktestStrategyCommand::ResetCustomVariableValue(cmd) => {
+                let result = self.reset_custom_variables(cmd.var_name.clone()).await;
+                if let Ok(value) = result {
+                    let payload = ResetCustomVariableValueRespPayload::new(value);
+                    let resp = ResetCustomVariableValueResponse::success(Some(payload));
+                    cmd.respond(resp);
+                } else {
+                    let err = result.unwrap_err();
+                    let resp = ResetCustomVariableValueResponse::error(Arc::new(err));
+                    cmd.respond(resp);
+                }
+            }
+
+
         }
         Ok(())
     }

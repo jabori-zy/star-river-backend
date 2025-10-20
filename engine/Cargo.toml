@@ -39,6 +39,7 @@ strategy-stats = { path = "../strategy-stats"}
 paste = "1.0.15"
 snafu.workspace = true
 once_cell = "1.21.3"
+rust_decimal.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.1", features = ["Win32_System_Console","Win32_System_Threading"] }

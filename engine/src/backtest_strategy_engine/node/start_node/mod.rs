@@ -45,7 +45,7 @@ impl Clone for StartNode {
 
 impl StartNode {
     pub fn new(
-        start_node_config: serde_json::Value,
+        node_config: serde_json::Value,
         heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
@@ -53,7 +53,7 @@ impl StartNode {
         strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
     ) -> Result<Self, StartNodeError> {
-        let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(start_node_config)?;
+        let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(node_config)?;
 
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -296,6 +296,17 @@ impl BacktestNodeTrait for StartNode {
                             start_node_context.init_strategy_stats().await;
                         }
                     }
+                    StartNodeStateAction::InitCustomVariables => {
+                        tracing::info!("[{node_name}] start to init custom variables");
+                        let log_message = InitCustomVariableMsg::new(node_name.clone());
+                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::InitCustomVariables.to_string(), &strategy_output_handle).await;
+                        let context = self.get_context();
+                        let mut state_guard = context.write().await;
+                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
+                            start_node_context.init_custom_variables().await;
+                        }
+                        
+                    }
                     StartNodeStateAction::LogNodeState => {
                         let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
@@ -306,6 +317,7 @@ impl BacktestNodeTrait for StartNode {
                         self.cancel_task().await;
                     }
                     _ => {}
+                    
                 }
                 // 更新状态
                 {
