@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-use strum::Display;
 use crate::system::DateTimeUtc;
 use rust_decimal::Decimal;
-
+use serde::{Deserialize, Serialize};
+use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(rename_all = "lowercase")]
@@ -30,46 +29,38 @@ pub enum VariableValueType {
     Null,
 }
 
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
 #[serde(untagged)]
 pub enum VariableValue {
-      Number(Decimal),
-      String(String),
-      Boolean(bool),
-      Enum(Vec<String>), // 用于 enum 类型的选项列表
-      Time(DateTimeUtc),
-      Percentage(Decimal),
-      Null,
-  }
+    Number(Decimal),
+    String(String),
+    Boolean(bool),
+    Enum(Vec<String>), // 用于 enum 类型的选项列表
+    Time(DateTimeUtc),
+    Percentage(Decimal),
+    Null,
+}
 
 impl VariableValue {
     /// 根据 VariableValueType 从 JSON Value 解析 VariableValue
-    pub fn from_json_with_type(
-        value: serde_json::Value,
-        value_type: &VariableValueType,
-    ) -> Result<Self, String> {
+    pub fn from_json_with_type(value: serde_json::Value, value_type: &VariableValueType) -> Result<Self, String> {
         match value_type {
             VariableValueType::Number => {
-                let num = value.as_f64()
-                    .ok_or_else(|| "expected number for Number type".to_string())?;
+                let num = value.as_f64().ok_or_else(|| "expected number for Number type".to_string())?;
                 Decimal::try_from(num)
                     .map(VariableValue::Number)
                     .map_err(|e| format!("failed to convert to Decimal: {}", e))
             }
-            VariableValueType::String => {
-                value.as_str()
-                    .map(|s| VariableValue::String(s.to_string()))
-                    .ok_or_else(|| "expected string for String type".to_string())
-            }
-            VariableValueType::Boolean => {
-                value.as_bool()
-                    .map(VariableValue::Boolean)
-                    .ok_or_else(|| "expected boolean for Boolean type".to_string())
-            }
+            VariableValueType::String => value
+                .as_str()
+                .map(|s| VariableValue::String(s.to_string()))
+                .ok_or_else(|| "expected string for String type".to_string()),
+            VariableValueType::Boolean => value
+                .as_bool()
+                .map(VariableValue::Boolean)
+                .ok_or_else(|| "expected boolean for Boolean type".to_string()),
             VariableValueType::Time => {
-                let time_str = value.as_str()
-                    .ok_or_else(|| "expected string for Time type".to_string())?;
+                let time_str = value.as_str().ok_or_else(|| "expected string for Time type".to_string())?;
 
                 // 前端返回的格式："2025-10-19 20:02:00 +08:00"，带时区
                 use chrono::DateTime;
@@ -77,14 +68,11 @@ impl VariableValue {
                     .map(|dt| VariableValue::Time(dt.with_timezone(&chrono::Utc)))
                     .map_err(|e| format!("failed to parse time '{}': {}", time_str, e))
             }
-            VariableValueType::Enum => {
-                serde_json::from_value::<Vec<String>>(value)
-                    .map(VariableValue::Enum)
-                    .map_err(|e| format!("expected array for Enum type: {}", e))
-            }
+            VariableValueType::Enum => serde_json::from_value::<Vec<String>>(value)
+                .map(VariableValue::Enum)
+                .map_err(|e| format!("expected array for Enum type: {}", e)),
             VariableValueType::Percentage => {
-                let num = value.as_f64()
-                    .ok_or_else(|| "expected number for Percentage type".to_string())?;
+                let num = value.as_f64().ok_or_else(|| "expected number for Percentage type".to_string())?;
                 Decimal::try_from(num)
                     .map(VariableValue::Percentage)
                     .map_err(|e| format!("failed to convert to Decimal: {}", e))
@@ -173,15 +161,13 @@ impl From<DateTimeUtc> for VariableValue {
     }
 }
 
-
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct CustomVariable {
-    pub var_name: String,         // 变量名称
-    pub var_display_name: String, // 变量显示名称
+    pub var_name: String,             // 变量名称
+    pub var_display_name: String,     // 变量显示名称
     pub initial_value: VariableValue, // 初始值
-    pub var_value: VariableValue,        // 变量值
+    pub var_value: VariableValue,     // 变量值
 }
 
 impl<'de> serde::Deserialize<'de> for CustomVariable {
@@ -204,12 +190,10 @@ impl<'de> serde::Deserialize<'de> for CustomVariable {
         let helper = CustomVariableHelper::deserialize(deserializer)?;
 
         // 使用 VariableValue::from_json_with_type 根据类型解析初始值
-        let initial_value = VariableValue::from_json_with_type(helper.initial_value, &helper.var_value_type)
-            .map_err(D::Error::custom)?;
+        let initial_value = VariableValue::from_json_with_type(helper.initial_value, &helper.var_value_type).map_err(D::Error::custom)?;
 
         // 使用 VariableValue::from_json_with_type 根据类型解析当前值
-        let var_value = VariableValue::from_json_with_type(helper.var_value, &helper.var_value_type)
-            .map_err(D::Error::custom)?;
+        let var_value = VariableValue::from_json_with_type(helper.var_value, &helper.var_value_type).map_err(D::Error::custom)?;
 
         Ok(CustomVariable {
             var_name: helper.var_name,

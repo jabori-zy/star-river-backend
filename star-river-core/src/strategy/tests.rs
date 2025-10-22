@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::strategy::*;
-    use serde_json;
     use rust_decimal::Decimal;
+    use serde_json;
 
     #[test]
     fn test_deserialize_backtest_strategy_config() {
@@ -142,7 +142,10 @@ mod tests {
         }
 
         // 验证时间类型
-        assert!(matches!(config.custom_variables[3].var_value, custom_variable::VariableValue::Time(_)));
+        assert!(matches!(
+            config.custom_variables[3].var_value,
+            custom_variable::VariableValue::Time(_)
+        ));
 
         // 验证百分比类型
         if let custom_variable::VariableValue::Percentage(val) = config.custom_variables[4].var_value {
@@ -166,14 +169,12 @@ mod tests {
             leverage: 10,
             fee_rate: 0.0001,
             play_speed: 1,
-            custom_variables: vec![
-                CustomVariable {
-                    var_name: "test_var".to_string(),
-                    var_display_name: "测试变量".to_string(),
-                    initial_value: VariableValue::Number(Decimal::from(100)),
-                    var_value: VariableValue::Number(Decimal::from(100)),
-                },
-            ],
+            custom_variables: vec![CustomVariable {
+                var_name: "test_var".to_string(),
+                var_display_name: "测试变量".to_string(),
+                initial_value: VariableValue::Number(Decimal::from(100)),
+                var_value: VariableValue::Number(Decimal::from(100)),
+            }],
         };
 
         // 序列化

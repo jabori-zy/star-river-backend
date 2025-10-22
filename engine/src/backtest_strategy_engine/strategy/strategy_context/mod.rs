@@ -13,6 +13,7 @@ use super::strategy_state_machine::BacktestStrategyRunState;
 use super::strategy_state_machine::BacktestStrategyStateMachine;
 use chrono::{DateTime, Utc};
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
+use event_center::communication::Command;
 use event_center::communication::backtest_strategy::BacktestStrategyCommand;
 use event_center::communication::backtest_strategy::*;
 use event_center::event::Event;
@@ -35,14 +36,17 @@ use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use star_river_core::indicator::Indicator;
 use star_river_core::key::Key;
+use star_river_core::key::KeyTrait;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
 use star_river_core::market::QuantData;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::custom_variable::CustomVariable;
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
+use star_river_core::system::DateTimeUtc;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -53,10 +57,6 @@ use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
-use star_river_core::key::KeyTrait;
-use event_center::communication::Command;
-use star_river_core::strategy::custom_variable::CustomVariable;
-use star_river_core::system::DateTimeUtc;
 
 #[derive(Debug)]
 // 回测策略上下文

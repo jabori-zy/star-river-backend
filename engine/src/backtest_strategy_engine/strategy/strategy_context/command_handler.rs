@@ -251,12 +251,14 @@ mod indicator {
 }
 
 mod custom_variable {
+    use super::*;
     use snafu::OptionExt;
-    use star_river_core::error::engine_error::strategy_error::{CustomVariableNotExistSnafu, CustomVariableUpdateOperationValueIsNoneSnafu, DivideByZeroSnafu, UnSupportVariableOperationSnafu};
+    use star_river_core::error::engine_error::strategy_error::{
+        CustomVariableNotExistSnafu, CustomVariableUpdateOperationValueIsNoneSnafu, DivideByZeroSnafu, UnSupportVariableOperationSnafu,
+    };
     use star_river_core::node::variable_node::variable_config::UpdateVariableConfig;
     use star_river_core::node::variable_node::variable_operation::UpdateVarValueOperation;
     use star_river_core::strategy::custom_variable::VariableValue;
-    use super::*;
     impl BacktestStrategyContext {
         pub async fn init_custom_variables(&mut self, custom_variables: Vec<CustomVariable>) {
             tracing::info!("Initializing custom variables");
@@ -270,20 +272,20 @@ mod custom_variable {
             // 在写锁范围内直接使用 custom_var_guard 进行调试输出，避免死锁
             tracing::debug!("custom_variable: {:#?}", *custom_var_guard);
         }
-        
-        
+
         pub async fn get_custom_variable_value(&mut self, var_name: String) -> Result<VariableValue, BacktestStrategyError> {
             let custom_var_guard = self.custom_variable.read().await;
             let custom_variable = custom_var_guard
                 .get(var_name.as_str())
-                .context(
-                    CustomVariableNotExistSnafu{ var_name }
-                )?;
+                .context(CustomVariableNotExistSnafu { var_name })?;
             let variable_value = custom_variable.var_value.clone();
             Ok(variable_value)
         }
-        
-        pub async fn update_custom_variable_value(&mut self, update_var_config: &UpdateVariableConfig) -> Result<VariableValue, BacktestStrategyError> {
+
+        pub async fn update_custom_variable_value(
+            &mut self,
+            update_var_config: &UpdateVariableConfig,
+        ) -> Result<VariableValue, BacktestStrategyError> {
             use crate::backtest_strategy_engine::strategy::strategy_utils::apply_variable_operation;
 
             let var_name = update_var_config.var_name.clone();
@@ -291,11 +293,9 @@ mod custom_variable {
 
             let mut custom_var_guard = self.custom_variable.write().await;
 
-            let custom_var = custom_var_guard
-                .get_mut(&var_name)
-                .context(
-                    CustomVariableNotExistSnafu{ var_name: var_name.clone() }
-                )?;
+            let custom_var = custom_var_guard.get_mut(&var_name).context(CustomVariableNotExistSnafu {
+                var_name: var_name.clone(),
+            })?;
 
             // 使用工具函数计算新值
             let new_value = apply_variable_operation(
@@ -308,15 +308,13 @@ mod custom_variable {
             custom_var.var_value = new_value.clone();
             Ok(new_value)
         }
-        
+
         pub async fn reset_custom_variables(&mut self, var_name: String) -> Result<VariableValue, BacktestStrategyError> {
             let mut custom_var_guard = self.custom_variable.write().await;
             // 直接获取可变引用，避免重复查找
             let custom_var = custom_var_guard
                 .get_mut(&var_name)
-                .context(CustomVariableNotExistSnafu {
-                    var_name
-                })?;
+                .context(CustomVariableNotExistSnafu { var_name })?;
             // 将变量值重置为初始值
             custom_var.var_value = custom_var.initial_value.clone();
 

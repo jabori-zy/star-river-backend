@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use crate::strategy::custom_variable::VariableValue;
-use super::variable_operation::{VariableOperation, UpdateVarValueOperation};
 use super::trigger::TriggerConfig;
+use super::variable_operation::{UpdateVarValueOperation, VariableOperation};
+use crate::strategy::custom_variable::VariableValue;
+use serde::{Deserialize, Serialize};
 
 // ==================== 基础配置 ====================
 
@@ -12,10 +12,8 @@ pub enum VarType {
     Custom,
 }
 
-
-
 /// 基础变量配置（不包含 varType 和 varOperation，由外层枚举处理）
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BaseVariableConfig {
     pub config_id: i32,
@@ -34,7 +32,7 @@ pub mod get {
     use super::*;
 
     /// 获取系统变量配置
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct GetSystemVariableConfig {
         #[serde(flatten)]
@@ -45,7 +43,6 @@ pub mod get {
         pub var_value: VariableValue,
     }
 
-
     impl Deref for GetSystemVariableConfig {
         type Target = BaseVariableConfig;
 
@@ -53,7 +50,6 @@ pub mod get {
             &self.base
         }
     }
-
 
     impl GetSystemVariableConfig {
         pub fn var_name(&self) -> &str {
@@ -66,7 +62,7 @@ pub mod get {
     }
 
     /// 获取自定义变量配置
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct GetCustomVariableConfig {
         #[serde(flatten)]
@@ -94,7 +90,7 @@ pub mod get {
     }
 
     /// 获取变量配置（系统变量或自定义变量）
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Deserialize)]
     #[serde(tag = "varType", rename_all = "lowercase")]
     pub enum GetVariableConfig {
         System(GetSystemVariableConfig),
@@ -150,7 +146,7 @@ pub mod update {
     use super::*;
 
     /// 更新变量配置
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct UpdateVariableConfig {
         #[serde(flatten)]
@@ -162,7 +158,6 @@ pub mod update {
         pub update_operation_value: Option<VariableValue>,
     }
 
-
     impl Deref for UpdateVariableConfig {
         type Target = BaseVariableConfig;
 
@@ -172,8 +167,6 @@ pub mod update {
     }
 
     impl UpdateVariableConfig {
-
-
         pub fn config_id(&self) -> i32 {
             self.config_id
         }
@@ -205,7 +198,7 @@ pub mod reset {
     use super::*;
 
     /// 重置变量配置
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct ResetVariableConfig {
         #[serde(flatten)]
@@ -224,6 +217,10 @@ pub mod reset {
     }
 
     impl ResetVariableConfig {
+        pub fn var_name(&self) -> &str {
+            &self.var_name
+        }
+
         pub fn config_id(&self) -> i32 {
             self.config_id
         }
@@ -243,11 +240,11 @@ pub mod reset {
 
 // 重新导出子模块类型
 pub use get::GetVariableConfig;
-pub use update::UpdateVariableConfig;
 pub use reset::ResetVariableConfig;
+pub use update::UpdateVariableConfig;
 
 /// 变量配置（Get、Update 或 Reset）
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "varOperation", rename_all = "lowercase")]
 pub enum VariableConfig {
     Get(GetVariableConfig),

@@ -205,31 +205,151 @@ pub mod condition {
 
 // ==================== DataFlow 模块 ====================
 pub mod dataflow {
+    use std::collections::HashMap;
+
     use serde::{Deserialize, Serialize};
 
-    /// 数据流触发器
+    use crate::{
+        indicator::Indicator,
+        market::Kline,
+        node::variable_node::trigger::timer::TimeUnit,
+        strategy::custom_variable::{VariableValue, VariableValueType},
+    };
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum DataFlow {
+        Kline(Kline),
+        Indicator(Indicator),
+    }
+
+    impl From<Kline> for DataFlow {
+        fn from(kline: Kline) -> Self {
+            DataFlow::Kline(kline)
+        }
+    }
+
+    impl From<Indicator> for DataFlow {
+        fn from(indicator: Indicator) -> Self {
+            DataFlow::Indicator(indicator)
+        }
+    }
+
+    /// 数据流触发器
+    #[derive(Debug, Clone, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct DataFlowTrigger {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub from_node_type: Option<String>,
+        pub from_node_type: String,
         pub from_node_id: String,
         pub from_node_name: String,
         pub from_handle_id: String,
         pub from_var: String,
         pub from_var_display_name: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub from_var_value_type: Option<String>,
+        pub from_var_value_type: VariableValueType,
         pub from_var_config_id: i32,
+        pub expire_duration: ExpireDuration,
+        pub error_policy: HashMap<DataflowErrorType, DataflowErrorPolicy>,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "camelCase")]
+    pub enum DataflowErrorType {
+        NullValue,
+        Expired,
+        ZeroValue,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "camelCase")]
+    #[serde(tag = "strategy")]
+    pub enum DataflowErrorPolicy {
+        StillUpdate(StillUpdatePolicy),
+        Skip(SkipPolicy),
+        ValueReplace(ValueReplacePolicy),
+        UsePreviousValue(UsePreviousValuePolicy),
+    }
+
+    #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "camelCase")]
+    pub struct ValueReplacePolicy {
+        pub replace_value: VariableValue,
+        pub error_log: ErrorLog,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "camelCase")]
+    pub struct UsePreviousValuePolicy {
+        pub max_use_times: Option<u32>, // 最大使用次数，如果为None，则表示无限使用
+        pub error_log: ErrorLog,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "camelCase")]
+    pub struct StillUpdatePolicy {
+        pub error_log: ErrorLog,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "camelCase")]
+    pub struct SkipPolicy {
+        pub error_log: ErrorLog,
+    }
+
+    #[derive(Debug, Clone, Deserialize)]
+    pub struct ExpireDuration {
+        pub unit: TimeUnit,
+        pub duration: u32,
+    }
+
+    #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+    pub enum ErrorLog {
+        NoNotify,
+        Notify { level: LogLevel },
+    }
+
+    // 自定义反序列化实现
+    impl<'de> Deserialize<'de> for ErrorLog {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            use serde::de::Error;
+
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct ErrorLogHelper {
+                notify: bool,
+                level: Option<LogLevel>,
+            }
+
+            let helper = ErrorLogHelper::deserialize(deserializer)?;
+
+            if helper.notify {
+                // notify 为 true 时，必须有 level
+                let level = helper
+                    .level
+                    .ok_or_else(|| D::Error::custom("level is required when notify is true"))?;
+                Ok(ErrorLog::Notify { level })
+            } else {
+                // notify 为 false 时，映射到 NoNotify
+                Ok(ErrorLog::NoNotify)
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+    #[serde(rename_all = "lowercase")]
+    pub enum LogLevel {
+        Warn,
+        Error,
     }
 }
 
 // ==================== 触发配置统一类型 ====================
 
 // 重新导出子模块类型
-pub use timer::TimerTrigger;
 pub use condition::ConditionTrigger;
 pub use dataflow::DataFlowTrigger;
+pub use timer::TimerTrigger;
 
 /// 触发类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -241,7 +361,7 @@ pub enum TriggerType {
 }
 
 /// 触发配置（支持定时器、条件、数据流三种类型）
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", content = "config", rename_all = "lowercase")]
 pub enum TriggerConfig {
     Timer(TimerTrigger),

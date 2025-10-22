@@ -1,10 +1,13 @@
 use super::{
-    BacktestBaseNodeContext, BacktestNodeCommand, BacktestNodeContextTrait, BacktestNodeEvent, Command, Event, NodeOutputHandle,
-    NodeResetResponse, VariableNodeContext, IfElseNodeEvent, TriggerConfig, ConditionTrigger
+    context_utils::{filter_condition_trigger_configs, filter_dataflow_trigger_configs},
+    BacktestBaseNodeContext, BacktestNodeCommand, BacktestNodeContextTrait, BacktestNodeEvent, Command, DataFlow, Event, IfElseNodeEvent,
+    NodeOutputHandle, NodeResetResponse, VariableNodeContext,
 };
 use async_trait::async_trait;
-use event_center::event::node_event::NodeEventTrait;
-
+use event_center::event::node_event::{
+    NodeEventTrait,
+    backtest_node_event::{IndicatorNodeEvent, KlineNodeEvent},
+};
 
 use std::any::Any;
 
@@ -49,79 +52,36 @@ impl BacktestNodeContextTrait for VariableNodeContext {
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
-        
         match node_event {
             BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(match_event)) => {
-                tracing::debug!("{}: 条件匹配，获取变量", self.get_node_name());
-                // 过滤出condition trigger caseid相同的 的变量配置
-                let condition_trigger_configs = self
-                    .backtest_config
-                    .variable_configs
-                    .iter()
-                    .filter(|config| matches!(config.trigger_config(), TriggerConfig::Condition(_)))
-                    .filter(|config| match config.trigger_config() {
-                        TriggerConfig::Condition(condition_trigger) => {
-                            match condition_trigger {
-                                ConditionTrigger::Case(case_trigger) => {
-                                    if let Some(case_id) = match_event.case_id {
-                                        case_trigger.case_id == case_id && &case_trigger.from_node_id == match_event.from_node_id()
-                                    } else {
-                                        false
-                                    }
-                                    
-                                }
-                                ConditionTrigger::Else(else_trigger) => {
-                                    if match_event.case_id.is_none() {
-                                        &else_trigger.from_node_id == match_event.from_node_id()
-                                    } else {
-                                        false
-                                    }
-                                }
-                            }
-                        }
-                        _ => false,
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
-                self.handle_condition_trigger_variable(&condition_trigger_configs).await;
-
+                // 过滤出condition trigger caseid相同的变量配置
+                let condition_trigger_configs = filter_condition_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    &match_event,
+                );
+                self.handle_condition_trigger(&condition_trigger_configs).await;
+            }
+            // k线更新，处理dataflow
+            BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
+                // 过滤出dataflow trigger相同的变量配置
+                let dataflow_trigger_configs = filter_dataflow_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    kline_update_event.from_node_id(),
+                    kline_update_event.config_id,
+                );
+                let dataflow = DataFlow::from(kline_update_event.kline.clone());
+                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await;
+            }
+            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
+                let dataflow_trigger_configs = filter_dataflow_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    indicator_update_event.from_node_id(),
+                    indicator_update_event.config_id,
+                );
+                let dataflow = DataFlow::from(indicator_update_event.indicator_value.clone());
+                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await;
             }
             _ => {}
-        //         tracing::debug!("[{}] 条件匹配，获取变量", self.get_node_name());
-        //         // 判断当前节点的模式
-        //         // 如果是条件触发模式，则获取变量
-        //         if self
-        //             .backtest_config
-        //             .variable_configs
-        //             .iter()
-        //             .any(|v| v.get_variable_type == GetVariableType::Condition)
-        //         {
-        //             tracing::info!("{}: 条件触发模式，获取变量", self.get_node_name());
-        //             self.get_variable().await;
-        //         }
-        //     }
-        //     BacktestNodeEvent::Common(CommonEvent::Trigger(_)) => {
-        //         tracing::debug!("{}: 接受到trigger事件，不获取变量", self.get_node_name());
-        //         // 叶子节点不发送trigger事件, 发送执行结束事件
-        //         if self.is_leaf_node() {
-        //             self.send_execute_over_event().await;
-        //             return;
-        //         }
-        //         // 每个条件输出handle都发送trigger事件
-        //         for config in self.backtest_config.variable_configs.iter() {
-        //             let output_handle = self.get_output_handle(&config.output_handle_id);
-        //             if output_handle.connect_count > 0 {
-        //                 self.send_trigger_event(&config.output_handle_id).await;
-        //             }
-        //         }
-        //         // 默认输出handle发送trigger事件
-        //         let default_output_handle = self.get_default_output_handle();
-        //         if default_output_handle.connect_count > 0 {
-        //             self.send_trigger_event(&default_output_handle.output_handle_id).await;
-        //         }
-        //     }
-
-        //     _ => {}
         }
     }
 

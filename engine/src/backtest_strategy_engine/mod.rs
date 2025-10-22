@@ -1,7 +1,7 @@
+mod engine_context;
 mod log_message;
 mod node;
 mod strategy;
-mod engine_context;
 
 use crate::EngineName;
 use crate::{Engine, EngineContext};
@@ -19,8 +19,8 @@ use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::TradeMode;
 use star_river_core::strategy_stats::StatsSnapshot;
-use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::system::DateTimeUtc;
+use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -52,11 +52,7 @@ impl Engine for BacktestStrategyEngine {
 }
 
 impl BacktestStrategyEngine {
-    pub fn new(
-        database: DatabaseConnection,
-        exchange_engine: Arc<Mutex<ExchangeEngine>>,
-        heartbeat: Arc<Mutex<Heartbeat>>,
-    ) -> Self {
+    pub fn new(database: DatabaseConnection, exchange_engine: Arc<Mutex<ExchangeEngine>>, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
         let context = StrategyEngineContext {
             engine_name: EngineName::StrategyEngine,
             database,
@@ -242,9 +238,10 @@ impl BacktestStrategyEngine {
     ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
-        strategy_context.get_backtest_strategy_data(strategy_id, play_index, key, limit).await
+        strategy_context
+            .get_backtest_strategy_data(strategy_id, play_index, key, limit)
+            .await
     }
-
 
     pub async fn get_strategy_data_by_datetime(
         &mut self,
@@ -255,7 +252,9 @@ impl BacktestStrategyEngine {
     ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
-        strategy_context.get_strategy_data_by_datetime(strategy_id, key, datetime, limit).await
+        strategy_context
+            .get_strategy_data_by_datetime(strategy_id, key, datetime, limit)
+            .await
     }
 }
 

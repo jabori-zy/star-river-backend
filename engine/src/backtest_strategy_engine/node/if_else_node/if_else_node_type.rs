@@ -1,7 +1,0 @@
-use star_river_core::node::if_else_node::condition::Case;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IfElseNodeBacktestConfig {
-    pub cases: Vec<Case>,
-}

@@ -1,7 +1,7 @@
 use super::{
-    BacktestNodeEvent, BacktestStrategyCommand, BacktestStrategyContext, BacktestStrategyEvent, CommonEvent, Event, EventCenterSingleton,
-    FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyKeysResponse, IndicatorNodeEvent,
-    KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,Command
+    BacktestNodeEvent, BacktestStrategyCommand, BacktestStrategyContext, BacktestStrategyEvent, Command, CommonEvent, Event,
+    EventCenterSingleton, FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyKeysResponse,
+    IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,
 };
 use event_center::communication::backtest_strategy::*;
 use std::sync::Arc;
@@ -127,8 +127,6 @@ impl BacktestStrategyContext {
                     cmd.respond(resp);
                 }
             }
-
-
         }
         Ok(())
     }

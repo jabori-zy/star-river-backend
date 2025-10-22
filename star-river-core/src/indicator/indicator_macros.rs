@@ -67,6 +67,15 @@ macro_rules! define_indicator_output {
                         )*
                     })
                 }
+
+                fn get_value(&self, key: &str) -> Option<f64> {
+                    match key {
+                        $(
+                            stringify!($output_field) => $crate::get_field_value_dispatch!(self.$output_field),
+                        )*
+                        _ => None,
+                    }
+                }
             }
 
             // impl $indicator_name {
@@ -314,6 +323,50 @@ macro_rules! add_field_to_vec_dispatch {
     };
 }
 
+// 辅助宏：通过类型推断将字段转换为Option<f64>（用于get_value方法）
+#[macro_export]
+macro_rules! get_field_value_dispatch {
+    ($field:expr) => {
+        // 使用匿名函数来处理不同类型的转换
+        (|field: &dyn std::any::Any| -> Option<f64> {
+            if let Some(val) = field.downcast_ref::<i64>() {
+                Some(*val as f64)
+            } else if let Some(val) = field.downcast_ref::<i32>() {
+                Some(*val as f64)
+            } else if let Some(val) = field.downcast_ref::<f64>() {
+                Some(*val)
+            } else if let Some(val) = field.downcast_ref::<f32>() {
+                Some(*val as f64)
+            } else if let Some(val) = field.downcast_ref::<ordered_float::OrderedFloat<f64>>() {
+                Some(val.into_inner())
+            } else if let Some(val) = field.downcast_ref::<ordered_float::OrderedFloat<f32>>() {
+                Some(val.into_inner() as f64)
+            } else if let Some(val) = field.downcast_ref::<Option<f64>>() {
+                *val
+            } else if let Some(val) = field.downcast_ref::<Option<f32>>() {
+                val.map(|v| v as f64)
+            } else if let Some(val) = field.downcast_ref::<Option<i64>>() {
+                val.map(|v| v as f64)
+            } else if let Some(val) = field.downcast_ref::<Option<i32>>() {
+                val.map(|v| v as f64)
+            } else if let Some(val) = field.downcast_ref::<Option<ordered_float::OrderedFloat<f64>>>() {
+                val.map(|v| v.into_inner())
+            } else if let Some(val) = field.downcast_ref::<Option<ordered_float::OrderedFloat<f32>>>() {
+                val.map(|v| v.into_inner() as f64)
+            } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::FixedOffset>>() {
+                Some(val.timestamp_millis() as f64)
+            } else if let Some(val) = field.downcast_ref::<chrono::DateTime<chrono::Utc>>() {
+                Some(val.timestamp_millis() as f64)
+            } else if let Some(val) = field.downcast_ref::<crate::system::DateTimeUtc>() {
+                Some(val.timestamp_millis() as f64)
+            } else {
+                // 对于无法识别的类型，返回None
+                None
+            }
+        })(&$field)
+    };
+}
+
 // 辅助宏：格式化字段（用于to_json_with_time方法）
 #[macro_export]
 macro_rules! format_field_with_time {
@@ -469,6 +522,14 @@ macro_rules! impl_indicator {
                 match self {
                     $(
                         $enum_name::$variant(inner) => crate::market::QuantData::to_json_with_time(inner),
+                    )+
+                }
+            }
+
+            fn get_value(&self, key: &str) -> Option<f64> {
+                match self {
+                    $(
+                        $enum_name::$variant(inner) => crate::market::QuantData::get_value(inner, key),
                     )+
                 }
             }

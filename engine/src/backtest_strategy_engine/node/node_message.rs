@@ -2,7 +2,6 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-
 // 通用日志消息 - 多个节点共同使用的日志消息
 pub mod common_log_message {
     use crate::backtest_strategy_engine::log_message::*;
@@ -246,7 +245,6 @@ pub mod start_node_log_message {
         en: "[{node_name}] strategy statistics initialization failed: {error}",
         zh: "[{node_name}] 策略统计初始化失败: {error}"
     );
-
 
     log_message!(
         InitCustomVariableMsg,
@@ -1070,8 +1068,6 @@ pub mod futures_order_node_log_message {
         en: "[{node_name}] starting to get symbol info",
         zh: "[{node_name}] 开始获取交易对信息"
     );
-        
-    
 }
 
 // OrderNode 特有的日志消息 (保留以便未来扩展)

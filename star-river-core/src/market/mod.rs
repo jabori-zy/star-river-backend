@@ -243,6 +243,7 @@ impl KlineInterval {
 
 // 量化数据
 pub trait QuantData: Serialize + Clone + Debug {
+    fn get_value(&self, key: &str) -> Option<f64>;
     fn get_datetime(&self) -> DateTimeUtc;
     fn to_json(&self) -> serde_json::Value;
     fn to_list(&self) -> Vec<f64>;
@@ -294,6 +295,8 @@ impl Kline {
     pub fn volume(&self) -> f64 {
         self.volume
     }
+
+    
 }
 
 impl QuantData for Kline {
@@ -324,6 +327,18 @@ impl QuantData for Kline {
                 "volume": self.volume
             }
         )
+    }
+
+    fn get_value(&self, key: &str) -> Option<f64> {
+        match key {
+            "datetime" => Some(self.datetime().timestamp_millis() as f64),
+            "open" => Some(self.open()),
+            "high" => Some(self.high()),
+            "low" => Some(self.low()),
+            "close" => Some(self.close()),
+            "volume" => Some(self.volume()),
+            _ => None,
+        }
     }
 }
 

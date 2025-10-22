@@ -1,45 +1,67 @@
 mod context_impl;
+mod context_utils;
 mod variable_handler;
-
 
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
 use event_center::communication::Command;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse, StrategyCommand};
+use event_center::communication::Response;
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::event::Event;
-use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, TriggerEvent, TriggerPayload};
-use event_center::event::node_event::backtest_node_event::variable_node_event::{
-    SysVariableUpdatedEvent, SysVariableUpdatedPayload, VariableNodeEvent,
-};
+use event_center::event::node_event::backtest_node_event::if_else_node_event::ConditionMatchEvent;
 use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IfElseNodeEvent};
+use event_center::event::node_event::NodeEventTrait;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use star_river_core::node::variable_node::*;
+use star_river_core::custom_type::NodeId;
+use star_river_core::node::variable_node::trigger::dataflow::DataFlow;
 use star_river_core::node::variable_node::trigger::{ConditionTrigger, TriggerConfig};
-use star_river_core::node::variable_node::VariableConfig;
-use star_river_core::node::variable_node::variable_config::GetVariableConfig;
-use event_center::communication::Response;
-
-
-use star_river_core::strategy::sys_varibale::SysVariable;
-use std::any::Any;
+use star_river_core::node::variable_node::variable_config::{GetVariableConfig, ResetVariableConfig, UpdateVariableConfig};
+use star_river_core::node::variable_node::*;
+use star_river_core::strategy::custom_variable::VariableValue;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use virtual_trading::VirtualTradingSystem;
 
 #[derive(Debug, Clone)]
 pub struct VariableNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub backtest_config: VariableNodeBacktestConfig,
+    pub node_config: VariableNodeBacktestConfig,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub database: DatabaseConnection,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    variable_cache_value: Arc<RwLock<HashMap<(NodeId, i32, String), VariableValue>>>, // (node_id, config_id, variable_name) -> variable_value
 }
 
-
-
 impl VariableNodeContext {
+    pub fn new(
+        base_context: BacktestBaseNodeContext,
+        backtest_config: VariableNodeBacktestConfig,
+        heartbeat: Arc<Mutex<Heartbeat>>,
+        database: DatabaseConnection,
+        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    ) -> Self {
+        Self {
+            base_context,
+            node_config: backtest_config,
+            heartbeat,
+            database,
+            virtual_trading_system,
+            variable_cache_value: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub async fn update_variable_cache_value(&mut self, node_id: NodeId, config_id: i32, variable_name: String, variable_value: VariableValue) {
+        let mut variable_cache_value_guard = self.variable_cache_value.write().await;
+        variable_cache_value_guard.insert((node_id, config_id, variable_name), variable_value);
+    }
+
+    pub async fn get_variable_cache_value(&mut self, node_id: NodeId, config_id: i32, variable_name: String) -> Option<VariableValue> {
+        let variable_cache_value_guard = self.variable_cache_value.read().await;
+        variable_cache_value_guard.get(&(node_id, config_id, variable_name)).cloned()
+    }
+
     pub async fn register_task(&mut self) {
         // let database = self.database.clone();
         // let backtest_config = self.backtest_config.clone();

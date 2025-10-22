@@ -1,12 +1,13 @@
-pub mod sys_varibale;
 pub mod custom_variable;
+pub mod sys_varibale;
 mod tests;
 
 use crate::custom_type::FeeRate;
 use crate::market::Exchange;
 use crate::market::deserialize_exchange;
 use crate::system::DateTimeUtc;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
+use custom_variable::CustomVariable;
 use entity::strategy_config::Model as StrategyConfigModel;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,7 +15,6 @@ use std::fmt;
 use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use custom_variable::CustomVariable;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StrategyConfig {
@@ -103,7 +103,6 @@ pub enum VariableType {
 
 // 变量
 
-
 // 实盘模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveStrategyConfig {
@@ -135,7 +134,7 @@ pub struct TimeRange {
 impl TimeRange {
     pub fn new(start_date_str: String, end_date_str: String) -> Self {
         use chrono::NaiveDateTime;
-        
+
         // 尝试解析RFC 3339格式（如：1971-01-01T00:00:00Z）
         let start_date = match DateTimeUtc::from_str(&start_date_str) {
             Ok(dt) => dt,
@@ -147,7 +146,7 @@ impl TimeRange {
                 }
             }
         };
-        
+
         let end_date = match DateTimeUtc::from_str(&end_date_str) {
             Ok(dt) => dt,
             Err(_) => {
@@ -158,11 +157,8 @@ impl TimeRange {
                 }
             }
         };
-        
-        Self {
-            start_date,
-            end_date,
-        }
+
+        Self { start_date, end_date }
     }
 
     pub fn duration(&self) -> Duration {
@@ -273,7 +269,7 @@ impl Default for BacktestStrategyConfig {
 // 模拟模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulatedConfig {
-    pub simulate_accounts: Vec<i32>,          // 账户ID列表
+    pub simulate_accounts: Vec<i32>,                // 账户ID列表
     pub variables: HashMap<String, CustomVariable>, // 变量 var_name -> Variable
 }
 

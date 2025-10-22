@@ -1,6 +1,6 @@
 use super::{
-    BacktestStrategy, BacktestStrategyError, StatsSnapshot, DateTimeUtc,
-    StrategyRunningLogEvent, VirtualOrder, VirtualPosition, VirtualTransaction,
+    BacktestStrategy, BacktestStrategyError, DateTimeUtc, StatsSnapshot, StrategyRunningLogEvent, VirtualOrder, VirtualPosition,
+    VirtualTransaction,
 };
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::key::Key;
@@ -41,7 +41,12 @@ impl BacktestStrategy {
         context_guard.get_running_log().await
     }
 
-    pub async fn get_strategy_data(&self, play_index: PlayIndex, key: Key, limit: Option<i32>) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
+    pub async fn get_strategy_data(
+        &self,
+        play_index: PlayIndex,
+        key: Key,
+        limit: Option<i32>,
+    ) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
         let context_guard = self.context.read().await;
         context_guard.get_strategy_data(play_index, key, limit).await
     }

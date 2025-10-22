@@ -1,6 +1,6 @@
 use super::{
-    BacktestStrategyContext, BacktestStrategyError, GetDataFailedSnafu, Key, KlineDataLengthNotSameSnafu, PlayIndex,
-    StatsSnapshot, VirtualOrder, VirtualPosition, VirtualTransaction,GetDataByDatetimeFailedSnafu, QuantData, DateTimeUtc,
+    BacktestStrategyContext, BacktestStrategyError, DateTimeUtc, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, Key,
+    KlineDataLengthNotSameSnafu, PlayIndex, QuantData, StatsSnapshot, VirtualOrder, VirtualPosition, VirtualTransaction,
 };
 
 impl BacktestStrategyContext {
@@ -55,7 +55,12 @@ impl BacktestStrategyContext {
         }
     }
 
-    pub async fn get_strategy_data(&self, play_index: PlayIndex, key: Key, limit: Option<i32>) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
+    pub async fn get_strategy_data(
+        &self,
+        play_index: PlayIndex,
+        key: Key,
+        limit: Option<i32>,
+    ) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
         // 安全检查：验证key是否属于当前策略
         let keys_map = self.keys.read().await;
         if !keys_map.contains_key(&key) {
@@ -71,11 +76,7 @@ impl BacktestStrategyContext {
         let index = match &key {
             Key::Kline(kline_key) => {
                 if self.min_interval_symbols.contains(kline_key) {
-                    if play_index == -1 {
-                        Some(0)
-                    } else {
-                        Some(play_index)
-                    }
+                    if play_index == -1 { Some(0) } else { Some(play_index) }
                 } else {
                     None
                 }
@@ -83,11 +84,7 @@ impl BacktestStrategyContext {
             Key::Indicator(indicator_key) => {
                 let kline_key = indicator_key.get_kline_key();
                 if self.min_interval_symbols.contains(&kline_key) {
-                    if play_index == -1 {
-                        Some(0)
-                    } else {
-                        Some(play_index)
-                    }
+                    if play_index == -1 { Some(0) } else { Some(play_index) }
                 } else {
                     None
                 }
@@ -108,8 +105,12 @@ impl BacktestStrategyContext {
         }
     }
 
-
-    pub async fn get_strategy_data_by_datetime(&self, key: Key, datetime: DateTimeUtc, limit: Option<i32>) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
+    pub async fn get_strategy_data_by_datetime(
+        &self,
+        key: Key,
+        datetime: DateTimeUtc,
+        limit: Option<i32>,
+    ) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
         // 安全检查：验证key是否属于当前策略
         let keys_map = self.keys.read().await;
         if !keys_map.contains_key(&key) {
@@ -125,14 +126,24 @@ impl BacktestStrategyContext {
         match key {
             Key::Kline(kline_key) => {
                 let kline_data_map_guard = self.kline_data.read().await;
-                let play_index = kline_data_map_guard.get(&kline_key).unwrap().iter().position(|kline| kline.datetime() == datetime).unwrap();
+                let play_index = kline_data_map_guard
+                    .get(&kline_key)
+                    .unwrap()
+                    .iter()
+                    .position(|kline| kline.datetime() == datetime)
+                    .unwrap();
                 let kline_data = self.get_kline_data(&kline_key, Some(play_index as i32), limit).await?;
                 let kline_data = kline_data.iter().map(|kline| kline.to_json()).collect();
                 Ok(kline_data)
             }
             Key::Indicator(indicator_key) => {
                 let indicator_data_map_guard = self.indicator_data.read().await;
-                let play_index = indicator_data_map_guard.get(&indicator_key).unwrap().iter().position(|indicator| indicator.get_datetime() == datetime).unwrap();
+                let play_index = indicator_data_map_guard
+                    .get(&indicator_key)
+                    .unwrap()
+                    .iter()
+                    .position(|indicator| indicator.get_datetime() == datetime)
+                    .unwrap();
                 let indicator_data = self.get_indicator_data(&indicator_key, Some(play_index as i32), limit).await;
                 let indicator_data = indicator_data.iter().map(|indicator| indicator.to_json()).collect();
                 Ok(indicator_data)

@@ -8,5 +8,9 @@
       "Bash(git checkout:*)"
     ],
     "deny": []
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false
   }
 }

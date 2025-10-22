@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-
 /**
  * 更新变量值的操作类型
  */
@@ -43,11 +42,10 @@ pub enum UpdateVarValueOperation {
     Clear, // 清空变量值
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum VariableOperation {
-    Get, // 获取变量值
+    Get,    // 获取变量值
     Update, // 更新变量值
-    Reset, // 重置变量值
+    Reset,  // 重置变量值
 }

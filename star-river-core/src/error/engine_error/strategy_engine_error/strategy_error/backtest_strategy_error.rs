@@ -158,10 +158,11 @@ pub enum BacktestStrategyError {
         var_name: String
     },
 
-    #[snafu(display("unsupport variable operation: {operation} for custom variable [{var_name}] of type [{var_type}]"))]
+    #[snafu(display("unsupport variable operation: {operation} for custom variable [{var_name}] of type [{currrent_var_type}] to type [{operation_var_type}]"))]
     UnSupportVariableOperation {
         var_name: String,
-        var_type: String,
+        currrent_var_type: String,
+        operation_var_type: String,
         operation: String,
     },
 
@@ -391,8 +392,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::CustomVariableUpdateOperationValueIsNone {var_name} => {
                     format!("变量[{var_name}]的更新操作值为空")
                 }
-                BacktestStrategyError::UnSupportVariableOperation { var_name, var_type, operation, .. } => {
-                    format!("不支持的变量操作: 自定义变量[{var_name}({var_type})] 不支持{operation}操作")
+                BacktestStrategyError::UnSupportVariableOperation { var_name, currrent_var_type, operation_var_type, operation, .. } => {
+                    format!("不支持的变量操作: 自定义变量[{var_name}({currrent_var_type})] 不支持{operation}操作 to type [{operation_var_type}]")
                 }
 
                 BacktestStrategyError::DivideByZero { var_name } => {
