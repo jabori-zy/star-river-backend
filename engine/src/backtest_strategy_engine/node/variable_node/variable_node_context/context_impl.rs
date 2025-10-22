@@ -1,7 +1,7 @@
 use super::{
-    context_utils::{filter_condition_trigger_configs, filter_dataflow_trigger_configs},
     BacktestBaseNodeContext, BacktestNodeCommand, BacktestNodeContextTrait, BacktestNodeEvent, Command, DataFlow, Event, IfElseNodeEvent,
     NodeOutputHandle, NodeResetResponse, VariableNodeContext,
+    context_utils::{filter_condition_trigger_configs, filter_dataflow_trigger_configs},
 };
 use async_trait::async_trait;
 use event_center::event::node_event::{
@@ -55,10 +55,7 @@ impl BacktestNodeContextTrait for VariableNodeContext {
         match node_event {
             BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(match_event)) => {
                 // 过滤出condition trigger caseid相同的变量配置
-                let condition_trigger_configs = filter_condition_trigger_configs(
-                    self.node_config.variable_configs.iter(),
-                    &match_event,
-                );
+                let condition_trigger_configs = filter_condition_trigger_configs(self.node_config.variable_configs.iter(), &match_event);
                 self.handle_condition_trigger(&condition_trigger_configs).await;
             }
             // k线更新，处理dataflow

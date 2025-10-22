@@ -60,7 +60,7 @@ pub enum TpslType {
     #[strum(serialize = "price")]
     #[serde(rename = "price")]
     Price,
-    
+
     #[strum(serialize = "percentage")]
     #[serde(rename = "percentage")]
     Percentage,
@@ -68,7 +68,6 @@ pub enum TpslType {
     #[strum(serialize = "point")]
     #[serde(rename = "point")]
     Point,
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]

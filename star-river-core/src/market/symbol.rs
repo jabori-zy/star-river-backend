@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use utoipa::{ToSchema};
-
+use utoipa::ToSchema;
 
 use super::Exchange;
 
@@ -16,13 +15,7 @@ pub struct Symbol {
 
 impl Symbol {
     /// Create a new Symbol from base/quote and exchange
-    pub fn new(
-        name: &str, 
-        base: Option<&str>, 
-        quote: Option<&str>, 
-        exchange: Exchange,
-        point: f32
-    ) -> Self {
+    pub fn new(name: &str, base: Option<&str>, quote: Option<&str>, exchange: Exchange, point: f32) -> Self {
         Self {
             name: name.to_string(),
             base: base.map(|s| s.to_string()),

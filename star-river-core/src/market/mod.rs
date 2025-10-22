@@ -295,8 +295,6 @@ impl Kline {
     pub fn volume(&self) -> f64 {
         self.volume
     }
-
-    
 }
 
 impl QuantData for Kline {

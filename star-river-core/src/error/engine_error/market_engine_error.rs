@@ -1,10 +1,10 @@
+use super::super::exchange_client_error::ExchangeClientError;
+use super::exchange_engine_error::ExchangeEngineError;
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use crate::error::error_trait::StarRiverErrorTrait;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use super::exchange_engine_error::ExchangeEngineError;
-use super::super::exchange_client_error::ExchangeClientError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -59,8 +59,12 @@ impl StarRiverErrorTrait for MarketEngineError {
         match language {
             Language::English => self.to_string(),
             Language::Chinese => match self {
-                MarketEngineError::ExchangeEngine {source,..} => {format!("交易所引擎错误: {}", source.get_error_message(language))}
-                MarketEngineError::ExchangeClient {source,..} => {format!("交易所客户端错误: {}", source.get_error_message(language))}
+                MarketEngineError::ExchangeEngine { source, .. } => {
+                    format!("交易所引擎错误: {}", source.get_error_message(language))
+                }
+                MarketEngineError::ExchangeClient { source, .. } => {
+                    format!("交易所客户端错误: {}", source.get_error_message(language))
+                }
             },
         }
     }

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::node::if_else_node::*;
-    use serde_json;
     use rust_decimal::Decimal;
+    use serde_json;
 
     #[test]
     fn test_deserialize_if_else_node_backtest_config() {

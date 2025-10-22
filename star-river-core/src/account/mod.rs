@@ -10,8 +10,6 @@ use std::fmt::Debug;
 use std::str::FromStr;
 use utoipa::ToSchema;
 
-
-
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // #[serde(untagged)]
 // pub enum Account {

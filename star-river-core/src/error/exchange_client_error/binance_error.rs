@@ -1,17 +1,14 @@
+use super::StarRiverErrorTrait;
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use super::StarRiverErrorTrait;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum BinanceError {
     #[snafu(display("http client not created"))]
-    HttpClientNotCreated {
-        backtrace: Backtrace,
-    },
-
+    HttpClientNotCreated { backtrace: Backtrace },
 
     #[snafu(display("network error: url: {url}, source: {source}"))]
     Network {
@@ -21,10 +18,7 @@ pub enum BinanceError {
     },
 
     #[snafu(display("ping failed"))]
-    PingFailed {
-        backtrace: Backtrace,
-    },
-
+    PingFailed { backtrace: Backtrace },
 
     #[snafu(display("response error: url: {url}, source: {source}"))]
     Response {
@@ -33,13 +27,8 @@ pub enum BinanceError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(display("parse server time failed: {source}"))]
-    ParseServerTimeFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
-
+    ParseServerTimeFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("parse raw data {data_name} failed: {source}"))]
     ParseRawDataFailed {
@@ -48,13 +37,8 @@ pub enum BinanceError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(display("parse date time {timestamp} failed"))]
-    DateTimeParseFailed {
-        timestamp: i64,
-        backtrace: Backtrace,
-    },
-
+    DateTimeParseFailed { timestamp: i64, backtrace: Backtrace },
 
     TypeConversionFailed {
         from: String,
@@ -72,10 +56,7 @@ pub enum BinanceError {
     },
 
     #[snafu(display("missing field: {field}"))]
-    MissingField {
-        field: String,
-        backtrace: Backtrace,
-    },
+    MissingField { field: String, backtrace: Backtrace },
 
     #[snafu(display("invalid field type: {field}, expected: {expected}"))]
     InvalidFieldType {
@@ -84,12 +65,8 @@ pub enum BinanceError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(display("symbol {symbol} not found"))]
-    SymbolNotFound {
-        symbol: String,
-        backtrace: Backtrace,
-    },
+    SymbolNotFound { symbol: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for IndicatorError
@@ -101,18 +78,18 @@ impl StarRiverErrorTrait for BinanceError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            BinanceError::HttpClientNotCreated { .. } => 1001, // 客户端未创建
-            BinanceError::PingFailed { .. } => 1002, // Ping失败
-            BinanceError::Network { .. } => 1003, // 网络错误
-            BinanceError::Response { .. } => 1004, // 响应错误
+            BinanceError::HttpClientNotCreated { .. } => 1001,  // 客户端未创建
+            BinanceError::PingFailed { .. } => 1002,            // Ping失败
+            BinanceError::Network { .. } => 1003,               // 网络错误
+            BinanceError::Response { .. } => 1004,              // 响应错误
             BinanceError::ParseServerTimeFailed { .. } => 1005, // 解析服务器时间失败
-            BinanceError::ParseRawDataFailed { .. } => 1006, // 解析原始数据失败
-            BinanceError::DateTimeParseFailed { .. } => 1007, // 解析时间戳失败
-            BinanceError::TypeConversionFailed { .. } => 1008, // 类型转换失败
-            BinanceError::ParseNumberFailed { .. } => 1009, // 解析数字失败
-            BinanceError::MissingField { .. } => 1010, // 缺少字段
-            BinanceError::InvalidFieldType { .. } => 1011, // 字段类型无效
-            BinanceError::SymbolNotFound { .. } => 1012, // 交易对不存在
+            BinanceError::ParseRawDataFailed { .. } => 1006,    // 解析原始数据失败
+            BinanceError::DateTimeParseFailed { .. } => 1007,   // 解析时间戳失败
+            BinanceError::TypeConversionFailed { .. } => 1008,  // 类型转换失败
+            BinanceError::ParseNumberFailed { .. } => 1009,     // 解析数字失败
+            BinanceError::MissingField { .. } => 1010,          // 缺少字段
+            BinanceError::InvalidFieldType { .. } => 1011,      // 字段类型无效
+            BinanceError::SymbolNotFound { .. } => 1012,        // 交易对不存在
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -123,11 +100,7 @@ impl StarRiverErrorTrait for BinanceError {
     }
 
     fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
-            BinanceError::HttpClientNotCreated { .. } | 
-            BinanceError::PingFailed { .. }
-        )
+        matches!(self, BinanceError::HttpClientNotCreated { .. } | BinanceError::PingFailed { .. })
     }
 
     fn get_error_message(&self, language: Language) -> String {
@@ -140,7 +113,7 @@ impl StarRiverErrorTrait for BinanceError {
                 BinanceError::PingFailed { .. } => {
                     format!("Ping失败")
                 }
-                BinanceError::Network { url,source,.. } => {
+                BinanceError::Network { url, source, .. } => {
                     format!("网络错误: url: {}, source: {}", url, source)
                 }
                 BinanceError::Response { url, source, .. } => {
@@ -178,18 +151,18 @@ impl StarRiverErrorTrait for BinanceError {
         match self {
             // CreateIndicatorFailed has source but serde_json::Error doesn't implement our trait
             // So we start the chain here
-            BinanceError::HttpClientNotCreated { .. } | 
-            BinanceError::PingFailed { .. } |
-            BinanceError::Network { .. } |
-            BinanceError::Response { .. } |
-            BinanceError::ParseServerTimeFailed { .. } |
-            BinanceError::ParseRawDataFailed { .. } |
-            BinanceError::DateTimeParseFailed { .. } |
-            BinanceError::TypeConversionFailed { .. } |
-            BinanceError::ParseNumberFailed { .. } |
-            BinanceError::MissingField { .. } |
-            BinanceError::InvalidFieldType { .. } |
-            BinanceError::SymbolNotFound { .. } => vec![self.error_code()],
+            BinanceError::HttpClientNotCreated { .. }
+            | BinanceError::PingFailed { .. }
+            | BinanceError::Network { .. }
+            | BinanceError::Response { .. }
+            | BinanceError::ParseServerTimeFailed { .. }
+            | BinanceError::ParseRawDataFailed { .. }
+            | BinanceError::DateTimeParseFailed { .. }
+            | BinanceError::TypeConversionFailed { .. }
+            | BinanceError::ParseNumberFailed { .. }
+            | BinanceError::MissingField { .. }
+            | BinanceError::InvalidFieldType { .. }
+            | BinanceError::SymbolNotFound { .. } => vec![self.error_code()],
         }
     }
 }

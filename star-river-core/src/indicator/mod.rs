@@ -23,13 +23,10 @@ use strum::{Display, EnumString};
 use crate::error::indicator_error::*;
 use snafu::ResultExt;
 
-
-#[cfg(target_os="windows")]
+#[cfg(target_os = "windows")]
 pub type MaTypeInt = i32;
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 pub type MaTypeInt = u32;
-
-
 
 // 价格来源
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, Display)]
@@ -79,9 +76,8 @@ pub enum MAType {
     T3, // Triple Exponential Moving Average (T3) 三重指数移动平均线
 }
 
-
 impl Into<MaTypeInt> for MAType {
-    #[cfg(target_os="windows")]
+    #[cfg(target_os = "windows")]
     fn into(self) -> i32 {
         match self {
             MAType::SMA => 0,
@@ -96,7 +92,7 @@ impl Into<MaTypeInt> for MAType {
         }
     }
 
-    #[cfg(target_os="macos")]
+    #[cfg(target_os = "macos")]
     fn into(self) -> u32 {
         match self {
             MAType::SMA => 0,

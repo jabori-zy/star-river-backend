@@ -6,10 +6,10 @@ use strum::{Display, EnumString};
 pub enum EngineName {
     #[strum(serialize = "exchange-engine")]
     ExchangeEngine, // 交易所引擎
-    
+
     #[strum(serialize = "marekt-engine")]
     MarketEngine, // 市场引擎
-    
+
     #[strum(serialize = "indicator-engine")]
     IndicatorEngine, // 指标引擎
 
@@ -18,15 +18,12 @@ pub enum EngineName {
 
     #[strum(serialize = "strategy-engine")]
     StrategyEngine, // 策略引擎
-    
+
     #[cfg(feature = "paid")]
     #[strum(serialize = "cache-engine")]
     CacheEngine, // 缓存引擎
-    
 
     #[cfg(feature = "paid")]
     #[strum(serialize = "live-strategy-engine")]
     LiveStrategyEngine, // 实时策略引擎
-    
-
 }

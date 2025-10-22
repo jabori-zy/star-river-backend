@@ -1,8 +1,8 @@
+use crate::strategy::custom_variable::{VariableValue, VariableValueType};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum::EnumString;
 use strum_macros::Display;
-use crate::strategy::custom_variable::{VariableValue, VariableValueType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 pub enum ComparisonSymbol {
@@ -125,8 +125,7 @@ impl<'de> serde::Deserialize<'de> for Constant {
         let helper = ConstantHelper::deserialize(deserializer)?;
 
         // 使用 VariableValue::from_json_with_type 根据类型解析值
-        let var_value = VariableValue::from_json_with_type(helper.var_value, &helper.var_value_type)
-            .map_err(D::Error::custom)?;
+        let var_value = VariableValue::from_json_with_type(helper.var_value, &helper.var_value_type).map_err(D::Error::custom)?;
 
         Ok(Constant {
             // var_value_type: helper.var_value_type,

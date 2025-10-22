@@ -1,7 +1,7 @@
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
-use crate::error::indicator_error::IndicatorError;
 use crate::error::error_trait::StarRiverErrorTrait;
+use crate::error::indicator_error::IndicatorError;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -39,13 +39,17 @@ pub enum IndicatorNodeError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(display("get kline data failed"))]
-    GetKlineDataFailed { source: Arc<dyn StarRiverErrorTrait + Send + Sync>, backtrace: Backtrace },
-
+    GetKlineDataFailed {
+        source: Arc<dyn StarRiverErrorTrait + Send + Sync>,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("calculate indicator failed"))]
-    CalculateIndicatorFailed { source: Arc<dyn StarRiverErrorTrait + Send + Sync>, backtrace: Backtrace },
+    CalculateIndicatorFailed {
+        source: Arc<dyn StarRiverErrorTrait + Send + Sync>,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for IndicatorNodeError
@@ -62,9 +66,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::ConfigDeserializationFailed { .. } => 1002, // 指标节点回测配置反序列化失败
             IndicatorNodeError::ValueNotGreaterThanOrEqualToZero { .. } => 1003, // 指标节点回测配置值不能小于零
             IndicatorNodeError::ValueNotGreaterThanZero { .. } => 1004, // 指标节点回测配置值不能大于零
-            IndicatorNodeError::IndicatorError { .. } => 1005, // 指标错误
+            IndicatorNodeError::IndicatorError { .. } => 1005,       // 指标错误
             IndicatorNodeError::DataSourceParseFailed { .. } => 1006, // 数据源解析失败
-            IndicatorNodeError::GetKlineDataFailed { .. } => 1007, // 获取K线数据失败
+            IndicatorNodeError::GetKlineDataFailed { .. } => 1007,   // 获取K线数据失败
             IndicatorNodeError::CalculateIndicatorFailed { .. } => 1008, // 计算指标失败
         };
 
@@ -108,14 +112,11 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::ConfigDeserializationFailed { .. } | IndicatorNodeError::DataSourceParseFailed { .. } => {
                 vec![self.error_code()]
             }
-            IndicatorNodeError::GetKlineDataFailed { source, .. } |
-            IndicatorNodeError::CalculateIndicatorFailed { source, .. }  => {
+            IndicatorNodeError::GetKlineDataFailed { source, .. } | IndicatorNodeError::CalculateIndicatorFailed { source, .. } => {
                 let mut chain = source.error_code_chain();
                 chain.push(self.error_code());
                 chain
             }
-
-
         }
     }
 

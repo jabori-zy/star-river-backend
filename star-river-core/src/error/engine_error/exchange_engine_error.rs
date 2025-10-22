@@ -175,8 +175,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                 let code = match self {
                     // Registration & Configuration (1001-1004)
                     ExchangeEngineError::RegisterExchangeFailed { .. } => 1001, // 注册交易所失败
-                    ExchangeEngineError::UnregistrationFailed { .. } => 1002, // 注销交易所失败
-                    ExchangeEngineError::Database { .. } => 1003, // 数据库错误
+                    ExchangeEngineError::UnregistrationFailed { .. } => 1002,   // 注销交易所失败
+                    ExchangeEngineError::Database { .. } => 1003,               // 数据库错误
                     ExchangeEngineError::UnsupportedExchangeType { .. } => 1004, // 不支持的交易所类型
 
                     // Exchange Client Management (1011-1013)
@@ -193,14 +193,14 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
 
                     // Configuration (1017-1018)
                     ExchangeEngineError::ConfigurationError { .. } => 1017, // 配置错误
-                    ExchangeEngineError::EnvironmentError { .. } => 1018, // 环境错误
+                    ExchangeEngineError::EnvironmentError { .. } => 1018,   // 环境错误
 
                     // Event & Command (1019-1020)
                     ExchangeEngineError::EventPublishingFailed { .. } => 1019, // 事件发布失败
                     ExchangeEngineError::CommandHandlingFailed { .. } => 1020, // 命令处理失败
 
                     // Generic (1021-1022)
-                    ExchangeEngineError::Internal { .. } => 1021, // 内部错误
+                    ExchangeEngineError::Internal { .. } => 1021,       // 内部错误
                     ExchangeEngineError::NotImplemented { .. } => 1022, // 功能未实现
 
                     // This should never happen due to outer match, but needed for completeness
@@ -377,11 +377,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     format!("MetaTrader5错误: {}", source.get_error_message(language))
                 }
                 ExchangeEngineError::ExchangeClientNotRegistered {
-                    exchange_name,
-                    account_id,
-                    ..
+                    exchange_name, account_id, ..
                 } => {
-                    
                     format!("客户端 {} 未注册。 客户端id: {}", exchange_name, account_id)
                 }
                 ExchangeEngineError::ExchangeClientOperationFailed {

@@ -1,10 +1,10 @@
 use crate::error::ErrorCode;
+use crate::error::StarRiverErrorTrait;
 use crate::error::error_trait::Language;
 use crate::error::virtual_trading_system_error::VirtualTradingSystemError;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::error::StarRiverErrorTrait;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -28,8 +28,11 @@ pub enum FuturesOrderNodeError {
     OrderConfigNotFound { input_handle_id: String, backtrace: Backtrace },
 
     #[snafu(display("get symbol info failed for symbol: {symbol}"))]
-    GetSymbolInfoFailed { symbol: String, source: Arc<dyn StarRiverErrorTrait + Send + Sync>, backtrace: Backtrace },
-
+    GetSymbolInfoFailed {
+        symbol: String,
+        source: Arc<dyn StarRiverErrorTrait + Send + Sync>,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("symbol info not found for symbol: {symbol}"))]
     SymbolInfoNotFound { symbol: String, backtrace: Backtrace },
@@ -48,10 +51,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
             FuturesOrderNodeError::ConfigFieldValueNull { .. } => 1001, //Config字段值为空
             FuturesOrderNodeError::ConfigDeserializationFailed { .. } => 1002, //Config反序列化失败
             FuturesOrderNodeError::VirtualTradingSystem { .. } => 1003, //虚拟交易系统错误
-            FuturesOrderNodeError::CannotCreateOrder { .. } => 1004, //无法创建订单
-            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1005, //订单配置未找到
-            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1006, //获取交易对信息失败
-            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1007, //交易对信息未找到
+            FuturesOrderNodeError::CannotCreateOrder { .. } => 1004,    //无法创建订单
+            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1005,  //订单配置未找到
+            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1006,  //获取交易对信息失败
+            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1007,   //交易对信息未找到
         };
 
         format!("{}_{:04}", prefix, code)

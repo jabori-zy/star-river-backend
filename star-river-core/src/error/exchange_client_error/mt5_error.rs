@@ -252,36 +252,36 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 let prefix = self.get_prefix();
                 let code = match self {
                     // HTTP and JSON errors (1001-1004)
-                    Mt5Error::Network { .. } => 1001, //网络错误
-                    Mt5Error::Server { .. } => 1002, //服务器错误
+                    Mt5Error::Network { .. } => 1001,                  //网络错误
+                    Mt5Error::Server { .. } => 1002,                   //服务器错误
                     Mt5Error::NoSuccessFieldInResponse { .. } => 1002, //响应中缺少成功字段
-                    Mt5Error::HttpClientNotCreated { .. } => 1003, //HTTP客户端未创建
-                    Mt5Error::Json { .. } => 1004, //JSON解析错误
-                    Mt5Error::Response { .. } => 1005, //响应错误
+                    Mt5Error::HttpClientNotCreated { .. } => 1003,     //HTTP客户端未创建
+                    Mt5Error::Json { .. } => 1004,                     //JSON解析错误
+                    Mt5Error::Response { .. } => 1005,                 //响应错误
 
                     // Terminal operations (1005-1008)
                     Mt5Error::InitializeTerminalFailed { .. } => 1005, //初始化终端失败
-                    Mt5Error::GetTerminalInfo { .. } => 1006, //获取终端信息
-                    Mt5Error::GetSymbolList { .. } => 1007, //获取交易品种列表
-                    Mt5Error::GetSymbolInfo { .. } => 1008, //获取交易品种信息
-                    Mt5Error::Ping { .. } => 1009, //Ping
+                    Mt5Error::GetTerminalInfo { .. } => 1006,          //获取终端信息
+                    Mt5Error::GetSymbolList { .. } => 1007,            //获取交易品种列表
+                    Mt5Error::GetSymbolInfo { .. } => 1008,            //获取交易品种信息
+                    Mt5Error::Ping { .. } => 1009,                     //Ping
 
                     // Market data operations (1010)
                     Mt5Error::GetKlineData { .. } => 1010, //获取K线数据
 
                     // Trading operations (1010-1014)
-                    Mt5Error::CreateOrder { .. } => 1011, //创建订单
-                    Mt5Error::GetOrder { .. } => 1012, //获取订单
-                    Mt5Error::GetPosition { .. } => 1013, //获取持仓
+                    Mt5Error::CreateOrder { .. } => 1011,         //创建订单
+                    Mt5Error::GetOrder { .. } => 1012,            //获取订单
+                    Mt5Error::GetPosition { .. } => 1013,         //获取持仓
                     Mt5Error::GetDealByPositionId { .. } => 1014, //通过持仓ID获取交易
-                    Mt5Error::GetDeal { .. } => 1015, //获取交易
-                    Mt5Error::GetDealByDealId { .. } => 1016, //通过交易ID获取交易
-                    Mt5Error::GetDealByOrderId { .. } => 1017, //通过订单ID获取交易
-                    Mt5Error::GetPositionNumber { .. } => 1018, //获取持仓数量
+                    Mt5Error::GetDeal { .. } => 1015,             //获取交易
+                    Mt5Error::GetDealByDealId { .. } => 1016,     //通过交易ID获取交易
+                    Mt5Error::GetDealByOrderId { .. } => 1017,    //通过订单ID获取交易
+                    Mt5Error::GetPositionNumber { .. } => 1018,   //获取持仓数量
 
                     // Account operations (1018)
                     Mt5Error::GetAccountInfo { .. } => 1019, //获取账户信息
-                    Mt5Error::Retcode { .. } => 1020, //获取返回码
+                    Mt5Error::Retcode { .. } => 1020,        //获取返回码
 
                     // Order operations (1020)
                     Mt5Error::OrderId { .. } => 1021, //获取订单ID
@@ -290,7 +290,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     Mt5Error::WebSocket { .. } => 1022, //WebSocket错误
 
                     // Connection and initialization errors (1017-1019)
-                    Mt5Error::Connection { .. } => 1023, //连接错误
+                    Mt5Error::Connection { .. } => 1023,     //连接错误
                     Mt5Error::Initialization { .. } => 1024, //初始化错误
                     Mt5Error::TerminalNotInitialized { .. } => 1025,
                     Mt5Error::Configuration { .. } => 1024,
@@ -470,8 +470,17 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 } => {
                     format!("获取交易品种列表失败: {}, 终端ID={}, 端口={}", message, terminal_id, port)
                 }
-                Mt5Error::GetSymbolInfo { symbol, message, terminal_id, port, .. } => {
-                    format!("获取 '{}' 交易品种信息失败: {}, 终端ID 是{}, 端口是{}", symbol, message, terminal_id, port)
+                Mt5Error::GetSymbolInfo {
+                    symbol,
+                    message,
+                    terminal_id,
+                    port,
+                    ..
+                } => {
+                    format!(
+                        "获取 '{}' 交易品种信息失败: {}, 终端ID 是{}, 端口是{}",
+                        symbol, message, terminal_id, port
+                    )
                 }
                 Mt5Error::GetKlineData { symbol, message, .. } => {
                     format!("获取 '{}' K线数据失败: {}", symbol, message)

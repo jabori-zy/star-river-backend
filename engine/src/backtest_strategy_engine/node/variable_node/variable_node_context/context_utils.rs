@@ -8,10 +8,7 @@ use super::{ConditionMatchEvent, ConditionTrigger, NodeEventTrait, TriggerConfig
 ///
 /// # 返回
 /// 过滤后的变量配置向量
-pub fn filter_condition_trigger_configs<'a, I>(
-    variable_configs: I,
-    match_event: &ConditionMatchEvent,
-) -> Vec<VariableConfig>
+pub fn filter_condition_trigger_configs<'a, I>(variable_configs: I, match_event: &ConditionMatchEvent) -> Vec<VariableConfig>
 where
     I: Iterator<Item = &'a VariableConfig>,
 {
@@ -21,8 +18,7 @@ where
             TriggerConfig::Condition(condition_trigger) => match condition_trigger {
                 ConditionTrigger::Case(case_trigger) => {
                     if let Some(case_id) = match_event.case_id {
-                        case_trigger.case_id == case_id
-                            && &case_trigger.from_node_id == match_event.from_node_id()
+                        case_trigger.case_id == case_id && &case_trigger.from_node_id == match_event.from_node_id()
                     } else {
                         false
                     }
@@ -50,11 +46,7 @@ where
 ///
 /// # 返回
 /// 过滤后的变量配置向量
-pub fn filter_dataflow_trigger_configs<'a, I>(
-    variable_configs: I,
-    from_node_id: &String,
-    config_id: i32,
-) -> Vec<VariableConfig>
+pub fn filter_dataflow_trigger_configs<'a, I>(variable_configs: I, from_node_id: &String, config_id: i32) -> Vec<VariableConfig>
 where
     I: Iterator<Item = &'a VariableConfig>,
 {
@@ -62,12 +54,10 @@ where
         .filter(|config| matches!(config.trigger_config(), TriggerConfig::Dataflow(_)))
         .filter(|config| match config.trigger_config() {
             TriggerConfig::Dataflow(dataflow_trigger) => {
-                dataflow_trigger.from_var_config_id == config_id
-                    && &dataflow_trigger.from_node_id == from_node_id
+                dataflow_trigger.from_var_config_id == config_id && &dataflow_trigger.from_node_id == from_node_id
             }
             _ => false,
         })
         .cloned()
         .collect()
 }
-

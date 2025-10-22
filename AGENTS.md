@@ -18,7 +18,17 @@ Collocate unit tests in module-level `mod tests` blocks and put cross-crate scen
 
 ## Commit & Pull Request Guidelines
 
-Commits in this repo follow Conventional Commit syntax (`type(scope): summary`), e.g., `fix(backtest): guard playback end`. Keep each commit focused and squash noisy fixups before pushing. PRs must describe the problem, the solution, and any API or schema impact; attach logs or links from `cargo fmt`, `cargo clippy`, and `cargo test`. Reference related issues and include screenshots for operator-facing changes such as monitoring dashboards.
+Commits in this repo follow Conventional Commit syntax (`type(scope): summary`), e.g., `fix(backtest): guard playback end`. Keep each commit focused and squash noisy fixups before pushing. PRs must describe the problem, the solution, and any API or schema impact;
+
+
+## Commit Comment Format
+When I'm asking to summary a commit comment, you should review uncommitted change, and provide a submission document using Chinese.
+THe commit format is like:
+feat/refactor/fix(module): commit title
+- detail 1
+- detail 2
+- detail 3
+important: Don't list the file path.
 
 ## Security & Configuration Tips
 

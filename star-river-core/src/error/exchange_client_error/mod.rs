@@ -1,14 +1,14 @@
+pub mod binance_error;
 pub mod data_processor_error;
 pub mod mt5_error;
-pub mod binance_error;
 
 use crate::error::ErrorCode;
 use crate::error::error_trait::{Language, StarRiverErrorTrait};
+use binance_error::BinanceError;
 pub use data_processor_error::*;
+use mt5_error::Mt5Error;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-use mt5_error::Mt5Error;
-use binance_error::BinanceError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -139,6 +139,6 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
 
             // non-transparent errors - return own error code
             _ => vec![self.error_code()],
-        }            
+        }
     }
 }
