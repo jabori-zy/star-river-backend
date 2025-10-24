@@ -1,24 +1,41 @@
 mod context_impl;
 mod context_utils;
 mod variable_handler;
+mod sys_variable_handler;
+mod custom_variable_handler;
 
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
 use event_center::communication::Command;
 use event_center::communication::Response;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
+use event_center::communication::backtest_strategy::*;
 use event_center::event::Event;
 use event_center::event::node_event::NodeEventTrait;
 use event_center::event::node_event::backtest_node_event::if_else_node_event::ConditionMatchEvent;
-use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent, IfElseNodeEvent};
+use event_center::event::node_event::backtest_node_event::{
+    BacktestNodeEvent, IfElseNodeEvent, CommonEvent,
+    variable_node_event::{
+        SysVariableUpdatePayload, SysVariableUpdateEvent, VariableNodeEvent,
+        CustomVariableUpdateEvent, CustomVariableUpdatePayload,
+    },
+    common_event::{ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
+};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use star_river_core::custom_type::NodeId;
-use star_river_core::node::variable_node::trigger::dataflow::DataFlow;
+use star_river_core::custom_type::{NodeId, PlayIndex};
+use star_river_core::error::engine_error::node_error::variable_node::SysVariableSymbolIsNullSnafu;
+use star_river_core::error::engine_error::node_error::VariableNodeError;
+use star_river_core::market::QuantData;
+use star_river_core::node::variable_node::trigger::dataflow::{DataFlow, DataflowErrorPolicy, DataflowErrorType};
 use star_river_core::node::variable_node::trigger::{ConditionTrigger, TriggerConfig};
 use star_river_core::node::variable_node::variable_config::{GetVariableConfig, ResetVariableConfig, UpdateVariableConfig};
+use star_river_core::node::variable_node::variable_config::get::GetSystemVariableConfig;
 use star_river_core::node::variable_node::*;
-use star_river_core::strategy::custom_variable::VariableValue;
+use star_river_core::order::OrderStatus;
+use star_river_core::strategy::{
+    custom_variable::VariableValue, 
+    sys_varibale::{SysVariable, SysVariableType},
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};

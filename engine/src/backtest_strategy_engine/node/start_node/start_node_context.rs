@@ -2,7 +2,7 @@ use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContex
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::{Command, Response};
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse, InitCustomVariableValueCmdPayload, InitCustomVariableValueCommand};
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse, InitCustomVariableCmdPayload, InitCustomVariableValueCommand};
 use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
@@ -133,7 +133,7 @@ impl StartNodeContext {
 
         };
         let (resp_rx, resp_tx) = tokio::sync::oneshot::channel();
-        let init_var_payload = InitCustomVariableValueCmdPayload::new(custom_var_configs);
+        let init_var_payload = InitCustomVariableCmdPayload::new(custom_var_configs);
         let init_var_cmd = InitCustomVariableValueCommand::new(self.get_node_id().clone(),resp_rx, Some(init_var_payload));
         self.get_strategy_command_sender().send(init_var_cmd.into()).await.unwrap();
         let response = resp_tx.await.unwrap();

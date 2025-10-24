@@ -151,16 +151,18 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn get_current_positions(&self) -> Vec<VirtualPosition> {
-        self.current_positions.clone()
+
+    // 获取当前持仓
+    pub fn get_current_positions(&self) -> &Vec<VirtualPosition> {
+        &self.current_positions
     }
 
     pub fn get_history_positions(&self) -> Vec<VirtualPosition> {
         self.history_positions.clone()
     }
 
-    pub fn get_current_position(&self, position_id: PositionId) -> Option<VirtualPosition> {
-        self.current_positions.iter().find(|p| p.position_id == position_id).cloned()
+    pub fn get_position(&self, position_id: PositionId) -> Option<&VirtualPosition> {
+        self.current_positions.iter().find(|p| p.position_id == position_id)
     }
 
     // 将仓位从当前持仓列表中移除，并添加到历史持仓列表中
@@ -179,7 +181,7 @@ impl VirtualTradingSystem {
 
         let execute_price = tp_order.open_price;
         if let Some(position_id) = tp_order.position_id {
-            let position = self.get_current_position(position_id);
+            let position = self.get_position(position_id).cloned();
             self.remove_position(position_id);
             if let Some(mut position) = position {
                 // 更新仓位的收益
@@ -249,7 +251,7 @@ impl VirtualTradingSystem {
 
         let execute_price = sl_order.open_price;
         if let Some(position_id) = sl_order.position_id {
-            let position = self.get_current_position(position_id);
+            let position = self.get_position(position_id).cloned();
             self.remove_position(position_id);
             if let Some(mut position) = position {
                 // 更新仓位的收益

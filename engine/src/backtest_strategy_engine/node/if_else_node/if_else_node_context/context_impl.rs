@@ -58,11 +58,10 @@ impl BacktestNodeContextTrait for IfElseNodeContext {
             }
             BacktestNodeEvent::VariableNode(variable_node_event) => {
                 match variable_node_event {
-                    VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) => {
+                    VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => {
                         self.get_play_index() == sys_variable_updated_event.play_index
                     }
                     VariableNodeEvent::CustomVariableUpdate(custom_variable_update_event) => {
-                        tracing::debug!("custom_variable_update: {:?}", custom_variable_update_event.var_value);
                         self.get_play_index() == custom_variable_update_event.play_index
                     }
                 }

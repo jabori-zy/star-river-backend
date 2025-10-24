@@ -4,6 +4,7 @@ use super::{
 };
 use star_river_core::custom_type::PlayIndex;
 use star_river_core::key::Key;
+use star_river_core::strategy::StrategyVariable;
 
 impl BacktestStrategy {
     pub async fn get_play_index(&self) -> i32 {
@@ -59,5 +60,11 @@ impl BacktestStrategy {
     ) -> Result<Vec<serde_json::Value>, BacktestStrategyError> {
         let context_guard = self.context.read().await;
         context_guard.get_strategy_data_by_datetime(key, datetime, limit).await
+    }
+
+
+    pub async fn get_strategy_variable(&self) -> Vec<StrategyVariable> {
+        let context_guard = self.context.read().await;
+        context_guard.get_strategy_variable().await
     }
 }

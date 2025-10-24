@@ -1,3 +1,5 @@
+use star_river_core::strategy::StrategyVariable;
+
 use super::{
     BacktestStrategyContext, BacktestStrategyError, DateTimeUtc, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, Key,
     KlineDataLengthNotSameSnafu, PlayIndex, QuantData, StatsSnapshot, VirtualOrder, VirtualPosition, VirtualTransaction,
@@ -7,13 +9,13 @@ impl BacktestStrategyContext {
     // 获取所有的virtual order
     pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let virtual_orders = virtual_trading_system.get_virtual_orders();
+        let virtual_orders = virtual_trading_system.get_orders().clone();
         virtual_orders
     }
 
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let current_positions = virtual_trading_system.get_current_positions_ref();
+        let current_positions = virtual_trading_system.get_current_positions();
         current_positions.clone()
     }
 
@@ -174,5 +176,26 @@ impl BacktestStrategyContext {
         custom_variable_guard.iter_mut().for_each(|(_, custom_variable)| {
             custom_variable.var_value = custom_variable.initial_value.clone();
         });
+    }
+
+    pub(super) async fn reset_all_sys_variables(&mut self) {
+        let mut sys_variable_guard = self.sys_variable.write().await;
+        sys_variable_guard.clear();
+    }
+
+
+
+    pub async fn get_strategy_variable(&self) -> Vec<StrategyVariable> {
+        let mut strategy_variable = Vec::new();
+        
+        let custom_variable_guard = self.custom_variable.read().await;
+        let custom_var = custom_variable_guard.iter().map(|(_, custom_variable)| StrategyVariable::CustomVariable(custom_variable.clone())).collect::<Vec<StrategyVariable>>();
+
+        let sys_variable_guard = self.sys_variable.read().await;
+        let sys_var = sys_variable_guard.iter().map(|(_, sys_variable)| StrategyVariable::SysVariable(sys_variable.clone())).collect::<Vec<StrategyVariable>>();
+
+        strategy_variable.extend(custom_var);
+        strategy_variable.extend(sys_var);
+        strategy_variable
     }
 }

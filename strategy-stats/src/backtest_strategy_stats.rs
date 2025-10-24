@@ -120,7 +120,7 @@ impl BacktestStrategyStats {
             let datetime = trading_system.get_datetime(); // 时间戳
             let balance = trading_system.get_balance(); // 账户余额
             let available_balance = trading_system.get_available_balance(); // 可用余额
-            let positions = trading_system.get_current_positions_ref(); // 当前持仓
+            let positions = trading_system.get_current_positions(); // 当前持仓
             let unrealized_pnl = trading_system.get_unrealized_pnl(); // 未实现盈亏
             let equity = trading_system.get_equity(); // 净值
             let realized_pnl = trading_system.get_realized_pnl(); // 已实现盈亏

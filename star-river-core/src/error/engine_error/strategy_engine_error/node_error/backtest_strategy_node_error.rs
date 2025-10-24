@@ -1,5 +1,5 @@
 pub mod futures_order_node_error;
-pub mod get_variable_node;
+pub mod variable_node;
 pub mod if_else_node_error;
 pub mod indicator_node_error;
 pub mod kline_node_error;
@@ -12,7 +12,7 @@ use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
 pub use futures_order_node_error::FuturesOrderNodeError;
-pub use get_variable_node::GetVariableNodeError;
+pub use variable_node::VariableNodeError;
 pub use if_else_node_error::IfElseNodeError;
 pub use indicator_node_error::IndicatorNodeError;
 pub use kline_node_error::KlineNodeError;
@@ -47,7 +47,7 @@ pub enum BacktestStrategyNodeError {
 
     #[snafu(transparent)]
     GetVariableNode {
-        source: GetVariableNodeError,
+        source: VariableNodeError,
         backtrace: Backtrace,
     },
 

@@ -43,6 +43,8 @@ use star_river_core::market::QuantData;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::custom_variable::CustomVariable;
+use star_river_core::strategy::sys_varibale::SysVariable;
+use star_river_core::strategy::sys_varibale::SysVariableType;
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
@@ -95,6 +97,7 @@ pub struct BacktestStrategyContext {
     pub(super) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,  // 所有k线数据
     pub(super) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 所有指标数据
     pub(super) custom_variable: Arc<RwLock<HashMap<String, CustomVariable>>>, // var_name -> CustomVariable
+    pub(super) sys_variable: Arc<RwLock<HashMap<SysVariableType, SysVariable>>>, // var_name -> SysVariable
 }
 
 impl BacktestStrategyContext {
@@ -158,6 +161,7 @@ impl BacktestStrategyContext {
             kline_data: Arc::new(RwLock::new(HashMap::new())),
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
             custom_variable: Arc::new(RwLock::new(HashMap::new())),
+            sys_variable: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

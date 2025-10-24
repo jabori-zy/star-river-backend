@@ -2,8 +2,9 @@ use crate::system::DateTimeUtc;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use strum::Display;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum VariableValueType {
     #[serde(rename = "number")]
@@ -29,14 +30,17 @@ pub enum VariableValueType {
     Null,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash, ToSchema)]
 #[serde(untagged)]
 pub enum VariableValue {
+    // #[schema(value_type = Decimal, example = "100.00")]
     Number(Decimal),
     String(String),
     Boolean(bool),
     Enum(Vec<String>), // 用于 enum 类型的选项列表
+    #[schema(value_type = DateTime, example = "2025-10-19 20:02:00 +08:00")]
     Time(DateTimeUtc),
+    #[schema(value_type = Decimal, example = "100.00")]
     Percentage(Decimal),
     Null,
 }
@@ -161,13 +165,32 @@ impl From<DateTimeUtc> for VariableValue {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, ToSchema)]
 pub struct CustomVariable {
     pub var_name: String,             // 变量名称
     pub var_display_name: String,     // 变量显示名称
     pub initial_value: VariableValue, // 初始值
+    pub previous_value: VariableValue, // 前一个值
     pub var_value: VariableValue,     // 变量值
+}
+
+impl serde::Serialize for CustomVariable {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        
+        let mut state = serializer.serialize_struct("CustomVariable", 5)?;
+        state.serialize_field("varType", "custom")?;
+        state.serialize_field("varName", &self.var_name)?;
+        state.serialize_field("varDisplayName", &self.var_display_name)?;
+        state.serialize_field("varValueType", &self.var_value.value_type())?;
+        state.serialize_field("initialValue", &self.initial_value)?;
+        state.serialize_field("previousValue", &self.previous_value)?;
+        state.serialize_field("varValue", &self.var_value)?;
+        state.end()
+    }
 }
 
 impl<'de> serde::Deserialize<'de> for CustomVariable {
@@ -184,6 +207,7 @@ impl<'de> serde::Deserialize<'de> for CustomVariable {
             var_display_name: String,
             var_value_type: VariableValueType,
             initial_value: serde_json::Value,
+            previous_value: serde_json::Value,
             var_value: serde_json::Value,
         }
 
@@ -191,7 +215,7 @@ impl<'de> serde::Deserialize<'de> for CustomVariable {
 
         // 使用 VariableValue::from_json_with_type 根据类型解析初始值
         let initial_value = VariableValue::from_json_with_type(helper.initial_value, &helper.var_value_type).map_err(D::Error::custom)?;
-
+        let previous_value = VariableValue::from_json_with_type(helper.previous_value, &helper.var_value_type).map_err(D::Error::custom)?;
         // 使用 VariableValue::from_json_with_type 根据类型解析当前值
         let var_value = VariableValue::from_json_with_type(helper.var_value, &helper.var_value_type).map_err(D::Error::custom)?;
 
@@ -199,6 +223,7 @@ impl<'de> serde::Deserialize<'de> for CustomVariable {
             var_name: helper.var_name,
             var_display_name: helper.var_display_name,
             initial_value,
+            previous_value,
             var_value,
         })
     }

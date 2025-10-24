@@ -158,10 +158,6 @@ impl VirtualTradingSystem {
         }
     }
 
-    pub fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
-        self.orders.clone()
-    }
-
     // 获取未成交订单
     pub fn get_unfilled_orders(&self) -> Vec<VirtualOrder> {
         self.orders

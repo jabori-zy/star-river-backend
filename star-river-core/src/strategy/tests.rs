@@ -173,6 +173,7 @@ mod tests {
                 var_name: "test_var".to_string(),
                 var_display_name: "测试变量".to_string(),
                 initial_value: VariableValue::Number(Decimal::from(100)),
+                previous_value: VariableValue::Number(Decimal::from(100)),
                 var_value: VariableValue::Number(Decimal::from(100)),
             }],
         };

@@ -5,6 +5,7 @@ mod tests;
 use crate::custom_type::FeeRate;
 use crate::market::Exchange;
 use crate::market::deserialize_exchange;
+use sys_varibale::SysVariable;
 use crate::system::DateTimeUtc;
 use chrono::{DateTime, Duration, Utc};
 use custom_variable::CustomVariable;
@@ -271,6 +272,15 @@ impl Default for BacktestStrategyConfig {
 pub struct SimulatedConfig {
     pub simulate_accounts: Vec<i32>,                // 账户ID列表
     pub variables: HashMap<String, CustomVariable>, // 变量 var_name -> Variable
+}
+
+
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum StrategyVariable {
+    CustomVariable(CustomVariable),
+    SysVariable(SysVariable),
 }
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]

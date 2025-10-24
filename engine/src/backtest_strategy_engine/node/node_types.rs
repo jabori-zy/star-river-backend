@@ -132,6 +132,10 @@ pub struct NodeOutputHandle {
 }
 
 impl NodeOutputHandle {
+    pub fn output_handle_id(&self) -> String {
+        self.output_handle_id.clone()
+    }
+
     pub fn send(&self, event: BacktestNodeEvent) -> Result<usize, String> {
         if self.connect_count > 0 {
             self.node_event_sender

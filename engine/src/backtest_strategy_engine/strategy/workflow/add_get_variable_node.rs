@@ -1,6 +1,6 @@
 use super::{BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction, VariableNode};
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, StrategyCommandSender};
-use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::variable_node::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
@@ -11,7 +11,7 @@ impl BacktestStrategyFunction {
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
-    ) -> Result<(), GetVariableNodeError> {
+    ) -> Result<(), VariableNodeError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
         let (heartbeat, virtual_trading_system, database, play_index_watch_rx) = {

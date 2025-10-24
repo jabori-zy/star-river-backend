@@ -9,6 +9,7 @@ use super::super::node_event::backtest_node_event::position_management_node_even
     PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent,
 };
 use super::super::strategy_event::{LogLevel, NodeStateLogEvent, StrategyRunningLogEvent};
+use crate::event::node_event::backtest_node_event::variable_node_event::{CustomVariableUpdateEvent, SysVariableUpdateEvent};
 use crate::{StrategyEvent, event::Event};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -31,6 +32,15 @@ pub enum BacktestStrategyEvent {
     #[strum(serialize = "indicator-update-event")]
     #[serde(rename = "indicator-update-event")]
     IndicatorUpdate(IndicatorUpdateEvent), // 回测指标更新事件
+
+    #[strum(serialize = "sys-variable-update-event")]
+    #[serde(rename = "sys-variable-update-event")]
+    SysVariableUpdate(SysVariableUpdateEvent), // 系统变量更新事件
+
+
+    #[strum(serialize = "custom-variable-update-event")]
+    #[serde(rename = "custom-variable-update-event")]
+    CustomVariableUpdate(CustomVariableUpdateEvent), // 自定义变量更新事件
 
     #[strum(serialize = "futures-order-filled-event")]
     #[serde(rename = "futures-order-filled-event")]

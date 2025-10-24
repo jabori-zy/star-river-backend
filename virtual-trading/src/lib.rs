@@ -303,10 +303,7 @@ impl VirtualTradingSystem {
         self.leverage
     }
 
-    // 获取当前持仓
-    pub fn get_current_positions_ref(&self) -> &Vec<VirtualPosition> {
-        &self.current_positions
-    }
+    
 
     // 获取所有订单
     pub fn get_orders(&self) -> &Vec<VirtualOrder> {

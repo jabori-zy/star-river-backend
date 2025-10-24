@@ -3,7 +3,7 @@ use super::{
     EventCenterSingleton, FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyKeysResponse,
     IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,
 };
-use event_center::communication::backtest_strategy::*;
+use event_center::{communication::backtest_strategy::*, event::node_event::backtest_node_event::VariableNodeEvent};
 use std::sync::Arc;
 
 impl BacktestStrategyContext {
@@ -92,7 +92,7 @@ impl BacktestStrategyContext {
             BacktestStrategyCommand::GetCustomVariableValue(cmd) => {
                 let result = self.get_custom_variable_value(cmd.var_name.clone()).await;
                 if let Ok(value) = result {
-                    let payload = GetCustomVariableValueRespPayload::new(value);
+                    let payload = GetCustomVariableRespPayload::new(value);
                     let resp = GetCustomVariableValueResponse::success(Some(payload));
                     cmd.respond(resp);
                 } else {
@@ -105,7 +105,7 @@ impl BacktestStrategyContext {
             BacktestStrategyCommand::UpdateCustomVariableValue(cmd) => {
                 let result = self.update_custom_variable_value(&cmd.update_var_config).await;
                 if let Ok(value) = result {
-                    let payload = UpdateCustomVariableValueRespPayload::new(value);
+                    let payload = UpdateCustomVariableRespPayload::new(value);
                     let resp = UpdateCustomVariableValueResponse::success(Some(payload));
                     cmd.respond(resp);
                 } else {
@@ -118,7 +118,7 @@ impl BacktestStrategyContext {
             BacktestStrategyCommand::ResetCustomVariableValue(cmd) => {
                 let result = self.reset_custom_variables(cmd.var_name.clone()).await;
                 if let Ok(value) = result {
-                    let payload = ResetCustomVariableValueRespPayload::new(value);
+                    let payload = ResetCustomVariableRespPayload::new(value);
                     let resp = ResetCustomVariableValueResponse::success(Some(payload));
                     cmd.respond(resp);
                 } else {
@@ -126,6 +126,12 @@ impl BacktestStrategyContext {
                     let resp = ResetCustomVariableValueResponse::error(Arc::new(err));
                     cmd.respond(resp);
                 }
+            }
+
+            BacktestStrategyCommand::UpdateSysVariableValue(cmd) => {
+                self.update_sys_variable(&cmd.sys_variable).await;
+                let resp = UpdateSysVariableValueResponse::success(None);
+                cmd.respond(resp);
             }
         }
         Ok(())
@@ -197,6 +203,19 @@ impl BacktestStrategyContext {
                     let backtest_strategy_event = BacktestStrategyEvent::IndicatorUpdate(indicator_update_event.clone());
                     // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
                     // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
+                }
+            }
+        }
+
+        if let BacktestNodeEvent::VariableNode(variable_node_event) = &node_event {
+            match variable_node_event {
+                VariableNodeEvent::CustomVariableUpdate(custom_variable_update_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::CustomVariableUpdate(custom_variable_update_event.clone());
+                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
+                }
+                VariableNodeEvent::SysVariableUpdate(sys_variable_update_event) => {
+                    let backtest_strategy_event = BacktestStrategyEvent::SysVariableUpdate(sys_variable_update_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
             }

@@ -127,7 +127,7 @@ mod tests {
                 assert_eq!(update_config.var_name(), "percent_test");
                 assert!(update_config.update_operation_value().is_none());
                 assert_eq!(
-                    update_config.update_operation_type().to_string(),
+                    update_config.update_var_value_operation().to_string(),
                     "add",
                     "第一个配置 updateVarValueOperation 应为 add"
                 );
@@ -176,7 +176,7 @@ mod tests {
                 assert_eq!(update_config.var_name(), "test1");
                 assert!(update_config.update_operation_value().is_none());
                 assert_eq!(
-                    update_config.update_operation_type().to_string(),
+                    update_config.update_var_value_operation().to_string(),
                     "set",
                     "第二个配置 updateVarValueOperation 应为 set"
                 );

@@ -13,6 +13,7 @@ use star_river_core::key::Key;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::TradeMode;
+use star_river_core::strategy::StrategyVariable;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::system::DateTimeUtc;
@@ -231,5 +232,10 @@ impl StrategyEngineContext {
     ) -> Result<Vec<serde_json::Value>, StrategyEngineError> {
         let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
         Ok(strategy.get_strategy_data_by_datetime(key, datetime, limit).await?)
+    }
+
+    pub async fn get_strategy_variable(&self, strategy_id: i32) -> Result<Vec<StrategyVariable>, StrategyEngineError> {
+        let strategy = self.get_backtest_strategy_instance(strategy_id).await?;
+        Ok(strategy.get_strategy_variable().await)
     }
 }

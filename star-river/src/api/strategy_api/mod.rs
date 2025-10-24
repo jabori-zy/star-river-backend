@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
+// use database::mutation::strategy_sys_variable_mutation::StrategySysVariableMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use engine::backtest_strategy_engine::BacktestStrategyEngine;
 use serde::{Deserialize, Serialize};
@@ -145,9 +145,9 @@ pub async fn create_strategy(
         Ok(strategy) => {
             tracing::info!("创建策略成功: {:?}", strategy);
             // 创建策略系统变量
-            if let Err(e) = StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await {
-                tracing::error!("创建策略系统变量失败: {:?}", e);
-            }
+            // if let Err(e) = StrategySysVariableMutation::insert_strategy_sys_variable(conn, strategy.id).await {
+            //     tracing::error!("创建策略系统变量失败: {:?}", e);
+            // }
             (
                 StatusCode::CREATED,
                 Json(ApiResponse {

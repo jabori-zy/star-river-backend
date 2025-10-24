@@ -23,8 +23,8 @@ use super::node_utils::NodeUtils;
 use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
 use event_center::event::strategy_event::NodeStateLogEvent;
 use star_river_core::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
-use star_river_core::error::engine_error::node_error::get_variable_node::ConfigFieldValueNullSnafu;
-use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::get_variable_node::*;
+use star_river_core::error::engine_error::node_error::variable_node::ConfigFieldValueNullSnafu;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::variable_node::*;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
@@ -43,7 +43,7 @@ impl VariableNode {
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Result<Self, GetVariableNodeError> {
+    ) -> Result<Self, VariableNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_get_variable_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
@@ -63,7 +63,7 @@ impl VariableNode {
 
     fn check_get_variable_node_config(
         node_config: serde_json::Value,
-    ) -> Result<(StrategyId, NodeId, NodeName, VariableNodeBacktestConfig), GetVariableNodeError> {
+    ) -> Result<(StrategyId, NodeId, NodeName, VariableNodeBacktestConfig), VariableNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())

@@ -7,6 +7,7 @@ use star_river_core::custom_type::NodeId;
 use star_river_core::market::QuantData;
 use std::collections::HashMap;
 use star_river_core::strategy::custom_variable::VariableValue;
+use rust_decimal::Decimal;
 // 获取变量值
 pub fn get_variable_value(
     node_id: NodeId,
@@ -21,14 +22,11 @@ pub fn get_variable_value(
 
     match node_event {
         BacktestNodeEvent::IndicatorNode(indicator_event) => {
-            use rust_decimal::Decimal;
             let IndicatorNodeEvent::IndicatorUpdate(indicator_update_event) = indicator_event;
             // tracing::debug!("indicator_update_event: {:?}", indicator_update_event);
             indicator_update_event
                 .indicator_value
-                .to_json()
-                .get(variable_name)
-                .and_then(|indicator_value| indicator_value.as_f64())
+                .get_value(variable_name)
                 .and_then(|v| Decimal::try_from(v).ok())
                 .map(VariableValue::Number)
                 .unwrap_or(VariableValue::Null)
@@ -39,9 +37,7 @@ pub fn get_variable_value(
                 use rust_decimal::Decimal;
                 kline_update_event
                     .kline
-                    .to_json()
-                    .get(variable_name)
-                    .and_then(|value| value.as_f64())
+                    .get_value(variable_name)
                     .filter(|&v| v != 0.0)
                     .and_then(|v| Decimal::try_from(v).ok())
                     .map(VariableValue::Number)
@@ -50,13 +46,16 @@ pub fn get_variable_value(
                 VariableValue::Null
             }
         }
-        // BacktestNodeEvent::VariableNode(variable_node_event) => {
-        //     if let VariableNodeEvent::SysVariableUpdated(sys_variable_updated_event) = variable_node_event {
-        //         Some(sys_variable_updated_event.variable_value)
-        //     } else {
-        //         None
-        //     }
-        // }
+        BacktestNodeEvent::VariableNode(variable_node_event) => {
+            match variable_node_event {
+                VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => {
+                    sys_variable_updated_event.sys_variable.var_value.clone()
+                }
+                VariableNodeEvent::CustomVariableUpdate(custom_variable_updated_event) => {
+                    custom_variable_updated_event.custom_variable.var_value.clone()
+                }
+            }
+        }
         _ => VariableValue::Null,
     }
 }

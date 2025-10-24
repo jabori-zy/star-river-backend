@@ -3,7 +3,7 @@ pub mod account_info_mutation;
 pub mod order_mutation;
 pub mod position_mutation;
 pub mod strategy_config_mutation;
-pub mod strategy_sys_variable_mutation;
+// pub mod strategy_sys_variable_mutation;
 pub mod system_config_mutation;
 pub mod transaction_mutation;
 // pub mod mt5_account_info_mutation;

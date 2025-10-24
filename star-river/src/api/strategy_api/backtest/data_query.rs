@@ -12,6 +12,7 @@ use star_river_core::engine::EngineName;
 use star_river_core::key::Key;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::StrategyVariable;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::str::FromStr;
@@ -407,5 +408,37 @@ pub async fn get_strategy_data_by_datetime(
             .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
             .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    }
+}
+
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/variable",
+    tag = "Backtest Strategy",
+    summary = "Get strategy variable",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy variable")
+    ),
+    responses(
+        (status = 200, description = "Get strategy variable successfully", body = NewApiResponse<Vec<StrategyVariable>>),
+        (status = 400, description = "Get strategy variable failed", body = NewApiResponse<Vec<StrategyVariable>>)
+    )
+)]
+#[axum::debug_handler]
+pub async fn get_strategy_variable(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<NewApiResponse<Vec<StrategyVariable>>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+    let strategy_variable = strategy_engine.get_strategy_variable(strategy_id).await;
+    if let Ok(strategy_variable) = strategy_variable {
+        (StatusCode::OK, Json(NewApiResponse::success(strategy_variable)))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_variable.unwrap_err())))
     }
 }

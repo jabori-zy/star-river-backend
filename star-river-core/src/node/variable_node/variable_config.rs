@@ -52,12 +52,25 @@ pub mod get {
     }
 
     impl GetSystemVariableConfig {
+
+        pub fn symbol(&self) -> &Option<String> {
+            &self.symbol
+        }
+
         pub fn var_name(&self) -> &str {
             &self.var_name
         }
 
         pub fn config_id(&self) -> i32 {
             self.config_id
+        }
+
+        pub fn output_handle_id(&self) -> &String {
+            &self.output_handle_id
+        }
+
+        pub fn var_display_name(&self) -> &String {
+            &self.var_display_name
         }
     }
 
@@ -176,7 +189,7 @@ pub mod update {
         }
 
         /// 获取更新操作类型
-        pub fn update_operation_type(&self) -> &UpdateVarValueOperation {
+        pub fn update_var_value_operation(&self) -> &UpdateVarValueOperation {
             &self.update_var_value_operation
         }
 

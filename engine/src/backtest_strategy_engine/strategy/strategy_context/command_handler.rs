@@ -254,14 +254,13 @@ mod custom_variable {
     use super::*;
     use snafu::OptionExt;
     use star_river_core::error::engine_error::strategy_error::{
-        CustomVariableNotExistSnafu, CustomVariableUpdateOperationValueIsNoneSnafu, DivideByZeroSnafu, UnSupportVariableOperationSnafu,
+        CustomVariableNotExistSnafu,
     };
     use star_river_core::node::variable_node::variable_config::UpdateVariableConfig;
-    use star_river_core::node::variable_node::variable_operation::UpdateVarValueOperation;
-    use star_river_core::strategy::custom_variable::VariableValue;
+    use star_river_core::strategy::sys_varibale::SysVariable;
     impl BacktestStrategyContext {
         pub async fn init_custom_variables(&mut self, custom_variables: Vec<CustomVariable>) {
-            tracing::info!("Initializing custom variables");
+            // tracing::info!("Initializing custom variables");
             // 初始化自定义变量
             let mut custom_var_guard = self.custom_variable.write().await;
             for custom_var in custom_variables {
@@ -270,22 +269,21 @@ mod custom_variable {
                 custom_var_guard.entry(var_name).or_insert(custom_var);
             }
             // 在写锁范围内直接使用 custom_var_guard 进行调试输出，避免死锁
-            tracing::debug!("custom_variable: {:#?}", *custom_var_guard);
+            // tracing::debug!("custom_variable: {:#?}", *custom_var_guard);
         }
 
-        pub async fn get_custom_variable_value(&mut self, var_name: String) -> Result<VariableValue, BacktestStrategyError> {
+        pub async fn get_custom_variable_value(&mut self, var_name: String) -> Result<CustomVariable, BacktestStrategyError> {
             let custom_var_guard = self.custom_variable.read().await;
             let custom_variable = custom_var_guard
                 .get(var_name.as_str())
                 .context(CustomVariableNotExistSnafu { var_name })?;
-            let variable_value = custom_variable.var_value.clone();
-            Ok(variable_value)
+            Ok(custom_variable.clone())
         }
 
         pub async fn update_custom_variable_value(
             &mut self,
             update_var_config: &UpdateVariableConfig,
-        ) -> Result<VariableValue, BacktestStrategyError> {
+        ) -> Result<CustomVariable, BacktestStrategyError> {
             use crate::backtest_strategy_engine::strategy::strategy_utils::apply_variable_operation;
 
             let var_name = update_var_config.var_name.clone();
@@ -304,12 +302,14 @@ mod custom_variable {
                 operation,
                 update_var_config.update_operation_value.as_ref(),
             )?;
-
+            // 更新前一个值
+            custom_var.previous_value = custom_var.var_value.clone();
+            // 更新当前值
             custom_var.var_value = new_value.clone();
-            Ok(new_value)
+            Ok(custom_var.clone())
         }
 
-        pub async fn reset_custom_variables(&mut self, var_name: String) -> Result<VariableValue, BacktestStrategyError> {
+        pub async fn reset_custom_variables(&mut self, var_name: String) -> Result<CustomVariable, BacktestStrategyError> {
             let mut custom_var_guard = self.custom_variable.write().await;
             // 直接获取可变引用，避免重复查找
             let custom_var = custom_var_guard
@@ -318,7 +318,22 @@ mod custom_variable {
             // 将变量值重置为初始值
             custom_var.var_value = custom_var.initial_value.clone();
 
-            Ok(custom_var.var_value.clone())
+            Ok(custom_var.clone())
+        }
+
+
+        /// 更新系统变量的值
+        /// 
+        /// # 参数
+        /// - `sys_variable`: 系统变量
+        /// 
+        /// # 返回
+        /// 返回更新后的变量值
+        pub async fn update_sys_variable(&mut self, sys_variable: &SysVariable) {
+            let mut sys_var_guard = self.sys_variable.write().await;
+            // 插入或更新系统变量
+            sys_var_guard.insert(sys_variable.var_name.clone(), sys_variable.clone());
+
         }
     }
 }

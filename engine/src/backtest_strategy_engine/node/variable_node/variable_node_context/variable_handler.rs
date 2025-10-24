@@ -1,25 +1,15 @@
 use super::{
     BacktestNodeContextTrait, DataFlow, GetVariableConfig, NodeId, ResetVariableConfig, Response, TriggerConfig, UpdateVariableConfig,
     VariableConfig, VariableNodeContext, VariableValue,
-};
-
-use event_center::{
-    communication::backtest_strategy::{
-        GetCustomVariableValueCmdPayload, GetCustomVariableValueCommand, ResetCustomVariableValueCmdPayload,
-        ResetCustomVariableValueCommand, UpdateCustomVariableValueCmdPayload, UpdateCustomVariableValueCommand,
-    },
-    event::node_event::backtest_node_event::{
-        CommonEvent, VariableNodeEvent,
-        common_event::{ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
-        variable_node_event::{CustomVariableUpdateEvent, CustomVariableUpdatePayload},
-    },
+    ResetCustomVariableCmdPayload, ResetCustomVariableValueCommand, 
+    UpdateCustomVariableValueCmdPayload, UpdateCustomVariableValueCommand,
+    ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
+    CustomVariableUpdateEvent, CustomVariableUpdatePayload,
+    CommonEvent, VariableNodeEvent,
+    VariableNodeError, QuantData, DataflowErrorPolicy, DataflowErrorType, SysVariableType,
 };
 use rust_decimal::Decimal;
-use star_river_core::{
-    market::QuantData,
-    node::variable_node::trigger::dataflow::{DataflowErrorPolicy, DataflowErrorType},
-};
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 use tokio::sync::oneshot;
 
 impl VariableNodeContext {
@@ -131,83 +121,75 @@ impl VariableNodeContext {
         }
     }
 
-    async fn get_variable(&self, get_var_configs: &Vec<GetVariableConfig>) {
+    async fn get_variable(&self, get_var_configs: &Vec<GetVariableConfig>) -> Result<(), VariableNodeError> {
         // 先生成Handler,然后同时执行
-        let mut get_handles = Vec::with_capacity(get_var_configs.len());
+        let mut get_var_handles = Vec::with_capacity(get_var_configs.len());
 
         // 在循环外提前克隆共享数据，避免重复克隆
         let node_id = self.get_node_id();
         let node_name = self.get_node_name();
         let play_index = self.get_play_index();
         let strategy_command_sender = self.get_strategy_command_sender().clone();
-        let strategy_output_handle = self.get_strategy_output_handle().clone();
+        let strategy_output_handle: crate::backtest_strategy_engine::node::node_types::NodeOutputHandle = self.get_strategy_output_handle().clone();
         let is_leaf_node = self.is_leaf_node();
 
         for config in get_var_configs {
-            if let GetVariableConfig::Custom(custom_config) = config {
-                // 只克隆配置特定的字段
-                let var_name = custom_config.var_name().to_string();
-                let config_id = custom_config.config_id();
-                let output_handle_id = custom_config.output_handle_id.clone();
-                let output_handle = self.get_output_handle(&output_handle_id).clone();
+            match config {
+                GetVariableConfig::Custom(custom_config) => {
+                    let output_handle_id = custom_config.output_handle_id.clone();
+                    let handle = Self::create_get_custom_var_handle(
+                        play_index,
+                        node_id.clone(),
+                        node_name.clone(),
+                        custom_config.config_id(),
+                        custom_config.var_name().to_string(),
+                        custom_config.var_display_name.clone(),
+                        self.get_output_handle(&output_handle_id).clone(),
+                        strategy_command_sender.clone(),
+                        strategy_output_handle.clone(),
+                        is_leaf_node,
+                    )
+                    .await;
+                    get_var_handles.push(handle);
+                }
+                GetVariableConfig::System(system_config) => {
+                    let system_var = SysVariableType::from_str(system_config.var_name()).unwrap();
+                    match system_var {
+                        SysVariableType::TotalPositionNumber => {
+                            let handle = self.create_total_position_number_handle(
+                                system_config.clone(),
+                            ).await;
+                            get_var_handles.push(handle);
 
-                // 为 tokio::spawn 闭包准备克隆的数据
-                let node_id_clone = node_id.clone();
-                let node_name_clone = node_name.clone();
-                let output_handle_id_clone = output_handle_id.clone();
-                let sender_clone = strategy_command_sender.clone();
-                let strategy_output_handle_clone = strategy_output_handle.clone();
-
-                let handle = tokio::spawn(async move {
-                    let (resp_tx, resp_rx) = oneshot::channel();
-                    let get_custom_var_event = GetCustomVariableValueCmdPayload::new(var_name.clone());
-                    let cmd = GetCustomVariableValueCommand::new(node_id_clone.clone(), resp_tx, Some(get_custom_var_event));
-                    sender_clone.send(cmd.into()).await.unwrap();
-                    let response = resp_rx.await.unwrap();
-
-                    if response.is_success() {
-                        let payload = CustomVariableUpdatePayload::new(
-                            play_index,
-                            node_id_clone.clone(),
-                            config_id,
-                            var_name,
-                            response.var_value.clone(),
-                        );
-                        let var_event: VariableNodeEvent = CustomVariableUpdateEvent::new(
-                            node_id_clone.clone(),
-                            node_name_clone.clone(),
-                            output_handle_id_clone.clone(),
-                            payload,
-                        )
-                        .into();
-
-                        // 发送到策略
-                        let _ = strategy_output_handle_clone.send(var_event.clone().into());
-
-                        // 如果是叶子节点，则发送执行结束事件
-                        if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(play_index);
-                            let execute_over_event: CommonEvent =
-                                ExecuteOverEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
-                            let _ = strategy_output_handle_clone.send(execute_over_event.into());
-                        } else {
-                            let _ = output_handle.send(var_event.into());
                         }
-                    } else {
-                        tracing::error!("get_variable failed: {:?}", response.get_error());
-                        // 失败，发送触发事件
-                        let payload = TriggerPayload::new(play_index);
-                        let trigger_event: CommonEvent =
-                            TriggerEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
-                        let _ = output_handle.send(trigger_event.into());
+                        SysVariableType::TotalFilledOrderNumber => {
+                            let handle = self.create_total_filled_order_number_handle(
+                                system_config.clone(),
+                            ).await;
+                            get_var_handles.push(handle);
+                        }
+
+                        SysVariableType::FilledOrderNumber => {
+                            let handle = self.create_filled_order_number_handle(
+                                system_config.clone(),
+                            ).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::CurrentTime => {
+                            let handle = self.create_current_time_handle(
+                                system_config.clone(),
+                            ).await;
+                            get_var_handles.push(handle);
+                        }
+                        _ => {}
                     }
-                });
-                get_handles.push(handle);
+                }
             }
         }
 
         // 等待所有任务完成
-        futures::future::join_all(get_handles).await;
+        futures::future::join_all(get_var_handles).await;
+        Ok(())
     }
 
     async fn update_variable(&self, update_var_configs: &Vec<UpdateVariableConfig>) {
@@ -225,6 +207,11 @@ impl VariableNodeContext {
         for config in update_var_configs {
             // 只克隆配置特定的字段
             let var_name = config.var_name().to_string();
+            let var_display_name = config.var_display_name.clone();
+            let var_op = "update".to_string();
+            let update_var_value_operation = config.update_var_value_operation().clone();
+            let update_operation_value = config.update_operation_value().cloned();
+
             let config_id = config.config_id();
             let output_handle_id = config.output_handle_id.clone();
             let output_handle = self.get_output_handle(&output_handle_id).clone();
@@ -247,10 +234,11 @@ impl VariableNodeContext {
                 if response.is_success() {
                     let payload = CustomVariableUpdatePayload::new(
                         play_index,
-                        node_id_clone.clone(),
                         config_id,
-                        var_name,
-                        response.var_value.clone(),
+                        var_op,
+                        Some(update_var_value_operation),
+                        update_operation_value,
+                        response.custom_variable.clone(),
                     );
                     let var_event: VariableNodeEvent = CustomVariableUpdateEvent::new(
                         node_id_clone.clone(),
@@ -303,7 +291,10 @@ impl VariableNodeContext {
         for config in reset_var_configs {
             // 只克隆配置特定的字段
             let var_name = config.var_name().to_string();
+            let var_display_name = config.var_display_name.clone();
+            let var_op = "reset".to_string();
             let config_id = config.config_id();
+
             let output_handle_id = config.output_handle_id.clone();
             let output_handle = self.get_output_handle(&output_handle_id).clone();
 
@@ -316,7 +307,7 @@ impl VariableNodeContext {
 
             let handle = tokio::spawn(async move {
                 let (resp_tx, resp_rx) = oneshot::channel();
-                let reset_var_event = ResetCustomVariableValueCmdPayload::new(var_name.clone());
+                let reset_var_event = ResetCustomVariableCmdPayload::new(var_name.clone());
                 let cmd = ResetCustomVariableValueCommand::new(node_id_clone.clone(), resp_tx, Some(reset_var_event));
                 let _ = sender_clone.send(cmd.into()).await;
                 let response = resp_rx.await.unwrap();
@@ -324,10 +315,11 @@ impl VariableNodeContext {
                 if response.is_success() {
                     let payload = CustomVariableUpdatePayload::new(
                         play_index,
-                        node_id_clone.clone(),
                         config_id,
-                        var_name,
-                        response.initial_value.clone(),
+                        var_op,
+                        None,
+                        None,
+                        response.custom_variable.clone(),
                     );
                     let var_event: VariableNodeEvent = CustomVariableUpdateEvent::new(
                         node_id_clone.clone(),
