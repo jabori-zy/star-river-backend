@@ -8,6 +8,7 @@ use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::{KlinePlayEvent, KlinePlayPayload, StartNodeEvent};
 use heartbeat::Heartbeat;
+use star_river_core::strategy::node_benchmark::CycleTracker;
 use star_river_core::strategy::BacktestStrategyConfig;
 
 use std::any::Any;
@@ -80,6 +81,8 @@ impl BacktestNodeContextTrait for StartNodeContext {
 impl StartNodeContext {
     // 发送k线跳动信号
     pub async fn send_play_signal(&self) {
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        cycle_tracker.start_phase("send_play_signal");
         let payload = KlinePlayPayload::new(self.get_play_index());
         let kline_play_event: StartNodeEvent = KlinePlayEvent::new(
             self.base_context.node_id.clone(),
@@ -89,6 +92,9 @@ impl StartNodeContext {
         )
         .into();
         self.get_default_output_handle().send(kline_play_event.into()).unwrap();
+        cycle_tracker.end_phase("send_play_signal");
+        let completed_tracker = cycle_tracker.end();
+        self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
     }
 
     // 发送k线播放完毕信号
@@ -118,10 +124,6 @@ impl StartNodeContext {
         let mut strategy_stats = self.strategy_stats.write().await;
         let node_config = self.node_config.read().await;
         strategy_stats.set_initial_balance(node_config.initial_balance);
-    }
-
-    pub async fn handle_play_index(&self) {
-        self.send_play_signal().await;
     }
 
 

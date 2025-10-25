@@ -1,12 +1,13 @@
 use super::{StrategyCommand, StrategyResponse};
 use derive_more::From;
-use star_river_core::custom_type::PlayIndex;
+use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::indicator::Indicator;
 use star_river_core::key::Key;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
 use star_river_core::node::variable_node::variable_config::UpdateVariableConfig;
 use star_river_core::strategy::custom_variable::{CustomVariable, VariableValue};
+use star_river_core::strategy::node_benchmark::CompletedCycleTracker;
 use star_river_core::strategy::sys_varibale::SysVariable;
 use star_river_core::system::DateTimeUtc;
 
@@ -58,6 +59,10 @@ pub type ResetCustomVariableValueResponse = StrategyResponse<ResetCustomVariable
 // update sys variable value
 pub type UpdateSysVariableValueCommand = StrategyCommand<UpdateSysVariableCmdPayload, UpdateSysVariableRespPayload>;
 pub type UpdateSysVariableValueResponse = StrategyResponse<UpdateSysVariableRespPayload>;
+
+// add node cycle tracker
+pub type AddNodeCycleTrackerCommand = StrategyCommand<AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerRespPayload>;
+pub type AddNodeCycleTrackerResponse = StrategyResponse<AddNodeCycleTrackerRespPayload>;
 
 // ============ Get Strategy Keys ============
 #[derive(Debug, From)]
@@ -373,3 +378,20 @@ impl UpdateSysVariableCmdPayload {
 
 #[derive(Debug)]
 pub struct UpdateSysVariableRespPayload;
+
+
+// ============ Add Node Cycle Tracker ============
+#[derive(Debug)]
+pub struct AddNodeCycleTrackerCmdPayload {
+    pub node_id: NodeId,
+    pub cycle_tracker: CompletedCycleTracker,
+}
+
+impl AddNodeCycleTrackerCmdPayload {
+    pub fn new(node_id: NodeId, cycle_tracker: CompletedCycleTracker) -> Self {
+        Self { node_id, cycle_tracker }
+    }
+}
+
+#[derive(Debug)]
+pub struct AddNodeCycleTrackerRespPayload;

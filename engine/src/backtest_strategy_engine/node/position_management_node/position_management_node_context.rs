@@ -1,9 +1,9 @@
 use super::position_management_node_types::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
+use crate::backtest_strategy_engine::node::node_types::{NodeOutputHandle, NodeType};
 use async_trait::async_trait;
 use event_center::communication::Command;
-use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse, StrategyCommand};
+use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload};
@@ -19,6 +19,7 @@ use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
+use super::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -141,10 +142,25 @@ impl BacktestNodeContextTrait for PositionNodeContext {
 }
 
 impl PositionNodeContext {
+    pub fn new(base_context: BacktestBaseNodeContext, backtest_config: PositionNodeBacktestConfig, database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>, virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver) -> Self {
+        Self {
+            base_context,
+            backtest_config,
+            database,
+            heartbeat,
+            virtual_trading_system,
+            virtual_trading_system_event_receiver,
+        }
+    }
+
+
     pub async fn handle_virtual_trading_system_event(
         &mut self,
         virtual_trading_system_event: VirtualTradingSystemEvent,
     ) -> Result<(), String> {
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        let phase_name = format!("handle virtual trading system event");
+        cycle_tracker.start_phase(&phase_name);
         let from_node_id = self.get_node_id().clone();
         let from_node_name = self.get_node_name().clone();
         let from_handle_id = self.get_node_id().clone();
@@ -174,6 +190,9 @@ impl PositionNodeContext {
         if let Some(position_event) = position_event {
             self.get_strategy_output_handle().send(position_event.into()).unwrap();
         }
+        cycle_tracker.end_phase(&phase_name);
+        let completed_tracker = cycle_tracker.end();
+        self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
 
         Ok(())
     }

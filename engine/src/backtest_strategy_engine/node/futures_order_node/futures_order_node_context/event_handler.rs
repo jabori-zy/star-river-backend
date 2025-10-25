@@ -15,6 +15,9 @@ use star_river_core::system::DateTimeUtc;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 use tokio::sync::oneshot;
+use super:: {
+    CycleTracker, PerformanceReport, CycleReport, NodeBenchmark,
+};
 
 impl FuturesOrderNodeContext {
     /// 使用第一个有连接的output_handle发送trigger事件
@@ -49,15 +52,30 @@ impl FuturesOrderNodeContext {
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(trigger_evt) => {
+                    let mut cycle_tracker = CycleTracker::new(trigger_evt.play_index);
+                    let phase_name = format!("handle trigger event for specific order");
+                    cycle_tracker.start_phase(&phase_name);
                     if trigger_evt.play_index == self.get_play_index() {
                         self.send_trigger_event_spec().await;
                     }
+                    cycle_tracker.end_phase(&phase_name);
+                    let completed_tracker = cycle_tracker.end();
+                    self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
                 }
 
                 _ => {}
             },
             BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(condition_match_evt)) => {
                 if condition_match_evt.play_index == self.get_play_index() {
+                    let mut cycle_tracker = CycleTracker::new(condition_match_evt.play_index);
+                    // 根据input_handle_id获取订单配置
+                    //"if_else_node_1761319649542_p2q1x2e_output_1"
+                    // 取最后一个_后面的数字
+                    let order_config = input_handle_id.split("_").last().unwrap();
+                    let order_config_id = order_config.parse::<i32>().unwrap();
+                    let phase_name = format!("handle condition match event for order {}", order_config_id);
+                    cycle_tracker.start_phase(&phase_name);
+                    
                     // 根据input_handle_id获取订单配置
                     let order_config = {
                         self.node_config
@@ -72,13 +90,20 @@ impl FuturesOrderNodeContext {
                             )?
                             .clone()
                     };
+                    
                     // 创建订单
                     let create_order_result = self.create_order(&order_config).await;
                     if let Err(e) = create_order_result {
                         // 发送trigger事件
                         self.send_trigger_event_spec().await;
+                        cycle_tracker.end_phase(&phase_name);
+                        let completed_tracker = cycle_tracker.end();
+                        self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
                         return Err(e);
                     }
+                    cycle_tracker.end_phase(&phase_name);
+                    let completed_tracker = cycle_tracker.end();
+                    self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
                 } else {
                     tracing::warn!("{}: 当前k线缓存索引不匹配, 跳过", self.get_node_id());
                 }

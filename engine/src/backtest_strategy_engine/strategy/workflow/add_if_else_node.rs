@@ -35,6 +35,8 @@ impl BacktestStrategyFunction {
         strategy_context_guard
             .add_node_command_sender(node_id.to_string(), node_command_tx)
             .await;
+        // 添加节点benchmark
+        strategy_context_guard.add_node_benchmark(node_id.clone(), node.get_node_name().await, node.get_node_type().await.to_string()).await;
 
         let node = Box::new(node);
 

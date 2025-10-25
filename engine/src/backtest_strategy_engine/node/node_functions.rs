@@ -140,7 +140,7 @@ static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> 
         (NodeType::IfElseNode, vec![]),
         (NodeType::FuturesOrderNode, vec![]),
         (NodeType::PositionNode, vec![]),
-        (NodeType::PositionManagementNode, vec![]),
+        (NodeType::PositionNode, vec![]),
         (NodeType::GetVariableNode, vec![]),
         (NodeType::OrderNode, vec![]),
         (NodeType::VariableNode, vec![]),

@@ -133,6 +133,16 @@ impl BacktestStrategyContext {
                 let resp = UpdateSysVariableValueResponse::success(None);
                 cmd.respond(resp);
             }
+            BacktestStrategyCommand::AddNodeCycleTracker(cmd) => {
+                let result = self.add_node_cycle_tracker(cmd.node_id.clone(), cmd.cycle_tracker.clone()).await;
+                if let Err(e) = result {
+                    let resp = AddNodeCycleTrackerResponse::error(Arc::new(e));
+                    cmd.respond(resp);
+                } else {
+                    let resp = AddNodeCycleTrackerResponse::success(None);
+                    cmd.respond(resp);
+                }
+            }
         }
         Ok(())
     }
@@ -148,23 +158,59 @@ impl BacktestStrategyContext {
             match signal_event {
                 // 执行结束
                 CommonEvent::ExecuteOver(execute_over_event) => {
-                    // tracing::debug!("{}: 收到执行完毕事件: {:?}", self.strategy_name.clone(), execute_over_event);
                     // tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
-                    let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
-                    if !execute_over_node_ids.contains(&execute_over_event.from_node_id()) {
-                        execute_over_node_ids.push(execute_over_event.from_node_id().clone());
-                    }
 
-                    // 如果所有叶子节点都执行完毕，则通知等待的线程
-                    if execute_over_node_ids.len() == self.leaf_node_ids.len() {
-                        // tracing::debug!(
-                        //     "[{}]: notify waiting thread. leaf node ids: {:?}",
-                        //     self.strategy_name.clone(),
-                        //     execute_over_node_ids
-                        // );
+                    
+                    // 第一步：快速更新 execute_over_node_ids 并检查是否所有叶子节点都完成
+                    let should_finalize = {
+                        let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
+                        if !execute_over_node_ids.contains(&execute_over_event.from_node_id()) {
+                            execute_over_node_ids.push(execute_over_event.from_node_id().clone());
+                        }
+                        // 判断是否所有叶子节点都完成，然后立即释放锁
+                        execute_over_node_ids.len() == self.leaf_node_ids.len()
+                    }; // execute_over_node_ids 锁在这里释放
+
+                    // 第二步：如果所有叶子节点都完成，先执行清理和通知，再记录 benchmark
+                    if should_finalize {
+
+                        {
+                            let mut cycle_tracker_guard = self.cycle_tracker.write().await;
+                            if let Some(cycle_tracker) = cycle_tracker_guard.as_mut() {
+                                cycle_tracker.start_phase("execute_over");
+                            }
+                        }
+
+
+                        // 先清空 execute_over_node_ids
+                        {
+                            let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
+                            execute_over_node_ids.clear();
+                        } // execute_over_node_ids 锁在这里释放
+
+                        // 通知等待的线程（包含更多执行逻辑在 benchmark 中）
                         self.execute_over_notify.notify_waiters();
-                        // 通知完成后，清空execute_over_node_ids
-                        execute_over_node_ids.clear();
+                        
+                        // 第三步：结束 cycle tracker 并记录到 benchmark（包含了上面的清理和通知时间）
+                        let completed_tracker = {
+                            let mut cycle_tracker_guard = self.cycle_tracker.write().await;
+                            if let Some(cycle_tracker) = cycle_tracker_guard.as_mut() {
+                                cycle_tracker.end_phase("execute_over");
+                                let completed = cycle_tracker.end();
+                                // 清空 cycle_tracker
+                                *cycle_tracker_guard = None;
+                                Some(completed)
+                            } else {
+                                None
+                            }
+                        }; // cycle_tracker 锁在这里释放
+
+                        // 如果有完成的 tracker，添加到 benchmark
+                        if let Some(tracker) = completed_tracker {
+                            let mut strategy_benchmark_guard = self.benchmark.write().await;
+                            strategy_benchmark_guard.add_cycle_tracker(tracker);
+                            tracing::debug!("{}", strategy_benchmark_guard.get_last_detailed_cycle_report().unwrap());
+                        } // benchmark 锁在这里释放
                     }
                 }
                 CommonEvent::RunningLog(running_log_event) => {

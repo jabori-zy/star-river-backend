@@ -3,7 +3,6 @@ use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContex
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::Command;
-use event_center::communication::backtest_strategy::StrategyCommand;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;

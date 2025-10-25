@@ -24,7 +24,6 @@ use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::node_error::if_else_node_error::*;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,6 +31,7 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
 use super::node_utils::NodeUtils;
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -57,13 +57,9 @@ impl IfElseNode {
             node_command_receiver,
             play_index_watch_rx,
         );
+        let if_else_node_context = IfElseNodeContext::new(base_context, backtest_config);
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(IfElseNodeContext {
-                base_context,
-                received_flag: HashMap::new(),
-                received_message: HashMap::new(),
-                backtest_config,
-            }))),
+            context: Arc::new(RwLock::new(Box::new(if_else_node_context))),
         })
     }
 
@@ -232,7 +228,7 @@ impl BacktestNodeTrait for IfElseNode {
             let context = self.get_context();
             let context_guard = context.read().await;
             let if_else_node_context = context_guard.as_any().downcast_ref::<IfElseNodeContext>().unwrap();
-            if_else_node_context.backtest_config.cases.clone()
+            if_else_node_context.node_config.cases.clone()
         };
 
         for case in cases {

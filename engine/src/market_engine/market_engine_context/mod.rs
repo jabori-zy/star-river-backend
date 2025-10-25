@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use star_river_core::error::engine_error::market_engine_error::*;
+use exchange_client::exchange_trait::ExchangeClientCore;
 
 
 #[derive(Debug)]
@@ -109,7 +110,6 @@ impl EngineContext for MarketEngineContext {
             EngineCommand::MarketEngine(MarketEngineCommand::GetKlineHistory(cmd)) => {
                 let kline_history = self
                     .get_kline_history(
-                        cmd.strategy_id,
                         cmd.account_id,
                         cmd.exchange.clone(),
                         cmd.symbol.clone(),
@@ -316,7 +316,7 @@ impl MarketEngineContext {
         let context_read = exchange_engine_context.read().await;
         let exchange_engine_context_guard = context_read.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
 
-        let exchange = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
+        let exchange: &Box<dyn ExchangeClientCore> = exchange_engine_context_guard.get_exchange_ref(&account_id).await.unwrap();
         exchange
             .unsubscribe_kline_stream(&symbol, interval.clone(), frequency)
             .await
@@ -327,7 +327,6 @@ impl MarketEngineContext {
 
     async fn get_kline_history(
         &self,
-        strategy_id: i32,
         account_id: AccountId,
         exchange: Exchange,
         symbol: String,

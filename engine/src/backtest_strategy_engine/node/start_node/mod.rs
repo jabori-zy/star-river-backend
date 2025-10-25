@@ -369,7 +369,7 @@ impl StartNode {
                             Ok(_) => {
                                 let state_guard = context.read().await;
                                 let start_node_context = state_guard.as_ref().as_any().downcast_ref::<StartNodeContext>().unwrap();
-                                start_node_context.handle_play_index().await;
+                                start_node_context.send_play_signal().await;
                             }
                             Err(e) => {
                                 // tracing::error!("节点{}监听播放索引错误: {}", node_id, e);

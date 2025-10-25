@@ -46,7 +46,7 @@ impl BacktestStrategyFunction {
                 Ok(())
             }
             // // 持仓节点
-            NodeType::PositionManagementNode => {
+            NodeType::PositionNode => {
                 Self::add_position_management_node(context, node_config, strategy_command_sender).await?;
                 Ok(())
             }

@@ -14,7 +14,6 @@ use event_center::communication::backtest_strategy::{
     NodeCommandReceiver, StrategyCommandSender,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::strategy_event::NodeStateLogEvent;
 use futures::StreamExt;
 use futures_order_node_types::*;
 use heartbeat::Heartbeat;
@@ -27,7 +26,6 @@ use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
 use star_river_core::order::OrderType;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEventReceiver;
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
@@ -37,6 +35,7 @@ use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
 use super::node_utils::NodeUtils;
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
 
 #[derive(Debug, Clone)]
 pub struct FuturesOrderNode {
@@ -318,7 +317,6 @@ impl BacktestNodeTrait for FuturesOrderNode {
             let context = self.context.clone();
             let cancel_token = cancel_token.clone();
             let node_id = node_id.clone();
-            let from_node_id = input_handle.from_node_id.clone();
             let input_handle_id = input_handle.input_handle_id.clone();
 
             // 为每个接收器创建独立的监听流

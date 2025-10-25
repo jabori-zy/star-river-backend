@@ -1,12 +1,12 @@
 use super::{
     BacktestNodeContextTrait, CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, EventCenterSingleton,
     GetMinIntervalSymbolsCommand, Indicator, IndicatorEngineCommand, IndicatorNodeContext, KeyTrait, KlineKey, Response,
-    UpdateIndicatorDataCmdPayload, UpdateIndicatorDataCommand,
+    UpdateIndicatorDataCmdPayload, UpdateIndicatorDataCommand, KlineUpdateEvent, CycleTracker,
+    IndicatorUpdatePayload, IndicatorUpdateEvent, IndicatorNodeEvent,
 };
-use event_center::event::node_event::backtest_node_event::indicator_node_event::{
-    IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
-};
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
+
+
+
 use star_river_core::indicator::IndicatorConfig;
 use star_river_core::key::key::IndicatorKey;
 use star_river_core::market::Kline;
@@ -55,94 +55,131 @@ impl IndicatorNodeContext {
     }
 
     // 处理k线更新事件
-    pub(super) async fn handle_kline_update(&mut self, kline_update_event: KlineNodeEvent) {
-        if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_update_event {
-            // 提取公共数据
-            let node_id = self.get_node_id().clone();
-            let node_name = self.get_node_name().clone();
-            let kline_key = kline_update_event.kline_key.clone();
+    pub(super) async fn handle_kline_update(&mut self, kline_update_event: KlineUpdateEvent) {
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        
+        // 提取公共数据
+        let node_id = self.get_node_id().clone();
+        let node_name = self.get_node_name().clone();
+        let kline_key = kline_update_event.kline_key.clone();
 
-            let indicator_keys = self.indicator_keys.clone();
+        let indicator_keys = self.indicator_keys.clone();
 
-            // 如果当前k线key不是最小周期交易对，则更新指标缓存数据
-            if !self.min_interval_symbols.contains(&self.selected_kline_key) {
-                for (indicator_key, (config_id, output_handle_id)) in indicator_keys.iter() {
-                    self.update_kline_data(indicator_key.clone(), kline_update_event.kline.clone())
-                        .await;
+        // 如果当前k线key不是最小周期交易对，则更新指标缓存数据
+        if !self.min_interval_symbols.contains(&self.selected_kline_key) {
+            for (indicator_key, (config_id, output_handle_id)) in indicator_keys.iter() {
+                // 开始追踪当前指标的计算阶段
+                let phase_name = format!("calculate indicator {}", config_id);
+                cycle_tracker.start_phase(&phase_name);
+                
+                self.update_kline_data(indicator_key.clone(), kline_update_event.kline.clone())
+                    .await;
 
-                    let kline_series = self.kline_value.get(indicator_key).unwrap();
-                    let lookback = self.indicator_lookback.get(indicator_key).unwrap();
-                    if kline_series.len() < *lookback + 1 {
-                        // tracing::warn!(
-                        //     "指标缓存数据长度小于lookback, skip. lookback: {}, kline_series_len: {}",
-                        //     lookback,
-                        //     kline_series.len()
-                        // );
-                        self.send_trigger_event(output_handle_id).await;
+                let kline_series = self.kline_value.get(indicator_key).unwrap();
+                let lookback = self.indicator_lookback.get(indicator_key).unwrap();
+                if kline_series.len() < *lookback + 1 {
+                    self.send_trigger_event(output_handle_id).await;
+                    cycle_tracker.end_phase(&phase_name);
+                    continue;
+                }
+                let calculate_reuslt = self
+                    .request_calculate_indicator(&kline_key, kline_series, &indicator_key.indicator_config)
+                    .await;
+                if let Ok(indicator_data) = calculate_reuslt {
+                    // 更新指标
+                    let last_indicator = indicator_data.last().unwrap();
+                    let update_result = self.update_strategy_indciator_data(indicator_key, last_indicator.clone()).await;
+                    if let Ok(()) = update_result {
+                        // 使用工具方法发送指标更新事件
+                        self.send_indicator_update_event(
+                            output_handle_id.clone(),
+                            &indicator_key,
+                            &config_id,
+                            last_indicator.clone(),
+                            kline_update_event.play_index,
+                            &node_id,
+                            &node_name,
+                            true,
+                        );
+                    }
+                } else {
+                    // 发送触发事件
+                    self.send_trigger_event(output_handle_id).await;
+                }
+                
+                // 结束当前指标的追踪
+                cycle_tracker.end_phase(&phase_name);
+            }
+        }
+        // 如果当前k线key是最小周期交易对，则直接发送指标更新事件
+        else {
+            // 遍历指标缓存键，从策略中获取指标数据
+            for (indicator_key, (config_id, output_handle_id)) in self.indicator_keys.iter() {
+                let phase_name = format!("get indicator data {}", config_id);
+                cycle_tracker.start_phase(&phase_name);
+                // 获取指标缓存数据，增加错误处理
+                let indicator_data = match self.get_indicator_data(&indicator_key, kline_update_event.play_index).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        tracing::error!(
+                            node_id = %self.base_context.node_id,
+                            node_name = %self.base_context.node_name,
+                            indicator = ?indicator_key.indicator_config,
+                            "Failed to get backtest indicator cache: {}", e
+                        );
                         continue;
                     }
-                    let calculate_reuslt = self
-                        .request_calculate_indicator(&kline_key, kline_series, &indicator_key.indicator_config)
-                        .await;
-                    if let Ok(indicator_data) = calculate_reuslt {
-                        // 更新指标
-                        let last_indicator = indicator_data.last().unwrap();
-                        let update_result = self.update_strategy_indciator_data(indicator_key, last_indicator.clone()).await;
-                        if let Ok(()) = update_result {
-                            // 使用工具方法发送指标更新事件
-                            self.send_indicator_update_event(
-                                output_handle_id.clone(),
-                                &indicator_key,
-                                &config_id,
-                                last_indicator.clone(),
-                                kline_update_event.play_index,
-                                &node_id,
-                                &node_name,
-                                true,
-                            );
-                        }
-                    } else {
-                        // 发送触发事件
-                        self.send_trigger_event(output_handle_id).await;
-                    }
-                }
+                };
+
+                
+
+                // 使用工具方法发送指标更新事件
+                self.send_indicator_update_event(
+                    output_handle_id.clone(),
+                    &indicator_key,
+                    &config_id,
+                    indicator_data,
+                    kline_update_event.play_index,
+                    &node_id,
+                    &node_name,
+                    true,
+                );
+                cycle_tracker.end_phase(&phase_name);
             }
-            // 如果当前k线key是最小周期交易对，则直接发送指标更新事件
-            else {
-                // 遍历指标缓存键，从策略中获取指标数据
-                for (indicator_key, (config_id, output_handle_id)) in self.indicator_keys.iter() {
-                    // 获取指标缓存数据，增加错误处理
-                    let indicator_data = match self.get_indicator_data(&indicator_key, kline_update_event.play_index).await {
-                        Ok(data) => data,
-                        Err(e) => {
-                            tracing::error!(
-                                node_id = %self.base_context.node_id,
-                                node_name = %self.base_context.node_name,
-                                indicator = ?indicator_key.indicator_config,
-                                "Failed to get backtest indicator cache: {}", e
-                            );
-                            continue;
-                        }
-                    };
-
-                    // 使用工具方法发送指标更新事件
-                    self.send_indicator_update_event(
-                        output_handle_id.clone(),
-                        &indicator_key,
-                        &config_id,
-                        indicator_data,
-                        kline_update_event.play_index,
-                        &node_id,
-                        &node_name,
-                        true,
-                    );
-                }
-            }
-
-            // 发送trigger事件
-
-            self.send_execute_over_event().await;
         }
+
+        // 发送trigger事件
+        self.send_execute_over_event().await;
+        
+        // 结束周期追踪并记录到 benchmark
+        let completed_tracker = cycle_tracker.end();
+        // tracing::debug!("{}", completed_tracker.get_cycle_report());
+        self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
+        // tracing::debug!("{}", self.benchmark.report());
+        
+        // ========== 调试示例 ==========
+        // 方式1: 打印最近一个周期的详细报告（每个阶段的耗时和占比）
+        // self.print_last_cycle_report();
+        
+        // 方式2: 每100个周期打印一次性能报告
+        // if self.benchmark.get_total_cycles() % 100 == 0 {
+        //     let report = self.get_performance_report();
+        //     tracing::info!("\n{}", report);
+        // }
+        
+        // 方式3: 检查性能异常
+        // if let Some(warning) = self.check_performance_anomaly() {
+        //     tracing::warn!("{}", warning);
+        // }
+        
+        // 方式4: 获取最近5个周期的报告进行分析
+        // let recent_reports = self.get_recent_cycle_reports(5);
+        // for report in recent_reports {
+        //     if let Some((slowest_phase, _)) = report.get_slowest_phase() {
+        //         tracing::debug!("Play {}: slowest phase = {}", report.play_index, slowest_phase);
+        //     }
+        // }
+        
     }
 
     pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {

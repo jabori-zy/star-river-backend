@@ -1,5 +1,7 @@
 pub mod custom_variable;
 pub mod sys_varibale;
+pub mod strategy_benchmark;
+pub mod node_benchmark;
 mod tests;
 
 use crate::custom_type::FeeRate;

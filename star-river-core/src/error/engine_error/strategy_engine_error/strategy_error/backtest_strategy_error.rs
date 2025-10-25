@@ -1,4 +1,5 @@
 use super::super::node_error::BacktestStrategyNodeError;
+use crate::custom_type::NodeId;
 use crate::error::ErrorCode;
 use crate::error::error_trait::Language;
 use sea_orm::error::DbErr;
@@ -169,6 +170,12 @@ pub enum BacktestStrategyError {
 
     #[snafu(display("divide by zero for custom variable [{var_name}]"))]
     DivideByZero { var_name: String },
+
+    #[snafu(display("node benchmark not found: {node_id}"))]
+    NodeBenchmarkNotFound {
+        node_id: NodeId,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -208,6 +215,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::CustomVariableUpdateOperationValueIsNone { .. } => 1024, //变量的更新操作值为空
             BacktestStrategyError::UnSupportVariableOperation { .. } => 1025, // 不支持的变量操作
             BacktestStrategyError::DivideByZero { .. } => 1026,        // 除零错误
+            BacktestStrategyError::NodeBenchmarkNotFound { .. } => 1027, // 节点benchmark未找到
         };
         format!("{prefix}_{code}")
     }
@@ -242,6 +250,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
                 | BacktestStrategyError::KlineDataLengthNotSame { .. }
                 | BacktestStrategyError::KlineKeyNotFound { .. }
                 | BacktestStrategyError::PlayIndexOutOfRange { .. }
+                | BacktestStrategyError::NodeBenchmarkNotFound { .. }
         )
     }
 
@@ -403,6 +412,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
 
                 BacktestStrategyError::DivideByZero { var_name } => {
                     format!("除零错误: 自定义变量[{var_name}]")
+                }
+
+                BacktestStrategyError::NodeBenchmarkNotFound { node_id, .. } => {
+                    format!("节点benchmark未找到: {node_id}")
                 }
             },
         }

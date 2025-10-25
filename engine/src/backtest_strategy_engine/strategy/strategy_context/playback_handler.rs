@@ -1,4 +1,7 @@
-use super::{BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyRunState, EventCenterSingleton, PlayFinishedEvent};
+use super::{
+    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyRunState, 
+    EventCenterSingleton, PlayFinishedEvent, StrategyBenchmark, StrategyCycleTracker
+};
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::NodeResetCommand;
 use star_river_core::custom_type::{PlayIndex, StrategyId};
@@ -21,6 +24,8 @@ struct PlayContext {
     child_cancel_play_token: CancellationToken,
     execute_over_notify: Arc<Notify>,
     play_index_watch_tx: tokio::sync::watch::Sender<PlayIndex>,
+    strategy_benchmark: Arc<RwLock<StrategyBenchmark>>,
+    cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
 }
 
 impl BacktestStrategyContext {
@@ -49,6 +54,8 @@ impl BacktestStrategyContext {
             child_cancel_play_token: self.cancel_play_token.child_token(),
             execute_over_notify: self.execute_over_notify.clone(),
             play_index_watch_tx: self.play_index_watch_tx.clone(),
+            strategy_benchmark: self.benchmark.clone(),
+            cycle_tracker: self.cycle_tracker.clone(),
         }
     }
 
@@ -83,7 +90,18 @@ impl BacktestStrategyContext {
                 //     total_signal_count,
                 //     new_play_index
                 // );
+                // 单次逻辑开始
+                let mut strategy_cycle_tracker = StrategyCycleTracker::new(new_play_index);
+                strategy_cycle_tracker.start_phase("increment play index");
+                 
                 context.play_index_watch_tx.send(new_play_index).unwrap();
+                
+                // 显式释放 cycle_tracker 锁，避免在等待 notify 时持有锁
+                strategy_cycle_tracker.end_phase("increment play index");
+                {
+                    let mut cycle_tracker_guard = context.cycle_tracker.write().await;
+                    *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
+                }
                 // 发送后，等待所有叶子节点执行完毕
                 context.execute_over_notify.notified().await;
 
@@ -348,8 +366,17 @@ impl BacktestStrategyContext {
                 play_index
             );
             // 再执行单根k线播放
-            // self.execute_single_kline_play(play_index, total_signal_count).await;
+            // 单次逻辑开始
+            let mut strategy_cycle_tracker = StrategyCycleTracker::new(play_index);
+            strategy_cycle_tracker.start_phase("increment play index");
+            
+
             self.play_index_watch_tx.send(play_index).unwrap();
+
+            strategy_cycle_tracker.end_phase("increment play index");
+
+            let mut cycle_tracker_guard = self.cycle_tracker.write().await;
+            *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
 
             tracing::warn!("play_index: {}, total_signal_count: {}", play_index, total_signal_count);
             if play_index == total_signal_count - 1 {

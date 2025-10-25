@@ -1,10 +1,8 @@
-use super::{BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineInterval, KlineKey};
+use super::{BacktestStrategy, BacktestStrategyError, BacktestStrategyFunction, Key, KeyTrait, KlineKey};
 use chrono::Utc;
-use event_center::communication::engine::market_engine::GetSymbolInfoCmdPayload;
 use snafu::IntoError;
 use star_river_core::{error::engine_error::strategy_error::backtest_strategy_error::*, market::Kline};
 use std::collections::HashMap;
-use tokio::sync::{broadcast, mpsc};
 
 impl BacktestStrategy {
     pub async fn add_node(&mut self) -> Result<(), BacktestStrategyError> {

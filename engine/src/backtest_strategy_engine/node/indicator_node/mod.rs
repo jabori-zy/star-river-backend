@@ -40,6 +40,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use super::node_utils::NodeUtils;
+use super::node_types::NodeOutputHandle;
 
 // 指标节点
 #[derive(Debug, Clone)]
@@ -366,7 +367,7 @@ impl BacktestNodeTrait for IndicatorNode {
             let context = self.get_context();
             let context_guard = context.read().await;
             let indicator_node_context = context_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
-            let exchange_mode_config = indicator_node_context.backtest_config.exchange_mode_config.as_ref().unwrap();
+            let exchange_mode_config = indicator_node_context.node_config.exchange_mode_config.as_ref().unwrap();
             exchange_mode_config.selected_indicators.clone()
         };
 

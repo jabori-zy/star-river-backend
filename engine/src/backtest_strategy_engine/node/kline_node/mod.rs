@@ -12,7 +12,6 @@ use event_center::communication::Response;
 use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::strategy_event::NodeStateLogEvent;
-use heartbeat::Heartbeat;
 use kline_node_context::KlineNodeContext;
 use kline_node_state_machine::{KlineNodeStateAction, KlineNodeStateMachine};
 use kline_node_type::KlineNodeBacktestConfig;

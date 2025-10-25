@@ -30,6 +30,7 @@ use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
 use super::node_utils::NodeUtils;
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {
@@ -52,21 +53,16 @@ impl PositionManagementNode {
             strategy_id,
             node_id.clone(),
             node_name.clone(),
-            NodeType::PositionManagementNode,
+            NodeType::PositionNode,
             Box::new(PositionNodeStateMachine::new(node_id, node_name)),
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,
         );
+
+        let position_node_context = PositionNodeContext::new(base_context, backtest_config, database, heartbeat, virtual_trading_system, virtual_trading_system_event_receiver);
         Ok(Self {
-            context: Arc::new(RwLock::new(Box::new(PositionNodeContext {
-                base_context,
-                backtest_config,
-                database,
-                heartbeat,
-                virtual_trading_system,
-                virtual_trading_system_event_receiver,
-            }))),
+            context: Arc::new(RwLock::new(Box::new(position_node_context))),
         })
     }
 

@@ -3,7 +3,7 @@ use crate::backtest_strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
 use event_center::EventPublisher;
 use event_center::communication::backtest_strategy::{
-    BacktestNodeCommand, NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender,
+    AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestNodeCommand, NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender
 };
 use event_center::event::Event;
 use event_center::event::EventReceiver;
@@ -12,7 +12,8 @@ use event_center::event::node_event::backtest_node_event::common_event::{
 };
 
 use event_center::event::node_event::BacktestNodeEvent;
-use star_river_core::custom_type::PlayIndex;
+use star_river_core::custom_type::{NodeId, PlayIndex};
+use star_river_core::strategy::node_benchmark::CompletedCycleTracker;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -381,9 +382,15 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         output_handle.send(trigger_event.into()).unwrap();
     }
 
-    // async fn set_play_index(&mut self, play_index: PlayIndex) {
-    //     *self.get_base_context_mut().play_index_watch_rx.write().await = play_index;
-    // }
+    async fn add_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycleTracker) {
+        let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
+        let payload= AddNodeCycleTrackerCmdPayload::new(node_id.clone(), cycle_tracker);
+        let add_node_cycle_tracker_command = AddNodeCycleTrackerCommand::new(node_id, resp_tx, Some(payload)).into();
+        let _ = self.get_strategy_command_sender().send(add_node_cycle_tracker_command).await;
+        let _ = resp_rx.await.unwrap();
+    }
+
+    
 }
 
 impl Clone for Box<dyn BacktestNodeContextTrait> {

@@ -5,6 +5,7 @@ mod status_handler;
 
 use super::indicator_node_type::IndicatorNodeBacktestConfig;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use crate::backtest_strategy_engine::node::node_types::NodeType;
 use event_center::EventCenterSingleton;
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::*;
@@ -20,11 +21,20 @@ use star_river_core::market::QuantData;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use star_river_core::error::engine_error::node_error::indicator_node_error::*;
+use star_river_core::strategy::node_benchmark::{CycleTracker};
+use event_center::event::node_event::backtest_node_event::kline_node_event::KlineUpdateEvent;
+use event_center::event::node_event::backtest_node_event::{
+    indicator_node_event::{
+        IndicatorNodeEvent, IndicatorUpdateEvent, IndicatorUpdatePayload,
+    },
+    kline_node_event::KlineNodeEvent,
+};
+use super::NodeOutputHandle;
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub backtest_config: IndicatorNodeBacktestConfig,
+    pub node_config: IndicatorNodeBacktestConfig,
     selected_kline_key: KlineKey,                         // 回测K线缓存键
     indicator_keys: HashMap<IndicatorKey, (i32, String)>, // 指标缓存键 -> (配置id, 输出句柄id)
     kline_value: HashMap<IndicatorKey, Vec<Kline>>,       // 指标缓存键 -> 指标值
@@ -41,7 +51,7 @@ impl IndicatorNodeContext {
     ) -> Self {
         Self {
             base_context,
-            backtest_config,
+            node_config: backtest_config,
             selected_kline_key,
             indicator_keys,
             kline_value: HashMap::new(),

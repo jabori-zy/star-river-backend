@@ -159,6 +159,7 @@ pub enum BacktestStrategyCommand {
     UpdateCustomVariableValue(UpdateCustomVariableValueCommand),
     ResetCustomVariableValue(ResetCustomVariableValueCommand),
     UpdateSysVariableValue(UpdateSysVariableValueCommand),
+    AddNodeCycleTracker(AddNodeCycleTrackerCommand),
 
 
 }
@@ -181,6 +182,7 @@ impl BacktestStrategyCommand {
             BacktestStrategyCommand::UpdateCustomVariableValue(command) => command.node_id(),
             BacktestStrategyCommand::ResetCustomVariableValue(command) => command.node_id(),
             BacktestStrategyCommand::UpdateSysVariableValue(command) => command.node_id(),
+            BacktestStrategyCommand::AddNodeCycleTracker(command) => command.node_id(),
         }
     }
 }

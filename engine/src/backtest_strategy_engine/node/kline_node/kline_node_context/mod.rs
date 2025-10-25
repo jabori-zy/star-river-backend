@@ -9,6 +9,7 @@ mod binance_data_handler;
 
 use super::kline_node_type::KlineNodeBacktestConfig;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use crate::backtest_strategy_engine::node::node_types::NodeType;
 use event_center::EventCenterSingleton;
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::*;
@@ -28,6 +29,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use star_river_core::custom_type::AccountId;
 use star_river_core::market::KlineInterval;
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {

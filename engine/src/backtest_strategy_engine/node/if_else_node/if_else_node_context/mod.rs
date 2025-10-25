@@ -15,7 +15,7 @@ use star_river_core::node::if_else_node::*;
 use super::utils::{get_condition_left_value, get_condition_right_value};
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_message::if_else_node_log_message::ConditionMatchedMsg;
-use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
+use crate::backtest_strategy_engine::node::node_types::{NodeOutputHandle, NodeType};
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::GetCurrentTimeCommand;
 use event_center::event::strategy_event::StrategyRunningLogSource;
@@ -24,6 +24,9 @@ use star_river_core::custom_type::NodeId;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use star_river_core::system::DateTimeUtc;
 use super::utils::compare;
+use super:: {
+    CycleTracker, PerformanceReport, CycleReport, NodeBenchmark,
+};
 
 pub type ConfigId = i32;
 
@@ -32,10 +35,19 @@ pub struct IfElseNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
     pub received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
-    pub backtest_config: IfElseNodeBacktestConfig,
+    pub node_config: IfElseNodeBacktestConfig,
 }
 
 impl IfElseNodeContext {
+    pub fn new(base_context: BacktestBaseNodeContext, node_config: IfElseNodeBacktestConfig) -> Self {
+        Self {
+            base_context,
+            received_flag: HashMap::new(),
+            received_message: HashMap::new(),
+            node_config,
+        }
+    }
+
     fn update_received_flag(&mut self, from_node_id: NodeId, from_variable_id: ConfigId, flag: bool) {
         self.received_flag
             .entry((from_node_id, from_variable_id))
@@ -45,7 +57,7 @@ impl IfElseNodeContext {
 
     // 初始化接收标记
     pub async fn init_received_data(&mut self) {
-        for case in &self.backtest_config.cases {
+        for case in &self.node_config.cases {
             for condition in &case.conditions {
                 // 处理左值
 
@@ -80,11 +92,16 @@ impl IfElseNodeContext {
 
     // 开始评估各个分支
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+
+
         let mut case_matched = false; // 是否匹配到case
         let current_time = self.get_current_time().await.unwrap();
 
         // 遍历case进行条件评估
-        for (index, case) in self.backtest_config.cases.iter().enumerate() {
+        for (index, case) in self.node_config.cases.iter().enumerate() {
+            let phase_name = format!("evaluate case {}", case.case_id);
+            cycle_tracker.start_phase(&phase_name);
             let case_result = self.evaluate_case(case).await;
 
             // 如果条件匹配，处理匹配的case
@@ -94,21 +111,26 @@ impl IfElseNodeContext {
             }
             // 如果条件不匹配，并且是最后一个case, 则发送trigger事件
             else {
-                if index == self.backtest_config.cases.len() - 1 {
+                if index == self.node_config.cases.len() - 1 {
                     tracing::debug!("[{}] 条件不匹配，发送trigger事件", self.get_node_name());
                     self.handle_not_matched_case(case).await;
                 }
             }
             case_matched = true;
+            cycle_tracker.end_phase(&phase_name);
             break; // 找到匹配的case后立即退出
         }
 
         // 如果没有case匹配，处理else分支
         if !case_matched {
             tracing::debug!("[{}] 条件不匹配，处理else分支", self.get_node_name());
+            let phase_name = format!("handle else branch");
+            cycle_tracker.start_phase(&phase_name);
             self.handle_else_branch().await;
+            cycle_tracker.end_phase(&phase_name);
         }
-
+        let completed_tracker = cycle_tracker.end();
+        self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
         Ok(())
     }
 

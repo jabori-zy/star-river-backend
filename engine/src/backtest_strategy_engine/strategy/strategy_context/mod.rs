@@ -9,24 +9,23 @@ mod strategy_operation;
 use super::BacktestNodeTrait;
 use super::node_state_machine::BacktestNodeRunState;
 use super::node_types::NodeOutputHandle;
-use super::strategy_state_machine::BacktestStrategyRunState;
-use super::strategy_state_machine::BacktestStrategyStateMachine;
+use super::strategy_state_machine::{BacktestStrategyRunState,BacktestStrategyStateMachine};
 use chrono::{DateTime, Utc};
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use event_center::communication::Command;
-use event_center::communication::backtest_strategy::BacktestStrategyCommand;
 use event_center::communication::backtest_strategy::*;
 use event_center::event::Event;
 use event_center::event::node_event::NodeEventTrait;
-use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use event_center::event::node_event::backtest_node_event::CommonEvent;
-use event_center::event::node_event::backtest_node_event::futures_order_node_event::FuturesOrderNodeEvent;
-use event_center::event::node_event::backtest_node_event::indicator_node_event::IndicatorNodeEvent;
-use event_center::event::node_event::backtest_node_event::kline_node_event::KlineNodeEvent;
-use event_center::event::node_event::backtest_node_event::position_management_node_event::PositionManagementNodeEvent;
-use event_center::event::strategy_event::StrategyRunningLogEvent;
-use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
-use event_center::event::strategy_event::backtest_strategy_event::PlayFinishedEvent;
+use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent,CommonEvent,
+    futures_order_node_event::FuturesOrderNodeEvent,
+    indicator_node_event::IndicatorNodeEvent,
+    kline_node_event::KlineNodeEvent,
+    position_management_node_event::PositionManagementNodeEvent,
+};
+use event_center::event::strategy_event::{StrategyRunningLogEvent,
+    backtest_strategy_event::{PlayFinishedEvent,BacktestStrategyEvent}
+};
+
 use event_center::singleton::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use petgraph::graph::NodeIndex;
@@ -35,30 +34,29 @@ use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use star_river_core::indicator::Indicator;
-use star_river_core::key::Key;
-use star_river_core::key::KeyTrait;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
-use star_river_core::market::Kline;
-use star_river_core::market::QuantData;
+use star_river_core::key::{Key, KeyTrait,
+    key::{IndicatorKey, KlineKey},
+};
+use star_river_core::market::{Kline, QuantData};
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::custom_variable::CustomVariable;
-use star_river_core::strategy::sys_varibale::SysVariable;
-use star_river_core::strategy::sys_varibale::SysVariableType;
+use star_river_core::strategy::node_benchmark::CompletedCycleTracker;
+use star_river_core::strategy::sys_varibale::{SysVariable, SysVariableType};
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
-use star_river_core::strategy_stats::StatsSnapshot;
-use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsEventReceiver};
+use star_river_core::strategy_stats::{StatsSnapshot,
+    event::{StrategyStatsEvent, StrategyStatsEventReceiver}
+};
 use star_river_core::system::DateTimeUtc;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::collections::HashMap;
 use std::sync::Arc;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
-use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::sync::{broadcast, mpsc, Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
+use star_river_core::strategy::strategy_benchmark::{StrategyBenchmark, StrategyCycleTracker};
 
 #[derive(Debug)]
 // 回测策略上下文
@@ -98,6 +96,8 @@ pub struct BacktestStrategyContext {
     pub(super) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 所有指标数据
     pub(super) custom_variable: Arc<RwLock<HashMap<String, CustomVariable>>>, // var_name -> CustomVariable
     pub(super) sys_variable: Arc<RwLock<HashMap<SysVariableType, SysVariable>>>, // var_name -> SysVariable
+    benchmark: Arc<RwLock<StrategyBenchmark>>,
+    cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
 }
 
 impl BacktestStrategyContext {
@@ -125,6 +125,8 @@ impl BacktestStrategyContext {
             strategy_stats_event_tx,
             play_index_watch_rx.clone(),
         )));
+
+        let benchmark = Arc::new(RwLock::new(StrategyBenchmark::new(strategy_id, strategy_name.clone())));
 
         Self {
             strategy_config,
@@ -162,6 +164,8 @@ impl BacktestStrategyContext {
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
             custom_variable: Arc::new(RwLock::new(HashMap::new())),
             sys_variable: Arc::new(RwLock::new(HashMap::new())),
+            benchmark,
+            cycle_tracker: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -248,5 +252,18 @@ impl BacktestStrategyContext {
             .send(node_command)
             .await
             .unwrap();
+    }
+
+
+    pub async fn add_node_benchmark(&mut self, node_id: NodeId, node_name: String, node_type: String) {
+        let mut benchmark_guard = self.benchmark.write().await;
+        benchmark_guard.add_node_benchmark(node_id, node_name, node_type);
+    }
+
+
+    pub async fn add_node_cycle_tracker(&mut self, node_id: NodeId, cycle_tracker: CompletedCycleTracker) -> Result<(), BacktestStrategyError> {
+        let mut benchmark_guard = self.benchmark.write().await;
+        benchmark_guard.add_node_cycle_tracker(node_id, cycle_tracker)?;
+        Ok(())
     }
 }

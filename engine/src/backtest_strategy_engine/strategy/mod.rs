@@ -4,6 +4,7 @@ pub(super) mod strategy_log_message;
 pub(super) mod strategy_state_machine;
 pub(super) mod strategy_utils;
 pub(super) mod workflow;
+// pub(super) mod benchmark;
 
 use super::node::*;
 use event_center::event::strategy_event::StrategyRunningLogEvent;

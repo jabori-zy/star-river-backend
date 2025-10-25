@@ -1,11 +1,14 @@
-use super::IndicatorNodeContext;
-use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
+use super::{
+    IndicatorNodeContext, KlineNodeEvent,BacktestBaseNodeContext,BacktestNodeContextTrait,NodeOutputHandle
+};
+
 use async_trait::async_trait;
 use event_center::communication::Command;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use star_river_core::key::KeyTrait;
+
 
 use std::any::Any;
 
@@ -41,7 +44,14 @@ impl BacktestNodeContextTrait for IndicatorNodeContext {
     async fn handle_node_event(&mut self, message: BacktestNodeEvent) {
         match message {
             BacktestNodeEvent::KlineNode(kline_event) => {
-                self.handle_kline_update(kline_event).await;
+                if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
+                    let config_kline = self.node_config.exchange_mode_config.as_ref().unwrap().selected_symbol.clone();
+                        if config_kline.symbol != kline_update_event.kline_key.get_symbol() || 
+                            config_kline.interval != kline_update_event.kline_key.get_interval() {
+                            return;
+                        }
+                        self.handle_kline_update(kline_update_event).await;
+                }
             }
             _ => {}
         }

@@ -1,4 +1,6 @@
-use super::KlineNodeContext;
+use super::{
+    KlineNodeContext, CycleTracker, PerformanceReport, CycleReport,
+};
 use super::utils::is_cross_interval;
 use crate::backtest_strategy_engine::node::node_context::BacktestNodeContextTrait;
 use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
@@ -22,7 +24,8 @@ use star_river_core::market::QuantData;
 use tokio::sync::oneshot;
 
 impl KlineNodeContext {
-    pub(super) async fn send_kline(&self, play_event: KlinePlayEvent) {
+    pub(super) async fn send_kline(&mut self, play_event: KlinePlayEvent) {
+        let mut cycle_tracker = CycleTracker::new(play_event.play_index);
         // 提前获取配置信息，统一错误处理
         let exchange_mode_config = self.backtest_config.exchange_mode_config.as_ref().unwrap();
 
@@ -34,9 +37,12 @@ impl KlineNodeContext {
         let mut pre_kline_timestamp = 0;
 
         for (index, (symbol_key, symbol_info)) in self.selected_symbol_keys.iter().enumerate() {
+            
             // 获取k线缓存值
             // 1. 如果是在最小周期交易对列表中，则从策略中获取k线数据
             if self.min_interval_symbols.contains(symbol_key) {
+                let phase_name = format!("get min interval kline {}", symbol_info.0);
+                cycle_tracker.start_phase(&phase_name);
                 if let Err(e) = self
                     .handle_min_interval_kline(symbol_key, symbol_info, current_play_index, &mut pre_kline_timestamp)
                     .await
@@ -50,7 +56,10 @@ impl KlineNodeContext {
                     );
                     continue;
                 }
+                cycle_tracker.end_phase(&phase_name);
             } else {
+                let phase_name = format!("handle interpolated kline {}", symbol_info.0);
+                cycle_tracker.start_phase(&phase_name);
                 // 2. 如果不在最小周期交易对列表中，使用插值算法处理
                 if let Err(e) = self.handle_interpolated_kline(symbol_key, symbol_info, current_play_index).await {
                     tracing::error!(
@@ -61,14 +70,19 @@ impl KlineNodeContext {
                         "Failed to handle interpolated kline: {}", e
                     );
                 }
+                cycle_tracker.end_phase(&phase_name);
             }
 
+            
             if index == exchange_mode_config.selected_symbols.len() - 1 {
                 if self.is_leaf_node() {
                     self.send_execute_over_event().await;
                 }
             }
+            
         }
+        let completed_tracker = cycle_tracker.end();
+        self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
     }
 
     // 提取发送K线事件的通用方法
