@@ -1,6 +1,8 @@
 use crate::custom_type::{NodeId, PlayIndex};
 use tokio::time::{Instant, Duration};
 use std::collections::{HashMap, VecDeque};
+use serde::Serialize;
+use utoipa::ToSchema;
 
 // ============================================================
 // 第一部分：CycleTracker - 单周期追踪器
@@ -83,8 +85,10 @@ impl CompletedCycleTracker {
     }
 
     /// 生成单个周期的详细报告
-    pub fn get_cycle_report(&self) -> CycleReport {
-        CycleReport {
+    pub fn get_cycle_report(&self, node_id: NodeId, node_name: String) -> NodeCycleReport {
+        NodeCycleReport {
+            node_id,
+            node_name,
             play_index: self.play_index,
             total_duration: self.total_duration,
             phase_durations: self.phase_durations.clone(),
@@ -94,13 +98,15 @@ impl CompletedCycleTracker {
 
 /// 单个周期的详细报告
 #[derive(Debug, Clone)]
-pub struct CycleReport {
+pub struct NodeCycleReport {
+    pub node_id: NodeId,
+    pub node_name: String,
     pub play_index: PlayIndex,
     pub total_duration: Duration,
     pub phase_durations: Vec<(String, Duration)>,
 }
 
-impl CycleReport {
+impl NodeCycleReport {
     /// 获取某个阶段的耗时占比
     pub fn get_phase_percentage(&self, phase_name: &str) -> f64 {
         if self.total_duration.is_zero() {
@@ -125,7 +131,7 @@ impl CycleReport {
     }
 }
 
-impl std::fmt::Display for CycleReport {
+impl std::fmt::Display for NodeCycleReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "┌─ Cycle Report [Play Index: {}]", self.play_index)?;
         writeln!(f, "│  Total Duration: {:?}", self.total_duration)?;
@@ -353,8 +359,8 @@ impl NodeBenchmark {
     }
 
     /// 生成性能报告
-    pub fn report(&self) -> PerformanceReport {
-        PerformanceReport {
+    pub fn report(&self) -> NodePerformanceReport {
+        NodePerformanceReport {
             node_id: self.node_id.clone(),
             node_name: self.node_name.clone(),
             node_type: self.node_type.clone(),
@@ -382,25 +388,33 @@ impl NodeBenchmark {
     }
 
     /// 获取最近N个周期的详细报告
-    pub fn get_recent_cycle_reports(&self, n: usize) -> Vec<CycleReport> {
+    pub fn get_recent_cycle_reports(&self, n: usize) -> Vec<NodeCycleReport> {
         self.cycle_trackers
             .iter()
             .rev()
             .take(n)
-            .map(|tracker| tracker.get_cycle_report())
+            .map(|tracker| tracker.get_cycle_report(self.node_id.clone(), self.node_name.clone()))
             .collect()
     }
 
     /// 获取最近一个周期的报告
-    pub fn get_last_cycle_report(&self) -> Option<CycleReport> {
+    pub fn get_last_cycle_report(&self) -> Option<NodeCycleReport> {
         self.cycle_trackers
             .back()
-            .map(|tracker| tracker.get_cycle_report())
+            .map(|tracker| tracker.get_cycle_report(self.node_id.clone(), self.node_name.clone()))
     }
 
     /// 获取总周期数
     pub fn get_total_cycles(&self) -> usize {
         self.total_cycles
+    }
+
+    /// 根据 play_index 查找对应的周期报告
+    pub fn get_cycle_report_by_play_index(&self, play_index: PlayIndex) -> Option<NodeCycleReport> {
+        self.cycle_trackers
+            .iter()
+            .find(|tracker| tracker.get_play_index() == play_index)
+            .map(|tracker| tracker.get_cycle_report(self.node_id.clone(), self.node_name.clone()))
     }
 }
 
@@ -408,7 +422,7 @@ impl NodeBenchmark {
 // 第三部分：报告类型
 // ============================================================
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PhaseStatistics {
     pub phase_name: String,
     pub count: usize,
@@ -432,8 +446,8 @@ impl std::fmt::Display for PhaseStatistics {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct PerformanceReport {
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct NodePerformanceReport {
     pub node_id: String,
     pub node_name: String,
     pub node_type: String,
@@ -449,7 +463,7 @@ pub struct PerformanceReport {
     pub phase_bottlenecks: Vec<PhaseStatistics>,
 }
 
-impl std::fmt::Display for PerformanceReport {
+impl std::fmt::Display for NodePerformanceReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "┌─ Performance Report: {} [{}]", self.node_name, self.node_type)?;
         writeln!(f, "│  Node ID: {}", self.node_id)?;

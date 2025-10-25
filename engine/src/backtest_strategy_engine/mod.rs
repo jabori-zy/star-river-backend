@@ -17,6 +17,7 @@ use star_river_core::error::engine_error::*;
 use star_river_core::key::Key;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::strategy_benchmark::StrategyPerformanceReport;
 use star_river_core::strategy::TradeMode;
 use star_river_core::strategy::StrategyVariable;
 use star_river_core::strategy_stats::StatsSnapshot;
@@ -262,6 +263,12 @@ impl BacktestStrategyEngine {
         let context = self.context.read().await;
         let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         strategy_context.get_strategy_variable(strategy_id).await
+    }
+
+    pub async fn get_strategy_performance_report(&mut self, strategy_id: i32) -> Result<StrategyPerformanceReport, StrategyEngineError> {
+        let context = self.context.read().await;
+        let strategy_context = context.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
+        strategy_context.get_strategy_performance_report(strategy_id).await
     }
 }
 

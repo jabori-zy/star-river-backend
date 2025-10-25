@@ -30,7 +30,7 @@ use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
 use super::node_utils::NodeUtils;
-use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {

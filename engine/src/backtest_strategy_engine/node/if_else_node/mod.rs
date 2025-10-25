@@ -31,7 +31,7 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
 use super::node_utils::NodeUtils;
-use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
 
 // 条件分支节点
 #[derive(Debug, Clone)]

@@ -12,6 +12,7 @@ use star_river_core::engine::EngineName;
 use star_river_core::key::Key;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::strategy::strategy_benchmark::StrategyPerformanceReport;
 use star_river_core::strategy::StrategyVariable;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
@@ -440,5 +441,41 @@ pub async fn get_strategy_variable(
         (StatusCode::OK, Json(NewApiResponse::success(strategy_variable)))
     } else {
         (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_variable.unwrap_err())))
+    }
+}
+
+
+
+
+
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/performance-report",
+    tag = "Backtest Strategy",
+    summary = "Get strategy performance report",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy performance report")
+    ),
+    responses(
+        (status = 200, description = "Get strategy performance report successfully", body = NewApiResponse<StrategyPerformanceReport>),
+        (status = 400, description = "Get strategy performance report failed", body = NewApiResponse<StrategyPerformanceReport>)
+    )
+)]
+#[axum::debug_handler]
+pub async fn get_strategy_performance_report(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<NewApiResponse<StrategyPerformanceReport>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+    let mut engine_guard = engine.lock().await;
+    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+    let strategy_performance_report = strategy_engine.get_strategy_performance_report(strategy_id).await;
+    if let Ok(strategy_performance_report) = strategy_performance_report {
+        (StatusCode::OK, Json(NewApiResponse::success(strategy_performance_report)))
+    } else {
+        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_performance_report.unwrap_err())))
     }
 }

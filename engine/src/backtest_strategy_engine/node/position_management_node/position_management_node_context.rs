@@ -19,7 +19,7 @@ use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
-use super::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
+use super::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
 
 #[derive(Debug)]
 pub struct PositionNodeContext {

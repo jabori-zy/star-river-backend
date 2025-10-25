@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use star_river_core::custom_type::AccountId;
 use star_river_core::market::KlineInterval;
-use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, PerformanceReport, CycleReport};
+use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
 
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {

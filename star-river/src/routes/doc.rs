@@ -41,6 +41,7 @@ use utoipa::OpenApi;
         crate::api::strategy_api::backtest::get_strategy_data,
         crate::api::strategy_api::backtest::get_strategy_data_by_datetime,
         crate::api::strategy_api::backtest::get_strategy_variable,
+        crate::api::strategy_api::backtest::get_strategy_performance_report,
         // 账户相关路径
         crate::api::account_api::get_account_configs,
         crate::api::account_api::add_account_config,

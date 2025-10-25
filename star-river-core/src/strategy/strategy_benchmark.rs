@@ -5,8 +5,9 @@ use crate::{
 };
 use tokio::time::{Instant, Duration};
 use std::collections::{HashMap, VecDeque};
-
-use super::node_benchmark::{CompletedCycleTracker, NodeBenchmark};
+use utoipa::ToSchema;
+use super::node_benchmark::{CompletedCycleTracker, NodeBenchmark, NodePerformanceReport, NodeCycleReport};
+use serde::Serialize;
 
 // ============================================================
 // 第一部分：StrategyCycleTracker - 策略单周期追踪器
@@ -96,12 +97,14 @@ impl CompletedStrategyCycleTracker {
         &self.phase_durations
     }
 
-    /// 生成单个周期的详细报告
+    /// 生成单个周期的详细报告(不包含节点报告,需要在 StrategyBenchmark 层面添加)
     pub fn get_cycle_report(&self) -> StrategyCycleReport {
         StrategyCycleReport {
             play_index: self.play_index,
             total_duration: self.total_duration,
             phase_durations: self.phase_durations.clone(),
+            node_cycle_reports: Vec::new(), // 这里留空,在 StrategyBenchmark 中填充
+            node_execute_percentage: Vec::new(), // 这里留空,在 StrategyBenchmark 中填充
         }
     }
 }
@@ -116,6 +119,8 @@ pub struct StrategyCycleReport {
     pub play_index: PlayIndex,
     pub total_duration: Duration,
     pub phase_durations: Vec<(String, Duration)>,
+    pub node_cycle_reports: Vec<NodeCycleReport>, // 该周期内所有节点的周期报告
+    pub node_execute_percentage: Vec<(NodeId, f64)>, // 该周期内所有节点的执行占比
 }
 
 impl StrategyCycleReport {
@@ -153,19 +158,20 @@ impl StrategyCycleReport {
 
 impl std::fmt::Display for StrategyCycleReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "\n")?;
         writeln!(f, "┌─ Strategy Cycle Report [Play Index: {}]", self.play_index)?;
         writeln!(f, "│  Total Duration: {:?}", self.total_duration)?;
-        
+
         if !self.phase_durations.is_empty() {
-            writeln!(f, "├─ Phase Details:")?;
-            
+            writeln!(f, "├─ Strategy Phase Details:")?;
+
             for (i, (phase_name, duration)) in self.phase_durations.iter().enumerate() {
                 let percentage = if !self.total_duration.is_zero() {
                     (duration.as_nanos() as f64 / self.total_duration.as_nanos() as f64) * 100.0
                 } else {
                     0.0
                 };
-                
+
                 let prefix = if i == self.phase_durations.len() - 1 { "└" } else { "├" };
                 writeln!(
                     f,
@@ -174,138 +180,64 @@ impl std::fmt::Display for StrategyCycleReport {
                 )?;
             }
         }
-        
+
         if let Some((slowest_name, slowest_duration)) = self.get_slowest_phase() {
-            writeln!(f, "├─ Slowest Phase: {} ({:?})", slowest_name, slowest_duration)?;
+            writeln!(f, "├─ Slowest Strategy Phase: {} ({:?})", slowest_name, slowest_duration)?;
         }
-        
-        write!(f, "└─────────────────────────────")
-    }
-}
 
-// ============================================================
-// 详细策略周期报告（包含节点信息）
-// ============================================================
+        // 显示节点执行占比
+        if !self.node_execute_percentage.is_empty() {
+            writeln!(f, "├─ Node Execute Percentage:")?;
 
-/// 单个节点在该周期的性能详情
-#[derive(Debug, Clone)]
-pub struct NodeCycleDetail {
-    pub node_id: NodeId,
-    pub node_name: String,
-    pub node_type: String,
-    pub total_duration: Duration,
-    pub phase_durations: Vec<(String, Duration)>,
-    pub percentage: f64, // 占策略总时间的百分比
-}
+            // 按占比降序排序
+            let mut sorted_percentages = self.node_execute_percentage.clone();
+            sorted_percentages.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-impl std::fmt::Display for NodeCycleDetail {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "    ├─ Node: {} [{}] (ID: {})", self.node_name, self.node_type, self.node_id)?;
-        writeln!(f, "    │  Total Duration: {:?} ({:.2}%)", self.total_duration, self.percentage)?;
-        
-        if !self.phase_durations.is_empty() {
-            writeln!(f, "    │  Phase Details:")?;
-            for (i, (phase_name, phase_duration)) in self.phase_durations.iter().enumerate() {
-                let phase_percentage = if !self.total_duration.is_zero() {
-                    (phase_duration.as_nanos() as f64 / self.total_duration.as_nanos() as f64) * 100.0
-                } else {
-                    0.0
-                };
-                
-                let prefix = if i == self.phase_durations.len() - 1 { "└" } else { "├" };
-                writeln!(
-                    f,
-                    "    │    {} {}: {:?} ({:.2}%)",
-                    prefix, phase_name, phase_duration, phase_percentage
-                )?;
+            for (i, (node_id, percentage)) in sorted_percentages.iter().enumerate() {
+                let is_last = i == sorted_percentages.len() - 1;
+                let prefix = if is_last { "└" } else { "├" };
+                writeln!(f, "│  {} {}: {:.2}%", prefix, node_id, percentage)?;
             }
         }
-        
-        Ok(())
-    }
-}
 
-/// 详细的策略周期报告（包含所有节点的详细信息）
-#[derive(Debug, Clone)]
-pub struct DetailedStrategyCycleReport {
-    pub play_index: PlayIndex,
-    pub strategy_total_duration: Duration,
-    pub strategy_phase_durations: Vec<(String, Duration)>, // 策略级别的阶段耗时
-    pub node_details: Vec<NodeCycleDetail>,
-}
+        // 显示所有节点的周期报告
+        if !self.node_cycle_reports.is_empty() {
+            writeln!(f, "├─ Node Cycle Reports ({} nodes):", self.node_cycle_reports.len())?;
 
-impl std::fmt::Display for DetailedStrategyCycleReport {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "╔═══════════════════════════════════════════════════════════╗")?;
-        writeln!(f, "║ Detailed Strategy Cycle Report [Play Index: {}]", self.play_index)?;
-        writeln!(f, "╠═══════════════════════════════════════════════════════════╣")?;
-        writeln!(f, "║ Strategy Total Duration: {:?}", self.strategy_total_duration)?;
-        
-        // 显示策略级别的阶段信息
-        if !self.strategy_phase_durations.is_empty() {
-            writeln!(f, "╟───────────────────────────────────────────────────────────╢")?;
-            writeln!(f, "║ Strategy Phase Breakdown:")?;
-            for (phase_name, phase_duration) in &self.strategy_phase_durations {
-                let phase_percentage = if !self.strategy_total_duration.is_zero() {
-                    (phase_duration.as_nanos() as f64 / self.strategy_total_duration.as_nanos() as f64) * 100.0
-                } else {
-                    0.0
-                };
-                writeln!(
-                    f,
-                    "║   • {}: {:?} ({:.2}%)",
-                    phase_name, phase_duration, phase_percentage
-                )?;
-            }
-        }
-        
-        writeln!(f, "╟───────────────────────────────────────────────────────────╢")?;
-        writeln!(f, "║ Node Performance Breakdown:")?;
-        
-        if self.node_details.is_empty() {
-            writeln!(f, "║   (No node data available)")?;
-        } else {
-            // 按执行时间占比降序排序
-            let mut sorted_nodes = self.node_details.clone();
-            sorted_nodes.sort_by(|a, b| b.percentage.partial_cmp(&a.percentage).unwrap_or(std::cmp::Ordering::Equal));
-            
-            for (i, node_detail) in sorted_nodes.iter().enumerate() {
-                writeln!(f, "║")?;
-                writeln!(f, "║  {}. {} [{}]", i + 1, node_detail.node_name, node_detail.node_type)?;
-                writeln!(f, "║     Duration: {:?} ({:.2}%)", node_detail.total_duration, node_detail.percentage)?;
-                
-                if !node_detail.phase_durations.is_empty() {
-                    writeln!(f, "║     Phases:")?;
-                    for (phase_name, phase_duration) in &node_detail.phase_durations {
-                        let phase_percentage = if !node_detail.total_duration.is_zero() {
-                            (phase_duration.as_nanos() as f64 / node_detail.total_duration.as_nanos() as f64) * 100.0
+            for (i, node_report) in self.node_cycle_reports.iter().enumerate() {
+                let is_last_node = i == self.node_cycle_reports.len() - 1;
+                let node_prefix = if is_last_node { "└" } else { "├" };
+
+                writeln!(f, "│  {} {} ({})", node_prefix, node_report.node_name, node_report.node_id)?;
+                writeln!(f, "│  {}   Total Duration: {:?}", if is_last_node { " " } else { "│" }, node_report.total_duration)?;
+
+                if !node_report.phase_durations.is_empty() {
+                    writeln!(f, "│  {}   Phases:", if is_last_node { " " } else { "│" })?;
+                    for (j, (phase_name, phase_duration)) in node_report.phase_durations.iter().enumerate() {
+                        let phase_percentage = if !node_report.total_duration.is_zero() {
+                            (phase_duration.as_nanos() as f64 / node_report.total_duration.as_nanos() as f64) * 100.0
                         } else {
                             0.0
                         };
+
+                        let is_last_phase = j == node_report.phase_durations.len() - 1;
+                        let phase_prefix = if is_last_phase { "└" } else { "├" };
+
                         writeln!(
                             f,
-                            "║       • {}: {:?} ({:.2}% of node)",
-                            phase_name, phase_duration, phase_percentage
+                            "│  {}     {} {}: {:?} ({:.2}%)",
+                            if is_last_node { " " } else { "│" },
+                            phase_prefix,
+                            phase_name,
+                            phase_duration,
+                            phase_percentage
                         )?;
                     }
                 }
             }
         }
-        
-        writeln!(f, "╟───────────────────────────────────────────────────────────╢")?;
-        
-        // 统计信息
-        let total_node_time: Duration = self.node_details.iter().map(|n| n.total_duration).sum();
-        let coverage_percentage = if !self.strategy_total_duration.is_zero() {
-            (total_node_time.as_nanos() as f64 / self.strategy_total_duration.as_nanos() as f64) * 100.0
-        } else {
-            0.0
-        };
-        
-        writeln!(f, "║ Summary:")?;
-        writeln!(f, "║   Total Node Time: {:?}", total_node_time)?;
-        writeln!(f, "║   Coverage: {:.2}%", coverage_percentage)?;
-        write!(f, "╚═══════════════════════════════════════════════════════════╝")
+
+        write!(f, "└─────────────────────────────")
     }
 }
 
@@ -523,6 +455,15 @@ impl StrategyBenchmark {
 
     /// 生成性能报告
     pub fn report(&self) -> StrategyPerformanceReport {
+        // 收集所有节点的性能报告
+        let mut node_reports: Vec<NodePerformanceReport> = self.node_benchmarks
+            .values()
+            .map(|node_benchmark| node_benchmark.report())
+            .collect();
+
+        // 按平均执行时间降序排序
+        node_reports.sort_by(|a, b| b.avg_duration.cmp(&a.avg_duration));
+
         StrategyPerformanceReport {
             strategy_id: self.strategy_id,
             strategy_name: self.strategy_name.clone(),
@@ -535,7 +476,7 @@ impl StrategyBenchmark {
             p95: self.percentile(0.95),
             p99: self.percentile(0.99),
             recent_avg_100: self.recent_avg_duration(100),
-            phase_bottlenecks: self.analyze_phase_bottlenecks(),
+            node_reports,
         }
     }
 
@@ -549,61 +490,77 @@ impl StrategyBenchmark {
         self.sum_squared_diff_ns = 0.0;
     }
 
-    /// 获取最近N个周期的详细报告
+    /// 获取最近N个周期的详细报告(包含节点报告)
     pub fn get_recent_cycle_reports(&self, n: usize) -> Vec<StrategyCycleReport> {
         self.cycle_trackers
             .iter()
             .rev()
             .take(n)
-            .map(|tracker| tracker.get_cycle_report())
+            .map(|strategy_tracker| {
+                let play_index = strategy_tracker.get_play_index();
+                let strategy_total_duration = strategy_tracker.get_total_duration();
+
+                // 收集该 play_index 下所有节点的周期报告和执行占比
+                let mut node_cycle_reports = Vec::new();
+                let mut node_execute_percentage = Vec::new();
+
+                for (node_id, node_benchmark) in &self.node_benchmarks {
+                    // 从节点的历史数据中查找匹配 play_index 的报告
+                    if let Some(node_report) = node_benchmark.get_cycle_report_by_play_index(play_index) {
+                        // 计算节点执行占比
+                        let percentage = if !strategy_total_duration.is_zero() {
+                            (node_report.total_duration.as_nanos() as f64 / strategy_total_duration.as_nanos() as f64) * 100.0
+                        } else {
+                            0.0
+                        };
+
+                        node_cycle_reports.push(node_report);
+                        node_execute_percentage.push((node_id.clone(), percentage));
+                    }
+                }
+
+                StrategyCycleReport {
+                    play_index: strategy_tracker.get_play_index(),
+                    total_duration: strategy_total_duration,
+                    phase_durations: strategy_tracker.get_all_phase_durations().to_vec(),
+                    node_cycle_reports,
+                    node_execute_percentage,
+                }
+            })
             .collect()
     }
 
-    /// 获取最近一个周期的报告（简单版本，仅策略级别）
+    /// 获取最近一个周期的报告(包含节点报告)
     pub fn get_last_cycle_report(&self) -> Option<StrategyCycleReport> {
-        self.cycle_trackers
-            .back()
-            .map(|tracker| tracker.get_cycle_report())
-    }
+        let strategy_tracker = self.cycle_trackers.back()?;
+        let play_index = strategy_tracker.get_play_index();
+        let strategy_total_duration = strategy_tracker.get_total_duration();
 
-    
-    pub fn get_last_detailed_cycle_report(&self) -> Option<DetailedStrategyCycleReport> {
-        // 获取策略的最后一个周期
-        let strategy_cycle = self.cycle_trackers.back()?;
-        let strategy_total_duration = strategy_cycle.get_total_duration();
-        let play_index = strategy_cycle.get_play_index();
-        let strategy_phase_durations = strategy_cycle.get_all_phase_durations().to_vec();
-        
-        // 收集所有节点的最后一个周期数据
-        let mut node_details = Vec::new();
-        
+        // 收集该 play_index 下所有节点的周期报告和执行占比
+        let mut node_cycle_reports = Vec::new();
+        let mut node_execute_percentage = Vec::new();
+
         for (node_id, node_benchmark) in &self.node_benchmarks {
-            if let Some(node_cycle_report) = node_benchmark.get_last_cycle_report() {
-                let node_total_duration = node_cycle_report.total_duration;
-                
-                // 计算该节点占策略总时间的百分比
+            // 从节点的历史数据中查找匹配 play_index 的报告
+            if let Some(node_report) = node_benchmark.get_cycle_report_by_play_index(play_index) {
+                // 计算节点执行占比
                 let percentage = if !strategy_total_duration.is_zero() {
-                    (node_total_duration.as_nanos() as f64 / strategy_total_duration.as_nanos() as f64) * 100.0
+                    (node_report.total_duration.as_nanos() as f64 / strategy_total_duration.as_nanos() as f64) * 100.0
                 } else {
                     0.0
                 };
-                
-                node_details.push(NodeCycleDetail {
-                    node_id: node_id.clone(),
-                    node_name: node_benchmark.node_name.clone(),
-                    node_type: node_benchmark.node_type.clone(),
-                    total_duration: node_total_duration,
-                    phase_durations: node_cycle_report.phase_durations.clone(),
-                    percentage,
-                });
+
+                node_cycle_reports.push(node_report);
+                node_execute_percentage.push((node_id.clone(), percentage));
             }
         }
-        
-        Some(DetailedStrategyCycleReport {
-            play_index,
-            strategy_total_duration,
-            strategy_phase_durations,
-            node_details,
+
+        Some(StrategyCycleReport {
+            play_index: strategy_tracker.get_play_index(),
+            total_duration: strategy_total_duration,
+            phase_durations: strategy_tracker.get_all_phase_durations().to_vec(),
+            node_cycle_reports,
+            node_execute_percentage,
         })
     }
 
@@ -618,7 +575,7 @@ impl StrategyBenchmark {
 // ============================================================
 
 /// 策略级别的阶段统计信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct StrategyPhaseStatistics {
     pub phase_name: String,
     pub count: usize,
@@ -643,7 +600,8 @@ impl std::fmt::Display for StrategyPhaseStatistics {
 }
 
 /// 策略整体性能报告
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyPerformanceReport {
     pub strategy_id: StrategyId,
     pub strategy_name: String,
@@ -656,7 +614,7 @@ pub struct StrategyPerformanceReport {
     pub p95: Duration,
     pub p99: Duration,
     pub recent_avg_100: Duration,
-    pub phase_bottlenecks: Vec<StrategyPhaseStatistics>,
+    pub node_reports: Vec<NodePerformanceReport>,
 }
 
 impl std::fmt::Display for StrategyPerformanceReport {
@@ -677,16 +635,36 @@ impl std::fmt::Display for StrategyPerformanceReport {
         writeln!(f, "║  ├─ P95:          {:>12?}", self.p95)?;
         writeln!(f, "║  ├─ P99:          {:>12?}", self.p99)?;
         writeln!(f, "║  └─ Recent(100):  {:>12?}", self.recent_avg_100)?;
-        
-        if !self.phase_bottlenecks.is_empty() {
+
+        if !self.node_reports.is_empty() {
             writeln!(f, "╟───────────────────────────────────────────────────────────╢")?;
-            writeln!(f, "║ Phase Bottlenecks (top 5):")?;
-            for (i, phase) in self.phase_bottlenecks.iter().take(5).enumerate() {
-                let prefix = if i == self.phase_bottlenecks.len().min(5) - 1 { "└" } else { "├" };
-                writeln!(f, "║  {} {}: avg={:?}, count={}", prefix, phase.phase_name, phase.avg_duration, phase.count)?;
+            writeln!(f, "║ Node Performance Reports:")?;
+            writeln!(f, "╟───────────────────────────────────────────────────────────╢")?;
+
+            for (i, node_report) in self.node_reports.iter().enumerate() {
+                writeln!(f, "║")?;
+                writeln!(f, "║ {}. {} [{}]", i + 1, node_report.node_name, node_report.node_type)?;
+                writeln!(f, "║    Node ID: {}", node_report.node_id)?;
+                writeln!(f, "║    Total Cycles: {}", node_report.total_cycles)?;
+                writeln!(f, "║    ├─ Average:      {:>12?}", node_report.avg_duration)?;
+                writeln!(f, "║    ├─ Median:       {:>12?}", node_report.median_duration)?;
+                writeln!(f, "║    ├─ Min:          {:>12?}", node_report.min_duration)?;
+                writeln!(f, "║    ├─ Max:          {:>12?}", node_report.max_duration)?;
+                writeln!(f, "║    ├─ StdDev:       {:>12?}", node_report.std_deviation)?;
+                writeln!(f, "║    ├─ P95:          {:>12?}", node_report.p95)?;
+                writeln!(f, "║    ├─ P99:          {:>12?}", node_report.p99)?;
+                writeln!(f, "║    └─ Recent(100):  {:>12?}", node_report.recent_avg_100)?;
+
+                if !node_report.phase_bottlenecks.is_empty() {
+                    writeln!(f, "║    Phase Bottlenecks (top 3):")?;
+                    for (j, phase) in node_report.phase_bottlenecks.iter().take(3).enumerate() {
+                        let prefix = if j == node_report.phase_bottlenecks.len().min(3) - 1 { "└" } else { "├" };
+                        writeln!(f, "║      {} {}: avg={:?}", prefix, phase.phase_name, phase.avg_duration)?;
+                    }
+                }
             }
         }
-        
+
         write!(f, "╚═══════════════════════════════════════════════════════════╝")
     }
 }

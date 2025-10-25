@@ -209,7 +209,7 @@ impl BacktestStrategyContext {
                         if let Some(tracker) = completed_tracker {
                             let mut strategy_benchmark_guard = self.benchmark.write().await;
                             strategy_benchmark_guard.add_cycle_tracker(tracker);
-                            tracing::debug!("{}", strategy_benchmark_guard.get_last_detailed_cycle_report().unwrap());
+                            tracing::debug!("{}", strategy_benchmark_guard.get_last_cycle_report().unwrap());
                         } // benchmark 锁在这里释放
                     }
                 }

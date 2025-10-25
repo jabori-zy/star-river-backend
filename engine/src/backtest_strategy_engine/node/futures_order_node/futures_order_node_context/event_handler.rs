@@ -16,7 +16,7 @@ use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 use tokio::sync::oneshot;
 use super:: {
-    CycleTracker, PerformanceReport, CycleReport, NodeBenchmark,
+    CycleTracker, NodePerformanceReport, NodeCycleReport, NodeBenchmark,
 };
 
 impl FuturesOrderNodeContext {

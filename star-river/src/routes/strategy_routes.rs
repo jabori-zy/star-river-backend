@@ -54,4 +54,5 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/data", get(get_strategy_data))
         .route("/{strategy_id}/data-by-datetime", get(get_strategy_data_by_datetime))
         .route("/{strategy_id}/variable", get(get_strategy_variable))
+        .route("/{strategy_id}/performance-report", get(get_strategy_performance_report))
 }

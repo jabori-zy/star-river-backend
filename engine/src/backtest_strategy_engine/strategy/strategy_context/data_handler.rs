@@ -1,4 +1,4 @@
-use star_river_core::strategy::StrategyVariable;
+use star_river_core::strategy::{strategy_benchmark::StrategyPerformanceReport, StrategyVariable};
 
 use super::{
     BacktestStrategyContext, BacktestStrategyError, DateTimeUtc, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, Key,
@@ -197,5 +197,10 @@ impl BacktestStrategyContext {
         strategy_variable.extend(custom_var);
         strategy_variable.extend(sys_var);
         strategy_variable
+    }
+
+    pub async fn get_strategy_performance_report(&self) -> StrategyPerformanceReport {
+        let strategy_benchmark_guard = self.benchmark.read().await;
+        strategy_benchmark_guard.report().clone()
     }
 }
