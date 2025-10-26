@@ -5,12 +5,10 @@ use star_river_core::strategy::deserialize_time_range;
 use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KlineNodeBacktestConfig {
-    #[serde(rename = "dataSource")]
     pub data_source: BacktestDataSource,
-    #[serde(rename = "fileConfig")]
     pub file_config: Option<FileConfig>,
-    #[serde(rename = "exchangeModeConfig")]
     pub exchange_mode_config: Option<KlineNodeExchangeModeConfig>,
 }
 

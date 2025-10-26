@@ -34,23 +34,25 @@ use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, Nod
 #[derive(Debug, Clone)]
 pub struct KlineNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub backtest_config: KlineNodeBacktestConfig,
+    pub node_config: KlineNodeBacktestConfig,
     min_interval_symbols: Vec<KlineKey>,
     selected_symbol_keys: HashMap<KlineKey, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
 }
 
 impl KlineNodeContext {
-    pub fn new(base_context: BacktestBaseNodeContext, backtest_config: KlineNodeBacktestConfig) -> Self {
-        let exchange = backtest_config
+    pub fn new(
+        base_context: BacktestBaseNodeContext, 
+        node_config: KlineNodeBacktestConfig) -> Self {
+        let exchange = node_config
             .exchange_mode_config
             .as_ref()
             .unwrap()
             .selected_account
             .exchange
             .clone();
-        let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+        let time_range = node_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
-        let selected_symbol_keys = backtest_config
+        let selected_symbol_keys = node_config
             .exchange_mode_config
             .as_ref()
             .unwrap()
@@ -70,7 +72,7 @@ impl KlineNodeContext {
 
         Self {
             base_context,
-            backtest_config,
+            node_config,
             min_interval_symbols: vec![],
             selected_symbol_keys,
         }

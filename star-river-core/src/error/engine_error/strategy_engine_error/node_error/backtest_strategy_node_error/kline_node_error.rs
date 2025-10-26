@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum KlineNodeError {
-    #[snafu(display("kline node [{node_name}({node_id})] register exchange error"))]
+    #[snafu(display("[{node_name}] register exchange error"))]
     RegisterExchangeFailed {
         node_id: String,
         node_name: String,
@@ -16,11 +16,18 @@ pub enum KlineNodeError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("kline node config field [{field_name}]'s value is null"))]
-    ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
+    #[snafu(display("[{node_name}] config field [{field_name}]'s value is null"))]
+    ConfigFieldValueNull {
+        node_name: String,
+        field_name: String, 
+        backtrace: Backtrace 
+    },
 
-    #[snafu(display("kline node backtest config deserialization failed. reason: [{source}]"))]
-    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
+    #[snafu(display("[{node_name}] config deserialization failed. reason: [{source}]"))]
+    ConfigDeserializationFailed { 
+        node_name: String,
+        source: serde_json::Error, 
+        backtrace: Backtrace },
 
     #[snafu(display("[{node_name}] get play kline data failed. kline key: [{kline_key}], play index: [{play_index}]"))]
     GetPlayKlineDataFailed {
@@ -69,6 +76,24 @@ pub enum KlineNodeError {
         end_time: String,
         backtrace: Backtrace,
     },
+
+
+    #[snafu(display("kline node [{node_id}] name is null"))]
+    NodeNameIsNull {
+        node_id: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("kline node id is null"))]
+    NodeIdIsNull {
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("kline node [{node_id}] data is null"))]
+    NodeDataIsNull {
+        node_id: String,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -91,6 +116,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::InitKlineDataFailed { .. } => 1008,    // 初始化K线数据失败
             KlineNodeError::AppendKlineDataFailed { .. } => 1009,  // 追加K线数据失败
             KlineNodeError::InsufficientKlineData { .. } => 1010,  // 缺乏K线数据
+            KlineNodeError::NodeNameIsNull { .. } => 1011,  // 节点名称不能为空
+            KlineNodeError::NodeIdIsNull { .. } => 1012,  // 节点ID为空
+            KlineNodeError::NodeDataIsNull { .. } => 1013,  // 节点数据为空
         };
 
         format!("{}_{:04}", prefix, code)
@@ -113,6 +141,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 | KlineNodeError::InitKlineDataFailed { .. }
                 | KlineNodeError::AppendKlineDataFailed { .. }
                 | KlineNodeError::InsufficientKlineData { .. }
+                | KlineNodeError::NodeNameIsNull { .. }
+                | KlineNodeError::NodeIdIsNull { .. }
+                | KlineNodeError::NodeDataIsNull { .. }
         )
     }
 
@@ -142,6 +173,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                 chain
             },
             KlineNodeError::InsufficientKlineData { .. } => vec![self.error_code()],
+            KlineNodeError::NodeNameIsNull { .. } => vec![self.error_code()],
+            KlineNodeError::NodeIdIsNull { .. } => vec![self.error_code()],
+            KlineNodeError::NodeDataIsNull { .. } => vec![self.error_code()],
         }
     }
 
@@ -195,6 +229,15 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
                     format!(
                         "回测时间范围从{start_time}到{end_time}，但第一根K线的时间为{first_kline_datetime}。 前往Metatrader5终端的工具-> 选项 -> 图表，然后将最大图表数据量设置为Unlimited，然后重启Metatrader5。"
                     )
+                }
+                KlineNodeError::NodeNameIsNull { node_id, .. } => {
+                    format!("K线节点 [{node_id}] 名称为空")
+                }
+                KlineNodeError::NodeIdIsNull { .. } => {
+                    format!("K线节点 ID为空")
+                }
+                KlineNodeError::NodeDataIsNull { node_id, .. } => {
+                    format!("K线节点 [{node_id}] 数据为空")
                 }
             },
         }

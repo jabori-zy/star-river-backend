@@ -1,6 +1,7 @@
 pub mod kline_node_context;
 pub mod kline_node_state_machine;
 pub mod kline_node_type;
+mod tests;
 
 use super::node_message::common_log_message::*;
 use super::node_message::kline_node_log_message::*;
@@ -42,19 +43,19 @@ impl KlineNode {
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, KlineNodeError> {
-        let (strategy_id, node_id, node_name, backtest_config) = Self::check_kline_node_config(node_config)?;
+        let (strategy_id, node_id, node_name, node_config) = Self::check_kline_node_config(node_config)?;
 
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::KlineNode,
-            Box::new(KlineNodeStateMachine::new(node_id, node_name, backtest_config.data_source.clone())),
+            Box::new(KlineNodeStateMachine::new(node_id, node_name, node_config.data_source.clone())),
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,
         );
-        let context = KlineNodeContext::new(base_context, backtest_config);
+        let context = KlineNodeContext::new(base_context, node_config);
         Ok(Self {
             context: Arc::new(RwLock::new(Box::new(context))),
         })
@@ -63,40 +64,45 @@ impl KlineNode {
     fn check_kline_node_config(
         node_config: serde_json::Value,
     ) -> Result<(StrategyId, NodeId, NodeName, KlineNodeBacktestConfig), KlineNodeError> {
+
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
             .ok_or_else(|| {
-                ConfigFieldValueNullSnafu {
-                    field_name: "id".to_string(),
-                }
-                .build()
+                NodeIdIsNullSnafu {}.build()
             })?
             .to_owned();
+
         let node_data = node_config
             .get("data")
             .ok_or_else(|| {
-                ConfigFieldValueNullSnafu {
-                    field_name: "data".to_string(),
+                NodeDataIsNullSnafu {
+                    node_id: node_id.clone(),
                 }
                 .build()
             })?
             .to_owned();
+
         let node_name = node_data
             .get("nodeName")
             .and_then(|name| name.as_str())
             .ok_or_else(|| {
-                ConfigFieldValueNullSnafu {
-                    field_name: "nodeName".to_string(),
+                NodeNameIsNullSnafu {
+                    node_id: node_id.clone(),
                 }
                 .build()
             })?
             .to_owned();
+
+        
+        
+        
         let strategy_id = node_data
             .get("strategyId")
             .and_then(|id| id.as_i64())
             .ok_or_else(|| {
                 ConfigFieldValueNullSnafu {
+                    node_name: node_name.clone(),
                     field_name: "strategyId".to_string(),
                 }
                 .build()
@@ -106,16 +112,19 @@ impl KlineNode {
             .get("backtestConfig")
             .ok_or_else(|| {
                 ConfigFieldValueNullSnafu {
+                    node_name: node_name.clone(),
                     field_name: "backtestConfig".to_string(),
                 }
                 .build()
             })?
             .to_owned();
 
-        let backtest_strategy_config =
-            serde_json::from_value::<KlineNodeBacktestConfig>(kline_node_backtest_config).context(ConfigDeserializationFailedSnafu {})?;
+        let node_config = serde_json::from_value::<KlineNodeBacktestConfig>(kline_node_backtest_config)
+        .context(ConfigDeserializationFailedSnafu {
+                node_name: node_name.clone(),
+            })?;
 
-        Ok((strategy_id, node_id, node_name, backtest_strategy_config))
+        Ok((strategy_id, node_id, node_name, node_config))
     }
 }
 
@@ -158,7 +167,7 @@ impl BacktestNodeTrait for KlineNode {
             let context = self.get_context();
             let context_guard = context.read().await;
             let kline_node_context = context_guard.as_any().downcast_ref::<KlineNodeContext>().unwrap();
-            let exchange_mode_config = kline_node_context.backtest_config.exchange_mode_config.as_ref().unwrap();
+            let exchange_mode_config = kline_node_context.node_config.exchange_mode_config.as_ref().unwrap();
             exchange_mode_config.selected_symbols.clone()
         };
 
@@ -259,7 +268,7 @@ impl BacktestNodeTrait for KlineNode {
                         if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
                             // 1. send register exchange log
                             let exchange = kline_node_context
-                                .backtest_config
+                                .node_config
                                 .exchange_mode_config
                                 .as_ref()
                                 .unwrap()

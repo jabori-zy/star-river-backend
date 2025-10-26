@@ -16,7 +16,7 @@ impl KlineNodeContext {
         tracing::info!("[{}] start to load backtest kline data from exchange", self.get_node_name());
 
         let account_id = self
-            .backtest_config
+            .node_config
             .exchange_mode_config
             .as_ref()
             .unwrap()
@@ -24,9 +24,9 @@ impl KlineNodeContext {
             .account_id
             .clone();
 
-        let exchange = self.backtest_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
+        let exchange = self.node_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
 
-        let time_range = self.backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+        let time_range = self.node_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
 
         match exchange {
             Exchange::Metatrader5(_) =>  self.get_mt5_kline_history(account_id.clone(), &time_range).await?,
@@ -113,9 +113,9 @@ impl KlineNodeContext {
 
     // 注册交易所
     #[instrument(skip(self))]
-    pub async fn register_exchange(&mut self) -> Result<EngineResponse<RegisterExchangeRespPayload>, String> {
+    pub async fn register_exchange(& self) -> Result<EngineResponse<RegisterExchangeRespPayload>, String> {
         let account_id = self
-            .backtest_config
+            .node_config
             .exchange_mode_config
             .as_ref()
             .unwrap()
@@ -123,7 +123,7 @@ impl KlineNodeContext {
             .account_id
             .clone();
         let exchange = self
-            .backtest_config
+            .node_config
             .exchange_mode_config
             .as_ref()
             .unwrap()

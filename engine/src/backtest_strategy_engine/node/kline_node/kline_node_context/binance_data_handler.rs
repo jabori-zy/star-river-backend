@@ -12,7 +12,6 @@ use tokio::sync::{Semaphore, oneshot};
 impl KlineNodeContext {
     pub(super) async fn get_binance_kline_history(&self, account_id: AccountId, time_range: &TimeRange) -> Result<(), KlineNodeError> {
         let bar_number = bar_number(&time_range, &self.min_interval_symbols[0].get_interval());
-        tracing::debug!("[{}] bar number: {}", self.get_node_name(), bar_number);
 
         // Binance API limit is 1000 bars per request, use concurrent loading if > 1000
         if bar_number >= 1000 {
@@ -24,7 +23,7 @@ impl KlineNodeContext {
 
             for (symbol_key, _) in self.selected_symbol_keys.iter() {
                 if !self.min_interval_symbols.contains(&symbol_key) {
-                    tracing::warn!(
+                    tracing::debug!(
                         "[{}] symbol: {}-{}, is not min interval, skip",
                         self.get_node_name(),
                         symbol_key.get_symbol(),
