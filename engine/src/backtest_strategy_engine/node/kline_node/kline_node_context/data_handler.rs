@@ -6,7 +6,7 @@ use tokio::sync::oneshot;
 
 impl KlineNodeContext {
     // 从策略中获取k线数据
-    pub async fn get_kline(
+    pub async fn get_kline_from_strategy(
         &self,
         kline_key: &KlineKey,
         play_index: PlayIndex, // 播放索引

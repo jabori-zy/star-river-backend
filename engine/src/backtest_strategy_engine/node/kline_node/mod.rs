@@ -313,17 +313,17 @@ impl BacktestNodeTrait for KlineNode {
                         let context = self.get_context();
                         let mut context_guard = context.write().await;
                         if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            let load_result = kline_node_context.load_kline_history_from_exchange().await;
-                            match load_result {
-                                Ok(()) => {
-                                    tracing::info!("[{node_name}] load kline history from exchange success");
-                                    let log_message = LoadKlineDataSuccessMsg::new(node_name.clone());
-                                    NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &strategy_output_handle).await;
-                                }
-                                Err(e) => {
-                                    NodeUtils::send_error_status_event(strategy_id, node_id.clone(), node_name.clone(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &e, &strategy_output_handle).await;
-                                    return Err(e.into());
-                                }
+                        let load_result = kline_node_context.load_kline_history_from_exchange().await;
+                        match load_result {
+                            Ok(()) => {
+                                tracing::info!("[{node_name}] load kline history from exchange success");
+                                let log_message = LoadKlineDataSuccessMsg::new(node_name.clone());
+                                NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &strategy_output_handle).await;
+                            }
+                            Err(e) => {
+                                NodeUtils::send_error_status_event(strategy_id, node_id.clone(), node_name.clone(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &e, &strategy_output_handle).await;
+                                return Err(e.into());
+                            }
                             }
                             tracing::info!("[{node_name}] load kline history from exchange success");  
                         }

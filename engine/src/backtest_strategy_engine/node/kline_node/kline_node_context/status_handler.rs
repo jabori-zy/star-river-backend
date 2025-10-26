@@ -12,7 +12,7 @@ use snafu::IntoError;
 impl KlineNodeContext {
     // 从交易所获取k线历史(仅获取最小interval的k线)
     #[instrument(skip(self))]
-    pub async fn load_kline_history_from_exchange(&mut self) -> Result<(), KlineNodeError> {
+    pub async fn load_kline_history_from_exchange(&self) -> Result<(), KlineNodeError> {
         tracing::info!("[{}] start to load backtest kline data from exchange", self.get_node_name());
 
         let account_id = self

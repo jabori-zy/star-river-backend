@@ -1,0 +1,12 @@
+[package]
+name = "test_async_closure"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

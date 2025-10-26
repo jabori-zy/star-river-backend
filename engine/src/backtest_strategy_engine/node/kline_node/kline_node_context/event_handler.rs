@@ -1,5 +1,5 @@
 use super::{
-    KlineNodeContext, CycleTracker, NodePerformanceReport, NodeCycleReport,
+    KlineNodeContext, CycleTracker
 };
 use super::utils::is_cross_interval;
 use crate::backtest_strategy_engine::node::node_context::BacktestNodeContextTrait;
@@ -144,8 +144,8 @@ impl KlineNodeContext {
                 .build()
             })?;
 
-        // 从缓存引擎获取k线数据
-        let min_interval_kline_data = self.get_kline(min_interval_symbol, current_play_index).await.map_err(|e| {
+        // 从策略中获取k线数据
+        let min_interval_kline_data = self.get_kline_from_strategy(min_interval_symbol, current_play_index).await.map_err(|e| {
             tracing::error!(
                 node_id = %self.base_context.node_id,
                 node_name = %self.base_context.node_name,
@@ -286,7 +286,7 @@ impl KlineNodeContext {
         current_play_index: PlayIndex,
         pre_kline_timestamp: &mut i64,
     ) -> Result<(), KlineNodeError> {
-        let kline = self.get_kline(symbol_key, current_play_index).await?;
+        let kline = self.get_kline_from_strategy(symbol_key, current_play_index).await?;
         let kline_timestamp = kline.last().unwrap().get_datetime().timestamp_millis();
 
         // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
