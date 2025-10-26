@@ -7,7 +7,7 @@ use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
 use star_river_core::node::variable_node::variable_config::UpdateVariableConfig;
 use star_river_core::strategy::custom_variable::{CustomVariable, VariableValue};
-use star_river_core::strategy::node_benchmark::CompletedCycleTracker;
+use star_river_core::strategy::node_benchmark::CompletedCycle;
 use star_river_core::strategy::sys_varibale::SysVariable;
 use star_river_core::system::DateTimeUtc;
 
@@ -384,11 +384,11 @@ pub struct UpdateSysVariableRespPayload;
 #[derive(Debug)]
 pub struct AddNodeCycleTrackerCmdPayload {
     pub node_id: NodeId,
-    pub cycle_tracker: CompletedCycleTracker,
+    pub cycle_tracker: CompletedCycle,
 }
 
 impl AddNodeCycleTrackerCmdPayload {
-    pub fn new(node_id: NodeId, cycle_tracker: CompletedCycleTracker) -> Self {
+    pub fn new(node_id: NodeId, cycle_tracker: CompletedCycle) -> Self {
         Self { node_id, cycle_tracker }
     }
 }

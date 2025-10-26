@@ -3,7 +3,12 @@ use super::{
     EventCenterSingleton, FuturesOrderNodeEvent, GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyKeysResponse,
     IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,
 };
-use event_center::{communication::backtest_strategy::*, event::node_event::backtest_node_event::VariableNodeEvent};
+use event_center::{
+    communication::backtest_strategy::*, 
+    event::{
+        node_event::backtest_node_event::VariableNodeEvent, 
+        strategy_event::backtest_strategy_event::StrategyPerformanceUpdateEvent
+    }};
 use std::sync::Arc;
 
 impl BacktestStrategyContext {
@@ -207,10 +212,20 @@ impl BacktestStrategyContext {
 
                         // 如果有完成的 tracker，添加到 benchmark
                         if let Some(tracker) = completed_tracker {
-                            let mut strategy_benchmark_guard = self.benchmark.write().await;
-                            strategy_benchmark_guard.add_cycle_tracker(tracker);
-                            tracing::debug!("{}", strategy_benchmark_guard.get_last_cycle_report().unwrap());
-                        } // benchmark 锁在这里释放
+                            {
+                                let mut strategy_benchmark_guard = self.benchmark.write().await;
+                                strategy_benchmark_guard.add_cycle_tracker(tracker);
+                            }
+                            let benchmark_clone = self.benchmark.clone();
+
+                            let strategy_id = self.strategy_id;
+                            tokio::task::spawn(async move {
+                                let strategy_benchmark_guard = benchmark_clone.read().await;
+                                let report = strategy_benchmark_guard.report();
+                                let event: BacktestStrategyEvent = StrategyPerformanceUpdateEvent::new(strategy_id, report.clone()).into();
+                                let _ = EventCenterSingleton::publish(event.into()).await;
+                            });
+                        }
                     }
                 }
                 CommonEvent::RunningLog(running_log_event) => {

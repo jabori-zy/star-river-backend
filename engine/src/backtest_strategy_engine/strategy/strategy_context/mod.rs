@@ -41,7 +41,7 @@ use star_river_core::market::{Kline, QuantData};
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::custom_variable::CustomVariable;
-use star_river_core::strategy::node_benchmark::CompletedCycleTracker;
+use star_river_core::strategy::node_benchmark::CompletedCycle;
 use star_river_core::strategy::sys_varibale::{SysVariable, SysVariableType};
 use star_river_core::strategy::{BacktestStrategyConfig, StrategyConfig};
 use star_river_core::strategy_stats::{StatsSnapshot,
@@ -261,9 +261,9 @@ impl BacktestStrategyContext {
     }
 
 
-    pub async fn add_node_cycle_tracker(&mut self, node_id: NodeId, cycle_tracker: CompletedCycleTracker) -> Result<(), BacktestStrategyError> {
+    pub async fn add_node_cycle_tracker(&mut self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), BacktestStrategyError> {
         let mut benchmark_guard = self.benchmark.write().await;
-        benchmark_guard.add_node_cycle_tracker(node_id, cycle_tracker)?;
+        benchmark_guard.add_complete_node_cycle(node_id, cycle_tracker)?;
         Ok(())
     }
 }

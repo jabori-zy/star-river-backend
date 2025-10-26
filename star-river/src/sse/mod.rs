@@ -2,11 +2,13 @@ pub mod account_sse;
 pub mod backtest_strategy_event_sse;
 pub mod backtest_strategy_running_log_sse;
 pub mod backtest_strategy_state_log_sse;
+pub mod backtest_strategy_performance_sse;
 
 pub use account_sse::account_sse_handler;
 pub use backtest_strategy_event_sse::backtest_strategy_event_sse_handler;
 pub use backtest_strategy_running_log_sse::backtest_strategy_running_log_sse_handler;
 pub use backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler;
+pub use backtest_strategy_performance_sse::backtest_strategy_performance_sse_handler;
 
 use axum::response::sse::{Event, Sse};
 use futures::stream::Stream;

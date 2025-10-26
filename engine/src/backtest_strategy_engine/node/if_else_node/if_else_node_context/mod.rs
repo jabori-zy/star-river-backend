@@ -92,7 +92,7 @@ impl IfElseNodeContext {
 
     // 开始评估各个分支
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
-        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
 
 
         let mut case_matched = false; // 是否匹配到case

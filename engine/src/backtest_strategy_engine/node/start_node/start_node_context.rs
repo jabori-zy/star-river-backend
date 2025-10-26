@@ -81,7 +81,7 @@ impl BacktestNodeContextTrait for StartNodeContext {
 impl StartNodeContext {
     // 发送k线跳动信号
     pub async fn send_play_signal(&self) {
-        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
         cycle_tracker.start_phase("send_play_signal");
         let payload = KlinePlayPayload::new(self.get_play_index());
         let kline_play_event: StartNodeEvent = KlinePlayEvent::new(

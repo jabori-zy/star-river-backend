@@ -91,7 +91,7 @@ impl BacktestStrategyContext {
                 //     new_play_index
                 // );
                 // 单次逻辑开始
-                let mut strategy_cycle_tracker = StrategyCycleTracker::new(new_play_index);
+                let mut strategy_cycle_tracker = StrategyCycleTracker::new(new_play_index as u32);
                 strategy_cycle_tracker.start_phase("increment play index");
                  
                 context.play_index_watch_tx.send(new_play_index).unwrap();
@@ -292,6 +292,12 @@ impl BacktestStrategyContext {
         // 重置所有系统变量
         self.reset_all_sys_variables().await;
 
+        // 重置策略性能报告
+        {
+            let mut benchmark_guard = self.benchmark.write().await;
+            benchmark_guard.reset();
+        }
+
         self.cancel_play_token.cancel();
         // 重置信号计数
         *self.play_index.write().await = -1; // 重置为-1，表示未播放
@@ -367,7 +373,7 @@ impl BacktestStrategyContext {
             );
             // 再执行单根k线播放
             // 单次逻辑开始
-            let mut strategy_cycle_tracker = StrategyCycleTracker::new(play_index);
+            let mut strategy_cycle_tracker = StrategyCycleTracker::new(play_index as u32);
             strategy_cycle_tracker.start_phase("increment play index");
             
 

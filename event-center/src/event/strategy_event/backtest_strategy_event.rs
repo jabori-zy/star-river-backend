@@ -12,13 +12,15 @@ use super::super::strategy_event::{LogLevel, NodeStateLogEvent, StrategyRunningL
 use crate::event::node_event::backtest_node_event::variable_node_event::{CustomVariableUpdateEvent, SysVariableUpdateEvent};
 use crate::{StrategyEvent, event::Event};
 use chrono::Utc;
+use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::PlayIndex;
+use star_river_core::custom_type::{PlayIndex, StrategyId};
+use star_river_core::strategy::strategy_benchmark::StrategyPerformanceReport;
 use star_river_core::strategy_stats::event::StrategyStatsUpdatedEvent;
 use star_river_core::system::DateTimeUtc;
 use strum::Display;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Display, From)]
 #[serde(tag = "event")]
 pub enum BacktestStrategyEvent {
     #[strum(serialize = "play-finished-event")]
@@ -109,6 +111,10 @@ pub enum BacktestStrategyEvent {
     #[strum(serialize = "strategy-running-log-update-event")]
     #[serde(rename = "strategy-running-log-update-event")]
     RunningLog(StrategyRunningLogEvent), // 运行日志事件
+
+    #[strum(serialize = "strategy-performance-update-event")]
+    #[serde(rename = "strategy-performance-update-event")]
+    StrategyPerformanceUpdate(StrategyPerformanceUpdateEvent), // 策略性能更新事件
 }
 
 impl From<BacktestStrategyEvent> for Event {
@@ -118,34 +124,26 @@ impl From<BacktestStrategyEvent> for Event {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyStateLogEvent {
-    #[serde(rename = "strategyId")]
     pub strategy_id: i32,
 
-    #[serde(rename = "strategyName")]
     pub strategy_name: String,
 
-    #[serde(rename = "strategyState")]
     pub strategy_state: Option<String>,
 
-    #[serde(rename = "strategyStateAction")]
     pub strategy_state_action: Option<String>,
 
-    #[serde(rename = "logLevel")]
     pub log_level: LogLevel,
 
-    #[serde(rename = "errorCode")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
-    #[serde(rename = "errorCodeChain")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code_chain: Option<Vec<String>>,
 
-    #[serde(rename = "message")]
     pub message: String,
 
-    #[serde(rename = "datetime")]
     pub datetime: DateTimeUtc,
 }
 
@@ -175,17 +173,11 @@ impl StrategyStateLogEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlayFinishedEvent {
-    #[serde(rename = "strategyId")]
     pub strategy_id: i32,
-
-    #[serde(rename = "strategyName")]
     pub strategy_name: String,
-
-    #[serde(rename = "playIndex")]
     pub play_index: PlayIndex,
-
-    #[serde(rename = "datetime")]
     pub datetime: DateTimeUtc,
 }
 
@@ -203,5 +195,24 @@ impl PlayFinishedEvent {
 impl From<PlayFinishedEvent> for Event {
     fn from(event: PlayFinishedEvent) -> Self {
         BacktestStrategyEvent::PlayFinished(event).into()
+    }
+}
+
+
+
+// 策略性能更新时间
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StrategyPerformanceUpdateEvent {
+    pub strategy_id: StrategyId,
+    pub report: StrategyPerformanceReport,
+}
+
+impl StrategyPerformanceUpdateEvent {
+    pub fn new(strategy_id: StrategyId, report: StrategyPerformanceReport) -> Self {
+        Self {
+            strategy_id,
+            report,
+        }
     }
 }

@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use strum::Display;
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Display)]
 #[serde(tag = "eventType")]
 pub enum StrategyEvent {
     #[strum(serialize = "live-strategy-data-update")]
@@ -213,12 +213,6 @@ pub struct StrategyRunningLogEvent {
 impl From<StrategyRunningLogEvent> for BacktestNodeEvent {
     fn from(event: StrategyRunningLogEvent) -> Self {
         BacktestNodeEvent::Common(CommonEvent::RunningLog(event))
-    }
-}
-
-impl From<StrategyRunningLogEvent> for BacktestStrategyEvent {
-    fn from(event: StrategyRunningLogEvent) -> Self {
-        BacktestStrategyEvent::RunningLog(event)
     }
 }
 

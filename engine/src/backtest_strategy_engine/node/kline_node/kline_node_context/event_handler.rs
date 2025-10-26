@@ -25,7 +25,7 @@ use tokio::sync::oneshot;
 
 impl KlineNodeContext {
     pub(super) async fn send_kline(&mut self, play_event: KlinePlayEvent) {
-        let mut cycle_tracker = CycleTracker::new(play_event.play_index);
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
         // 提前获取配置信息，统一错误处理
         let exchange_mode_config = self.backtest_config.exchange_mode_config.as_ref().unwrap();
 

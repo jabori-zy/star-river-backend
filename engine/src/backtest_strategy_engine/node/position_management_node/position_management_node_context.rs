@@ -158,7 +158,7 @@ impl PositionNodeContext {
         &mut self,
         virtual_trading_system_event: VirtualTradingSystemEvent,
     ) -> Result<(), String> {
-        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
         let phase_name = format!("handle virtual trading system event");
         cycle_tracker.start_phase(&phase_name);
         let from_node_id = self.get_node_id().clone();

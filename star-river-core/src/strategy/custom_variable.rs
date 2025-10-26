@@ -7,25 +7,18 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum VariableValueType {
-    #[serde(rename = "number")]
     #[strum(serialize = "number")]
     Number,
-    #[serde(rename = "string")]
     #[strum(serialize = "string")]
     String,
-    #[serde(rename = "boolean")]
     #[strum(serialize = "boolean")]
     Boolean,
-    #[serde(rename = "time")]
     #[strum(serialize = "time")]
     Time,
-    #[serde(rename = "enum")]
     #[strum(serialize = "enum")]
     Enum,
-    #[serde(rename = "percentage")]
     #[strum(serialize = "percentage")]
     Percentage,
-    #[serde(rename = "null")]
     #[strum(serialize = "null")]
     Null,
 }

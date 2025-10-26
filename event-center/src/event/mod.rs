@@ -24,7 +24,7 @@ use tokio::sync::broadcast;
 pub type EventSender = broadcast::Sender<Event>;
 pub type EventReceiver = broadcast::Receiver<Event>;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Display)]
 #[serde(tag = "channel")]
 pub enum Event {
     #[strum(serialize = "exchange")]

@@ -13,7 +13,7 @@ use event_center::event::node_event::backtest_node_event::common_event::{
 
 use event_center::event::node_event::BacktestNodeEvent;
 use star_river_core::custom_type::{NodeId, PlayIndex};
-use star_river_core::strategy::node_benchmark::CompletedCycleTracker;
+use star_river_core::strategy::node_benchmark::CompletedCycle;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -382,7 +382,7 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         output_handle.send(trigger_event.into()).unwrap();
     }
 
-    async fn add_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycleTracker) {
+    async fn add_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) {
         let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
         let payload= AddNodeCycleTrackerCmdPayload::new(node_id.clone(), cycle_tracker);
         let add_node_cycle_tracker_command = AddNodeCycleTrackerCommand::new(node_id, resp_tx, Some(payload)).into();

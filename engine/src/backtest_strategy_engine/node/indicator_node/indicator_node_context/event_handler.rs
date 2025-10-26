@@ -56,7 +56,7 @@ impl IndicatorNodeContext {
 
     // 处理k线更新事件
     pub(super) async fn handle_kline_update(&mut self, kline_update_event: KlineUpdateEvent) {
-        let mut cycle_tracker = CycleTracker::new(self.get_play_index());
+        let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
         
         // 提取公共数据
         let node_id = self.get_node_id().clone();

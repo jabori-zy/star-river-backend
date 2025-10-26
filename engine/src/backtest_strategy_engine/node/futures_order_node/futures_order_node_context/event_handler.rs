@@ -52,7 +52,7 @@ impl FuturesOrderNodeContext {
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(trigger_evt) => {
-                    let mut cycle_tracker = CycleTracker::new(trigger_evt.play_index);
+                    let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
                     let phase_name = format!("handle trigger event for specific order");
                     cycle_tracker.start_phase(&phase_name);
                     if trigger_evt.play_index == self.get_play_index() {
@@ -67,7 +67,7 @@ impl FuturesOrderNodeContext {
             },
             BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(condition_match_evt)) => {
                 if condition_match_evt.play_index == self.get_play_index() {
-                    let mut cycle_tracker = CycleTracker::new(condition_match_evt.play_index);
+                    let mut cycle_tracker = CycleTracker::new(self.get_play_index() as u32);
                     // 根据input_handle_id获取订单配置
                     //"if_else_node_1761319649542_p2q1x2e_output_1"
                     // 取最后一个_后面的数字
