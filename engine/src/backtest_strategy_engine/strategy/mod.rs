@@ -14,7 +14,6 @@ use star_river_core::error::engine_error::strategy_engine_error::strategy_error:
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use star_river_core::key::key::KlineKey;
 use star_river_core::key::{Key, KeyTrait};
-use star_river_core::market::KlineInterval;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
 use star_river_core::strategy::StrategyConfig;

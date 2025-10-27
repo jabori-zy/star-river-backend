@@ -99,7 +99,7 @@ impl MockStartNode {
             }
 
             // Add small delay between events to avoid overwhelming receivers
-            tokio::time::sleep(Duration::from_millis(2000)).await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
 
         tracing::info!(

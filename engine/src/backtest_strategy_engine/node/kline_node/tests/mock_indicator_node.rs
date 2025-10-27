@@ -80,12 +80,6 @@ impl MockIndicatorNode {
                         Ok(event) => {
                             match event {
                                 BacktestNodeEvent::KlineNode(kline_event) => {
-                                    tracing::info!(
-                                        "MockIndicatorNode [{}] handle #{} received KlineNode event: {:?}",
-                                        node_id,
-                                        handle_index,
-                                        kline_event
-                                    );
 
                                     // Cache KlineUpdate events for verification
                                     if let KlineNodeEvent::KlineUpdate(kline_update_event) = &kline_event {

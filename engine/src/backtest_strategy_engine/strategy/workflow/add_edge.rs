@@ -5,14 +5,8 @@ use tokio::sync::RwLock;
 
 impl BacktestStrategyFunction {
     pub async fn add_edge(
-        // graph: &mut Graph<Box<dyn BacktestNodeTrait>, (), Directed>,
-        // node_indices: &mut HashMap<String, NodeIndex>,
         context: Arc<RwLock<BacktestStrategyContext>>,
         edge_config: serde_json::Value,
-        // from_node_id: &str,
-        // from_handle_id: &str,
-        // to_node_id: &str,
-        // to_handle_id: &str
     ) -> Result<(), BacktestStrategyError> {
         let mut context_guard = context.write().await;
 
@@ -80,21 +74,14 @@ impl BacktestStrategyFunction {
             target_node_id,
             source_handle_id
         );
-        // let from_node_handles = context_guard.graph.node_weight(source).unwrap().get_all_output_handles().await;
-        // tracing::debug!(
-        //     "from_node_handles: {:?}",
-        //     from_node_handles
-        //         .iter()
-        //         .map(|handle| handle.output_handle_id())
-        //         .collect::<Vec<String>>()
-        // );
+        
 
         // 先获取源节点的output_handle
         let receiver = context_guard
             .graph
             .node_weight(source)
             .unwrap()
-            .subscribe_to_output_handle(target_handle_id.to_string(), &source_handle_id.to_string())
+            .subscribe_output_handle(target_handle_id.to_string(), &source_handle_id.to_string())
             .await;
 
         if let Some(target_node) = context_guard.graph.node_weight_mut(target) {

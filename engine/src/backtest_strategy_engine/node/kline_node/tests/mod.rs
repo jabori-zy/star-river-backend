@@ -7,11 +7,11 @@ mod test_check_kline_node_config;
 #[cfg(test)]
 mod test_kline_node_integration;
 
-// #[cfg(test)]
-// mod test_kline_node_full_flow_one_symbol;
+#[cfg(test)]
+mod test_kline_node_full_flow_one_symbol;
 
-// #[cfg(test)]
-// mod test_kline_node_full_flow_two_symbols;
+#[cfg(test)]
+mod test_kline_node_full_flow_two_symbols;
 
 #[cfg(test)]
 mod mock_start_node;
@@ -381,8 +381,6 @@ pub(crate) mod test_fixtures {
 
         /// Cleanup test resources
         pub async fn cleanup(mut self) {
-            tracing::debug!("Cleaning up test fixture...");
-
             // Abort background tasks
             if let Some(task) = self.exchange_engine_task {
                 task.abort();

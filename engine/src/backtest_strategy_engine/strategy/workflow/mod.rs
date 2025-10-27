@@ -15,7 +15,6 @@ use super::node_handles::NodeType;
 use super::{FuturesOrderNode, IfElseNode, IndicatorNode, KlineNode, PositionManagementNode, StartNode, VariableNode};
 
 use super::node_handles::NodeInputHandle;
-use event_center::event::node_event::BacktestNodeEvent;
 use futures::StreamExt;
 use futures::stream::select_all;
 use petgraph::{Direction, graph::NodeIndex};
@@ -52,7 +51,7 @@ impl BacktestStrategyFunction {
             let strategy_name = context_guard.get_strategy_name();
             
             for node in all_node {
-                let receiver = node.subscribe_to_output_handle(
+                let receiver = node.subscribe_output_handle(
                     strategy_name.clone(), 
                     &node.get_strategy_output_handle().await.output_handle_id()).await;
                 receivers.push(receiver);

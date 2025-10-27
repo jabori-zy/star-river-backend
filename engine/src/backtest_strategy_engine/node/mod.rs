@@ -297,7 +297,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     }
 
 
-    async fn subscribe_to_output_handle(&self, subscriber_id: String, handle_id: &String) -> broadcast::Receiver<BacktestNodeEvent> {
+    async fn subscribe_output_handle(&self, subscriber_id: String, handle_id: &String) -> broadcast::Receiver<BacktestNodeEvent> {
         let context = self.get_context();
         let mut context_guard = context.write().await;
         context_guard.get_output_handle_mut(handle_id).subscribe(subscriber_id)

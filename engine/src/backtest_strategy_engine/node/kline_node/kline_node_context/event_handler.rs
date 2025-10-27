@@ -110,8 +110,6 @@ impl KlineNodeContext {
         // 发送到交易对特定的输出handle
         let symbol_handle_id = symbol_info.1.clone();
         let symbol_output_handle = self.get_output_handle(&symbol_handle_id);
-        tracing::debug!("symbol_output_handle: {}", symbol_output_handle);
-        tracing::debug!("strategy_output_handle: {}", self.get_strategy_output_handle());
         if symbol_output_handle.is_connected() {
             send_kline_event(symbol_handle_id, symbol_output_handle);
         }

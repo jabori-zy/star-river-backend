@@ -1,5 +1,5 @@
 use super::test_fixtures::{create_integration_fixture, init_test_tracing};
-use crate::backtest_strategy_engine::node::{node_types::NodeOutputHandle, BacktestNodeTrait};
+use crate::backtest_strategy_engine::node::{node_handles::NodeOutputHandle, BacktestNodeTrait};
 use tokio::time::{timeout, Duration};
 
 /// Test full flow: start node sends event -> kline node receives -> fetch data -> send data
@@ -30,24 +30,24 @@ async fn test_full_kline_flow_two_symbols_with_different_interval() {
     tracing::info!("Step 2: Creating KlineNode...");
     let mut kline_node = fixture.create_test_kline_node(kline_node_config.clone()).unwrap();
     kline_node.set_output_handle().await;
-    kline_node.add_node_event_receiver(input_handle).await; // add start node output handle to kline node
+    kline_node.add_input_handle(input_handle).await; // add start node output handle to kline node
     tracing::info!("  ✅ KlineNode created and connected to MockStartNode");
 
     // Step 3: Create MockIndicatorNode to subscribe to all KlineNode's output handles
     tracing::info!("Step 3: Creating MockIndicatorNode to receive kline data...");
     let strategy_output_handle_id = kline_node.get_strategy_output_handle().await.output_handle_id();
-    let kline_node_output_handles = kline_node
+    let mut kline_node_output_handles = kline_node
         .get_all_output_handles()
         .await
         .iter()
-        .filter(|handle| handle.output_handle_id != strategy_output_handle_id)
+        .filter(|handle| handle.output_handle_id() != strategy_output_handle_id)
         .cloned()
         .collect::<Vec<NodeOutputHandle>>();
     tracing::info!("  Found {} output handles from KlineNode", kline_node_output_handles.len());
 
     let mut mock_indicator = fixture.create_mock_indicator_node(
         "test_indicator_1".to_string(),
-        &kline_node_output_handles
+        &mut kline_node_output_handles
     );
     mock_indicator.start_listening();
     tracing::info!(
@@ -59,8 +59,7 @@ async fn test_full_kline_flow_two_symbols_with_different_interval() {
     tracing::info!("Step 4: Creating MockStrategy and subscribing to node events...");
     fixture.create_mock_strategy(Some(kline_node_config));
     let mut strategy_output_handle = kline_node.get_strategy_output_handle().await;
-    // kline_node.add_output_handle_connect_count(&strategy_output_handle.output_handle_id).await;
-    fixture.subscribe_to_node_events(strategy_output_handle.subscribe());
+    fixture.subscribe_to_node_events(strategy_output_handle.subscribe("test_strategy_1".to_string()));
     tracing::info!("  ✅ MockStrategy created and subscribed to KlineNode events");
 
     let init_result = timeout(
@@ -103,6 +102,20 @@ async fn test_full_kline_flow_two_symbols_with_different_interval() {
     assert!(!all_events.is_empty(), "Should have received events from at least one handle");
 
     for (handle_id, events) in &all_events {
+        // if is default handle
+        //test_kline_node_1_default_output
+        if handle_id.contains("default_output") {
+            assert_eq!(
+                events.len(),
+                SEND_COUNT * 2,
+                "Handle '{}' should receive exactly {} events, but got {}",
+                handle_id,
+                SEND_COUNT,
+                events.len()
+            );
+            continue;
+        }
+
         assert_eq!(
             events.len(),
             SEND_COUNT,
