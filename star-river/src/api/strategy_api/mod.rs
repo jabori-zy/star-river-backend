@@ -302,31 +302,31 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
     (StatusCode::OK, Json(NewApiResponse::success(())))
 }
 
-// todo
-// 将strategy_engine 中将策略的启动逻辑拆分为两部分：
-// start_strategy: 负责策略的初始化和启动，确保策略可以正常运行（比如检查配置、建立连接等）
-// 实际的策略运行逻辑应该在一个单独的异步任务中进行
-// 例如，strategy_engine 的实现可能是这样的
-pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
-    let heartbeat = star_river.heartbeat.lock().await;
-    heartbeat
-        .run_async_task_once(format!("启动策略{}", strategy_id), async move {
-            let engine_manager = star_river.engine_manager.lock().await;
-            let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-            let mut engine_guard = engine.lock().await;
-            let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-            strategy_engine.start_strategy(strategy_id).await.unwrap();
-        })
-        .await;
-    (
-        StatusCode::OK,
-        Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: None,
-        }),
-    )
-}
+// // todo
+// // 将strategy_engine 中将策略的启动逻辑拆分为两部分：
+// // start_strategy: 负责策略的初始化和启动，确保策略可以正常运行（比如检查配置、建立连接等）
+// // 实际的策略运行逻辑应该在一个单独的异步任务中进行
+// // 例如，strategy_engine 的实现可能是这样的
+// pub async fn run_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponse<()>>) {
+//     let heartbeat = star_river.heartbeat.lock().await;
+//     heartbeat
+//         .run_async_task_once(format!("启动策略{}", strategy_id), async move {
+//             let engine_manager = star_river.engine_manager.lock().await;
+//             let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+//             let mut engine_guard = engine.lock().await;
+//             let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+//             strategy_engine.start_strategy(strategy_id).await.unwrap();
+//         })
+//         .await;
+//     (
+//         StatusCode::OK,
+//         Json(ApiResponse {
+//             code: 0,
+//             message: "success".to_string(),
+//             data: None,
+//         }),
+//     )
+// }
 
 #[utoipa::path(
     post,
@@ -410,48 +410,48 @@ pub async fn get_strategy_cache_keys(
     }
 }
 
-pub async fn enable_strategy_data_push(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
-    let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    strategy_engine
-        .enable_live_strategy_data_push(strategy_id)
-        .await
-        .expect("开启策略数据推送失败");
+// pub async fn enable_strategy_data_push(
+//     State(star_river): State<StarRiver>,
+//     Path(strategy_id): Path<i32>,
+// ) -> (StatusCode, Json<ApiResponse<()>>) {
+//     let engine_manager = star_river.engine_manager.lock().await;
+//     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+//     let mut engine_guard = engine.lock().await;
+//     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+//     strategy_engine
+//         .enable_live_strategy_data_push(strategy_id)
+//         .await
+//         .expect("开启策略数据推送失败");
 
-    (
-        StatusCode::OK,
-        Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: None,
-        }),
-    )
-}
+//     (
+//         StatusCode::OK,
+//         Json(ApiResponse {
+//             code: 0,
+//             message: "success".to_string(),
+//             data: None,
+//         }),
+//     )
+// }
 
-pub async fn disable_strategy_data_push(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
-    let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    strategy_engine
-        .disable_live_strategy_data_push(strategy_id)
-        .await
-        .expect("关闭策略数据推送失败");
+// pub async fn disable_strategy_data_push(
+//     State(star_river): State<StarRiver>,
+//     Path(strategy_id): Path<i32>,
+// ) -> (StatusCode, Json<ApiResponse<()>>) {
+//     let engine_manager = star_river.engine_manager.lock().await;
+//     let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
+//     let mut engine_guard = engine.lock().await;
+//     let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+//     strategy_engine
+//         .disable_live_strategy_data_push(strategy_id)
+//         .await
+//         .expect("关闭策略数据推送失败");
 
-    (
-        StatusCode::OK,
-        Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: None,
-        }),
-    )
-}
+//     (
+//         StatusCode::OK,
+//         Json(ApiResponse {
+//             code: 0,
+//             message: "success".to_string(),
+//             data: None,
+//         }),
+//     )
+// }

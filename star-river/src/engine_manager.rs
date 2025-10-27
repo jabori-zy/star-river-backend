@@ -43,7 +43,7 @@ impl EngineManager {
         let indicator_engine = IndicatorEngine::new(heartbeat.clone());
 
         // 策略引擎
-        let strategy_engine = BacktestStrategyEngine::new(database.clone(), exchange_engine.clone(), heartbeat.clone());
+        let strategy_engine = BacktestStrategyEngine::new(database.clone(), heartbeat.clone());
 
         // 账户引擎
         let account_engine = AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());

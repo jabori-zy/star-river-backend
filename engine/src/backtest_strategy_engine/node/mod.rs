@@ -216,8 +216,7 @@ pub trait BacktestNodeTrait: Debug + Send + Sync + 'static {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn clone_box(&self) -> Box<dyn BacktestNodeTrait>;
-    // get方法
-    // 获取节点上下文
+
     fn get_context(&self) -> Arc<RwLock<Box<dyn BacktestNodeContextTrait>>>;
 
     async fn get_from_node_id(&self) -> Vec<String> {

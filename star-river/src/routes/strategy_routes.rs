@@ -1,6 +1,6 @@
 use crate::api::strategy_api::{
-    create_strategy, delete_strategy, disable_strategy_data_push, enable_strategy_data_push, get_strategy_by_id, get_strategy_cache_keys,
-    get_strategy_list, init_strategy, run_strategy, stop_strategy, update_strategy,
+    create_strategy, delete_strategy, get_strategy_by_id, get_strategy_cache_keys,
+    get_strategy_list, init_strategy, stop_strategy, update_strategy,
 };
 use axum::{
     Router,
@@ -26,13 +26,10 @@ pub fn create_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/cache-keys", get(get_strategy_cache_keys))
 }
 
-pub fn create_live_strategy_routes() -> Router<StarRiver> {
-    Router::new()
-        .route("/{strategy_id}/run", post(run_strategy))
-        // 策略数据推送控制
-        .route("/{strategy_id}/data-push/enable", post(enable_strategy_data_push))
-        .route("/{strategy_id}/data-push/disable", post(disable_strategy_data_push))
-}
+// pub fn create_live_strategy_routes() -> Router<StarRiver> {
+//     Router::new()
+//         .route("/{strategy_id}/run", post(run_strategy))
+// }
 
 pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
     Router::new()

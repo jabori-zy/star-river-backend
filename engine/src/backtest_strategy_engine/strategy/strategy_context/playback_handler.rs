@@ -338,7 +338,7 @@ impl BacktestStrategyContext {
     }
 
     // 播放单根k线
-    pub async fn play_one_kline(&mut self) -> Result<PlayIndex, BacktestStrategyError> {
+    pub async fn play_one(&mut self) -> Result<PlayIndex, BacktestStrategyError> {
         if *self.play_index.read().await == *self.total_signal_count.read().await - 1 {
             tracing::warn!("[{}] already played finished", self.strategy_name.clone());
             return Err(PlayFinishedSnafu {}.build());

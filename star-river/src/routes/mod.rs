@@ -29,7 +29,7 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
     let mut router = Router::new()
         // 嵌套策略相关路由
         .nest("/api/v1/strategy", strategy_routes::create_strategy_routes())
-        .nest("/api/v1/strategy/live", strategy_routes::create_live_strategy_routes())
+        // .nest("/api/v1/strategy/live", strategy_routes::create_live_strategy_routes())
         .nest("/api/v1/strategy/backtest", strategy_routes::create_backtest_strategy_routes())
         // 嵌套账户相关路由
         .nest("/api/v1/account", account_routes::create_account_routes())

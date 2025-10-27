@@ -1,7 +1,5 @@
 pub mod builder;
 pub mod lifecycle;
-pub mod playback;
-pub mod query;
 pub mod state_handler;
 
 use super::{
