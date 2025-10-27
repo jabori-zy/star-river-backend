@@ -3,7 +3,7 @@ use super::{
 };
 use super::utils::is_cross_interval;
 use crate::backtest_strategy_engine::node::node_context::BacktestNodeContextTrait;
-use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
+use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::{
     GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCommand, UpdateKlineDataCmdPayload, UpdateKlineDataCommand,
@@ -110,19 +110,21 @@ impl KlineNodeContext {
         // 发送到交易对特定的输出handle
         let symbol_handle_id = symbol_info.1.clone();
         let symbol_output_handle = self.get_output_handle(&symbol_handle_id);
-        if symbol_output_handle.connect_count > 0 {
+        tracing::debug!("symbol_output_handle: {}", symbol_output_handle);
+        tracing::debug!("strategy_output_handle: {}", self.get_strategy_output_handle());
+        if symbol_output_handle.is_connected() {
             send_kline_event(symbol_handle_id, symbol_output_handle);
         }
 
         // 发送到默认输出handle
         let default_output_handle = self.get_default_output_handle();
-        if default_output_handle.connect_count > 0 {
-            send_kline_event(default_output_handle.output_handle_id.clone(), default_output_handle);
+        if default_output_handle.is_connected() {
+            send_kline_event(default_output_handle.output_handle_id(), default_output_handle);
         }
 
         // 发送到策略输出handle
         let strategy_output_handle = self.get_strategy_output_handle();
-        send_kline_event(strategy_output_handle.output_handle_id.clone(), strategy_output_handle);
+        send_kline_event(strategy_output_handle.output_handle_id(), strategy_output_handle);
     }
 
     // 处理插值算法的独立方法
@@ -157,7 +159,7 @@ impl KlineNodeContext {
         // 判断当前play_index
         if current_play_index == 0 {
             // 如果play_index为0，则向缓存引擎插入新的k线
-            self.insert_new_kline(
+            self.insert_new_kline_to_strategy(
                 symbol_key,
                 symbol_info,
                 current_play_index,
@@ -171,7 +173,7 @@ impl KlineNodeContext {
 
             if is_cross_interval {
                 // 如果当前是新的周期，则向缓存引擎插入新的k线
-                self.insert_new_kline(
+                self.insert_new_kline_to_strategy(
                     symbol_key,
                     symbol_info,
                     current_play_index,
@@ -191,8 +193,8 @@ impl KlineNodeContext {
         }
     }
 
-    // 插入新K线到缓存引擎
-    async fn insert_new_kline(
+    // 插入新K线到策略
+    async fn insert_new_kline_to_strategy(
         &self,
         symbol_key: &KlineKey,
         symbol_info: &(i32, String),
@@ -278,7 +280,7 @@ impl KlineNodeContext {
         }
     }
 
-    // 处理最小周期K线的独立方法
+    // 处理最小周期K线
     async fn handle_min_interval_kline(
         &self,
         symbol_key: &KlineKey,

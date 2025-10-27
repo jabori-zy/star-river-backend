@@ -7,6 +7,21 @@ mod test_check_kline_node_config;
 #[cfg(test)]
 mod test_kline_node_integration;
 
+// #[cfg(test)]
+// mod test_kline_node_full_flow_one_symbol;
+
+// #[cfg(test)]
+// mod test_kline_node_full_flow_two_symbols;
+
+#[cfg(test)]
+mod mock_start_node;
+
+#[cfg(test)]
+mod mock_indicator_node;
+
+#[cfg(test)]
+mod mock_strategy;
+
 // =============================================================================
 // Test Fixtures and Utilities (shared across all integration tests)
 // =============================================================================
@@ -14,6 +29,7 @@ mod test_kline_node_integration;
 #[cfg(test)]
 pub(crate) mod test_fixtures {
     use crate::backtest_strategy_engine::node::kline_node::KlineNode;
+    use crate::backtest_strategy_engine::node::node_handles::{NodeInputHandle, NodeOutputHandle};
     use crate::exchange_engine::ExchangeEngine;
     use crate::market_engine::MarketEngine;
     use crate::Engine;
@@ -22,6 +38,8 @@ pub(crate) mod test_fixtures {
     use event_center::communication::backtest_strategy::{
         NodeCommandReceiver, StrategyCommandSender, StrategyCommandReceiver,
     };
+    use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+    use tokio::sync::broadcast;
     use event_center::singleton::EventCenterSingleton;
     use heartbeat::Heartbeat;
     use sea_orm::{DatabaseConnection, EntityTrait, Set};
@@ -31,6 +49,11 @@ pub(crate) mod test_fixtures {
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use tokio::time::Duration;
+
+    // Re-export mock nodes from their own modules
+    pub use super::mock_start_node::MockStartNode;
+    pub use super::mock_indicator_node::MockIndicatorNode;
+    pub use super::mock_strategy::MockStrategy;
 
     /// Test fixture containing all required engines and infrastructure
     pub struct KlineNodeTestFixture {
@@ -65,23 +88,12 @@ pub(crate) mod test_fixtures {
         /// Background task handles for cleanup
         pub exchange_engine_task: Option<tokio::task::JoinHandle<()>>,
         pub market_engine_task: Option<tokio::task::JoinHandle<()>>,
-        pub strategy_mock_task: Option<tokio::task::JoinHandle<()>>,
+
+        /// Mock strategy for handling strategy commands
+        pub mock_strategy: Option<MockStrategy>,
     }
 
     impl KlineNodeTestFixture {
-        /// Create a new test fixture with all required infrastructure for integration testing
-        ///
-        /// # Returns
-        ///
-        /// A fully initialized test fixture ready for use in tests
-        ///
-        /// # Note
-        ///
-        /// This fixture:
-        /// - Uses in-memory database for isolated testing
-        /// - Initializes EventCenter singleton (only once per test process)
-        /// - Creates ExchangeEngine and MarketEngine (not started yet)
-        /// - Inserts test data into the database
         pub async fn new() -> Self {
             // 1. Setup in-memory database for testing
             let database_manager = DatabaseManager::new_in_memory()
@@ -138,7 +150,7 @@ pub(crate) mod test_fixtures {
                 play_index_watch_tx,
                 exchange_engine_task: None,
                 market_engine_task: None,
-                strategy_mock_task: None,
+                mock_strategy: None,
             }
         }
 
@@ -146,7 +158,7 @@ pub(crate) mod test_fixtures {
         async fn insert_test_data(database: &DatabaseConnection) {
             // Insert test account with id=2 (binance)
             let test_account = account_config::ActiveModel {
-                id: Set(2),
+                id: Set(1),
                 account_name: Set("Test Binance Account".to_string()),
                 exchange: Set("binance".to_string()),
                 is_available: Set(true),
@@ -173,11 +185,10 @@ pub(crate) mod test_fixtures {
         /// # Returns
         ///
         /// A KlineNode instance configured for testing
-        pub fn create_test_kline_node(&self) -> Result<KlineNode, Box<dyn std::error::Error>> {
-            let config = self.create_valid_node_config();
+        pub fn create_test_kline_node(&self, kline_node_config: serde_json::Value) -> Result<KlineNode, Box<dyn std::error::Error>> {
 
             let node = KlineNode::new(
-                config,
+                kline_node_config,
                 self.strategy_command_sender.clone(),
                 self.node_command_receiver.clone(),
                 self.play_index_watch_rx.clone(),
@@ -187,7 +198,7 @@ pub(crate) mod test_fixtures {
         }
 
         /// Create a valid node configuration for testing
-        fn create_valid_node_config(&self) -> serde_json::Value {
+        pub fn create_kline_node_config_with_one_symbol(&self) -> serde_json::Value {
             json!({
                 "id": "test_kline_node_1",
                 "data": {
@@ -200,7 +211,7 @@ pub(crate) mod test_fixtures {
                                 "accountName": "Test Account",
                                 "availableBalance": 10000.0,
                                 "exchange": "binance",
-                                "id": 2
+                                "id": 1
                             },
                             "selectedSymbols": [
                                 {
@@ -220,11 +231,56 @@ pub(crate) mod test_fixtures {
             })
         }
 
+        // same symbol, different interval
+        pub fn create_two_symbols_with_different_interval_config(&self) -> serde_json::Value {
+            json!({
+                "id": "test_kline_node_1",
+                "data": {
+                    "nodeName": "Test Kline Node",
+                    "strategyId": 1,
+                    "backtestConfig": {
+                        "dataSource": "exchange",
+                        "exchangeModeConfig": {
+                            "selectedAccount": {
+                                "accountName": "Test Account",
+                                "availableBalance": 10000.0,
+                                "exchange": "binance",
+                                "id": 1
+                            },
+                            "selectedSymbols": [
+                                {
+                                    "configId": 1,
+                                    "interval": "1m",
+                                    "outputHandleId": "test_kline_node_1_output_1",
+                                    "symbol": "BTCUSDT"
+                                },
+                                {
+                                    "configId": 2,
+                                    "interval": "5m",
+                                    "outputHandleId": "test_kline_node_1_output_2",
+                                    "symbol": "BTCUSDT"
+                                }
+                            ],
+                            "timeRange": {
+                                "startDate": "2025-01-01 00:00:00 +08:00",
+                                "endDate": "2025-01-02 00:00:00 +08:00"
+                            }
+                        }
+                    }
+                }
+            })
+
+        }
+
         /// Start the exchange engine and market engine in background tasks
+        ///
+        /// Note: This does NOT start the mock strategy. Use `create_mock_strategy()` separately
+        /// if you need to mock strategy behavior. This separation allows tests to have precise
+        /// control over when the mock strategy is created and what configuration it uses.
         ///
         /// # Returns
         ///
-        /// Returns a new fixture with both engines running
+        /// Returns a new fixture with engines running
         pub async fn start_engines(mut self) -> Self {
             // Start exchange engine in background task
             let exchange_engine = self.exchange_engine.clone();
@@ -244,60 +300,87 @@ pub(crate) mod test_fixtures {
             });
             self.market_engine_task = Some(market_task);
 
-            // Start strategy mock task to handle commands from nodes
-            let strategy_command_receiver = self.strategy_command_receiver.clone();
-            let strategy_mock_task = tokio::spawn(async move {
-                tracing::info!("Starting strategy mock task...");
-                loop {
-                    let mut receiver = strategy_command_receiver.lock().await;
-                    if let Some(command) = receiver.recv().await {
-                        use event_center::communication::backtest_strategy::BacktestStrategyCommand;
-                        match command {
-                            BacktestStrategyCommand::InitKlineData(cmd) => {
-                                tracing::debug!("Strategy mock received InitKlineData command");
-                                let response =
-                                    event_center::communication::backtest_strategy::InitKlineDataResponse::success(
-                                        Some(
-                                            event_center::communication::backtest_strategy::strategy_command::InitKlineDataRespPayload,
-                                        ),
-                                    );
-                                let _ = cmd.command_base.responder.send(response);
-                            }
-                            BacktestStrategyCommand::AppendKlineData(cmd) => {
-                                tracing::debug!("Strategy mock received AppendKlineData command");
-                                let response =
-                                    event_center::communication::backtest_strategy::AppendKlineDataResponse::success(
-                                        Some(
-                                            event_center::communication::backtest_strategy::strategy_command::AppendKlineDataRespPayload,
-                                        ),
-                                    );
-                                let _ = cmd.command_base.responder.send(response);
-                            }
-                            _ => {
-                                tracing::warn!(
-                                    "Strategy mock received unhandled command: {:?}",
-                                    command
-                                );
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                tracing::info!("Strategy mock task stopped");
-            });
-            self.strategy_mock_task = Some(strategy_mock_task);
-
             // Give the engines some time to start listening for commands
             tokio::time::sleep(Duration::from_millis(100)).await;
 
-            tracing::info!("ExchangeEngine, MarketEngine, and Strategy mock started in background");
+            tracing::info!("ExchangeEngine and MarketEngine started in background");
 
             self
         }
 
+        /// Create and start a mock strategy
+        ///
+        /// This allows test code to control when the mock strategy is created and started.
+        /// The mock strategy handles commands from nodes like InitKlineData, GetKlineData, etc.
+        ///
+        /// # Parameters
+        ///
+        /// - `kline_node_config`: Optional kline node configuration. If None, uses default single-symbol config
+        ///
+        /// # Returns
+        ///
+        /// Returns a mutable reference to self for method chaining
+        pub fn create_mock_strategy(&mut self, kline_node_config: Option<serde_json::Value>) -> &mut Self {
+            let config = kline_node_config.unwrap_or_else(|| self.create_kline_node_config_with_one_symbol());
+
+            let mut mock_strategy = MockStrategy::new_default(
+                self.strategy_command_receiver.clone(),
+                config,
+            );
+            mock_strategy.start();
+            self.mock_strategy = Some(mock_strategy);
+
+            tracing::info!("MockStrategy created and started");
+            self
+        }
+
+        /// Create a mock start node for testing
+        ///
+        /// # Parameters
+        ///
+        /// - `send_count`: Number of KlinePlay events to send
+        ///
+        /// # Returns
+        ///
+        /// Returns a tuple of (MockStartNode, NodeInputHandle)
+        pub fn create_mock_start_node(&self, send_count: usize) -> (MockStartNode, NodeInputHandle) {
+            MockStartNode::new(send_count)
+        }
+
+        /// Create a mock indicator node that subscribes to a node's output handles
+        ///
+        /// # Parameters
+        ///
+        /// - `node_id`: Identifier for the mock indicator node
+        /// - `output_handles`: Output handles to subscribe to
+        ///
+        /// # Returns
+        ///
+        /// Returns a MockIndicatorNode instance
+        pub fn create_mock_indicator_node(
+            &self,
+            node_id: String,
+            output_handles: &mut [NodeOutputHandle],
+        ) -> MockIndicatorNode {
+            let receivers: Vec<_> = output_handles
+                .iter_mut()
+                .map(|handle| handle.subscribe(node_id.clone()))
+                .collect();
+
+            MockIndicatorNode::new(node_id, receivers)
+        }
+
+        /// Subscribe mock strategy to a node's strategy output handle
+        ///
+        /// This simulates the strategy subscribing to node events (like add_strategy_output_handle does)
+        pub fn subscribe_to_node_events(&mut self, receiver: broadcast::Receiver<BacktestNodeEvent>) {
+            if let Some(ref mut mock_strategy) = self.mock_strategy {
+                mock_strategy.add_node_event_receiver(receiver);
+            }
+        }
+
         /// Cleanup test resources
-        pub async fn cleanup(self) {
+        pub async fn cleanup(mut self) {
             tracing::debug!("Cleaning up test fixture...");
 
             // Abort background tasks
@@ -311,9 +394,10 @@ pub(crate) mod test_fixtures {
                 tracing::debug!("Market engine task aborted");
             }
 
-            if let Some(task) = self.strategy_mock_task {
-                task.abort();
-                tracing::debug!("Strategy mock task aborted");
+            // Stop mock strategy
+            if let Some(mut mock_strategy) = self.mock_strategy.take() {
+                mock_strategy.stop().await;
+                tracing::debug!("Mock strategy stopped");
             }
 
             // DatabaseManager will be dropped automatically
@@ -343,7 +427,19 @@ pub(crate) mod test_fixtures {
             .try_init();
     }
 
-    /// Create a fixture with running engines for full integration tests
+    /// Create a fixture with running engines for integration tests
+    ///
+    /// Note: This only starts the exchange and market engines. To add mock strategy support,
+    /// call `create_mock_strategy()` on the returned fixture.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mut fixture = create_integration_fixture().await;
+    /// fixture.create_mock_strategy(None); // Use default config
+    /// // or
+    /// fixture.create_mock_strategy(Some(custom_config)); // Use custom config
+    /// ```
     pub async fn create_integration_fixture() -> KlineNodeTestFixture {
         KlineNodeTestFixture::new().await.start_engines().await
     }

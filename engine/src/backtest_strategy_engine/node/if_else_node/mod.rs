@@ -10,7 +10,7 @@ use super::node_message::if_else_node_log_message::*;
 use crate::backtest_strategy_engine::node::BacktestNodeTrait;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_state_machine::*;
-use crate::backtest_strategy_engine::node::node_types::NodeType;
+use crate::backtest_strategy_engine::node::node_handles::NodeType;
 use async_trait::async_trait;
 use star_river_core::node::if_else_node::{Case, IfElseNodeBacktestConfig};
 use event_center::communication::backtest_strategy::{

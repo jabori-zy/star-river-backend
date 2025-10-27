@@ -123,9 +123,9 @@ impl BacktestStrategy {
                     if let Err(e) = self.set_leaf_nodes().await {
                         return Err(handle_error(e));
                     }
-                    if let Err(e) = self.set_strategy_output_handles().await {
-                        return Err(handle_error(e));
-                    }
+                    // if let Err(e) = self.set_strategy_output_handles().await {
+                    //     return Err(handle_error(e));
+                    // }
                 }
 
                 BacktestStrategyStateAction::InitNode => {

@@ -40,7 +40,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use star_river_core::error::error_trait::StarRiverErrorTrait;
 use super::node_utils::NodeUtils;
-use super::node_types::NodeOutputHandle;
+use super::node_handles::NodeOutputHandle;
 
 // 指标节点
 #[derive(Debug, Clone)]

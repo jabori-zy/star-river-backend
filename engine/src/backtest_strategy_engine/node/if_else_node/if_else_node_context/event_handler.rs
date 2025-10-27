@@ -52,7 +52,7 @@ impl IfElseNodeContext {
                 continue;
             }
 
-            if handle.connect_count > 0 {
+            if handle.is_connected() {
                 let payload = TriggerPayload::new(self.get_play_index());
                 let trigger_event: CommonEvent =
                     TriggerEvent::new(self.get_node_id().clone(), self.get_node_name().clone(), handle_id.clone(), payload).into();

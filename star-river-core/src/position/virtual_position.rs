@@ -2,7 +2,7 @@ use crate::custom_type::*;
 use crate::market::Exchange;
 use crate::order::virtual_order::VirtualOrder;
 use crate::position::{PositionSide, PositionState};
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

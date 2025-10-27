@@ -5,7 +5,7 @@ mod status_handler;
 
 use super::futures_order_node_types::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use crate::backtest_strategy_engine::node::node_types::NodeType;
+use crate::backtest_strategy_engine::node::node_handles::NodeType;
 use event_center::EventCenterSingleton;
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::GetStrategyKeysCommand;

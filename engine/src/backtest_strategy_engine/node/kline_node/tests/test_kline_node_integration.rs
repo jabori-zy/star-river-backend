@@ -23,10 +23,11 @@ async fn test_register_exchange() {
     tracing::info!("========================================");
 
     let fixture = create_integration_fixture().await;
+    let kline_node_config = fixture.create_kline_node_config_with_one_symbol();
 
     // Step 1: Create a KlineNode with exchange configuration
     tracing::info!("Step 1: Creating KlineNode with exchange configuration...");
-    let node = fixture.create_test_kline_node().unwrap();
+    let node = fixture.create_test_kline_node(kline_node_config).unwrap();
 
     // Step 2: Get the KlineNodeContext to access register_exchange
     tracing::info!("Step 2: Accessing KlineNodeContext...");
@@ -113,7 +114,7 @@ async fn test_register_exchange() {
 
 
 #[tokio::test]
-#[ignore] // Run manually: cargo test test_load_kline_history_from_exchange -- --ignored --nocapture
+#[ignore]
 async fn test_load_kline_history_from_exchange() {
     // Initialize tracing subscriber for logging
     init_test_tracing();
@@ -124,10 +125,11 @@ async fn test_load_kline_history_from_exchange() {
     tracing::info!("========================================");
 
     let fixture = create_integration_fixture().await;
+    let kline_node_config = fixture.create_kline_node_config_with_one_symbol();
 
     // Step 1: Create a KlineNode with exchange configuration
     tracing::info!("Step 1: Creating KlineNode with exchange configuration...");
-    let node = fixture.create_test_kline_node().unwrap();
+    let node = fixture.create_test_kline_node(kline_node_config).unwrap();
 
     // Step 2: Get the KlineNodeContext to access load_kline_history_from_exchange
     tracing::info!("Step 2: Accessing KlineNodeContext...");

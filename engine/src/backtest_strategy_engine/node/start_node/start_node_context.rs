@@ -1,5 +1,5 @@
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
+use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::{Command, Response};
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse, InitCustomVariableCmdPayload, InitCustomVariableValueCommand};
@@ -87,7 +87,7 @@ impl StartNodeContext {
         let kline_play_event: StartNodeEvent = KlinePlayEvent::new(
             self.base_context.node_id.clone(),
             self.base_context.node_name.clone(),
-            self.get_default_output_handle().output_handle_id.clone(),
+            self.get_default_output_handle().output_handle_id(),
             payload,
         )
         .into();

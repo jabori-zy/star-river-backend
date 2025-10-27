@@ -130,7 +130,7 @@ impl VariableNodeContext {
         let node_name = self.get_node_name();
         let play_index = self.get_play_index();
         let strategy_command_sender = self.get_strategy_command_sender().clone();
-        let strategy_output_handle: crate::backtest_strategy_engine::node::node_types::NodeOutputHandle = self.get_strategy_output_handle().clone();
+        let strategy_output_handle: crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle = self.get_strategy_output_handle().clone();
         let is_leaf_node = self.is_leaf_node();
 
         for config in get_var_configs {

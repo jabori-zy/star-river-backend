@@ -11,10 +11,11 @@ mod add_start_node;
 use super::BacktestNodeTrait;
 use super::BacktestStrategyContext;
 use super::context::{IndicatorNodeContext, KlineNodeContext};
-use super::node_types::NodeType;
+use super::node_handles::NodeType;
 use super::{FuturesOrderNode, IfElseNode, IndicatorNode, KlineNode, PositionManagementNode, StartNode, VariableNode};
 
-use super::node_types::NodeInputHandle;
+use super::node_handles::NodeInputHandle;
+use event_center::event::node_event::BacktestNodeEvent;
 use futures::StreamExt;
 use futures::stream::select_all;
 use petgraph::{Direction, graph::NodeIndex};
@@ -26,31 +27,40 @@ pub struct BacktestStrategyFunction;
 
 impl BacktestStrategyFunction {
     // 将所有节点的strategy_output_handle添加到策略中
-    pub async fn add_strategy_output_handle(context: Arc<RwLock<BacktestStrategyContext>>) {
-        let mut context_guard = context.write().await;
-        let mut strategy_output_handles = Vec::new();
-        // 先将所有的连接数+1
-        for node in context_guard.graph.node_weights_mut() {
-            let output_handle = node.get_strategy_output_handle().await;
-            let output_handle_id = &output_handle.output_handle_id;
-            // 增加节点的出口连接数
-            node.add_output_handle_connect_count(output_handle_id).await;
-        }
-        // 再将所有节点的策略输出句柄添加到策略中
-        for node in context_guard.graph.node_weights_mut() {
-            let output_handle = node.get_strategy_output_handle().await;
-            strategy_output_handles.push(output_handle);
-        }
-        context_guard.set_all_node_output_handles(strategy_output_handles);
-    }
+    // pub async fn add_strategy_output_handle(context: Arc<RwLock<BacktestStrategyContext>>) {
+    //     let mut context_guard = context.write().await;
+    //     let mut strategy_output_handles = Vec::new();
+    //     // 先将所有的连接数+1
+    //     // for node in context_guard.graph.node_weights_mut() {
+    //     //     let output_handle = node.get_strategy_output_handle().await.subscribe();
+    //     //     let output_handle_id = &output_handle.output_handle_id;
+    //     // }
+    //     // 再将所有节点的策略输出句柄添加到策略中
+    //     for node in context_guard.graph.node_weights() {
+    //         let output_handle = node.get_strategy_output_handle().await;
+    //         strategy_output_handles.push(output_handle);
+    //     }
+    //     context_guard.set_all_node_output_handles(strategy_output_handles);
+    // }
 
     pub async fn listen_node_events(context: Arc<RwLock<BacktestStrategyContext>>) {
+
         let (receivers, cancel_token, strategy_name) = {
-            let context_guard = context.read().await;
-            let node_handles = context_guard.get_all_node_output_handles();
-            let cancel_token = context_guard.get_cancel_task_token();
+            let context_guard = context.write().await;
+            let all_node = context_guard.topological_sort();
+            let mut receivers = Vec::new();
             let strategy_name = context_guard.get_strategy_name();
-            (node_handles, cancel_token, strategy_name)
+            
+            for node in all_node {
+                let receiver = node.subscribe_to_output_handle(
+                    strategy_name.clone(), 
+                    &node.get_strategy_output_handle().await.output_handle_id()).await;
+                receivers.push(receiver);
+
+            }
+
+            let cancel_token = context_guard.get_cancel_task_token();
+            (receivers, cancel_token, strategy_name)
         };
 
         if receivers.is_empty() {
@@ -60,8 +70,8 @@ impl BacktestStrategyFunction {
 
         // 创建一个流，用于接收节点传递过来的event
         let streams: Vec<_> = receivers
-            .iter()
-            .map(|output_handle| BroadcastStream::new(output_handle.node_event_sender.subscribe()))
+            .into_iter()
+            .map(|receiver| BroadcastStream::new(receiver))
             .collect();
 
         let mut combined_stream = select_all(streams);

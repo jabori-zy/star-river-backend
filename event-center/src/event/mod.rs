@@ -17,7 +17,7 @@ pub use position_event::PositionEvent;
 pub use strategy_event::StrategyEvent;
 
 use crate::Channel;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use strum::Display;
 use tokio::sync::broadcast;
 

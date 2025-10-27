@@ -61,7 +61,7 @@ impl VariableNodeContext {
                 let var_event: VariableNodeEvent = SysVariableUpdateEvent::new(
                     node_id.clone(),
                     node_name.clone(),
-                    output_handle.output_handle_id.clone(),
+                    output_handle.output_handle_id(),
                     payload,
                 )
                 .into();
@@ -70,7 +70,7 @@ impl VariableNodeContext {
                 if is_leaf_node {
                     let payload = ExecuteOverPayload::new(play_index);
                     let execute_over_event: CommonEvent =
-                        ExecuteOverEvent::new(node_id, node_name, output_handle.output_handle_id, payload).into();
+                        ExecuteOverEvent::new(node_id, node_name, output_handle.output_handle_id(), payload).into();
                     let backtest_execute_over_event: BacktestNodeEvent = execute_over_event.into();
                     let _ = strategy_output_handle.send(backtest_execute_over_event);
                 } else {
@@ -81,7 +81,7 @@ impl VariableNodeContext {
                 tracing::error!("update sys variable failed: {:?}", response.get_error());
                 // 失败，发送触发事件
                 let payload = TriggerPayload::new(play_index);
-                let trigger_event: CommonEvent = TriggerEvent::new(node_id, node_name, output_handle.output_handle_id.clone(), payload).into();
+                let trigger_event: CommonEvent = TriggerEvent::new(node_id, node_name, output_handle.output_handle_id(), payload).into();
                 let backtest_trigger_event: BacktestNodeEvent = trigger_event.into();
                 let _ = output_handle.send(backtest_trigger_event);
 

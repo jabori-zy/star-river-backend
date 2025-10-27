@@ -1,4 +1,4 @@
-use super::node_types::*;
+use super::node_handles::*;
 use crate::backtest_strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
 use event_center::EventPublisher;
@@ -98,21 +98,7 @@ pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_all_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
         &mut self.get_base_context_mut().output_handle
     }
-    fn get_all_message_senders(&self) -> Vec<broadcast::Sender<BacktestNodeEvent>> {
-        self.get_base_context()
-            .output_handle
-            .values()
-            .map(|handle| handle.node_event_sender.clone())
-            .collect()
-    }
-    fn get_message_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
-        self.get_base_context()
-            .output_handle
-            .get(&handle_id)
-            .unwrap()
-            .node_event_sender
-            .clone()
-    }
+
     fn get_message_receivers(&self) -> &Vec<NodeInputHandle> {
         &self.get_base_context().message_receivers
     }
@@ -302,6 +288,10 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         self.get_base_context().output_handles.get(handle_id).unwrap()
     }
 
+    fn get_output_handle_mut(&mut self, handle_id: &String) -> &mut NodeOutputHandle {
+        self.get_base_context_mut().output_handles.get_mut(handle_id).unwrap()
+    }
+
     fn get_strategy_output_handle(&self) -> &NodeOutputHandle {
         let node_id = self.get_node_id();
         let handle_id = format!("{}_strategy_output", node_id);
@@ -313,23 +303,6 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         &mut self.get_base_context_mut().output_handles
     }
 
-    fn get_all_node_event_senders(&self) -> Vec<broadcast::Sender<BacktestNodeEvent>> {
-        self.get_base_context()
-            .output_handles
-            .values()
-            .map(|handle| handle.node_event_sender.clone())
-            .collect()
-    }
-
-    fn get_node_event_sender(&self, handle_id: String) -> broadcast::Sender<BacktestNodeEvent> {
-        self.get_base_context()
-            .output_handles
-            .get(&handle_id)
-            .unwrap()
-            .node_event_sender
-            .clone()
-    }
-
     fn get_all_input_handles(&self) -> &Vec<NodeInputHandle> {
         &self.get_base_context().input_handles
     }
@@ -339,14 +312,6 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     fn set_state_machine(&mut self, state_machine: Box<dyn BacktestNodeStateMachine>) {
         self.get_base_context_mut().state_machine = state_machine;
-    }
-
-    fn set_enable_event_publish(&mut self, is_enable_event_publish: bool) {
-        self.get_base_context_mut().is_enable_event_publish = is_enable_event_publish;
-    }
-
-    fn is_enable_event_publish(&self) -> &bool {
-        &self.get_base_context().is_enable_event_publish
     }
 
     fn get_play_index(&self) -> PlayIndex {
@@ -409,7 +374,6 @@ pub struct BacktestBaseNodeContext {
     pub cancel_token: CancellationToken,
     pub input_handles: Vec<NodeInputHandle>,                    // 节点事件接收器
     pub output_handles: HashMap<HandleId, NodeOutputHandle>,    // 节点输出句柄
-    pub is_enable_event_publish: bool,                          // 是否启用事件发布
     pub state_machine: Box<dyn BacktestNodeStateMachine>,       // 状态机
     pub from_node_id: Vec<String>,                              // 来源节点ID
     pub strategy_command_sender: StrategyCommandSender,         // 向策略发送命令
@@ -428,7 +392,6 @@ impl Clone for BacktestBaseNodeContext {
             cancel_token: self.cancel_token.clone(),
             input_handles: self.input_handles.clone(),
             output_handles: self.output_handles.clone(),
-            is_enable_event_publish: self.is_enable_event_publish.clone(),
             state_machine: self.state_machine.clone_box(),
             from_node_id: self.from_node_id.clone(),
             strategy_command_sender: self.strategy_command_sender.clone(),
@@ -456,7 +419,6 @@ impl BacktestBaseNodeContext {
             node_type,
             is_leaf_node: false,
             output_handles: HashMap::new(),
-            is_enable_event_publish: false,
             cancel_token: CancellationToken::new(),
             input_handles: Vec::new(),
             state_machine,

@@ -8,7 +8,6 @@ mod strategy_operation;
 
 use super::BacktestNodeTrait;
 use super::node_state_machine::BacktestNodeRunState;
-use super::node_types::NodeOutputHandle;
 use super::strategy_state_machine::{BacktestStrategyRunState,BacktestStrategyStateMachine};
 use chrono::{DateTime, Utc};
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
@@ -68,7 +67,7 @@ pub struct BacktestStrategyContext {
     pub node_indices: HashMap<String, NodeIndex>,               // 节点索引
     pub cancel_task_token: CancellationToken,                   // 取消令牌
     pub state_machine: BacktestStrategyStateMachine,            // 策略状态机
-    pub all_node_output_handles: Vec<NodeOutputHandle>,         // 接收策略内所有节点的消息
+    // pub all_node_output_handles: Vec<NodeOutputHandle>,         // 接收策略内所有节点的消息
     pub database: DatabaseConnection,                           // 数据库连接
     pub heartbeat: Arc<Mutex<Heartbeat>>,                       // 心跳
     pub strategy_command_sender: StrategyCommandSender,
@@ -137,7 +136,7 @@ impl BacktestStrategyContext {
             node_indices: HashMap::new(),
             cancel_task_token,
             state_machine: BacktestStrategyStateMachine::new(strategy_id, strategy_name, BacktestStrategyRunState::Created),
-            all_node_output_handles: vec![],
+            // all_node_output_handles: vec![],
             database,
             heartbeat,
             strategy_command_sender: strategy_command_tx,
@@ -220,17 +219,17 @@ impl BacktestStrategyContext {
         self.min_interval_symbols.clone()
     }
 
-    pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
-        self.all_node_output_handles = all_node_output_handles;
-    }
+    // pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
+    //     self.all_node_output_handles = all_node_output_handles;
+    // }
 
     pub fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
         self.leaf_node_ids = leaf_node_ids;
     }
 
-    pub fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
-        self.all_node_output_handles.clone()
-    }
+    // pub fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
+    //     self.all_node_output_handles.clone()
+    // }
 
     pub fn get_cancel_task_token(&self) -> CancellationToken {
         self.cancel_task_token.clone()

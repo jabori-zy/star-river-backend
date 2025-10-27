@@ -1,6 +1,6 @@
 use super::KlineNodeContext;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use crate::backtest_strategy_engine::node::node_types::NodeOutputHandle;
+use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use async_trait::async_trait;
 use event_center::communication::Command;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};
@@ -51,6 +51,7 @@ impl BacktestNodeContextTrait for KlineNodeContext {
         match node_event {
             BacktestNodeEvent::StartNode(start_node_event) => match start_node_event {
                 StartNodeEvent::KlinePlay(play_event) => {
+                    tracing::info!("{}: 收到KlinePlay事件: {:?}", self.base_context.node_id, play_event);
                     self.send_kline(play_event).await;
                 }
             },

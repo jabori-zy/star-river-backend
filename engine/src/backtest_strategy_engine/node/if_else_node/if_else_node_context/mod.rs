@@ -15,7 +15,7 @@ use star_river_core::node::if_else_node::*;
 use super::utils::{get_condition_left_value, get_condition_right_value};
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_message::if_else_node_log_message::ConditionMatchedMsg;
-use crate::backtest_strategy_engine::node::node_types::{NodeOutputHandle, NodeType};
+use crate::backtest_strategy_engine::node::node_handles::{NodeOutputHandle, NodeType};
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::GetCurrentTimeCommand;
 use event_center::event::strategy_event::StrategyRunningLogSource;
@@ -24,9 +24,7 @@ use star_river_core::custom_type::NodeId;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::if_else_node_error::*;
 use star_river_core::system::DateTimeUtc;
 use super::utils::compare;
-use super:: {
-    CycleTracker, NodePerformanceReport, NodeCycleReport, NodeBenchmark,
-};
+use super::CycleTracker;
 
 pub type ConfigId = i32;
 
@@ -214,7 +212,7 @@ impl IfElseNodeContext {
             let else_event: IfElseNodeEvent = ConditionMatchEvent::new(
                 self.get_node_id().clone(),
                 self.get_node_name().clone(),
-                else_output_handle.output_handle_id.clone(),
+                else_output_handle.output_handle_id(),
                 payload,
             )
             .into();

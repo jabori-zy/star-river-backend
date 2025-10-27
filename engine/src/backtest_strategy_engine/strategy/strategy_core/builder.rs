@@ -73,11 +73,19 @@ impl BacktestStrategy {
         Ok(())
     }
 
-    pub async fn set_strategy_output_handles(&mut self) -> Result<(), BacktestStrategyError> {
-        let context = self.get_context();
-        BacktestStrategyFunction::add_strategy_output_handle(context).await;
-        Ok(())
-    }
+    // pub async fn set_strategy_output_handles(&mut self) -> Result<(), BacktestStrategyError> {
+    //     let context = self.get_context();
+    //     let mut context_guard = context.write().await;
+    //     let mut strategy_output_handles = Vec::new();
+    //     // 再将所有节点的策略输出句柄添加到策略中
+    //     for node in context_guard.graph.node_weights() {
+    //         let output_handle = node.get_strategy_output_handle().await;
+    //         strategy_output_handles.push(output_handle);
+    //     }
+    //     tracing::debug!("strategy_output_handles: {:#?}", strategy_output_handles);
+    //     context_guard.set_all_node_output_handles(strategy_output_handles);
+    //     Ok(())
+    // }
 
     // 检查策略的symbol配置
     pub async fn check_symbol_config(&mut self) -> Result<(), BacktestStrategyError> {

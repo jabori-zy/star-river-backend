@@ -1,6 +1,6 @@
 use super::position_management_node_types::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
-use crate::backtest_strategy_engine::node::node_types::{NodeOutputHandle, NodeType};
+use crate::backtest_strategy_engine::node::node_handles::{NodeOutputHandle, NodeType};
 use async_trait::async_trait;
 use event_center::communication::Command;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeResetResponse};

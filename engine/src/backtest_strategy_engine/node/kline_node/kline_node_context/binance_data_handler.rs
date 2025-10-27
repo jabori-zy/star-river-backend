@@ -20,8 +20,10 @@ impl KlineNodeContext {
                 self.get_node_name(),
                 bar_number
             );
+            tracing::debug!("min interval symbols: {:?}", self.min_interval_symbols);
 
             for (symbol_key, _) in self.selected_symbol_keys.iter() {
+                tracing::debug!("selected symbol key: {:?}", symbol_key);
                 if !self.min_interval_symbols.contains(&symbol_key) {
                     tracing::debug!(
                         "[{}] symbol: {}-{}, is not min interval, skip",

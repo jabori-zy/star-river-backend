@@ -19,7 +19,6 @@ pub use variable_node_event::VariableNodeEvent;
 
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]

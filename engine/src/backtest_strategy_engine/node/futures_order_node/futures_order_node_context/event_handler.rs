@@ -15,9 +15,7 @@ use star_river_core::system::DateTimeUtc;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
 use tokio::sync::oneshot;
-use super:: {
-    CycleTracker, NodePerformanceReport, NodeCycleReport, NodeBenchmark,
-};
+use super::CycleTracker;
 
 impl FuturesOrderNodeContext {
     /// 使用第一个有连接的output_handle发送trigger事件
@@ -32,7 +30,7 @@ impl FuturesOrderNodeContext {
         // 使用filter过滤出连接数大于0的handle，然后取第一个
         if let Some((handle_id, handle)) = all_output_handles
             .iter()
-            .filter(|(handle_id, handle)| handle_id != &&strategy_output_handle_id && handle.connect_count > 0)
+            .filter(|(handle_id, handle)| handle_id != &&strategy_output_handle_id && handle.is_connected())
             .next()
         {
             let payload = TriggerPayload::new(self.get_play_index());
@@ -136,14 +134,14 @@ impl FuturesOrderNodeContext {
         }
 
         // 如果总输出与订单状态输出都没有连接，则发送trigger事件
-        if config_all_status_output_handle.connect_count == 0 && order_status_output_handle.connect_count == 0 {
+        if !config_all_status_output_handle.is_connected() && !order_status_output_handle.is_connected() {
             tracing::debug!("all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event");
             self.send_trigger_event_spec().await;
             return;
         }
 
         // 如果all_status_output_handle的connect_count大于0，则发送事件
-        if config_all_status_output_handle.connect_count > 0 {
+        if config_all_status_output_handle.is_connected() {
             let order_event = self.genarate_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
             if let Some(order_event) = order_event {
                 tracing::debug!(
@@ -153,7 +151,7 @@ impl FuturesOrderNodeContext {
                 let _ = config_all_status_output_handle.send(order_event.into());
             }
         }
-        if order_status_output_handle.connect_count > 0 {
+        if order_status_output_handle.is_connected() {
             let order_event = self.genarate_order_node_event(order_status_output_handle_id.clone(), virtual_order.clone(), event_type);
             if let Some(order_event) = order_event {
                 tracing::debug!(
