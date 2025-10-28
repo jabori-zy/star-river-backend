@@ -1,6 +1,6 @@
 use super::{
     BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyRunState, 
-    EventCenterSingleton, PlayFinishedEvent, StrategyBenchmark, StrategyCycleTracker
+    EventCenterSingleton, PlayFinishedEvent, StrategyBenchmark, StrategyCycleTracker, BacktestNodeContextAccessor, BacktestNodeContextTrait
 };
 use event_center::communication::Response;
 use event_center::communication::backtest_strategy::NodeResetCommand;
@@ -126,7 +126,7 @@ impl BacktestStrategyContext {
         if !*context.is_playing.read().await {
             tracing::info!(
                 "[{}]: pause play, signal_count: {}, played_signal_count: {}",
-                context.node.get_node_id().await,
+                context.node.with_ctx_read_dyn(|ctx| ctx.get_node_id().clone()).await,
                 *context.signal_count.read().await,
                 *context.play_index.read().await
             );
@@ -416,8 +416,8 @@ impl BacktestStrategyContext {
         let nodes = self.topological_sort();
         for node in nodes {
             let (resp_tx, resp_rx) = oneshot::channel();
-            tracing::info!("{}: 发送节点重置命令", node.get_node_id().await);
-            let cmd = NodeResetCommand::new(node.get_node_id().await, resp_tx, None);
+            let node_id = node.with_ctx_read_dyn(|ctx| ctx.get_node_id().clone()).await;
+            let cmd = NodeResetCommand::new(node_id, resp_tx, None);
 
             self.send_node_command(cmd.into()).await;
             let response = resp_rx.await.unwrap();

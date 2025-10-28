@@ -1,5 +1,6 @@
 use super::test_fixtures::{create_integration_fixture, init_test_tracing};
-use crate::backtest_strategy_engine::node::{node_handles::NodeOutputHandle, BacktestNodeTrait};
+use crate::backtest_strategy_engine::node::{
+    BacktestNodeContextAccessor, BacktestNodeTrait, BacktestNodeContextTrait, context::KlineNodeContext, node_handles::NodeOutputHandle};
 use tokio::time::{timeout, Duration};
 
 /// Test full flow: start node sends event -> kline node receives -> fetch data -> send data
@@ -29,20 +30,26 @@ async fn test_full_kline_flow_two_symbols_with_different_interval() {
     // Step 2: Create KlineNode and connect to MockStartNode
     tracing::info!("Step 2: Creating KlineNode...");
     let mut kline_node = fixture.create_test_kline_node(kline_node_config.clone()).unwrap();
-    kline_node.set_output_handle().await;
-    kline_node.add_input_handle(input_handle).await; // add start node output handle to kline node
+    kline_node.set_output_handle().await.unwrap();
+    kline_node.with_ctx_write_dyn(|ctx| {
+        ctx.add_input_handle(input_handle);
+    }).await; // add start node output handle to kline node
     tracing::info!("  ✅ KlineNode created and connected to MockStartNode");
 
     // Step 3: Create MockIndicatorNode to subscribe to all KlineNode's output handles
     tracing::info!("Step 3: Creating MockIndicatorNode to receive kline data...");
-    let strategy_output_handle_id = kline_node.get_strategy_output_handle().await.output_handle_id();
+    let strategy_output_handle_id = kline_node.with_ctx_read::<KlineNodeContext, _>(|ctx| {
+        ctx.get_strategy_output_handle().output_handle_id()
+    }).await.unwrap();
+
     let mut kline_node_output_handles = kline_node
-        .get_all_output_handles()
-        .await
-        .iter()
+    .with_ctx_read_dyn(|ctx| {
+        ctx.get_all_output_handles()
+        .values()
         .filter(|handle| handle.output_handle_id() != strategy_output_handle_id)
         .cloned()
-        .collect::<Vec<NodeOutputHandle>>();
+        .collect::<Vec<NodeOutputHandle>>()
+    }).await;
     tracing::info!("  Found {} output handles from KlineNode", kline_node_output_handles.len());
 
     let mut mock_indicator = fixture.create_mock_indicator_node(
@@ -58,7 +65,9 @@ async fn test_full_kline_flow_two_symbols_with_different_interval() {
     // Step 4: Create and start MockStrategy, then subscribe to KlineNode's strategy output handle
     tracing::info!("Step 4: Creating MockStrategy and subscribing to node events...");
     fixture.create_mock_strategy(Some(kline_node_config));
-    let mut strategy_output_handle = kline_node.get_strategy_output_handle().await;
+    let mut strategy_output_handle = kline_node.with_ctx_read::<KlineNodeContext, _>(|ctx| {
+        ctx.get_strategy_output_handle().clone()
+    }).await.unwrap();
     fixture.subscribe_to_node_events(strategy_output_handle.subscribe("test_strategy_1".to_string()));
     tracing::info!("  ✅ MockStrategy created and subscribed to KlineNode events");
 

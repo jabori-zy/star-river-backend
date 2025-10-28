@@ -1,7 +1,6 @@
-pub mod position_management_node_context;
-pub mod position_management_node_state_machine;
-pub mod position_management_node_types;
-// pub mod position_management_node_log_message;
+pub mod position_node_context;
+pub mod position_node_state_machine;
+pub mod position_node_types;
 
 use super::node_message::common_log_message::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
@@ -11,9 +10,9 @@ use async_trait::async_trait;
 use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use heartbeat::Heartbeat;
-use position_management_node_context::PositionNodeContext;
-use position_management_node_state_machine::*;
-use position_management_node_types::*;
+use position_node_context::PositionNodeContext;
+use position_node_state_machine::*;
+use position_node_types::*;
 use sea_orm::DatabaseConnection;
 use snafu::ResultExt;
 use star_river_core::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
@@ -30,7 +29,8 @@ use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
 use super::node_utils::NodeUtils;
-use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
+use star_river_core::strategy::node_benchmark::CycleTracker;
+use super::context_accessor::BacktestNodeContextAccessor;
 
 #[derive(Debug, Clone)]
 pub struct PositionManagementNode {
@@ -124,49 +124,55 @@ impl PositionManagementNode {
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
-    async fn listen_virtual_trading_system_events(&self) -> Result<(), String> {
-        let (virtual_trading_system_event_receiver, cancel_token, node_id) = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let position_management_node_context = context_guard.as_any().downcast_ref::<PositionNodeContext>().unwrap();
-
-            let receiver = position_management_node_context.virtual_trading_system_event_receiver.resubscribe();
-            let cancel_token = position_management_node_context.get_cancel_token().clone();
-            let node_id = position_management_node_context.get_node_id().clone();
-            (receiver, cancel_token, node_id)
-        };
+    async fn listen_virtual_trading_system_events(&self) -> Result<(), BacktestStrategyNodeError> {
+        let (virtual_trading_system_event_receiver, cancel_token, node_name) = self.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            let receiver = ctx.virtual_trading_system_event_receiver.resubscribe();
+            let cancel_token = ctx.get_cancel_token().clone();
+            let node_name = ctx.get_node_name().clone();
+            (receiver, cancel_token, node_name)
+        }).await?;
 
         // 创建一个流，用于接收节点传递过来的message
         let mut stream = BroadcastStream::new(virtual_trading_system_event_receiver);
-        let context = self.get_context();
+        let node = self.clone();
         // 节点接收数据
-        tracing::info!(node_id = %node_id, "开始监听虚拟交易系统事件。");
+        tracing::info!("[{node_name}] starting to listen virtual trading system events");
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 虚拟交易系统事件监听任务已中止", node_id);
+                        tracing::info!("[{node_name}] virtual trading system events listener stopped");
                         break;
                     }
                     // 接收消息
-                    receive_result = stream.next() => {
-                        match receive_result {
-                            Some(Ok(event)) => {
-                                // tracing::debug!("{} 收到消息: {:?}", node_id, message);
-                                let mut context_guard = context.write().await;
-                                let position_management_node_context = context_guard.as_any_mut().downcast_mut::<PositionNodeContext>().unwrap();
-                                position_management_node_context.handle_virtual_trading_system_event(event).await.unwrap();
-                            }
-                            Some(Err(e)) => {
-                                tracing::error!("节点{}接收消息错误: {}", node_id, e);
-                            }
-                            None => {
-                                tracing::warn!("节点{}所有消息流已关闭", node_id);
-                                break;
+                    _ = async {
+                        let receive_result = stream.next().await;
+                        if let Some(event) = receive_result {
+                            match event {
+                                Ok(evt) => {
+                                    match node.with_ctx_write_async::<PositionNodeContext, _>(|ctx| {
+                                        Box::pin(async move {
+                                            ctx.handle_virtual_trading_system_event(evt).await
+                                        })
+                                    }).await {
+                                        Ok(Ok(())) => {
+                                            // 处理虚拟交易系统事件成功
+                                        }
+                                        Ok(Err(err)) => {
+                                            tracing::error!("[{node_name}] failed to handle virtual trading system event: {:?}", err);
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("[{node_name}] failed to downcast context: {}", err);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!("[{node_name}] failed to receive message: {}", e);
+                                }
                             }
                         }
-                    }
+                    } => {}
                 }
             }
         });
@@ -192,20 +198,20 @@ impl BacktestNodeTrait for PositionManagementNode {
         self.context.clone()
     }
 
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
+    async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, node_name, position_operations) = self.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let position_operations = ctx.node_config.position_operations.clone();
+            (node_id, node_name, position_operations)
+        }).await?;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(strategy_output_handle_id, tx).await;
+        self.with_ctx_write::<PositionNodeContext, _>(|ctx| {
+            ctx.add_output_handle(strategy_output_handle_id, tx)
+        }).await?;
 
-        let position_operations = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let position_management_node_context = context_guard.as_any().downcast_ref::<PositionNodeContext>().unwrap();
-            position_management_node_context.backtest_config.position_operations.clone()
-        };
         // 为每一个订单添加出口
         for position_operation in position_operations.iter() {
             let success_output_handle_id = format!(
@@ -223,29 +229,44 @@ impl BacktestNodeTrait for PositionManagementNode {
             let (success_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let (failed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting success output handle: {}", success_output_handle_id);
-            self.add_output_handle(success_output_handle_id, success_tx).await;
+            self.with_ctx_write::<PositionNodeContext, _>(|ctx| {
+                ctx.add_output_handle(success_output_handle_id, success_tx)
+            }).await?;
             tracing::debug!("[{node_name}] setting failed output handle: {}", failed_output_handle_id);
-            self.add_output_handle(failed_output_handle_id, failed_tx).await;
+            self.with_ctx_write::<PositionNodeContext, _>(|ctx| {
+                ctx.add_output_handle(failed_output_handle_id, failed_tx)
+            }).await?;
         }
+        Ok(())
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("================={}====================", self.get_node_name().await);
-        tracing::info!("{}: 开始初始化", self.get_node_name().await);
+        let node_name = self.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await.unwrap();
+        tracing::info!("=================init position management node [{node_name}]====================");
+        tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        let current_state = self.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            ctx.get_state_machine().current_state()
+        }).await?;
+
+        tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("{}: 开始停止", self.get_node_id().await);
+        let node_name = self.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await.unwrap();
+        tracing::info!("[{node_name}] start stop");
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
 
         // 等待所有任务结束
@@ -258,13 +279,15 @@ impl BacktestNodeTrait for PositionManagementNode {
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        let strategy_output_handle = self.get_strategy_output_handle().await;
+        let (strategy_id, node_id, node_name, strategy_output_handle, mut state_machine) = self.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            let strategy_id = ctx.get_strategy_id().clone();
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let strategy_output_handle = ctx.get_strategy_output_handle().clone();
+            let state_machine = ctx.get_state_machine();
+            (strategy_id, node_id, node_name, strategy_output_handle, state_machine)
+        }).await?;
 
-        // 获取状态管理器并执行转换
-        let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作

@@ -1,4 +1,8 @@
-use super::{BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction, IndicatorNode, IndicatorNodeContext};
+use super::{
+    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction,
+    IndicatorNode, IndicatorNodeContext, BacktestNodeContextTrait, BacktestNodeContextAccessor,
+    BacktestStrategyNodeError
+};
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, StrategyCommandSender};
 use star_river_core::error::engine_error::strategy_engine_error::node_error::indicator_node_error::*;
 use star_river_core::key::key::IndicatorKey;
@@ -12,7 +16,7 @@ impl BacktestStrategyFunction {
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
-    ) -> Result<(), IndicatorNodeError> {
+    ) -> Result<(), BacktestStrategyNodeError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
         let (strategy_keys, play_index_watch_rx) = {
@@ -29,15 +33,14 @@ impl BacktestStrategyFunction {
             play_index_watch_rx,
         )?;
 
-        let indicator_keys: Vec<IndicatorKey> = {
-            let node_ctx = node.get_context();
-            let node_ctx_guard = node_ctx.read().await;
-            let node_ctx_guard = node_ctx_guard.as_any().downcast_ref::<IndicatorNodeContext>().unwrap();
-            let indicator_keys_map = node_ctx_guard.get_indicator_keys_ref().clone();
-            indicator_keys_map.keys().cloned().collect()
-        };
-
-        let node_id = node.get_node_id().await;
+        let (node_id, node_name, indicator_keys, node_type) = node.with_ctx_read::<IndicatorNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let indicator_keys_map = ctx.get_indicator_keys_ref();
+            let indicator_keys = indicator_keys_map.keys().cloned().collect::<Vec::<IndicatorKey>>();
+            let node_type = ctx.get_node_type().to_string();
+            (node_id, node_name, indicator_keys, node_type)
+        }).await?;
 
         let mut strategy_keys_guard = strategy_keys.write().await;
         strategy_keys_guard.extend(indicator_keys.iter().map(|key| (key.clone().into(), node_id.clone())));
@@ -53,7 +56,7 @@ impl BacktestStrategyFunction {
             .add_node_command_sender(node_id.to_string(), node_command_tx)
             .await;
         // 添加节点benchmark
-        strategy_context_guard.add_node_benchmark(node_id.clone(), node.get_node_name().await, node.get_node_type().await.to_string()).await;
+        strategy_context_guard.add_node_benchmark(node_id.clone(), node_name, node_type).await;
 
         let node = Box::new(node);
 

@@ -16,7 +16,6 @@ impl BacktestStrategy {
                 .and_then(|node| node.as_array())
                 .ok_or_else(|| {
                     NodeConfigNullSnafu {
-                        strategy_id: context_guard.strategy_id,
                         strategy_name: context_guard.strategy_name.clone(),
                     }
                     .build()
@@ -33,7 +32,7 @@ impl BacktestStrategy {
         for node_config in node_config_list {
             let result = BacktestStrategyFunction::add_node(context.clone(), node_config, strategy_command_tx.clone()).await;
             if let Err(e) = result {
-                let error = NodeCheckSnafu {}.into_error(e);
+                let error = NodeCheckFailedSnafu {}.into_error(e);
                 return Err(error);
             }
         }
@@ -53,7 +52,6 @@ impl BacktestStrategy {
                 .and_then(|edge| edge.as_array())
                 .ok_or_else(|| {
                     EdgeConfigNullSnafu {
-                        strategy_id: context_guard.strategy_id,
                         strategy_name: context_guard.strategy_name.clone(),
                     }
                     .build()
@@ -69,7 +67,11 @@ impl BacktestStrategy {
 
     pub async fn set_leaf_nodes(&mut self) -> Result<(), BacktestStrategyError> {
         let context = self.get_context();
-        BacktestStrategyFunction::set_leaf_nodes(context).await;
+        let result = BacktestStrategyFunction::set_leaf_nodes(context).await;
+        if let Err(e) = result {
+            let error = NodeCheckFailedSnafu {}.into_error(e);
+            return Err(error);
+        }
         Ok(())
     }
 

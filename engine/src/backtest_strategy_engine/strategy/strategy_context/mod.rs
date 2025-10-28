@@ -19,11 +19,12 @@ use event_center::event::node_event::backtest_node_event::{BacktestNodeEvent,Com
     futures_order_node_event::FuturesOrderNodeEvent,
     indicator_node_event::IndicatorNodeEvent,
     kline_node_event::KlineNodeEvent,
-    position_management_node_event::PositionManagementNodeEvent,
+    position_node_event::PositionManagementNodeEvent,
 };
 use event_center::event::strategy_event::{StrategyRunningLogEvent,
     backtest_strategy_event::{PlayFinishedEvent,BacktestStrategyEvent}
 };
+use super::node::{BacktestNodeContextAccessor, BacktestNodeContextTrait};
 
 use event_center::singleton::EventCenterSingleton;
 use heartbeat::Heartbeat;
@@ -32,6 +33,7 @@ use petgraph::{Directed, Graph};
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::{NodeId, PlayIndex};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::BacktestStrategyNodeError;
 use star_river_core::indicator::Indicator;
 use star_river_core::key::{Key, KeyTrait,
     key::{IndicatorKey, KlineKey},

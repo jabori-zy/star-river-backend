@@ -36,6 +36,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::VirtualTradingSystem;
 use super::node_utils::NodeUtils;
 use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
+use super::context_accessor::BacktestNodeContextAccessor;
 
 #[derive(Debug, Clone)]
 pub struct FuturesOrderNode {
@@ -58,7 +59,7 @@ impl FuturesOrderNode {
             strategy_id,
             node_id.clone(),
             node_name.clone(),
-            NodeType::OrderNode,
+            NodeType::FuturesOrderNode,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
             strategy_command_sender,
             node_command_receiver,
@@ -137,49 +138,55 @@ impl FuturesOrderNode {
         Ok((strategy_id, node_id, node_name, node_config))
     }
 
-    async fn listen_virtual_trading_system_events(&self) -> Result<(), String> {
-        let (virtual_trading_system_event_receiver, cancel_token, node_id) = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let futures_order_node_context = context_guard.as_any().downcast_ref::<FuturesOrderNodeContext>().unwrap();
-
-            let receiver = futures_order_node_context.virtual_trading_system_event_receiver.resubscribe();
-            let cancel_token = futures_order_node_context.get_cancel_token().clone();
-            let node_id = futures_order_node_context.get_node_id().clone();
-            (receiver, cancel_token, node_id)
-        };
+    async fn listen_virtual_trading_system_events(&self) -> Result<(), BacktestStrategyNodeError> {
+        let (virtual_trading_system_event_receiver, cancel_token, node_name) = self.with_ctx_read::<FuturesOrderNodeContext, _>(|ctx| {
+            let receiver = ctx.virtual_trading_system_event_receiver.resubscribe();
+            let cancel_token = ctx.get_cancel_token().clone();
+            let node_name = ctx.get_node_name().clone();
+            (receiver, cancel_token, node_name)
+        }).await?;
 
         // 创建一个流，用于接收节点传递过来的message
         let mut stream = BroadcastStream::new(virtual_trading_system_event_receiver);
-        let context = self.get_context();
+        let node = self.clone();
         // 节点接收数据
-        tracing::info!(node_id = %node_id, "开始监听虚拟交易系统事件。");
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 虚拟交易系统事件监听任务已中止", node_id);
+                        tracing::info!("[{node_name}] virtual trading system events listener stopped");
                         break;
                     }
                     // 接收消息
-                    receive_result = stream.next() => {
-                        match receive_result {
-                            Some(Ok(event)) => {
-                                // tracing::debug!("{} 收到消息: {:?}", node_id, message);
-                                let mut context_guard = context.write().await;
-                                let futures_order_node_context = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap();
-                                futures_order_node_context.handle_virtual_trading_system_event(event).await.unwrap();
-                            }
-                            Some(Err(e)) => {
-                                tracing::error!("节点{}接收消息错误: {}", node_id, e);
-                            }
-                            None => {
-                                tracing::warn!("节点{}所有消息流已关闭", node_id);
-                                break;
+                    _ = async {
+                        let receive_result = stream.next().await;
+                        if let Some(event) = receive_result {
+                            match event {
+                                Ok(evt) => {
+                                    match node.with_ctx_write_async::<FuturesOrderNodeContext, _>(|ctx| {
+                                        Box::pin(async move {
+                                            ctx.handle_virtual_trading_system_event(evt).await
+                                        })
+                                    }).await {
+                                        Ok(Ok(())) => {
+                                            // 处理虚拟交易系统事件成功
+                                        }
+                                        Ok(Err(err)) => {
+                                            tracing::error!("[{node_name}] failed to handle virtual trading system event: {:?}", err);
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("[{node_name}] failed to downcast context: {}", err);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!("[{node_name}] failed to receive message: {}", e);
+                                }
                             }
                         }
-                    }
+                    } => {}
+                    
                 }
             }
         });
@@ -205,38 +212,45 @@ impl BacktestNodeTrait for FuturesOrderNode {
         self.context.clone()
     }
 
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
+    async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, node_name, futures_order_configs) = self.with_ctx_read::<FuturesOrderNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let futures_order_configs = ctx.node_config.futures_order_configs.clone();
+            (node_id, node_name, futures_order_configs)
+        }).await?;
+
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(strategy_output_handle_id, tx).await;
+        self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+            ctx.add_output_handle(strategy_output_handle_id, tx)
+        }).await?;
 
-        let futures_order_configs = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let futures_order_node_context = context_guard.as_any().downcast_ref::<FuturesOrderNodeContext>().unwrap();
-            futures_order_node_context.node_config.futures_order_configs.clone()
-        };
         // 为每一个订单添加出口
         for order_config in futures_order_configs.iter() {
             let all_output_handle_id = format!("{}_all_status_output_{}", node_id, order_config.order_config_id);
             let (all_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order all output handle: {}", all_output_handle_id);
-            self.add_output_handle(all_output_handle_id, all_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(all_output_handle_id, all_tx)
+            }).await?;
 
             let created_output_handle_id = format!("{}_created_output_{}", node_id, order_config.order_config_id);
             let (created_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order created output handle: {}", created_output_handle_id);
-            self.add_output_handle(created_output_handle_id, created_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(created_output_handle_id, created_tx)
+            }).await?;
 
             match order_config.order_type {
                 OrderType::Limit => {
                     let placed_output_handle_id = format!("{}_placed_output_{}", node_id, order_config.order_config_id);
                     let (placed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
                     tracing::debug!("[{node_name}] setting order placed output handle: {}", placed_output_handle_id);
-                    self.add_output_handle(placed_output_handle_id, placed_tx).await;
+                    self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                        ctx.add_output_handle(placed_output_handle_id, placed_tx)
+                    }).await?;
                 }
                 _ => {}
             }
@@ -244,52 +258,74 @@ impl BacktestNodeTrait for FuturesOrderNode {
             let partial_output_handle_id = format!("{}_partial_output_{}", node_id, order_config.order_config_id);
             let (partial_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order partial output handle: {}", partial_output_handle_id);
-            self.add_output_handle(partial_output_handle_id, partial_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(partial_output_handle_id, partial_tx)
+            }).await?;
 
             let filled_output_handle_id = format!("{}_filled_output_{}", node_id, order_config.order_config_id);
             let (filled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order filled output handle: {}", filled_output_handle_id);
-            self.add_output_handle(filled_output_handle_id, filled_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(filled_output_handle_id, filled_tx)
+            }).await?;
 
             let canceled_output_handle_id = format!("{}_canceled_output_{}", node_id, order_config.order_config_id);
             let (canceled_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order canceled output handle: {}", canceled_output_handle_id);
-            self.add_output_handle(canceled_output_handle_id, canceled_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(canceled_output_handle_id, canceled_tx)
+            }).await?;
 
             let expired_output_handle_id = format!("{}_expired_output_{}", node_id, order_config.order_config_id);
             let (expired_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order expired output handle: {}", expired_output_handle_id);
-            self.add_output_handle(expired_output_handle_id, expired_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(expired_output_handle_id, expired_tx)
+            }).await?;
 
             let rejected_output_handle_id = format!("{}_rejected_output_{}", node_id, order_config.order_config_id);
             let (rejected_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order rejected output handle: {}", rejected_output_handle_id);
-            self.add_output_handle(rejected_output_handle_id, rejected_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(rejected_output_handle_id, rejected_tx)
+            }).await?;
 
             let error_output_handle_id = format!("{}_error_output_{}", node_id, order_config.order_config_id);
             let (error_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting order error output handle: {}", error_output_handle_id);
-            self.add_output_handle(error_output_handle_id, error_tx).await;
+            self.with_ctx_write::<FuturesOrderNodeContext, _>(|ctx| {
+                ctx.add_output_handle(error_output_handle_id, error_tx)
+            }).await?;
         }
+        Ok(())
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("================={}====================", self.get_node_name().await);
-        tracing::info!("{}: 开始初始化", self.get_node_name().await);
+        let node_name = self.with_ctx_read::<FuturesOrderNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await?;
+        tracing::info!("================={}====================", node_name);
+        tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
+        let current_state = self.with_ctx_read::<FuturesOrderNodeContext, _>(|ctx| {
+            ctx.get_state_machine().current_state()
+        }).await?;
 
-        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        tracing::info!("{:?}: 初始化完成", current_state);
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("{}: 开始停止", self.get_node_id().await);
+        let node_name = self.with_ctx_read::<FuturesOrderNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await.unwrap();
+        tracing::info!("[{node_name}] start stop");
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -359,13 +395,15 @@ impl BacktestNodeTrait for FuturesOrderNode {
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        let strategy_output_handle = self.get_strategy_output_handle().await;
+        let (strategy_id, node_id, node_name, strategy_output_handle, mut state_machine) = self.with_ctx_read::<FuturesOrderNodeContext, _>(|ctx| {
+            let strategy_id = ctx.get_strategy_id().clone();
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let strategy_output_handle = ctx.get_strategy_output_handle().clone();
+            let state_machine = ctx.get_state_machine();
+            (strategy_id, node_id, node_name, strategy_output_handle, state_machine)
+        }).await?;
 
-        // 获取状态管理器并执行转换
-        let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
@@ -397,18 +435,45 @@ impl BacktestNodeTrait for FuturesOrderNode {
                     OrderNodeStateAction::GetSymbolInfo => {
                         tracing::info!("[{node_name}] start to get symbol info");
                         let log_message = GetSymbolInfoMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), OrderNodeStateAction::GetSymbolInfo.to_string(), &strategy_output_handle).await;
-                        let context = self.get_context();
-                        let mut context_guard = context.write().await;
-                        let futures_order_node_context = context_guard.as_any_mut().downcast_mut::<FuturesOrderNodeContext>().unwrap();
-                        let result = futures_order_node_context.get_symbol_info().await;
-                        if let Err(e) = result {
-                            NodeUtils::send_error_status_event(strategy_id, node_id.clone(), node_name.clone(), OrderNodeStateAction::GetSymbolInfo.to_string(), &e, &strategy_output_handle).await;
-                            return Err(e.into());
-                        }
-                        tracing::info!("[{node_name}] get symbol info success");
-                        
+                                NodeUtils::send_success_status_event(
+                                    strategy_id, 
+                                    node_id.clone(), 
+                                    node_name.clone(), 
+                                    log_message.to_string(), 
+                                    current_state.to_string(), 
+                                    OrderNodeStateAction::GetSymbolInfo.to_string(), 
+                                    &strategy_output_handle,
+                                ).await;
+                        let result = self.with_ctx_write_async::<FuturesOrderNodeContext, _>(|ctx| {
+                            Box::pin(async move {
+                                ctx.get_symbol_info().await
+                            })
+                        }).await?;
+                        match result {
+                            Ok(_) => {
+                                let log_message = GetSymbolInfoSuccessMsg::new(node_name.clone());
+                                NodeUtils::send_success_status_event(
+                                    strategy_id, 
+                                    node_id.clone(), 
+                                    node_name.clone(), 
+                                    log_message.to_string(), 
+                                    current_state.to_string(), 
+                                    OrderNodeStateAction::GetSymbolInfo.to_string(), 
+                                    &strategy_output_handle,
+                                ).await;
+                            }
+                            Err(err) => {
+                                NodeUtils::send_error_status_event(
+                                    strategy_id, 
+                                    node_id.clone(), 
+                                    node_name.clone(), 
+                                    OrderNodeStateAction::GetSymbolInfo.to_string(), 
+                                    &err,
+                                    &strategy_output_handle,
+                                ).await;
 
+                            }
+                        }
                     }
                     OrderNodeStateAction::RegisterTask => {
                         tracing::info!("[{node_name}] registering heartbeat monitoring task");

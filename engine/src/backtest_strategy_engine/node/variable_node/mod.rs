@@ -21,13 +21,13 @@ use variable_node_state_machine::{VariableNodeStateAction, VariableNodeStateMach
 use super::node_message::common_log_message::*;
 use super::node_utils::NodeUtils;
 use event_center::communication::backtest_strategy::{NodeCommandReceiver, StrategyCommandSender};
-use event_center::event::strategy_event::NodeStateLogEvent;
 use star_river_core::custom_type::{NodeId, NodeName, PlayIndex, StrategyId};
-use star_river_core::error::engine_error::node_error::variable_node::ConfigFieldValueNullSnafu;
-use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::variable_node::*;
+use star_river_core::error::engine_error::node_error::variable_node_error::ConfigFieldValueNullSnafu;
+use star_river_core::error::engine_error::strategy_engine_error::node_error::backtest_strategy_node_error::variable_node_error::*;
 use star_river_core::error::engine_error::strategy_engine_error::node_error::*;
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
+use super::context_accessor::BacktestNodeContextAccessor;
 
 #[derive(Debug, Clone)]
 pub struct VariableNode {
@@ -137,68 +137,88 @@ impl BacktestNodeTrait for VariableNode {
         self.context.clone()
     }
 
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
+    async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, node_name, variable_configs) = self.with_ctx_read::<VariableNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let variable_configs = ctx.node_config.variable_configs.clone();
+            (node_id, node_name, variable_configs)
+        }).await?;
+
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(strategy_output_handle_id, tx).await;
+        self.with_ctx_write::<VariableNodeContext, _>(|ctx| {
+            ctx.add_output_handle(strategy_output_handle_id, tx)
+        }).await?;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
         tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
-        self.add_output_handle(default_output_handle_id, tx).await;
+        self.with_ctx_write::<VariableNodeContext, _>(|ctx| {
+            ctx.add_output_handle(default_output_handle_id, tx)
+        }).await?;
 
-        let variable_configs = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let variable_node_context = context_guard.as_any().downcast_ref::<VariableNodeContext>().unwrap();
-            variable_node_context.node_config.variable_configs.clone()
-        };
+        
 
         for variable in variable_configs {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let output_handle_id = format!("{}_output_{}", node_id, variable.config_id());
             tracing::debug!("[{node_name}] setting variable output handle: {}", output_handle_id);
-            self.add_output_handle(output_handle_id, tx).await;
+            self.with_ctx_write::<VariableNodeContext, _>(|ctx| {
+                ctx.add_output_handle(output_handle_id, tx)
+            }).await?;
         }
+        Ok(())
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("================={}====================", self.get_node_name().await);
-        tracing::info!("{}: 开始初始化", self.get_node_name().await);
+
+        let node_name = self.with_ctx_read::<VariableNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await?;
+        tracing::info!("=================init node [{node_name}]====================");
+        tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        tracing::info!("{:?}: 初始化完成", self.get_state_machine().await.current_state());
+        let current_state = self.with_ctx_read::<VariableNodeContext, _>(|ctx| 
+            ctx.get_state_machine().current_state()
+        ).await?;
+
+        tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("{}: 开始停止", self.get_node_id().await);
+        let node_name = self.with_ctx_read::<VariableNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await.unwrap();
+        tracing::info!("[{node_name}] start stop");
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
         // 休眠500毫秒
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
         // 切换为stopped状态
         self.update_node_state(BacktestNodeStateTransitionEvent::StopComplete).await?;
         Ok(())
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        let strategy_output_handle = self.get_strategy_output_handle().await;
+        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self.with_ctx_read::<VariableNodeContext, _>(|ctx| {
+            let node_name = ctx.get_node_name().clone();
+            let node_id = ctx.get_node_id().clone();
+            let strategy_id = ctx.get_strategy_id().clone();
+            let strategy_output_handle = ctx.get_strategy_output_handle().clone();
+            let state_machine = ctx.get_state_machine();
+            (node_name, node_id, strategy_id, strategy_output_handle, state_machine)
+        }).await?;
 
-        // 获取状态管理器并执行转换
-        let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作

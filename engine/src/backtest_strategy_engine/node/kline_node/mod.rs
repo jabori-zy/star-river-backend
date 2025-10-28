@@ -3,6 +3,7 @@ pub mod kline_node_state_machine;
 pub mod kline_node_type;
 mod tests;
 
+use super::context_accessor::BacktestNodeContextAccessor;
 use super::node_message::common_log_message::*;
 use super::node_message::kline_node_log_message::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
@@ -146,57 +147,67 @@ impl BacktestNodeTrait for KlineNode {
     }
 
     // 设置节点的出口
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
+    async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, node_name, selected_symbols) = self.with_ctx_read::<KlineNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let selected_symbols = ctx.node_config.exchange_mode_config.as_ref().unwrap().selected_symbols.clone();
+            (node_id, node_name, selected_symbols)
+        }).await?;
 
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(strategy_output_handle_id, tx).await;
+        self.with_ctx_write::<KlineNodeContext, _>(|ctx| {
+            ctx.add_output_handle(strategy_output_handle_id, tx)
+        }).await?;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
         tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
-        self.add_output_handle(default_output_handle_id, tx).await;
+        self.with_ctx_write::<KlineNodeContext, _>(|ctx| {
+            ctx.add_output_handle(default_output_handle_id, tx)
+        }).await?;
 
         // 添加每一个symbol的出口
-        let selected_symbols = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let kline_node_context = context_guard.as_any().downcast_ref::<KlineNodeContext>().unwrap();
-            let exchange_mode_config = kline_node_context.node_config.exchange_mode_config.as_ref().unwrap();
-            exchange_mode_config.selected_symbols.clone()
-        };
-
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.output_handle_id.clone();
             tracing::debug!("[{node_name}] setting symbol output handle: {}", symbol_output_handle_id);
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            self.add_output_handle(symbol_output_handle_id, tx).await;
+            self.with_ctx_write::<KlineNodeContext, _>(|ctx| {
+                ctx.add_output_handle(symbol_output_handle_id, tx)
+            }).await?;
         }
+        Ok(())
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("================={}====================", self.context.read().await.get_node_name());
-        tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
+        let node_name = self.with_ctx_read::<KlineNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await?;
+        tracing::info!("================={}====================", node_name);
+        tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         if let Err(error) = self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await {
             let report = Report::from_error(&error);
             tracing::error!("report: {}", report.to_string());
             return Err(error);
         }
+
+        let current_state = self.with_ctx_read::<KlineNodeContext, _>(|ctx| {
+            ctx.get_state_machine().current_state()
+        }).await?;
         
-        tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
+        tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        let state = self.get_context();
+        let state = BacktestNodeTrait::get_context(self);
         tracing::info!("{}: 开始停止", state.read().await.get_node_id());
         self.update_node_state(BacktestNodeStateTransitionEvent::Stop).await?;
 
@@ -205,14 +216,16 @@ impl BacktestNodeTrait for KlineNode {
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        // 提前获取所有需要的数据，避免在循环中持有引用
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        let strategy_output_handle = self.get_strategy_output_handle().await;
+        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+            .with_ctx_read::<KlineNodeContext, _>(|ctx| {
+                let node_name = ctx.get_node_name().clone();
+                let node_id = ctx.get_node_id().clone();
+                let strategy_id = ctx.get_strategy_id().clone();
+                let strategy_output_handle = ctx.get_strategy_output_handle().clone();
+                let state_machine = ctx.get_state_machine();
+                (node_name, node_id, strategy_id, strategy_output_handle, state_machine)
+        }).await?;
 
-        // 获取状态管理器并执行转换
-        let mut state_machine = self.get_state_machine().await; // 使用读锁获取当前状态
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
@@ -249,83 +262,145 @@ impl BacktestNodeTrait for KlineNode {
                     }
                     KlineNodeStateAction::GetMinIntervalSymbols => {
                         tracing::info!("[{node_name}] start to get min interval symbols");
-                        let context = self.get_context();
+                        let result = self
+                            .with_ctx_write_async::<KlineNodeContext, _>(|ctx| {
+                                Box::pin(async move {
+                                    ctx
+                                    .get_min_interval_symbols()
+                                    .await
+                                    .map(|min_interval_symbols| {
+                                            ctx.set_min_interval_symbols(min_interval_symbols);
+                                        })
+                                })
+                            })
+                            .await?;
 
-                        let mut context_guard = context.write().await;
-                        if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            let min_interval_symbols = kline_node_context.get_min_interval_symbols().await.unwrap();
-                            kline_node_context.set_min_interval_symbols(min_interval_symbols);
-
-                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::GetMinIntervalSymbols.to_string(), &strategy_output_handle).await;
+                        match result {
+                            Ok(()) => {
+                                let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
+                                NodeUtils::send_success_status_event(
+                                    strategy_id,
+                                    node_id.clone(),
+                                    node_name.clone(),
+                                    log_message.to_string(),
+                                    current_state.to_string(),
+                                    KlineNodeStateAction::GetMinIntervalSymbols.to_string(),
+                                    &strategy_output_handle,
+                                )
+                                .await;
+                            }
+                            Err(err) => {
+                                tracing::warn!(
+                                    "[{node_name}] failed to get min interval symbols from strategy: {err}"
+                                );
+                            }
                         }
                     }
                     KlineNodeStateAction::RegisterExchange => {
                         tracing::info!("[{node_name}] start to register exchange");
 
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(kline_node_context) = state_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                            // 1. send register exchange log
-                            let exchange = kline_node_context
-                                .node_config
-                                .exchange_mode_config
-                                .as_ref()
-                                .unwrap()
-                                .selected_account
-                                .exchange
-                                .clone();
-                            let log_message = StartRegisterExchangeMsg::new(node_name.clone(), exchange.clone());
-                            NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::RegisterExchange.to_string(), &strategy_output_handle).await;
-                            
+                        let (exchange, response) = self.with_ctx_write_async::<KlineNodeContext, _>(|ctx| {
+                            Box::pin(async move {
+                                // 1. 获取交易所信息
+                                let exchange = ctx
+                                    .node_config
+                                    .exchange_mode_config
+                                    .as_ref()
+                                    .unwrap()
+                                    .selected_account
+                                    .exchange
+                                    .clone();
 
-                            // 2. register exchange
-                            let response = kline_node_context.register_exchange().await.unwrap();
-                            if response.is_success() {
-                                let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
-                                NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::RegisterExchange.to_string(), &strategy_output_handle).await;
+                                // 2. register exchange
+                                let response = ctx.register_exchange().await.unwrap();
 
-                                
-                            } else {
-                                // 转换状态 Failed
-                                let error = response.get_error();
-                                let kline_error = RegisterExchangeFailedSnafu {
-                                    node_id: node_id.clone(),
-                                    node_name: node_name.clone(),
-                                }
-                                .into_error(error.clone());
+                                // 返回结果供外部处理
+                                (exchange, response)
+                            })
+                        }).await?;
 
-                                let log_event = NodeStateLogEvent::error(
-                                    strategy_id.clone(),
-                                    node_id.clone(),
-                                    node_name.clone(),
-                                    BacktestNodeRunState::Failed.to_string(),
-                                    KlineNodeStateAction::RegisterExchange.to_string(),
-                                    &kline_error,
-                                );
-                                let _ = strategy_output_handle.send(log_event.into());
-                                return Err(kline_error.into());
+                        
+                        // 发送开始注册日志
+                        let log_message = StartRegisterExchangeMsg::new(node_name.clone(), exchange.clone());
+                        NodeUtils::send_success_status_event(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            log_message.to_string(),
+                            current_state.to_string(),
+                            KlineNodeStateAction::RegisterExchange.to_string(),
+                            &strategy_output_handle
+                        ).await;
+
+                        if response.is_success() {
+                            let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
+                            NodeUtils::send_success_status_event(
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                log_message.to_string(),
+                                current_state.to_string(),
+                                KlineNodeStateAction::RegisterExchange.to_string(),
+                                &strategy_output_handle
+                            ).await;
+                        } else {
+                            // 转换状态 Failed
+                            let error = response.get_error();
+                            let kline_error = RegisterExchangeFailedSnafu {
+                                node_id: node_id.clone(),
+                                node_name: node_name.clone(),
                             }
+                            .into_error(error.clone());
+
+                            let log_event = NodeStateLogEvent::error(
+                                strategy_id.clone(),
+                                node_id.clone(),
+                                node_name.clone(),
+                                BacktestNodeRunState::Failed.to_string(),
+                                KlineNodeStateAction::RegisterExchange.to_string(),
+                                &kline_error,
+                            );
+                            let _ = strategy_output_handle.send(log_event.into());
+                            return Err(kline_error.into());
                         }
                     }
                     KlineNodeStateAction::LoadHistoryFromExchange => {
                         tracing::info!("[{node_name}] starting to load kline data from exchange");
-                        let context = self.get_context();
-                        let mut context_guard = context.write().await;
-                        if let Some(kline_node_context) = context_guard.as_any_mut().downcast_mut::<KlineNodeContext>() {
-                        let load_result = kline_node_context.load_kline_history_from_exchange().await;
+                        let load_result = self
+                            .with_ctx_write_async::<KlineNodeContext, _>(|ctx| {
+                                Box::pin(async move { ctx.load_kline_history_from_exchange().await })
+                            })
+                            .await?;
+
                         match load_result {
                             Ok(()) => {
                                 tracing::info!("[{node_name}] load kline history from exchange success");
                                 let log_message = LoadKlineDataSuccessMsg::new(node_name.clone());
-                                NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &strategy_output_handle).await;
+                                NodeUtils::send_success_status_event(
+                                    strategy_id,
+                                    node_id.clone(),
+                                    node_name.clone(),
+                                    log_message.to_string(),
+                                    current_state.to_string(),
+                                    KlineNodeStateAction::LoadHistoryFromExchange.to_string(),
+                                    &strategy_output_handle,
+                                )
+                                .await;
                             }
-                            Err(e) => {
-                                NodeUtils::send_error_status_event(strategy_id, node_id.clone(), node_name.clone(), KlineNodeStateAction::LoadHistoryFromExchange.to_string(), &e, &strategy_output_handle).await;
-                                return Err(e.into());
+                            Err(err) => {
+                                let report = snafu::Report::from_error(&err);
+                                tracing::error!("{}", report);
+                                NodeUtils::send_error_status_event(
+                                    strategy_id,
+                                    node_id.clone(),
+                                    node_name.clone(),
+                                    KlineNodeStateAction::LoadHistoryFromExchange.to_string(),
+                                    &err,
+                                    &strategy_output_handle,
+                                )
+                                .await;
+                                return Err(err.into());
                             }
-                            }
-                            tracing::info!("[{node_name}] load kline history from exchange success");  
                         }
                     }
                     KlineNodeStateAction::ListenAndHandleStrategyCommand => {

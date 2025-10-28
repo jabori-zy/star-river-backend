@@ -1,4 +1,4 @@
-use super::{BacktestStrategyContext, BacktestStrategyFunction, NodeInputHandle};
+use super::{BacktestStrategyContext, BacktestNodeContextAccessor,BacktestNodeContextTrait, BacktestStrategyFunction, NodeInputHandle};
 use star_river_core::error::engine_error::strategy_error::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -12,7 +12,6 @@ impl BacktestStrategyFunction {
 
         let source_handle_id = edge_config.get("sourceHandle").and_then(|v| v.as_str()).ok_or_else(|| {
             EdgeConfigMissFieldSnafu {
-                strategy_id: context_guard.strategy_id,
                 strategy_name: context_guard.strategy_name.clone(),
                 field_name: "sourceHandle".to_string(),
             }
@@ -21,7 +20,6 @@ impl BacktestStrategyFunction {
 
         let source_node_id = edge_config.get("source").and_then(|v| v.as_str()).ok_or_else(|| {
             EdgeConfigMissFieldSnafu {
-                strategy_id: context_guard.strategy_id,
                 strategy_name: context_guard.strategy_name.clone(),
                 field_name: "source".to_string(),
             }
@@ -30,7 +28,6 @@ impl BacktestStrategyFunction {
 
         let target_node_id = edge_config.get("target").and_then(|v| v.as_str()).ok_or_else(|| {
             EdgeConfigMissFieldSnafu {
-                strategy_id: context_guard.strategy_id,
                 strategy_name: context_guard.strategy_name.clone(),
                 field_name: "target".to_string(),
             }
@@ -39,7 +36,6 @@ impl BacktestStrategyFunction {
 
         let target_handle_id = edge_config.get("targetHandle").and_then(|v| v.as_str()).ok_or_else(|| {
             EdgeConfigMissFieldSnafu {
-                strategy_id: context_guard.strategy_id,
                 strategy_name: context_guard.strategy_name.clone(),
                 field_name: "targetHandle".to_string(),
             }
@@ -49,7 +45,6 @@ impl BacktestStrategyFunction {
         let (source, target) = {
             let source = context_guard.node_indices.get(source_node_id).copied().ok_or_else(|| {
                 NodeNotFoundSnafu {
-                    strategy_id: context_guard.strategy_id,
                     strategy_name: context_guard.strategy_name.clone(),
                     node_id: source_node_id.to_string(),
                 }
@@ -58,7 +53,6 @@ impl BacktestStrategyFunction {
 
             let target = context_guard.node_indices.get(target_node_id).copied().ok_or_else(|| {
                 NodeNotFoundSnafu {
-                    strategy_id: context_guard.strategy_id,
                     strategy_name: context_guard.strategy_name.clone(),
                     node_id: target_node_id.to_string(),
                 }
@@ -81,7 +75,9 @@ impl BacktestStrategyFunction {
             .graph
             .node_weight(source)
             .unwrap()
-            .subscribe_output_handle(target_handle_id.to_string(), &source_handle_id.to_string())
+            .with_ctx_write_dyn(|ctx| {
+                ctx.get_output_handle_mut(&source_handle_id.to_string()).subscribe(target_handle_id.to_string())
+            })
             .await;
 
         if let Some(target_node) = context_guard.graph.node_weight_mut(target) {
@@ -93,17 +89,11 @@ impl BacktestStrategyFunction {
                 target_handle_id.to_string(),
                 receiver,
             );
-            target_node.add_input_handle(input_handle).await;
-            // let message_receivers = target_node.get_node_event_receivers().await;
-            // tracing::debug!(
-            //     "[{}] have added message receivers: {:?}",
-            //     target_node.get_node_name().await,
-            //     message_receivers
-            //         .iter()
-            //         .map(|handle| handle.from_handle_id.clone())
-            //         .collect::<Vec<String>>()
-            // );
-            target_node.add_from_node_id(source_node_id.to_string()).await;
+            target_node.with_ctx_write_dyn(|ctx| {
+                ctx.add_input_handle(input_handle);
+                ctx.add_from_node_id(source_node_id.to_string());
+            })
+            .await;
         }
         // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
         context_guard.graph.add_edge(source, target, ());

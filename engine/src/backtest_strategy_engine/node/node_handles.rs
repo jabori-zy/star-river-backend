@@ -7,24 +7,16 @@ use tokio::sync::broadcast;
 
 // 节点类型
 #[derive(Debug, Clone, Serialize, Deserialize, Display, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum NodeType {
-    #[strum(serialize = "start_node")]
     StartNode,
-    #[strum(serialize = "kline_node")]
     KlineNode,
-    #[strum(serialize = "indicator_node")]
     IndicatorNode,
-    #[strum(serialize = "if_else_node")]
     IfElseNode,
-    #[strum(serialize = "futures_order_node")]
     FuturesOrderNode,
-    #[strum(serialize = "position_node")]
     PositionNode,
-    #[strum(serialize = "get_variable_node")]
     GetVariableNode,
-    #[strum(serialize = "order_node")]
-    OrderNode,
-    #[strum(serialize = "variable_node")]
     VariableNode,
 }
 
@@ -47,7 +39,6 @@ impl FromStr for NodeType {
             "position_node" => Ok(NodeType::PositionNode),
             "position_management_node" => Ok(NodeType::PositionNode),
             "get_variable_node" => Ok(NodeType::GetVariableNode),
-            "order_node" => Ok(NodeType::OrderNode),
             "variable_node" => Ok(NodeType::VariableNode),
             _ => Err(format!("Unknown node type: {}", s)),
         }
@@ -64,8 +55,6 @@ pub enum DefaultOutputHandleId {
     IndicatorNodeOutput,
     #[strum(serialize = "if_else_node_else_output")]
     IfElseNodeElseOutput,
-    #[strum(serialize = "order_node_output")]
-    OrderNodeOutput,
     #[strum(serialize = "position_node_update_output")]
     PositionNodeUpdateOutput,
     #[strum(serialize = "get_variable_node_output")]

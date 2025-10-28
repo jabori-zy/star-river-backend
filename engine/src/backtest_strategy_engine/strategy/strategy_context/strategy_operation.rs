@@ -7,7 +7,6 @@ impl BacktestStrategyContext {
         StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, status)
             .await
             .context(UpdateStrategyStatusFailedSnafu {
-                strategy_id,
                 strategy_name: self.strategy_name.clone(),
             })?;
         Ok(())

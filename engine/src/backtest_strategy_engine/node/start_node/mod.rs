@@ -29,6 +29,7 @@ use super::node_message::common_log_message::*;
 use super::node_message::start_node_log_message::*;
 use event_center::event::strategy_event::NodeStateLogEvent;
 use super::node_utils::NodeUtils;
+use super::context_accessor::BacktestNodeContextAccessor;
 
 #[derive(Debug)]
 pub struct StartNode {
@@ -186,39 +187,53 @@ impl BacktestNodeTrait for StartNode {
         self.context.clone()
     }
 
-    async fn add_from_node_id(&mut self, from_node_id: String) {
-        let _from_node_id = from_node_id;
-    }
+    // async fn add_from_node_id(&mut self, from_node_id: String) {
+    //     let _from_node_id = from_node_id;
+    // }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        tracing::info!(node_id = %node_id, node_name = %node_name, "=================init start node====================");
-        tracing::info!(node_id = %node_id, node_name = %node_name, "start init");
+        let node_name = self.with_ctx_read::<StartNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await.unwrap();
+        tracing::info!("=================init node [{node_name}]====================");
+        tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
+        let current_state = self.with_ctx_read::<StartNodeContext, _>(|ctx| {
+            ctx.get_state_machine().current_state()
+        }).await?;
+
+        tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
         Ok(())
     }
 
     // 设置节点默认出口
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
+    async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, node_name) = self.with_ctx_read::<StartNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            (node_id, node_name)
+        }).await?;
 
         // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(strategy_output_handle_id, tx).await;
+        self.with_ctx_write::<StartNodeContext, _>(|ctx| {
+            ctx.add_output_handle(strategy_output_handle_id, tx)
+        }).await?;
 
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = format!("{}_default_output", node_id);
         tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
-        self.add_output_handle(default_output_handle_id, tx).await;
+        self.with_ctx_write::<StartNodeContext, _>(|ctx| {
+            ctx.add_output_handle(default_output_handle_id, tx)
+        }).await?;
+        Ok(())
     }
 
     async fn stop(&mut self) -> Result<(), BacktestStrategyNodeError> {
@@ -235,12 +250,17 @@ impl BacktestNodeTrait for StartNode {
     async fn listen_node_events(&self) {}
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        let strategy_output_handle = self.get_strategy_output_handle().await;
+        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+            .with_ctx_read::<StartNodeContext, _>(|ctx| {
+                let node_name = ctx.get_node_name().clone();
+                let node_id = ctx.get_node_id().clone();
+                let strategy_id = ctx.get_strategy_id().clone();
+                let strategy_output_handle = ctx.get_strategy_output_handle().clone();
+                let state_machine = ctx.get_state_machine();
+                (node_name, node_id, strategy_id, strategy_output_handle, state_machine)
+            })
+            .await?;
 
-        let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
@@ -274,42 +294,75 @@ impl BacktestNodeTrait for StartNode {
                         tracing::info!("[{node_name}] starting to listen play index change");
                         let log_message = ListenPlayIndexChangeMsg::new(node_name.clone());
                         NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::ListenAndHandlePlayIndex.to_string(), &strategy_output_handle).await;
-                        self.listen_play_index_change().await;
+                        self.listen_play_index_change().await?;
                     }
                     StartNodeStateAction::InitVirtualTradingSystem => {
                         tracing::info!("[{node_name}] start to init virtual trading system");
+                        self.with_ctx_read_async::<StartNodeContext, _>(|ctx| {
+                            Box::pin(async move {
+                                ctx.init_virtual_trading_system().await;
+                            })
+                        }).await?;
                         let log_message = InitVirtualTradingSystemMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::InitVirtualTradingSystem.to_string(), &strategy_output_handle).await;
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-                            start_node_context.init_virtual_trading_system().await;
-                        }
+                        NodeUtils::send_success_status_event(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            log_message.to_string(),
+                            current_state.to_string(),
+                            StartNodeStateAction::InitVirtualTradingSystem.to_string(),
+                            &strategy_output_handle,
+                        ).await;
                     }
                     StartNodeStateAction::InitStrategyStats => {
                         tracing::info!("[{node_name}] start to init strategy stats");
+                        
+                        self.with_ctx_read_async::<StartNodeContext, _>(|ctx| {
+                            Box::pin(async move {
+                                ctx.init_strategy_stats().await;
+                            })
+                        }).await?;
                         let log_message = InitStrategyStatsMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::InitStrategyStats.to_string(), &strategy_output_handle).await;
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-                            start_node_context.init_strategy_stats().await;
-                        }
+                        NodeUtils::send_success_status_event(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            log_message.to_string(),
+                            current_state.to_string(),
+                            StartNodeStateAction::InitStrategyStats.to_string(),
+                            &strategy_output_handle,
+                        ).await;
                     }
                     StartNodeStateAction::InitCustomVariables => {
                         tracing::info!("[{node_name}] start to init custom variables");
+                        self.with_ctx_read_async::<StartNodeContext, _>(|ctx| {
+                            Box::pin(async move {
+                                ctx.init_custom_variables().await;
+                            })
+                        }).await?;
                         let log_message = InitCustomVariableMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::InitCustomVariables.to_string(), &strategy_output_handle).await;
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(start_node_context) = state_guard.as_any_mut().downcast_mut::<StartNodeContext>() {
-                            start_node_context.init_custom_variables().await;
-                        }
+                        NodeUtils::send_success_status_event(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            log_message.to_string(),
+                            current_state.to_string(),
+                            StartNodeStateAction::InitCustomVariables.to_string(),
+                            &strategy_output_handle,
+                        ).await;
                         
                     }
                     StartNodeStateAction::LogNodeState => {
                         let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), StartNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
+                        NodeUtils::send_success_status_event(
+                            strategy_id,
+                            node_id.clone(),
+                            node_name.clone(),
+                            log_message.to_string(),
+                            current_state.to_string(),
+                            StartNodeStateAction::LogNodeState.to_string(),
+                            &strategy_output_handle,
+                        ).await;
                         
                     }
                     StartNodeStateAction::CancelAsyncTask => {
@@ -332,27 +385,18 @@ impl BacktestNodeTrait for StartNode {
 }
 
 impl StartNode {
-    // pub async fn send_finish_signal(&self, signal_index: i32) {
-    //     let context = self.get_context();
-    //     let mut state_guard = context.write().await;
-    //     if let Some(start_node_context) =
-    //         state_guard.as_any_mut().downcast_mut::<StartNodeContext>()
-    //     {
-    //         start_node_context.send_finish_signal(signal_index).await;
-    //     }
-    // }
 
-    pub async fn listen_play_index_change(&self) {
-        let (mut play_index_watch_rx, cancel_token, node_id) = {
-            let context = self.get_context();
-            let state_guard = context.read().await;
-            let play_index_watch_rx = state_guard.get_play_index_watch_rx();
-            let cancel_token = state_guard.get_cancel_token().clone();
-            let node_id = state_guard.get_node_id().to_string();
-            (play_index_watch_rx, cancel_token, node_id)
-        };
+    pub async fn listen_play_index_change(&self) -> Result<(), BacktestStrategyNodeError> {
+        let (mut play_index_watch_rx, cancel_token, node_id) = self.with_ctx_read_async::<StartNodeContext, _>(|ctx| {
+            Box::pin(async move {
+                let play_index_watch_rx = ctx.get_play_index_watch_rx();
+                let cancel_token = ctx.get_cancel_token().clone();
+                let node_id = ctx.get_node_id().to_string();
+                (play_index_watch_rx, cancel_token, node_id)
+            })
+        }).await?;
 
-        let context = self.get_context();
+        let start_node = self.clone();
 
         // 节点接收播放索引变化
         tokio::spawn(async move {
@@ -367,12 +411,17 @@ impl StartNode {
                     receive_result = play_index_watch_rx.changed() => {
                         match receive_result {
                             Ok(_) => {
-                                let state_guard = context.read().await;
-                                let start_node_context = state_guard.as_ref().as_any().downcast_ref::<StartNodeContext>().unwrap();
-                                start_node_context.send_play_signal().await;
+                                if let Err(err) = start_node.with_ctx_read_async::<StartNodeContext, _>(|ctx| {
+                                    Box::pin(async move {
+                                        ctx.send_play_signal().await;
+                                    })
+                                }).await {
+                                    tracing::error!("{} 播放索引变化处理失败: {}", node_id, err);
+                                    break;
+                                }
                             }
                             Err(e) => {
-                                // tracing::error!("节点{}监听播放索引错误: {}", node_id, e);
+                                tracing::error!("节点{}监听播放索引错误: {}", node_id, e);
                                 break;
                             }
                         }
@@ -380,5 +429,6 @@ impl StartNode {
                 }
             }
         });
+        Ok(())
     }
 }

@@ -1,18 +1,16 @@
 use super::node_handles::*;
 use crate::backtest_strategy_engine::node::node_state_machine::*;
 use async_trait::async_trait;
-use event_center::EventPublisher;
 use event_center::communication::backtest_strategy::{
-    AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestNodeCommand, NodeCommandReceiver, NodeCommandSender, StrategyCommandReceiver, StrategyCommandSender
+    AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestNodeCommand, NodeCommandReceiver, StrategyCommandSender
 };
 use event_center::event::Event;
-use event_center::event::EventReceiver;
 use event_center::event::node_event::backtest_node_event::common_event::{
     CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload,
 };
 
 use event_center::event::node_event::BacktestNodeEvent;
-use star_river_core::custom_type::{NodeId, PlayIndex};
+use star_river_core::custom_type::{NodeId, PlayIndex, HandleId};
 use star_river_core::strategy::node_benchmark::CompletedCycle;
 
 use std::any::Any;
@@ -20,188 +18,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
+use tokio::sync::broadcast;
 
-#[async_trait]
-pub trait LiveNodeContextTrait: Debug + Send + Sync + 'static {
-    fn as_any(&self) -> &dyn Any;
-
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    fn clone_box(&self) -> Box<dyn LiveNodeContextTrait>;
-
-    async fn handle_event(&mut self, event: Event) -> Result<(), String>;
-
-    async fn handle_message(&mut self, message: BacktestNodeEvent) -> Result<(), String>;
-
-    fn get_base_context(&self) -> &LiveBaseNodeContext;
-
-    fn get_base_context_mut(&mut self) -> &mut LiveBaseNodeContext;
-
-    fn get_from_node_id(&self) -> &Vec<String> {
-        &self.get_base_context().from_node_id
-    }
-    fn get_from_node_id_mut(&mut self) -> &mut Vec<String> {
-        &mut self.get_base_context_mut().from_node_id
-    }
-
-    fn get_node_type(&self) -> &NodeType {
-        &self.get_base_context().node_type
-    }
-
-    fn get_event_publisher(&self) -> &EventPublisher {
-        &self.get_base_context().event_publisher
-    }
-
-    fn get_event_receivers(&self) -> &Vec<EventReceiver> {
-        &self.get_base_context().event_receivers
-    }
-    // fn get_command_publisher(&self) -> &CommandPublisher {
-    //     &self.get_base_context().command_publisher
-    // }
-    fn get_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
-        self.get_base_context().command_receiver.clone()
-    }
-
-    fn get_strategy_command_sender(&self) -> &NodeCommandSender {
-        &self.get_base_context().strategy_command_sender
-    }
-
-    fn get_cancel_token(&self) -> &CancellationToken {
-        &self.get_base_context().cancel_token
-    }
-    fn get_node_id(&self) -> &String {
-        &self.get_base_context().node_id
-    }
-    fn get_node_name(&self) -> &String {
-        &self.get_base_context().node_name
-    }
-    fn get_strategy_id(&self) -> &i32 {
-        &self.get_base_context().strategy_id
-    }
-    fn get_state_machine(&self) -> Box<dyn LiveNodeStateMachine> {
-        self.get_base_context().state_machine.clone_box()
-    }
-    fn get_run_state(&self) -> LiveNodeRunState {
-        self.get_base_context().state_machine.current_state()
-    }
-
-    fn get_default_output_handle(&self) -> NodeOutputHandle;
-
-    // 获取所有输出句柄
-    fn get_all_output_handle(&self) -> &HashMap<String, NodeOutputHandle> {
-        &self.get_base_context().output_handle
-    }
-
-    // 获取所有输出句柄
-    fn get_all_output_handle_mut(&mut self) -> &mut HashMap<String, NodeOutputHandle> {
-        &mut self.get_base_context_mut().output_handle
-    }
-
-    fn get_message_receivers(&self) -> &Vec<NodeInputHandle> {
-        &self.get_base_context().message_receivers
-    }
-    fn get_message_receivers_mut(&mut self) -> &mut Vec<NodeInputHandle> {
-        &mut self.get_base_context_mut().message_receivers
-    }
-    fn get_enable_event_publish_mut(&mut self) -> &mut bool {
-        &mut self.get_base_context_mut().is_enable_event_publish
-    }
-    fn set_state_machine(&mut self, state_machine: Box<dyn LiveNodeStateMachine>) {
-        self.get_base_context_mut().state_machine = state_machine;
-    }
-
-    fn set_enable_event_publish(&mut self, is_enable_event_publish: bool) {
-        self.get_base_context_mut().is_enable_event_publish = is_enable_event_publish;
-    }
-
-    fn is_enable_event_publish(&self) -> &bool {
-        &self.get_base_context().is_enable_event_publish
-    }
-}
-
-impl Clone for Box<dyn LiveNodeContextTrait> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
-
-pub type HandleId = String;
-
-#[derive(Debug)]
-pub struct LiveBaseNodeContext {
-    pub node_type: NodeType,
-    pub strategy_id: i32,
-    pub node_id: String,
-    pub node_name: String,
-    pub cancel_token: CancellationToken,
-    pub event_publisher: EventPublisher,
-    pub event_receivers: Vec<EventReceiver>, // 事件接收器
-    // pub command_publisher: CommandPublisher,
-    pub command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
-    pub message_receivers: Vec<NodeInputHandle>,
-    pub output_handle: HashMap<HandleId, NodeOutputHandle>, // 节点输出句柄
-    pub is_enable_event_publish: bool,                      // 是否启用事件发布
-    pub state_machine: Box<dyn LiveNodeStateMachine>,       // 状态机
-    pub from_node_id: Vec<String>,                          // 来源节点ID
-    pub strategy_command_sender: NodeCommandSender,         // 策略命令发送器
-}
-
-impl Clone for LiveBaseNodeContext {
-    fn clone(&self) -> Self {
-        Self {
-            node_type: self.node_type.clone(),
-            strategy_id: self.strategy_id.clone(),
-            node_id: self.node_id.clone(),
-            node_name: self.node_name.clone(),
-            cancel_token: self.cancel_token.clone(),
-            event_publisher: self.event_publisher.clone(),
-            message_receivers: self.message_receivers.clone(),
-            event_receivers: self.event_receivers.iter().map(|receiver| receiver.resubscribe()).collect(),
-            output_handle: self.output_handle.clone(),
-            is_enable_event_publish: self.is_enable_event_publish.clone(),
-            state_machine: self.state_machine.clone_box(),
-            from_node_id: self.from_node_id.clone(),
-            // command_publisher: self.command_publisher.clone(),
-            command_receiver: self.command_receiver.clone(),
-            strategy_command_sender: self.strategy_command_sender.clone(),
-        }
-    }
-}
-
-impl LiveBaseNodeContext {
-    pub fn new(
-        strategy_id: i32,
-        node_id: String,
-        node_name: String,
-        node_type: NodeType,
-        event_publisher: EventPublisher,
-        event_receivers: Vec<EventReceiver>,
-        // command_publisher: CommandPublisher,
-        command_receiver: Arc<Mutex<StrategyCommandReceiver>>,
-        state_machine: Box<dyn LiveNodeStateMachine>,
-        strategy_command_sender: NodeCommandSender,
-    ) -> Self {
-        Self {
-            strategy_id,
-            node_id,
-            node_name,
-            node_type,
-            output_handle: HashMap::new(),
-            event_publisher,
-            is_enable_event_publish: false,
-            cancel_token: CancellationToken::new(),
-            message_receivers: Vec::new(),
-            event_receivers,
-            // command_publisher,
-            command_receiver,
-            state_machine,
-            from_node_id: Vec::new(),
-            strategy_command_sender,
-        }
-    }
-}
 
 #[async_trait]
 pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
@@ -220,6 +39,10 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
     fn get_base_context(&self) -> &BacktestBaseNodeContext;
 
     fn get_base_context_mut(&mut self) -> &mut BacktestBaseNodeContext;
+
+    fn add_from_node_id(&mut self, from_node_id: String) {
+        self.get_base_context_mut().from_node_id.push(from_node_id);
+    }
 
     fn get_from_node_id(&self) -> &Vec<String> {
         &self.get_base_context().from_node_id
@@ -278,6 +101,17 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
 
     fn get_default_output_handle(&self) -> &NodeOutputHandle;
 
+
+    fn add_input_handle(&mut self, input_handle: NodeInputHandle) {
+        self.get_base_context_mut().input_handles.push(input_handle);
+    }
+
+    fn add_output_handle(&mut self, handle_id: HandleId, sender: broadcast::Sender<BacktestNodeEvent>) {
+        let node_id = self.get_node_id();
+        let handle = NodeOutputHandle::new(node_id.clone(), handle_id.clone(), sender);
+        self.get_base_context_mut().output_handles.insert(handle_id, handle);
+    }
+
     // 获取所有输出句柄
     fn get_all_output_handles(&self) -> &HashMap<String, NodeOutputHandle> {
         &self.get_base_context().output_handles
@@ -296,6 +130,12 @@ pub trait BacktestNodeContextTrait: Debug + Send + Sync + 'static {
         let node_id = self.get_node_id();
         let handle_id = format!("{}_strategy_output", node_id);
         self.get_output_handle(&handle_id)
+    }
+
+    fn get_strategy_output_handle_mut(&mut self) -> &mut NodeOutputHandle {
+        let node_id = self.get_node_id();
+        let handle_id = format!("{}_strategy_output", node_id);
+        self.get_output_handle_mut(&handle_id)
     }
 
     // 获取所有输出句柄

@@ -235,7 +235,6 @@ impl BacktestStrategyStateMachine {
             (state, event) => {
                 self.current_state = BacktestStrategyRunState::Failed;
                 return Err(StrategyStateInvalidStateTransitionSnafu {
-                    strategy_id: self.strategy_id,
                     strategy_name: self.strategy_name.clone(),
                     current_state: state.to_string(),
                     event: event.to_string(),

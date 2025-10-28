@@ -1,4 +1,6 @@
-use super::{BacktestNodeRunState, BacktestNodeTrait, BacktestStrategyContext};
+use super::{
+    BacktestNodeRunState, BacktestNodeTrait, BacktestStrategyContext, 
+    BacktestNodeContextAccessor, BacktestNodeContextTrait, BacktestStrategyNodeError};
 use snafu::{IntoError, ResultExt};
 use star_river_core::error::engine_error::strategy_engine_error::strategy_error::backtest_strategy_error::*;
 use std::sync::Arc;
@@ -19,13 +21,16 @@ impl BacktestStrategyContext {
             let mut node_clone = node.clone();
 
             let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
-                node_clone.init().await.context(NodeInitSnafu {})?;
+                node_clone.init().await.context(NodeInitFailedSnafu {})?;
                 Ok(())
             });
 
-            let node_name = node.get_node_name().await;
-            let node_id = node.get_node_id().await;
-            let node_type = node.get_node_type().await;
+            let (node_id, node_name, node_type) = node.with_ctx_read_dyn(|ctx| {
+                let node_id = ctx.get_node_id().clone();
+                let node_name = ctx.get_node_name().clone();
+                let node_type = ctx.get_node_type().clone();
+                (node_id, node_name, node_type)
+            }).await;
 
             // 等待节点初始化完成（这里没有持有任何锁）
             match tokio::time::timeout(Duration::from_secs(120), node_handle).await {
@@ -34,8 +39,6 @@ impl BacktestStrategyContext {
                         return Err(TokioTaskFailedSnafu {
                             task_name: "INIT_NODE".to_string(),
                             node_name,
-                            node_id,
-                            node_type: node_type.to_string(),
                         }
                         .into_error(e));
                     }
@@ -47,7 +50,6 @@ impl BacktestStrategyContext {
                 Err(e) => {
                     return Err(NodeInitTimeoutSnafu {
                         node_name,
-                        node_type: node_type.to_string(),
                     }
                     .into_error(e));
                 }
@@ -58,9 +60,11 @@ impl BacktestStrategyContext {
             let max_retries = 10;
 
             while retry_count < max_retries {
-                let run_state = node.get_run_state().await;
+                let run_state = node.with_ctx_read_dyn(|ctx| {
+                    ctx.get_run_state().clone()
+                }).await;
                 if run_state == BacktestNodeRunState::Ready {
-                    tracing::debug!("节点 {} 已进入Ready状态", node_id);
+                    tracing::debug!("[{node_name}] node is ready");
                     // 节点初始化间隔
                     tokio::time::sleep(Duration::from_millis(1)).await;
                     break;
@@ -71,9 +75,7 @@ impl BacktestStrategyContext {
 
             if retry_count >= max_retries {
                 return Err(NodeStateNotReadySnafu {
-                    node_id: node_id,
                     node_name: node_name,
-                    node_type: node_type.to_string(),
                 }
                 .fail()?);
             }
@@ -82,35 +84,40 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
-    pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), String> {
+    pub async fn stop_node(&self, node: Box<dyn BacktestNodeTrait>) -> Result<(), BacktestStrategyError> {
         let mut node_clone = node.clone();
-        let node_name = node_clone.get_node_name().await;
-        let node_id = node_clone.get_node_id().await;
-
-        let node_handle = tokio::spawn(async move {
-            if let Err(e) = node_clone.stop().await {
-                tracing::error!(node_name = %node_name, node_id = %node_id, error = %e, "节点停止失败。");
-                return Err(format!("节点停止失败。"));
-            }
+        let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyNodeError>> = tokio::spawn(async move {
+            node_clone.stop().await?;
             Ok(())
         });
 
-        let node_name = node.get_node_name().await;
-        let node_id = node.get_node_id().await;
+        let (node_name, node_id) = node.with_ctx_read_dyn(|ctx| {
+            let node_name = ctx.get_node_name().clone();
+            let node_id = ctx.get_node_id().clone();
+            (node_name, node_id)
+        }).await;
 
         // 等待节点停止完成
         match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
             Ok(result) => {
+                // 处理 JoinError（任务 panic 或被取消）
                 if let Err(e) = result {
-                    return Err(format!("节点 {} 停止任务失败: {}", node_name, e));
+                    return Err(TokioTaskFailedSnafu {
+                        task_name: "STOP_NODE".to_string(),
+                        node_name: node_name.clone(),
+                    }.into_error(e));
                 }
 
+                // 处理节点停止过程中的业务错误
                 if let Ok(Err(e)) = result {
-                    return Err(format!("节点 {} 停止过程中出错: {}", node_name, e));
+                    return Err(NodeStopFailedSnafu {}.into_error(e));
                 }
             }
-            Err(_) => {
-                return Err(format!("节点 {} 停止超时", node_id));
+            Err(e) => {
+                // 处理超时错误
+                return Err(NodeInitTimeoutSnafu {
+                    node_name: node_name.clone(),
+                }.into_error(e));
             }
         }
 
@@ -119,7 +126,9 @@ impl BacktestStrategyContext {
         let max_retries = 20;
 
         while retry_count < max_retries {
-            let run_state = node.get_run_state().await;
+            let run_state = node.with_ctx_read_dyn(|ctx| {
+                ctx.get_run_state().clone()
+            }).await;
             if run_state == BacktestNodeRunState::Stopped {
                 tracing::debug!("节点 {} 已进入Stopped状态", node_id);
                 tokio::time::sleep(Duration::from_millis(10)).await;
@@ -129,7 +138,9 @@ impl BacktestStrategyContext {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
 
-        Err(format!("节点 {} 未能进入Stopped状态", node_id))
+        Err(NodeStateNotReadySnafu {
+            node_name: node_name,
+        }.fail()?)
     }
 
     pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
@@ -140,7 +151,9 @@ impl BacktestStrategyContext {
             let mut all_stopped = true;
             // 检查所有节点状态
             for node in self.graph.node_weights() {
-                let run_state = node.get_run_state().await;
+                let run_state = node.with_ctx_read_dyn(|ctx| {
+                    ctx.get_run_state().clone()
+                }).await;
                 if run_state != BacktestNodeRunState::Stopped {
                     all_stopped = false;
                     break;

@@ -3,7 +3,6 @@ use super::{
     GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand, GetKlineDataCmdPayload, GetKlineDataCommand, IndicatorEngineCommand,
     IndicatorNodeContext, InitIndicatorDataCmdPayload, InitIndicatorDataCommand, Response,
 };
-use snafu::Report;
 use star_river_core::error::engine_error::node_error::IndicatorNodeError;
 use tokio::sync::oneshot;
 

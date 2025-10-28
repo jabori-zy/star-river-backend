@@ -31,7 +31,8 @@ use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
 use super::node_utils::NodeUtils;
-use star_river_core::strategy::node_benchmark::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
+use star_river_core::strategy::node_benchmark::CycleTracker;
+use super::context_accessor::BacktestNodeContextAccessor;
 
 // 条件分支节点
 #[derive(Debug, Clone)]
@@ -46,7 +47,7 @@ impl IfElseNode {
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IfElseNodeError> {
-        let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
+        let (strategy_id, node_id, node_name, node_config) = Self::check_if_else_node_config(node_config)?;
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
@@ -57,7 +58,7 @@ impl IfElseNode {
             node_command_receiver,
             play_index_watch_rx,
         );
-        let if_else_node_context = IfElseNodeContext::new(base_context, backtest_config);
+        let if_else_node_context = IfElseNodeContext::new(base_context, node_config);
         Ok(Self {
             context: Arc::new(RwLock::new(Box::new(if_else_node_context))),
         })
@@ -130,16 +131,14 @@ impl IfElseNode {
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
-    async fn evaluate(&self) {
-        let (node_id, cancel_token) = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let node_id = context_guard.get_node_id().clone();
-            let cancel_token = context_guard.get_cancel_token().clone();
+    async fn evaluate(&self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, cancel_token) = self.with_ctx_read::<IfElseNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let cancel_token = ctx.get_cancel_token().clone();
             (node_id, cancel_token)
-        };
+        }).await?;
 
-        let context = self.context.clone();
+        let node = self.clone();
         tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -149,37 +148,43 @@ impl IfElseNode {
                     }
                     _ = async {
                         // 使用更短的锁持有时间
-                        let should_evaluate = {
-                            let context_guard = context.read().await; // 使用读锁检查状态
-                            let if_else_node_context = context_guard
-                                .as_any()
-                                .downcast_ref::<IfElseNodeContext>()
-                                .expect("转换为IfElseNodeContext失败");
-
-                            if_else_node_context.is_all_value_received()
-                        };
-
+                        let should_evaluate = match node.with_ctx_read::<IfElseNodeContext, _>(|ctx| {
+                                ctx.is_all_value_received()
+                            }).await {
+                                Ok(result) => result,
+                                Err(err) => {
+                                    tracing::warn!("[{}] Failed to check if all values received: {}", node_id, err);
+                                    false
+                                }
+                            };
                         if should_evaluate {
-                            let mut context_guard = context.write().await; // 只有需要时才获取写锁
-                            let if_else_node_context = context_guard
-                                .as_any_mut()
-                                .downcast_mut::<IfElseNodeContext>()
-                                .expect("转换为IfElseNodeContext失败");
-
-                            // 双重检查，防止竞态条件
-                            if if_else_node_context.is_all_value_received() {
-                                let _ = if_else_node_context.evaluate().await;
-                                if_else_node_context.reset_received_flag();
+                            match node.with_ctx_write_async::<IfElseNodeContext, _>(|ctx| {
+                                Box::pin(async move {
+                                    let result = ctx.evaluate().await;
+                                    ctx.reset_received_flag();
+                                    result
+                                })
+                            }).await {
+                                Ok(Ok(())) => {
+                                    // 评估成功
+                                }
+                                Ok(Err(err)) => {
+                                    tracing::error!("[{}] Evaluation failed: {:?}", node_id, err);
+                                }
+                                Err(err) => {
+                                    tracing::error!("[{}] Failed to downcast context during evaluation: {}", node_id, err);
+                                }
                             }
                         }
 
                         // 动态调整sleep时间
-                        let sleep_duration = if should_evaluate { 10 } else { 50 };
+                        let sleep_duration = 10;
                         tokio::time::sleep(tokio::time::Duration::from_millis(sleep_duration)).await;
                     } => {}
                 }
             }
         });
+        Ok(())
     }
 }
 
@@ -201,19 +206,27 @@ impl BacktestNodeTrait for IfElseNode {
         self.context.clone()
     }
 
-    async fn set_output_handle(&mut self) {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
+    async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
+        let (node_id, node_name, cases) = self.with_ctx_read::<IfElseNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let cases = ctx.node_config.cases.clone();
+            (node_id, node_name, cases)
+        }).await?;
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let strategy_output_handle_id = format!("{}_strategy_output", node_id);
         tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(strategy_output_handle_id, tx).await;
+        self.with_ctx_write::<IfElseNodeContext, _>(|ctx| {
+            ctx.add_output_handle(strategy_output_handle_id, tx)
+        }).await?;
 
         // 添加默认出口
         // let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         // let default_output_handle_id = format!("{}_default_output", node_id);
         // tracing::debug!(node_id = %node_id, node_name = %node_name, default_output_handle_id = %default_output_handle_id, "setting default output handle");
-        // self.add_output_handle(default_output_handle_id, tx).await;
+        // self.with_ctx_write::<IfElseNodeContext, _>(|ctx| {
+        //     ctx.add_output_handle(default_output_handle_id, tx)
+        // }).await?;
 
         // 添加else出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
@@ -222,30 +235,35 @@ impl BacktestNodeTrait for IfElseNode {
             "[{node_name}] setting ELSE output handle: {}, as default output handle",
             else_output_handle_id
         );
-        self.add_output_handle(else_output_handle_id, tx).await;
-
-        let cases = {
-            let context = self.get_context();
-            let context_guard = context.read().await;
-            let if_else_node_context = context_guard.as_any().downcast_ref::<IfElseNodeContext>().unwrap();
-            if_else_node_context.node_config.cases.clone()
-        };
+        self.with_ctx_write::<IfElseNodeContext, _>(|ctx| {
+            ctx.add_output_handle(else_output_handle_id, tx)
+        }).await?;
 
         for case in cases {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let case_output_handle_id = case.output_handle_id.clone();
             tracing::debug!("[{node_name}] setting case output handle: {}", case_output_handle_id);
-            self.add_output_handle(case_output_handle_id, tx).await;
+            self.with_ctx_write::<IfElseNodeContext, _>(|ctx| {
+                ctx.add_output_handle(case_output_handle_id, tx)
+            }).await?;
         }
+        Ok(())
     }
 
     async fn init(&mut self) -> Result<(), BacktestStrategyNodeError> {
-        tracing::info!("================={}====================", self.context.read().await.get_node_name());
-        tracing::info!("{}: 开始初始化", self.context.read().await.get_node_name());
+        let node_name = self.with_ctx_read::<IfElseNodeContext, _>(|ctx| {
+            ctx.get_node_name().clone()
+        }).await?;
+        tracing::info!("================={}====================", node_name);
+        tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(BacktestNodeStateTransitionEvent::Initialize).await?;
 
-        tracing::info!("{:?}: 初始化完成", self.context.read().await.get_state_machine().current_state());
+        let current_state = self.with_ctx_read::<IfElseNodeContext, _>(|ctx| {
+            ctx.get_state_machine().current_state()
+        }).await?;
+
+        tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
         self.update_node_state(BacktestNodeStateTransitionEvent::InitializeComplete).await?;
 
@@ -264,13 +282,15 @@ impl BacktestNodeTrait for IfElseNode {
     }
 
     async fn update_node_state(&mut self, event: BacktestNodeStateTransitionEvent) -> Result<(), BacktestStrategyNodeError> {
-        let node_id = self.get_node_id().await;
-        let node_name = self.get_node_name().await;
-        let strategy_id = self.get_strategy_id().await;
-        let strategy_output_handle = self.get_strategy_output_handle().await;
+        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self.with_ctx_read::<IfElseNodeContext, _>(|ctx| {
+            let node_name = ctx.get_node_name().clone();
+            let node_id = ctx.get_node_id().clone();
+            let strategy_id = ctx.get_strategy_id().clone();
+            let strategy_output_handle = ctx.get_strategy_output_handle().clone();
+            let state_machine = ctx.get_state_machine();
+            (node_name, node_id, strategy_id, strategy_output_handle, state_machine)
+        }).await?;
 
-        // 获取状态管理器并执行转换
-        let mut state_machine = self.get_state_machine().await;
         let transition_result = state_machine.transition(event)?;
 
         // 执行转换后需要执行的动作
@@ -288,44 +308,92 @@ impl BacktestNodeTrait for IfElseNode {
                     IfElseNodeStateAction::ListenAndHandleStrategySignal => {
                         tracing::info!("[{node_name}] starting to listen strategy signal");
                         let log_message = ListenStrategySignalMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::ListenAndHandleStrategySignal.to_string(), &strategy_output_handle).await;
+                        NodeUtils::send_success_status_event(
+                            strategy_id, 
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            log_message.to_string(), 
+                            current_state.to_string(), 
+                            IfElseNodeStateAction::ListenAndHandleStrategySignal.to_string(), 
+                            &strategy_output_handle,
+                        ).await;
                         
                     }
                     IfElseNodeStateAction::LogNodeState => {
                         tracing::info!("[{node_name}] current state: {:?}", current_state);
                         let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::LogNodeState.to_string(), &strategy_output_handle).await;
+                        NodeUtils::send_success_status_event(
+                            strategy_id, 
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            log_message.to_string(), 
+                            current_state.to_string(), 
+                            IfElseNodeStateAction::LogNodeState.to_string(), 
+                            &strategy_output_handle,
+                        ).await;
                         
                     }
 
                     IfElseNodeStateAction::ListenAndHandleNodeEvents => {
                         tracing::info!("[{node_name}] starting to listen node events");
                         let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::ListenAndHandleNodeEvents.to_string(), &strategy_output_handle).await;
+                        NodeUtils::send_success_status_event(
+                            strategy_id, 
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            log_message.to_string(), 
+                            current_state.to_string(), 
+                            IfElseNodeStateAction::ListenAndHandleNodeEvents.to_string(), 
+                            &strategy_output_handle,
+                        ).await;
                         
                         self.listen_node_events().await;
                     }
                     IfElseNodeStateAction::InitReceivedData => {
                         tracing::info!("[{node_name}] initializing received data flags");
                         let log_message = InitReceivedDataMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::InitReceivedData.to_string(), &strategy_output_handle).await;
-                        
-                        let context = self.get_context();
-                        let mut state_guard = context.write().await;
-                        if let Some(if_else_node_context) = state_guard.as_any_mut().downcast_mut::<IfElseNodeContext>() {
-                            if_else_node_context.init_received_data().await;
-                        }
+                        NodeUtils::send_success_status_event(
+                            strategy_id, 
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            log_message.to_string(), 
+                            current_state.to_string(), 
+                            IfElseNodeStateAction::InitReceivedData.to_string(), 
+                            &strategy_output_handle,
+                        ).await;
+
+                        self.with_ctx_write_async::<IfElseNodeContext, _>(|ctx| {
+                            Box::pin(async move {
+                                ctx.init_received_data().await
+                            })
+                        }).await?;
                     }
                     IfElseNodeStateAction::Evaluate => {
                         tracing::info!("[{node_name}] starting condition evaluation");
                         let log_message = StartConditionEvaluationMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::Evaluate.to_string(), &strategy_output_handle).await;
+                        NodeUtils::send_success_status_event(
+                            strategy_id, 
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            log_message.to_string(), 
+                            current_state.to_string(), 
+                            IfElseNodeStateAction::Evaluate.to_string(), 
+                            &strategy_output_handle,
+                        ).await;
                         self.evaluate().await;
                     }
                     IfElseNodeStateAction::ListenAndHandleStrategyCommand => {
                         tracing::info!("[{node_name}] starting to listen strategy command");
                         let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                        NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), IfElseNodeStateAction::ListenAndHandleStrategyCommand.to_string(), &strategy_output_handle).await;
+                        NodeUtils::send_success_status_event(
+                            strategy_id, 
+                            node_id.clone(), 
+                            node_name.clone(), 
+                            log_message.to_string(), 
+                            current_state.to_string(), 
+                            IfElseNodeStateAction::ListenAndHandleStrategyCommand.to_string(), 
+                            &strategy_output_handle,
+                        ).await;
                         self.listen_strategy_command().await;
                     }
 

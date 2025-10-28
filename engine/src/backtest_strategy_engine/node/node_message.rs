@@ -1068,6 +1068,25 @@ pub mod futures_order_node_log_message {
         en: "[{node_name}] starting to get symbol info",
         zh: "[{node_name}] 开始获取交易对信息"
     );
+
+    log_message!(
+        GetSymbolInfoSuccessMsg,
+        params: (
+            node_name: String
+        ),
+        en: "[{node_name}] symbol info retrieved successfully",
+        zh: "[{node_name}] 交易对信息获取成功"
+    );
+    
+    log_message!(
+        GetSymbolInfoFailedMsg,
+        params: (
+            node_name: String,
+            error: String
+        ),
+        en: "[{node_name}] symbol info retrieval failed - Error: {error}",
+        zh: "[{node_name}] 交易对信息获取失败 - 错误: {error}"
+    );
 }
 
 // OrderNode 特有的日志消息 (保留以便未来扩展)

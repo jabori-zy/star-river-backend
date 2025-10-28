@@ -1,18 +1,19 @@
-use super::{BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction, KlineNode, KlineNodeContext};
+use super::{
+    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction,
+    KlineNode, KlineNodeContext, BacktestNodeContextAccessor,
+    BacktestNodeContextTrait,BacktestStrategyNodeError
+};
 
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, StrategyCommandSender};
-use star_river_core::error::engine_error::strategy_engine_error::node_error::kline_node_error::*;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex, RwLock, mpsc};
 
 impl BacktestStrategyFunction {
     pub async fn add_kline_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
-    ) -> Result<(), KlineNodeError> {
+    ) -> Result<(), BacktestStrategyNodeError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
         let (strategy_keys, play_index_watch_rx) = {
@@ -29,14 +30,13 @@ impl BacktestStrategyFunction {
             play_index_watch_rx,
         )?;
 
-        let node_id = node.get_node_id().await;
-
-        let selected_symbol_keys = {
-            let node_ctx = node.get_context();
-            let node_ctx_guard = node_ctx.read().await;
-            let node_ctx_guard = node_ctx_guard.as_any().downcast_ref::<KlineNodeContext>().unwrap();
-            node_ctx_guard.get_selected_symbol_keys_ref().clone()
-        };
+        let (node_id, node_name, selected_symbol_keys, node_type) = node.with_ctx_read::<KlineNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let selected_symbol_keys = ctx.get_selected_symbol_keys_ref().clone();
+            let node_type = ctx.get_node_type().to_string();
+            (node_id, node_name, selected_symbol_keys, node_type)
+        }).await?;
 
         for (key, _) in selected_symbol_keys.iter() {
             // 添加到策略缓存key列表中
@@ -52,7 +52,7 @@ impl BacktestStrategyFunction {
             .add_node_command_sender(node_id.to_string(), node_command_tx)
             .await;
         // 添加节点benchmark
-        strategy_context_guard.add_node_benchmark(node_id.clone(), node.get_node_name().await, node.get_node_type().await.to_string()).await;
+        strategy_context_guard.add_node_benchmark(node_id.clone(), node_name, node_type).await;
 
         let node = Box::new(node);
 

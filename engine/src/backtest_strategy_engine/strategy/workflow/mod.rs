@@ -1,19 +1,25 @@
 mod add_edge;
 mod add_futures_order_node;
-mod add_get_variable_node;
+mod add_variable_node;
 mod add_if_else_node;
 mod add_indicator_node;
 mod add_kline_node;
 mod add_node;
-mod add_position_management_node;
+mod add_position_node;
 mod add_start_node;
 
-use super::BacktestNodeTrait;
-use super::BacktestStrategyContext;
-use super::context::{IndicatorNodeContext, KlineNodeContext};
+use super::{BacktestNodeTrait,BacktestStrategyContext, BacktestNodeContextTrait};
+use super::context::{
+    IndicatorNodeContext, 
+    KlineNodeContext, 
+    FuturesOrderNodeContext, 
+    IfElseNodeContext, 
+    StartNodeContext, 
+    VariableNodeContext,
+    PositionNodeContext
+};
 use super::node_handles::NodeType;
-use super::{FuturesOrderNode, IfElseNode, IndicatorNode, KlineNode, PositionManagementNode, StartNode, VariableNode};
-
+use super::node::{FuturesOrderNode, IfElseNode, IndicatorNode, KlineNode, PositionManagementNode, StartNode, VariableNode};
 use super::node_handles::NodeInputHandle;
 use futures::StreamExt;
 use futures::stream::select_all;
@@ -21,26 +27,13 @@ use petgraph::{Direction, graph::NodeIndex};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::BroadcastStream;
+use super::node::BacktestNodeContextAccessor;
+use star_river_core::error::engine_error::node_error::BacktestStrategyNodeError;
+
 
 pub struct BacktestStrategyFunction;
 
 impl BacktestStrategyFunction {
-    // 将所有节点的strategy_output_handle添加到策略中
-    // pub async fn add_strategy_output_handle(context: Arc<RwLock<BacktestStrategyContext>>) {
-    //     let mut context_guard = context.write().await;
-    //     let mut strategy_output_handles = Vec::new();
-    //     // 先将所有的连接数+1
-    //     // for node in context_guard.graph.node_weights_mut() {
-    //     //     let output_handle = node.get_strategy_output_handle().await.subscribe();
-    //     //     let output_handle_id = &output_handle.output_handle_id;
-    //     // }
-    //     // 再将所有节点的策略输出句柄添加到策略中
-    //     for node in context_guard.graph.node_weights() {
-    //         let output_handle = node.get_strategy_output_handle().await;
-    //         strategy_output_handles.push(output_handle);
-    //     }
-    //     context_guard.set_all_node_output_handles(strategy_output_handles);
-    // }
 
     pub async fn listen_node_events(context: Arc<RwLock<BacktestStrategyContext>>) {
 
@@ -51,11 +44,10 @@ impl BacktestStrategyFunction {
             let strategy_name = context_guard.get_strategy_name();
             
             for node in all_node {
-                let receiver = node.subscribe_output_handle(
-                    strategy_name.clone(), 
-                    &node.get_strategy_output_handle().await.output_handle_id()).await;
+                let receiver = node.with_ctx_write_dyn(|ctx| {
+                    ctx.get_strategy_output_handle_mut().subscribe(strategy_name.clone())
+                }).await;
                 receivers.push(receiver);
-
             }
 
             let cancel_token = context_guard.get_cancel_task_token();
@@ -173,15 +165,24 @@ impl BacktestStrategyFunction {
         });
     }
 
-    pub async fn set_leaf_nodes(context: Arc<RwLock<BacktestStrategyContext>>) {
+    pub async fn set_leaf_nodes(
+        context: Arc<RwLock<BacktestStrategyContext>>,
+    ) -> Result<(), BacktestStrategyNodeError> {
         let mut context_guard = context.write().await;
         let leaf_nodes: Vec<NodeIndex> = context_guard.graph.externals(Direction::Outgoing).collect();
         let mut leaf_node_ids = Vec::new();
         for node_index in leaf_nodes {
-            let node = context_guard.graph.node_weight_mut(node_index).unwrap();
-            leaf_node_ids.push(node.get_node_id().await);
-            node.set_is_leaf_node(true).await;
+            if let Some(node) = context_guard.graph.node_weight_mut(node_index) {
+                let node_id = node
+                    .with_ctx_write_dyn(|ctx| {
+                        ctx.set_is_leaf_node(true);
+                        ctx.get_node_id().clone()
+                    })
+                    .await;
+                leaf_node_ids.push(node_id);
+            }
         }
         context_guard.set_leaf_node_ids(leaf_node_ids);
+        Ok(())
     }
 }

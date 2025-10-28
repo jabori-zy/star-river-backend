@@ -1,4 +1,4 @@
-use super::position_management_node_types::*;
+use super::position_node_types::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_handles::{NodeOutputHandle, NodeType};
 use async_trait::async_trait;
@@ -7,7 +7,7 @@ use event_center::communication::backtest_strategy::{BacktestNodeCommand, NodeRe
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload};
-use event_center::event::node_event::backtest_node_event::position_management_node_event::{
+use event_center::event::node_event::backtest_node_event::position_node_event::{
     PositionClosedEvent, PositionClosedPayload, PositionCreatedEvent, PositionCreatedPayload, PositionManagementNodeEvent,
     PositionUpdatedEvent, PositionUpdatedPayload,
 };
@@ -19,12 +19,12 @@ use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
-use super::{NodeBenchmark, CycleTracker, NodePerformanceReport, NodeCycleReport};
+use super::CycleTracker;
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
     pub base_context: BacktestBaseNodeContext,
-    pub backtest_config: PositionNodeBacktestConfig,
+    pub node_config: PositionNodeBacktestConfig,
     pub database: DatabaseConnection,
     pub heartbeat: Arc<Mutex<Heartbeat>>, // 持仓, 策略id作为key
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
@@ -35,7 +35,7 @@ impl Clone for PositionNodeContext {
     fn clone(&self) -> Self {
         Self {
             base_context: self.base_context.clone(),
-            backtest_config: self.backtest_config.clone(),
+            node_config: self.node_config.clone(),
             database: self.database.clone(),
             heartbeat: self.heartbeat.clone(),
             virtual_trading_system: self.virtual_trading_system.clone(),
@@ -145,7 +145,7 @@ impl PositionNodeContext {
     pub fn new(base_context: BacktestBaseNodeContext, backtest_config: PositionNodeBacktestConfig, database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>, virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>, virtual_trading_system_event_receiver: VirtualTradingSystemEventReceiver) -> Self {
         Self {
             base_context,
-            backtest_config,
+            node_config: backtest_config,
             database,
             heartbeat,
             virtual_trading_system,

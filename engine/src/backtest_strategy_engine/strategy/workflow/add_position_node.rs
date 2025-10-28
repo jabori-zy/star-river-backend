@@ -1,17 +1,19 @@
-use super::{BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction, PositionManagementNode};
+use super::{
+    BacktestNodeTrait, BacktestStrategyContext, BacktestStrategyFunction, 
+    PositionManagementNode, PositionNodeContext,BacktestStrategyNodeError};
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, StrategyCommandSender};
 use star_river_core::error::engine_error::node_error::position_management_node_error::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::mpsc;
-
+use crate::backtest_strategy_engine::node::{BacktestNodeContextAccessor, BacktestNodeContextTrait};
 impl BacktestStrategyFunction {
     pub async fn add_position_management_node(
         context: Arc<RwLock<BacktestStrategyContext>>,
         node_config: serde_json::Value,
         strategy_command_sender: StrategyCommandSender,
-    ) -> Result<(), PositionManagementNodeError> {
+    ) -> Result<(), BacktestStrategyNodeError> {
         let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
 
         let (heartbeat, virtual_trading_system, virtual_trading_system_event_receiver, database, play_index_watch_rx) = {
@@ -45,7 +47,12 @@ impl BacktestStrategyFunction {
             play_index_watch_rx,
         )?;
         // set output handle
-        let node_id = node.get_node_id().await;
+        let (node_id, node_name, node_type) = node.with_ctx_read::<PositionNodeContext, _>(|ctx| {
+            let node_id = ctx.get_node_id().clone();
+            let node_name = ctx.get_node_name().clone();
+            let node_type = ctx.get_node_type().to_string();
+            (node_id, node_name, node_type)
+        }).await?;
         node.set_output_handle().await;
 
         let mut strategy_context_guard = context.write().await;
@@ -54,7 +61,7 @@ impl BacktestStrategyFunction {
             .await;
 
         // 添加节点benchmark
-        strategy_context_guard.add_node_benchmark(node_id.clone(), node.get_node_name().await, node.get_node_type().await.to_string()).await;
+        strategy_context_guard.add_node_benchmark(node_id.clone(), node_name, node_type).await;
 
         let node = Box::new(node);
 

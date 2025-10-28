@@ -34,6 +34,7 @@ use strategy_log_message::StrategyStateLogMsg;
 use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use super::node;
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {

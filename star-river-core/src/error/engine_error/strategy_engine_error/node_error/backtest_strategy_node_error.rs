@@ -1,5 +1,5 @@
 pub mod futures_order_node_error;
-pub mod variable_node;
+pub mod variable_node_error;
 pub mod if_else_node_error;
 pub mod indicator_node_error;
 pub mod kline_node_error;
@@ -12,7 +12,7 @@ use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
 pub use futures_order_node_error::FuturesOrderNodeError;
-pub use variable_node::VariableNodeError;
+pub use variable_node_error::VariableNodeError;
 pub use if_else_node_error::IfElseNodeError;
 pub use indicator_node_error::IndicatorNodeError;
 pub use kline_node_error::KlineNodeError;
@@ -24,6 +24,16 @@ use super::node_state_machine_error::BacktestNodeStateMachineError;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum BacktestStrategyNodeError {
+
+
+    #[snafu(display("backtest strategy node context downcast failed. expect type: {expect_type}, actual type: {actual_type}"))]
+    ContextDowncastFailed{
+        expect_type: String,
+        actual_type: String,
+        backtrace: Backtrace 
+    },
+
+
     #[snafu(transparent)]
     StateMachine {
         source: BacktestNodeStateMachineError,
@@ -67,11 +77,13 @@ pub enum BacktestStrategyNodeError {
 // Implement the StarRiverErrorTrait for Mt5Error
 impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeError {
     fn get_prefix(&self) -> &'static str {
-        "STRATEGY_ENGINE"
+        "BACKTEST_STRATEGY_NODE"
     }
 
     fn error_code(&self) -> ErrorCode {
-        match self {
+        let prefix = self.get_prefix();
+        let code = match self {
+            BacktestStrategyNodeError::ContextDowncastFailed { .. } => format!("{}_{:04}", prefix, 1001),
             // transparent errors - delegate to source error
             BacktestStrategyNodeError::StateMachine { source, .. } => source.error_code(),
             BacktestStrategyNodeError::StartNode { source, .. } => source.error_code(),
@@ -88,7 +100,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
                 let code = 1004;
                 format!("{}_{:04}", prefix, code)
             }
-        }
+        };
+        code
     }
 
     fn context(&self) -> HashMap<&'static str, String> {
@@ -116,6 +129,9 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
             Language::English => self.to_string(),
             Language::Chinese => {
                 match self {
+                    BacktestStrategyNodeError::ContextDowncastFailed { expect_type, actual_type, .. } => {
+                        format!("回测节点上下文类型转换失败. 期望类型: {expect_type}, 实际类型: {actual_type}")
+                    }
                     // transparent errors - return source message directly
                     BacktestStrategyNodeError::StateMachine { source, .. } => source.get_error_message(language),
                     BacktestStrategyNodeError::StartNode { source, .. } => source.get_error_message(language),
@@ -137,6 +153,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyNodeErro
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
+            BacktestStrategyNodeError::ContextDowncastFailed { .. } => vec![self.error_code()],
             // transparent errors - delegate to source
             BacktestStrategyNodeError::StateMachine { source, .. } => source.error_code_chain(),
             BacktestStrategyNodeError::StartNode { source, .. } => source.error_code_chain(),
