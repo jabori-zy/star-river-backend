@@ -7,12 +7,12 @@ use async_trait::async_trait;
 use exchange_client::exchange_trait::*;
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::AccountId;
+use star_river_core::error::engine_error::ExchangeEngineError;
+use star_river_core::market::ExchangeStatus;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use star_river_core::error::engine_error::ExchangeEngineError;
-use star_river_core::market::ExchangeStatus;
 /// 交易所引擎
 /// 负责管理交易所客户端，并提供交易所客户端的注册、注销、获取等功能
 
@@ -76,7 +76,6 @@ impl ExchangeEngine {
         let exchange_context = context_guard.as_any().downcast_ref::<ExchangeEngineContext>().unwrap();
         exchange_context.get_exchange_status(&account_id).await
     }
-
 
     pub async fn register_exchange(&self, account_id: AccountId) -> Result<(), ExchangeEngineError> {
         let mut context_guard = self.context.write().await;

@@ -1,3 +1,4 @@
+use super::{ExchangeClientCore, ExchangeStreamExt};
 use crate::EngineContext;
 use crate::EngineName;
 use async_trait::async_trait;
@@ -6,9 +7,8 @@ use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::exchange_engine::*;
 use event_center::event::Event;
-use super::{ExchangeClientCore, ExchangeStreamExt};
-use exchange_client::metatrader5::MetaTrader5;
 use exchange_client::binance::Binance;
+use exchange_client::metatrader5::MetaTrader5;
 use sea_orm::DatabaseConnection;
 use snafu::{Report, ResultExt};
 use star_river_core::account::AccountConfig;
@@ -16,10 +16,10 @@ use star_river_core::custom_type::AccountId;
 use star_river_core::error::engine_error::*;
 use star_river_core::error::exchange_client_error::*;
 use star_river_core::market::Exchange;
+use star_river_core::market::ExchangeStatus;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use star_river_core::market::ExchangeStatus;
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -117,10 +117,7 @@ impl ExchangeEngineContext {
                     self.register_mt5_exchange_in_dev(account_config).await
                 }
             }
-            Exchange::Binance => {
-                self.register_binance_exchange(account_config).await
-
-            }
+            Exchange::Binance => self.register_binance_exchange(account_config).await,
             _ => {
                 let error = UnsupportedExchangeTypeSnafu {
                     exchange_type: account_config.exchange.clone(),
@@ -212,7 +209,6 @@ impl ExchangeEngineContext {
         self.exchanges.insert(account_config.id, mt5_exchange);
         Ok(())
     }
-
 
     async fn register_binance_exchange(&mut self, account_config: AccountConfig) -> Result<(), ExchangeEngineError> {
         let mut binance = Binance::new();

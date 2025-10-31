@@ -33,3 +33,5 @@ tokio-tungstenite.workspace = true
 sea-orm.workspace = true
 snafu.workspace = true
 entity = { path = "../entity"}
+petgraph.workspace = true
+once_cell.workspace = true

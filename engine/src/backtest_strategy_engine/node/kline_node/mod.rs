@@ -7,6 +7,7 @@ use super::context_accessor::BacktestNodeContextAccessor;
 use super::node_message::common_log_message::*;
 use super::node_message::kline_node_log_message::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use crate::backtest_strategy_engine::node::node_state_machine::*;
 use crate::backtest_strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
@@ -46,12 +47,14 @@ impl KlineNode {
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_kline_node_config(node_config)?;
 
+        let strategy_output_handle = NodeUtils::generate_strategy_output_handle(&node_id);
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::KlineNode,
             Box::new(KlineNodeStateMachine::new(node_id, node_name, node_config.data_source.clone())),
+            strategy_output_handle,
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,

@@ -1,9 +1,9 @@
-
+pub mod account_engine;
+pub mod backtest_engine;
 pub mod exchange_engine; // 交易所引擎
 pub mod indicator_engine;
-pub mod market_engine; // 市场引擎 // 指标引擎
-pub mod account_engine; // 账户引擎
-pub mod backtest_strategy_engine;
+pub mod market_engine; // 市场引擎 // 指标引擎 // 账户引擎
+// pub mod backtest_strategy_engine;
 #[cfg(feature = "paid")]
 pub mod cache_engine; // 缓存引擎
 

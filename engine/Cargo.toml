@@ -29,7 +29,7 @@ tracing-subscriber.workspace = true
 tokio-stream.workspace = true
 futures.workspace = true
 sea-orm.workspace = true
-petgraph = { version = "0.8.2" }
+petgraph.workspace = true
 tokio-util.workspace = true
 rust-embed = "8.7.2"
 tempfile = "3.19.1"

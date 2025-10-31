@@ -178,17 +178,6 @@ impl BacktestStrategyContext {
         self.keys.read().await.clone()
     }
 
-    // 获取节点
-    pub fn get_node(&self, node_id: &str) -> Option<Box<dyn BacktestNodeTrait>> {
-        let node_index = self.node_indices.get(node_id);
-        if let Some(node_index) = node_index {
-            let node = self.graph.node_weight(*node_index);
-            if let Some(node) = node { Some(node.clone()) } else { None }
-        } else {
-            None
-        }
-    }
-
     pub fn set_state_machine(&mut self, state_machine: BacktestStrategyStateMachine) {
         self.state_machine = state_machine;
     }

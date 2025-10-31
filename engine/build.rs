@@ -110,9 +110,7 @@ fn build_ta_lib_macos() {
         .blocklist_type("_Mbstatet")
         .blocklist_type("mbstate_t")
         // 强制所有枚举使用 c_int 类型
-        .default_enum_style(bindgen::EnumVariation::Rust {
-            non_exhaustive: false,
-        })
+        .default_enum_style(bindgen::EnumVariation::Rust { non_exhaustive: false })
         // 添加 clang 参数强制枚举为有符号类型
         .clang_arg("-fno-unsigned-char")
         .clang_arg("-fsigned-char")

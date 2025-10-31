@@ -1,7 +1,7 @@
-pub mod start_node_context;
+pub mod context;
 pub mod start_node_state_machine;
 
-use super::start_node::start_node_context::StartNodeContext;
+use super::start_node::context::StartNodeContext;
 use super::start_node::start_node_state_machine::{StartNodeStateAction, StartNodeStateMachine};
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_state_machine::BacktestNodeStateTransitionEvent;
@@ -11,7 +11,6 @@ use event_center::communication::backtest_strategy::{
     NodeCommandReceiver, StrategyCommandSender,
 };
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
-use heartbeat::Heartbeat;
 use snafu::ResultExt;
 use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use star_river_core::error::engine_error::strategy_engine_error::node_error::BacktestStrategyNodeError;
@@ -47,7 +46,6 @@ impl Clone for StartNode {
 impl StartNode {
     pub fn new(
         node_config: serde_json::Value,
-        heartbeat: Arc<Mutex<Heartbeat>>,
         strategy_command_sender: StrategyCommandSender,
         node_command_receiver: Arc<Mutex<NodeCommandReceiver>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
@@ -55,13 +53,14 @@ impl StartNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<i32>,
     ) -> Result<Self, StartNodeError> {
         let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(node_config)?;
-
+        let strategy_output_handle = NodeUtils::generate_strategy_output_handle(&node_id);
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::StartNode,
             Box::new(StartNodeStateMachine::new(node_id.clone(), node_name.clone())),
+            strategy_output_handle,
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,
@@ -70,7 +69,6 @@ impl StartNode {
             context: Arc::new(RwLock::new(Box::new(StartNodeContext {
                 base_context,
                 node_config: Arc::new(RwLock::new(backtest_strategy_config)),
-                heartbeat,
                 virtual_trading_system,
                 strategy_stats,
             }))),
@@ -210,7 +208,7 @@ impl BacktestNodeTrait for StartNode {
         Ok(())
     }
 
-    // 设置节点默认出口
+    // 设置节点出口
     async fn set_output_handle(&mut self) -> Result<(), BacktestStrategyNodeError> {
         let (node_id, node_name) = self.with_ctx_read::<StartNodeContext, _>(|ctx| {
             let node_id = ctx.get_node_id().clone();

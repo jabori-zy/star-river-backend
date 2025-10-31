@@ -1,6 +1,5 @@
 mod symbol_handler;
 
-
 use crate::EngineName;
 use crate::exchange_engine::ExchangeEngine;
 use crate::exchange_engine::exchange_engine_context::ExchangeEngineContext;
@@ -12,12 +11,11 @@ use event_center::communication::Command;
 use event_center::communication::engine::EngineCommand;
 use event_center::communication::engine::market_engine::*;
 use event_center::event::Event;
-use event_center::event::{
-    ExchangeEvent,
-    exchange_event::ExchangeKlineSeriesUpdateEvent,
-};
+use event_center::event::{ExchangeEvent, exchange_event::ExchangeKlineSeriesUpdateEvent};
+use exchange_client::exchange_trait::ExchangeClientCore;
 use snafu::Report;
 use star_river_core::custom_type::{AccountId, StrategyId};
+use star_river_core::error::engine_error::market_engine_error::*;
 use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
 use star_river_core::market::KlineInterval;
@@ -27,9 +25,6 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use star_river_core::error::engine_error::market_engine_error::*;
-use exchange_client::exchange_trait::ExchangeClientCore;
-
 
 #[derive(Debug)]
 pub struct MarketEngineContext {
@@ -71,7 +66,6 @@ impl EngineContext for MarketEngineContext {
     }
 
     async fn handle_command(&mut self, command: EngineCommand) {
-        
         match command {
             EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(cmd)) => {
                 self.subscribe_kline_stream(
@@ -370,7 +364,6 @@ impl MarketEngineContext {
         let kline_history = kline_history.unwrap();
         Ok(kline_history)
     }
-
 
     pub async fn get_support_kline_intervals(&self, account_id: AccountId) -> Result<Vec<KlineInterval>, MarketEngineError> {
         let exchange_engine_context = {

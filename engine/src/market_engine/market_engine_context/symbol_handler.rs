@@ -1,7 +1,4 @@
-use super::{
-    MarketEngineContext, AccountId, Symbol, ExchangeEngineContext, Engine, MarketEngineError
-};
-
+use super::{AccountId, Engine, ExchangeEngineContext, MarketEngineContext, MarketEngineError, Symbol};
 
 impl MarketEngineContext {
     pub async fn get_symbol_list(&self, account_id: AccountId) -> Result<Vec<Symbol>, MarketEngineError> {
@@ -17,7 +14,6 @@ impl MarketEngineContext {
         Ok(symbol_list)
     }
 
-
     pub async fn get_symbol(&self, account_id: AccountId, symbol: String) -> Result<Symbol, MarketEngineError> {
         let exchange_engine_context = {
             let exchange_engine_guard = self.exchange_engine.lock().await;
@@ -30,5 +26,4 @@ impl MarketEngineContext {
         let symbol = exchange.get_symbol(symbol).await?;
         Ok(symbol)
     }
-
 }

@@ -2,6 +2,7 @@ pub mod custom_variable;
 pub mod sys_varibale;
 pub mod strategy_benchmark;
 pub mod node_benchmark;
+pub mod log_message;
 mod tests;
 
 use crate::custom_type::FeeRate;
@@ -116,13 +117,10 @@ pub struct LiveStrategyConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum BacktestDataSource {
-    #[strum(serialize = "file")]
-    #[serde(rename = "file")]
     File, // 文件
-
-    #[strum(serialize = "exchange")]
-    #[serde(rename = "exchange")]
     Exchange, // 交易所
 }
 
@@ -195,7 +193,6 @@ where
                     // 转换为UTC时区
                     let start_date = start_with_tz.with_timezone(&Utc);
                     let end_date = end_with_tz.with_timezone(&Utc);
-                    tracing::info!("start_date: {:?}, end_date: {:?}", start_date, end_date);
                     return Ok(TimeRange { start_date, end_date });
                 }
                 _ => {

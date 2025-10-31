@@ -2,6 +2,7 @@ pub mod variable_node_context;
 mod variable_node_state_machine;
 
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use crate::backtest_strategy_engine::node::node_state_machine::BacktestNodeStateTransitionEvent;
 use crate::backtest_strategy_engine::node::{BacktestNodeTrait, NodeType};
 use async_trait::async_trait;
@@ -45,12 +46,14 @@ impl VariableNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, VariableNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_get_variable_node_config(node_config)?;
+        let strategy_output_handle = NodeUtils::generate_strategy_output_handle(&node_id);
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::GetVariableNode,
             Box::new(VariableNodeStateMachine::new(node_id, node_name)),
+            strategy_output_handle,
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,

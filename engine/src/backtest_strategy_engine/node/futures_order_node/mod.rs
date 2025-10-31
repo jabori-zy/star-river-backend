@@ -6,6 +6,7 @@ use super::futures_order_node::futures_order_node_context::FuturesOrderNodeConte
 use super::futures_order_node::futures_order_node_state_machine::{OrderNodeStateAction, OrderNodeStateMachine};
 use super::node_message::common_log_message::*;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
+use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use crate::backtest_strategy_engine::node::node_message::futures_order_node_log_message::*;
 use crate::backtest_strategy_engine::node::node_state_machine::*;
 use crate::backtest_strategy_engine::node::{BacktestNodeTrait, NodeType};
@@ -55,12 +56,14 @@ impl FuturesOrderNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, FuturesOrderNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_futures_order_node_config(node_config)?;
+        let strategy_output_handle = NodeUtils::generate_strategy_output_handle(&node_id);
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::FuturesOrderNode,
             Box::new(OrderNodeStateMachine::new(node_id, node_name)),
+            strategy_output_handle,
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,

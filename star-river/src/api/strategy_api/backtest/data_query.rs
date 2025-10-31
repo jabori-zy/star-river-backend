@@ -5,15 +5,16 @@ use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
-use engine::backtest_strategy_engine::BacktestStrategyEngine;
+// use engine::backtest_strategy_engine::BacktestStrategyEngine;
+use engine::backtest_engine::BacktestEngine as BacktestStrategyEngine;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
 use star_river_core::engine::EngineName;
 use star_river_core::key::Key;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
-use star_river_core::strategy::strategy_benchmark::StrategyPerformanceReport;
 use star_river_core::strategy::StrategyVariable;
+use star_river_core::strategy::strategy_benchmark::StrategyPerformanceReport;
 use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::str::FromStr;
@@ -356,9 +357,6 @@ pub async fn get_strategy_data(
     }
 }
 
-
-
-
 #[derive(Serialize, Deserialize, IntoParams, ToSchema, Debug)]
 #[schema(
     title = "get strategy data by datetime",
@@ -404,15 +402,20 @@ pub async fn get_strategy_data_by_datetime(
 
     match Key::from_str(&params.key) {
         Ok(key) => strategy_engine
-            .get_strategy_data_by_datetime(strategy_id, key, NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ").unwrap().and_utc(), params.limit)
+            .get_strategy_data_by_datetime(
+                strategy_id,
+                key,
+                NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ")
+                    .unwrap()
+                    .and_utc(),
+                params.limit,
+            )
             .await
             .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
             .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }
-
-
 
 #[utoipa::path(
     get,
@@ -444,12 +447,6 @@ pub async fn get_strategy_variable(
     }
 }
 
-
-
-
-
-
-
 #[utoipa::path(
     get,
     path = "/api/v1/strategy/backtest/{strategy_id}/performance-report",
@@ -476,6 +473,9 @@ pub async fn get_strategy_performance_report(
     if let Ok(strategy_performance_report) = strategy_performance_report {
         (StatusCode::OK, Json(NewApiResponse::success(strategy_performance_report)))
     } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_performance_report.unwrap_err())))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(NewApiResponse::error(strategy_performance_report.unwrap_err())),
+        )
     }
 }

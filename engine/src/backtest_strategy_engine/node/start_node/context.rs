@@ -1,13 +1,12 @@
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_handles::NodeOutputHandle;
 use async_trait::async_trait;
-use event_center::communication::{Command, Response};
+use event_center::communication::Command;
 use event_center::communication::backtest_strategy::{BacktestNodeCommand, GetStartNodeConfigResponse, InitCustomVariableCmdPayload, InitCustomVariableValueCommand};
 use event_center::communication::backtest_strategy::{GetStartNodeConfigRespPayload, NodeResetResponse};
 use event_center::event::Event;
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use event_center::event::node_event::backtest_node_event::start_node_event::{KlinePlayEvent, KlinePlayPayload, StartNodeEvent};
-use heartbeat::Heartbeat;
 use star_river_core::strategy::node_benchmark::CycleTracker;
 use star_river_core::strategy::BacktestStrategyConfig;
 
@@ -22,7 +21,6 @@ use virtual_trading::VirtualTradingSystem;
 pub struct StartNodeContext {
     pub base_context: BacktestBaseNodeContext,
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
-    pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
 }
@@ -96,21 +94,6 @@ impl StartNodeContext {
         let completed_tracker = cycle_tracker.end();
         self.add_node_cycle_tracker(self.get_node_id().clone(), completed_tracker).await;
     }
-
-    // 发送k线播放完毕信号
-    // pub async fn send_finish_signal(&self, play_index: i32) {
-    //     let payload = KlinePlayFinishedPayload::new(play_index);
-    //     let play_finished_event: StartNodeEvent = KlinePlayFinishedEvent::new(
-    //         self.base_context.node_id.clone(),
-    //         self.base_context.node_name.clone(),
-    //         self.get_default_output_handle().output_handle_id.clone(),
-    //         payload,
-    //     )
-    //     .into();
-    //     self.get_default_output_handle()
-    //         .send(play_finished_event.into())
-    //         .unwrap();
-    // }
 
     pub async fn init_virtual_trading_system(&self) {
         let mut virtual_trading_system = self.virtual_trading_system.lock().await;

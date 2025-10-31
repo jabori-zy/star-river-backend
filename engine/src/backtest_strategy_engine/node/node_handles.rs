@@ -1,5 +1,6 @@
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{HandleId, NodeId};
 use std::fmt::Debug;
 use std::str::FromStr;
 use strum_macros::Display;
@@ -110,14 +111,14 @@ impl Clone for NodeInputHandle {
 
 #[derive(Clone)]
 pub struct NodeOutputHandle {
-    node_id: String,
-    output_handle_id: String,
+    node_id: NodeId,
+    output_handle_id: HandleId,
     node_event_sender: broadcast::Sender<BacktestNodeEvent>,
     subscriber: Vec<String>, // 订阅者（id）
 }
 
 impl NodeOutputHandle {
-    pub fn new(node_id: String, output_handle_id: String, node_event_sender: broadcast::Sender<BacktestNodeEvent>) -> Self {
+    pub fn new(node_id: NodeId, output_handle_id: HandleId, node_event_sender: broadcast::Sender<BacktestNodeEvent>) -> Self {
         Self {
             node_id,
             output_handle_id,

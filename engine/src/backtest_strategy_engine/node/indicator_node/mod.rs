@@ -57,12 +57,15 @@ impl IndicatorNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IndicatorNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_indicator_node_config(node_config)?;
+
+        let strategy_output_handle = NodeUtils::generate_strategy_output_handle(&node_id);
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::IndicatorNode,
             Box::new(IndicatorNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
+            strategy_output_handle,
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,

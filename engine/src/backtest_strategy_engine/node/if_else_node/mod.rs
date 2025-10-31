@@ -10,7 +10,7 @@ use super::node_message::if_else_node_log_message::*;
 use crate::backtest_strategy_engine::node::BacktestNodeTrait;
 use crate::backtest_strategy_engine::node::node_context::{BacktestBaseNodeContext, BacktestNodeContextTrait};
 use crate::backtest_strategy_engine::node::node_state_machine::*;
-use crate::backtest_strategy_engine::node::node_handles::NodeType;
+use crate::backtest_strategy_engine::node::node_handles::{NodeOutputHandle, NodeType};
 use async_trait::async_trait;
 use star_river_core::node::if_else_node::{Case, IfElseNodeBacktestConfig};
 use event_center::communication::backtest_strategy::{
@@ -48,12 +48,14 @@ impl IfElseNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, IfElseNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_if_else_node_config(node_config)?;
+        let strategy_output_handle = NodeUtils::generate_strategy_output_handle(&node_id);
         let base_context = BacktestBaseNodeContext::new(
             strategy_id,
             node_id.clone(),
             node_name.clone(),
             NodeType::IfElseNode,
             Box::new(IfElseNodeStateManager::new(BacktestNodeRunState::Created, node_id, node_name)),
+            strategy_output_handle,
             strategy_command_sender,
             node_command_receiver,
             play_index_watch_rx,

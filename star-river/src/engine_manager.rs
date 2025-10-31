@@ -1,15 +1,16 @@
 use engine::Engine;
 use engine::EngineName;
 use engine::account_engine::AccountEngine;
-use engine::backtest_strategy_engine::BacktestStrategyEngine;
+// use engine::backtest_strategy_engine::BacktestStrategyEngine;
+use engine::backtest_engine::BacktestEngine;
 
-use engine::exchange_engine::ExchangeEngine;
-use engine::indicator_engine::IndicatorEngine;
-use engine::market_engine::MarketEngine;
-#[cfg(feature = "paid")]
-use engine::live_strategy_engine::LiveStrategyEngine;
 #[cfg(feature = "paid")]
 use engine::cache_engine::CacheEngine;
+use engine::exchange_engine::ExchangeEngine;
+use engine::indicator_engine::IndicatorEngine;
+#[cfg(feature = "paid")]
+use engine::live_strategy_engine::LiveStrategyEngine;
+use engine::market_engine::MarketEngine;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
@@ -20,7 +21,8 @@ pub struct EngineManager {
     exchange_engine: Arc<Mutex<ExchangeEngine>>,
     market_engine: Arc<Mutex<MarketEngine>>,
     indicator_engine: Arc<Mutex<IndicatorEngine>>,
-    strategy_engine: Arc<Mutex<BacktestStrategyEngine>>,
+    // strategy_engine: Arc<Mutex<BacktestStrategyEngine>>,
+    strategy_engine: Arc<Mutex<BacktestEngine>>,
     account_engine: Arc<Mutex<AccountEngine>>,
     #[cfg(feature = "paid")]
     live_strategy_engine: Arc<Mutex<LiveStrategyEngine>>,
@@ -43,7 +45,8 @@ impl EngineManager {
         let indicator_engine = IndicatorEngine::new(heartbeat.clone());
 
         // 策略引擎
-        let strategy_engine = BacktestStrategyEngine::new(database.clone(), heartbeat.clone());
+        // let strategy_engine = BacktestStrategyEngine::new(database.clone(), heartbeat.clone());
+        let strategy_engine = BacktestEngine::new(database.clone(), heartbeat.clone());
 
         // 账户引擎
         let account_engine = AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());
@@ -67,7 +70,7 @@ impl EngineManager {
     pub async fn start(&self) {
         // 启动基础引擎
         self.start_basic_engines().await;
-        
+
         // 启动付费功能引擎
         #[cfg(feature = "paid")]
         self.start_premium_engines().await;

@@ -31,7 +31,7 @@ pub mod context {
     pub use super::indicator_node::indicator_node_context::IndicatorNodeContext;
     pub use super::kline_node::kline_node_context::KlineNodeContext;
     pub use super::position_node::position_node_context::PositionNodeContext;
-    pub use super::start_node::start_node_context::StartNodeContext;
+    pub use super::start_node::context::StartNodeContext;
     pub use super::variable_node::variable_node_context::VariableNodeContext;
 }
 use super::node::node_functions::BacktestNodeFunction;

@@ -1,8 +1,10 @@
 use super::node_state_machine::BacktestNodeRunState;
 use super::node_handles::NodeOutputHandle;
 use event_center::event::strategy_event::NodeStateLogEvent;
-use star_river_core::custom_type::{NodeId, StrategyId};
+use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
+use star_river_core::custom_type::{HandleId, NodeId, StrategyId};
 use star_river_core::error::StarRiverErrorTrait;
+use tokio::sync::broadcast;
 
 pub struct NodeUtils;
 
@@ -37,5 +39,17 @@ impl NodeUtils {
             error,
         );
         let _ = strategy_output_handle.send(log_event.into());
+    }
+
+
+    pub fn generate_strategy_output_handle(node_id: &NodeId) -> NodeOutputHandle {
+        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
+        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
+        let strategy_output_handle = NodeOutputHandle::new(node_id.clone(), strategy_output_handle_id, tx);
+        strategy_output_handle
+    }
+
+    pub fn generate_default_output_handle_id(node_id: &NodeId) -> HandleId {
+        format!("{}_default_output", node_id)
     }
 }

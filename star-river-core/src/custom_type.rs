@@ -1,7 +1,11 @@
 pub type StrategyId = i32;
+pub type StrategyName = String;
+
 pub type AccountId = i32;
+
 pub type NodeId = String;
 pub type NodeName = String;
+
 
 pub type OrderId = i32;
 

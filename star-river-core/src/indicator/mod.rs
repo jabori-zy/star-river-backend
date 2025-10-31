@@ -120,7 +120,6 @@ pub trait IndicatorConfigTrait {
 //     fn to_json_with_time(&self) -> serde_json::Value;
 // }
 
-// 2. 为枚举使用enum_dispatch
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(tag = "indicator_type", content = "indicator_config")]
 pub enum IndicatorConfig {
