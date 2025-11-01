@@ -7,7 +7,7 @@ edition.workspace = true
 
 [dependencies]
 # 核心库
-star-river = { path = "../star-river" }
+star-river-api = { path = "../star-river-api" }
 
 # Axum 和 Web 框架
 axum.workspace = true

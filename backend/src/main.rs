@@ -1,6 +1,6 @@
 mod server;
 
-use star_river::{routes::create_app_routes, star_river::StarRiver, star_river::init_app};
+use star_river_api::{routes::create_app_routes, star_river::StarRiver, star_river::init_app};
 use axum::extract::State;
 
 #[tokio::main]

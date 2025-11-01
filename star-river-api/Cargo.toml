@@ -1,5 +1,5 @@
 [package]
-name = "star-river"
+name = "star-river-api"
 version.workspace = true
 description.workspace = true
 authors.workspace = true
