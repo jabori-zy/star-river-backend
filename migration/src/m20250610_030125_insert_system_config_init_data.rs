@@ -2,7 +2,6 @@ use ::entity::system_config::Entity as SystemConfig;
 use chrono::Utc;
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::sea_orm::{entity::*, query::*};
-use star_river_core::system::system_config::Localization;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,7 +13,7 @@ impl MigrationTrait for Migration {
 
         // 插入系统配置初始数据
         ::entity::system_config::ActiveModel {
-            localization: Set(Localization::English.to_string()),
+            localization: Set("en-US".to_string()),
             timezone: Set(String::from("Asia/Shanghai")),
             created_time: Set(Utc::now()),
             updated_time: Set(Utc::now()),
@@ -31,7 +30,7 @@ impl MigrationTrait for Migration {
 
         // 删除插入的初始数据
         SystemConfig::delete_many()
-            .filter(::entity::system_config::Column::Localization.eq(Localization::English.to_string()))
+            .filter(::entity::system_config::Column::Localization.eq("en-US".to_string()))
             .exec(db)
             .await?;
 

@@ -5,9 +5,6 @@ description.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-[features]
-paid = ["engine/paid", "event-center/paid"]
-
 [dependencies]
 axum.workspace = true
 axum-extra.workspace = true

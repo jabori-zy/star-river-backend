@@ -2,24 +2,24 @@
 pub mod account_routes;
 pub mod exchange_routes;
 
-// #[cfg(not(feature = "paid"))]
+// #[cfg(not())]
 pub mod doc;
-// #[cfg(feature = "paid")]
+// 
 // pub mod doc_paid;
 pub mod market_routes;
 pub mod sse_routes;
 pub mod strategy_routes;
 pub mod system_routes;
 
-#[cfg(feature = "paid")]
+
 pub mod cache_routes;
 
 
 use crate::star_river::StarRiver;
 use axum::Router;
-// #[cfg(not(feature = "paid"))]
+// #[cfg(not())]
 use doc::ApiDoc;
-// #[cfg(feature = "paid")]
+// 
 // use doc_paid::ApiDoc;
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
@@ -39,7 +39,7 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
         .nest("/api/v1/exchange", exchange_routes::create_exchange_routes());
 
     // 条件性地添加缓存路由
-    #[cfg(feature = "paid")]
+    
     {
         router = router.nest("/api/v1/cache", cache_routes::create_cache_routes());
     }

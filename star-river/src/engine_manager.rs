@@ -4,12 +4,12 @@ use engine::account_engine::AccountEngine;
 // use engine::backtest_strategy_engine::BacktestStrategyEngine;
 use engine::backtest_engine::BacktestEngine;
 
-#[cfg(feature = "paid")]
+
 use engine::cache_engine::CacheEngine;
 use engine::exchange_engine::ExchangeEngine;
 use engine::indicator_engine::IndicatorEngine;
-#[cfg(feature = "paid")]
-use engine::live_strategy_engine::LiveStrategyEngine;
+
+// use engine::live_strategy_engine::LiveStrategyEngine;
 use engine::market_engine::MarketEngine;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -24,15 +24,15 @@ pub struct EngineManager {
     // strategy_engine: Arc<Mutex<BacktestStrategyEngine>>,
     strategy_engine: Arc<Mutex<BacktestEngine>>,
     account_engine: Arc<Mutex<AccountEngine>>,
-    #[cfg(feature = "paid")]
-    live_strategy_engine: Arc<Mutex<LiveStrategyEngine>>,
-    #[cfg(feature = "paid")]
+    
+    // live_strategy_engine: Arc<Mutex<LiveStrategyEngine>>,
+    
     cache_engine: Arc<Mutex<CacheEngine>>,
 }
 
 impl EngineManager {
     pub async fn new(database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
-        #[cfg(feature = "paid")]
+        
         // 缓存引擎
         let cache_engine = Arc::new(Mutex::new(CacheEngine::new()));
         // 交易所引擎
@@ -51,8 +51,8 @@ impl EngineManager {
         // 账户引擎
         let account_engine = AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());
 
-        #[cfg(feature = "paid")]
-        let live_strategy_engine = LiveStrategyEngine::new();
+        
+        // let live_strategy_engine = LiveStrategyEngine::new();
 
         Self {
             exchange_engine,
@@ -60,10 +60,10 @@ impl EngineManager {
             indicator_engine: Arc::new(Mutex::new(indicator_engine)),
             strategy_engine: Arc::new(Mutex::new(strategy_engine)),
             account_engine: Arc::new(Mutex::new(account_engine)),
-            #[cfg(feature = "paid")]
+            
             cache_engine,
-            #[cfg(feature = "paid")]
-            live_strategy_engine: Arc::new(Mutex::new(live_strategy_engine)),
+            
+            // live_strategy_engine: Arc::new(Mutex::new(live_strategy_engine)),
         }
     }
 
@@ -72,7 +72,7 @@ impl EngineManager {
         self.start_basic_engines().await;
 
         // 启动付费功能引擎
-        #[cfg(feature = "paid")]
+        
         self.start_premium_engines().await;
     }
 
@@ -84,7 +84,7 @@ impl EngineManager {
         self.start_account_engine().await;
     }
 
-    #[cfg(feature = "paid")]
+    
     async fn start_premium_engines(&self) {
         self.start_cache_engine().await;
         // 如果有更多付费功能，可以在这里添加
@@ -127,7 +127,7 @@ impl EngineManager {
         });
     }
 
-    #[cfg(feature = "paid")]
+    
     // 启动缓存引擎并等待完成
     async fn start_cache_engine(&self) {
         let engine = self.cache_engine.clone();
@@ -152,15 +152,15 @@ impl EngineManager {
             EngineName::MarketEngine => self.market_engine.clone(),
             EngineName::IndicatorEngine => self.indicator_engine.clone(),
             EngineName::StrategyEngine => self.strategy_engine.clone(),
-            #[cfg(feature = "paid")]
+            
             EngineName::CacheEngine => self.cache_engine.clone(),
-            #[cfg(feature = "paid")]
-            EngineName::LiveStrategyEngine => self.live_strategy_engine.clone(),
+            
+            // EngineName::LiveStrategyEngine => self.live_strategy_engine.clone(),
             EngineName::AccountEngine => self.account_engine.clone(),
         }
     }
 
-    #[cfg(feature = "paid")]
+    
     pub async fn get_cache_engine(&self) -> Arc<Mutex<CacheEngine>> {
         self.cache_engine.clone()
     }

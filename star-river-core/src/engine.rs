@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum::{Display, EnumString};
+use async_trait::async_trait;
+// use event_center::event::Event;
+// use event_center::communication::engine::EngineCommand;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Hash, Eq, PartialEq)]
 pub enum EngineName {
@@ -19,11 +22,15 @@ pub enum EngineName {
     #[strum(serialize = "strategy-engine")]
     StrategyEngine, // 策略引擎
 
-    #[cfg(feature = "paid")]
     #[strum(serialize = "cache-engine")]
     CacheEngine, // 缓存引擎
-
-    #[cfg(feature = "paid")]
-    #[strum(serialize = "live-strategy-engine")]
-    LiveStrategyEngine, // 实时策略引擎
+    // #[strum(serialize = "live-strategy-engine")]
+    // LiveStrategyEngine, // 实时策略引擎
 }
+
+
+// #[async_trait]
+// pub trait EngineContext {
+//     async fn handle_event(&mut self, event: Event);
+//     async fn handle_command(&mut self, command: EngineCommand);
+// }

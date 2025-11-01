@@ -5,9 +5,6 @@ description.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-[features]
-paid = []
-
 [dependencies]
 serde.workspace = true
 strum.workspace = true

@@ -1,7 +1,8 @@
 [workspace]
 resolver = "3"
-members = [ 
+members = [
     "examples/*",
+    "backend",
     "star-river",
     "database",
     "event-center",
@@ -9,9 +10,10 @@ members = [
     "heartbeat",
     "migration",
     "star-river-core",
-    "engine", 
-    "virtual-trading", 
+    "engine",
+    "virtual-trading",
     "entity", "strategy-stats"]
+default-members = ["backend"]
 
 [workspace.lints]
 rust.unused_must_use = "warn"
@@ -23,20 +25,15 @@ authors = ["Jabori"]
 edition = "2024"
 
 
-[features]
-default = ["paid"]
-paid = ["star-river/paid"]
-
-
 
 
 [workspace.dependencies]
 axum = { version = "0.8.4", features = ["macros", "ws", "query","json"] }
-axum-extra = {version = "0.10.1", features = ["typed-header"]}
+axum-extra = {version = "0.12.0", features = ["typed-header"]}
 headers = "0.4.0"
 tokio-stream = {version = "0.1.17", features = ["sync"]}
-tokio = { version = "1.47.1", features = ["full"] }
-tokio-util = {version = "0.7.14"}
+tokio = { version = "1.48.0", features = ["full"] }
+tokio-util = {version = "0.7.16"}
 tracing = "0.1.41"
 tracing-subscriber = {version = "0.3.19", features = ["env-filter", "fmt", "std", "time"]}
 tracing-appender = {version = "0.2.3"}
@@ -70,27 +67,9 @@ petgraph = { version = "0.8.3" }
 once_cell = "1.21.3"
 
 
-[package]
-name = "star-river-backend"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-star-river = {path = "star-river"}
-tokio.workspace = true
-
-
-
 
 [profile.release]
 opt-level = 'z'     # 优化大小
 lto = true          # 启用链接时优化
 codegen-units = 1   # 降低并行编译等级以提高优化
 strip = true        # 自动剥离符号信息
-
-
-
-
-
-
-

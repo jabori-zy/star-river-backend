@@ -148,7 +148,7 @@ impl<S> Deref for EngineResponse<S> {
 
 #[derive(Debug, From)]
 pub enum EngineCommand {
-    #[cfg(feature = "paid")]
+    
     CacheEngine(CacheEngineCommand),         // 缓存引擎命令
     IndicatorEngine(IndicatorEngineCommand), // 指标引擎命令
     ExchangeEngine(ExchangeEngineCommand),   // 交易所引擎命令
@@ -158,7 +158,7 @@ pub enum EngineCommand {
 impl EngineCommand {
     pub fn get_engine_name(&self) -> EngineName {
         match self {
-            #[cfg(feature = "paid")]
+            
             EngineCommand::CacheEngine(_) => EngineName::CacheEngine,
             EngineCommand::IndicatorEngine(_) => EngineName::IndicatorEngine,
             EngineCommand::ExchangeEngine(_) => EngineName::ExchangeEngine,

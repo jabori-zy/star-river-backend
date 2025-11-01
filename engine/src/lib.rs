@@ -4,11 +4,11 @@ pub mod exchange_engine; // 交易所引擎
 pub mod indicator_engine;
 pub mod market_engine; // 市场引擎 // 指标引擎 // 账户引擎
 // pub mod backtest_strategy_engine;
-#[cfg(feature = "paid")]
+
 pub mod cache_engine; // 缓存引擎
 
-#[cfg(feature = "paid")]
-pub mod live_strategy_engine;
+
+// pub mod live_strategy_engine;
 
 use async_trait::async_trait;
 use event_center::Channel;
@@ -86,7 +86,7 @@ pub trait Engine: Debug + Send + Sync + 'static {
 // 引擎事件接收器, 定义每个引擎应该接收哪些引擎的事件
 static ENGINE_EVENT_RECEIVERS: LazyLock<HashMap<EngineName, Vec<Channel>>> = LazyLock::new(|| {
     HashMap::from([
-        #[cfg(feature = "paid")]
+        
         (EngineName::CacheEngine, vec![Channel::Exchange]),
         (EngineName::ExchangeEngine, vec![]),
         (EngineName::MarketEngine, vec![]),

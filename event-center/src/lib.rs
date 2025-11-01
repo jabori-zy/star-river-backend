@@ -83,7 +83,7 @@ impl EventCenter {
             EngineName::AccountEngine,
         ];
         
-        #[cfg(feature = "paid")]
+        
         engines.push(EngineName::CacheEngine);
 
         for engine_name in engines.iter() {

@@ -5,8 +5,6 @@ description.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-[features]
-paid = ["star-river-core/paid"]
 
 [dependencies]
 star-river-core = { path = "../star-river-core" }
