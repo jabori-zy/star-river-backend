@@ -1,6 +1,6 @@
 use crate::error::ErrorCode;
 use crate::error::datetime_error::DateTimeError;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -272,10 +272,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for DataProcessorError {
         vec![self.error_code()]
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 DataProcessorError::JsonParsing { .. } => "JSON解析失败".to_string(),
                 DataProcessorError::StreamProcessing { message, data_type, .. } => {
                     if let Some(dt) = data_type {

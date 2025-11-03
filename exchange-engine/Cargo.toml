@@ -1,0 +1,24 @@
+[package]
+name = "exchange-engine"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+engine-core = { path = "../engine-core" }
+exchange-core = { path = "../exchange-core" }
+event-center = { path = "../event-center" }
+star-river-core = { path = "../star-river-core" }
+exchange-client-new = { path = "../exchange-client-new" }
+database = { path = "../database" }
+tokio.workspace = true
+sea-orm.workspace = true
+async-trait.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+snafu.workspace = true
+enum_dispatch.workspace = true
+
+[lints]
+workspace = true

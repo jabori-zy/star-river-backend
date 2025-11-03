@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -43,10 +43,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for IfElseNodeError {
         vec![self.error_code()]
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 IfElseNodeError::EvaluateResultSerializationFailed { source, .. } => {
                     format!("条件判断节点回测评估结果序列化失败，原因: {}", source)
                 }

@@ -1,6 +1,6 @@
 use crate::custom_type::AccountId;
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use crate::error::exchange_client_error::ExchangeClientError;
 use crate::error::exchange_client_error::mt5_error::Mt5Error;
 use crate::market::Exchange;
@@ -345,10 +345,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 ExchangeEngineError::RegisterExchangeFailed {
                     message,
                     account_id,
@@ -374,7 +374,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     format!("账户 {} 的交易所类型 {:?} 不支持", account_id, exchange_type)
                 }
                 ExchangeEngineError::Mt5 { source } => {
-                    format!("MetaTrader5错误: {}", source.get_error_message(language))
+                    format!("MetaTrader5错误: {}", source.error_message(language))
                 }
                 ExchangeEngineError::ExchangeClientNotRegistered {
                     exchange_name, account_id, ..
@@ -504,7 +504,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeEngineError {
                     msg
                 }
                 ExchangeEngineError::ExchangeClientError { source } => {
-                    format!("交易所客户端错误: {}", source.get_error_message(language))
+                    format!("交易所客户端错误: {}", source.error_message(language))
                 }
                 ExchangeEngineError::Internal {
                     message,

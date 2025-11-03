@@ -1,6 +1,6 @@
 use super::StarRiverErrorTrait;
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -103,10 +103,10 @@ impl StarRiverErrorTrait for BinanceError {
         matches!(self, BinanceError::HttpClientNotCreated { .. } | BinanceError::PingFailed { .. })
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 BinanceError::HttpClientNotCreated { .. } => {
                     format!("客户端未创建")
                 }

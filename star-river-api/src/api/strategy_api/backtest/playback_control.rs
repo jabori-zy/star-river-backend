@@ -1,12 +1,10 @@
-use crate::api::response::ApiResponse;
 use crate::api::response::NewApiResponse;
 use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path};
 use axum::http::StatusCode;
-// use engine::backtest_strategy_engine::BacktestStrategyEngine;
-use engine::backtest_engine::BacktestEngine as BacktestStrategyEngine;
-use star_river_core::engine::EngineName;
+use engine_core::EngineContextAccessor;
+use backtest_engine::backtest_engine_error::BacktestEngineError;
 
 #[utoipa::path(
     post,
@@ -22,14 +20,24 @@ use star_river_core::engine::EngineName;
 )]
 pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let result = strategy_engine.play(strategy_id).await;
-    if let Ok(()) = result {
-        (StatusCode::OK, Json(NewApiResponse::success(())))
-    } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(result.unwrap_err())))
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            strategy.with_ctx_write_async(|ctx| {
+                Box::pin(async move {
+                    ctx.play().await
+                })
+            }).await?;
+            Ok(())
+        })
+    }).await;
+
+    match result {
+        Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -51,22 +59,29 @@ pub async fn play_one(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<serde_json::Value>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let played_signal_count = strategy_engine.play_one_kline(strategy_id).await;
-    if let Ok(played_signal_count) = played_signal_count {
-        (
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<i32, BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let play_index = strategy.with_ctx_write_async(|ctx| {
+                Box::pin(async move {
+                    ctx.play_one().await
+                })
+            }).await?;
+            Ok(play_index)
+        })
+    }).await;
+
+    match result {
+        Ok(played_signal_count) => (
             StatusCode::OK,
             Json(NewApiResponse::success(serde_json::json!({
                 "played_signal_count": played_signal_count
             }))),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(played_signal_count.unwrap_err())),
-        )
+        ),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -85,14 +100,24 @@ pub async fn play_one(
 )]
 pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let result = strategy_engine.pause(strategy_id).await;
-    if let Ok(()) = result {
-        (StatusCode::OK, Json(NewApiResponse::success(())))
-    } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(result.unwrap_err())))
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            strategy.with_ctx_write_async(|ctx| {
+                Box::pin(async move {
+                    ctx.pause().await
+                })
+            }).await?;
+            Ok(())
+        })
+    }).await;
+
+    match result {
+        Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -112,32 +137,31 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 pub async fn get_play_index(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
+) -> (StatusCode, Json<NewApiResponse<serde_json::Value>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let play_index = strategy_engine.get_play_index(strategy_id).await;
-    if let Ok(play_index) = play_index {
-        (
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<i32, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let play_index = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.play_index().await
+                })
+            }).await;
+            Ok(play_index)
+        })
+    }).await;
+
+    match result {
+        Ok(play_index) => (
             StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(serde_json::json!({
-                    "play_index": play_index
-                })),
-            }),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
-        )
+            Json(NewApiResponse::success(serde_json::json!({
+                "play_index": play_index
+            }))),
+        ),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -156,13 +180,23 @@ pub async fn get_play_index(
 )]
 pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let result = strategy_engine.reset(strategy_id).await;
-    if let Ok(()) = result {
-        (StatusCode::OK, Json(NewApiResponse::success(())))
-    } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(result.unwrap_err())))
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            strategy.with_ctx_write_async(|ctx| {
+                Box::pin(async move {
+                    ctx.reset().await
+                })
+            }).await?;
+            Ok(())
+        })
+    }).await;
+
+    match result {
+        Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
     }
 }

@@ -1,7 +1,7 @@
 use super::node_error::backtest_node_error::BacktestNodeError;
 use crate::custom_type::NodeId;
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
@@ -268,21 +268,21 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestStrategyError {
         )
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 BacktestStrategyError::BacktestNodeError { source, .. } => {
-                    format!("回测节点错误: {}", source.get_error_message(language))
+                    format!("回测节点错误: {}", source.error_message(language))
                 }
                 BacktestStrategyError::NodeCheckFailed { source, .. } => {
-                    format!("回测节点检查错误: {}", source.get_error_message(language))
+                    format!("回测节点检查错误: {}", source.error_message(language))
                 }
                 BacktestStrategyError::NodeInitFailed { source, .. } => {
-                    format!("回测节点初始化错误: {}", source.get_error_message(language))
+                    format!("回测节点初始化错误: {}", source.error_message(language))
                 }
                 BacktestStrategyError::NodeStopFailed { source, .. } => {
-                    format!("回测节点停止错误: {}", source.get_error_message(language))
+                    format!("回测节点停止错误: {}", source.error_message(language))
                 }
                 BacktestStrategyError::NodeStopTimeout { node_name, .. } => {
                     format!("回测节点[{node_name}]停止超时")

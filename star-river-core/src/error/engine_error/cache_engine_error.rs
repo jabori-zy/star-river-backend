@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use crate::error::error_trait::StarRiverErrorTrait;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
@@ -39,10 +39,10 @@ impl StarRiverErrorTrait for CacheEngineError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 CacheEngineError::KeyNotFound { key, .. } => {
                     format!("缓存key [{}] 不存在", key)
                 }

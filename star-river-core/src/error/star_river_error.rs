@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use crate::error::error_trait::StarRiverErrorTrait;
 use sea_orm::DbErr;
 use snafu::{Backtrace, Snafu};
@@ -67,6 +67,13 @@ pub enum StarRiverError {
         reason: String,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("parse datetime failed: {datetime}. reason: {source}"))]
+    ParseDataTimeFailed {
+        datetime: String,
+        source: chrono::ParseError,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for StarRiverError
@@ -92,6 +99,7 @@ impl StarRiverErrorTrait for StarRiverError {
             StarRiverError::InvalidKeyFormat { .. } => 1012,                 // 无效的缓存键格式
             StarRiverError::ParseExchangeFailed { .. } => 1013,              // 解析交易所失败
             StarRiverError::ParseKlineIntervalFailed { .. } => 1014,         // 解析K线周期失败
+            StarRiverError::ParseDataTimeFailed { .. } => 1015,              // 解析时间失败
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -118,13 +126,14 @@ impl StarRiverErrorTrait for StarRiverError {
                 | StarRiverError::InvalidKeyFormat { .. }
                 | StarRiverError::ParseExchangeFailed { .. }
                 | StarRiverError::ParseKlineIntervalFailed { .. }
+                | StarRiverError::ParseDataTimeFailed { .. }
         )
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 StarRiverError::UpdateSystemConfigFailed { source, .. } => {
                     format!("更新系统配置失败，原因: {}", source)
                 }
@@ -167,6 +176,9 @@ impl StarRiverErrorTrait for StarRiverError {
                 StarRiverError::ParseKlineIntervalFailed { interval, source, .. } => {
                     format!("解析K线周期失败: {}. 原因: {}", interval, source)
                 }
+                StarRiverError::ParseDataTimeFailed { datetime, source, .. } => {
+                    format!("解析时间失败: {}. 原因: {}", datetime, source)
+                }
             },
         }
     }
@@ -186,7 +198,8 @@ impl StarRiverErrorTrait for StarRiverError {
             | StarRiverError::ParseSpecialIndicatorParamFailed { .. }
             | StarRiverError::InvalidKeyFormat { .. }
             | StarRiverError::ParseExchangeFailed { .. }
-            | StarRiverError::ParseKlineIntervalFailed { .. } => vec![self.error_code()],
+            | StarRiverError::ParseKlineIntervalFailed { .. }
+            | StarRiverError::ParseDataTimeFailed { .. } => vec![self.error_code()],
         }
     }
 }

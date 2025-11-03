@@ -46,7 +46,7 @@ impl NodeLifecycle<StartNodeContext, StartNodeAction> for StartNode {
     }
 
     async fn update_node_state(&self, trans_trigger: NodeStateTransTrigger) -> Result<(), BacktestNodeError> {
-        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+        let (node_name, node_id, strategy_id, strategy_output_handle, state_machine) = self
             .with_ctx_read(|ctx| {
                 let node_name = ctx.node_name().clone();
                 let node_id = ctx.node_id().clone();

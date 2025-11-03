@@ -17,6 +17,10 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
+
+
+
+
 pub type EngineCommandSender = mpsc::Sender<EngineCommand>; // 命令发送器
 pub type EngineCommandReceiver = mpsc::Receiver<EngineCommand>; // 命令接收器
 
@@ -148,8 +152,8 @@ impl<S> Deref for EngineResponse<S> {
 
 #[derive(Debug, From)]
 pub enum EngineCommand {
-    
-    CacheEngine(CacheEngineCommand),         // 缓存引擎命令
+
+    // CacheEngine(CacheEngineCommand),         // 缓存引擎命令
     IndicatorEngine(IndicatorEngineCommand), // 指标引擎命令
     ExchangeEngine(ExchangeEngineCommand),   // 交易所引擎命令
     MarketEngine(MarketEngineCommand),       // 市场引擎命令
@@ -158,8 +162,8 @@ pub enum EngineCommand {
 impl EngineCommand {
     pub fn get_engine_name(&self) -> EngineName {
         match self {
-            
-            EngineCommand::CacheEngine(_) => EngineName::CacheEngine,
+
+            // EngineCommand::CacheEngine(_) => EngineName::CacheEngine,
             EngineCommand::IndicatorEngine(_) => EngineName::IndicatorEngine,
             EngineCommand::ExchangeEngine(_) => EngineName::ExchangeEngine,
             EngineCommand::MarketEngine(_) => EngineName::MarketEngine,

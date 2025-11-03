@@ -1,6 +1,6 @@
 use crate::error::ErrorCode;
 use crate::error::StarRiverErrorTrait;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use crate::error::virtual_trading_system_error::VirtualTradingSystemError;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
@@ -79,10 +79,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for FuturesOrderNodeError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 FuturesOrderNodeError::VirtualTradingSystem { source, .. } => {
                     format!("虚拟交易系统错误，原因: {}", source)
                 }

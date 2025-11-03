@@ -1,5 +1,5 @@
-use crate::api::account_api::ExchangeType;
-use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
+// use crate::api::account_api::ExchangeType;
+// use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
 use crate::api::response::ApiResponse;
 use crate::api::system_api::SystemConfigUpdateParams;
 use star_river_core::account::AccountConfig;
@@ -16,12 +16,9 @@ use utoipa::OpenApi;
         crate::api::strategy_api::update_strategy,
         crate::api::strategy_api::delete_strategy,
         crate::api::strategy_api::init_strategy,
-        crate::api::strategy_api::get_strategy_cache_keys,
+        
         crate::api::strategy_api::stop_strategy,
 
-        // 实盘策略
-        // crate::api::strategy_api::run_strategy,
-        // crate::api::strategy_api::stop_strategy,
 
         // 回测策略
         crate::api::strategy_api::backtest::play,
@@ -42,22 +39,23 @@ use utoipa::OpenApi;
         crate::api::strategy_api::backtest::get_strategy_data_by_datetime,
         crate::api::strategy_api::backtest::get_strategy_variable,
         crate::api::strategy_api::backtest::get_strategy_performance_report,
+        crate::api::strategy_api::backtest::get_strategy_keys,
         // 账户相关路径
-        crate::api::account_api::get_account_configs,
-        crate::api::account_api::add_account_config,
-        crate::api::account_api::delete_account_config,
-        crate::api::account_api::update_account_config,
-        crate::api::account_api::update_account_is_available,
-        crate::api::account_api::start_mt5_terminal,
-        crate::sse::account_sse::account_sse_handler,
+        // crate::api::account_api::get_account_configs,
+        // crate::api::account_api::add_account_config,
+        // crate::api::account_api::delete_account_config,
+        // crate::api::account_api::update_account_config,
+        // crate::api::account_api::update_account_is_available,
+        // crate::api::account_api::start_mt5_terminal,
+        // crate::sse::account_sse::account_sse_handler,
         // 市场相关路径
-        crate::api::market_api::get_symbol_list,
-        crate::api::market_api::get_support_kline_intervals,
-        crate::api::market_api::get_symbol,
+        // crate::api::market_api::get_symbol_list,
+        // crate::api::market_api::get_support_kline_intervals,
+        // crate::api::market_api::get_symbol,
 
         // 交易所相关路径
-        crate::api::exchange_api::get_exchange_status,
-        crate::api::exchange_api::connect_exchange,
+        // crate::api::exchange_api::get_exchange_status,
+        // crate::api::exchange_api::connect_exchange,
 
         //sse
         crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,
@@ -81,12 +79,12 @@ use utoipa::OpenApi;
             ApiResponse<AccountConfig>,
             ApiResponse<String>,
             // 账户相关类型
-            Mt5AccountConfigParams,
-            AccountConfigType,
-            AddAccountConfigParams,
+            // Mt5AccountConfigParams,
+            // AccountConfigType,
+            // AddAccountConfigParams,
             // 账户配置
             AccountConfig,
-            ExchangeType,
+            // ExchangeType,
 
             // 系统配置相关类型
             SystemConfigUpdateParams,

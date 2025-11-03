@@ -3,11 +3,9 @@ use super::super::NodeEvent;
 use super::{deserialize_cache_value_vec, serialize_cache_value_vec};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::indicator::Indicator;
-use star_river_core::indicator::IndicatorConfig;
+use ta_lib::{Indicator, IndicatorConfig};
 use star_river_core::key::KeyTrait;
 use star_river_core::key::key::IndicatorKey;
-use star_river_core::market::QuantData;
 use star_river_core::market::{Exchange, KlineInterval};
 use strum::Display;
 

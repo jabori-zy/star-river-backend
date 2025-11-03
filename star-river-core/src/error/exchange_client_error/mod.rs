@@ -1,14 +1,16 @@
 pub mod binance_error;
 pub mod data_processor_error;
 pub mod mt5_error;
+pub mod exchange_state_machine_error;
 
 use crate::error::ErrorCode;
-use crate::error::error_trait::{Language, StarRiverErrorTrait};
+use crate::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
 use binance_error::BinanceError;
 pub use data_processor_error::*;
 use mt5_error::Mt5Error;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+use exchange_state_machine_error::ExchangeStateMachineError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -18,6 +20,9 @@ pub enum ExchangeClientError {
 
     #[snafu(transparent)]
     Binance { source: BinanceError, backtrace: Backtrace },
+
+    #[snafu(transparent)]
+    ExchangeStateMachine { source: ExchangeStateMachineError, backtrace: Backtrace },
 
     #[snafu(transparent)]
     DataProcessor { source: DataProcessorError, backtrace: Backtrace },
@@ -54,14 +59,12 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
                 let prefix = "EXCHANGE_CLIENT";
                 let code = match self {
                     ExchangeClientError::Binance { .. } => 1001,
-                    ExchangeClientError::Authentication { .. } => 1002,
-                    ExchangeClientError::RateLimit { .. } => 1003,
-                    ExchangeClientError::Internal { .. } => 1004,
-
-                    // This should never happen due to outer match, but needed for completeness
-                    ExchangeClientError::MetaTrader5 { .. } | ExchangeClientError::DataProcessor { .. } => {
-                        unreachable!()
-                    }
+                    ExchangeClientError::MetaTrader5 { .. } => 1002,
+                    ExchangeClientError::DataProcessor { .. } => 1003,
+                    ExchangeClientError::ExchangeStateMachine { .. } => 1004,
+                    ExchangeClientError::Authentication { .. } => 1005,
+                    ExchangeClientError::RateLimit { .. } => 1006,
+                    ExchangeClientError::Internal { .. } => 1007,
                 };
                 format!("{}_{:04}", prefix, code)
             }
@@ -92,18 +95,21 @@ impl crate::error::error_trait::StarRiverErrorTrait for ExchangeClientError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 ExchangeClientError::MetaTrader5 { source, .. } => {
-                    format!("MetaTrader5错误: {}", source.get_error_message(language))
+                    format!("MetaTrader5错误: {}", source.error_message(language))
+                }
+                ExchangeClientError::ExchangeStateMachine { source, .. } => {
+                    format!("交易所状态机错误: {}", source.error_message(language))
                 }
                 ExchangeClientError::DataProcessor { source, .. } => {
-                    format!("数据处理器错误: {}", source.get_error_message(language))
+                    format!("数据处理器错误: {}", source.error_message(language))
                 }
                 ExchangeClientError::Binance { source, .. } => {
-                    format!("币安错误: {}", source.get_error_message(language))
+                    format!("币安错误: {}", source.error_message(language))
                 }
                 ExchangeClientError::Authentication { message, .. } => {
                     format!("认证错误: {}", message)

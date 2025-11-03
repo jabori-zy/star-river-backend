@@ -52,12 +52,6 @@ impl StrategyEngineContext {
         }
     }
 
-    // 注意：由于 backtest_strategy_list 是 Arc<Mutex<HashMap<...>>>，
-    // 无法直接返回可变引用。如需修改策略，请考虑使用其他方法。
-    // pub async fn get_backtest_strategy_instance_mut(&mut self, strategy_id: StrategyId) -> Result<&mut BacktestStrategy, String> {
-    //     // 此方法无法实现，因为无法返回指向 Mutex 保护数据的可变引用
-    // }
-
     pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, StrategyEngineError> {
         let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id)
             .await

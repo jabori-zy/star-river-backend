@@ -3,6 +3,7 @@ pub mod position;
 pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
+pub mod error;
 
 use event_center::communication::backtest_strategy::{
     BacktestStrategyCommand, GetKlineDataCmdPayload, GetKlineDataCommand, StrategyCommandSender,

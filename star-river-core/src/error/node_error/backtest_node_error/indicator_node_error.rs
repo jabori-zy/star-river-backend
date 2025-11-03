@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use crate::error::error_trait::StarRiverErrorTrait;
 use crate::error::indicator_error::IndicatorError;
 use snafu::{Backtrace, Snafu};
@@ -108,10 +108,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for IndicatorNodeError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 IndicatorNodeError::ValueNotGreaterThanOrEqualToZero {
                     config_name, config_value, ..
                 } => {

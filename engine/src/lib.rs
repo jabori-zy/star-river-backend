@@ -1,11 +1,11 @@
-pub mod account_engine;
-pub mod backtest_engine;
-pub mod exchange_engine; // 交易所引擎
-pub mod indicator_engine;
-pub mod market_engine; // 市场引擎 // 指标引擎 // 账户引擎
+// pub mod account_engine;
+// pub mod backtest_engine;
+// pub mod exchange_engine; // 交易所引擎
+// pub mod indicator_engine;
+// pub mod market_engine; // 市场引擎 // 指标引擎 // 账户引擎
 // pub mod backtest_strategy_engine;
 
-pub mod cache_engine; // 缓存引擎
+// pub mod cache_engine; // 缓存引擎
 
 
 // pub mod live_strategy_engine;
@@ -87,12 +87,12 @@ pub trait Engine: Debug + Send + Sync + 'static {
 static ENGINE_EVENT_RECEIVERS: LazyLock<HashMap<EngineName, Vec<Channel>>> = LazyLock::new(|| {
     HashMap::from([
         
-        (EngineName::CacheEngine, vec![Channel::Exchange]),
+        // (EngineName::CacheEngine, vec![Channel::Exchange]),
         (EngineName::ExchangeEngine, vec![]),
         (EngineName::MarketEngine, vec![]),
         (EngineName::IndicatorEngine, vec![Channel::Exchange]),
-        (EngineName::StrategyEngine, vec![Channel::Market]),
-        (EngineName::AccountEngine, vec![Channel::Account]),
+        (EngineName::BacktestEngine, vec![Channel::Market]),
+        // (EngineName::AccountEngine, vec![Channel::Account]),
     ])
 });
 

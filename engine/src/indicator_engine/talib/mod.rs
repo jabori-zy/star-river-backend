@@ -1,7 +1,7 @@
 pub mod lookback;
 pub mod talib_fn_define;
 pub mod talib_macros;
-    use crate::indicator_engine::talib_bindings::*;
+    use crate::indicator_engine::bindings_macos::*;
 
 
 

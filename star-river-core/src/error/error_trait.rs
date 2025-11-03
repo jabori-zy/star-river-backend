@@ -1,9 +1,10 @@
 use super::ErrorCode;
 use std::collections::HashMap;
 use std::error::Error;
+use axum::http::StatusCode;
 
 #[derive(Debug, Clone)]
-pub enum Language {
+pub enum ErrorLanguage {
     English,
     Chinese,
 }
@@ -30,12 +31,22 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
     /// Determines whether the error represents a recoverable condition
     /// Returns true if the operation that caused this error can potentially be retried
     /// Returns false if the error indicates a permanent failure that should not be retried
-    fn is_recoverable(&self) -> bool;
+    fn is_recoverable(&self) -> bool {
+        false
+    }
 
     /// Returns localized error message based on the specified language
     /// For English, it returns the Display trait message (from snafu display)
     /// For other languages, it should return the localized version
-    fn get_error_message(&self, language: Language) -> String;
+    fn error_message(&self, language: ErrorLanguage) -> String;
+
+
+
+    /// Returns the HTTP status code for this error
+    /// Default implementation returns INTERNAL_SERVER_ERROR
+    fn http_status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
 
     /// Returns the error code chain from the root cause to this error
     /// For leaf errors (no source), returns [self.error_code()]

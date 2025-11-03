@@ -23,12 +23,14 @@ sea-orm.workspace = true
 chrono.workspace = true
 time.workspace = true
 heartbeat = { path = "../heartbeat" }
-exchange-client = { path = "../exchange-client" }
 star-river-core = { path = "../star-river-core" }
 event-center = {path = "../event-center"}
 database = { path = "../database" }
 migration = { path = "../migration" }
-engine = { path = "../engine" }
+exchange-engine = { path = "../exchange-engine" }
+market-engine = { path = "../market-engine" }
+backtest-engine = { path = "../backtest-engine" }
+engine-core = { path = "../engine-core" }
 async-stream.workspace = true
 utoipa.workspace = true
 utoipa-scalar = {version="0.3", features=["axum"]}

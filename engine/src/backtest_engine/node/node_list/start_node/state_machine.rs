@@ -1,6 +1,5 @@
 use crate::backtest_engine::node::node_state_machine::{NodeRunState, NodeStateMachine, NodeStateTransTrigger, StateChangeActions};
 use star_river_core::error::node_error::node_state_machine_error::{BacktestNodeStateMachineError, NodeTransitionSnafu};
-use snafu::ResultExt;
 use strum::Display;
 /// StartNode state machine type alias
 

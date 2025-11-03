@@ -2,7 +2,7 @@ use super::VirtualTradingSystem;
 use chrono::{DateTime, Utc};
 use snafu::Report;
 use star_river_core::custom_type::*;
-use star_river_core::error::virtual_trading_system_error::*;
+use crate::error::{VirtualTradingSystemError, UnsupportedOrderTypeSnafu, KlineKeyNotFoundSnafu};
 use star_river_core::market::Exchange;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};

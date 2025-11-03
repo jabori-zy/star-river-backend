@@ -7,7 +7,7 @@ use crate::Event;
 use backtest_strategy_event::BacktestStrategyEvent;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use star_river_core::error::error_trait::{Language, StarRiverErrorTrait};
+use star_river_core::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
 use star_river_core::system::DateTimeUtc;
 use std::collections::HashMap;
 use strum::Display;
@@ -129,7 +129,7 @@ impl NodeStateLogEvent {
             node_state,
             node_state_action,
             log_level: LogLevel::Error,
-            message: error.get_error_message(Language::Chinese),
+            message: error.error_message(ErrorLanguage::Chinese),
             error_code: Some(error.error_code().to_string()),
             error_code_chain: Some(error.error_code_chain()),
             datetime: Utc::now(),

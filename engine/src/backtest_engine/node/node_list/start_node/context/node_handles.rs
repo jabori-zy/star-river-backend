@@ -11,9 +11,6 @@ impl NodeHandleTrait<StartNodeAction> for StartNodeContext {
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
 
-        // 添加向strategy发送的出口(这个出口专门用来给strategy发送消息)
-        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-
         // 添加默认出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let default_output_handle_id = NodeUtils::generate_default_output_handle_id(&node_id);

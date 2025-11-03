@@ -157,7 +157,6 @@ impl BacktestStrategyContext {
 
     // 所有节点发送的事件都会汇集到这里
     pub async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
-        tracing::debug!("handle_node_event: {:?}", node_event);
         // 执行完毕
         if let BacktestNodeEvent::Common(signal_event) = &node_event {
             match signal_event {

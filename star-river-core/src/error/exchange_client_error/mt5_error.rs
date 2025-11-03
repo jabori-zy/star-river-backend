@@ -1,7 +1,7 @@
 use super::data_processor_error::DataProcessorError;
 use crate::custom_type::AccountId;
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -234,6 +234,10 @@ pub enum Mt5Error {
 
     #[snafu(display("MetaTrader5 other error: {message}"))]
     Other { message: String, backtrace: Backtrace },
+
+    #[snafu(display("MetaTrader5 http client port not set: terminal_id:{terminal_id}"))]
+    HttpClientPortNotSet { terminal_id: i32, backtrace: Backtrace },
+
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -302,6 +306,8 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
 
                     // Internal errors (1023)
                     Mt5Error::Other { .. } => 1028,
+
+                    Mt5Error::HttpClientPortNotSet { .. } => 1029,
 
                     // This should never happen due to outer match, but needed for completeness
                     Mt5Error::DataProcessor { .. } => unreachable!(),
@@ -418,10 +424,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 Mt5Error::Network { terminal_id, url, .. } => {
                     format!("网络错误: 终端ID={}, URL={}", terminal_id, url)
                 }
@@ -558,7 +564,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                     format!("MetaTrader5 WebSocket错误: {}, 账户ID: {}, URL: {}", message, account_id, url)
                 }
                 Mt5Error::DataProcessor { source, .. } => {
-                    format!("数据处理器错误: {}", source.get_error_message(language))
+                    format!("数据处理器错误: {}", source.error_message(language))
                 }
                 Mt5Error::Connection {
                     message,
@@ -585,6 +591,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for Mt5Error {
                 }
                 Mt5Error::Other { message, .. } => {
                     format!("MetaTrader5 其他错误: {}", message)
+                }
+
+                Mt5Error::HttpClientPortNotSet { terminal_id, .. } => {
+                    format!("MetaTrader5 HTTP客户端端口未设置: 终端ID={}", terminal_id)
                 }
             },
         }

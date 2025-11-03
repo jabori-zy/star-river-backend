@@ -208,9 +208,9 @@ pub mod dataflow {
     use std::collections::HashMap;
 
     use serde::{Deserialize, Serialize};
+    use ta_lib::Indicator;
 
     use crate::{
-        indicator::Indicator,
         market::Kline,
         node::variable_node::trigger::timer::TimeUnit,
         strategy::custom_variable::{VariableValue, VariableValueType},

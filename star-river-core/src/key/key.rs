@@ -1,12 +1,12 @@
 use super::Key;
 use super::KeyTrait;
 use crate::error::star_river_error::*;
-use crate::indicator::IndicatorConfig;
 use crate::market::{Exchange, KlineInterval};
 use crate::strategy::TimeRange;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::str::FromStr;
+use ta_lib::IndicatorConfig;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct KlineKey {
@@ -128,7 +128,7 @@ impl FromStr for IndicatorKey {
         let interval = parts[3].parse::<KlineInterval>().context(ParseKlineIntervalFailedSnafu {
             interval: parts[3].to_string(),
         })?;
-        let indicator_config = IndicatorConfig::from_str(parts[4])?;
+        let indicator_config = IndicatorConfig::from_str(parts[4]).unwrap();
         let start_time = Some(parts[5].to_string());
         let end_time = Some(parts[6].to_string());
         let kline_key = KlineKey::new(exchange, symbol, interval, start_time, end_time);

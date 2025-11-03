@@ -1,8 +1,10 @@
-use snafu::OptionExt;
+use axum::http::StatusCode;
+use snafu::{OptionExt, Snafu, Backtrace};
 use crate::{
+    error::{ErrorCode, ErrorLanguage},
     custom_type::{NodeId, StrategyId}, 
     // error::engine_error::strategy_error::backtest_strategy_error::*
-    error::strategy_error::backtest_strategy_error::*
+    // error::strategy_error::backtest_strategy_error::*
 };
 use tokio::time::{Instant, Duration};
 use std::collections::{HashMap, VecDeque};
@@ -10,6 +12,7 @@ use utoipa::ToSchema;
 use super::node_benchmark::{CompletedCycle, NodeBenchmark, NodePerformanceReport, NodeCycleReport};
 use serde::Serialize;
 use std::collections::BTreeMap;
+use crate::error::StarRiverErrorTrait;
 
 // ============================================================
 // 第一部分：StrategyCycleTracker - 策略单周期追踪器
@@ -374,8 +377,9 @@ impl StrategyPhaseBenchmark {
 // ============================================================
 
 /// 策略性能统计（聚合多个周期的数据）
-#[derive(Debug, Clone)]
-pub struct StrategyBenchmark {
+#[derive(Debug)]
+pub struct StrategyBenchmark
+ {
     pub strategy_id: StrategyId,
     pub strategy_name: String,
 
@@ -397,7 +401,8 @@ pub struct StrategyBenchmark {
     sum_squared_diff_ns: f64,
 }
 
-impl StrategyBenchmark {
+impl StrategyBenchmark
+ {
     pub fn new(strategy_id: StrategyId, strategy_name: String) -> Self {
         Self {
             strategy_id,
@@ -423,11 +428,11 @@ impl StrategyBenchmark {
     }
 
 
-    pub fn add_complete_node_cycle(&mut self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), BacktestStrategyError> {
+    pub fn add_complete_node_cycle(&mut self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), NodeBenchmarkNotFountError> {
 
         self.node_benchmarks
             .get_mut(&node_id)
-            .context(NodeBenchmarkNotFoundSnafu { node_id: node_id.clone() })?
+            .context(NodeBenchmarkNotFountSnafu { node_id: node_id.clone() })?
             .add_completed_cycle(cycle_tracker);
         Ok(())
     }
@@ -827,5 +832,42 @@ impl std::fmt::Display for StrategyPerformanceReport {
         }
 
         write!(f, "╚═══════════════════════════════════════════════════════════╝")
+    }
+}
+
+
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
+#[snafu(display("node benchmark not found: {node_id}"))]
+pub struct NodeBenchmarkNotFountError {
+    pub node_id: NodeId,
+    pub backtrace: Backtrace,
+}
+
+
+impl StarRiverErrorTrait for NodeBenchmarkNotFountError {
+    fn get_prefix(&self) -> &'static str {
+        "NODE_BENCHMARK"
+    }
+
+    fn error_code(&self) -> ErrorCode {
+        self.get_prefix().to_string()
+    }
+
+    fn http_status_code(&self) -> StatusCode {
+        StatusCode::NOT_FOUND
+    }
+
+    fn error_message(&self, language: ErrorLanguage) -> String {
+        match language {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => {
+                format!("节点benchmark未找到: {}", self.node_id)
+            }
+        }
+    }
+
+    fn error_code_chain(&self) -> Vec<ErrorCode> {
+        vec![self.error_code()]
     }
 }

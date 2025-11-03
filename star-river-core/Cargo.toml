@@ -6,6 +6,9 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+
+ta-lib = { path = "../ta-lib" }
+entity = { path = "../entity" }
 serde.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
@@ -24,11 +27,12 @@ deepsize.workspace = true
 utoipa.workspace = true
 ordered-float.workspace = true
 rust_decimal.workspace = true
-paste = "1.0.15"
+paste.workspace = true
 reqwest.workspace = true
 tokio-tungstenite.workspace = true
 sea-orm.workspace = true
 snafu.workspace = true
-entity = { path = "../entity"}
+
 petgraph.workspace = true
 once_cell.workspace = true
+axum.workspace = true

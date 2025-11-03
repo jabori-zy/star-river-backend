@@ -2,7 +2,7 @@ use crate::Event;
 use crate::communication::engine::EngineCommand;
 use snafu::{Backtrace, Snafu};
 use star_river_core::error::ErrorCode;
-use star_river_core::error::error_trait::Language;
+use star_river_core::error::error_trait::ErrorLanguage;
 use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
@@ -80,10 +80,10 @@ impl star_river_core::error::error_trait::StarRiverErrorTrait for EventCenterErr
         )
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 EventCenterError::ChannelNotInitialized { channel, .. } => {
                     format!("通道 [{}] 未初始化", channel)
                 }

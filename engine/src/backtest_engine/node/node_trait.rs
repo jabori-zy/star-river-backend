@@ -165,7 +165,7 @@ where
     ///
     /// 根据节点类型订阅相应的事件通道，并在后台任务中处理接收到的事件
     async fn listen_external_event(&self) {
-        let (event_receivers, cancel_token, node_id) = self.with_ctx_write_async(|ctx| {
+        let (event_receivers, cancel_token, node_id) = self.with_ctx_read_async(|ctx| {
             Box::pin(async move {
                 let node_id = ctx.node_id().to_string();
                 let cancel_token = ctx.cancel_token().clone();

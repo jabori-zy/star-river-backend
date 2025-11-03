@@ -1,0 +1,38 @@
+[package]
+name = "backtest-engine"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+engine-core = { path = "../engine-core" }
+event-center = { path = "../event-center" }
+star-river-core = { path = "../star-river-core" }
+database = { path = "../database" }
+heartbeat = { path = "../heartbeat" }
+virtual-trading = { path = "../virtual-trading"}
+strategy-stats = { path = "../strategy-stats"}
+ta-lib = { path = "../ta-lib" }
+tokio.workspace = true
+sea-orm.workspace = true
+async-trait.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+snafu.workspace = true
+serde.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+serde_json.workspace = true
+tokio-stream.workspace = true
+futures.workspace = true
+tokio-util.workspace = true
+once_cell.workspace = true
+chrono.workspace=true
+petgraph.workspace = true
+uuid.workspace = true
+rust_decimal.workspace = true
+paste.workspace = true
+
+[lints]
+workspace = true

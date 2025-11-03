@@ -1,13 +1,9 @@
-// pub mod node_error;
-// pub mod strategy_error;
-
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
-// use strategy_error::BacktestStrategyError;
-use crate::error::strategy_error::backtest_strategy_error::BacktestStrategyError as BacktestError;
+use crate::error::strategy_error::backtest_strategy_error::BacktestStrategyError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -19,8 +15,8 @@ pub enum StrategyEngineError {
     // },
 
     #[snafu(transparent)]
-    BacktestError {
-        source: BacktestError,
+    BacktestStrategyError {
+        source: BacktestStrategyError,
         backtrace: Backtrace,
     },
 
@@ -58,7 +54,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
         let code = match self {
             // For nested errors, delegate to the inner error's code
             // StrategyEngineError::BacktestStrategyError { .. } => 1001,
-            StrategyEngineError::BacktestError { .. } => 1002,
+            StrategyEngineError::BacktestStrategyError { .. } => 1002,
             StrategyEngineError::UnsupportedStrategyType { .. } => 1003,
             StrategyEngineError::StrategyIsExist { .. } => 1004,
             StrategyEngineError::StrategyInstanceNotFound { .. } => 1005,
@@ -78,7 +74,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
         matches!(
             self,
             // StrategyEngineError::BacktestStrategyError { .. }
-                | StrategyEngineError::BacktestError { .. }
+                | StrategyEngineError::BacktestStrategyError { .. }
                 | StrategyEngineError::UnsupportedStrategyType { .. }
                 | StrategyEngineError::StrategyIsExist { .. }
                 | StrategyEngineError::StrategyInstanceNotFound { .. }
@@ -94,7 +90,7 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
             // StrategyEngineError::BacktestStrategyError { source, .. } => source.error_code_chain(),
 
             // For errors without source
-            StrategyEngineError::BacktestError { .. }
+            StrategyEngineError::BacktestStrategyError { .. }
             | StrategyEngineError::UnsupportedStrategyType { .. }
             | StrategyEngineError::StrategyIsExist { .. }
             | StrategyEngineError::StrategyInstanceNotFound { .. }
@@ -104,15 +100,15 @@ impl crate::error::error_trait::StarRiverErrorTrait for StrategyEngineError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 // StrategyEngineError::BacktestStrategyError { source, .. } => {
                     // format!("回测策略错误: {}", source.get_error_message(language))
                 // }
-                StrategyEngineError::BacktestError { source, .. } => {
-                    format!("回测错误: {}", source.get_error_message(language))
+                StrategyEngineError::BacktestStrategyError { source, .. } => {
+                    format!("回测错误: {}", source.error_message(language))
                 }
                 StrategyEngineError::UnsupportedStrategyType { strategy_type, .. } => {
                     format!("不支持的策略类型: {}", strategy_type)

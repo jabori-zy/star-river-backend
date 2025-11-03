@@ -1,0 +1,28 @@
+[package]
+name = "indicator-engine"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+engine-core = { path = "../engine-core" }
+event-center = { path = "../event-center" }
+star-river-core = { path = "../star-river-core" }
+exchange-engine = { path = "../exchange-engine" }
+ta-lib = { path = "../ta-lib" }
+tokio.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+snafu.workspace = true
+chrono.workspace = true
+paste.workspace = true
+
+
+[lints]
+workspace = true
+
+
+[build-dependencies]
+cc = "1.2"
+bindgen = "0.72.1"

@@ -1,15 +1,13 @@
-use crate::api::response::ApiResponse;
 use crate::api::response::NewApiResponse;
 use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
-// use engine::backtest_strategy_engine::BacktestStrategyEngine;
-use engine::backtest_engine::BacktestEngine as BacktestStrategyEngine;
+use engine_core::EngineContextAccessor;
 use event_center::event::strategy_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
-use star_river_core::engine::EngineName;
+use star_river_core::error::star_river_error::ParseDataTimeFailedSnafu;
 use star_river_core::key::Key;
 use star_river_core::order::virtual_order::VirtualOrder;
 use star_river_core::position::virtual_position::VirtualPosition;
@@ -19,6 +17,12 @@ use star_river_core::strategy_stats::StatsSnapshot;
 use star_river_core::transaction::virtual_transaction::VirtualTransaction;
 use std::str::FromStr;
 use utoipa::{IntoParams, ToSchema};
+use snafu::IntoError;
+use tracing::instrument;
+use std::collections::HashMap;
+use star_river_core::custom_type::NodeId;
+use backtest_engine::backtest_engine_error::BacktestEngineError;
+
 
 #[utoipa::path(
     get,
@@ -29,36 +33,37 @@ use utoipa::{IntoParams, ToSchema};
         ("strategy_id" = i32, Path, description = "要获取虚拟订单的策略ID")
     ),
     responses(
-        (status = 200, description = "获取虚拟订单成功", body = ApiResponse<Vec<VirtualOrder>>),
-        (status = 400, description = "获取虚拟订单失败", body = ApiResponse<Vec<VirtualOrder>>)
+        (status = 200, description = "获取虚拟订单成功", body = NewApiResponse<Vec<VirtualOrder>>),
+        (status = 400, description = "获取虚拟订单失败", body = NewApiResponse<Vec<VirtualOrder>>)
     ))]
 pub async fn get_virtual_orders(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<Vec<VirtualOrder>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<VirtualOrder>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let virtual_orders = strategy_engine.get_virtual_orders(strategy_id).await;
-    if let Ok(virtual_orders) = virtual_orders {
-        (
-            StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(virtual_orders),
-            }),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
-        )
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<VirtualOrder>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let orders = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_virtual_orders().await
+                })
+            }).await;
+            Ok(orders)
+        })
+    }).await;
+
+    match result {
+        Ok(virtual_orders) => (StatusCode::OK, Json(NewApiResponse::success(virtual_orders))),
+        Err(e) => {
+            let status_code = match &e {
+                _ => StatusCode::NOT_FOUND,
+            };
+            (status_code, Json(NewApiResponse::error(e)))
+        }
     }
 }
 
@@ -71,37 +76,33 @@ pub async fn get_virtual_orders(
         ("strategy_id" = i32, Path, description = "要获取当前虚拟持仓的策略ID")
     ),
     responses(
-        (status = 200, description = "获取当前虚拟持仓成功", body = ApiResponse<Vec<VirtualPosition>>),
-        (status = 400, description = "获取当前虚拟持仓失败", body = ApiResponse<Vec<VirtualPosition>>)
+        (status = 200, description = "获取当前虚拟持仓成功", body = NewApiResponse<Vec<VirtualPosition>>),
+        (status = 400, description = "获取当前虚拟持仓失败", body = NewApiResponse<Vec<VirtualPosition>>)
     )
 )]
 pub async fn get_current_positions(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<Vec<VirtualPosition>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<VirtualPosition>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let current_positions = strategy_engine.get_current_virtual_positions(strategy_id).await;
-    if let Ok(current_positions) = current_positions {
-        (
-            StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(current_positions),
-            }),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
-        )
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let positions = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_current_positions().await
+                })
+            }).await;
+            Ok(positions)
+        })
+    }).await;
+
+    match result {
+        Ok(current_positions) => (StatusCode::OK, Json(NewApiResponse::success(current_positions))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -114,37 +115,33 @@ pub async fn get_current_positions(
         ("strategy_id" = i32, Path, description = "要获取虚拟交易明细的策略ID")
     ),
     responses(
-        (status = 200, description = "获取虚拟交易明细成功", body = ApiResponse<Vec<VirtualTransaction>>),
-        (status = 400, description = "获取虚拟交易明细失败", body = ApiResponse<Vec<VirtualTransaction>>)
+        (status = 200, description = "获取虚拟交易明细成功", body = NewApiResponse<Vec<VirtualTransaction>>),
+        (status = 400, description = "获取虚拟交易明细失败", body = NewApiResponse<Vec<VirtualTransaction>>)
     )
 )]
 pub async fn get_virtual_transactions(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<Vec<VirtualTransaction>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<VirtualTransaction>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let virtual_transactions = strategy_engine.get_virtual_transactions(strategy_id).await;
-    if let Ok(virtual_transactions) = virtual_transactions {
-        (
-            StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(virtual_transactions),
-            }),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
-        )
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<VirtualTransaction>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let transactions = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_transactions().await
+                })
+            }).await;
+            Ok(transactions)
+        })
+    }).await;
+
+    match result {
+        Ok(virtual_transactions) => (StatusCode::OK, Json(NewApiResponse::success(virtual_transactions))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -170,8 +167,8 @@ pub struct GetStatsHistoryQuery {
         ("play_index" = i32, Query, description = "要获取策略统计历史的播放索引"),
     ),
     responses(
-        (status = 200, description = "获取策略统计历史成功", body = ApiResponse<Vec<StatsSnapshot>>),
-        (status = 400, description = "获取策略统计历史失败", body = ApiResponse<Vec<StatsSnapshot>>)
+        (status = 200, description = "获取策略统计历史成功", body = NewApiResponse<Vec<StatsSnapshot>>),
+        (status = 400, description = "获取策略统计历史失败", body = NewApiResponse<Vec<StatsSnapshot>>)
     )
 )]
 #[axum::debug_handler]
@@ -179,30 +176,26 @@ pub async fn get_stats_history(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
     Query(params): Query<GetStatsHistoryQuery>,
-) -> (StatusCode, Json<ApiResponse<Vec<StatsSnapshot>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<StatsSnapshot>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let stats_history = strategy_engine.get_stats_history(strategy_id, params.play_index).await;
-    if let Ok(stats_history) = stats_history {
-        (
-            StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(stats_history),
-            }),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
-        )
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<StatsSnapshot>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let stats = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_stats_history(params.play_index).await
+                })
+            }).await;
+            Ok(stats)
+        })
+    }).await;
+
+    match result {
+        Ok(stats_history) => (StatusCode::OK, Json(NewApiResponse::success(stats_history))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -215,37 +208,33 @@ pub async fn get_stats_history(
         ("strategy_id" = i32, Path, description = "要获取历史虚拟持仓的策略ID")
     ),
     responses(
-        (status = 200, description = "获取历史虚拟持仓成功", body = ApiResponse<Vec<VirtualPosition>>),
-        (status = 400, description = "获取历史虚拟持仓失败", body = ApiResponse<Vec<VirtualPosition>>)
+        (status = 200, description = "获取历史虚拟持仓成功", body = NewApiResponse<Vec<VirtualPosition>>),
+        (status = 400, description = "获取历史虚拟持仓失败", body = NewApiResponse<Vec<VirtualPosition>>)
     )
 )]
 pub async fn get_history_positions(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<Vec<VirtualPosition>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<VirtualPosition>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let history_positions = strategy_engine.get_history_virtual_positions(strategy_id).await;
-    if let Ok(history_positions) = history_positions {
-        (
-            StatusCode::OK,
-            Json(ApiResponse {
-                code: 0,
-                message: "success".to_string(),
-                data: Some(history_positions),
-            }),
-        )
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: "failed".to_string(),
-                data: None,
-            }),
-        )
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let positions = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_history_positions().await
+                })
+            }).await;
+            Ok(positions)
+        })
+    }).await;
+
+    match result {
+        Ok(history_positions) => (StatusCode::OK, Json(NewApiResponse::success(history_positions))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -267,14 +256,18 @@ pub async fn get_strategy_status(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<String>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let strategy_status = strategy_engine.get_strategy_status(strategy_id).await;
-    if let Ok(strategy_status) = strategy_status {
-        (StatusCode::OK, Json(NewApiResponse::success(strategy_status)))
-    } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_status.unwrap_err())))
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<String, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            ctx.get_strategy_status(strategy_id).await
+        })
+    }).await;
+
+    match result {
+        Ok(status) => (StatusCode::OK, Json(NewApiResponse::success(status))),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -296,14 +289,24 @@ pub async fn get_running_log(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<Vec<StrategyRunningLogEvent>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let running_log = strategy_engine.get_running_log(strategy_id).await;
-    if let Ok(running_log) = running_log {
-        (StatusCode::OK, Json(NewApiResponse::success(running_log)))
-    } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(running_log.unwrap_err())))
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<StrategyRunningLogEvent>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let log = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.running_log().await
+                })
+            }).await;
+            Ok(log)
+        })
+    }).await;
+
+    match result {
+        Ok(running_log) => (StatusCode::OK, Json(NewApiResponse::success(running_log))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -342,18 +345,30 @@ pub async fn get_strategy_data(
     Path(strategy_id): Path<i32>,
     Query(params): Query<GetStrategyDataQuery>,
 ) -> (StatusCode, Json<NewApiResponse<Vec<serde_json::Value>>>) {
-    let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+    let key = match Key::from_str(&params.key) {
+        Ok(key) => key,
+        Err(e) => return (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    };
 
-    match Key::from_str(&params.key) {
-        Ok(key) => strategy_engine
-            .get_strategy_data(strategy_id, params.play_index, key, params.limit)
-            .await
-            .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
-            .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let data = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_strategy_data(params.play_index, key, params.limit).await
+                })
+            }).await?;
+            Ok(data)
+        })
+    }).await;
+
+    match result {
+        Ok(data) => (StatusCode::OK, Json(NewApiResponse::success(data))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -395,25 +410,40 @@ pub async fn get_strategy_data_by_datetime(
     Path(strategy_id): Path<i32>,
     Query(params): Query<GetStrategyDataByDatetimeQuery>,
 ) -> (StatusCode, Json<NewApiResponse<Vec<serde_json::Value>>>) {
-    let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
+    let key = match Key::from_str(&params.key) {
+        Ok(key) => key,
+        Err(e) => return (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    };
 
-    match Key::from_str(&params.key) {
-        Ok(key) => strategy_engine
-            .get_strategy_data_by_datetime(
-                strategy_id,
-                key,
-                NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ")
-                    .unwrap()
-                    .and_utc(),
-                params.limit,
-            )
-            .await
-            .map(|data| (StatusCode::OK, Json(NewApiResponse::success(data))))
-            .unwrap_or_else(|e| (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    let datetime = match NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ") {
+        Ok(dt) => dt.and_utc(),
+        Err(e) => return {
+            let error = ParseDataTimeFailedSnafu {
+                datetime: params.datetime,
+            }.into_error(e);
+            (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(error)))
+        },
+    };
+
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard: tokio::sync::MutexGuard<'_, backtest_engine::BacktestEngine> = engine.lock().await;
+
+    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let data = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_strategy_data_by_datetime(key, datetime, params.limit).await
+                })
+            }).await?;
+            Ok(data)
+        })
+    }).await;
+
+    match result {
+        Ok(data) => (StatusCode::OK, Json(NewApiResponse::success(data))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -436,14 +466,24 @@ pub async fn get_strategy_variable(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<Vec<StrategyVariable>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let strategy_variable = strategy_engine.get_strategy_variable(strategy_id).await;
-    if let Ok(strategy_variable) = strategy_variable {
-        (StatusCode::OK, Json(NewApiResponse::success(strategy_variable)))
-    } else {
-        (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(strategy_variable.unwrap_err())))
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<Vec<StrategyVariable>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let variables = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_strategy_variable().await
+                })
+            }).await;
+            Ok(variables)
+        })
+    }).await;
+
+    match result {
+        Ok(strategy_variable) => (StatusCode::OK, Json(NewApiResponse::success(strategy_variable))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
     }
 }
 
@@ -466,16 +506,76 @@ pub async fn get_strategy_performance_report(
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<StrategyPerformanceReport>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::StrategyEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let strategy_engine = engine_guard.as_any_mut().downcast_mut::<BacktestStrategyEngine>().unwrap();
-    let strategy_performance_report = strategy_engine.get_strategy_performance_report(strategy_id).await;
-    if let Ok(strategy_performance_report) = strategy_performance_report {
-        (StatusCode::OK, Json(NewApiResponse::success(strategy_performance_report)))
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(NewApiResponse::error(strategy_performance_report.unwrap_err())),
-        )
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<StrategyPerformanceReport, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let report = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.get_strategy_performance_report().await
+                })
+            }).await;
+            Ok(report)
+        })
+    }).await;
+
+    match result {
+        Ok(strategy_performance_report) => (StatusCode::OK, Json(NewApiResponse::success(strategy_performance_report))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+    }
+}
+
+
+
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/{strategy_id}/cache-keys",
+    tag = "策略管理",
+    summary = "获取策略缓存键",
+    params(
+        ("strategy_id" = i32, Path, description = "要获取缓存键的策略ID"),
+    ),
+    responses(
+        (status = 200, description = "获取策略缓存键成功", content_type = "application/json")
+    )
+)]
+#[instrument(skip(star_river))]
+pub async fn get_strategy_keys(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<NewApiResponse<Vec<String>>>) {
+    tracing::info!(strategy_id = strategy_id, "get strategy cache keys");
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<HashMap<Key, NodeId>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            let strategy = ctx.get_strategy_instance(strategy_id).await?;
+            let keys = strategy.with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    ctx.keys().await
+                })
+            }).await;
+            Ok(keys)
+        })
+    }).await;
+
+    match result {
+        Ok(keys_map) => {
+            let keys_str = keys_map.keys().map(|cache_key| cache_key.get_key_str()).collect::<Vec<String>>();
+            (StatusCode::OK, Json(NewApiResponse::success(keys_str)))
+        }
+        Err(e) => {
+            let status_code = match &e {
+                BacktestEngineError::StrategyInstanceNotFound { .. } => StatusCode::NOT_FOUND,
+                BacktestEngineError::StrategyConfigNotFound { .. } => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status_code, Json(NewApiResponse::error(e)))
+        }
     }
 }

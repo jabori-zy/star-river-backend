@@ -2,7 +2,7 @@ pub mod calculate;
 pub mod indicator_engine_context;
 pub mod indicator_engine_type;
 pub mod talib;
-pub mod talib_bindings;
+pub mod bindings_macos;
 
 
 use crate::EngineName;

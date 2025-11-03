@@ -1,0 +1,68 @@
+mod context;
+// mod subkey;
+mod state_machine;
+mod indicator_engine_type;
+mod lifecycle;
+mod calculate;
+pub mod error;
+
+
+pub use ta_lib::TALib;
+pub use star_river_core::market::Kline;
+
+
+
+use context::IndicatorEngineContext;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use engine_core::{EngineBase, EngineContextAccessor, engine_trait::Engine};
+use state_machine::IndicatorEngineAction;
+
+// ============================================================================
+// ExchangeEngine 结构 (newtype 模式)
+// ============================================================================
+
+/// 交易所引擎
+#[derive(Debug)]
+pub struct IndicatorEngine {
+    inner: EngineBase<IndicatorEngineContext, IndicatorEngineAction>,
+}
+
+impl IndicatorEngine {
+    /// 创建新的交易所引擎实例
+    pub fn new() -> Self {
+
+        let context = IndicatorEngineContext::new();
+
+        Self {
+            inner: EngineBase::new(context)
+        }
+    }
+}
+
+// ============================================================================
+// Deref 实现 - 透明访问内部 EngineBase
+// ============================================================================
+
+impl std::ops::Deref for IndicatorEngine {
+    type Target = EngineBase<IndicatorEngineContext, IndicatorEngineAction>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+
+impl Engine for IndicatorEngine {}
+
+// ============================================================================
+// EngineContextAccessor 实现 - 委托给内部 EngineBase
+// ============================================================================
+
+impl EngineContextAccessor for IndicatorEngine {
+    type Context = IndicatorEngineContext;
+    type Action = IndicatorEngineAction;
+    fn context(&self) -> &Arc<RwLock<IndicatorEngineContext>> {
+        self.inner.context()
+    }
+}

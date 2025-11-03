@@ -2,7 +2,7 @@ use super::{EngineResponse, GenericEngineCommand};
 
 use derive_more::From;
 use star_river_core::custom_type::{NodeId, StrategyId};
-use star_river_core::indicator::{Indicator, IndicatorConfig};
+use ta_lib::{Indicator, IndicatorConfig};
 use star_river_core::key::Key;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::{Exchange, Kline, KlineInterval};

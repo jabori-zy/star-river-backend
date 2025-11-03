@@ -7,7 +7,7 @@ pub mod position_node_error;
 pub mod variable_node_error;
 
 use crate::error::ErrorCode;
-use crate::error::error_trait::Language;
+use crate::error::error_trait::ErrorLanguage;
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 
@@ -119,20 +119,20 @@ impl crate::error::error_trait::StarRiverErrorTrait for BacktestNodeError {
         )
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => {
                 match self {
                     // transparent errors - return source message directly
-                    BacktestNodeError::StateMachineError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::StartNodeError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::KlineNodeError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::IndicatorNodeError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::IfElseNodeError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::VariableNodeError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::FuturesOrderNodeError { source, .. } => source.get_error_message(language),
-                    BacktestNodeError::PositionNodeError { source, .. } => source.get_error_message(language),
+                    BacktestNodeError::StateMachineError { source, .. } => source.error_message(language),
+                    BacktestNodeError::StartNodeError { source, .. } => source.error_message(language),
+                    BacktestNodeError::KlineNodeError { source, .. } => source.error_message(language),
+                    BacktestNodeError::IndicatorNodeError { source, .. } => source.error_message(language),
+                    BacktestNodeError::IfElseNodeError { source, .. } => source.error_message(language),
+                    BacktestNodeError::VariableNodeError { source, .. } => source.error_message(language),
+                    BacktestNodeError::FuturesOrderNodeError { source, .. } => source.error_message(language),
+                    BacktestNodeError::PositionNodeError { source, .. } => source.error_message(language),
 
                     // non-transparent errors - use custom message
                     BacktestNodeError::UnsupportedNodeType { node_type, .. } => {

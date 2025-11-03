@@ -1,7 +1,7 @@
 use super::{StrategyCommand, StrategyResponse};
 use derive_more::From;
 use star_river_core::custom_type::{NodeId, PlayIndex};
-use star_river_core::indicator::Indicator;
+use ta_lib::Indicator;
 use star_river_core::key::Key;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;

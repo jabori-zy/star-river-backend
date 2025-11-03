@@ -1,5 +1,5 @@
 use crate::api::strategy_api::{
-    create_strategy, delete_strategy, get_strategy_by_id, get_strategy_cache_keys,
+    create_strategy, delete_strategy, get_strategy_by_id,
     get_strategy_list, init_strategy, stop_strategy, update_strategy,
 };
 use axum::{
@@ -23,7 +23,7 @@ pub fn create_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/init", post(init_strategy))
         .route("/{strategy_id}/stop", post(stop_strategy))
         // 策略缓存
-        .route("/{strategy_id}/cache-keys", get(get_strategy_cache_keys))
+        .route("/{strategy_id}/cache-keys", get(get_strategy_keys))
 }
 
 // pub fn create_live_strategy_routes() -> Router<StarRiver> {

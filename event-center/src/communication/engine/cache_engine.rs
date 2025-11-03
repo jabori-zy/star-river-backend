@@ -1,11 +1,11 @@
 use super::{EngineResponse, GenericEngineCommand};
 use derive_more::From;
 use star_river_core::custom_type::{NodeId, StrategyId};
-use star_river_core::indicator::Indicator;
 use star_river_core::key::key::{IndicatorKey, KlineKey};
 use star_river_core::market::Kline;
 use std::collections::HashMap;
 use tokio::time::Duration;
+use ta_lib::Indicator;
 
 #[derive(Debug, From)]
 pub enum CacheEngineCommand {

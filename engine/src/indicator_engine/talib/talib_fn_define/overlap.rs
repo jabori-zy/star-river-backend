@@ -1,5 +1,5 @@
 use crate::indicator_engine::talib::TALib;
-use crate::indicator_engine::talib_bindings::*;
+use crate::indicator_engine::bindings_macos::*;
 // use crate::indicator_engine::talib_error::TalibError;
 use crate::talib_fn;
 use crate::talib_snake_fn;

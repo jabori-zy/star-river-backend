@@ -8,6 +8,7 @@ edition.workspace = true
 
 [dependencies]
 star-river-core = { path = "../star-river-core" }
+ta-lib = { path = "../ta-lib" }
 derive_more = { version = "2.0.1", features = ["from"] }
 serde.workspace = true
 serde_json.workspace = true

@@ -1,5 +1,5 @@
 use super::TALib;
-use crate::indicator_engine::talib_bindings::*;
+use crate::indicator_engine::bindings_macos::*;
 use star_river_core::indicator::IndicatorConfig;
 
 impl TALib {

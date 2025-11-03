@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::error::error_trait::{Language, StarRiverErrorTrait};
+use crate::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
 use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -155,10 +155,10 @@ impl crate::error::error_trait::StarRiverErrorTrait for KlineNodeError {
         }
     }
 
-    fn get_error_message(&self, language: Language) -> String {
+    fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            Language::English => self.to_string(),
-            Language::Chinese => match self {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
                 KlineNodeError::RegisterExchangeFailed { node_name, node_id, .. } => {
                     format!("K线节点 [{}({})] 注册交易所错误", node_name, node_id)
                 }
