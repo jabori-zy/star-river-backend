@@ -18,7 +18,7 @@ use super::BacktestStrategyContext;
 use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt, StrategyBenchmarkExt};
 use strategy_core::node::NodeTrait;
 use star_river_event::backtest_strategy::strategy_event::PlayFinishedEvent;
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 use crate::strategy_new::strategy_state_machine::BacktestStrategyRunState;
 use strategy_core::strategy::context_trait::StrategyVariableExt;

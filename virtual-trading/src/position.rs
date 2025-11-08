@@ -1,12 +1,16 @@
-use super::VirtualTradingSystem;
-use crate::utils::Formula;
+// External crate imports
 use chrono::{DateTime, Utc};
+
+// Current crate imports
 use star_river_core::custom_type::*;
-use star_river_core::order::OrderStatus;
-use star_river_core::order::FuturesOrderSide;
+use star_river_core::order::{FuturesOrderSide, OrderStatus};
 use star_river_core::position::{PositionSide, PositionState};
-use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
+
+// Local module imports
+use super::VirtualTradingSystem;
 use crate::event::VirtualTradingSystemEvent;
+use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
+use crate::utils::Formula;
 
 impl VirtualTradingSystem {
     pub fn generate_position_id(&self) -> PositionId {
@@ -25,10 +29,10 @@ impl VirtualTradingSystem {
 
         let position_id = self.generate_position_id();
         let position_side = match order.order_side {
-            FuturesOrderSide::OpenLong => PositionSide::Long,
-            FuturesOrderSide::OpenShort => PositionSide::Short,
-            FuturesOrderSide::CloseLong => PositionSide::Long,
-            FuturesOrderSide::CloseShort => PositionSide::Short,
+            | FuturesOrderSide::OpenLong => PositionSide::Long,
+            | FuturesOrderSide::OpenShort => PositionSide::Short,
+            | FuturesOrderSide::CloseLong => PositionSide::Long,
+            | FuturesOrderSide::CloseShort => PositionSide::Short,
         };
         let force_price = Formula::calculate_force_price(&position_side, self.leverage, current_price, order.quantity);
         let margin_ratio = Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price, order.quantity);
@@ -56,12 +60,7 @@ impl VirtualTradingSystem {
 
     /// 执行开仓订单, 返回持仓id
     /// 生成仓位和交易明细
-    pub fn execute_order(
-        &mut self,
-        order: &VirtualOrder,
-        current_price: f64,
-        execute_datetime: DateTime<Utc>,
-    ) -> Result<PositionId, String> {
+    pub fn execute_order(&mut self, order: &VirtualOrder, current_price: f64, execute_datetime: DateTime<Utc>) -> Result<PositionId, String> {
         tracing::info!("execute open order: {:?}, execute price: {:?}", order, current_price);
 
         let virtual_position = self.create_position(order, current_price).unwrap();
@@ -100,8 +99,7 @@ impl VirtualTradingSystem {
         let _ = self.event_publisher.send(transaction_created_event);
 
         // 修改订单的状态
-        self.update_order_status(order.order_id, OrderStatus::Filled, execute_datetime)
-            .unwrap();
+        self.update_order_status(order.order_id, OrderStatus::Filled, execute_datetime).unwrap();
 
         // 将交易明细添加到交易明细列表中
         self.transactions.push(virtual_transaction);
@@ -132,12 +130,8 @@ impl VirtualTradingSystem {
                     // 计算新的保证金信息
                     let margin = Formula::calculate_margin(self.leverage, current_price_val, quantity);
                     let margin_ratio = Formula::calculate_margin_ratio(self.available_balance, self.leverage, current_price_val, quantity);
-                    let force_price = Formula::calculate_force_price(
-                        &self.current_positions[i].position_side,
-                        self.leverage,
-                        current_price_val,
-                        quantity,
-                    );
+                    let force_price =
+                        Formula::calculate_force_price(&self.current_positions[i].position_side, self.leverage, current_price_val, quantity);
 
                     // 更新仓位
                     let position = &mut self.current_positions[i];
@@ -148,7 +142,6 @@ impl VirtualTradingSystem {
             }
         }
     }
-
 
     // 获取当前持仓
     pub fn get_current_positions(&self) -> &Vec<VirtualPosition> {
@@ -184,9 +177,9 @@ impl VirtualTradingSystem {
             if let Some(mut position) = position {
                 // 更新仓位的收益
                 let unrealized_profit = match tp_order.order_side {
-                    FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
-                    FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
-                    _ => 0.0,
+                    | FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
+                    | FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
+                    | _ => 0.0,
                 };
 
                 position.unrealized_profit = unrealized_profit;
@@ -255,9 +248,9 @@ impl VirtualTradingSystem {
                 // 更新仓位的收益
 
                 let unrealized_profit = match sl_order.order_side {
-                    FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
-                    FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
-                    _ => 0.0,
+                    | FuturesOrderSide::CloseLong => position.quantity * (execute_price - position.open_price),
+                    | FuturesOrderSide::CloseShort => position.quantity * (position.open_price - execute_price),
+                    | _ => 0.0,
                 };
 
                 position.unrealized_profit = unrealized_profit;

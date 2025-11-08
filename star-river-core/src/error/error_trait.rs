@@ -1,9 +1,11 @@
 use super::ErrorCode;
-use std::collections::HashMap;
 use std::error::Error;
 use axum::http::StatusCode;
+use strum::Display;
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Display)]
+#[strum(serialize_all = "lowercase")]
 pub enum ErrorLanguage {
     English,
     Chinese,
@@ -20,13 +22,6 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
 
     /// Returns a string error code in format "PREFIX_NNNN" (e.g., "MT5_1001")
     fn error_code(&self) -> ErrorCode;
-
-    /// Extract structured context information from the error
-    /// Returns a HashMap with field names as keys and context values as values
-    /// for logging, monitoring, and debugging
-    fn context(&self) -> HashMap<&'static str, String> {
-        HashMap::new()
-    }
 
     /// Determines whether the error represents a recoverable condition
     /// Returns true if the operation that caused this error can potentially be retried

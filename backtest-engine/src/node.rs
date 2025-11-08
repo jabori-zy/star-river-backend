@@ -27,7 +27,7 @@ use tokio::sync::{RwLock, broadcast};
 use tokio_util::sync::CancellationToken;
 
 // workspace crate
-use event_center_new::event::Channel;
+use event_center::event::Channel;
 use star_river_core::custom_type::{NodeId, NodeName};
 use strategy_core::node::{NodeType,NodeTrait};
 

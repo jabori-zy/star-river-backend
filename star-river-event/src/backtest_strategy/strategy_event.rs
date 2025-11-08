@@ -2,7 +2,7 @@ use chrono::Utc;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::{PlayIndex, StrategyId};
-use star_river_core::strategy_stats::event::StrategyStatsUpdatedEvent;
+use strategy_stats::event::StrategyStatsUpdatedEvent;
 use star_river_core::system::DateTimeUtc;
 use strum::Display;
 

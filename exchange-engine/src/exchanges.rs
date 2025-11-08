@@ -1,5 +1,5 @@
-use exchange_client_new::binance::Binance;
-use exchange_client_new::metatrader5::MetaTrader5;
+use exchange_client::binance::Binance;
+use exchange_client::metatrader5::MetaTrader5;
 
 use star_river_core::exchange::Exchange as ExchangeType;
 use exchange_core::state_machine::ExchangeRunState;
@@ -8,7 +8,7 @@ use star_river_core::instrument::Symbol;
 use exchange_core::exchange_trait::{ExchangeSymbolExt, ExchangeMarketDataExt};
 use star_river_core::kline::{Kline, KlineInterval};
 use strategy_core::strategy::TimeRange;
-use exchange_client_new::exchange_error::ExchangeError;
+use exchange_client::exchange_error::ExchangeError;
 use crate::error::ExchangeEngineError;
 
 

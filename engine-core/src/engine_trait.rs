@@ -9,7 +9,7 @@ use crate::state_machine_error::EngineStateMachineError;
 use crate::state_machine::{EngineAction, EngineStateTransTrigger};
 use super::EngineEventReceiver;
 // use event_center::EventCenterSingleton;
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::stream::select_all;
 use futures::StreamExt;

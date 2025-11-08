@@ -1,4 +1,5 @@
 use snafu::{Backtrace, Snafu};
+use axum::http::StatusCode;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -74,91 +75,112 @@ pub enum TaLibError {
     },
 }
 
-// // Implement the StarRiverErrorTrait for IndicatorError
-// impl StarRiverErrorTrait for TaLibError {
-//     fn get_prefix(&self) -> &'static str {
-//         "TA_LIB"
-//     }
+// Implement the StarRiverErrorTrait for IndicatorError
+impl TaLibError {
+    pub fn get_prefix(&self) -> &'static str {
+        "TA_LIB"
+    }
 
-//     fn error_code(&self) -> ErrorCode {
-//         let prefix = self.get_prefix();
-//         let code = match self {
-//             TaLibError::UnsupportType { .. } => 1001,
-//             TaLibError::CreateIndicatorFailed { .. } => 1002,
-//             TaLibError::InvalidConfigFormat { .. } => 1003,
-//             TaLibError::ParamEmpty { .. } => 1004,
-//             TaLibError::ParamFormatInvalid { .. } => 1005,
-//             TaLibError::ConfigMissParam { .. } => 1006,
-//             TaLibError::ParseIntParamFailed { .. } => 1007,
-//             TaLibError::ParseFloatParamFailed { .. } => 1008,
-//             TaLibError::ParseSpecialParamFailed { .. } => 1009,
-//             TaLibError::DataLessThenLookback { .. } => 1010,
-//             TaLibError::DataLengthNotEqual { .. } => 1011,
-//             TaLibError::TalibErrorCode { .. } => 1012,
-//         };
-//         format!("{}_{:04}", prefix, code)
-//     }
+    pub fn error_code(&self) -> String {
+        let prefix = self.get_prefix();
+        let code = match self {
+            TaLibError::UnsupportType { .. } => 1001,
+            TaLibError::CreateIndicatorFailed { .. } => 1002,
+            TaLibError::InvalidConfigFormat { .. } => 1003,
+            TaLibError::ParamEmpty { .. } => 1004,
+            TaLibError::ParamFormatInvalid { .. } => 1005,
+            TaLibError::ConfigMissParam { .. } => 1006,
+            TaLibError::ParseIntParamFailed { .. } => 1007,
+            TaLibError::ParseFloatParamFailed { .. } => 1008,
+            TaLibError::ParseSpecialParamFailed { .. } => 1009,
+            TaLibError::DataLessThenLookback { .. } => 1010,
+            TaLibError::DataLengthNotEqual { .. } => 1011,
+            TaLibError::TalibErrorCode { .. } => 1012,
+        };
+        format!("{}_{:04}", prefix, code)
+    }
 
-//     fn error_message(&self, language: ErrorLanguage) -> String {
-//         match language {
-//             ErrorLanguage::English => self.to_string(),
-//             ErrorLanguage::Chinese => match self {
-//                 TaLibError::UnsupportType { indicator_type, .. } => {
-//                     format!("不支持的指标类型 [{}]", indicator_type)
-//                 }
-//                 TaLibError::CreateIndicatorFailed {
-//                     indicator_type, source, ..
-//                 } => {
-//                     format!("创建指标 [{}] 失败，原因: [{}]", indicator_type, source)
-//                 }
-//                 TaLibError::InvalidConfigFormat { indicator_config, .. } => {
-//                     format!("无效的指标配置格式: {}", indicator_config)
-//                 }
-//                 TaLibError::ParamEmpty { indicator_config, .. } => {
-//                     format!("指标参数为空: {}", indicator_config)
-//                 }
-//                 TaLibError::ParamFormatInvalid { indicator_config, .. } => {
-//                     format!("指标参数格式无效: {}", indicator_config)
-//                 }
-//                 TaLibError::ConfigMissParam { param, .. } => {
-//                     format!("指标配置缺少参数: {}", param)
-//                 }
-//                 TaLibError::ParseIntParamFailed { param, source, .. } => {
-//                     format!("指标参数解析失败: {}. 原因: {}", param, source)
-//                 }
-//                 TaLibError::ParseFloatParamFailed { param, source, .. } => {
-//                     format!("指标参数解析失败: {}. 原因: {}", param, source)
-//                 }
-//                 TaLibError::ParseSpecialParamFailed { param, reason, .. } => {
-//                     format!("指标参数解析失败: {}. 原因: {}", param, reason)
-//                 }
-//                 TaLibError::DataLessThenLookback { indicator_name, lookback, data_length, .. } => {
-//                     format!("{} 的 lookback 是 {} 但数据长度是 {}", indicator_name, lookback, data_length)
-//                 }
-//                 TaLibError::DataLengthNotEqual { data_length, .. } => {
-//                     format!("数据长度不一致: {}", data_length.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
-//                 }
-//                 TaLibError::TalibErrorCode { ret_code, .. } => {
-//                     format!("TA-Lib 错误代码: {}", ret_code)
-//                 }
-//             },
-//         }
-//     }
+    pub fn http_status_code(&self) -> StatusCode {
+        match self {
+            // 客户端错误 - BAD_REQUEST (400)
+            TaLibError::UnsupportType { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::InvalidConfigFormat { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::ParamEmpty { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::ParamFormatInvalid { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::ConfigMissParam { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::ParseIntParamFailed { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::ParseFloatParamFailed { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::ParseSpecialParamFailed { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::DataLessThenLookback { .. } => StatusCode::BAD_REQUEST,
+            TaLibError::DataLengthNotEqual { .. } => StatusCode::BAD_REQUEST,
 
-//     fn error_code_chain(&self) -> Vec<ErrorCode> {
-//         match self {
-//             TaLibError::UnsupportType { .. }
-//             | TaLibError::CreateIndicatorFailed { .. }
-//             | TaLibError::InvalidConfigFormat { .. }
-//             | TaLibError::ParamEmpty { .. }
-//             | TaLibError::ParamFormatInvalid { .. }
-//             | TaLibError::ConfigMissParam { .. }
-//             | TaLibError::ParseIntParamFailed { .. }
-//             | TaLibError::ParseFloatParamFailed { .. }
-//             | TaLibError::ParseSpecialParamFailed { .. }
-//             | TaLibError::DataLessThenLookback { .. }
-//             | TaLibError::DataLengthNotEqual { .. }
-//             | TaLibError::TalibErrorCode { .. } => vec![self.error_code()],
-//         }
-//     }
-// }
+            // 服务器错误 - INTERNAL_SERVER_ERROR (500)
+            TaLibError::CreateIndicatorFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            TaLibError::TalibErrorCode { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    pub fn error_message(&self, language: &str) -> String {
+        match language {
+            "english" => self.to_string(),
+            "chinese" => match self {
+                TaLibError::UnsupportType { indicator_type, .. } => {
+                    format!("不支持的指标类型 [{}]", indicator_type)
+                }
+                TaLibError::CreateIndicatorFailed {
+                    indicator_type, source, ..
+                } => {
+                    format!("创建指标 [{}] 失败，原因: [{}]", indicator_type, source)
+                }
+                TaLibError::InvalidConfigFormat { indicator_config, .. } => {
+                    format!("无效的指标配置格式: {}", indicator_config)
+                }
+                TaLibError::ParamEmpty { indicator_config, .. } => {
+                    format!("指标参数为空: {}", indicator_config)
+                }
+                TaLibError::ParamFormatInvalid { indicator_config, .. } => {
+                    format!("指标参数格式无效: {}", indicator_config)
+                }
+                TaLibError::ConfigMissParam { param, .. } => {
+                    format!("指标配置缺少参数: {}", param)
+                }
+                TaLibError::ParseIntParamFailed { param, source, .. } => {
+                    format!("指标参数解析失败: {}. 原因: {}", param, source)
+                }
+                TaLibError::ParseFloatParamFailed { param, source, .. } => {
+                    format!("指标参数解析失败: {}. 原因: {}", param, source)
+                }
+                TaLibError::ParseSpecialParamFailed { param, reason, .. } => {
+                    format!("指标参数解析失败: {}. 原因: {}", param, reason)
+                }
+                TaLibError::DataLessThenLookback { indicator_name, lookback, data_length, .. } => {
+                    format!("{} 的 lookback 是 {} 但数据长度是 {}", indicator_name, lookback, data_length)
+                }
+                TaLibError::DataLengthNotEqual { data_length, .. } => {
+                    format!("数据长度不一致: {}", data_length.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
+                }
+                TaLibError::TalibErrorCode { ret_code, .. } => {
+                    format!("TA-Lib 错误代码: {}", ret_code)
+                }
+            },
+            _ => "".to_string(),
+        }
+    }
+
+    pub fn error_code_chain(&self) -> Vec<String> {
+        match self {
+            TaLibError::UnsupportType { .. }
+            | TaLibError::CreateIndicatorFailed { .. }
+            | TaLibError::InvalidConfigFormat { .. }
+            | TaLibError::ParamEmpty { .. }
+            | TaLibError::ParamFormatInvalid { .. }
+            | TaLibError::ConfigMissParam { .. }
+            | TaLibError::ParseIntParamFailed { .. }
+            | TaLibError::ParseFloatParamFailed { .. }
+            | TaLibError::ParseSpecialParamFailed { .. }
+            | TaLibError::DataLessThenLookback { .. }
+            | TaLibError::DataLengthNotEqual { .. }
+            | TaLibError::TalibErrorCode { .. } => vec![self.error_code()],
+        }
+    }
+}

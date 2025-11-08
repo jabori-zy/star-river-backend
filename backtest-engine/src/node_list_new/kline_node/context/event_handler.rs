@@ -27,7 +27,7 @@ use star_river_event::backtest_strategy::node_event::kline_node_event::{TimeUpda
 use crate::node_event::KlineNodeEvent;
 use strategy_core::node::context_trait::NodeEventHandlerExt;
 use crate::node_command::BacktestNodeCommand;
-use event_center_new::Event;
+use event_center::Event;
 use crate::node_command::NodeResetResponse;
 use crate::node_command::NodeResetRespPayload;
 use crate::node_event::StartNodeEvent;

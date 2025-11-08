@@ -13,7 +13,7 @@ use strategy_core::variable::StrategyVariable;
 use strategy_core::benchmark::strategy_benchmark::StrategyPerformanceReport;
 use key::Key;
 use std::str::FromStr;
-use star_river_core::strategy_stats::StatsSnapshot;
+use strategy_stats::StatsSnapshot;
 use utoipa::{IntoParams, ToSchema};
 use snafu::IntoError;
 use tracing::instrument;

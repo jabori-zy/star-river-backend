@@ -17,7 +17,7 @@ use crate::strategy::strategy_log_message::StrategyStateLogMsg;
 use chrono::Utc;
 use star_river_core::error::{ErrorLanguage, StarRiverErrorTrait};
 use star_river_event::backtest_strategy::strategy_event::{StrategyStateLogEvent, log_event::LogLevel};
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 
 impl BacktestStrategy {

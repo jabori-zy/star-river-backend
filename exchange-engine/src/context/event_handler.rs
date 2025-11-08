@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use super::ExchangeEngineContext;
 use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
 use std::sync::Arc;
-use event_center_new::{
+use event_center::{
     event::Event,
     communication::EngineCommand
 };

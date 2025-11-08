@@ -7,7 +7,7 @@ edition.workspace = true
 
 [dependencies]
 engine-core = { path = "../engine-core" }
-event-center-new = { path = "../event-center-new" }
+event-center = { path = "../event-center" }
 event-center-core = { path = "../event-center-core" }
 star-river-event = { path = "../star-river-event" }
 star-river-core = { path = "../star-river-core" }

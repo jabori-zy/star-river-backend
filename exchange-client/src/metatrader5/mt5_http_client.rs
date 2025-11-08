@@ -1,37 +1,55 @@
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::url::Mt5HttpUrl;
 use serde::Serialize;
-use snafu::prelude::*;
-use star_river_core::error::exchange_client_error::mt5_error::*;
+use snafu::{OptionExt, ResultExt};
+use super::error::*;
 
 use super::mt5_types::Mt5CreateOrderParams;
 use super::mt5_types::Mt5GetPositionNumberParams;
 use strategy_core::strategy::TimeRange;
 use tracing::instrument;
+use exchange_core::exchange_trait::HttpClient;
 
 #[derive(Debug)]
 pub struct Mt5HttpClient {
     terminal_id: i32,
-    port: u16,
+    port: Option<u16>,
     client: reqwest::Client,
 }
 
+
+impl HttpClient for Mt5HttpClient {}
+
+
 impl Mt5HttpClient {
-    pub fn new(terminal_id: i32, port: u16) -> Self {
+    pub fn new(terminal_id: i32) -> Self {
         Self {
             terminal_id,
-            port,
+            port: None,
             client: reqwest::Client::new(),
         }
     }
 
-    fn get_url(&self, mt5_http_url: Mt5HttpUrl) -> String {
-        format!("{}:{}{}", Mt5HttpUrl::BaseUrl, self.port, mt5_http_url)
+    pub fn set_port(&mut self, port: u16) {
+        self.port = Some(port);
+    }
+
+    fn get_url(&self, mt5_http_url: Mt5HttpUrl) -> Result<String, Mt5Error> {
+        if let Some(port) = self.port {
+            Ok(format!("{}:{}{}", Mt5HttpUrl::BaseUrl, port, mt5_http_url))
+        } else {
+            Err(HttpClientPortNotSetSnafu {
+                terminal_id: self.terminal_id,
+            }.build())
+        }
     }
 
     #[instrument(skip(self))]
     pub async fn ping(&self) -> Result<(), Mt5Error> {
-        let url = self.get_url(Mt5HttpUrl::Ping);
+        let url = self.get_url(Mt5HttpUrl::Ping)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
 
         let response = self
             .client
@@ -64,7 +82,7 @@ impl Mt5HttpClient {
                     return PingSnafu {
                         message: error_message,
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -90,7 +108,10 @@ impl Mt5HttpClient {
     // 初始化MT5客户端
     #[instrument(skip(self, password, terminal_path), fields(login = %login, server = %server))]
     pub async fn initialize_terminal(&self, login: i64, password: &str, server: &str, terminal_path: &str) -> Result<(), Mt5Error> {
-        let url = self.get_url(Mt5HttpUrl::InitializeTerminal);
+        let url = self.get_url(Mt5HttpUrl::InitializeTerminal)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         #[derive(Debug, Serialize)]
         struct InitializeTerminalRequest {
             login: i64,
@@ -137,7 +158,7 @@ impl Mt5HttpClient {
                     return InitializeTerminalFailedSnafu {
                         message: error_message,
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -161,7 +182,10 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_terminal_info(&self) -> Result<serde_json::Value, Mt5Error> {
-        let url = self.get_url(Mt5HttpUrl::GetTerminalInfo);
+        let url = self.get_url(Mt5HttpUrl::GetTerminalInfo)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         tracing::debug!(url = %url, "Getting terminal info");
         let response = self
             .client
@@ -199,7 +223,7 @@ impl Mt5HttpClient {
                     return GetTerminalInfoSnafu {
                         message: error_message,
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -210,7 +234,7 @@ impl Mt5HttpClient {
                 return GetTerminalInfoSnafu {
                     message: error_message,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -229,7 +253,10 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_symbol_list(&self) -> Result<serde_json::Value, Mt5Error> {
-        let url = self.get_url(Mt5HttpUrl::GetSymbolList);
+        let url = self.get_url(Mt5HttpUrl::GetSymbolList)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         tracing::debug!(url = %url, "Getting symbol list");
 
         let response = self
@@ -261,7 +288,7 @@ impl Mt5HttpClient {
                     return GetSymbolListSnafu {
                         message: error_message,
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -270,7 +297,7 @@ impl Mt5HttpClient {
                 return GetSymbolListSnafu {
                     message: error_message,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -288,7 +315,10 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_symbol_info(&self, symbol: &str) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!("{}?symbol={}", self.get_url(Mt5HttpUrl::GetSymbolInfo), symbol);
+        let url = self.get_url(Mt5HttpUrl::GetSymbolInfo)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         tracing::debug!(url = %url, symbol = %symbol, "Getting symbol info");
 
         let response = self
@@ -321,7 +351,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         symbol: symbol.to_string(),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -331,7 +361,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     symbol: symbol.to_string(),
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -350,9 +380,13 @@ impl Mt5HttpClient {
     // 获取K线系列
     #[instrument(skip(self))]
     pub async fn get_kline_series(&self, symbol: &str, interval: Mt5KlineInterval, limit: u32) -> Result<serde_json::Value, Mt5Error> {
+        let url = self.get_url(Mt5HttpUrl::GetKlineSeries)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         let url = format!(
             "{}?symbol={}&interval={}&limit={}",
-            self.get_url(Mt5HttpUrl::GetKlineSeries),
+            url,
             symbol,
             interval,
             limit
@@ -400,7 +434,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(error_code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -413,7 +447,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -432,7 +466,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -449,12 +483,16 @@ impl Mt5HttpClient {
         interval: Mt5KlineInterval,
         time_range: TimeRange,
     ) -> Result<serde_json::Value, Mt5Error> {
+        let url = self.get_url(Mt5HttpUrl::GetKlineHistory)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         let start_time = time_range.start_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string();
         let end_time = time_range.end_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string();
 
         let url = format!(
             "{}?symbol={}&interval={}&start_time={}&end_time={}",
-            self.get_url(Mt5HttpUrl::GetKlineHistory),
+            url,
             symbol,
             interval,
             start_time,
@@ -502,7 +540,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(error_code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -515,7 +553,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -524,7 +562,7 @@ impl Mt5HttpClient {
         else {
             let status_code = response.status();
             tracing::error!(status = %status_code, symbol = %symbol, "Failed to get kline history - HTTP error");
-            let error = response.error_for_status().unwrap_err();
+            // let error = response.error_for_status().unwrap_err();
             return ServerSnafu {
                 terminal_id: self.terminal_id,
                 url: url.clone(),
@@ -536,7 +574,10 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn create_order(&self, params: Mt5CreateOrderParams) -> Result<serde_json::Value, Mt5Error> {
-        let url = self.get_url(Mt5HttpUrl::CreateOrder);
+        let url = self.get_url(Mt5HttpUrl::CreateOrder)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         let symbol = &params.symbol;
         tracing::debug!(url = %url, params = ?params, "Creating order");
 
@@ -580,7 +621,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -593,7 +634,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -612,7 +653,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -621,7 +662,11 @@ impl Mt5HttpClient {
     // 获取订单
     #[instrument(skip(self))]
     pub async fn get_order(&self, order_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!("{}?order_id={}", self.get_url(Mt5HttpUrl::GetOrder), order_id);
+        let url = self.get_url(Mt5HttpUrl::GetOrder)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
+        let url = format!("{}?order_id={}", url, order_id);
         tracing::debug!(url = %url, order_id = %order_id, "Getting order");
 
         let response = self
@@ -663,7 +708,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -676,7 +721,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -695,7 +740,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -703,7 +748,11 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_position(&self, position_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!("{}?position_id={}", self.get_url(Mt5HttpUrl::GetPosition), position_id);
+        let url = self.get_url(Mt5HttpUrl::GetPosition)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
+        let url = format!("{}?position_id={}", url, position_id);
         tracing::debug!(url = %url, position_id = %position_id, "Getting position");
 
         let response = self
@@ -745,7 +794,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -758,7 +807,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -777,7 +826,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -786,7 +835,11 @@ impl Mt5HttpClient {
     // 获取成交明细
     #[instrument(skip(self))]
     pub async fn get_deal_by_position_id(&self, position_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!("{}?position_id={}", self.get_url(Mt5HttpUrl::GetDeal), position_id);
+        let url = self.get_url(Mt5HttpUrl::GetDeal)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
+        let url = format!("{}?position_id={}", url, position_id);
         tracing::debug!(url = %url, position_id = %position_id, "Getting deal by position id");
 
         let response = self
@@ -828,7 +881,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -841,7 +894,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -860,7 +913,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -868,7 +921,11 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_deal_by_deal_id(&self, deal_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!("{}?deal_id={}", self.get_url(Mt5HttpUrl::GetDeal), deal_id);
+        let url = self.get_url(Mt5HttpUrl::GetDeal)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
+        let url = format!("{}?deal_id={}", url, deal_id);
         tracing::debug!(url = %url, deal_id = %deal_id, "Getting deal by deal id");
 
         let response = self
@@ -910,7 +967,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -923,7 +980,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -942,7 +999,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -950,7 +1007,11 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_deals_by_order_id(&self, order_id: &i64) -> Result<serde_json::Value, Mt5Error> {
-        let url = format!("{}?order_id={}", self.get_url(Mt5HttpUrl::GetDeal), order_id);
+        let url = self.get_url(Mt5HttpUrl::GetDeal)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
+        let url = format!("{}?order_id={}", url, order_id);
         tracing::debug!(url = %url, order_id = %order_id, "Getting deals by order id");
 
         let response = self
@@ -992,7 +1053,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -1005,7 +1066,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -1024,7 +1085,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -1035,9 +1096,13 @@ impl Mt5HttpClient {
         let symbol = &position_number_request.symbol;
         let position_side = position_number_request.position_side;
 
+        let url = self.get_url(Mt5HttpUrl::GetPositionNumber)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
         let url = format!(
             "{}?symbol={}{}",
-            self.get_url(Mt5HttpUrl::GetPositionNumber),
+            url,
             symbol,
             position_side
                 .clone()
@@ -1085,7 +1150,7 @@ impl Mt5HttpClient {
                         message: error_message,
                         code: Some(code),
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -1098,7 +1163,7 @@ impl Mt5HttpClient {
                     message: error_message,
                     code: None,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -1117,7 +1182,7 @@ impl Mt5HttpClient {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 code: None,
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }
@@ -1125,7 +1190,10 @@ impl Mt5HttpClient {
 
     #[instrument(skip(self))]
     pub async fn get_account_info(&self) -> Result<serde_json::Value, Mt5Error> {
-        let url = self.get_url(Mt5HttpUrl::GetAccountInfo);
+        let url = self.get_url(Mt5HttpUrl::GetAccountInfo)?;
+        let port = self.port.context(HttpClientPortNotSetSnafu {
+            terminal_id: self.terminal_id,
+        })?;
 
         let response = self
             .client
@@ -1163,7 +1231,7 @@ impl Mt5HttpClient {
                     return GetAccountInfoSnafu {
                         message: error_message,
                         terminal_id: self.terminal_id,
-                        port: self.port,
+                        port,
                     }
                     .fail()?;
                 }
@@ -1174,7 +1242,7 @@ impl Mt5HttpClient {
                 return GetAccountInfoSnafu {
                     message: error_message,
                     terminal_id: self.terminal_id,
-                    port: self.port,
+                    port,
                 }
                 .fail()?;
             }
@@ -1191,7 +1259,7 @@ impl Mt5HttpClient {
             return GetAccountInfoSnafu {
                 message: format!("status code: {}, error text: {}", status_code, error_text),
                 terminal_id: self.terminal_id,
-                port: self.port,
+                port,
             }
             .fail()?;
         }

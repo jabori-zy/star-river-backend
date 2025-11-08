@@ -4,9 +4,9 @@ use std::{convert::Infallible, time::Duration};
 use tokio_stream::StreamExt;
 
 use async_stream::stream;
-use event_center_new::event::Channel;
-use event_center_new::EventCenterSingleton;
-use event_center_new::event::Event as EventCenterEvent;
+use event_center::event::Channel;
+use event_center::EventCenterSingleton;
+use event_center::event::Event as EventCenterEvent;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 
 #[utoipa::path(

@@ -7,7 +7,7 @@ use std::{
 
 
 
-use event_center_new::event::Channel;
+use event_center::event::Channel;
 
 use crate::node_list_new::start_node::StartNode;
 use crate::node_list_new::kline_node::KlineNode;

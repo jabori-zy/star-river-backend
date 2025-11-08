@@ -17,7 +17,7 @@ use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent}
 use strategy_core::event::log_event::LogLevel;
 use strategy_core::event::strategy_event::StrategyStateLogEvent;
 
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use strategy_core::strategy::context_trait::StrategyWorkflowExt;
 use strategy_core::strategy::strategy_trait::StrategyEventListener;
 use crate::strategy_new::strategy_log_message::StrategyStateLogMsg;

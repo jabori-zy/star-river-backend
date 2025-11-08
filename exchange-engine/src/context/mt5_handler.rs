@@ -3,7 +3,7 @@ use star_river_core::account::AccountConfig;
 use star_river_core::error::engine_error::*;
 use star_river_core::error::exchange_client_error::*;
 use star_river_core::market::{Exchange, ExchangeStatus};
-use exchange_client_new::metatrader5::{MetaTrader5, Mt5Metadata};
+use exchange_client::metatrader5::{MetaTrader5, Mt5Metadata};
 use snafu::ResultExt;
 
 

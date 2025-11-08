@@ -19,9 +19,9 @@ use tokio_stream::StreamExt;
 use crate::StarRiver;
 use async_stream::stream;
 use axum::extract::{Query, State};
-use event_center_new::event::Channel;
-use event_center_new::EventCenterSingleton;
-use event_center_new::event::Event as EventCenterEvent;
+use event_center::event::Channel;
+use event_center::EventCenterSingleton;
+use event_center::event::Event as EventCenterEvent;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 
 pub async fn market_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {

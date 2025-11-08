@@ -37,7 +37,7 @@ exchange-engine = { path = "../exchange-engine" }
 market-engine = { path = "../market-engine" }
 backtest-engine = { path = "../backtest-engine" }
 engine-core = { path = "../engine-core" }
-event-center-new = { path = "../event-center-new" }
+event-center = { path = "../event-center" }
 strategy-core = { path = "../strategy-core" }
 key = { path = "../key" }
 virtual-trading = { path = "../virtual-trading" }

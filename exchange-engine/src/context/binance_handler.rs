@@ -1,12 +1,12 @@
 use super::{ExchangeEngineContext};
 use star_river_core::account::AccountConfig;
 use star_river_core::exchange::Exchange;
-use exchange_client_new::binance::Binance;
-use exchange_client_new::binance::BinanceMetadata;
+use exchange_client::binance::Binance;
+use exchange_client::binance::BinanceMetadata;
 use exchange_core::exchange_trait::ExchangeLifecycle;
 use crate::error::{ExchangeEngineError, RegisterExchangeFailedSnafu};
 use snafu::ResultExt;
-use exchange_client_new::exchange_error::ExchangeError;
+use exchange_client::exchange_error::ExchangeError;
 
 impl ExchangeEngineContext {
     pub(super) async fn register_binance_exchange(&mut self, account_config: AccountConfig) -> Result<(), ExchangeEngineError> {

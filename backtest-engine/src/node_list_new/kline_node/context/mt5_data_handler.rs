@@ -13,7 +13,7 @@ use strategy_core::strategy::TimeRange;
 use key::{KeyTrait, KlineKey};
 use strategy_core::node::context_trait::NodeIdentityExt;
 use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use star_river_core::kline::{Kline, KlineInterval};
 use event_center_core::communication::response::Response;
 

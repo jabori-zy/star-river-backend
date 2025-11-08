@@ -1,55 +1,55 @@
-use super::{
-    ExchangeMarketDataExt,
-    MetaTrader5,
-    KlineInterval,
-    Kline,
-    ExchangeClientError,
-    Mt5KlineInterval,
-    HttpClientNotCreatedSnafu,
-    async_trait,
-    TimeRange,
-};
+
+use async_trait::async_trait;
+use exchange_core::exchange_trait::ExchangeMarketDataExt;
+use star_river_core::kline::{Kline, KlineInterval};
+use strategy_core::strategy::TimeRange;
+
+use crate::metatrader5::MetaTrader5;
+use crate::metatrader5::mt5_types::Mt5KlineInterval;
+use exchange_core::exchange_trait::ProcessorAccessor;
+use super::error::Mt5Error;
+
 
 
 #[async_trait]
 impl ExchangeMarketDataExt for MetaTrader5 {
-    async fn get_kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, ExchangeClientError> {
+    type Error = Mt5Error;
+
+    async fn kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, Self::Error> {
         let mt5_interval = Mt5KlineInterval::from(interval);
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await?;
-            let data_processor = self.data_processor.lock().await;
-            let kline_series = data_processor.process_kline_series(symbol, mt5_interval, kline_series).await?;
-            Ok(kline_series)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
+        let mt5_http_client = self.http_client();
+
+        let kline_series = mt5_http_client.get_kline_series(symbol, mt5_interval.clone(), limit).await?;
+
+        let symbol_owned = symbol.to_string();
+        let kline_series_result = self.with_processor_read_async(|p|
+            Box::pin(async move {
+                // Move ownership of mt5_interval and kline_series into the async block
+                // Use reference to the owned symbol
+                p.process_kline_series(&symbol_owned, mt5_interval, kline_series).await
+            })
+        ).await?;
+        Ok(kline_series_result)
     }
 
-    async fn get_kline_history(
+    async fn kline_history(
         &self,
         symbol: &str,
         interval: KlineInterval,
         time_range: TimeRange,
-    ) -> Result<Vec<Kline>, ExchangeClientError> {
+    ) -> Result<Vec<Kline>, Self::Error> {
         let mt5_interval = Mt5KlineInterval::from(interval);
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await?;
-            let data_processor = self.data_processor.lock().await;
-            let klines = data_processor.process_kline_series(symbol, mt5_interval, kline_history).await?;
-            Ok(klines)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
+        let mt5_http_client = self.http_client();
+
+        let kline_history = mt5_http_client.get_kline_history(symbol, mt5_interval.clone(), time_range).await?;
+
+        let symbol_owned = symbol.to_string();
+        let klines_history_result = self.with_processor_read_async(|p|
+            Box::pin(async move {
+                p.process_kline_series(&symbol_owned, mt5_interval, kline_history).await
+            })
+        ).await?;
+        Ok(klines_history_result)
     }
 
 }

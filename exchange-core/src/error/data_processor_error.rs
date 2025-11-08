@@ -1,5 +1,5 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::datetime_error::DateTimeError;
+use star_river_core::error::star_river_error::StarRiverError;
 use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 
 /// Generic data processor error
@@ -9,6 +9,12 @@ use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum DataProcessorError {
+
+    #[snafu(transparent)]
+    StarRiverError {
+        source: StarRiverError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("JSON parsing failed"))]
     JsonParseFailed {
@@ -75,11 +81,7 @@ pub enum DataProcessorError {
         backtrace: Backtrace,
     },
 
-    #[snafu(transparent)]
-    DateTimeError {
-        source: DateTimeError,
-        backtrace: Backtrace,
-    },
+    
 
     #[snafu(display("Data validation failed: {field} value is {value}"))]
     DataValidationFailed {
@@ -145,35 +147,32 @@ impl StarRiverErrorTrait for DataProcessorError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            // Basic Parse Errors
-            DataProcessorError::JsonParseFailed { .. } => 1001,
-            DataProcessorError::ArrayParseFailed { .. } => 1002,
-            DataProcessorError::EnumParseFailed { .. } => 1003,
+            DataProcessorError::StarRiverError { .. } => 1001,
+            DataProcessorError::JsonParseFailed { .. } => 1002,
+            DataProcessorError::ArrayParseFailed { .. } => 1003,
+            DataProcessorError::EnumParseFailed { .. } => 1004,
 
             // Data Structure Errors
-            DataProcessorError::MissingField { .. } => 1004,
-            DataProcessorError::ValueIsNone { .. } => 1005,
-            DataProcessorError::InvalidFieldType { .. } => 1006,
-            DataProcessorError::InvalidKlineArrayFormat { .. } => 1007,
-
-            // Data Conversion Errors
-            DataProcessorError::TypeConversionFailed { .. } => 1008,
-            DataProcessorError::TimestampConversionFailed { .. } => 1009,
-            DataProcessorError::DateTimeError { .. } => 1010,
+            DataProcessorError::MissingField { .. } => 1005,
+            DataProcessorError::ValueIsNone { .. } => 1006,
+            DataProcessorError::InvalidFieldType { .. } => 1007,
+            DataProcessorError::InvalidKlineArrayFormat { .. } => 1008,
+            DataProcessorError::TypeConversionFailed { .. } => 1009,
+            DataProcessorError::TimestampConversionFailed { .. } => 1010,
 
             // Data Validation Error
             DataProcessorError::DataValidationFailed { .. } => 1011,
 
             // Stream Data Processing Errors
-            DataProcessorError::StreamProcessingFailed { .. } => 1012,
-            DataProcessorError::InvalidStreamDataFormat { .. } => 1013,
+            DataProcessorError::StreamProcessingFailed { .. } => 1013,
+            DataProcessorError::InvalidStreamDataFormat { .. } => 1014,
 
             // Business Data Parsing Errors
-            DataProcessorError::KlineDataParseFailed { .. } => 1014,
-            DataProcessorError::OrderDataParseFailed { .. } => 1015,
-            DataProcessorError::PositionDataParseFailed { .. } => 1016,
-            DataProcessorError::DealDataParseFailed { .. } => 1017,
-            DataProcessorError::AccountInfoParseFailed { .. } => 1018,
+            DataProcessorError::KlineDataParseFailed { .. } => 1015,
+            DataProcessorError::OrderDataParseFailed { .. } => 1016,
+            DataProcessorError::PositionDataParseFailed { .. } => 1017,
+            DataProcessorError::DealDataParseFailed { .. } => 1018,
+            DataProcessorError::AccountInfoParseFailed { .. } => 1019,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -241,8 +240,8 @@ impl StarRiverErrorTrait for DataProcessorError {
                         format!("时间戳转换失败: {}", message)
                     }
                 }
-                DataProcessorError::DateTimeError { source, .. } => {
-                    format!("时间日期错误: {}", source)
+                DataProcessorError::StarRiverError { source, .. } => {
+                    format!("系统错误: {}", source)
                 }
 
                 // Data Validation Error

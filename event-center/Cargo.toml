@@ -5,20 +5,19 @@ description.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-
 [dependencies]
 star-river-core = { path = "../star-river-core" }
-ta-lib = { path = "../ta-lib" }
-derive_more = { version = "2.0.1", features = ["from"] }
-serde.workspace = true
-serde_json.workspace = true
-tokio.workspace = true
-chrono.workspace = true
+event-center-core = { path = "../event-center-core" }
+star-river-event = { path = "../star-river-event" }
+virtual-trading = { path = "../virtual-trading" }
+strategy-stats = { path = "../strategy-stats" }
 strum.workspace = true
 strum_macros.workspace = true
-tracing.workspace = true
-reqwest.workspace = true
-uuid.workspace = true
-sea-orm.workspace = true
+tokio.workspace = true
+serde.workspace = true
+chrono.workspace = true
+derive_more.workspace = true
 snafu.workspace = true
-utoipa.workspace = true
+
+[lints]
+workspace = true

@@ -5,7 +5,7 @@ use super::MarketEngineContext;
 use async_trait::async_trait;
 use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
 use std::sync::Arc;
-use event_center_new::{Event, EngineCommand};
+use event_center::{Event, EngineCommand};
 use star_river_event::communication::market_engine::{
     MarketEngineCommand,
     SubscribeKlineStreamRespPayload,

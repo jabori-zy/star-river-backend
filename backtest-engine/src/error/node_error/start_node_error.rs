@@ -49,10 +49,6 @@ impl StarRiverErrorTrait for StartNodeError {
         }
     }
 
-    fn is_recoverable(&self) -> bool {
-        false
-    }
-
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
             ErrorLanguage::English => {

@@ -1,14 +1,18 @@
-use super::VirtualTradingSystem;
+// External crate imports
 use chrono::{DateTime, Utc};
 use snafu::Report;
+
+// Current crate imports
 use star_river_core::custom_type::*;
-use crate::error::{VirtualTradingSystemError, UnsupportedOrderTypeSnafu, KlineKeyNotFoundSnafu};
 use star_river_core::exchange::Exchange;
-use crate::types::{VirtualOrder, VirtualPosition};
 use star_river_core::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};
 use star_river_core::position::PositionSide;
-use crate::event::VirtualTradingSystemEvent;
 
+// Local module imports
+use super::VirtualTradingSystem;
+use crate::error::{KlineKeyNotFoundSnafu, UnsupportedOrderTypeSnafu, VirtualTradingSystemError};
+use crate::event::VirtualTradingSystemEvent;
+use crate::types::{VirtualOrder, VirtualPosition};
 
 impl VirtualTradingSystem {
     // 生成订单ID, 从0开始
@@ -66,7 +70,6 @@ impl VirtualTradingSystem {
                         sl_type,
                         point,
                         current_datetime,
-                        
                     );
                     tracing::debug!("market order created: {:?}", market_order);
 
@@ -131,12 +134,7 @@ impl VirtualTradingSystem {
         Ok(())
     }
 
-    pub fn update_order_status(
-        &mut self,
-        order_id: OrderId,
-        order_status: OrderStatus,
-        datetime: DateTime<Utc>,
-    ) -> Result<VirtualOrder, String> {
+    pub fn update_order_status(&mut self, order_id: OrderId, order_status: OrderStatus, datetime: DateTime<Utc>) -> Result<VirtualOrder, String> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             // 更新订单状态
             order.order_status = order_status;
@@ -266,7 +264,6 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 self.current_datetime,
-                
             );
             return Some(tp_order);
         }
@@ -300,7 +297,7 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
-                self.current_datetime
+                self.current_datetime,
             );
             return Some(sl_order);
         }

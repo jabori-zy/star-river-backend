@@ -1,5 +1,5 @@
 use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode, generate_error_code_chain};
-use star_river_core::error::indicator_error::IndicatorError;
+use ta_lib::error::TaLibError;
 use snafu::{Backtrace, Snafu};
 use std::sync::Arc;
 
@@ -8,7 +8,7 @@ use std::sync::Arc;
 pub enum IndicatorNodeError {
 
     #[snafu(transparent)]
-    IndicatorError { source: IndicatorError, backtrace: Backtrace },
+    IndicatorError { source: TaLibError, backtrace: Backtrace },
 
     
 
@@ -54,7 +54,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
     fn http_status_code(&self) -> StatusCode {
         match self {
             // transparent errors - return source http status code
-            IndicatorNodeError::IndicatorError { source, .. } => source.http_status_code(),
+            IndicatorNodeError::IndicatorError { source, .. } => StatusCode::INTERNAL_SERVER_ERROR,
             IndicatorNodeError::GetKlineDataFailed { source, .. } => source.http_status_code(),
             IndicatorNodeError::CalculateIndicatorFailed { source, .. } => source.http_status_code(),
             
@@ -66,7 +66,11 @@ impl StarRiverErrorTrait for IndicatorNodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // For transparent errors, delegate to the inner error's chain
-            IndicatorNodeError::IndicatorError { source, .. } => generate_error_code_chain(source),
+            IndicatorNodeError::IndicatorError { source, .. } => {
+                let mut chain = source.error_code_chain();
+                chain.push(source.error_code());
+                chain
+            },
             IndicatorNodeError::GetKlineDataFailed { source, .. } |
             IndicatorNodeError::CalculateIndicatorFailed { source, .. } => generate_error_code_chain(source.as_ref()),
 
@@ -80,7 +84,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
             ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
                 // transparent errors - return source message directly
-                IndicatorNodeError::IndicatorError { source, .. } => source.error_message(language),
+                IndicatorNodeError::IndicatorError { source, .. } => source.error_message(&language.to_string()),
                 IndicatorNodeError::GetKlineDataFailed { source, .. } => source.error_message(language),
                 
                 IndicatorNodeError::CalculateIndicatorFailed { source, .. } => source.error_message(language),

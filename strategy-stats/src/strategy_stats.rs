@@ -1,6 +1,6 @@
 use star_river_core::custom_type::{Balance, StrategyId};
-use star_river_core::strategy_stats::event::{StrategyStatsEvent, StrategyStatsUpdatedEvent};
-use star_river_core::strategy_stats::{StatsSnapshot, StatsSnapshotHistory};
+use crate::event::{StrategyStatsEvent, StrategyStatsUpdatedEvent};
+use crate::snapshot::{StatsSnapshot, StatsSnapshotHistory};
 use virtual_trading::event::VirtualTradingSystemEvent;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};

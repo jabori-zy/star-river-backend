@@ -1,7 +1,7 @@
 use strategy_core::strategy::{
     context_trait::{StrategyEventHandlerExt, StrategyInfoExt, StrategyVariableExt, StrategyBenchmarkExt, StrategyWorkflowExt, StrategyIdentityExt},
 };
-use event_center_new::event::Event;
+use event_center::event::Event;
 use crate::node_event::BacktestNodeEvent;
 use async_trait::async_trait;
 use super::BacktestStrategyContext;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use strategy_core::event::node_common_event::CommonEvent;
 use strategy_core::event::strategy_event::StrategyPerformanceUpdateEvent;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use star_river_event::backtest_strategy::node_event::{
     KlineNodeEvent, IndicatorNodeEvent, VariableNodeEvent, 
     PositionManagementNodeEvent, FuturesOrderNodeEvent

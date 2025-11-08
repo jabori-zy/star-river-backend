@@ -9,7 +9,7 @@ use async_trait::async_trait;
 // ============================================================================
 
 use strategy_core::node::context_trait::{NodeIdentityExt,NodeEventHandlerExt};
-use event_center_new::event::Event;
+use event_center::event::Event;
 use crate::node_command::{BacktestNodeCommand, GetStartNodeConfigRespPayload, GetStartNodeConfigResponse, NodeResetRespPayload, NodeResetResponse};
 
 // ============================================================================

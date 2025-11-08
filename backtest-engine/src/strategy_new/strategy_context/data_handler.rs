@@ -1,9 +1,9 @@
 // workspace crate
 use star_river_core::{
     custom_type::PlayIndex,
-    strategy_stats::StatsSnapshot,
     system::DateTimeUtc,
 };
+use strategy_stats::StatsSnapshot;
 use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 use key::Key;
 

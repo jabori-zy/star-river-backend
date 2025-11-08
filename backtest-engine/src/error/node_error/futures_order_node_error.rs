@@ -50,19 +50,6 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
         format!("{}_{:04}", prefix, code)
     }
 
-    fn context(&self) -> HashMap<&'static str, String> {
-        HashMap::new()
-    }
-
-    fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
-            FuturesOrderNodeError::CannotCreateOrder { .. }
-                | FuturesOrderNodeError::OrderConfigNotFound { .. }
-                | FuturesOrderNodeError::GetSymbolInfoFailed { .. }
-                | FuturesOrderNodeError::SymbolInfoNotFound { .. }
-        )
-    }
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {

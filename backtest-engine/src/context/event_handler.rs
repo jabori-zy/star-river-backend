@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use engine_core::context_trait::EngineEventHandler;
 use crate::context::BacktestEngineContext;
 use engine_core::context_trait::EngineContextTrait;
-use event_center_new::{Event, EngineCommand};
+use event_center::{Event, EngineCommand};
 
 
 #[async_trait]

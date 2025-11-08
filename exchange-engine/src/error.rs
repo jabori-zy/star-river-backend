@@ -7,9 +7,9 @@ use star_river_core::{
     custom_type::AccountId,
     exchange::Exchange,
 };
-use exchange_client_new::exchange_error::ExchangeError;
-use exchange_client_new::metatrader5::error::Mt5Error;
-use exchange_client_new::binance::error::BinanceError;
+use exchange_client::exchange_error::ExchangeError;
+use exchange_client::metatrader5::error::Mt5Error;
+use exchange_client::binance::error::BinanceError;
 use engine_core::state_machine_error::EngineStateMachineError;
 
 #[derive(Debug, Snafu)]

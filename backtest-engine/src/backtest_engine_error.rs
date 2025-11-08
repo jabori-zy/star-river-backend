@@ -67,25 +67,6 @@ impl StarRiverErrorTrait for BacktestEngineError {
         format!("{}_{:04}", prefix, code)
     }
 
-    fn context(&self) -> HashMap<&'static str, String> {
-        let ctx = HashMap::new();
-        ctx
-    }
-
-    fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
-            // StrategyEngineError::BacktestStrategyError { .. }
-                | BacktestEngineError::BacktestStrategyError { .. }
-                | BacktestEngineError::UnsupportedStrategyType { .. }
-                | BacktestEngineError::StrategyIsExist { .. }
-                | BacktestEngineError::StrategyInstanceNotFound { .. }
-                | BacktestEngineError::Database { .. }
-                | BacktestEngineError::UnsupportedTradeMode { .. }
-                | BacktestEngineError::StrategyConfigNotFound { .. }
-        )
-    }
-
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             BacktestEngineError::BacktestStrategyError { source ,..} => generate_error_code_chain(source),

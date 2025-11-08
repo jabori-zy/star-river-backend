@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use ta_lib::TALib;
 use crate::calculate::CalculateIndicatorFunction;
-use event_center_new::{Event, EngineCommand};
+use event_center::{Event, EngineCommand};
 use star_river_event::communication::indicator_engine::{
     IndicatorEngineCommand,
     CalculateHistoryIndicatorRespPayload,

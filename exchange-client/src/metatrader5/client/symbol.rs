@@ -1,50 +1,41 @@
-use super::{
-    ExchangeSymbolExt,
-    MetaTrader5,
-    KlineInterval,
-    Mt5KlineInterval,
-    ExchangeClientError,
-    HttpClientNotCreatedSnafu,
-};
+use star_river_core::instrument::Symbol;
 use async_trait::async_trait;
-use star_river_core::market::Symbol;
-
+use exchange_core::exchange_trait::{ExchangeSymbolExt, ProcessorAccessor};
+use star_river_core::kline::KlineInterval;
+use crate::metatrader5::MetaTrader5;
+use crate::metatrader5::mt5_types::Mt5KlineInterval;
+use super::error::Mt5Error;
 
 #[async_trait]
 impl ExchangeSymbolExt for MetaTrader5 {
-    async fn get_symbol_list(&self) -> Result<Vec<Symbol>, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let symbols = mt5_http_client.get_symbol_list().await?;
-            let data_processor = self.data_processor.lock().await;
-            let symbols = data_processor.process_symbol_list(symbols).await?;
-            Ok(symbols)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
+    type Error = Mt5Error;
+
+    async fn symbol_list(&self) -> Result<Vec<Symbol>, Mt5Error> {
+        let symbols_info = self.http_client().get_symbol_list().await?;
+
+        // Use processor accessor to process symbol list
+        let symbols = self.with_processor_read_async(|processor|
+            Box::pin(async move {
+                processor.process_symbol_list(symbols_info)
+            })
+        ).await?;
+        Ok(symbols)
     }
 
-    async fn get_symbol(&self, symbol: String) -> Result<Symbol, ExchangeClientError> {
-        let mt5_http_client = self.mt5_http_client.lock().await;
-        if let Some(mt5_http_client) = mt5_http_client.as_ref() {
-            let symbol = mt5_http_client.get_symbol_info(&symbol).await?;
-            let data_processor = self.data_processor.lock().await;
-            let symbol = data_processor.process_symbol(symbol).await?;
-            Ok(symbol)
-        } else {
-            return HttpClientNotCreatedSnafu {
-                terminal_id: self.terminal_id,
-                port: self.server_port,
-            }
-            .fail()?;
-        }
+    async fn symbol(&self, symbol: String) -> Result<Symbol, Mt5Error> {
+        let symbol_info = self.http_client().get_symbol_info(&symbol).await?;
+
+        // Use processor accessor to process symbol
+        let symbol = self.with_processor_read_async(|processor|
+            Box::pin(async move {
+                processor.process_symbol(symbol_info)
+            })
+        ).await?;
+        tracing::debug!("symbol: {:?}", symbol);
+        Ok(symbol)
     }
 
-    fn get_support_kline_intervals(&self) -> Vec<KlineInterval> {
+    fn support_kline_intervals(&self) -> Vec<KlineInterval> {
         Mt5KlineInterval::to_list()
             .iter()
             .map(|interval| KlineInterval::from(interval.clone()))

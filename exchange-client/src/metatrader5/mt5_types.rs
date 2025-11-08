@@ -1,8 +1,9 @@
 use chrono::TimeZone;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use star_river_core::market::KlineInterval;
-use star_river_core::market::{Exchange, MT5Server};
+use star_river_core::kline::KlineInterval;
+use star_river_core::exchange::Exchange;
+use star_river_core::exchange::MT5Server;
 use star_river_core::order::CreateOrderParams;
 use star_river_core::order::OrderStatus;
 use star_river_core::order::OriginalOrder;
@@ -564,13 +565,4 @@ impl OriginalTransaction for Mt5Deal {
     fn get_exchange_transaction_id(&self) -> i64 {
         self.deal_id
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Mt5Response<T> {
-    pub success: bool,
-    pub message: Option<String>,
-    pub data: T,
-    pub code: Option<i64>,
-    pub details: Option<String>,
 }

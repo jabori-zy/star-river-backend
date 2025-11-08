@@ -3,7 +3,6 @@ use crate::error::error_trait::ErrorLanguage;
 use crate::error::error_trait::StarRiverErrorTrait;
 use sea_orm::DbErr;
 use snafu::{Backtrace, Snafu};
-use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -33,47 +32,18 @@ pub enum StarRiverError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display(
-        "invalid indicator config format: {indicator_config}. the format should be 'indicator_name(param1=value1 param2=value2 ...)"
-    ))]
-    InvalidIndicatorConfigFormat { indicator_config: String, backtrace: Backtrace },
-
-    #[snafu(display("indicator param empty: {indicator_config}"))]
-    IndicatorParamEmpty { indicator_config: String, backtrace: Backtrace },
-
-    #[snafu(display("indicator param format invalid: {indicator_config}. the format should be 'key=value'"))]
-    IndicatorParamFormatInvalid { indicator_config: String, backtrace: Backtrace },
-
-    #[snafu(display("indicator config miss param {param}"))]
-    IndicatorConfigMissParam { param: String, backtrace: Backtrace },
-
-    #[snafu(display("parse int indicator param failed: {param}. reason: [{source}]"))]
-    ParseIntIndicatorParamFailed {
-        param: String,
-        source: std::num::ParseIntError,
-        backtrace: Backtrace,
-    },
-
-    #[snafu(display("parse float indicator param failed: {param}. reason: [{source}]"))]
-    ParseFloatIndicatorParamFailed {
-        param: String,
-        source: std::num::ParseFloatError,
-        backtrace: Backtrace,
-    },
-
-    #[snafu(display("parse special indicator param failed: {param}. reason: {reason}"))]
-    ParseSpecialIndicatorParamFailed {
-        param: String,
-        reason: String,
-        backtrace: Backtrace,
-    },
-
     #[snafu(display("parse datetime failed: {datetime}. reason: {source}"))]
     ParseDataTimeFailed {
         datetime: String,
         source: chrono::ParseError,
         backtrace: Backtrace,
-    }
+    },
+
+    #[snafu(display("Invalid timestamp: {timestamp}"))]
+    InvalidTimestamp { timestamp: i64, backtrace: Backtrace },
+
+    #[snafu(display("Transform timestamp failed: {timestamp}"))]
+    TransformTimestampFailed { timestamp: i64, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for StarRiverError
@@ -89,45 +59,14 @@ impl StarRiverErrorTrait for StarRiverError {
             StarRiverError::GetSystemConfigFailed { .. } => 1002,            // 获取系统配置失败
             StarRiverError::InvalidKeyType { .. } => 1003,                   // 无效的缓存键类型
             StarRiverError::InvalidIndicatorType { .. } => 1004,             // 无效的指标类型
-            StarRiverError::InvalidIndicatorConfigFormat { .. } => 1005,     // 无效的指标配置格式
-            StarRiverError::IndicatorParamEmpty { .. } => 1006,              // 指标参数为空
-            StarRiverError::IndicatorParamFormatInvalid { .. } => 1007,      // 指标参数格式无效
-            StarRiverError::IndicatorConfigMissParam { .. } => 1008,         // 指标配置缺少参数
-            StarRiverError::ParseIntIndicatorParamFailed { .. } => 1009,     // 指标参数解析失败
-            StarRiverError::ParseFloatIndicatorParamFailed { .. } => 1010,   // 指标参数解析失败
-            StarRiverError::ParseSpecialIndicatorParamFailed { .. } => 1011, // 指标参数解析失败
-            StarRiverError::InvalidKeyFormat { .. } => 1012,                 // 无效的缓存键格式
-            StarRiverError::ParseExchangeFailed { .. } => 1013,              // 解析交易所失败
-            StarRiverError::ParseKlineIntervalFailed { .. } => 1014,         // 解析K线周期失败
-            StarRiverError::ParseDataTimeFailed { .. } => 1015,              // 解析时间失败
+            StarRiverError::InvalidKeyFormat { .. } => 1005,                 // 无效的缓存键格式
+            StarRiverError::ParseExchangeFailed { .. } => 1006,              // 解析交易所失败
+            StarRiverError::ParseKlineIntervalFailed { .. } => 1007,         // 解析K线周期失败
+            StarRiverError::ParseDataTimeFailed { .. } => 1008,              // 解析时间失败
+            StarRiverError::InvalidTimestamp { .. } => 1009,                 // 无效的时间戳
+            StarRiverError::TransformTimestampFailed { .. } => 1010,         // 时间戳转换失败
         };
         format!("{}_{:04}", prefix, code)
-    }
-
-    fn context(&self) -> HashMap<&'static str, String> {
-        let ctx = HashMap::new();
-        ctx
-    }
-
-    fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
-            StarRiverError::UpdateSystemConfigFailed { .. }
-                | StarRiverError::GetSystemConfigFailed { .. }
-                | StarRiverError::InvalidKeyType { .. }
-                | StarRiverError::InvalidIndicatorType { .. }
-                | StarRiverError::InvalidIndicatorConfigFormat { .. }
-                | StarRiverError::IndicatorParamEmpty { .. }
-                | StarRiverError::IndicatorParamFormatInvalid { .. }
-                | StarRiverError::IndicatorConfigMissParam { .. }
-                | StarRiverError::ParseIntIndicatorParamFailed { .. }
-                | StarRiverError::ParseFloatIndicatorParamFailed { .. }
-                | StarRiverError::ParseSpecialIndicatorParamFailed { .. }
-                | StarRiverError::InvalidKeyFormat { .. }
-                | StarRiverError::ParseExchangeFailed { .. }
-                | StarRiverError::ParseKlineIntervalFailed { .. }
-                | StarRiverError::ParseDataTimeFailed { .. }
-        )
     }
 
     fn error_message(&self, language: ErrorLanguage) -> String {
@@ -146,27 +85,6 @@ impl StarRiverErrorTrait for StarRiverError {
                 StarRiverError::InvalidIndicatorType { indicator_type, .. } => {
                     format!("无效的指标类型: {}", indicator_type)
                 }
-                StarRiverError::InvalidIndicatorConfigFormat { indicator_config, .. } => {
-                    format!("无效的指标配置格式: {}", indicator_config)
-                }
-                StarRiverError::IndicatorParamEmpty { indicator_config, .. } => {
-                    format!("指标参数为空: {}", indicator_config)
-                }
-                StarRiverError::IndicatorParamFormatInvalid { indicator_config, .. } => {
-                    format!("指标参数格式无效: {}", indicator_config)
-                }
-                StarRiverError::IndicatorConfigMissParam { param, .. } => {
-                    format!("指标配置缺少参数: {}", param)
-                }
-                StarRiverError::ParseIntIndicatorParamFailed { param, source, .. } => {
-                    format!("指标参数解析失败: {}. 原因: {}", param, source)
-                }
-                StarRiverError::ParseFloatIndicatorParamFailed { param, source, .. } => {
-                    format!("指标参数解析失败: {}. 原因: {}", param, source)
-                }
-                StarRiverError::ParseSpecialIndicatorParamFailed { param, reason, .. } => {
-                    format!("指标参数解析失败: {}. 原因: {}", param, reason)
-                }
                 StarRiverError::InvalidKeyFormat { key_str, .. } => {
                     format!("无效的缓存键格式: {}", key_str)
                 }
@@ -179,6 +97,12 @@ impl StarRiverErrorTrait for StarRiverError {
                 StarRiverError::ParseDataTimeFailed { datetime, source, .. } => {
                     format!("解析时间失败: {}. 原因: {}", datetime, source)
                 }
+                StarRiverError::InvalidTimestamp { timestamp, .. } => {
+                    format!("非法时间戳: {}", timestamp)
+                }
+                StarRiverError::TransformTimestampFailed { timestamp, .. } => {
+                    format!("时间戳转换失败: {}", timestamp)
+                }
             },
         }
     }
@@ -189,17 +113,12 @@ impl StarRiverErrorTrait for StarRiverError {
             | StarRiverError::GetSystemConfigFailed { .. }
             | StarRiverError::InvalidKeyType { .. }
             | StarRiverError::InvalidIndicatorType { .. }
-            | StarRiverError::InvalidIndicatorConfigFormat { .. }
-            | StarRiverError::IndicatorParamEmpty { .. }
-            | StarRiverError::IndicatorParamFormatInvalid { .. }
-            | StarRiverError::IndicatorConfigMissParam { .. }
-            | StarRiverError::ParseIntIndicatorParamFailed { .. }
-            | StarRiverError::ParseFloatIndicatorParamFailed { .. }
-            | StarRiverError::ParseSpecialIndicatorParamFailed { .. }
             | StarRiverError::InvalidKeyFormat { .. }
             | StarRiverError::ParseExchangeFailed { .. }
             | StarRiverError::ParseKlineIntervalFailed { .. }
-            | StarRiverError::ParseDataTimeFailed { .. } => vec![self.error_code()],
+            | StarRiverError::ParseDataTimeFailed { .. }
+            | StarRiverError::InvalidTimestamp { .. }
+            | StarRiverError::TransformTimestampFailed { .. } => vec![self.error_code()],
         }
     }
 }

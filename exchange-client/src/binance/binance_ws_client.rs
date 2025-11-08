@@ -7,11 +7,15 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async,
     tungstenite::{Error, Message, handshake::client::Response},
 };
+use exchange_core::exchange_trait::WebSocketClient;
 
-pub struct BinanceWsClient;
+#[derive(Debug)]
+pub struct BinanceWsBuilder;
 
-impl BinanceWsClient {
-    pub async fn connect(url: &str) -> Result<(WebSocketState, Response), Error> {
+
+
+impl BinanceWsBuilder {
+    pub async fn connect(url: &str) -> Result<(BinanceWebSocket, Response), Error> {
         let start = std::time::Instant::now();
         let (socket, response) = connect_async(url).await?;
         let duration = start.elapsed();
@@ -21,21 +25,24 @@ impl BinanceWsClient {
             response.status()
         );
 
-        Ok((WebSocketState::new(socket), response))
+        Ok((BinanceWebSocket::new(socket), response))
     }
 
-    pub async fn connect_default() -> Result<(WebSocketState, Response), Error> {
-        BinanceWsClient::connect(BinanceWsUrl::BaseUrl.to_string().as_str()).await
+    pub async fn connect_default() -> Result<(BinanceWebSocket, Response), Error> {
+        BinanceWsBuilder::connect(BinanceWsUrl::BaseUrl.to_string().as_str()).await
     }
 }
 
 #[derive(Debug)]
-pub struct WebSocketState {
+pub struct BinanceWebSocket {
     socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
     id: u64,
 }
 
-impl WebSocketState {
+
+impl WebSocketClient for BinanceWebSocket {}
+
+impl BinanceWebSocket {
     pub fn new(socket: WebSocketStream<MaybeTlsStream<TcpStream>>) -> Self {
         Self { socket, id: 0 }
     }
@@ -83,7 +90,7 @@ impl WebSocketState {
     }
 }
 
-impl AsMut<WebSocketStream<MaybeTlsStream<TcpStream>>> for WebSocketState {
+impl AsMut<WebSocketStream<MaybeTlsStream<TcpStream>>> for BinanceWebSocket {
     fn as_mut(&mut self) -> &mut WebSocketStream<MaybeTlsStream<TcpStream>> {
         &mut self.socket
     }

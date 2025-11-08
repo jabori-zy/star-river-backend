@@ -8,7 +8,7 @@ use star_river_core::system::system_config::SystemConfigManager;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 
 #[derive(Clone, Debug)]
 pub struct StarRiver {

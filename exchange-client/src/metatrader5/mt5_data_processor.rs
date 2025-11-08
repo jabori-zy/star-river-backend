@@ -3,24 +3,31 @@ use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
 use chrono::{TimeZone, Utc};
 use event_center::EventCenterSingleton;
-use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
 use snafu::{OptionExt, ResultExt};
 use star_river_core::account::OriginalAccountInfo;
 use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
-use star_river_core::error::exchange_client_error::*;
-use star_river_core::market::Symbol;
-use star_river_core::market::{Exchange, Kline, MT5Server};
+use star_river_core::instrument::Symbol;
+use star_river_core::exchange::Exchange;
+use star_river_core::kline::{Kline, KlineInterval};
+use star_river_core::exchange::MT5Server;
 use star_river_core::order::Order;
 use star_river_core::order::OriginalOrder;
 use star_river_core::position::PositionNumber;
 use star_river_core::position::{OriginalPosition, Position};
 use star_river_core::transaction::OriginalTransaction;
+use exchange_core::exchange_trait::DataProcessor;
+use super::data_processor_error::Mt5DataProcessorError;
+use exchange_core::error::data_processor_error::*;
+use star_river_event::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdatePayload, ExchangeKlineUpdateEvent};
+
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
     server: MT5Server,
     // event_publisher: Arc<Mutex<EventPublisher>>,
 }
+
+impl DataProcessor for Mt5DataProcessor {}
 
 impl Mt5DataProcessor {
     pub fn new(
@@ -33,7 +40,7 @@ impl Mt5DataProcessor {
         }
     }
 
-    async fn process_stream_kline(&self, raw_stream: serde_json::Value) -> Result<(), DataProcessorError> {
+    async fn process_stream_kline(&self, raw_stream: serde_json::Value) -> Result<(), Mt5DataProcessorError> {
         let kline_data = raw_stream.get("data").context(MissingFieldSnafu {
             field: "data",
             context: Some("kline stream".to_string()),
@@ -50,8 +57,8 @@ impl Mt5DataProcessor {
             field: "interval",
             context: Some("kline data".to_string()),
         })?;
-        let interval_str = interval_str.parse::<Mt5KlineInterval>().context(TypeConversionSnafu {
-            from: "Mt5KlineInterval",
+        let interval_str = interval_str.parse::<Mt5KlineInterval>().context(TypeConversionFailedSnafu {
+            from: "string".to_string(),
             to: "Mt5KlineInterval".to_string(),
         })?;
 
@@ -63,13 +70,12 @@ impl Mt5DataProcessor {
 
         // Validate timestamp range (should be positive and reasonable)
         if timestamp <= 0 {
-            return DataValidationSnafu {
-                message: "Timestamp must be positive".to_string(),
-                context: Some("kline data".to_string()),
+            return Err(DataValidationFailedSnafu {
                 field: "timestamp".to_string(),
                 value: timestamp.to_string(),
             }
-            .fail()?;
+            .build()
+            .into());
         }
 
         // Extract and validate price data
@@ -102,22 +108,22 @@ impl Mt5DataProcessor {
             close,
             volume,
         };
-        let exchange_kline_update_event = ExchangeKlineUpdateEvent::new(
+        let payload = ExchangeKlineUpdatePayload::new(
             Exchange::Metatrader5(self.server.clone()),
             symbol.to_string(),
             interval_str.clone().into(),
             kline,
         );
-
-        let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event).into();
+        let event: ExchangeEvent = ExchangeKlineUpdateEvent::new(payload).into();
+        
 
         // self.event_publisher.lock().await.publish(event).await.unwrap();
-        EventCenterSingleton::publish(event).await.unwrap();
+        EventCenterSingleton::publish(event.into()).await.unwrap();
 
         Ok(())
     }
 
-    pub async fn process_stream(&self, raw_stream: serde_json::Value) -> Result<(), DataProcessorError> {
+    pub async fn process_stream(&self, raw_stream: serde_json::Value) -> Result<(), Mt5DataProcessorError> {
         // tracing::debug!("处理流数据: {:?}", raw_stream);
         // 如果data_type为kline，则处理k线数据，如果没有data_type，则跳过
         if let Some(data_type) = raw_stream.get("type") {
@@ -127,21 +133,20 @@ impl Mt5DataProcessor {
                     tracing::warn!("Unknown stream data type: {}", unknown_type);
                 }
                 None => {
-                    return ValueIsNoneSnafu {
+                    return Err(ValueIsNoneSnafu {
                         field: "type".to_string(),
-                        context: "process stream data".to_string(),
                     }
-                    .fail()?;
+                    .build()
+                    .into());
                 }
             }
         }
         Ok(())
     }
 
-    pub async fn process_symbol_list(&self, symbols: serde_json::Value) -> Result<Vec<Symbol>, DataProcessorError> {
-        let symbols = symbols.as_array().context(ArrayParsingSnafu {
-            actual_type: "array".to_string(),
-            context: "symbol list".to_string(),
+    pub fn process_symbol_list(&self, symbols: serde_json::Value) -> Result<Vec<Symbol>, Mt5DataProcessorError> {
+        let symbols = symbols.as_array().context(ArrayParseFailedSnafu {
+            actual_type: symbols.to_string(),
         })?;
         let mut symbol_list = Vec::new();
         for symbol in symbols.iter() {
@@ -156,7 +161,6 @@ impl Mt5DataProcessor {
                     field: "name".to_string(),
                     expected: "string".to_string(),
                     actual: "non-string".to_string(),
-                    context: "parse symbol list".to_string(),
                 })?;
 
             let point = symbol.get("point").context(MissingFieldSnafu {
@@ -168,7 +172,6 @@ impl Mt5DataProcessor {
                 field: "point".to_string(),
                 expected: "number".to_string(),
                 actual: "non-number".to_string(),
-                context: "parse symbol list".to_string(),
             })?;
 
             let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()), point as f32);
@@ -179,7 +182,7 @@ impl Mt5DataProcessor {
     }
 
 
-    pub async fn process_symbol(&self, symbol_info: serde_json::Value) -> Result<Symbol, DataProcessorError> {
+    pub fn process_symbol(&self, symbol_info: serde_json::Value) -> Result<Symbol, Mt5DataProcessorError> {
         let symbol_name = symbol_info.get("name").context(MissingFieldSnafu {
             field: "name".to_string(),
             context: "parse symbol".to_string(),
@@ -189,19 +192,17 @@ impl Mt5DataProcessor {
             field: "name".to_string(),
             expected: "string".to_string(),
             actual: "non-string".to_string(),
-            context: "parse symbol".to_string(),
         })?;
 
         let point = symbol_info.get("point").context(MissingFieldSnafu {
             field: "point".to_string(),
-            context: "parse symbol".to_string(),
+            context: Some("parse symbol".to_string()),
         })?
         .as_f64()
         .context(InvalidFieldTypeSnafu {
             field: "point".to_string(),
             expected: "number".to_string(),
             actual: "non-number".to_string(),
-            context: "parse symbol".to_string(),
         })?;
 
         let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()), point as f32);
@@ -214,69 +215,62 @@ impl Mt5DataProcessor {
         symbol: &str,
         interval: Mt5KlineInterval,
         raw_data: serde_json::Value,
-    ) -> Result<Vec<Kline>, DataProcessorError> {
-        let data_array = raw_data.as_array().context(ArrayParsingSnafu {
-            actual_type: "array".to_string(),
-            context: "kline series data".to_string(),
+    ) -> Result<Vec<Kline>, Mt5DataProcessorError> {
+        let data_array = raw_data.as_array().context(ArrayParseFailedSnafu {
+            actual_type: raw_data.to_string(),
         })?;
 
         let mut klines = Vec::with_capacity(data_array.len());
 
         for (index, k) in data_array.iter().enumerate() {
-            let arr = k.as_array().context(KlineDataParsingSnafu {
-                message: format!("Kline data at index {} is not an array: {:?}", index, k),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let arr = k.as_array().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
 
             if arr.len() != 6 {
-                return InvalidKlineArrayFormatSnafu {
+                return Err(InvalidKlineArrayFormatSnafu {
                     length: arr.len(),
                     data: format!("{:?}", arr),
                 }
-                .fail()?;
+                .build()
+                .into());
             }
 
             // Extract and validate each field
-            let timestamp = arr[0].as_i64().context(KlineDataParsingSnafu {
-                message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let timestamp = arr[0].as_i64().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
             //1757649600 10 digits
-            let datetime = Utc.timestamp_opt(timestamp, 0).single().context(TimestampConversionSnafu {
+            let datetime = Utc.timestamp_opt(timestamp, 0).single().context(TimestampConversionFailedSnafu {
                 message: format!("Invalid timestamp at index {}: {:?}", index, arr[0]),
                 timestamp: Some(timestamp),
             })?;
 
-            let open = arr[1].as_f64().context(KlineDataParsingSnafu {
-                message: format!("Invalid open price at index {}: {:?}", index, arr[1]),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let open = arr[1].as_f64().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
 
-            let high = arr[2].as_f64().context(KlineDataParsingSnafu {
-                message: format!("Invalid high price at index {}: {:?}", index, arr[2]),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let high = arr[2].as_f64().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
 
-            let low = arr[3].as_f64().context(KlineDataParsingSnafu {
-                message: format!("Invalid low price at index {}: {:?}", index, arr[3]),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let low = arr[3].as_f64().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
 
-            let close = arr[4].as_f64().context(KlineDataParsingSnafu {
-                message: format!("Invalid close price at index {}: {:?}", index, arr[4]),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let close = arr[4].as_f64().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
 
-            let volume = arr[5].as_f64().context(KlineDataParsingSnafu {
-                message: format!("Invalid volume at index {}: {:?}", index, arr[5]),
-                symbol: Some(symbol.to_string()),
-                interval: Some(interval.to_string()),
+            let volume = arr[5].as_f64().context(KlineDataParseFailedSnafu {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
             })?;
 
             klines.push(Kline {
@@ -308,45 +302,42 @@ impl Mt5DataProcessor {
     }
 
     // 处理订单信息
-    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn OriginalOrder>, DataProcessorError> {
+    pub async fn process_order(&self, order_info: serde_json::Value) -> Result<Box<dyn OriginalOrder>, Mt5DataProcessorError> {
         let data_array = order_info
             .get("data")
             .context(MissingFieldSnafu {
                 field: "data".to_string(),
-                context: "order info".to_string(),
+                context: Some("order info".to_string()),
             })?
             .as_array()
-            .context(ArrayParsingSnafu {
-                actual_type: "array".to_string(),
-                context: "order data field".to_string(),
+            .context(ArrayParseFailedSnafu {
+                actual_type: order_info.to_string(),
             })?;
 
         let mut order_data = data_array[0].clone();
         order_data["server"] = self.server.clone().into();
         tracing::debug!("订单信息: {:?}", order_data);
 
-        let order = serde_json::from_value::<Mt5Order>(order_data).context(OrderDataParsingSnafu {
-            message: "Failed to deserialize order data".to_string(),
-            order_id: None,
+        let order = serde_json::from_value::<Mt5Order>(order_data.clone()).context(OrderDataParseFailedSnafu {
+            order_id: data_array[0].get("order").and_then(|v| v.as_i64()).unwrap_or(0),
         })?;
 
         tracing::info!("订单信息: {:?}", order);
         Ok(Box::new(order))
     }
 
-    pub async fn update_order(&self, new_order_info: serde_json::Value, old_order: Order) -> Result<Order, DataProcessorError> {
+    pub async fn update_order(&self, new_order_info: serde_json::Value, old_order: Order) -> Result<Order, Mt5DataProcessorError> {
         tracing::debug!("订单信息: {:?}", new_order_info);
 
         let data_array = new_order_info
             .get("data")
             .context(MissingFieldSnafu {
                 field: "data".to_string(),
-                context: "order update info".to_string(),
+                context: Some("order update info".to_string()),
             })?
             .as_array()
-            .context(ArrayParsingSnafu {
-                actual_type: "array".to_string(),
-                context: "order update data field".to_string(),
+            .context(ArrayParseFailedSnafu {
+                actual_type: new_order_info.to_string(),
             })?;
 
         let order_data = &data_array[0];
@@ -354,31 +345,18 @@ impl Mt5DataProcessor {
             .get("state")
             .context(MissingFieldSnafu {
                 field: "state".to_string(),
-                context: "order update data".to_string(),
+                context: Some("order update data".to_string()),
             })?
             .as_str()
             .context(InvalidFieldTypeSnafu {
                 field: "state".to_string(),
                 expected: "string".to_string(),
                 actual: "non-string".to_string(),
-                context: "order update data".to_string(),
             })?;
 
-        let new_order_status = state_str.parse::<Mt5OrderState>().context(EnumParsingSnafu {
+        let new_order_status = state_str.parse::<Mt5OrderState>().context(EnumParseFailedSnafu {
             field: "state".to_string(),
             variant: state_str.to_string(),
-            valid_variants: vec![
-                "ORDER_STATE_STARTED".to_string(),
-                "ORDER_STATE_PLACED".to_string(),
-                "ORDER_STATE_CANCELED".to_string(),
-                "ORDER_STATE_PARTIAL".to_string(),
-                "ORDER_STATE_FILLED".to_string(),
-                "ORDER_STATE_REJECTED".to_string(),
-                "ORDER_STATE_EXPIRED".to_string(),
-                "ORDER_STATE_REQUEST_ADD".to_string(),
-                "ORDER_STATE_REQUEST_MODIFY".to_string(),
-                "ORDER_STATE_REQUEST_CANCEL".to_string(),
-            ],
         })?;
 
         let order = Order {
@@ -403,13 +381,11 @@ impl Mt5DataProcessor {
         Ok(order)
     }
 
-    pub async fn process_position(&self, mut position_json: serde_json::Value) -> Result<Box<dyn OriginalPosition>, DataProcessorError> {
+    pub async fn process_position(&self, mut position_json: serde_json::Value) -> Result<Box<dyn OriginalPosition>, Mt5DataProcessorError> {
         position_json["server"] = self.server.clone().into();
 
         tracing::debug!("仓位信息 :{:?}", position_json);
-        let position = serde_json::from_value::<Mt5Position>(position_json).context(PositionDataParsingSnafu {
-            message: "Failed to deserialize position data".to_string(),
-            position_id: None,
+        let position = serde_json::from_value::<Mt5Position>(position_json.clone()).context(PositionDataParseFailedSnafu {
         })?;
         tracing::info!("仓位信息: {:?}", position);
 
@@ -420,20 +396,19 @@ impl Mt5DataProcessor {
         &self,
         mut new_position_json: serde_json::Value,
         old_position: &Position,
-    ) -> Result<Position, DataProcessorError> {
+    ) -> Result<Position, Mt5DataProcessorError> {
         // tracing::debug!("最新仓位信息: {:?}", new_position_json);
         // 仓位数据
         new_position_json["server"] = self.server.clone().into();
-        let new_mt_position = serde_json::from_value::<Mt5Position>(new_position_json).context(PositionDataParsingSnafu {
-            message: "Failed to deserialize position data".to_string(),
-            position_id: Some(old_position.position_id.into()),
+        let new_mt_position = serde_json::from_value::<Mt5Position>(new_position_json)
+        .context(PositionDataParseFailedSnafu {
         })?;
 
         // Validate timestamp conversion
         let create_time = Utc
             .timestamp_millis_opt(new_mt_position.time_msc)
             .single()
-            .context(TimestampConversionSnafu {
+            .context(TimestampConversionFailedSnafu {
                 message: "Invalid create timestamp".to_string(),
                 timestamp: Some(new_mt_position.time_msc),
             })?;
@@ -441,7 +416,7 @@ impl Mt5DataProcessor {
         let update_time = Utc
             .timestamp_millis_opt(new_mt_position.time_update_msc)
             .single()
-            .context(TimestampConversionSnafu {
+            .context(TimestampConversionFailedSnafu {
                 message: "Invalid update timestamp".to_string(),
                 timestamp: Some(new_mt_position.time_update_msc),
             })?;
@@ -470,35 +445,33 @@ impl Mt5DataProcessor {
         Ok(new_position)
     }
 
-    pub async fn process_deal(&self, deal_info: serde_json::Value) -> Result<Box<dyn OriginalTransaction>, DataProcessorError> {
+    pub async fn process_deal(&self, deal_info: serde_json::Value) -> Result<Box<dyn OriginalTransaction>, Mt5DataProcessorError> {
         let data_array = deal_info
             .get("data")
             .context(MissingFieldSnafu {
                 field: "data".to_string(),
-                context: "deal info".to_string(),
+                context: Some("deal info".to_string()),
             })?
             .as_array()
-            .context(ArrayParsingSnafu {
-                actual_type: "array".to_string(),
-                context: "deal data field".to_string(),
+            .context(ArrayParseFailedSnafu {
+                actual_type: deal_info.to_string(),
             })?;
 
         let mut deal_data = data_array[0].clone();
         deal_data["server"] = self.server.clone().into();
         tracing::debug!("成交信息 :{:?}", deal_data);
 
-        let deal = serde_json::from_value::<Mt5Deal>(deal_data).context(DealDataParsingSnafu {
-            message: "Failed to deserialize deal data".to_string(),
-            deal_id: None,
+        let deal = serde_json::from_value::<Mt5Deal>(deal_data.clone()).context(DealDataParseFailedSnafu {
+            deal_id: data_array[0].get("deal").and_then(|v| v.as_i64()).unwrap_or(0),
         })?;
 
         Ok(Box::new(deal))
     }
 
-    pub async fn process_position_number(&self, position_number_info: serde_json::Value) -> Result<PositionNumber, DataProcessorError> {
+    pub async fn process_position_number(&self, position_number_info: serde_json::Value) -> Result<PositionNumber, Mt5DataProcessorError> {
         let position_number_data = position_number_info.get("data").context(MissingFieldSnafu {
             field: "data".to_string(),
-            context: "position number info".to_string(),
+            context: Some("position number info".to_string()),
         })?;
 
         tracing::debug!("仓位数量信息 :{:?}", position_number_data);
@@ -507,39 +480,36 @@ impl Mt5DataProcessor {
             .get("symbol")
             .context(MissingFieldSnafu {
                 field: "symbol".to_string(),
-                context: "position number data".to_string(),
+                context: Some("position number data".to_string()),
             })?
             .as_str()
             .context(InvalidFieldTypeSnafu {
                 field: "symbol".to_string(),
                 expected: "string".to_string(),
                 actual: "non-string".to_string(),
-                context: "position number data".to_string(),
             })?;
 
         let position_number_value = position_number_data
             .get("position_number")
             .context(MissingFieldSnafu {
                 field: "position_number".to_string(),
-                context: "position number data".to_string(),
+                context: Some("position number data".to_string()),
             })?
             .as_i64()
             .context(InvalidFieldTypeSnafu {
                 field: "position_number".to_string(),
                 expected: "integer".to_string(),
                 actual: "non-integer".to_string(),
-                context: "position number data".to_string(),
             })?;
 
         // Validate position number range
         if position_number_value < i32::MIN as i64 || position_number_value > i32::MAX as i64 {
-            return DataValidationSnafu {
-                message: format!("Position number {} out of i32 range", position_number_value),
-                context: Some("position_number".to_string()),
+            return Err(DataValidationFailedSnafu {
                 field: "position_number".to_string(),
                 value: position_number_value.to_string(),
             }
-            .fail()?;
+            .build()
+            .into());
         }
 
         let position_number = PositionNumber {
@@ -556,13 +526,12 @@ impl Mt5DataProcessor {
         &self,
         account_id: i32,
         mut account_info: serde_json::Value,
-    ) -> Result<Box<dyn OriginalAccountInfo>, DataProcessorError> {
+    ) -> Result<Box<dyn OriginalAccountInfo>, Mt5DataProcessorError> {
         // 把account_id 添加到account_info_data中
         account_info["account_id"] = account_id.into();
 
-        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParsingSnafu {
-            message: "Failed to deserialize account info".to_string(),
-            account_id: Some(account_id),
+        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParseFailedSnafu {
+            account_id,
         })?;
 
         Ok(Box::new(account_info))

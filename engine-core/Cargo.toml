@@ -7,7 +7,7 @@ edition.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-event-center-new = { path = "../event-center-new" }
+event-center = { path = "../event-center" }
 star-river-core = { path = "../star-river-core" }
 serde.workspace = true
 serde_json.workspace = true

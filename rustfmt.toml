@@ -1,10 +1,18 @@
-# 样式版本，使用 2024 版本的格式化规则
+# style edition, use 2024 edition
 style_edition = "2024"
 
-# 基础配置（稳定特性）
-max_width = 140                     # 每行最大字符数，超过会换行
-hard_tabs = false                  # 使用空格而不是制表符进行缩进
-tab_spaces = 4                     # 缩进使用的空格数
-newline_style = "Unix"             # 使用 Unix 风格换行符（\n）
-use_small_heuristics = "Default"   # 使用默认的小启发式规则
+# basic configuration (stable features)
+max_width = 150                     # max line width
+hard_tabs = false                  # use spaces instead of tabs for indentation
+tab_spaces = 4                     # number of spaces for indentation
+newline_style = "Unix"             # use Unix style line endings (\n)
+use_small_heuristics = "Default"   # use default small heuristics
 fn_params_layout="Tall"
+
+# import configuration
+reorder_imports = true             # import in alphabetical order
+# Note: imports_granularity and group_imports are unstable features (nightly only)
+# We manage import grouping and merging manually
+
+# module configuration
+reorder_modules = true             # reorder modules in alphabetical order

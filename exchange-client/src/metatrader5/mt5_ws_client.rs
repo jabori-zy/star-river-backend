@@ -8,8 +8,13 @@ use tokio_tungstenite::{
 use serde::Serialize;
 use serde_json::json;
 use tracing::instrument;
+use exchange_core::exchange_trait::WebSocketClient;
 
+
+#[derive(Debug)]
 pub struct Mt5WsClient;
+
+impl WebSocketClient for Mt5WsClient {}
 
 impl Mt5WsClient {
     #[instrument]

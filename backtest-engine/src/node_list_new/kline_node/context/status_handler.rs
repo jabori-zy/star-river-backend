@@ -19,7 +19,7 @@ use crate::{
 use strategy_core::{communication::strategy::StrategyResponse, node::context_trait::NodeIdentityExt};
 use star_river_core::exchange::Exchange;
 use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
-use event_center_new::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use star_river_core::kline::Kline;
 use event_center_core::communication::response::Response;
 use crate::strategy_command::{InitKlineDataCmdPayload, InitKlineDataCommand, AppendKlineDataCmdPayload, AppendKlineDataCommand};
