@@ -3,16 +3,21 @@ use super::MarketEngineContext;
 
 
 use async_trait::async_trait;
-use event_center::communication::engine::EngineCommand;
-use event_center::event::Event;
 use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
-use crate::state_machine::MarketEngineAction;
-use event_center::communication::engine::market_engine::{
-    MarketEngineCommand, SubscribeKlineStreamRespPayload, SubscribeKlineStreamResponse, 
-    UnsubscribeKlineStreamRespPayload, UnsubscribeKlineStreamResponse, GetKlineHistoryRespPayload, 
-    GetKlineHistoryResponse, GetSymbolInfoRespPayload, GetSymbolInfoResponse};
 use std::sync::Arc;
-use event_center::communication::Command;
+use event_center_new::{Event, EngineCommand};
+use star_river_event::communication::market_engine::{
+    MarketEngineCommand,
+    SubscribeKlineStreamRespPayload,
+    SubscribeKlineStreamResponse,
+    UnsubscribeKlineStreamRespPayload,
+    UnsubscribeKlineStreamResponse,
+    GetKlineHistoryRespPayload,
+    GetKlineHistoryResponse,
+    GetSymbolInfoRespPayload,
+    GetSymbolInfoResponse,
+};
+
 
 
 #[async_trait]
@@ -85,7 +90,7 @@ impl EngineEventHandler for MarketEngineContext {
                 //     .unwrap();
                 let payload =
                     GetKlineHistoryRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone(), kline_history);
-                let resp = GetKlineHistoryResponse::success(Some(payload));
+                let resp = GetKlineHistoryResponse::success(payload);
                 cmd.respond(resp);
             }
             EngineCommand::MarketEngine(MarketEngineCommand::GetSymbolInfo(cmd)) => {
@@ -93,11 +98,11 @@ impl EngineEventHandler for MarketEngineContext {
                 match result {
                     Ok(symbol) => {
                         let payload = GetSymbolInfoRespPayload::new(symbol);
-                        let resp = GetSymbolInfoResponse::success(Some(payload));
+                        let resp = GetSymbolInfoResponse::success(payload);
                         cmd.respond(resp);
                     }
                     Err(e) => {
-                        let resp = GetSymbolInfoResponse::error(Arc::new(e));
+                        let resp = GetSymbolInfoResponse::fail(Arc::new(e));
                         cmd.respond(resp);
                     }
                 }

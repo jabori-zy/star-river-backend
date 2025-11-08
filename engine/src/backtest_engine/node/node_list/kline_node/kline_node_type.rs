@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use star_river_core::market::KlineInterval;
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use star_river_core::strategy::deserialize_time_range;
 use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 

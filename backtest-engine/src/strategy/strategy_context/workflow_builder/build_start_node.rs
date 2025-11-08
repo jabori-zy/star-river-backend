@@ -4,8 +4,8 @@ use std::sync::Arc;
 // third-party
 use tokio::sync::{Mutex, mpsc};
 
-// workspace crate
-use event_center::communication::backtest_strategy::BacktestNodeCommand;
+// current crate
+use crate::node_command::BacktestNodeCommand;
 
 // current crate
 use super::BacktestStrategyContext;
@@ -20,8 +20,8 @@ impl BacktestStrategyContext {
         node_config: serde_json::Value,
         node_command_rx: mpsc::Receiver<BacktestNodeCommand>,
     ) -> Result<StartNode, BacktestNodeError> {
-        let virtual_trading_system = self.virtual_trading_system().clone();
-        let strategy_stats = self.strategy_stats();
+        // let virtual_trading_system = self.virtual_trading_system().clone();
+        // let strategy_stats = self.strategy_stats();
         let play_index_watch_rx = self.play_index_watch_rx();
         let strategy_command_sender = self.strategy_command_sender().clone();
 

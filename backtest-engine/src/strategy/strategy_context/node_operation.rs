@@ -1,8 +1,6 @@
 // third-party
 use tokio::sync::oneshot;
 
-// workspace crate
-use event_center::communication::{Response, backtest_strategy::GetStartNodeConfigCommand};
 
 // current crate
 use super::{BacktestNode, BacktestStrategyConfig, BacktestStrategyContext};

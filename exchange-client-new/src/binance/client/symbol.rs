@@ -1,8 +1,7 @@
-
-use star_river_core::market::Symbol;
+use star_river_core::instrument::Symbol;
 use async_trait::async_trait;
 use exchange_core::exchange_trait::{ExchangeSymbolExt, ProcessorAccessor};
-use star_river_core::market::KlineInterval;
+use star_river_core::kline::KlineInterval;
 use crate::binance::{Binance, error::BinanceError};
 use crate::binance::binance_type::BinanceKlineInterval;
 

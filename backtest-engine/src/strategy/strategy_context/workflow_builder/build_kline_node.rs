@@ -4,9 +4,7 @@ use std::sync::Arc;
 // third-party
 use tokio::sync::{Mutex, mpsc};
 
-// workspace crate
-use event_center::communication::backtest_strategy::BacktestNodeCommand;
-
+use crate::node_command::BacktestNodeCommand;
 // current crate
 use super::BacktestStrategyContext;
 use crate::{

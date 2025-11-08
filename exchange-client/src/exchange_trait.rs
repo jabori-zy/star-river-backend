@@ -7,7 +7,7 @@ use star_river_core::market::{Exchange, Kline};
 use star_river_core::order::{CreateOrderParams, GetTransactionDetailParams};
 use star_river_core::order::{Order, OriginalOrder};
 use star_river_core::position::{GetPositionNumberParams, GetPositionParam, OriginalPosition, Position, PositionNumber};
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use star_river_core::transaction::OriginalTransaction;
 use std::any::Any;
 use std::fmt::Debug;

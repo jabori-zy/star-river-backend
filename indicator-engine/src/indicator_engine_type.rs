@@ -1,6 +1,7 @@
 use ta_lib::IndicatorConfig;
-use star_river_core::key::key::{IndicatorKey, KlineKey};
-use star_river_core::market::{Exchange, KlineInterval};
+use key::{IndicatorKey, KlineKey};
+use star_river_core::exchange::Exchange;
+use star_river_core::kline::KlineInterval;
 
 // 指标的订阅键
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

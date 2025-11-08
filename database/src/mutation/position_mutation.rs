@@ -1,6 +1,6 @@
 use ::entity::position;
 use sea_orm::*;
-use star_river_core::market::Exchange;
+use star_river_core::exchange::Exchange;
 use star_river_core::position::Position;
 use star_river_core::position::{OriginalPosition, PositionState};
 

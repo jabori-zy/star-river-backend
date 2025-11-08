@@ -2,10 +2,14 @@ use async_trait::async_trait;
 use star_river_core::{
     account::OriginalAccountInfo,
     error::StarRiverErrorTrait,
-    market::{Kline, KlineInterval, Exchange as ExchangeType, Symbol},
+    exchange::Exchange as ExchangeType,
+    kline::{Kline, KlineInterval},
     position::{GetPositionNumberParams, GetPositionParam, OriginalPosition, Position, PositionNumber},
-    strategy::TimeRange,
+    instrument::Symbol,
 };
+
+use strategy_core::strategy::TimeRange;
+
 
 use crate::{ExchangeRunState, state_machine::ExchangeStateTransTrigger};
 use std::fmt::Debug;

@@ -2,7 +2,7 @@ use super::{EngineResponse, GenericEngineCommand};
 use derive_more::From;
 use star_river_core::custom_type::{AccountId, StrategyId};
 use star_river_core::market::{Exchange, Kline, KlineInterval, Symbol};
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 
 #[derive(Debug, From)]
 pub enum MarketEngineCommand {

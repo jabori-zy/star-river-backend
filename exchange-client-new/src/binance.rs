@@ -22,7 +22,7 @@ use crate::binance::binance_http_client::BinanceHttpClient;
 use crate::binance::binance_ws_client::BinanceWebSocket;
 use crate::binance::binance_data_processor::BinanceDataProcessor;
 use crate::binance::state_machine::{BinanceStateMachine, BinanceAction};
-use star_river_core::market::Exchange as ExchangeType;
+use star_river_core::exchange::Exchange as ExchangeType;
 use exchange_core::state_machine::ExchangeRunState;
 use crate::binance::state_machine::binance_transition;
 

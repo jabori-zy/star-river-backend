@@ -1,6 +1,6 @@
-pub mod virtual_order;
+// pub mod virtual_order;
 
-use crate::market::Exchange;
+use crate::exchange::Exchange;
 use crate::system::DateTimeUtc;
 use entity::order::Model as OrderModel;
 use serde::{Deserialize, Serialize};

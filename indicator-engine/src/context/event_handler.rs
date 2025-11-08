@@ -1,14 +1,17 @@
 use super::IndicatorEngineContext;
-use event_center::event::Event;
 use engine_core::context_trait::EngineEventHandler;
 use async_trait::async_trait;
-use event_center::communication::engine::EngineCommand;
-use event_center::communication::engine::indicator_engine::IndicatorEngineCommand;
-use event_center::communication::engine::indicator_engine::*;
 use std::sync::Arc;
-use event_center::communication::Command;
 use ta_lib::TALib;
 use crate::calculate::CalculateIndicatorFunction;
+use event_center_new::{Event, EngineCommand};
+use star_river_event::communication::indicator_engine::{
+    IndicatorEngineCommand,
+    CalculateHistoryIndicatorRespPayload,
+    CalculateHistoryIndicatorResponse,
+    GetIndicatorLookbackRespPayload,
+    GetIndicatorLookbackResponse,
+};
 
 #[async_trait]
 impl EngineEventHandler for IndicatorEngineContext {
@@ -29,7 +32,7 @@ impl EngineEventHandler for IndicatorEngineContext {
                         let lookback = TALib::lookback(&cmd.indicator_key.indicator_config);
                         let payload = GetIndicatorLookbackRespPayload::new(cmd.indicator_key.clone(), lookback);
 
-                        let response = GetIndicatorLookbackResponse::success(Some(payload));
+                        let response = GetIndicatorLookbackResponse::success(payload);
                         cmd.respond(response);
                     }
                     // 计算指标
@@ -43,12 +46,11 @@ impl EngineEventHandler for IndicatorEngineContext {
                                     cmd.indicator_config.clone(),
                                     indicators,
                                 );
-                                let response = CalculateHistoryIndicatorResponse::success(Some(payload));
+                                let response = CalculateHistoryIndicatorResponse::success(payload);
                                 cmd.respond(response);
                             }
                             Err(error) => {
-                                let error = Arc::new(error);
-                                let response = CalculateHistoryIndicatorResponse::error(error);
+                                let response = CalculateHistoryIndicatorResponse::fail(Arc::new(error));
                                 cmd.respond(response);
                             }
                         }

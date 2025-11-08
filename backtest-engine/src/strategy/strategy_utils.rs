@@ -1,7 +1,7 @@
 // workspace crate
-use star_river_core::{
-    node::variable_node::variable_operation::UpdateVarValueOperation,
-    strategy::custom_variable::VariableValue,
+use strategy_core::{
+    variable::custom_variable::VariableValue,
+    node_infra::variable_node::variable_operation::UpdateVarValueOperation,
 };
 
 // current crate

@@ -1,6 +1,6 @@
 use strum::{Display, EnumString};
 use serde::{Deserialize, Serialize};
-use star_river_core::market::KlineInterval;
+use star_river_core::kline::KlineInterval;
 
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]

@@ -7,17 +7,13 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // workspace crate
-use event_center::communication::{Response, backtest_strategy::NodeResetCommand};
 use star_river_core::custom_type::{PlayIndex, StrategyId};
 
 // current crate
-use super::{
-    BacktestNode, BacktestStrategyContext, EventCenterSingleton, PlayFinishedEvent,
-    StrategyBenchmark, StrategyCycleTracker, StrategyRunState, node_context_trait::*,
-};
 use crate::error::strategy_error::{
     AlreadyPausingSnafu, AlreadyPlayingSnafu, BacktestStrategyError, PlayFinishedSnafu,
 };
+use strategy_core::benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker};
 
 #[derive(Debug)]
 struct PlayContext {

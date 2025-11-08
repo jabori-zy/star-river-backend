@@ -8,7 +8,8 @@ use crate::context_trait::{EngineContextTrait, EngineEventHandler};
 use crate::state_machine_error::EngineStateMachineError;
 use crate::state_machine::{EngineAction, EngineStateTransTrigger};
 use super::EngineEventReceiver;
-use event_center::EventCenterSingleton;
+// use event_center::EventCenterSingleton;
+use event_center_new::EventCenterSingleton;
 use tokio_stream::wrappers::BroadcastStream;
 use futures::stream::select_all;
 use futures::StreamExt;
@@ -210,7 +211,7 @@ where
         let (engine_name, command_receiver) = self.with_ctx_read_async(|ctx| {
             Box::pin(async move {
                 let engine_name = ctx.engine_name().clone(); // 克隆以避免生命周期问题
-                let command_receiver = EventCenterSingleton::get_command_receiver(&engine_name).await.unwrap();
+                let command_receiver = EventCenterSingleton::command_receiver(&engine_name.clone().into()).await.unwrap();
                 
                 (engine_name, command_receiver)
             })

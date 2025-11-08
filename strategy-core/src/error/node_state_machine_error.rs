@@ -4,7 +4,7 @@ use snafu::{Backtrace, Snafu};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
-pub enum BacktestNodeStateMachineError {
+pub enum NodeStateMachineError {
     #[snafu(display("fail to transfer node state, run_state: {run_state}, trans_trigger: {trans_trigger}"))]
     NodeTransFailed {
         run_state: String,
@@ -14,7 +14,7 @@ pub enum BacktestNodeStateMachineError {
 }
 
 // Implement the StarRiverErrorTrait for BacktestNodeStateMachineError
-impl StarRiverErrorTrait for BacktestNodeStateMachineError {
+impl StarRiverErrorTrait for NodeStateMachineError {
     fn get_prefix(&self) -> &'static str {
         "NODE_STATE_MACHINE"
     }
@@ -22,7 +22,7 @@ impl StarRiverErrorTrait for BacktestNodeStateMachineError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            BacktestNodeStateMachineError::NodeTransFailed { .. } => 1001,
+            NodeStateMachineError::NodeTransFailed { .. } => 1001,
         };
 
         format!("{}_{:04}", prefix, code)
@@ -30,7 +30,7 @@ impl StarRiverErrorTrait for BacktestNodeStateMachineError {
 
     fn http_status_code(&self) -> StatusCode {
         match self {
-            BacktestNodeStateMachineError::NodeTransFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            NodeStateMachineError::NodeTransFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -40,7 +40,7 @@ impl StarRiverErrorTrait for BacktestNodeStateMachineError {
         match language {
             ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
-                BacktestNodeStateMachineError::NodeTransFailed {
+                NodeStateMachineError::NodeTransFailed {
                     run_state,
                     trans_trigger,
                     ..

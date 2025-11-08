@@ -5,13 +5,12 @@ members = [
     "backend",
     "star-river-api",
     "database",
-    "event-center",
     "heartbeat",
     "migration",
     "star-river-core",
     "virtual-trading",
-    "entity", 
-    "strategy-stats", 
+    "strategy-stats",
+    "entity",
     "engine-core",
     "exchange-engine",
     "market-engine",
@@ -19,7 +18,12 @@ members = [
     "backtest-engine", 
     "exchange-core", 
     "exchange-client-new", 
-    "ta-lib",
+    "ta-lib", 
+    "event-center-core", 
+    "event-center-new", 
+    "star-river-event", 
+    "strategy-core", 
+    "key",
     ]
 default-members = ["backend"]
 
@@ -76,6 +80,7 @@ once_cell = "1.21.3"
 thiserror = "2.0.11"
 paste = "1.0.15"
 enum_dispatch = "0.3.13"
+derive_more = { version = "2.0.1", features = ["from"] }
 
 
 

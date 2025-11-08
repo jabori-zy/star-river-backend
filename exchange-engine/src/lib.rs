@@ -10,12 +10,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use engine_core::{EngineBase, EngineContextAccessor, engine_trait::Engine};
 use state_machine::ExchangeEngineAction;
-use star_river_core::engine::EngineName;
 
 use crate::state_machine::ExchangeEngineStateMachine;
 use engine_core::state_machine::EngineRunState;
 use crate::state_machine::exchange_engine_transition;
 use engine_core::EngineBaseContext;
+use star_river_core::engine::EngineName;
 
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)

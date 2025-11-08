@@ -5,23 +5,23 @@ use axum::extract::{Json, Path, Query};
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
 use engine_core::EngineContextAccessor;
-use event_center::event::strategy_event::StrategyRunningLogEvent;
+use strategy_core::event::log_event::StrategyRunningLogEvent;
 use serde::{Deserialize, Serialize};
 use star_river_core::error::star_river_error::ParseDataTimeFailedSnafu;
-use star_river_core::key::Key;
-use star_river_core::order::virtual_order::VirtualOrder;
-use star_river_core::position::virtual_position::VirtualPosition;
-use star_river_core::strategy::StrategyVariable;
-use star_river_core::strategy::strategy_benchmark::StrategyPerformanceReport;
-use star_river_core::strategy_stats::StatsSnapshot;
-use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
+use strategy_core::variable::StrategyVariable;
+use strategy_core::benchmark::strategy_benchmark::StrategyPerformanceReport;
+use key::Key;
 use std::str::FromStr;
+use star_river_core::strategy_stats::StatsSnapshot;
 use utoipa::{IntoParams, ToSchema};
 use snafu::IntoError;
 use tracing::instrument;
 use std::collections::HashMap;
 use star_river_core::custom_type::NodeId;
 use backtest_engine::backtest_engine_error::BacktestEngineError;
+use strategy_core::strategy::context_trait::StrategyVariableExt;
+use strategy_core::strategy::context_trait::StrategyBenchmarkExt;
 
 
 #[utoipa::path(
@@ -46,13 +46,11 @@ pub async fn get_virtual_orders(
 
     let result: Result<Vec<VirtualOrder>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let orders = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
                     ctx.get_virtual_orders().await
                 })
-            }).await;
-            Ok(orders)
+            }).await
         })
     }).await;
 
@@ -90,13 +88,11 @@ pub async fn get_current_positions(
 
     let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let positions = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
                     ctx.get_current_positions().await
                 })
-            }).await;
-            Ok(positions)
+            }).await
         })
     }).await;
 
@@ -129,13 +125,11 @@ pub async fn get_virtual_transactions(
 
     let result: Result<Vec<VirtualTransaction>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let transactions = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
                     ctx.get_transactions().await
                 })
-            }).await;
-            Ok(transactions)
+            }).await
         })
     }).await;
 
@@ -181,15 +175,14 @@ pub async fn get_stats_history(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
+    let play_index = params.play_index;
     let result: Result<Vec<StatsSnapshot>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let stats = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, move |ctx| {
                 Box::pin(async move {
-                    ctx.get_stats_history(params.play_index).await
+                    ctx.get_stats_history(play_index).await
                 })
-            }).await;
-            Ok(stats)
+            }).await
         })
     }).await;
 
@@ -222,13 +215,11 @@ pub async fn get_history_positions(
 
     let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let positions = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
                     ctx.get_history_positions().await
                 })
-            }).await;
-            Ok(positions)
+            }).await
         })
     }).await;
 
@@ -294,13 +285,11 @@ pub async fn get_running_log(
 
     let result: Result<Vec<StrategyRunningLogEvent>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let log = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
                     ctx.running_log().await
                 })
-            }).await;
-            Ok(log)
+            }).await
         })
     }).await;
 
@@ -354,14 +343,18 @@ pub async fn get_strategy_data(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
+    let play_index = params.play_index;
+    let limit = params.limit;
     let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let data = strategy.with_ctx_read_async(|ctx| {
-                Box::pin(async move {
-                    ctx.get_strategy_data(params.play_index, key, params.limit).await
+            let data = ctx
+                .with_strategy_ctx_read_async(strategy_id, move |ctx| {
+                    Box::pin(async move {
+                        ctx.get_strategy_data(play_index, key, limit).await
+                    })
                 })
-            }).await?;
+                .await?
+                .map_err(BacktestEngineError::from)?;
             Ok(data)
         })
     }).await;
@@ -429,14 +422,17 @@ pub async fn get_strategy_data_by_datetime(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard: tokio::sync::MutexGuard<'_, backtest_engine::BacktestEngine> = engine.lock().await;
 
+    let limit = params.limit;
     let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let data = strategy.with_ctx_read_async(|ctx| {
-                Box::pin(async move {
-                    ctx.get_strategy_data_by_datetime(key, datetime, params.limit).await
+            let data = ctx
+                .with_strategy_ctx_read_async(strategy_id, move |ctx| {
+                    Box::pin(async move {
+                        ctx.get_strategy_data_by_datetime(key, datetime, limit).await
+                    })
                 })
-            }).await?;
+                .await?
+                .map_err(BacktestEngineError::from)?;
             Ok(data)
         })
     }).await;
@@ -471,13 +467,11 @@ pub async fn get_strategy_variable(
 
     let result: Result<Vec<StrategyVariable>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let variables = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
-                    ctx.get_strategy_variable().await
+                    ctx.strategy_variables().await
                 })
-            }).await;
-            Ok(variables)
+            }).await
         })
     }).await;
 
@@ -511,13 +505,11 @@ pub async fn get_strategy_performance_report(
 
     let result: Result<StrategyPerformanceReport, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let report = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
-                    ctx.get_strategy_performance_report().await
+                    ctx.strategy_performance_report().await
                 })
-            }).await;
-            Ok(report)
+            }).await
         })
     }).await;
 
@@ -554,13 +546,11 @@ pub async fn get_strategy_keys(
 
     let result: Result<HashMap<Key, NodeId>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let keys = strategy.with_ctx_read_async(|ctx| {
+            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
                 Box::pin(async move {
                     ctx.keys().await
                 })
-            }).await;
-            Ok(keys)
+            }).await
         })
     }).await;
 

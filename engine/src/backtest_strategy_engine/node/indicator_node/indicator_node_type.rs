@@ -1,7 +1,7 @@
 use super::super::kline_node::kline_node_type::SelectedSymbol;
 use serde::{Deserialize, Serialize};
 use star_river_core::indicator::IndicatorConfig;
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use star_river_core::strategy::{BacktestDataSource, SelectedAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

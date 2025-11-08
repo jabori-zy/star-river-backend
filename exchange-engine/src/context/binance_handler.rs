@@ -1,6 +1,6 @@
 use super::{ExchangeEngineContext};
 use star_river_core::account::AccountConfig;
-use star_river_core::market::Exchange;
+use star_river_core::exchange::Exchange;
 use exchange_client_new::binance::Binance;
 use exchange_client_new::binance::BinanceMetadata;
 use exchange_core::exchange_trait::ExchangeLifecycle;

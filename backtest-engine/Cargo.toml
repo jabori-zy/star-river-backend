@@ -7,13 +7,17 @@ edition.workspace = true
 
 [dependencies]
 engine-core = { path = "../engine-core" }
-event-center = { path = "../event-center" }
+event-center-new = { path = "../event-center-new" }
+event-center-core = { path = "../event-center-core" }
+star-river-event = { path = "../star-river-event" }
 star-river-core = { path = "../star-river-core" }
+strategy-core = { path = "../strategy-core" }
 database = { path = "../database" }
 heartbeat = { path = "../heartbeat" }
 virtual-trading = { path = "../virtual-trading"}
 strategy-stats = { path = "../strategy-stats"}
 ta-lib = { path = "../ta-lib" }
+key = { path = "../key" }
 tokio.workspace = true
 sea-orm.workspace = true
 async-trait.workspace = true
@@ -33,6 +37,7 @@ petgraph.workspace = true
 uuid.workspace = true
 rust_decimal.workspace = true
 paste.workspace = true
+derive_more.workspace = true
 
 [lints]
 workspace = true

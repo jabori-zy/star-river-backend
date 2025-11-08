@@ -1,3 +1,4 @@
+pub type CycleId = u64;
 pub type StrategyId = i32;
 pub type StrategyName = String;
 

@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use serde::{Deserialize, Serialize};
-use star_river_core::strategy::StrategyConfig;
+use strategy_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 

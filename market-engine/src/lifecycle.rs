@@ -4,7 +4,7 @@ use engine_core::{
     context_trait::{EngineContextTrait, EngineStateMachineTrait}
 };
 
-use crate::{context::MarketEngineContext, state_machine::MarketEngineAction};
+use crate::state_machine::MarketEngineAction;
 use crate::MarketEngine;
 use crate::error::MarketEngineError;
 use engine_core::state_machine::EngineStateTransTrigger;

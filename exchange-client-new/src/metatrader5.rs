@@ -20,7 +20,7 @@ use crate::metatrader5::mt5_http_client::Mt5HttpClient;
 use crate::metatrader5::mt5_ws_client::Mt5WsClient;
 use crate::metatrader5::mt5_data_processor::Mt5DataProcessor;
 use crate::metatrader5::state_machine::{Mt5StateMachine, Mt5Action};
-use star_river_core::market::Exchange as ExchangeType;
+use star_river_core::exchange::Exchange as ExchangeType;
 use exchange_core::state_machine::ExchangeRunState;
 use crate::metatrader5::state_machine::metatrader5_transition;
 

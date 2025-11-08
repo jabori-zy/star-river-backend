@@ -1,5 +1,6 @@
-use star_river_core::key::key::KlineKey;
-use star_river_core::market::{Exchange, KlineInterval};
+use key::KlineKey;
+use star_river_core::exchange::Exchange;
+use star_river_core::kline::KlineInterval;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KlineSubKey {

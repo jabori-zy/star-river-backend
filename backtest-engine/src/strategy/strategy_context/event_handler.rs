@@ -1,22 +1,11 @@
 // std
 use std::sync::Arc;
+use super::BacktestStrategyContext;
+use crate::strategy_command::*;
 
 // workspace crate
-use event_center::{
-    communication::backtest_strategy::*,
-    event::{
-        node_event::backtest_node_event::VariableNodeEvent,
-        strategy_event::backtest_strategy_event::StrategyPerformanceUpdateEvent,
-    },
-};
 
 // current crate
-use super::{
-    BacktestNodeEvent, BacktestStrategyCommand, BacktestStrategyContext, BacktestStrategyEvent,
-    Command, CommonEvent, Event, EventCenterSingleton, FuturesOrderNodeEvent,
-    GetCurrentTimeResponse, GetMinIntervalSymbolsResponse, GetStrategyKeysResponse,
-    IndicatorNodeEvent, KlineNodeEvent, NodeEventTrait, PositionManagementNodeEvent, StrategyStatsEvent,
-};
 
 impl BacktestStrategyContext {
     pub async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) -> Result<(), String> {
@@ -26,32 +15,34 @@ impl BacktestStrategyContext {
                 let keys_map = self.keys().await;
                 let keys = keys_map.keys().cloned().collect();
                 let payload = GetStrategyKeysRespPayload::new(keys);
-                let resp = GetStrategyKeysResponse::success(Some(payload));
+                let resp = GetStrategyKeysResponse::success(payload);
                 cmd.respond(resp);
             }
             // 获取当前时间
             BacktestStrategyCommand::GetCurrentTime(cmd) => {
                 let current_time = self.current_time().await;
                 let payload = GetCurrentTimeRespPayload::new(current_time);
-                let resp = GetCurrentTimeResponse::success(Some(payload));
+                let resp = GetCurrentTimeResponse::success(payload);
                 cmd.respond(resp);
             }
             // 获取最小时间间隔的symbol
             BacktestStrategyCommand::GetMinIntervalSymbols(cmd) => {
                 let min_interval_symbols = self.min_interval_symbols().to_vec();
                 let payload = GetMinIntervalSymbolsRespPayload::new(min_interval_symbols);
-                let resp = GetMinIntervalSymbolsResponse::success(Some(payload));
+                let resp = GetMinIntervalSymbolsResponse::success(payload);
                 cmd.respond(resp);
             }
             BacktestStrategyCommand::InitKlineData(cmd) => {
                 self.init_kline_data(&cmd.kline_key, cmd.init_kline_data.clone()).await;
-                let resp = InitKlineDataResponse::success(None);
+                let payload = InitKlineDataRespPayload{};
+                let resp = InitKlineDataResponse::success(payload);
                 cmd.respond(resp);
             }
 
             BacktestStrategyCommand::AppendKlineData(cmd) => {
                 self.append_kline_data(&cmd.kline_key, cmd.kline_series.clone()).await;
-                let resp = AppendKlineDataResponse::success(None);
+                let payload = AppendKlineDataRespPayload{};
+                let resp = AppendKlineDataResponse::success(payload);
                 cmd.respond(resp);
             }
 
@@ -60,11 +51,11 @@ impl BacktestStrategyContext {
                 match result {
                     Ok(data) => {
                         let payload = GetKlineDataRespPayload::new(data);
-                        let response = GetKlineDataResponse::success(Some(payload));
+                        let response = GetKlineDataResponse::success(payload);
                         cmd.respond(response);
                     }
                     Err(error) => {
-                        let response = GetKlineDataResponse::error(Arc::new(error));
+                        let response = GetKlineDataResponse::fail(Arc::new(error));
                         cmd.respond(response);
                     }
                 }
@@ -72,40 +63,42 @@ impl BacktestStrategyContext {
             BacktestStrategyCommand::UpdateKlineData(cmd) => {
                 let updated_kline = self.update_kline_data(&cmd.kline_key, &cmd.kline).await;
                 let payload = UpdateKlineDataRespPayload::new(updated_kline);
-                let response = UpdateKlineDataResponse::success(Some(payload));
+                let response = UpdateKlineDataResponse::success(payload);
                 cmd.respond(response);
             }
 
             BacktestStrategyCommand::InitIndicatorData(cmd) => {
                 self.init_indicator_data(&cmd.indicator_key, cmd.indicator_series.clone()).await;
-                let resp = InitIndicatorDataResponse::success(None);
+                let payload = InitIndicatorDataRespPayload{};
+                let resp = InitIndicatorDataResponse::success(payload);
                 cmd.respond(resp);
             }
 
             BacktestStrategyCommand::GetIndicatorData(cmd) => {
                 let result_data = self.get_indicator_slice(&cmd.indicator_key, cmd.play_index, cmd.limit).await;
                 let payload = GetIndicatorDataRespPayload::new(result_data);
-                let response = GetIndicatorDataResponse::success(Some(payload));
+                let response = GetIndicatorDataResponse::success(payload);
                 cmd.respond(response);
             }
 
             BacktestStrategyCommand::UpdateIndicatorData(cmd) => {
                 let updated_indicator = self.update_indicator_data(&cmd.indicator_key, &cmd.indicator).await;
                 let payload = UpdateIndicatorDataRespPayload::new(updated_indicator);
-                let response = UpdateIndicatorDataResponse::success(Some(payload));
+                let response = UpdateIndicatorDataResponse::success(payload);
                 cmd.respond(response);
             }
 
             BacktestStrategyCommand::InitCustomVariableValue(cmd) => {
                 self.init_custom_variables(cmd.custom_variables.clone()).await;
-                let resp = InitCustomVariableValueResponse::success(None);
+                let payload = InitCustomVariableRespPayload{};
+                let resp = InitCustomVariableValueResponse::success(payload);
                 cmd.respond(resp);
             }
             BacktestStrategyCommand::GetCustomVariableValue(cmd) => {
                 let result = self.get_custom_variable_value(cmd.var_name.clone()).await;
                 if let Ok(value) = result {
                     let payload = GetCustomVariableRespPayload::new(value);
-                    let resp = GetCustomVariableValueResponse::success(Some(payload));
+                    let resp = GetCustomVariableValueResponse::success(payload);
                     cmd.respond(resp);
                 } else {
                     let err = result.unwrap_err();
@@ -118,7 +111,7 @@ impl BacktestStrategyContext {
                 let result = self.update_custom_variable_value(&cmd.update_var_config).await;
                 if let Ok(value) = result {
                     let payload = UpdateCustomVariableRespPayload::new(value);
-                    let resp = UpdateCustomVariableValueResponse::success(Some(payload));
+                    let resp = UpdateCustomVariableValueResponse::success(payload);
                     cmd.respond(resp);
                 } else {
                     let err = result.unwrap_err();
@@ -131,7 +124,7 @@ impl BacktestStrategyContext {
                 let result = self.reset_custom_variables(cmd.var_name.clone()).await;
                 if let Ok(value) = result {
                     let payload = ResetCustomVariableRespPayload::new(value);
-                    let resp = ResetCustomVariableValueResponse::success(Some(payload));
+                    let resp = ResetCustomVariableValueResponse::success(payload);
                     cmd.respond(resp);
                 } else {
                     let err = result.unwrap_err();

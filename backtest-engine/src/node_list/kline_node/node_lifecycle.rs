@@ -260,11 +260,6 @@ impl NodeLifecycle<KlineNodeContext, KlineNodeAction> for KlineNode {
                 }
                 _ => {}
             }
-            
-            // // 动作执行完毕后更新节点最新的状态
-            // {
-            //     self.context.write().await.set_state_machine(state_machine.clone_box());
-            // }
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
         Ok(())

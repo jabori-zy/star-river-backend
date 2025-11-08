@@ -8,10 +8,12 @@ edition.workspace = true
 [dependencies]
 engine-core = { path = "../engine-core" }
 exchange-core = { path = "../exchange-core" }
-event-center = { path = "../event-center" }
+event-center-new = { path = "../event-center-new" }
 star-river-core = { path = "../star-river-core" }
+star-river-event = { path = "../star-river-event" }
 exchange-client-new = { path = "../exchange-client-new" }
 database = { path = "../database" }
+strategy-core = { path = "../strategy-core" }
 tokio.workspace = true
 sea-orm.workspace = true
 async-trait.workspace = true

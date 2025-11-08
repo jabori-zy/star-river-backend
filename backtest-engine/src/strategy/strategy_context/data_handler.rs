@@ -21,32 +21,37 @@ use crate::error::strategy_error::{
 impl BacktestStrategyContext {
     // 获取所有的virtual order
     pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let virtual_orders = virtual_trading_system.get_orders().clone();
-        virtual_orders
+        // let virtual_trading_system = self.virtual_trading_system.lock().await;
+        // let virtual_orders = virtual_trading_system.get_orders().clone();
+        // virtual_orders
+        vec![]
     }
 
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let current_positions = virtual_trading_system.get_current_positions();
-        current_positions.clone()
+        // let virtual_trading_system = self.virtual_trading_system.lock().await;
+        // let current_positions = virtual_trading_system.get_current_positions();
+        // current_positions.clone()
+        vec![]
     }
 
     pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let history_positions = virtual_trading_system.get_history_positions();
-        history_positions
+        // let virtual_trading_system = self.virtual_trading_system.lock().await;
+        // let history_positions = virtual_trading_system.get_history_positions();
+        // history_positions
+        vec![]
     }
 
     pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let transactions = virtual_trading_system.get_transactions();
-        transactions
+        // let virtual_trading_system = self.virtual_trading_system.lock().await;
+        // let transactions = virtual_trading_system.get_transactions();
+        // transactions
+        vec![]
     }
 
     pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
-        let strategy_stats = self.strategy_stats.read().await;
-        strategy_stats.get_stats_history(play_index).await
+        // let strategy_stats = self.strategy_stats.read().await;
+        // strategy_stats.get_stats_history(play_index).await
+        vec![]
     }
 
     pub async fn get_signal_count(&self) -> Result<i32, BacktestStrategyError> {

@@ -4,42 +4,40 @@ pub mod statistics;
 pub mod transaction;
 pub(crate) mod utils;
 pub mod error;
+pub mod event;
+pub mod types;
+pub mod key;
 
-use event_center::communication::backtest_strategy::{
-    BacktestStrategyCommand, GetKlineDataCmdPayload, GetKlineDataCommand, StrategyCommandSender,
-};
 use star_river_core::custom_type::*;
-use star_river_core::key::key::KlineKey;
-use star_river_core::market::Symbol;
+use crate::key::KlineKey;
 use star_river_core::order::OrderType;
-use star_river_core::order::virtual_order::VirtualOrder;
-use star_river_core::position::virtual_position::VirtualPosition;
-use star_river_core::transaction::virtual_transaction::VirtualTransaction;
+use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
 use chrono::{DateTime, Utc};
-use event_center::communication::Response;
 use star_river_core::custom_type::PlayIndex;
-use star_river_core::market::Exchange;
-use star_river_core::market::Kline;
-use star_river_core::virtual_trading_system::event::{
+use star_river_core::exchange::Exchange;
+use star_river_core::kline::Kline;
+use crate::event::{
     VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
+use std::fmt::Debug;
 
 /// 虚拟交易系统
 ///
 #[derive(Debug)]
-pub struct VirtualTradingSystem {
+pub struct VirtualTradingSystem
+ {
     current_datetime: DateTime<Utc>,       // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub event_receiver: VirtualTradingSystemEventReceiver, // 事件接收器
-    pub strategy_command_sender: StrategyCommandSender, // 向策略发送命令
-    pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
+    // pub strategy_command_sender: mpsc::Sender<C>, // 向策略发送命令
+    // pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
     pub leverage: Leverage,                // 杠杆
 
     // 资金相关
@@ -69,7 +67,7 @@ pub struct VirtualTradingSystem {
 
 // 虚拟交易系统get方法
 impl VirtualTradingSystem {
-    pub fn new(play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, strategy_command_sender: StrategyCommandSender) -> Self {
+    pub fn new() -> Self {
         let (tx, rx) = broadcast::channel::<VirtualTradingSystemEvent>(100);
         Self {
             current_datetime: Utc::now(),
@@ -91,8 +89,8 @@ impl VirtualTradingSystem {
             transactions: vec![],
             event_publisher: tx,
             event_receiver: rx,
-            play_index_watch_rx,
-            strategy_command_sender,
+            // play_index_watch_rx,
+            // strategy_command_sender,
         }
     }
 
@@ -108,66 +106,8 @@ impl VirtualTradingSystem {
         self.kline_price = kline_price;
     }
 
-    pub fn get_strategy_command_sender(&self) -> &StrategyCommandSender {
-        &self.strategy_command_sender
-    }
-
-    // 添加k线缓存key，只保留interval最小的那一个
-    // pub fn add_kline_key(&mut self, kline_key: KlineKey) {
-    //     // 判断CacheKey是否存在
-    //     if !self.kline_price.contains_key(&kline_key) {
-    //         // 添加前，过滤出exchange, symbol, start_time, end_time相同的kline_key
-    //         let filtered_kline_keys = self
-    //             .kline_price
-    //             .keys()
-    //             .filter(|key| {
-    //                 key.exchange == kline_key.exchange
-    //                     && key.symbol == kline_key.symbol
-    //                     && key.start_time == kline_key.start_time
-    //                     && key.end_time == kline_key.end_time
-    //             })
-    //             .collect::<Vec<&KlineKey>>();
-    //         //比较interval，保留interval最小的那一个
-    //         // 过滤出的列表长度一定为1，因为除了interval不同，其他都相同
-    //         if filtered_kline_keys.len() == 1 {
-    //             // 比较要插入的key的interval和过滤出的key的interval
-    //             // 如果要插入的key的interval小于过滤出的key的interval，则插入
-    //             if kline_key.interval < filtered_kline_keys[0].interval {
-    //                 self.kline_price.insert(
-    //                     kline_key,
-    //                     Kline {
-    //                         datetime: Utc::now(),
-    //                         open: 0.0,
-    //                         high: 0.0,
-    //                         low: 0.0,
-    //                         close: 0.0,
-    //                         volume: 0.0,
-    //                     },
-    //                 );
-    //             }
-    //             // 如果要插入的key的interval大于过滤出的key的interval，则不插入
-    //             else {
-    //                 tracing::warn!(
-    //                     "{}: 要插入的k线缓存key的interval大于过滤出的k线缓存key的interval，不插入",
-    //                     kline_key.symbol
-    //                 );
-    //             }
-    //         }
-    //         // 如果过滤出的列表长度为0，则直接插入
-    //         else {
-    //             self.kline_price.insert(
-    //                 kline_key,
-    //                 Kline {
-    //                     datetime: Utc::now(),
-    //                     open: 0.0,
-    //                     high: 0.0,
-    //                     low: 0.0,
-    //                     close: 0.0,
-    //                     volume: 0.0,
-    //                 },
-    //             );
-    //         }
-    //     }
+    // pub fn get_strategy_command_sender(&self) -> &mpsc::Sender<C> {
+    //     &self.strategy_command_sender
     // }
 
     pub fn get_datetime(&self) -> DateTime<Utc> {
@@ -194,14 +134,14 @@ impl VirtualTradingSystem {
         self.realized_pnl
     }
 
-    pub fn get_play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
+    // pub fn get_play_index(&self) -> PlayIndex {
+    //     *self.play_index_watch_rx.borrow()
+    // }
 
     // 设置k线缓存索引, 并更新所有数据
     pub async fn update_system(&mut self) {
         // 当k线索引更新后，更新k线缓存key的最新收盘价
-        self.update_kline_price().await;
+        // self.update_kline_price().await;
         // 更新时间戳
         self.update_timestamp();
 
@@ -231,28 +171,28 @@ impl VirtualTradingSystem {
         self.event_publisher.send(VirtualTradingSystemEvent::UpdateFinished).unwrap();
     }
 
-    async fn update_kline_price(&mut self) {
-        let keys: Vec<KlineKey> = self.kline_price.keys().cloned().collect();
+    // async fn update_kline_price(&mut self) {
+    //     let keys: Vec<KlineKey> = self.kline_price.keys().cloned().collect();
 
-        let mut timestamp_list = vec![];
-        for kline_key in keys {
-            let kline = self.get_close_price(kline_key.clone()).await;
-            if let Ok(kline) = kline {
-                timestamp_list.push(kline.datetime);
-                self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
-            }
-        }
+    //     let mut timestamp_list = vec![];
+    //     for kline_key in keys {
+    //         let kline = self.get_close_price(kline_key.clone()).await;
+    //         if let Ok(kline) = kline {
+    //             timestamp_list.push(kline.datetime);
+    //             self.kline_price.entry(kline_key).and_modify(|e| *e = kline);
+    //         }
+    //     }
 
-        // 检查完成后，需要检查所有k线的时间戳是否相同
-        if timestamp_list.len() > 0 {
-            let first_timestamp = timestamp_list[0];
-            for timestamp in timestamp_list {
-                if timestamp != first_timestamp {
-                    tracing::warn!("k线时间戳不一致");
-                }
-            }
-        }
-    }
+    //     // 检查完成后，需要检查所有k线的时间戳是否相同
+    //     if timestamp_list.len() > 0 {
+    //         let first_timestamp = timestamp_list[0];
+    //         for timestamp in timestamp_list {
+    //             if timestamp != first_timestamp {
+    //                 tracing::warn!("k线时间戳不一致");
+    //             }
+    //         }
+    //     }
+    // }
 
     fn update_timestamp(&mut self) {
         // 获取所有k线的时间戳
@@ -328,23 +268,23 @@ impl VirtualTradingSystem {
     }
 
     // 从缓存引擎获取k线数据
-    async fn get_close_price(&self, kline_key: KlineKey) -> Result<Kline, String> {
-        let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetKlineDataCmdPayload::new(kline_key, Some(self.get_play_index()), Some(1));
-        let cmd: BacktestStrategyCommand = GetKlineDataCommand::new("virtual_trading_system".to_string(), resp_tx, Some(payload)).into();
-        self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
+    // async fn get_close_price(&self, kline_key: KlineKey) -> Result<Kline, String> {
+    //     let (resp_tx, resp_rx) = oneshot::channel();
+    //     let payload = GetKlineDataCmdPayload::new(kline_key, Some(self.get_play_index()), Some(1));
+    //     let cmd: BacktestStrategyCommand = GetKlineDataCommand::new("virtual_trading_system".to_string(), resp_tx, Some(payload)).into();
+    //     self.get_strategy_command_sender().send(cmd.into()).await.unwrap();
 
-        // 等待响应
-        let response = resp_rx.await.unwrap();
-        if response.is_success() {
-            if response.kline_series.is_empty() {
-                return Err("get cache data response is empty".to_string());
-            }
-            let kline = response.kline_series[0].clone();
-            return Ok(kline);
-        }
-        Err("get history kline cache failed".to_string())
-    }
+    //     // 等待响应
+    //     let response = resp_rx.await.unwrap();
+    //     if response.is_success() {
+    //         if response.kline_series.is_empty() {
+    //             return Err("get cache data response is empty".to_string());
+    //         }
+    //         let kline = response.kline_series[0].clone();
+    //         return Ok(kline);
+    //     }
+    //     Err("get history kline cache failed".to_string())
+    // }
 
     // 根据交易所和symbol获取k线缓存key
     fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Option<KlineKey> {
@@ -368,28 +308,28 @@ impl VirtualTradingSystem {
         self.used_margin = 0.0;
     }
 
-    pub async fn listen_play_index(virtual_trading_system: Arc<Mutex<Self>>) -> Result<(), String> {
-        let mut play_index_watch_rx = {
-            let vts_guard = virtual_trading_system.lock().await;
-            vts_guard.play_index_watch_rx.clone()
-        };
+    // pub async fn listen_play_index(virtual_trading_system: Arc<Mutex<Self>>) -> Result<(), String> {
+    //     let mut play_index_watch_rx = {
+    //         let vts_guard = virtual_trading_system.lock().await;
+    //         vts_guard.play_index_watch_rx.clone()
+    //     };
 
-        // 监听播放索引变化
-        tokio::spawn(async move {
-            loop {
-                // 监听播放索引变化
-                match play_index_watch_rx.changed().await {
-                    Ok(_) => {
-                        // 更新虚拟交易系统的播放索引
-                        let mut vts_guard = virtual_trading_system.lock().await;
-                        vts_guard.update_system().await;
-                    }
-                    Err(e) => {
-                        tracing::error!("VirtualTradingSystem 监听播放索引错误: {}", e);
-                    }
-                }
-            }
-        });
-        Ok(())
-    }
+    //     // 监听播放索引变化
+    //     tokio::spawn(async move {
+    //         loop {
+    //             // 监听播放索引变化
+    //             match play_index_watch_rx.changed().await {
+    //                 Ok(_) => {
+    //                     // 更新虚拟交易系统的播放索引
+    //                     let mut vts_guard = virtual_trading_system.lock().await;
+    //                     vts_guard.update_system().await;
+    //                 }
+    //                 Err(e) => {
+    //                     tracing::error!("VirtualTradingSystem 监听播放索引错误: {}", e);
+    //                 }
+    //             }
+    //         }
+    //     });
+    //     Ok(())
+    // }
 }

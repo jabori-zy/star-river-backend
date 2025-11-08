@@ -9,7 +9,7 @@ build = "build.rs"
 
 [dependencies]
 star-river-core = { path = "../star-river-core" }
-event-center = {path = "../event-center"}
+event-center-new = {path = "../event-center-new"}
 exchange-client = {path = "../exchange-client"}
 database = { path = "../database" }
 entity = { path = "../entity" }
@@ -33,7 +33,6 @@ rust-embed = "8.7.2"
 tempfile = "3.19.1"
 chrono.workspace=true
 deepsize = "0.2.0"
-virtual-trading = { path = "../virtual-trading"}
 strategy-stats = { path = "../strategy-stats"}
 paste = "1.0.15"
 snafu.workspace = true

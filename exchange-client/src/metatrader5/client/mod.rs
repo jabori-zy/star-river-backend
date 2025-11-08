@@ -23,7 +23,7 @@ use star_river_core::{
     account::OriginalAccountInfo,
 };
 use super::mt5_types::*;
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use super::mt5_ws_client::Mt5WsClient;
 
 

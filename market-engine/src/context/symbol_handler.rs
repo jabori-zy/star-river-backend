@@ -1,6 +1,6 @@
 use engine_core::EngineContextAccessor;
 use star_river_core::custom_type::AccountId;
-use star_river_core::market::Symbol;
+use star_river_core::instrument::Symbol;
 use crate::error::MarketEngineError;
 use super::MarketEngineContext;
 

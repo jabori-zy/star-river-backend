@@ -2,20 +2,23 @@ use super::{
     BacktestStrategy,
     strategy_state_machine::{BacktestStrategyStateAction, StrategyStateTransTrigger},
 };
-use event_center::{
-    EventCenterSingleton,
-    event::strategy_event::{
-        LogLevel,
-        backtest_strategy_event::{BacktestStrategyEvent, StrategyStateLogEvent},
-    },
-};
+// use event_center::{
+//     EventCenterSingleton,
+//     event::strategy_event::{
+//         LogLevel,
+//         backtest_strategy_event::{BacktestStrategyEvent, StrategyStateLogEvent},
+//     },
+// };
 use crate::error::strategy_error::BacktestStrategyError;
-use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+// use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use virtual_trading::VirtualTradingSystem;
 use crate::strategy::strategy_context::BacktestStrategyContext;
 use crate::strategy::strategy_log_message::StrategyStateLogMsg;
 use chrono::Utc;
 use star_river_core::error::{ErrorLanguage, StarRiverErrorTrait};
+use star_river_event::backtest_strategy::strategy_event::{StrategyStateLogEvent, log_event::LogLevel};
+use event_center_new::EventCenterSingleton;
+use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 
 impl BacktestStrategy {
     pub async fn update_strategy_state(&mut self, event: StrategyStateTransTrigger) -> Result<(), BacktestStrategyError> {
@@ -66,28 +69,28 @@ impl BacktestStrategy {
                     }).await;
                 }
                 BacktestStrategyStateAction::InitVirtualTradingSystem => {
-                    let strategy_name_clone = strategy_name.clone();
-                    self.with_ctx_write_async(|ctx| {
-                        Box::pin(async move {
-                            if let Err(e) = VirtualTradingSystem::listen_play_index(ctx.virtual_trading_system().clone()).await {
-                                tracing::error!("[{}] init virtual trading system failed: {}", &strategy_name_clone, e);
-                            } else {
-                                tracing::info!("[{}] init virtual trading system success", &strategy_name_clone);
-                            }
-                        })
-                    }).await;
+                    // let strategy_name_clone = strategy_name.clone();
+                    // self.with_ctx_write_async(|ctx| {
+                    //     Box::pin(async move {
+                    //         if let Err(e) = VirtualTradingSystem::listen_play_index(ctx.virtual_trading_system().clone()).await {
+                    //             tracing::error!("[{}] init virtual trading system failed: {}", &strategy_name_clone, e);
+                    //         } else {
+                    //             tracing::info!("[{}] init virtual trading system success", &strategy_name_clone);
+                    //         }
+                    //     })
+                    // }).await;
                 }
                 BacktestStrategyStateAction::InitStrategyStats => {
-                    let strategy_name_clone = strategy_name.clone();
-                    self.with_ctx_write_async(|ctx| {
-                        Box::pin(async move {
-                            if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(ctx.strategy_stats()).await {
-                                tracing::error!("[{}] init strategy stats failed: {}", &strategy_name_clone, e);
-                            } else {
-                                tracing::info!("[{}] init strategy stats success", &strategy_name_clone);
-                            }
-                        })
-                    }).await;
+                    // let strategy_name_clone = strategy_name.clone();
+                    // self.with_ctx_write_async(|ctx| {
+                    //     Box::pin(async move {
+                    //         if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(ctx.strategy_stats()).await {
+                    //             tracing::error!("[{}] init strategy stats failed: {}", &strategy_name_clone, e);
+                    //         } else {
+                    //             tracing::info!("[{}] init strategy stats success", &strategy_name_clone);
+                    //         }
+                    //     })
+                    // }).await;
                 }
 
                 BacktestStrategyStateAction::CheckNode => {
@@ -100,7 +103,7 @@ impl BacktestStrategy {
                     let strategy_name_for_error = strategy_name.clone();
                     let handle_error = |e: BacktestStrategyError| -> BacktestStrategyError {
                         let error_message = e.error_message(ErrorLanguage::Chinese);
-                        let log_event = StrategyStateLogEvent::new(
+                        let log_event: BacktestStrategyEvent = StrategyStateLogEvent::new(
                             strategy_id,
                             strategy_name_for_error.clone(),
                             Some(current_state.to_string()),
@@ -109,10 +112,10 @@ impl BacktestStrategy {
                             Some(e.error_code()),
                             Some(e.error_code_chain()),
                             error_message,
-                        );
+                        ).into();
 
-                        let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event);
-                        let _ = futures::executor::block_on(EventCenterSingleton::publish(backtest_strategy_event.into()));
+                        // let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event);
+                        let _ = futures::executor::block_on(EventCenterSingleton::publish(log_event.into()));
                         e
                     };
 

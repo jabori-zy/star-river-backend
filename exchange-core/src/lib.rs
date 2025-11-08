@@ -16,7 +16,7 @@ pub use state_machine::{
 // Re-export from star-river-core for convenience
 pub use star_river_core::{
     account::OriginalAccountInfo,
-    market::{Kline, KlineInterval},
+    exchange::Exchange as ExchangeType,
+    kline::{Kline, KlineInterval},
     position::{GetPositionNumberParams, GetPositionParam, OriginalPosition, Position, PositionNumber},
-    strategy::TimeRange,
 };

@@ -2,13 +2,14 @@ use crate::metatrader5::mt5_types::Mt5Deal;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;
 use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
 use chrono::{TimeZone, Utc};
-use event_center::EventCenterSingleton;
-use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
+use event_center_new::EventCenterSingleton;
 use snafu::{OptionExt, ResultExt};
 use star_river_core::account::OriginalAccountInfo;
 use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
-use star_river_core::market::Symbol;
-use star_river_core::market::{Exchange, Kline, MT5Server};
+use star_river_core::instrument::Symbol;
+use star_river_core::exchange::Exchange;
+use star_river_core::kline::{Kline, KlineInterval};
+use star_river_core::exchange::MT5Server;
 use star_river_core::order::Order;
 use star_river_core::order::OriginalOrder;
 use star_river_core::position::PositionNumber;
@@ -17,6 +18,7 @@ use star_river_core::transaction::OriginalTransaction;
 use exchange_core::exchange_trait::DataProcessor;
 use super::data_processor_error::Mt5DataProcessorError;
 use exchange_core::error::data_processor_error::*;
+use star_river_event::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdatePayload, ExchangeKlineUpdateEvent};
 
 
 #[derive(Debug)]
@@ -106,17 +108,17 @@ impl Mt5DataProcessor {
             close,
             volume,
         };
-        let exchange_kline_update_event = ExchangeKlineUpdateEvent::new(
+        let payload = ExchangeKlineUpdatePayload::new(
             Exchange::Metatrader5(self.server.clone()),
             symbol.to_string(),
             interval_str.clone().into(),
             kline,
         );
-
-        let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event).into();
+        let event: ExchangeEvent = ExchangeKlineUpdateEvent::new(payload).into();
+        
 
         // self.event_publisher.lock().await.publish(event).await.unwrap();
-        EventCenterSingleton::publish(event).await.unwrap();
+        EventCenterSingleton::publish(event.into()).await.unwrap();
 
         Ok(())
     }

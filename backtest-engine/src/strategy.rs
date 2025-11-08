@@ -6,14 +6,23 @@ mod strategy_state_machine;
 mod strategy_utils;
 mod strategy_log_message;
 
-use super::node;
+// use super::node;
 
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use star_river_core::strategy::StrategyConfig;
+use strategy_core::strategy::StrategyConfig;
 use std::sync::Arc;
 use strategy_context::BacktestStrategyContext;
 use tokio::sync::{Mutex, RwLock};
+
+
+
+pub type PlayIndex = i32;
+
+
+
+
+
 
 #[derive(Debug, Clone)]
 pub struct BacktestStrategy {

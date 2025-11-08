@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum::{Display, EnumString};
+use strum::EnumIter;
 // use event_center::event::Event;
 // use event_center::communication::engine::EngineCommand;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Hash, Eq, PartialEq, EnumIter)]
 pub enum EngineName {
     #[strum(serialize = "exchange-engine")]
     ExchangeEngine, // 交易所引擎

@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 tokio = { workspace = true, features = ["sync"] }
 star-river-core = { path = "../star-river-core" }
+strategy-core = { path = "../strategy-core" }
 
 serde.workspace = true
 strum.workspace = true

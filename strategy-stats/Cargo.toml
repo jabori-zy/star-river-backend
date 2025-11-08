@@ -7,7 +7,6 @@ edition.workspace = true
 
 [dependencies]
 star-river-core = { path = "../star-river-core" }
-event-center = {path = "../event-center" }
 virtual-trading = { path = "../virtual-trading"}
 tokio.workspace = true
 tokio-stream.workspace = true
@@ -15,3 +14,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tokio-util.workspace = true
 chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+strum.workspace = true
+utoipa.workspace = true

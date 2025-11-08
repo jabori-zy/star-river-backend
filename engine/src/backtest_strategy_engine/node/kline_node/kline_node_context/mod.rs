@@ -23,7 +23,7 @@ use star_river_core::error::engine_error::node_error::backtest_strategy_node_err
 use star_river_core::key::KeyTrait;
 use star_river_core::key::key::KlineKey;
 use star_river_core::market::{Kline, Exchange};
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use star_river_core::custom_type::AccountId;

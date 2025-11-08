@@ -23,27 +23,8 @@ use uuid::Uuid;
 
 // workspace crate
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use event_center::{
-    communication::{Command, backtest_strategy::*},
-    event::{
-        Event,
-        node_event::{
-            NodeEventTrait,
-            backtest_node_event::{
-                BacktestNodeEvent, CommonEvent,
-                futures_order_node_event::FuturesOrderNodeEvent,
-                indicator_node_event::IndicatorNodeEvent,
-                kline_node_event::KlineNodeEvent,
-                position_node_event::PositionManagementNodeEvent,
-            },
-        },
-        strategy_event::{
-            StrategyRunningLogEvent,
-            backtest_strategy_event::{BacktestStrategyEvent, PlayFinishedEvent},
-        },
-    },
-    singleton::EventCenterSingleton,
-};
+use star_river_event::backtest_strategy::node_event::{CommonEvent, FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, PositionManagementNodeEvent, StartNodeEvent, VariableNodeEvent};
+
 use heartbeat::Heartbeat;
 use ta_lib::Indicator;
 use star_river_core::{
@@ -69,12 +50,11 @@ use star_river_core::{
     system::DateTimeUtc,
     transaction::virtual_transaction::VirtualTransaction,
 };
-use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+// use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use virtual_trading::VirtualTradingSystem;
 
 // current crate
 use super::{
-    node::{BacktestNode, node_context_trait},
     strategy_state_machine::{BacktestStrategyStateMachine, StrategyRunState},
     strategy_utils,
 };
@@ -111,7 +91,7 @@ pub struct BacktestStrategyContext {
     current_time: Arc<RwLock<DateTime<Utc>>>,                // 当前时间
     batch_id: Uuid,                                          // 回测批次id
     running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>,  // 运行日志
-    keys: Arc<RwLock<HashMap<Key, NodeId>>>,                 // 缓存键 -> 其所属节点id
+    keys: Arc<RwLock<HashMap<Key, NodeId>>>,                 // 键 -> 其所属节点id
     min_interval_symbols: Vec<KlineKey>,                     // 最小周期交易对
     kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,  // 所有k线数据
     indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>, // 所有指标数据
@@ -122,7 +102,11 @@ pub struct BacktestStrategyContext {
 }
 
 impl BacktestStrategyContext {
-    pub fn new(strategy_config: StrategyConfig, database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
+    pub fn new(
+        strategy_config: StrategyConfig, 
+        database: DatabaseConnection, 
+        heartbeat: Arc<Mutex<Heartbeat>>
+    ) -> Self {
         let strategy_id = strategy_config.id;
         let strategy_name = strategy_config.name.clone();
         let cancel_task_token = CancellationToken::new();
@@ -169,9 +153,9 @@ impl BacktestStrategyContext {
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token,
-            virtual_trading_system,
+            // virtual_trading_system,
             execute_over_notify: Arc::new(Notify::new()),
-            strategy_stats,
+            // strategy_stats,
             strategy_stats_event_receiver: strategy_stats_event_rx,
             play_index_watch_tx,
             play_index_watch_rx,
@@ -189,88 +173,6 @@ impl BacktestStrategyContext {
             cycle_tracker: Arc::new(RwLock::new(None)),
         }
     }
-
-//     pub async fn get_keys(&self) -> HashMap<Key, NodeId> {
-//         self.keys.read().await.clone()
-//     }
-
-//     pub fn set_state_machine(&mut self, state_machine: BacktestStrategyStateMachine) {
-//         self.state_machine = state_machine;
-//     }
-
-//     pub async fn get_current_time(&self) -> DateTime<Utc> {
-//         self.current_time.read().await.clone()
-//     }
-
-//     pub async fn set_current_time(&mut self, current_time: DateTime<Utc>) {
-//         *self.current_time.write().await = current_time;
-//     }
-
-//     pub async fn get_running_log(&self) -> Vec<StrategyRunningLogEvent> {
-//         self.running_log.read().await.clone()
-//     }
-
-//     pub async fn add_running_log(&mut self, running_log: StrategyRunningLogEvent) {
-//         self.running_log.write().await.push(running_log);
-//     }
-
-//     pub async fn reset_running_log(&mut self) {
-//         self.running_log.write().await.clear();
-//     }
-
-//     pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
-//         self.min_interval_symbols = min_interval_symbols;
-//     }
-
-//     pub fn get_min_interval_symbols(&self) -> Vec<KlineKey> {
-//         self.min_interval_symbols.clone()
-//     }
-
-//     // pub fn set_all_node_output_handles(&mut self, all_node_output_handles: Vec<NodeOutputHandle>) {
-//     //     self.all_node_output_handles = all_node_output_handles;
-//     // }
-
-//     pub fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
-//         self.leaf_node_ids = leaf_node_ids;
-//     }
-
-//     // pub fn get_all_node_output_handles(&self) -> Vec<NodeOutputHandle> {
-//     //     self.all_node_output_handles.clone()
-//     // }
-
-//     pub fn get_cancel_task_token(&self) -> CancellationToken {
-//         self.cancel_task_token.clone()
-//     }
-
-//     pub fn get_strategy_command_receiver(&self) -> Arc<Mutex<StrategyCommandReceiver>> {
-//         self.strategy_command_receiver.clone()
-//     }
-
-//     // 添加节点命令发送器
-//     pub async fn add_node_command_sender(&mut self, node_id: NodeId, sender: NodeCommandSender) {
-//         self.node_command_sender.insert(node_id, sender);
-//     }
-
-//     pub async fn send_node_command(&self, node_command: BacktestNodeCommand) {
-//         self.node_command_sender
-//             .get(&node_command.node_id())
-//             .expect(&format!("node [{}] not found", node_command.node_id()))
-//             .send(node_command)
-//             .await
-//             .unwrap();
-//     }
-
-//     pub async fn add_node_benchmark(&mut self, node_id: NodeId, node_name: String, node_type: String) {
-//         let mut benchmark_guard = self.benchmark.write().await;
-//         benchmark_guard.add_node_benchmark(node_id, node_name, node_type);
-//     }
-
-//     // pub async fn add_node_cycle_tracker(&mut self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), BacktestStrategyError> {
-//     //     let mut benchmark_guard = self.benchmark.write().await;
-//     //     benchmark_guard.add_complete_node_cycle(node_id, cycle_tracker)?;
-//     //     Ok(())
-//     // }
-}
 
 // ============================================================================
 // 1. 核心信息 (Core Information)
@@ -654,16 +556,16 @@ impl BacktestStrategyContext {
     // --- 虚拟交易系统 ---
 
     /// 获取虚拟交易系统的Arc引用
-    pub fn virtual_trading_system(&self) -> &Arc<Mutex<VirtualTradingSystem>> {
-        &self.virtual_trading_system
-    }
+    // pub fn virtual_trading_system(&self) -> &Arc<Mutex<VirtualTradingSystem>> {
+    //     &self.virtual_trading_system
+    // }
 
-    // --- 策略统计 ---
+    // // --- 策略统计 ---
 
-    /// 获取策略统计的Arc引用
-    pub fn strategy_stats(&self) -> Arc<RwLock<BacktestStrategyStats>> {
-        self.strategy_stats.clone()
-    }
+    // /// 获取策略统计的Arc引用
+    // pub fn strategy_stats(&self) -> Arc<RwLock<BacktestStrategyStats>> {
+    //     self.strategy_stats.clone()
+    // }
 
     // --- 基准测试 ---
 
@@ -714,4 +616,5 @@ impl BacktestStrategyContext {
     pub async fn clear_running_log(&self) {
         self.running_log.write().await.clear();
     }
+}
 }

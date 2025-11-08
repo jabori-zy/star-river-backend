@@ -6,8 +6,9 @@ use tokio_stream::StreamExt;
 use crate::StarRiver;
 use async_stream::stream;
 use axum::extract::State;
-use event_center::Channel;
-use event_center::EventCenterSingleton;
+use event_center_new::event::Channel;
+use event_center_new::EventCenterSingleton;
+
 
 #[utoipa::path(
     get,

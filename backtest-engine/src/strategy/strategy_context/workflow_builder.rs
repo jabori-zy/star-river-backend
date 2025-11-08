@@ -12,7 +12,6 @@ use snafu::OptionExt;
 use tokio::sync::mpsc;
 
 // workspace crate
-use event_center::communication::backtest_strategy::BacktestNodeCommand;
 
 // current crate
 use super::BacktestStrategyContext;
@@ -93,9 +92,9 @@ impl BacktestStrategyContext {
 
         // check symbol config
         tracing::debug!("workflow build phase 3: check symbol config");
-        if let Err(e) = self.check_symbol_config().await {
-            return Err(e);
-        }
+        // if let Err(e) = self.check_symbol_config().await {
+        //     return Err(e);
+        // }
 
 
         // set leaf nodes

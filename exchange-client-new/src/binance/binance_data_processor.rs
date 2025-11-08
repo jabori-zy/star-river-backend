@@ -1,10 +1,10 @@
 
 use super::binance_type::{BinanceKlineRaw, BinanceSymbolRaw};
 use chrono::{TimeZone, Utc};
-use event_center::EventPublisher;
-use event_center::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent};
 use snafu::{OptionExt, ResultExt};
-use star_river_core::market::{Exchange, Kline, Symbol};
+use star_river_core::exchange::Exchange;
+use star_river_core::kline::Kline;
+use star_river_core::instrument::Symbol;
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
@@ -88,65 +88,65 @@ impl BinanceDataProcessor {
     // 发送两个事件
     // 1. k线缓存更新之后，推送整个k线数据到
     // 2. k线缓存大小事件
-    pub async fn process_stream_kline(&self, raw_stream: serde_json::Value, event_publisher: EventPublisher) -> Result<(), String> {
-        let k = &raw_stream["data"]["k"];
-        let timestamp = k["t"].as_i64().expect("解析timestamp失败");
-        let symbol = k["s"].as_str().expect("解析symbol失败");
-        let open = k["o"].as_str().expect("解析open失败").parse::<f64>().expect("open不是f64");
-        let high = k["h"].as_str().expect("解析high失败").parse::<f64>().expect("high不是f64");
-        let low = k["l"].as_str().expect("解析low失败").parse::<f64>().expect("low不是f64");
-        let close = k["c"].as_str().expect("解析close失败").parse::<f64>().expect("close不是f64");
-        let volume = k["v"].as_str().expect("解析volume失败").parse::<f64>().expect("volume不是f64");
-        let interval = k["i"]
-            .as_str()
-            .expect("解析interval失败")
-            .parse::<BinanceKlineInterval>()
-            .expect("interval不是KlineInterval");
-        let new_kline = Kline {
-            datetime: Utc.timestamp_opt(timestamp, 0).single().unwrap(),
-            open: open,
-            high: high,
-            low: low,
-            close: close,
-            volume: volume,
-        };
+    // pub async fn process_stream_kline(&self, raw_stream: serde_json::Value, event_publisher: EventPublisher) -> Result<(), String> {
+    //     let k = &raw_stream["data"]["k"];
+    //     let timestamp = k["t"].as_i64().expect("解析timestamp失败");
+    //     let symbol = k["s"].as_str().expect("解析symbol失败");
+    //     let open = k["o"].as_str().expect("解析open失败").parse::<f64>().expect("open不是f64");
+    //     let high = k["h"].as_str().expect("解析high失败").parse::<f64>().expect("high不是f64");
+    //     let low = k["l"].as_str().expect("解析low失败").parse::<f64>().expect("low不是f64");
+    //     let close = k["c"].as_str().expect("解析close失败").parse::<f64>().expect("close不是f64");
+    //     let volume = k["v"].as_str().expect("解析volume失败").parse::<f64>().expect("volume不是f64");
+    //     let interval = k["i"]
+    //         .as_str()
+    //         .expect("解析interval失败")
+    //         .parse::<BinanceKlineInterval>()
+    //         .expect("interval不是KlineInterval");
+    //     let new_kline = Kline {
+    //         datetime: Utc.timestamp_opt(timestamp, 0).single().unwrap(),
+    //         open: open,
+    //         high: high,
+    //         low: low,
+    //         close: close,
+    //         volume: volume,
+    //     };
 
-        let exchange_kline_update_event_config = ExchangeKlineUpdateEvent {
-            exchange: Exchange::Binance,
-            symbol: symbol.to_string(),
-            interval: interval.clone().into(),
-            kline: new_kline,
-            datetime: Utc::now(),
-        };
+    //     let exchange_kline_update_event_config = ExchangeKlineUpdateEvent {
+    //         exchange: Exchange::Binance,
+    //         symbol: symbol.to_string(),
+    //         interval: interval.clone().into(),
+    //         kline: new_kline,
+    //         datetime: Utc::now(),
+    //     };
 
-        let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();
-        // let event_center = self.event_center.lock().await;
-        // event_center.publish(event).expect("发送k线更新事件失败");
-        let _ = event_publisher.publish(event);
+    //     let event = ExchangeEvent::ExchangeKlineUpdate(exchange_kline_update_event_config).into();
+    //     // let event_center = self.event_center.lock().await;
+    //     // event_center.publish(event).expect("发送k线更新事件失败");
+    //     let _ = event_publisher.publish(event);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     // 处理stream流数据
-    pub async fn process_stream(&self, raw_stream: serde_json::Value, event_publisher: EventPublisher) {
-        if raw_stream.get("data").is_some() {
-            // log::info!("process_stream-binance: {:?}", raw_stream);
-            let event = raw_stream["data"]["e"].as_str().expect("解析stream_event失败");
-            let stream_event = BinanceStreamEvent::from_str(event).expect("转换为BinanceStreamEvent失败");
+    // pub async fn process_stream(&self, raw_stream: serde_json::Value, event_publisher: EventPublisher) {
+    //     if raw_stream.get("data").is_some() {
+    //         // log::info!("process_stream-binance: {:?}", raw_stream);
+    //         let event = raw_stream["data"]["e"].as_str().expect("解析stream_event失败");
+    //         let stream_event = BinanceStreamEvent::from_str(event).expect("转换为BinanceStreamEvent失败");
 
-            match stream_event {
-                BinanceStreamEvent::Kline => {
-                    // tracing::debug!("stream事件为: {:?}", stream_event);
-                    self.process_stream_kline(raw_stream, event_publisher)
-                        .await
-                        .expect("处理k线数据失败");
-                }
-                _ => {
-                    tracing::warn!("不支持的事件类型: {:?}", stream_event);
-                }
-            }
-        }
-    }
+    //         match stream_event {
+    //             BinanceStreamEvent::Kline => {
+    //                 // tracing::debug!("stream事件为: {:?}", stream_event);
+    //                 self.process_stream_kline(raw_stream, event_publisher)
+    //                     .await
+    //                     .expect("处理k线数据失败");
+    //             }
+    //             _ => {
+    //                 tracing::warn!("不支持的事件类型: {:?}", stream_event);
+    //             }
+    //         }
+    //     }
+    // }
 
     pub fn process_symbol_list(&self, exchange_info: serde_json::Value) -> Result<Vec<Symbol>, BinanceDataProcessorError> {
         let symbols = exchange_info

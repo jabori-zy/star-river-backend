@@ -6,7 +6,7 @@ use star_river_core::error::exchange_client_error::mt5_error::*;
 
 use super::mt5_types::Mt5CreateOrderParams;
 use super::mt5_types::Mt5GetPositionNumberParams;
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use tracing::instrument;
 
 #[derive(Debug)]

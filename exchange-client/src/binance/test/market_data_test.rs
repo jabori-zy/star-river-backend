@@ -1,7 +1,7 @@
 use crate::binance::Binance;
 use crate::exchange_trait::ExchangeMarketDataExt;
 use star_river_core::market::KlineInterval;
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use chrono::{Utc, Duration, TimeZone};
 
 #[tokio::test]

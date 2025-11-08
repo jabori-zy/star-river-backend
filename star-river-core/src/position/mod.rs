@@ -1,6 +1,6 @@
-pub mod virtual_position;
+// pub mod virtual_position;
 
-use crate::market::Exchange;
+use crate::exchange::Exchange;
 use crate::system::DateTimeUtc;
 use entity::position::Model as PositionModel;
 use serde::{Deserialize, Serialize};

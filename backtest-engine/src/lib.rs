@@ -1,11 +1,17 @@
 pub mod error;
 pub mod backtest_engine_error;
 mod context;
-mod node;
-mod strategy;
-mod node_list;
+mod node_new;
+// mod node;
+// mod strategy;
+pub(crate) mod strategy_new;
+// mod node_list;
+mod node_list_new;
 mod state_machine;
 mod engine_lifecycle;
+mod node_event;
+mod strategy_command;
+mod node_command;
 
 
 

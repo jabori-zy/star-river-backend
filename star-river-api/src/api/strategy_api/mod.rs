@@ -11,7 +11,7 @@ use engine_core::EngineContextAccessor;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
 use backtest_engine::backtest_engine_error::{BacktestEngineError, StrategyConfigNotFoundSnafu};
-use star_river_core::strategy::StrategyConfig;
+use strategy_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 

@@ -1,8 +1,9 @@
 use chrono::TimeZone;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use star_river_core::market::KlineInterval;
-use star_river_core::market::{Exchange, MT5Server};
+use star_river_core::kline::KlineInterval;
+use star_river_core::exchange::Exchange;
+use star_river_core::exchange::MT5Server;
 use star_river_core::order::CreateOrderParams;
 use star_river_core::order::OrderStatus;
 use star_river_core::order::OriginalOrder;

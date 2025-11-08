@@ -7,9 +7,11 @@ edition.workspace = true
 
 [dependencies]
 engine-core = { path = "../engine-core" }
-event-center = { path = "../event-center" }
+event-center-new = { path = "../event-center-new" }
 star-river-core = { path = "../star-river-core" }
 exchange-engine = { path = "../exchange-engine" }
+star-river-event = { path = "../star-river-event" }
+key = { path = "../key" }
 ta-lib = { path = "../ta-lib" }
 tokio.workspace = true
 async-trait.workspace = true

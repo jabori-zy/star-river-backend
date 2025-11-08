@@ -1,11 +1,11 @@
 use super::BacktestEngineContext;
 
-use crate::strategy::BacktestStrategy;
+use crate::strategy_new::BacktestStrategy;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
 use database::query::strategy_config_query::StrategyConfigQuery;
 use snafu::{Report, ResultExt};
 use star_river_core::custom_type::StrategyId;
-use star_river_core::strategy::StrategyConfig;
+use strategy_core::strategy::StrategyConfig;
 use crate::backtest_engine_error::{
     BacktestEngineError,
     StrategyInstanceNotFoundSnafu,
@@ -13,24 +13,27 @@ use crate::backtest_engine_error::{
     UnsupportedTradeModeSnafu,
     DatabaseSnafu,
 };
-use star_river_core::strategy::TradeMode;
+use strategy_core::strategy::TradeMode;
+use tokio::sync::{MutexGuard, OwnedMutexGuard};
+use std::collections::HashMap;
 
 
 
 
 
 impl BacktestEngineContext {
-    pub async fn get_strategy_instance(&self, strategy_id: StrategyId) -> Result<BacktestStrategy, BacktestEngineError> {
-        let backtest_strategy_list = self.strategy_list.lock().await;
-        if let Some(strategy) = backtest_strategy_list.get(&strategy_id) {
-            Ok(strategy.clone())
-        } else {
-            let error = StrategyInstanceNotFoundSnafu { strategy_id }.build();
-            let report = Report::from_error(&error);
-            tracing::error!("{}", report);
-            Err(error)
-        }
-    }
+    // pub async fn get_strategy_instance(&self, strategy_id: StrategyId) -> Result<&BacktestStrategy, BacktestEngineError> {
+    //     let backtest_strategy_list = self.strategy_list.lock().await;
+    //     let strategy = backtest_strategy_list.get(&strategy_id);
+    //     if let Some(strategy) = strategy {
+    //         Ok(strategy)
+    //     } else {
+    //         let error = StrategyInstanceNotFoundSnafu { strategy_id }.build();
+    //         let report = Report::from_error(&error);
+    //         tracing::error!("{}", report);
+    //         Err(error)
+    //     }
+    // }
 
     pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, BacktestEngineError> {
         let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id)
@@ -75,7 +78,7 @@ impl BacktestEngineContext {
     pub async fn get_strategy_status(&self, strategy_id: i32) -> Result<String, BacktestEngineError> {
         // 检查是否正在初始化或有策略实例
         let is_initializing = self.initializing_strategies.lock().await.contains(&strategy_id);
-        let has_instance = self.get_strategy_instance(strategy_id).await.is_ok();
+        let has_instance = self.strategy_list.lock().await.contains_key(&strategy_id);
         let strategy_status = StrategyConfigQuery::get_strategy_status_by_strategy_id(&self.database, strategy_id)
             .await
             .context(DatabaseSnafu {})?;

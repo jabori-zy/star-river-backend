@@ -3,12 +3,10 @@ use crate::utils::Formula;
 use chrono::{DateTime, Utc};
 use star_river_core::custom_type::*;
 use star_river_core::order::OrderStatus;
-use star_river_core::order::virtual_order::VirtualOrder;
-use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
-use star_river_core::position::virtual_position::VirtualPosition;
+use star_river_core::order::FuturesOrderSide;
 use star_river_core::position::{PositionSide, PositionState};
-use star_river_core::transaction::virtual_transaction::VirtualTransaction;
-use star_river_core::virtual_trading_system::event::VirtualTradingSystemEvent;
+use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
+use crate::event::VirtualTradingSystemEvent;
 
 impl VirtualTradingSystem {
     pub fn generate_position_id(&self) -> PositionId {

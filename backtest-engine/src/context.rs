@@ -23,8 +23,11 @@ use star_river_core::custom_type::StrategyId;
 // current crate
 use crate::{
     state_machine::BacktestEngineAction,
-    strategy::BacktestStrategy,
 };
+use crate::strategy_new::config::BacktestStrategyConfig;
+use crate::strategy_new::BacktestStrategy;
+use crate::strategy_new::strategy_context::BacktestStrategyContext;
+use strategy_core::strategy::strategy_trait::StrategyContextAccessor;
 
 
 
@@ -53,6 +56,115 @@ impl BacktestEngineContext {
             initializing_strategies: Arc::new(Mutex::new(HashSet::new())),
         }
     }
+
+    pub async fn with_strategy<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    where
+        F: for<'a> FnOnce(&'a BacktestStrategy) -> R + Send,
+        R: Send,
+    {
+        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use snafu::OptionExt;
+
+        let guard = self.strategy_list.lock().await;
+        let strategy = guard.get(&strategy_id).context(StrategyInstanceNotFoundSnafu { strategy_id })?;
+        Ok(f(strategy))
+    }
+
+    
+    pub async fn with_strategy_mut<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    where
+        F: for<'a> FnOnce(&'a mut BacktestStrategy) -> R + Send,
+        R: Send,
+    {
+        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use snafu::OptionExt;
+
+        let mut guard = self.strategy_list.lock().await;
+        let strategy = guard.get_mut(&strategy_id).context(StrategyInstanceNotFoundSnafu { strategy_id })?;
+        Ok(f(strategy))
+    }
+
+    
+    pub async fn with_strategy_async<R>(&self, strategy_id: StrategyId, f: impl for<'a> FnOnce(&'a BacktestStrategy) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    where
+        R: Send,
+    {
+        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use snafu::OptionExt;
+
+        let guard = self.strategy_list.lock().await;
+        let strategy = guard.get(&strategy_id).context(StrategyInstanceNotFoundSnafu { strategy_id })?;
+        Ok(f(strategy).await)
+    }
+
+    
+    pub async fn with_strategy_mut_async<R>(&self, strategy_id: StrategyId, f: impl for<'a> FnOnce(&'a mut BacktestStrategy) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    where
+        R: Send,
+    {
+        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use snafu::OptionExt;
+
+        let mut guard = self.strategy_list.lock().await;
+        let strategy = guard.get_mut(&strategy_id).context(StrategyInstanceNotFoundSnafu { strategy_id })?;
+        Ok(f(strategy).await)
+    }
+
+    /// 以读锁方式访问策略上下文（异步闭包）
+    ///
+    /// 这是一个辅助方法，直接访问策略的上下文，减少嵌套层级
+    ///
+    /// # 示例
+    /// ```rust
+    /// context.with_strategy_ctx_read_async(strategy_id, |ctx| {
+    ///     Box::pin(async move {
+    ///         ctx.get_virtual_orders().await
+    ///     })
+    /// }).await?;
+    /// ```
+    pub async fn with_strategy_ctx_read_async<R>(
+        &self,
+        strategy_id: StrategyId,
+        f: impl for<'a> FnOnce(&'a BacktestStrategyContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send + 'static
+    ) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    where
+        R: Send,
+    {
+        self.with_strategy_async(strategy_id, |strategy| {
+            Box::pin(async move {
+                strategy.with_ctx_read_async(f).await
+            })
+        }).await
+    }
+
+    /// 以写锁方式访问策略上下文（异步闭包）
+    ///
+    /// 这是一个辅助方法，直接访问策略的上下文，减少嵌套层级
+    ///
+    /// # 示例
+    /// ```rust
+    /// context.with_strategy_ctx_write_async(strategy_id, |ctx| {
+    ///     Box::pin(async move {
+    ///         ctx.update_something().await
+    ///     })
+    /// }).await?;
+    /// ```
+    pub async fn with_strategy_ctx_write_async<R>(
+        &self,
+        strategy_id: StrategyId,
+        f: impl for<'a> FnOnce(&'a mut BacktestStrategyContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send + 'static
+    ) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    where
+        R: Send,
+    {
+        self.with_strategy_mut_async(strategy_id, |strategy| {
+            Box::pin(async move {
+                strategy.with_ctx_write_async(f).await
+            })
+        }).await
+    }
+
+
 }
 
 

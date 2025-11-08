@@ -2,7 +2,7 @@ use crate::Event;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use star_river_core::market::{Exchange, Kline, KlineInterval, TickerPrice};
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use star_river_core::system::DateTimeUtc;
 use strum::Display;
 

@@ -10,7 +10,7 @@ mod tests {
     use star_river_core::market::{Exchange, KlineInterval, Symbol};
     use star_river_core::order::{CreateOrderParams, FuturesOrderSide, OrderType, GetTransactionDetailParams};
     use star_river_core::position::{GetPositionParam, GetPositionNumberParams, PositionSide};
-    use star_river_core::strategy::TimeRange;
+    use strategy_core::strategy::TimeRange;
     use std::any::Any;
     use tracing::Level;
     use star_river_core::error::exchange_client_error::ExchangeClientError;

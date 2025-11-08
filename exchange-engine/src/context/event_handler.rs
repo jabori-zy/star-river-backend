@@ -1,11 +1,13 @@
 use async_trait::async_trait;
-use event_center::communication::engine::EngineCommand;
-use event_center::event::Event;
 use super::ExchangeEngineContext;
 use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
-use event_center::communication::engine::exchange_engine::{ExchangeEngineCommand, RegisterExchangeRespPayload, RegisterExchangeResponse};
 use std::sync::Arc;
-use event_center::communication::Command;
+use event_center_new::{
+    event::Event,
+    communication::EngineCommand
+};
+use star_river_event::communication::{ExchangeEngineCommand, RegisterExchangeRespPayload, RegisterExchangeResponse};
+
 
 
 #[async_trait]
@@ -25,11 +27,11 @@ impl EngineEventHandler for ExchangeEngineContext {
                         let response = if let Ok(()) = result {
                             // success
                             let payload = RegisterExchangeRespPayload::new(cmd.account_id, cmd.exchange.clone());
-                            RegisterExchangeResponse::success(Some(payload))
+                            RegisterExchangeResponse::success(payload)
                         } else {
                             // 注册失败
                             let error = result.unwrap_err();
-                            RegisterExchangeResponse::error(Arc::new(error))
+                            RegisterExchangeResponse::fail(Arc::new(error))
                         };
                         // 发送响应事件
                         cmd.respond(response);

@@ -8,7 +8,7 @@ pub mod error;
 
 
 pub use ta_lib::TALib;
-pub use star_river_core::market::Kline;
+pub use star_river_core::kline::Kline;
 
 
 

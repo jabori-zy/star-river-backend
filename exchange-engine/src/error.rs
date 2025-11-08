@@ -5,7 +5,7 @@ use snafu::{Backtrace, Snafu};
 use star_river_core::{
     error::{StarRiverErrorTrait, ErrorCode, ErrorLanguage, generate_error_code_chain},
     custom_type::AccountId,
-    market::Exchange,
+    exchange::Exchange,
 };
 use exchange_client_new::exchange_error::ExchangeError;
 use exchange_client_new::metatrader5::error::Mt5Error;

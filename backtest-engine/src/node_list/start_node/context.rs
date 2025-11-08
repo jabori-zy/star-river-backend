@@ -42,6 +42,7 @@ pub struct StartNodeContext {
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
     pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
+    
 }
 
 impl StartNodeContext {

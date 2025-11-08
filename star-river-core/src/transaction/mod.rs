@@ -1,6 +1,6 @@
-pub mod virtual_transaction;
+// pub mod virtual_transaction;
 
-use crate::market::Exchange;
+use crate::exchange::Exchange;
 use crate::system::DateTimeUtc;
 use entity::transaction::Model as TransactionModel;
 use serde::{Deserialize, Serialize};

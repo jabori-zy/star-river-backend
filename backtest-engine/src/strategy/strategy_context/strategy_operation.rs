@@ -17,13 +17,13 @@ impl BacktestStrategyContext {
     }
 
     pub async fn virtual_trading_system_reset(&self) {
-        let mut virtual_trading_system = self.virtual_trading_system.lock().await;
-        virtual_trading_system.reset();
+        // let mut virtual_trading_system = self.virtual_trading_system.lock().await;
+        // virtual_trading_system.reset();
     }
 
     pub async fn strategy_stats_reset(&self) {
-        let mut strategy_stats = self.strategy_stats.write().await;
-        strategy_stats.clear_asset_snapshots().await;
+        // let mut strategy_stats = self.strategy_stats.write().await;
+        // strategy_stats.clear_asset_snapshots().await;
     }
 
     pub async fn get_play_index(&self) -> i32 {

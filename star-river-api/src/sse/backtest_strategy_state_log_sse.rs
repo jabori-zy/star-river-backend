@@ -4,11 +4,10 @@ use std::{convert::Infallible, time::Duration};
 use tokio_stream::StreamExt;
 
 use async_stream::stream;
-use event_center::Channel;
-use event_center::EventCenterSingleton;
-use event_center::event::Event as EventCenterEvent;
-use event_center::event::StrategyEvent;
-use event_center::event::strategy_event::backtest_strategy_event::BacktestStrategyEvent;
+use event_center_new::event::Channel;
+use event_center_new::EventCenterSingleton;
+use event_center_new::event::Event as EventCenterEvent;
+use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 
 #[utoipa::path(
     get,
@@ -21,18 +20,17 @@ use event_center::event::strategy_event::backtest_strategy_event::BacktestStrate
 )]
 pub async fn backtest_strategy_state_log_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Backtest Strategy State Log SSE connection successful");
-    // let event_center = star_river.event_center.lock().await;
-    let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Strategy)
+    let strategy_event_receiver = EventCenterSingleton::subscribe(&Channel::Backtest)
         .await
-        .expect("订阅Strategy通道失败");
-    // let strategy_event_receiver = event_center.subscribe(&Channel::Strategy).await.expect("订阅Strategy通道失败");
+        .expect("订阅Backtest通道失败");
+
     // 使用 Guard 在连接断开时记录日志
     struct Guard {
         channel_name: &'static str,
     }
     impl Drop for Guard {
         fn drop(&mut self) {
-            tracing::info!("{} Backtest Strategy State Log SSE connection disconnected", self.channel_name);
+            tracing::info!("{} SSE connection disconnected", self.channel_name);
         }
     }
 
@@ -40,16 +38,14 @@ pub async fn backtest_strategy_state_log_sse_handler() -> Sse<impl Stream<Item =
         let _guard = Guard { channel_name: "Backtest Strategy State Log" };
         let mut stream = tokio_stream::wrappers::BroadcastStream::new(strategy_event_receiver);
         while let Some(result) = stream.next().await {
-            // 过滤事件
+            // 过滤事件，只发送 NodeStateLog 和 StrategyStateLog 事件
             let event = match result {
-                Ok(EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(_))) => {
+                Ok(EventCenterEvent::Backtest(ref backtest_strategy_event)) => {
                     let event = result.as_ref().unwrap();
-                    match event {
-                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::NodeStateLog(_))) |
-                        EventCenterEvent::Strategy(StrategyEvent::BacktestStrategy(BacktestStrategyEvent::StrategyStateLog(_))) => {
+                    match backtest_strategy_event {
+                        BacktestStrategyEvent::NodeStateLog(_) |
+                        BacktestStrategyEvent::StrategyStateLog(_) => {
                             let json = serde_json::to_string(event).unwrap();
-                            // tracing::debug!("backtest-strategy-sse: {:?}", json);
-                            // tracing::debug!("序列化后的 JSON: {}", json); // 添加这行
                             Some(Event::default().data(json))
                         }
                         _ => None

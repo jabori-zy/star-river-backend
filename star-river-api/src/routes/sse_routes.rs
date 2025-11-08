@@ -5,7 +5,7 @@ use crate::sse::{
     backtest_strategy_running_log_sse_handler, 
     backtest_strategy_state_log_sse_handler, 
     indicator_sse_handler, 
-    live_strategy_sse_handler,
+    // live_strategy_sse_handler,
     market_sse_handler,
 };
 use crate::star_river::StarRiver;
@@ -18,7 +18,7 @@ pub fn create_sse_routes() -> Router<StarRiver> {
         // 指标数据流
         .route("/indicator", get(indicator_sse_handler))
         // 策略数据流
-        .route("/strategy/live", get(live_strategy_sse_handler))
+        // .route("/strategy/live", get(live_strategy_sse_handler))
         .route("/strategy/backtest/event", get(backtest_strategy_event_sse_handler))
         .route("/strategy/backtest/state-log", get(backtest_strategy_state_log_sse_handler))
         .route("/strategy/backtest/running-log", get(backtest_strategy_running_log_sse_handler))

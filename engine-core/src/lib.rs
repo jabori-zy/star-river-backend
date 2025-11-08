@@ -22,10 +22,10 @@ pub use engine_trait::{
     EngineContextAccessor, EngineLifecycle,EngineEventListener,
 };
 
-use event_center::Channel;
+use event_center_new::event::Channel;
+use star_river_core::engine::EngineName;
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use star_river_core::engine::EngineName;
 
 
 

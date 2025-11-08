@@ -1,5 +1,5 @@
 use crate::custom_type::*;
-use crate::market::Exchange;
+use crate::exchange::Exchange;
 use crate::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

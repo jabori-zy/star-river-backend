@@ -25,12 +25,11 @@ pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i
 
     let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            strategy.with_ctx_write_async(|ctx| {
+            ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
                 Box::pin(async move {
                     ctx.play().await
                 })
-            }).await?;
+            }).await?.map_err(BacktestEngineError::from)?;
             Ok(())
         })
     }).await;
@@ -64,12 +63,11 @@ pub async fn play_one(
 
     let result: Result<i32, BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let play_index = strategy.with_ctx_write_async(|ctx| {
+            let play_index = ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
                 Box::pin(async move {
                     ctx.play_one().await
                 })
-            }).await?;
+            }).await?.map_err(BacktestEngineError::from)?;
             Ok(play_index)
         })
     }).await;
@@ -105,12 +103,11 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 
     let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            strategy.with_ctx_write_async(|ctx| {
+            ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
                 Box::pin(async move {
                     ctx.pause().await
                 })
-            }).await?;
+            }).await?.map_err(BacktestEngineError::from)?;
             Ok(())
         })
     }).await;
@@ -144,12 +141,11 @@ pub async fn get_play_index(
 
     let result: Result<i32, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            let play_index = strategy.with_ctx_read_async(|ctx| {
+            let play_index = ctx.with_strategy_ctx_read_async(strategy_id, move |ctx| {
                 Box::pin(async move {
                     ctx.play_index().await
                 })
-            }).await;
+            }).await?;
             Ok(play_index)
         })
     }).await;
@@ -185,12 +181,11 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 
     let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
         Box::pin(async move {
-            let strategy = ctx.get_strategy_instance(strategy_id).await?;
-            strategy.with_ctx_write_async(|ctx| {
+            ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
                 Box::pin(async move {
                     ctx.reset().await
                 })
-            }).await?;
+            }).await?.map_err(BacktestEngineError::from)?;
             Ok(())
         })
     }).await;

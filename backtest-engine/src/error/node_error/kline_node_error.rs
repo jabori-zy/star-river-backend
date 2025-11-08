@@ -18,6 +18,8 @@ pub enum KlineNodeError {
         node_name: String,
         kline_key: String,
         play_index: u32,
+        #[snafu(source)]
+        source: Arc<dyn StarRiverErrorTrait>,
         backtrace: Backtrace,
     },
 
@@ -108,7 +110,8 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::RegisterExchangeFailed { source, .. } |
             KlineNodeError::LoadKlineFromExchangeFailed { source, .. } |
             KlineNodeError::InitKlineDataFailed { source, .. } |
-            KlineNodeError::AppendKlineDataFailed { source, .. } => generate_error_code_chain(source.as_ref()),
+            KlineNodeError::AppendKlineDataFailed { source, .. } |
+            KlineNodeError::GetPlayKlineDataFailed { source, .. } => generate_error_code_chain(source.as_ref()),
 
             _ => vec![self.error_code()],
         }

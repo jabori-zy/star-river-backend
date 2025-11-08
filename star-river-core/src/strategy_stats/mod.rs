@@ -12,10 +12,6 @@ pub struct StatsSnapshot {
     #[serde(rename = "datetime")]
     pub datetime: DateTime<Utc>,
 
-    /// 播放索引（回测进度）
-    #[serde(rename = "playIndex")]
-    pub play_index: i32,
-
     /// 账户余额（初始资金 + 已实现盈亏）
     #[serde(rename = "balance")]
     pub balance: Balance,
@@ -49,7 +45,6 @@ impl StatsSnapshot {
     /// 创建新的资产快照
     pub fn new(
         datetime: DateTime<Utc>,
-        play_index: i32,
         initial_balance: Balance,
         balance: Balance,
         available_balance: Balance,
@@ -67,7 +62,6 @@ impl StatsSnapshot {
 
         Self {
             datetime,
-            play_index,
             balance,
             available_balance,
             unrealized_pnl,
@@ -178,12 +172,12 @@ impl StatsSnapshotHistory {
         self.snapshots.clear();
     }
 
-    /// 获取指定播放索引之前的所有快照
-    pub fn get_snapshots_before_play_index(&self, play_index: i32) -> Vec<StatsSnapshot> {
-        self.snapshots
-            .iter()
-            .filter(|snapshot| snapshot.play_index <= play_index)
-            .cloned()
-            .collect()
-    }
+    // /// 获取指定播放索引之前的所有快照
+    // pub fn get_snapshots_before_play_index(&self, play_index: i32) -> Vec<StatsSnapshot> {
+    //     self.snapshots
+    //         .iter()
+    //         .filter(|snapshot| snapshot.play_index <= play_index)
+    //         .cloned()
+    //         .collect()
+    // }
 }

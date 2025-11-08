@@ -1,18 +1,18 @@
 // pub mod response;
 pub mod communication;
 pub mod event;
-pub mod event_center_error;
-pub mod singleton;
+pub mod error;
+// pub mod singleton;
 
-use crate::communication::engine::EngineCommand;
+// use crate::communication::engine::EngineCommand;
 use crate::event::strategy_event::StrategyEvent;
 
-pub use singleton::EventCenterSingleton;
+// pub use singleton::EventCenterSingleton;
 
-use crate::communication::engine::{EngineCommandReceiver, EngineCommandSender};
-use crate::event_center_error::*;
+// use crate::communication::engine::{EngineCommandReceiver, EngineCommandSender};
+use crate::error::*;
 use serde::{Deserialize, Serialize};
-use star_river_core::engine::EngineName;
+// use star_river_core::engine::EngineName;
 use std::collections::HashMap;
 use std::sync::Arc;
 use strum::IntoEnumIterator;

@@ -18,5 +18,5 @@ use super:: {
     BinanceKlineInterval
 };
 use star_river_core::error::exchange_client_error::*;
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use async_trait::async_trait;

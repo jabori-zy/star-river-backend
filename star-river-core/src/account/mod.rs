@@ -1,6 +1,6 @@
 pub mod mt5_account;
 
-use crate::market::{Exchange, ExchangeStatus};
+use crate::exchange::{Exchange, ExchangeStatus};
 use crate::system::DateTimeUtc;
 use entity::account_config::Model as AccountConfigModel;
 use entity::account_info::Model as AccountInfoModel;

@@ -1,5 +1,5 @@
 use crate::communication::engine::{EngineCommand, EngineCommandReceiver, EngineCommandSender};
-use crate::event_center_error::*;
+use crate::error::*;
 use crate::{Channel, Event, EventCenter, EventCenterError, EventPublisher, EventReceiver};
 use star_river_core::engine::EngineName;
 use std::sync::Arc;

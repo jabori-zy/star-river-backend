@@ -24,7 +24,7 @@ use star_river_core::key::KeyTrait;
 use star_river_core::key::key::KlineKey;
 use star_river_core::market::KlineInterval;
 use star_river_core::market::{Exchange, Kline};
-use star_river_core::strategy::TimeRange;
+use strategy_core::strategy::TimeRange;
 use star_river_core::strategy::node_benchmark::CycleTracker;
 use std::collections::HashMap;
 use std::fmt::Debug;

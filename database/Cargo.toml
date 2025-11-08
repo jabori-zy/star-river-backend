@@ -19,6 +19,6 @@ chrono.workspace = true
 migration = { path = "../migration" }
 entity = { path = "../entity" }
 sea-orm-migration = {version="1.1.14", features = ["sqlx-sqlite","runtime-tokio"]}
-event-center = { path = "../event-center" }
 star-river-core = { path = "../star-river-core" }
+strategy-core = { path = "../strategy-core" }
 log = "0.4.26"

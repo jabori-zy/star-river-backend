@@ -1,6 +1,6 @@
 use super::ExchangeEngineContext;
 use star_river_core::custom_type::AccountId;
-use star_river_core::market::Exchange;
+use star_river_core::exchange::Exchange;
 use database::query::account_config_query::AccountConfigQuery;
 use snafu::Report;
 use crate::error::{ExchangeEngineError, UnsupportedExchangeTypeSnafu};

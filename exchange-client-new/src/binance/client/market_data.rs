@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use star_river_core::strategy::TimeRange;
-use star_river_core::market::{Kline, KlineInterval};
+use strategy_core::strategy::TimeRange;
+use star_river_core::kline::{Kline, KlineInterval};
 use crate::binance::binance_type::BinanceKlineInterval;
 use crate::binance::Binance;
 use exchange_core::exchange_trait::{ExchangeMarketDataExt, ProcessorAccessor};

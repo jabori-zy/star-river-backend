@@ -2,12 +2,13 @@ use super::EngineManager;
 use axum::extract::State;
 use database::DatabaseManager;
 use database::query::system_config_query::SystemConfigQuery;
-use event_center::EventCenterSingleton;
+// use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use star_river_core::system::system_config::SystemConfigManager;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
+use event_center_new::EventCenterSingleton;
 
 #[derive(Clone, Debug)]
 pub struct StarRiver {
@@ -23,7 +24,8 @@ impl StarRiver {
         let heartbeat = Arc::new(Mutex::new(Heartbeat::new(100)));
 
         // let mut event_center = EventCenter::new().init_channel().await;
-        EventCenterSingleton::init().await.unwrap();
+        // EventCenterSingleton::init().await.unwrap();
+        EventCenterSingleton::init().unwrap();
         // 初始化数据库
 
         let database = DatabaseManager::new().await;

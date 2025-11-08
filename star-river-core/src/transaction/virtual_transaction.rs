@@ -1,5 +1,5 @@
 use crate::custom_type::*;
-use crate::market::Exchange;
+use crate::exchange::Exchange;
 use crate::order::FuturesOrderSide;
 use crate::order::virtual_order::VirtualOrder;
 use crate::position::virtual_position::VirtualPosition;

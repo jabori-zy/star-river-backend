@@ -4,9 +4,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use crate::EngineName;
+use star_river_core::engine::EngineName;
 use crate::state_machine::{EngineRunState, EngineAction, EngineStateMachine, EngineStateTransTrigger, StateChangeActions};
-use event_center::{event::Event, communication::engine::EngineCommand};
+use event_center_new::{event::Event, communication::EngineCommand};
+
 use crate::state_machine_error::EngineStateMachineError;
 use super::context::EngineBaseContext;
 
