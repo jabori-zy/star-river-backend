@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum::extract::{Json, Path};
 use axum::http::StatusCode;
 use engine_core::EngineContextAccessor;
-use backtest_engine::backtest_engine_error::BacktestEngineError;
+use backtest_engine::engine_error::BacktestEngineError;
 
 #[utoipa::path(
     post,

@@ -1,45 +1,35 @@
-// std
-use std::sync::Arc;
-
-// third-party
-use snafu::{IntoError, ResultExt};
-use tokio::{
-    sync::RwLock,
-    time::Duration,
-};
-
-// current crate
 use super::BacktestStrategyContext;
-use crate::{
-    error::strategy_error::{
-        BacktestStrategyError, NodeInitFailedSnafu, NodeInitTimeoutSnafu,
-        NodeStateNotReadySnafu, TokioTaskFailedSnafu,
-    },
-    node::NodeRunState,
-};
+use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyInfraExt, StrategyWorkflowExt};
+use crate::strategy::strategy_error::BacktestStrategyError;
+use snafu::IntoError;
+use tokio::time::Duration;
+use strategy_core::{error::strategy_error::{NodeInitTimeoutSnafu, NodeStateNotReadySnafu, TokioTaskFailedSnafu}};
+use crate::node::node_state_machine::NodeRunState;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use async_trait::async_trait;
+use database::mutation::strategy_config_mutation::StrategyConfigMutation;
+use crate::strategy::strategy_error::UpdateStrategyStatusFailedSnafu;
+use snafu::ResultExt;
 
-impl BacktestStrategyContext {
-    // 初始化所有节点的方法
-    // 接收 Arc<RwLock<Self>> 以便在方法内部控制锁的获取和释放，避免死锁
-    pub async fn init_node(context: Arc<RwLock<Self>>) -> Result<(), BacktestStrategyError> {
-        // 短暂持有锁获取节点列表，然后立即释放
+#[async_trait]
+impl StrategyWorkflowExt for BacktestStrategyContext {
+
+    type Error = BacktestStrategyError;
+
+    async fn init_node(context: Arc<RwLock<Self>>) -> Result<(), Self::Error> {
         let (strategy_name, nodes) = {
             let ctx = context.read().await;
             (ctx.strategy_name().clone(), ctx.topological_sort()?)
         }; // 读锁在这里释放
 
-        
-
         // 逐个初始化节点，不持有锁
         for n in nodes {
-            let node_clone = n.clone();
-
-            let strategy_name_clone = strategy_name.clone();    
+            let node_clone = n.clone(); 
             let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
-                node_clone.init().await.context(NodeInitFailedSnafu {
-                    strategy_name: strategy_name_clone,
-                    node_name: node_clone.node_name().await,
-                })?;
+                node_clone
+                    .init()
+                    .await?;
                 Ok(())
             });
 
@@ -54,19 +44,22 @@ impl BacktestStrategyContext {
                             task_name: "INIT_NODE".to_string(),
                             node_name,
                         }
-                        .into_error(e));
-                    }
-
-                    if let Ok(Err(e)) = result {
-                        return Err(e);
-                    }
+                        .into_error(e)
+                        .into()
+                    );
                 }
+
+                if let Ok(Err(e)) = result {
+                    return Err(e);
+                }
+            }
                 Err(e) => {
                     return Err(NodeInitTimeoutSnafu {
                         strategy_name: strategy_name.clone(),
                         node_name: node_name.clone(),
                     }
-                    .into_error(e));
+                    .into_error(e)
+                    .into());
                 }
             }
 
@@ -97,9 +90,7 @@ impl BacktestStrategyContext {
         Ok(())
     }
 
-    // 停止所有节点的方法
-    // 接收 Arc<RwLock<Self>> 以便在方法内部控制锁的获取和释放，避免死锁
-    pub async fn stop_node(context: Arc<RwLock<Self>>) -> Result<(), BacktestStrategyError> {
+    async fn stop_node(context: Arc<RwLock<Self>>) -> Result<(), Self::Error> {
         // 短暂持有锁获取节点列表，然后立即释放
         let (strategy_name, nodes) = {
             let ctx = context.read().await;
@@ -125,7 +116,8 @@ impl BacktestStrategyContext {
                             task_name: "STOP_NODE".to_string(),
                             node_name: node_name.clone(),
                         }
-                        .into_error(e));
+                        .into_error(e)
+                        .into());
                     }
 
                     // 处理节点停止过程中的业务错误
@@ -139,7 +131,8 @@ impl BacktestStrategyContext {
                         strategy_name: strategy_name.clone(),
                         node_name: node_name.clone(),
                     }
-                    .into_error(e));
+                    .into_error(e)
+                    .into());
                 }
             }
 
@@ -166,15 +159,20 @@ impl BacktestStrategyContext {
         }
         Ok(())
     }
+}
 
-    pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, String> {
+
+impl BacktestStrategyContext {
+    pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, BacktestStrategyError> {
         let start_time = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(timeout_secs);
 
+        let nodes = self.topological_sort()?;
         loop {
             let mut all_stopped = true;
+            
             // 检查所有节点状态
-            for node in self.graph.node_weights() {
+            for node in nodes.iter() {
                 if !node.is_in_state(NodeRunState::Stopped).await {
                     all_stopped = false;
                     break;
@@ -196,5 +194,19 @@ impl BacktestStrategyContext {
             // 短暂休眠后再次检查
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         }
-    }
+    }  
+
+
+    pub async fn store_strategy_status(&mut self, status: String) -> Result<(), BacktestStrategyError> {
+        let strategy_id = self.strategy_id();
+        let strategy_name = self.strategy_name().clone();
+        let database = self.database();
+
+        StrategyConfigMutation::update_strategy_status(&database, strategy_id, status)
+            .await
+            .context(UpdateStrategyStatusFailedSnafu {
+                strategy_name: strategy_name,
+            })?;
+        Ok(())
+    } 
 }

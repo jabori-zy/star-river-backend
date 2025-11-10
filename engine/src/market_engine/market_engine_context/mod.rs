@@ -20,7 +20,7 @@ use star_river_core::market::Exchange;
 use star_river_core::market::Kline;
 use star_river_core::market::KlineInterval;
 use star_river_core::market::Symbol;
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;

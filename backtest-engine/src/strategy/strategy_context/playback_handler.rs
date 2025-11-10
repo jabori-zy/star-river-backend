@@ -7,13 +7,24 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // workspace crate
-use star_river_core::custom_type::{PlayIndex, StrategyId};
-
+use star_river_core::custom_type::StrategyId;
+use crate::node::BacktestNode;
+use crate::strategy::PlayIndex;
 // current crate
-use crate::error::strategy_error::{
+use crate::strategy::strategy_error::{
     AlreadyPausingSnafu, AlreadyPlayingSnafu, BacktestStrategyError, PlayFinishedSnafu,
 };
 use strategy_core::benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker};
+use super::BacktestStrategyContext;
+use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt, StrategyBenchmarkExt};
+use strategy_core::node::NodeTrait;
+use star_river_event::backtest_strategy::strategy_event::PlayFinishedEvent;
+use event_center::EventCenterSingleton;
+use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
+use crate::strategy::strategy_state_machine::BacktestStrategyRunState;
+use strategy_core::strategy::context_trait::StrategyVariableExt;
+use crate::node::node_command::{NodeResetCmdPayload, NodeResetCommand};
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
 
 #[derive(Debug)]
 struct PlayContext {
@@ -35,7 +46,7 @@ impl BacktestStrategyContext {
     // 检查并设置播放状态
     async fn check_and_set_playing_state(&self) -> bool {
         if *self.is_playing.read().await {
-            tracing::warn!("{}: 正在播放，无需重复播放", self.strategy_name.clone());
+            tracing::warn!("{}: 正在播放，无需重复播放", self.strategy_name());
             return false;
         }
         *self.is_playing.write().await = true;
@@ -43,13 +54,13 @@ impl BacktestStrategyContext {
     }
 
     async fn create_play_context(&self) -> PlayContext {
-        let start_node_index = self.node_indices.get("start_node").unwrap();
-        let node = self.graph.node_weight(*start_node_index).unwrap().clone();
+
+        let node = self.get_node("start_node").unwrap();
 
         PlayContext {
-            strategy_id: self.strategy_id,
-            strategy_name: self.strategy_name.clone(),
-            node,
+            strategy_id: self.strategy_id(),
+            strategy_name: self.strategy_name().clone(),
+            node: node.clone(),
             play_index: self.play_index.clone(),
             signal_count: self.total_signal_count.clone(),
             is_playing: self.is_playing.clone(),
@@ -57,8 +68,8 @@ impl BacktestStrategyContext {
             child_cancel_play_token: self.cancel_play_token.child_token(),
             execute_over_notify: self.execute_over_notify.clone(),
             play_index_watch_tx: self.play_index_watch_tx.clone(),
-            strategy_benchmark: self.benchmark.clone(),
-            cycle_tracker: self.cycle_tracker.clone(),
+            strategy_benchmark: self.benchmark().clone(),
+            cycle_tracker: self.cycle_tracker().clone(),
         }
     }
 
@@ -202,7 +213,7 @@ impl BacktestStrategyContext {
 
     // 处理播放完毕, 发送播放完毕事件
     async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: PlayIndex) {
-        let finish_event = PlayFinishedEvent::new(context.strategy_id, context.strategy_name.clone(), play_index);
+        let finish_event: BacktestStrategyEvent = PlayFinishedEvent::new(context.strategy_id, context.strategy_name.clone(), play_index).into();
         let _ = EventCenterSingleton::publish(finish_event.into()).await;
 
         tracing::info!("[{}]: k线播放完毕，正常退出播放任务", strategy_name);
@@ -234,9 +245,9 @@ impl BacktestStrategyContext {
     pub async fn play(&mut self) -> Result<(), BacktestStrategyError> {
         // 判断是否已播放完毕
         if *self.play_index.read().await == *self.total_signal_count.read().await - 1 {
-            tracing::warn!("[{}]: already played finished, cannot play more kline", self.strategy_name.clone());
+            tracing::warn!("[{}]: already played finished, cannot play more kline", self.strategy_name());
             return Err(PlayFinishedSnafu {
-                strategy_name: self.strategy_name.clone(),
+                strategy_name: self.strategy_name().clone(),
             }.build());
         }
 
@@ -252,7 +263,7 @@ impl BacktestStrategyContext {
         }
 
         // 更新策略状态为playing
-        self.update_strategy_status(StrategyRunState::Playing.to_string().to_lowercase())
+        self.store_strategy_status(BacktestStrategyRunState::Playing.to_string().to_lowercase())
             .await?;
 
         tokio::spawn(async move {
@@ -265,12 +276,12 @@ impl BacktestStrategyContext {
     pub async fn pause(&mut self) -> Result<(), BacktestStrategyError> {
         // 判断播放状态是否为true
         if !*self.is_playing.read().await {
-            tracing::error!("[{}]: is pausing, cannot pause again", self.strategy_name.clone());
+            tracing::error!("[{}]: is pausing, cannot pause again", self.strategy_name());
             return Err(AlreadyPausingSnafu {}.build());
         }
-        tracing::info!("[{}]: request pause play", self.strategy_name.clone());
+        tracing::info!("[{}]: request pause play", self.strategy_name());
         // 更新策略状态为pausing
-        self.update_strategy_status(StrategyRunState::Pausing.to_string().to_lowercase())
+        self.store_strategy_status(BacktestStrategyRunState::Pausing.to_string().to_lowercase())
             .await?;
 
         self.cancel_play_token.cancel();
@@ -282,7 +293,7 @@ impl BacktestStrategyContext {
     // 重置播放
     pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
         // 更新策略状态为ready
-        self.update_strategy_status(StrategyRunState::Ready.to_string().to_lowercase())
+        self.store_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase())
             .await?;
 
         // 清空日志
@@ -299,7 +310,7 @@ impl BacktestStrategyContext {
 
         // 重置策略性能报告
         {
-            let mut benchmark_guard = self.benchmark.write().await;
+            let mut benchmark_guard = self.benchmark().write().await;
             benchmark_guard.reset();
         }
 
@@ -316,12 +327,12 @@ impl BacktestStrategyContext {
     // 检查是否可以播放单根K线
     async fn can_play_one_kline(&self) -> bool {
         if *self.is_playing.read().await {
-            tracing::warn!("[{}] is playing, cannot play one kline", self.strategy_name.clone());
+            tracing::warn!("[{}] is playing, cannot play one kline", self.strategy_name());
             return false;
         }
 
         if *self.play_index.read().await > *self.total_signal_count.read().await {
-            tracing::warn!("[{}] already played finished, cannot play more kline", self.strategy_name.clone());
+            tracing::warn!("[{}] already played finished, cannot play more kline", self.strategy_name());
             return false;
         }
 
@@ -329,7 +340,7 @@ impl BacktestStrategyContext {
     }
 
     // 获取当前信号计数
-    async fn get_current_play_index(&self) -> (i32, i32) {
+    async fn current_play_index(&self) -> (i32, i32) {
         let total_signal_count = *self.total_signal_count.read().await;
         let play_index = *self.play_index.read().await;
         (total_signal_count, play_index)
@@ -345,9 +356,9 @@ impl BacktestStrategyContext {
     // 播放单根k线
     pub async fn play_one(&mut self) -> Result<PlayIndex, BacktestStrategyError> {
         if *self.play_index.read().await == *self.total_signal_count.read().await - 1 {
-            tracing::warn!("[{}] already played finished", self.strategy_name.clone());
+            tracing::warn!("[{}] already played finished", self.strategy_name());
             return Err(PlayFinishedSnafu {
-                strategy_name: self.strategy_name.clone(),
+                strategy_name: self.strategy_name().clone(),
             }.build());
         }
 
@@ -361,20 +372,20 @@ impl BacktestStrategyContext {
             self.batch_id = Uuid::new_v4();
             tracing::info!(
                 "[{}]: play started, reset batch_id: {}, before batch_id: {}",
-                self.strategy_name.clone(),
+                self.strategy_name(),
                 self.batch_id,
                 before_reset_batch_id
             );
         }
 
-        let (total_signal_count, play_index) = self.get_current_play_index().await;
+        let (total_signal_count, play_index) = self.current_play_index().await;
 
         if play_index < total_signal_count {
             // 先增加单次播放计数
             let play_index = self.increment_single_play_count().await;
             tracing::info!(
                 "[{}]: start play one kline. total_signal_count: {}, current_play_index: {}",
-                self.strategy_name.clone(),
+                self.strategy_name(),
                 total_signal_count,
                 play_index
             );
@@ -387,15 +398,15 @@ impl BacktestStrategyContext {
 
             strategy_cycle_tracker.end_phase("increment play index");
 
-            let mut cycle_tracker_guard = self.cycle_tracker.write().await;
+            let mut cycle_tracker_guard = self.cycle_tracker().write().await;
             *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
 
             tracing::warn!("play_index: {}, total_signal_count: {}", play_index, total_signal_count);
             if play_index == total_signal_count - 1 {
-                let finish_event = PlayFinishedEvent::new(self.strategy_id, self.strategy_name.clone(), play_index);
+                let finish_event: BacktestStrategyEvent = PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), play_index).into();
                 let _ = EventCenterSingleton::publish(finish_event.into()).await;
 
-                tracing::info!("[{}]: kline played finished, exit play task", self.strategy_name.clone());
+                tracing::info!("[{}]: kline played finished, exit play task", self.strategy_name());
                 self.set_is_playing(false).await;
                 return Ok(play_index);
             }
@@ -423,7 +434,8 @@ impl BacktestStrategyContext {
         for node in nodes {
             let (resp_tx, resp_rx) = oneshot::channel();
             let node_id = node.node_id().await;
-            let cmd = NodeResetCommand::new(node_id, resp_tx, None);
+            let payload = NodeResetCmdPayload{};
+            let cmd = NodeResetCommand::new(node_id, resp_tx, payload);
 
             self.send_node_command(cmd.into()).await;
             let response = resp_rx.await.unwrap();

@@ -38,6 +38,6 @@ pub type Margin = f64; // 保证金
 
 pub type MarginRatio = f64; // 保证金率
 
-pub type PlayIndex = i32; // 播放索引
+// pub type PlayIndex = i32; // 播放索引
 
 pub type FeeRate = f64; // 手续费率

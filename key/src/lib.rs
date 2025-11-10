@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use star_river_core::error::star_river_error::*;
 use star_river_core::kline::KlineInterval;
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 // use cache_entry::{IndicatorCacheEntry, KlineCacheEntry};
 pub use key::{IndicatorKey, KlineKey};
 use std::fmt::Debug;

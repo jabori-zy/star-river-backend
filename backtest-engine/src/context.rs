@@ -2,32 +2,27 @@ mod event_handler;
 mod strategy_manager;
 mod strategy_control;
 
-// std
+// Standard library imports
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 
-// third-party
+// External crate imports
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use tokio::sync::Mutex;
 
-// workspace crate
-use engine_core::{
-    context_trait::EngineContextTrait,
-    EngineBaseContext,
-};
+// Workspace crate imports
+use engine_core::{context_trait::EngineContextTrait, EngineBaseContext};
 use star_river_core::custom_type::StrategyId;
-
-// current crate
-use crate::{
-    state_machine::BacktestEngineAction,
-};
-use crate::strategy_new::config::BacktestStrategyConfig;
-use crate::strategy_new::BacktestStrategy;
-use crate::strategy_new::strategy_context::BacktestStrategyContext;
 use strategy_core::strategy::strategy_trait::StrategyContextAccessor;
+
+// Current crate imports
+use crate::{
+    engine_state_machine::BacktestEngineAction,
+    strategy::{strategy_context::BacktestStrategyContext, BacktestStrategy},
+};
 
 
 
@@ -57,12 +52,12 @@ impl BacktestEngineContext {
         }
     }
 
-    pub async fn with_strategy<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    pub async fn with_strategy<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::engine_error::BacktestEngineError>
     where
         F: for<'a> FnOnce(&'a BacktestStrategy) -> R + Send,
         R: Send,
     {
-        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use crate::engine_error::StrategyInstanceNotFoundSnafu;
         use snafu::OptionExt;
 
         let guard = self.strategy_list.lock().await;
@@ -71,12 +66,12 @@ impl BacktestEngineContext {
     }
 
     
-    pub async fn with_strategy_mut<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    pub async fn with_strategy_mut<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::engine_error::BacktestEngineError>
     where
         F: for<'a> FnOnce(&'a mut BacktestStrategy) -> R + Send,
         R: Send,
     {
-        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use crate::engine_error::StrategyInstanceNotFoundSnafu;
         use snafu::OptionExt;
 
         let mut guard = self.strategy_list.lock().await;
@@ -85,11 +80,11 @@ impl BacktestEngineContext {
     }
 
     
-    pub async fn with_strategy_async<R>(&self, strategy_id: StrategyId, f: impl for<'a> FnOnce(&'a BacktestStrategy) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    pub async fn with_strategy_async<R>(&self, strategy_id: StrategyId, f: impl for<'a> FnOnce(&'a BacktestStrategy) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send) -> Result<R, crate::engine_error::BacktestEngineError>
     where
         R: Send,
     {
-        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use crate::engine_error::StrategyInstanceNotFoundSnafu;
         use snafu::OptionExt;
 
         let guard = self.strategy_list.lock().await;
@@ -98,11 +93,11 @@ impl BacktestEngineContext {
     }
 
     
-    pub async fn with_strategy_mut_async<R>(&self, strategy_id: StrategyId, f: impl for<'a> FnOnce(&'a mut BacktestStrategy) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    pub async fn with_strategy_mut_async<R>(&self, strategy_id: StrategyId, f: impl for<'a> FnOnce(&'a mut BacktestStrategy) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send) -> Result<R, crate::engine_error::BacktestEngineError>
     where
         R: Send,
     {
-        use crate::backtest_engine_error::StrategyInstanceNotFoundSnafu;
+        use crate::engine_error::StrategyInstanceNotFoundSnafu;
         use snafu::OptionExt;
 
         let mut guard = self.strategy_list.lock().await;
@@ -126,7 +121,7 @@ impl BacktestEngineContext {
         &self,
         strategy_id: StrategyId,
         f: impl for<'a> FnOnce(&'a BacktestStrategyContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send + 'static
-    ) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    ) -> Result<R, crate::engine_error::BacktestEngineError>
     where
         R: Send,
     {
@@ -153,7 +148,7 @@ impl BacktestEngineContext {
         &self,
         strategy_id: StrategyId,
         f: impl for<'a> FnOnce(&'a mut BacktestStrategyContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = R> + Send + 'a>> + Send + 'static
-    ) -> Result<R, crate::backtest_engine_error::BacktestEngineError>
+    ) -> Result<R, crate::engine_error::BacktestEngineError>
     where
         R: Send,
     {

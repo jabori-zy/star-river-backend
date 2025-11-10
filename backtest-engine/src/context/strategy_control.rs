@@ -1,8 +1,8 @@
 use super::BacktestEngineContext;
 
-use crate::{error::strategy_error::BacktestStrategyError, strategy_new::BacktestStrategy};
+use crate::{strategy::strategy_error::BacktestStrategyError, strategy::BacktestStrategy};
 use snafu::Report;
-use crate::backtest_engine_error::{BacktestEngineError, StrategyIsExistSnafu};
+use crate::engine_error::{BacktestEngineError, StrategyIsExistSnafu};
 use strategy_core::strategy::TradeMode;
 use tokio::time::Duration;
 use strategy_core::strategy::StrategyConfig;

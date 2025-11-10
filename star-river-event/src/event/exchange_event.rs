@@ -4,7 +4,7 @@ use event_center_core::event::Event;
 use serde::{Deserialize, Serialize};
 use star_river_core::exchange::Exchange;
 use star_river_core::kline::{Kline, KlineInterval};
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use star_river_core::system::DateTimeUtc;
 use strum::Display;
 

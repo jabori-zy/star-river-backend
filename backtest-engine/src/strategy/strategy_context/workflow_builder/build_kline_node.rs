@@ -4,14 +4,14 @@ use std::sync::Arc;
 // third-party
 use tokio::sync::{Mutex, mpsc};
 
-use crate::node_command::BacktestNodeCommand;
+use crate::node::node_command::BacktestNodeCommand;
 // current crate
 use super::BacktestStrategyContext;
 use crate::{
-    error::node_error::BacktestNodeError,
-    node_list::kline_node::KlineNode,
+    node::node_error::BacktestNodeError,
+    node_catalog::kline_node::KlineNode,
 };
-
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
 
 
 impl BacktestStrategyContext {

@@ -5,14 +5,15 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 
 // current crate
-use crate::node_command::BacktestNodeCommand;
+use crate::node::node_command::BacktestNodeCommand;
 
 // current crate
 use super::BacktestStrategyContext;
 use crate::{
-    error::node_error::BacktestNodeError,
-    node_list::start_node::StartNode,
+    node::node_error::BacktestNodeError,
+    node_catalog::start_node::StartNode,
 };
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
 
 impl BacktestStrategyContext {
     pub async fn build_start_node(
@@ -29,8 +30,8 @@ impl BacktestStrategyContext {
             node_config,
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
-            virtual_trading_system,
-            strategy_stats,
+            // virtual_trading_system,
+            // strategy_stats,
             play_index_watch_rx,
         )?;
         Ok(node)

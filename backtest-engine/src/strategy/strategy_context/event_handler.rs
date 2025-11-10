@@ -1,14 +1,29 @@
-// std
-use std::sync::Arc;
+use strategy_core::strategy::{
+    context_trait::{StrategyEventHandlerExt, StrategyInfoExt, StrategyVariableExt, StrategyBenchmarkExt, StrategyWorkflowExt, StrategyIdentityExt},
+};
+use event_center::event::Event;
+use crate::node::node_event::BacktestNodeEvent;
+use async_trait::async_trait;
 use super::BacktestStrategyContext;
-use crate::strategy_command::*;
+use crate::strategy::strategy_command::*;
+use std::sync::Arc;
+use strategy_core::event::node_common_event::CommonEvent;
+use strategy_core::event::strategy_event::StrategyPerformanceUpdateEvent;
+use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
+use event_center::EventCenterSingleton;
+use star_river_event::backtest_strategy::node_event::{
+    KlineNodeEvent, IndicatorNodeEvent, VariableNodeEvent, 
+    PositionManagementNodeEvent, FuturesOrderNodeEvent
+};
 
-// workspace crate
 
-// current crate
+#[async_trait]
+impl StrategyEventHandlerExt for BacktestStrategyContext {
+    type EngineEvent = Event;
+    type NodeEvent = BacktestNodeEvent;
 
-impl BacktestStrategyContext {
-    pub async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) -> Result<(), String> {
+
+    async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) {
         match command {
             // 获取策略缓存keys
             BacktestStrategyCommand::GetStrategyKeys(cmd) => {
@@ -90,75 +105,80 @@ impl BacktestStrategyContext {
 
             BacktestStrategyCommand::InitCustomVariableValue(cmd) => {
                 self.init_custom_variables(cmd.custom_variables.clone()).await;
-                let payload = InitCustomVariableRespPayload{};
-                let resp = InitCustomVariableValueResponse::success(payload);
+                let payload = InitCustomVarRespPayload{};
+                let resp = InitCustomVarValueResponse::success(payload);
                 cmd.respond(resp);
             }
             BacktestStrategyCommand::GetCustomVariableValue(cmd) => {
-                let result = self.get_custom_variable_value(cmd.var_name.clone()).await;
+                let result = self.custom_variable(&cmd.var_name).await;
                 if let Ok(value) = result {
-                    let payload = GetCustomVariableRespPayload::new(value);
-                    let resp = GetCustomVariableValueResponse::success(payload);
+                    let payload = GetCustomVarRespPayload::new(value);
+                    let resp = GetCustomVarValueResponse::success(payload);
                     cmd.respond(resp);
                 } else {
                     let err = result.unwrap_err();
-                    let resp = GetCustomVariableValueResponse::error(Arc::new(err));
+                    let resp = GetCustomVarValueResponse::fail(Arc::new(err));
                     cmd.respond(resp);
                 }
             }
 
             BacktestStrategyCommand::UpdateCustomVariableValue(cmd) => {
-                let result = self.update_custom_variable_value(&cmd.update_var_config).await;
+
+                let result = self.update_custom_variable(
+                    &cmd.update_var_config.var_name, 
+                    &cmd.update_var_config.update_var_value_operation, 
+                    cmd.update_var_config.update_operation_value.as_ref()
+                ).await;
                 if let Ok(value) = result {
-                    let payload = UpdateCustomVariableRespPayload::new(value);
-                    let resp = UpdateCustomVariableValueResponse::success(payload);
+                    let payload = UpdateCustomVarRespPayload::new(value);
+                    let resp = UpdateCustomVarValueResponse::success(payload);
                     cmd.respond(resp);
                 } else {
                     let err = result.unwrap_err();
-                    let resp = UpdateCustomVariableValueResponse::error(Arc::new(err));
+                    let resp = UpdateCustomVarValueResponse::fail(Arc::new(err));
                     cmd.respond(resp);
                 }
             }
 
             BacktestStrategyCommand::ResetCustomVariableValue(cmd) => {
-                let result = self.reset_custom_variables(cmd.var_name.clone()).await;
+                let result = self.reset_custom_variable(&cmd.var_name).await;
                 if let Ok(value) = result {
-                    let payload = ResetCustomVariableRespPayload::new(value);
-                    let resp = ResetCustomVariableValueResponse::success(payload);
+                    let payload = ResetCustomVarRespPayload::new(value);
+                    let resp = ResetCustomVarValueResponse::success(payload);
                     cmd.respond(resp);
                 } else {
                     let err = result.unwrap_err();
-                    let resp = ResetCustomVariableValueResponse::error(Arc::new(err));
+                    let resp = ResetCustomVarValueResponse::fail(Arc::new(err));
                     cmd.respond(resp);
                 }
             }
 
             BacktestStrategyCommand::UpdateSysVariableValue(cmd) => {
                 self.update_sys_variable(&cmd.sys_variable).await;
-                let resp = UpdateSysVariableValueResponse::success(None);
+                let payload = UpdateSysVarRespPayload;
+                let resp = UpdateSysVarValueResponse::success(payload);
                 cmd.respond(resp);
             }
             
             BacktestStrategyCommand::AddNodeCycleTracker(cmd) => {
-                let result = self.add_node_cycle_tracker(cmd.node_id.clone(), cmd.cycle_tracker.clone()).await;
+                let result = self.add_node_completed_cycle(cmd.node_id.clone(), cmd.cycle_tracker.clone()).await;
                 if let Err(e) = result {
-                    let resp = AddNodeCycleTrackerResponse::error(Arc::new(e));
+                    let resp = AddNodeCycleTrackerResponse::fail(Arc::new(e));
                     cmd.respond(resp);
                 } else {
-                    let resp = AddNodeCycleTrackerResponse::success(None);
+                    let payload = AddNodeCycleTrackerRespPayload;
+                    let resp = AddNodeCycleTrackerResponse::success(payload);
                     cmd.respond(resp);
                 }
             }
         }
-        Ok(())
     }
 
-    async fn handle_event(&mut self, _event: Event) -> Result<(), String> {
-        Ok(())
+    async fn handle_engine_event(&mut self, _event: Event) {
     }
 
     // 所有节点发送的事件都会汇集到这里
-    pub async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         // 执行完毕
         if let BacktestNodeEvent::Common(signal_event) = &node_event {
             match signal_event {
@@ -173,13 +193,13 @@ impl BacktestStrategyContext {
                             execute_over_node_ids.push(execute_over_event.from_node_id().clone());
                         }
                         // 判断是否所有叶子节点都完成，然后立即释放锁
-                        execute_over_node_ids.len() == self.leaf_node_ids.len()
+                        execute_over_node_ids.len() == self.leaf_node_ids().len()
                     }; // execute_over_node_ids 锁在这里释放
 
                     // 第二步：如果所有叶子节点都完成，先执行清理和通知，再记录 benchmark
                     if should_finalize {
                         {
-                            let mut cycle_tracker_guard = self.cycle_tracker.write().await;
+                            let mut cycle_tracker_guard = self.cycle_tracker().write().await;
                             if let Some(cycle_tracker) = cycle_tracker_guard.as_mut() {
                                 cycle_tracker.start_phase("execute_over");
                             }
@@ -196,7 +216,7 @@ impl BacktestStrategyContext {
 
                         // 第三步：结束 cycle tracker 并记录到 benchmark（包含了上面的清理和通知时间）
                         let completed_tracker = {
-                            let mut cycle_tracker_guard = self.cycle_tracker.write().await;
+                            let mut cycle_tracker_guard = self.cycle_tracker().write().await;
                             if let Some(cycle_tracker) = cycle_tracker_guard.as_mut() {
                                 cycle_tracker.end_phase("execute_over");
                                 let completed = cycle_tracker.end();
@@ -211,12 +231,12 @@ impl BacktestStrategyContext {
                         // 如果有完成的 tracker，添加到 benchmark
                         if let Some(tracker) = completed_tracker {
                             {
-                                let mut strategy_benchmark_guard = self.benchmark.write().await;
+                                let mut strategy_benchmark_guard = self.benchmark().write().await;
                                 strategy_benchmark_guard.add_cycle_tracker(tracker);
                             }
-                            let benchmark_clone = self.benchmark.clone();
+                            let benchmark_clone = self.benchmark().clone();
 
-                            let strategy_id = self.strategy_id;
+                            let strategy_id = self.strategy_id();
                             tokio::task::spawn(async move {
                                 let strategy_benchmark_guard = benchmark_clone.read().await;
                                 let report = strategy_benchmark_guard.report();
@@ -244,10 +264,10 @@ impl BacktestStrategyContext {
                     // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
-                KlineNodeEvent::StateLog(log_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::NodeStateLog(log_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-                }
+                // KlineNodeEvent::StateLog(log_event) => {
+                //     let backtest_strategy_event = BacktestStrategyEvent::NodeStateLog(log_event.clone());
+                //     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
+                // }
                 KlineNodeEvent::TimeUpdate(time_update_event) => {
                     // 更新策略的全局时间
                     self.set_current_time(time_update_event.current_time).await;
@@ -344,14 +364,17 @@ impl BacktestStrategyContext {
         }
     }
 
-    pub async fn handle_strategy_stats_event(&mut self, event: StrategyStatsEvent) -> Result<(), String> {
-        match event {
-            StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event) => {
-                // tracing::debug!("{}: 收到策略统计更新事件: {:?}", self.strategy_name, strategy_stats_updated_event);
-                let backtest_strategy_event = BacktestStrategyEvent::StrategyStatsUpdated(strategy_stats_updated_event);
-                EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-            }
-        }
-        Ok(())
-    }
+    // pub async fn handle_strategy_stats_event(&mut self, event: StrategyStatsEvent) -> Result<(), String> {
+    //     match event {
+    //         StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event) => {
+    //             // tracing::debug!("{}: 收到策略统计更新事件: {:?}", self.strategy_name, strategy_stats_updated_event);
+    //             let backtest_strategy_event = BacktestStrategyEvent::StrategyStatsUpdated(strategy_stats_updated_event);
+    //             EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
+    //         }
+    //     }
+    //     Ok(())
+    // }
+
+
+
 }

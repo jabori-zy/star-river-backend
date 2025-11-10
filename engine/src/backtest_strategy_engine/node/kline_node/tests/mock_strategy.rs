@@ -5,7 +5,7 @@ use event_center::communication::backtest_strategy::{
 use event_center::event::node_event::backtest_node_event::BacktestNodeEvent;
 use star_river_core::key::key::KlineKey;
 use star_river_core::market::{Exchange, Kline, KlineInterval};
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;

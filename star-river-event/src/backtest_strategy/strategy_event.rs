@@ -1,7 +1,7 @@
 use chrono::Utc;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::{PlayIndex, StrategyId};
+use star_river_core::custom_type::StrategyId;
 use strategy_stats::event::StrategyStatsUpdatedEvent;
 use star_river_core::system::DateTimeUtc;
 use strum::Display;
@@ -176,12 +176,12 @@ pub enum BacktestStrategyEvent {
 pub struct PlayFinishedEvent {
     pub strategy_id: i32,
     pub strategy_name: String,
-    pub play_index: PlayIndex,
+    pub play_index: i32,
     pub datetime: DateTimeUtc,
 }
 
 impl PlayFinishedEvent {
-    pub fn new(strategy_id: i32, strategy_name: String, play_index: PlayIndex) -> Self {
+    pub fn new(strategy_id: i32, strategy_name: String, play_index: i32) -> Self {
         Self {
             strategy_id,
             strategy_name,

@@ -10,7 +10,6 @@ ta-lib = { path = "../ta-lib" }
 star-river-core = { path = "../star-river-core" }
 serde = { workspace = true }
 snafu = { workspace = true }
-strategy-core = { path = "../strategy-core" }
 
 [lints]
 workspace = true

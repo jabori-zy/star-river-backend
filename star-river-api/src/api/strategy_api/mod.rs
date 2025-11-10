@@ -10,7 +10,7 @@ use database::query::strategy_config_query::StrategyConfigQuery;
 use engine_core::EngineContextAccessor;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
-use backtest_engine::backtest_engine_error::{BacktestEngineError, StrategyConfigNotFoundSnafu};
+use backtest_engine::engine_error::{BacktestEngineError, StrategyConfigNotFoundSnafu};
 use strategy_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};

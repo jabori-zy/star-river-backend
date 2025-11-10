@@ -7,7 +7,7 @@ use exchange_core::exchange_trait::Exchange as ExchangeTrait;
 use star_river_core::instrument::Symbol;
 use exchange_core::exchange_trait::{ExchangeSymbolExt, ExchangeMarketDataExt};
 use star_river_core::kline::{Kline, KlineInterval};
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use exchange_client::exchange_error::ExchangeError;
 use crate::error::ExchangeEngineError;
 

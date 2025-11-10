@@ -6,16 +6,14 @@ pub(crate) mod utils;
 pub mod error;
 pub mod event;
 pub mod types;
-pub mod key;
 
 use star_river_core::custom_type::*;
-use crate::key::KlineKey;
+use key::KlineKey;
 use star_river_core::order::OrderType;
 use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 use tokio::sync::oneshot;
 // 外部的utils，不是当前crate的utils
 use chrono::{DateTime, Utc};
-use star_river_core::custom_type::PlayIndex;
 use star_river_core::exchange::Exchange;
 use star_river_core::kline::Kline;
 use crate::event::{
@@ -36,8 +34,6 @@ pub struct VirtualTradingSystem
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
     pub event_receiver: VirtualTradingSystemEventReceiver, // 事件接收器
-    // pub strategy_command_sender: mpsc::Sender<C>, // 向策略发送命令
-    // pub play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>, // 播放索引监听器
     pub leverage: Leverage,                // 杠杆
 
     // 资金相关

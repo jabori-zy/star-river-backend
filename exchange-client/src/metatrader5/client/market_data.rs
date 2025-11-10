@@ -2,7 +2,7 @@
 use async_trait::async_trait;
 use exchange_core::exchange_trait::ExchangeMarketDataExt;
 use star_river_core::kline::{Kline, KlineInterval};
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 
 use crate::metatrader5::MetaTrader5;
 use crate::metatrader5::mt5_types::Mt5KlineInterval;

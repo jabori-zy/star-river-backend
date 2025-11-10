@@ -72,7 +72,23 @@ pub enum NodeError {
         #[snafu(source(true))]
         source: Arc<dyn std::error::Error + Send + Sync + 'static>,
         backtrace: Backtrace,
-    }
+    },
+
+    #[snafu(display("strategy command send failed: {node_id}, reason: {source}"))]
+    StrategyCommandSendFailed {
+        node_id: String,
+        #[snafu(source(true))]
+        source: Arc<dyn std::error::Error + Send + Sync + 'static>,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("node command send failed: {node_id}, reason: {source}"))]
+    NodeCommandSendFailed {
+        node_id: String,
+        #[snafu(source(true))]
+        source: Arc<dyn std::error::Error + Send + Sync + 'static>,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for NodeError
@@ -95,6 +111,8 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::NodeCycleTrackerMountFailed { .. } => 1010, // node cycle tracker mount failed
             NodeError::OutputHandleNotFound { .. } => 1011, // output handle not found
             NodeError::NodeEventSendFailed { .. } => 1012, // node event send failed
+            NodeError::StrategyCommandSendFailed { .. } => 1013, // strategy command send failed
+            NodeError::NodeCommandSendFailed { .. } => 1014, // node command send failed
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -113,6 +131,8 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::NodeCycleTrackerMountFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::OutputHandleNotFound { .. } => StatusCode::BAD_REQUEST,
             NodeError::NodeEventSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            NodeError::StrategyCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            NodeError::NodeCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -155,6 +175,12 @@ impl StarRiverErrorTrait for NodeError {
                     }
                     NodeError::NodeEventSendFailed { handle_id, source, .. } => {
                         format!("节点事件发送失败: {}, 原因: {}", handle_id, source)
+                    }
+                    NodeError::StrategyCommandSendFailed { node_id, source, .. } => {
+                        format!("策略命令发送失败: [{node_id}], 原因: {}", source)
+                    }
+                    NodeError::NodeCommandSendFailed { node_id, source, .. } => {
+                        format!("节点命令发送失败: [{node_id}], 原因: {}", source)
                     }
                 }
             }

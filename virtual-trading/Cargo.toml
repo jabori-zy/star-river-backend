@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 star-river-core = { path = "../star-river-core" }
 event-center-core = { path = "../event-center-core" }
+key = { path = "../key" }
 chrono.workspace = true
 tracing.workspace = true
 tokio.workspace = true

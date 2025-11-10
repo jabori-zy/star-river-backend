@@ -16,7 +16,7 @@ use engine_core::context_trait::EngineContextTrait;
 use star_river_core::custom_type::AccountId;
 use star_river_core::exchange::Exchange;
 use star_river_core::kline::KlineInterval;
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use star_river_core::kline::Kline;
 use crate::error::MarketEngineError;
 use snafu::Report;

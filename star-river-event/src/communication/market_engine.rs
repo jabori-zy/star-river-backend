@@ -4,7 +4,7 @@ use star_river_core::custom_type::StrategyId;
 use star_river_core::exchange::Exchange;
 use star_river_core::kline::{Kline, KlineInterval};
 use star_river_core::instrument::Symbol;
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use event_center_core::communication::{Command, Response};
 
 // ============ Market Engine Command Enum ============

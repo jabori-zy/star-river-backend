@@ -19,7 +19,7 @@ use snafu::IntoError;
 use tracing::instrument;
 use std::collections::HashMap;
 use star_river_core::custom_type::NodeId;
-use backtest_engine::backtest_engine_error::BacktestEngineError;
+use backtest_engine::engine_error::BacktestEngineError;
 use strategy_core::strategy::context_trait::StrategyVariableExt;
 use strategy_core::strategy::context_trait::StrategyBenchmarkExt;
 

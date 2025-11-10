@@ -1,0 +1,213 @@
+use strategy_core::node::node_state_machine::StateMachine;
+use strategy_core::node::node_trait::{NodeEventListener, NodeLifecycle};
+
+use crate::node::node_error::BacktestNodeError;
+use crate::node_catalog::position_node::state_machine::PositionNodeAction;
+
+use super::PositionNode;
+use async_trait::async_trait;
+use crate::node::node_state_machine::NodeStateTransTrigger;
+use strategy_core::node::context_trait::{NodeStateMachineExt, NodeIdentityExt, NodeHandleExt};
+use strategy_core::node::node_trait::NodeContextAccessor;
+use tokio::time::Duration;
+use crate::node::node_utils::NodeUtils;
+use strategy_core::node::context_trait::NodeTaskControlExt;
+use crate::node::node_message::common_log_message::{
+    NodeStateLogMsg,
+    ListenNodeEventsMsg,
+    ListenStrategyCommandMsg,
+    RegisterTaskMsg,
+    ListenExternalEventsMsg,
+    ListenVirtualTradingSystemEventMsg
+};
+
+#[async_trait]
+impl NodeLifecycle for PositionNode {
+    type Error = BacktestNodeError;
+    type Trigger = NodeStateTransTrigger;
+
+    async fn init(&self) -> Result<(), Self::Error> {
+        let node_name = self.with_ctx_read(|ctx| {
+            ctx.node_name().clone()
+        }).await;
+
+        tracing::info!("================={}====================", node_name);
+        tracing::info!("[{node_name}] start init");
+
+        // Start initialization: Created -> Initializing
+        self.update_node_state(NodeStateTransTrigger::StartInit).await?;
+
+        // Sleep 500ms
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let current_state = self.with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.run_state().await.clone()
+            })
+        }).await;
+
+        tracing::info!("[{node_name}] init complete: {:?}", current_state);
+
+        // Finish initialization: Initializing -> Ready
+        self.update_node_state(NodeStateTransTrigger::FinishInit).await?;
+        Ok(())
+    }
+
+    async fn stop(&self) -> Result<(), Self::Error> {
+        let node_name = self.with_ctx_read(|ctx| {
+            ctx.node_name().clone()
+        }).await;
+
+        tracing::info!("[{node_name}] start stop");
+        self.update_node_state(NodeStateTransTrigger::StartStop).await?;
+
+        // Sleep 1 second
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        // Switch to stopped state
+        self.update_node_state(NodeStateTransTrigger::FinishStop).await?;
+        Ok(())
+    }
+
+    async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
+        let (strategy_id, node_id, node_name, strategy_output_handle, state_machine) = self.with_ctx_read(|ctx| {
+            let strategy_id = ctx.strategy_id().clone();
+            let node_id = ctx.node_id().clone();
+            let node_name = ctx.node_name().clone();
+            let strategy_output_handle = ctx.strategy_bound_handle().clone();
+            let state_machine = ctx.state_machine().clone();
+            (strategy_id, node_id, node_name, strategy_output_handle, state_machine)
+        }).await;
+
+        let transition_result = {
+            let mut state_machine = state_machine.write().await;
+            state_machine.transition(trans_trigger)?
+        };
+
+        // Execute actions after state transition
+        for action in transition_result.actions() {
+            let current_state = {
+                let state_machine = state_machine.read().await;
+                state_machine.current_state().clone()
+            };
+
+            match action {
+                PositionNodeAction::LogTransition => {
+                    tracing::debug!(
+                        "[{node_name}] state transition: {:?} -> {:?}",
+                        current_state,
+                        transition_result.new_state()
+                    );
+                }
+                PositionNodeAction::LogNodeState => {
+                    tracing::info!("[{node_name}] current state: {:?}", current_state);
+
+                    // Send node state log event
+                    let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        PositionNodeAction::LogNodeState.to_string(),
+                        &strategy_output_handle
+                    ).await;
+                }
+                PositionNodeAction::ListenAndHandleExternalEvents => {
+                    tracing::info!("[{node_name}] start to listen external events");
+                    let log_message = ListenExternalEventsMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        PositionNodeAction::ListenAndHandleExternalEvents.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    self.listen_engine_event().await;
+                }
+                PositionNodeAction::RegisterTask => {
+                    tracing::info!("[{node_name}] registering position monitoring task");
+                    let log_message = RegisterTaskMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        PositionNodeAction::RegisterTask.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    // Register task implementation (if needed)
+                    // self.with_ctx_write_async(|ctx| {
+                    //     Box::pin(async move {
+                    //         ctx.monitor_position().await
+                    //     })
+                    // }).await;
+                }
+                PositionNodeAction::ListenAndHandleNodeEvents => {
+                    tracing::info!("[{node_name}] start to listen node events");
+                    let log_message = ListenNodeEventsMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        PositionNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    self.listen_source_node_events().await;
+                }
+                PositionNodeAction::ListenAndHandleStrategyCommand => {
+                    tracing::info!("[{node_name}] start to listen strategy command");
+                    let log_message = ListenStrategyCommandMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        PositionNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    self.listen_node_command().await;
+                }
+                PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent => {
+                    tracing::info!("[{node_name}] start to listen virtual trading system events");
+                    let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    // Listen to virtual trading system events implementation (if needed)
+                    // let _ = self.listen_virtual_trading_system_events().await;
+                }
+                PositionNodeAction::LogError(error) => {
+                    tracing::error!("[{node_name}] error occurred: {}", error);
+                }
+                PositionNodeAction::CancelAsyncTask => {
+                    tracing::debug!("[{node_name}] cancel async task");
+                    self.with_ctx_read_async(|ctx| {
+                        Box::pin(async move {
+                            ctx.request_cancel();
+                        })
+                    }).await;
+                }
+            }
+        }
+        Ok(())
+    }
+}

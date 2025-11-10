@@ -1,17 +1,15 @@
 // workspace crate
 use ta_lib::Indicator;
-use star_river_core::{
-    key::{IndicatorKey, KeyTrait, KlineKey},
-    market::Kline,
-    strategy::custom_variable::CustomVariable,
-};
 
 // current crate
 use super::BacktestStrategyContext;
 use crate::{
-    error::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu},
-    strategy::strategy_utils::apply_variable_operation,
+    strategy::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu},
 };
+use key::{KlineKey, IndicatorKey};
+use star_river_core::kline::Kline;
+use strategy_core::strategy::context_trait::{StrategyIdentityExt};
+use key::KeyTrait;
 
 
 mod kline {
@@ -260,96 +258,6 @@ mod indicator {
             }
 
             indicator.clone()
-        }
-    }
-}
-
-mod custom_variable {
-    use super::*;
-
-    // third-party
-    use snafu::OptionExt;
-
-    // workspace crate
-    use star_river_core::{
-        node::variable_node::variable_config::UpdateVariableConfig,
-        strategy::sys_varibale::SysVariable,
-    };
-
-    // current crate
-    use crate::error::strategy_error::CustomVariableNotExistSnafu;
-    impl BacktestStrategyContext {
-        pub async fn init_custom_variables(&mut self, custom_variables: Vec<CustomVariable>) {
-            // tracing::info!("Initializing custom variables");
-            // 初始化自定义变量
-            let mut custom_var_guard = self.custom_variable.write().await;
-            for custom_var in custom_variables {
-                let var_name = custom_var.var_name.clone();
-                // 如果变量不存在，则插入；如果已存在，则不做修改
-                custom_var_guard.entry(var_name).or_insert(custom_var);
-            }
-            // 在写锁范围内直接使用 custom_var_guard 进行调试输出，避免死锁
-            // tracing::debug!("custom_variable: {:#?}", *custom_var_guard);
-        }
-
-        pub async fn get_custom_variable_value(&mut self, var_name: String) -> Result<CustomVariable, BacktestStrategyError> {
-            let custom_var_guard = self.custom_variable.read().await;
-            let custom_variable = custom_var_guard
-                .get(var_name.as_str())
-                .context(CustomVariableNotExistSnafu { var_name })?;
-            Ok(custom_variable.clone())
-        }
-
-        pub async fn update_custom_variable_value(
-            &mut self,
-            update_var_config: &UpdateVariableConfig,
-        ) -> Result<CustomVariable, BacktestStrategyError> {
-            let var_name = update_var_config.var_name.clone();
-            let operation = &update_var_config.update_var_value_operation;
-
-            let mut custom_var_guard = self.custom_variable.write().await;
-
-            let custom_var = custom_var_guard.get_mut(&var_name).context(CustomVariableNotExistSnafu {
-                var_name: var_name.clone(),
-            })?;
-
-            // 使用工具函数计算新值
-            let new_value = apply_variable_operation(
-                &var_name,
-                &custom_var.var_value,
-                operation,
-                update_var_config.update_operation_value.as_ref(),
-            )?;
-            // 更新前一个值
-            custom_var.previous_value = custom_var.var_value.clone();
-            // 更新当前值
-            custom_var.var_value = new_value.clone();
-            Ok(custom_var.clone())
-        }
-
-        pub async fn reset_custom_variables(&mut self, var_name: String) -> Result<CustomVariable, BacktestStrategyError> {
-            let mut custom_var_guard = self.custom_variable.write().await;
-            // 直接获取可变引用，避免重复查找
-            let custom_var = custom_var_guard
-                .get_mut(&var_name)
-                .context(CustomVariableNotExistSnafu { var_name })?;
-            // 将变量值重置为初始值
-            custom_var.var_value = custom_var.initial_value.clone();
-
-            Ok(custom_var.clone())
-        }
-
-        /// 更新系统变量的值
-        ///
-        /// # 参数
-        /// - `sys_variable`: 系统变量
-        ///
-        /// # 返回
-        /// 返回更新后的变量值
-        pub async fn update_sys_variable(&mut self, sys_variable: &SysVariable) {
-            let mut sys_var_guard = self.sys_variable.write().await;
-            // 插入或更新系统变量
-            sys_var_guard.insert(sys_variable.var_name.clone(), sys_variable.clone());
         }
     }
 }

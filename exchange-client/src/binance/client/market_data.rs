@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use star_river_core::kline::{Kline, KlineInterval};
 use crate::binance::binance_type::BinanceKlineInterval;
 use crate::binance::Binance;

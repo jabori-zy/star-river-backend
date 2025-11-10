@@ -8,7 +8,7 @@ use star_river_core::{
     instrument::Symbol,
 };
 
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 
 
 use crate::{ExchangeRunState, state_machine::ExchangeStateTransTrigger};

@@ -1,0 +1,176 @@
+use strategy_core::node::node_state_machine::StateMachine;
+use strategy_core::node::node_trait::{NodeEventListener, NodeLifecycle};
+
+use crate::node::node_error::BacktestNodeError;
+use crate::node_catalog::variable_node::state_machine::VariableNodeAction;
+
+use super::VariableNode;
+use async_trait::async_trait;
+use crate::node::node_state_machine::NodeStateTransTrigger;
+use strategy_core::node::context_trait::{NodeStateMachineExt, NodeIdentityExt, NodeHandleExt};
+use strategy_core::node::node_trait::NodeContextAccessor;
+use tokio::time::Duration;
+use crate::node::node_utils::NodeUtils;
+use strategy_core::node::context_trait::NodeTaskControlExt;
+use crate::node::node_message::common_log_message::{NodeStateLogMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg};
+use crate::node::node_message::variable_node_log_message::RegisterVariableRetrievalTaskMsg;
+
+#[async_trait]
+impl NodeLifecycle for VariableNode {
+    type Error = BacktestNodeError;
+    type Trigger = NodeStateTransTrigger;
+
+    async fn init(&self) -> Result<(), Self::Error> {
+        let node_name = self.with_ctx_read(|ctx| {
+            ctx.node_name().clone()
+        }).await;
+
+        tracing::info!("================={}====================", node_name);
+        tracing::info!("[{node_name}] start init");
+
+        // Start initialization: Created -> Initializing
+        self.update_node_state(NodeStateTransTrigger::StartInit).await?;
+
+        // Sleep 500ms
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let current_state = self.with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.run_state().await.clone()
+            })
+        }).await;
+
+        tracing::info!("{:?}: initialization complete", current_state);
+
+        // Finish initialization: Initializing -> Ready
+        self.update_node_state(NodeStateTransTrigger::FinishInit).await?;
+        Ok(())
+    }
+
+    async fn stop(&self) -> Result<(), Self::Error> {
+        let node_name = self.with_ctx_read(|ctx| {
+            ctx.node_name().clone()
+        }).await;
+
+        tracing::info!("[{node_name}] start stop");
+        self.update_node_state(NodeStateTransTrigger::StartStop).await?;
+
+        // Sleep 500ms
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // Switch to stopped state
+        self.update_node_state(NodeStateTransTrigger::FinishStop).await?;
+        Ok(())
+    }
+
+    async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
+        let (strategy_id, node_id, node_name, strategy_output_handle, state_machine) = self.with_ctx_read(|ctx| {
+            let strategy_id = ctx.strategy_id().clone();
+            let node_id = ctx.node_id().clone();
+            let node_name = ctx.node_name().clone();
+            let strategy_output_handle = ctx.strategy_bound_handle().clone();
+            let state_machine = ctx.state_machine().clone();
+            (strategy_id, node_id, node_name, strategy_output_handle, state_machine)
+        }).await;
+
+        let transition_result = {
+            let mut state_machine = state_machine.write().await;
+            state_machine.transition(trans_trigger)?
+        };
+
+        // Execute actions after state transition
+        for action in transition_result.actions() {
+            let current_state = {
+                let state_machine = state_machine.read().await;
+                state_machine.current_state().clone()
+            };
+
+            match action {
+                VariableNodeAction::LogTransition => {
+                    tracing::debug!(
+                        "[{node_name}] state transition: {:?} -> {:?}",
+                        current_state,
+                        transition_result.new_state()
+                    );
+                }
+                VariableNodeAction::LogNodeState => {
+                    tracing::info!("[{node_name}] current state: {:?}", current_state);
+
+                    // Send node state log event
+                    let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        VariableNodeAction::LogNodeState.to_string(),
+                        &strategy_output_handle
+                    ).await;
+                }
+                VariableNodeAction::RegisterTask => {
+                    tracing::info!("[{node_name}] registering variable retrieval task");
+                    let log_message = RegisterVariableRetrievalTaskMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        VariableNodeAction::RegisterTask.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    // Register task implementation (if needed)
+                    // self.with_ctx_write_async(|ctx| {
+                    //     Box::pin(async move {
+                    //         ctx.register_task().await
+                    //     })
+                    // }).await;
+                }
+                VariableNodeAction::ListenAndHandleNodeEvents => {
+                    tracing::info!("[{node_name}] start to listen node events");
+                    let log_message = ListenNodeEventsMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        VariableNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    self.listen_source_node_events().await;
+                }
+                VariableNodeAction::ListenAndHandleStrategyCommand => {
+                    tracing::info!("[{node_name}] start to listen strategy command");
+                    let log_message = ListenStrategyCommandMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        VariableNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        &strategy_output_handle
+                    ).await;
+
+                    self.listen_node_command().await;
+                }
+                VariableNodeAction::LogError(error) => {
+                    tracing::error!("[{node_name}] error occurred: {}", error);
+                }
+                VariableNodeAction::CancelAsyncTask => {
+                    tracing::debug!("[{node_name}] cancel async task");
+                    self.with_ctx_read_async(|ctx| {
+                        Box::pin(async move {
+                            ctx.request_cancel();
+                        })
+                    }).await;
+                }
+            }
+        }
+        Ok(())
+    }
+}

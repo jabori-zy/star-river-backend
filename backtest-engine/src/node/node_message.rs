@@ -4,8 +4,8 @@
 
 // 通用日志消息 - 多个节点共同使用的日志消息
 pub mod common_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
 
     // 所有节点都有的通用状态日志
@@ -177,8 +177,8 @@ pub mod common_log_message {
 
 // StartNode 独特的日志消息
 pub mod start_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
 
     log_message!(
@@ -320,8 +320,8 @@ pub mod start_node_log_message {
 
 // IndicatorNode 独特的日志消息
 pub mod indicator_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
 
     log_message!(
@@ -440,10 +440,10 @@ pub mod indicator_node_log_message {
 
 // KlineNode 独特的日志消息
 pub mod kline_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
-    use star_river_core::market::Exchange;
+    use star_river_core::exchange::Exchange;
 
     log_message!(
         StartRegisterExchangeMsg,
@@ -549,8 +549,8 @@ pub mod kline_node_log_message {
 
 // IfElseNode 独特的日志消息
 pub mod if_else_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
 
     log_message!(
@@ -603,8 +603,8 @@ pub mod if_else_node_log_message {
 
 // PositionManagementNode 特有的日志消息
 pub mod position_management_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
 
     log_message!(
@@ -744,8 +744,8 @@ pub mod position_management_node_log_message {
 
 // VariableNode 特有的日志消息
 pub mod variable_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
 
     log_message!(
@@ -893,8 +893,8 @@ pub mod variable_node_log_message {
 
 // FuturesOrderNode 特有的日志消息
 pub mod futures_order_node_log_message {
-    use star_river_core::strategy::log_message::*;
-    use star_river_core::log_message;
+    use strategy_core::log_message::*;
+    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
     use star_river_core::custom_type::OrderId;
 

@@ -1,41 +1,31 @@
-pub mod error;
-pub mod backtest_engine_error;
+pub mod engine_error;
 mod context;
-mod node_new;
-// mod node;
-// mod strategy;
-pub(crate) mod strategy_new;
-// mod node_list;
-mod node_list_new;
-mod state_machine;
 mod engine_lifecycle;
-mod node_event;
-mod strategy_command;
-mod node_command;
+mod engine_state_machine;
+mod node;
+mod node_catalog;
+pub(crate) mod strategy;
 
-
-
-
-// std
+// Standard library imports
 use std::sync::Arc;
 
-// third-party
+// External crate imports
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use tokio::sync::{Mutex, RwLock};
 
-// workspace crate
+// Workspace crate imports
 use engine_core::{
+    EngineBase, EngineBaseContext, EngineContextAccessor,
     engine_trait::Engine,
     state_machine::EngineRunState,
-    EngineBase, EngineBaseContext, EngineContextAccessor,
 };
 use star_river_core::engine::EngineName;
 
-// current crate
+// Current crate imports
 use crate::{
     context::BacktestEngineContext,
-    state_machine::{BacktestEngineAction, BacktestEngineStateMachine, backtest_engine_transition},
+    engine_state_machine::{BacktestEngineAction, BacktestEngineStateMachine, backtest_engine_transition},
 };
 
 /// 回测引擎

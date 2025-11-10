@@ -1770,7 +1770,6 @@ dependencies = [
  "serde",
  "snafu",
  "star-river-core",
- "strategy-core",
  "ta-lib",
 ]
 
@@ -4236,6 +4235,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "event-center-core",
+ "key",
  "serde",
  "serde_json",
  "snafu",

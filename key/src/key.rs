@@ -3,7 +3,7 @@ use super::KeyTrait;
 use star_river_core::error::star_river_error::*;
 use star_river_core::exchange::Exchange;
 use star_river_core::kline::KlineInterval;
-use strategy_core::strategy::TimeRange;
+use star_river_core::system::TimeRange;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::str::FromStr;

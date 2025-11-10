@@ -15,26 +15,31 @@ use tokio::sync::mpsc;
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::{
-    error::strategy_error::{BacktestStrategyError, EdgeConfigNullSnafu, NodeConfigNullSnafu},
-    node::{
-        NodeType,
-        node_context_trait::{NodeHandleTrait, NodeIdentity},
-        node_trait::NodeContextAccessor,
-    },
-};
+use crate::strategy::strategy_error::BacktestStrategyError;
+
+use strategy_core::strategy::context_trait::StrategyIdentityExt;
+use strategy_core::error::strategy_error::NodeConfigNullSnafu;
+use strategy_core::node::NodeType;
+use strategy_core::strategy::context_trait::StrategyWorkflowExt;
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+use crate::node::node_command::BacktestNodeCommand;
+use strategy_core::error::strategy_error::EdgeConfigNullSnafu;
+use strategy_core::strategy::context_trait::StrategyBenchmarkExt;
+use strategy_core::node::node_trait::NodeContextAccessor;
+use strategy_core::node::context_trait::{NodeIdentityExt, NodeHandleExt};
+use strategy_core::node::NodeTrait;
 
 impl BacktestStrategyContext {
     pub async fn build_workflow(&mut self) -> Result<(), BacktestStrategyError> {
         // get strategy config and clone to avoid borrow issues
-        tracing::info!("[{}] start to build workflow", &self.strategy_name);
+        tracing::info!("[{}] start to build workflow", self.strategy_name());
         let node_config_list = self
-            .strategy_config
+            .strategy_config()
             .nodes
             .as_ref()
             .and_then(|node| node.as_array())
             .context(NodeConfigNullSnafu {
-                strategy_name: self.strategy_name.clone(),
+                strategy_name: self.strategy_name().clone(),
             })?
             .clone(); // 克隆以释放对 self 的借用
 
@@ -77,12 +82,12 @@ impl BacktestStrategyContext {
 
         tracing::debug!("workflow build phase 2: build edges");
         let edge_config_list = self
-            .strategy_config
+            .strategy_config()
             .edges
             .as_ref()
             .and_then(|edge| edge.as_array())
             .context(EdgeConfigNullSnafu {
-                strategy_name: self.strategy_name.clone(),
+                strategy_name: self.strategy_name().clone(),
             })?
             .clone();
 
@@ -92,9 +97,9 @@ impl BacktestStrategyContext {
 
         // check symbol config
         tracing::debug!("workflow build phase 3: check symbol config");
-        // if let Err(e) = self.check_symbol_config().await {
-        //     return Err(e);
-        // }
+        if let Err(e) = self.check_symbol_config().await {
+            return Err(e);
+        }
 
 
         // set leaf nodes

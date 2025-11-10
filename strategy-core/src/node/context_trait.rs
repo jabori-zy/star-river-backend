@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 
 // current crate
 use super::metadata::NodeMetadata;
-use crate::{error::node_error::{NodeEventSendFailedSnafu, OutputHandleNotFoundSnafu}, node::{
+use crate::{error::node_error::{NodeCommandSendFailedSnafu, NodeEventSendFailedSnafu, OutputHandleNotFoundSnafu, StrategyCommandSendFailedSnafu}, node::{
     NodeType,
     node_handles::{HandleId, NodeInputHandle, NodeOutputHandle}, 
     node_state_machine::{StateChangeActions, StateMachine},
@@ -28,6 +28,7 @@ use crate::benchmark::node_benchmark::CompletedCycle;
 use crate::event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload};
 use crate::event::node_common_event::TriggerPayload;
 use crate::event::node_common_event::TriggerEvent;
+use std::collections::HashMap;
 
 
 // ============================================================================
@@ -219,6 +220,11 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt
         self.metadata_mut().add_output_handle(handle);
     }
 
+
+    fn output_handles(&self) -> &HashMap<HandleId, NodeOutputHandle<Self::NodeEvent>> {
+        self.metadata().output_handles()
+    }
+
     /// 获取输出句柄
     #[inline]
     fn output_handle(&self, handle_id: &str) -> Option<&NodeOutputHandle<Self::NodeEvent>> {
@@ -314,18 +320,30 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         self.metadata().strategy_command_sender()
     }
 
+
+    async fn send_strategy_command(&self, command: Self::StrategyCommand) -> Result<(), crate::error::NodeError> {
+        self
+        .strategy_command_sender()
+        .send(command)
+        .await
+        .map_err(|e| StrategyCommandSendFailedSnafu { node_id: self.node_id().clone(),  }.into_error(Arc::new(e)))?;
+        Ok(())
+    
+    }
+
     /// 获取节点命令接收器
     #[inline]
     fn node_command_receiver(&self) -> Arc<Mutex<mpsc::Receiver<Self::NodeCommand>>> {
         self.metadata().node_command_receiver()
     }
 
+
     /// 发送事件到指定的输出句柄
     ///
     /// # Arguments
     /// - `handle_id` - 输出句柄 ID
     /// - `event` - 要发送的事件
-    async fn output_handle_send(&self, handle_id: &str, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
+    fn output_handle_send(&self, handle_id: &str, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
         let output_handle = self
             .output_handle(handle_id)
             .context(OutputHandleNotFoundSnafu { handle_id: handle_id.to_string() })?;
@@ -341,7 +359,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     ///
     /// # Arguments
     /// - `event` - 要发送的事件
-    async fn strategy_bound_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
+    fn strategy_bound_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
         let strategy_handle = self.strategy_bound_handle();
 
         strategy_handle
@@ -355,7 +373,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     ///
     /// # Arguments
     /// - `event` - 要发送的事件
-    async fn default_output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
+    fn default_output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
         let default_handle = self
             .default_output_handle()
             .context(OutputHandleNotFoundSnafu { handle_id: generate_default_output_handle_id(self.node_id()) })?;
@@ -370,7 +388,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     }
 
 
-    async fn send_execute_over_event(&self) -> Result<(), crate::error::NodeError> {
+    fn send_execute_over_event(&self) -> Result<(), crate::error::NodeError> {
         if !self.is_leaf_node() {
             return Ok(());
         }
@@ -384,13 +402,13 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         )
         .into();
 
-        self.strategy_bound_handle_send(execute_over_event.into()).await?;
+        self.strategy_bound_handle_send(execute_over_event.into())?;
 
         Ok(())
     }
 
 
-    async fn send_trigger_event(&self, handle_id: &str) -> Result<(), String> {
+    async fn send_trigger_event(&self, handle_id: &str) -> Result<(), crate::error::NodeError> {
         // 叶子节点不发送触发事件
         if self.is_leaf_node() {
             return Ok(());
@@ -402,11 +420,11 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
 
         let output_handle = self
             .output_handle(handle_id)
-            .ok_or_else(|| format!("Output handle not found: {}", handle_id))?;
+            .context(OutputHandleNotFoundSnafu { handle_id: handle_id.to_string() })?;
 
         output_handle
             .send(trigger_event.into())
-            .map_err(|e| format!("Failed to send trigger event: {}", e))?;
+            .map_err(|e| NodeEventSendFailedSnafu { handle_id: handle_id.to_string(),  }.into_error(Arc::new(e)))?;
 
         Ok(())
     }

@@ -1,13 +1,15 @@
+// External crate imports
 use async_trait::async_trait;
+
+// Workspace crate imports
 use engine_core::{
-    EngineContextAccessor, EngineLifecycle, EngineEventListener,
-    context_trait::{EngineContextTrait, EngineStateMachineTrait}
+    EngineContextAccessor, EngineEventListener, EngineLifecycle,
+    context_trait::{EngineContextTrait, EngineStateMachineTrait},
+    state_machine::EngineStateTransTrigger,
 };
 
-use crate::state_machine::BacktestEngineAction;
-use crate::BacktestEngine;
-use engine_core::state_machine::EngineStateTransTrigger;
-use crate::backtest_engine_error::BacktestEngineError;
+// Current crate imports
+use crate::{BacktestEngine, engine_error::BacktestEngineError, engine_state_machine::BacktestEngineAction};
 
 #[async_trait]
 impl EngineLifecycle for BacktestEngine {

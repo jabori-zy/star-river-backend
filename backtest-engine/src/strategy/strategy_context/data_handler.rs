@@ -1,21 +1,18 @@
 // workspace crate
 use star_river_core::{
-    custom_type::PlayIndex,
-    key::Key,
-    market::QuantData,
-    order::virtual_order::VirtualOrder,
-    position::virtual_position::VirtualPosition,
-    strategy::{StrategyVariable, strategy_benchmark::StrategyPerformanceReport},
-    strategy_stats::StatsSnapshot,
     system::DateTimeUtc,
-    transaction::virtual_transaction::VirtualTransaction,
 };
+use strategy_stats::StatsSnapshot;
+use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
+use key::Key;
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::error::strategy_error::{
+use crate::strategy::strategy_error::{
     BacktestStrategyError, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, KlineDataLengthNotSameSnafu,
 };
+use strategy_core::strategy::context_trait::{StrategyIdentityExt};
+use crate::strategy::PlayIndex;
 
 
 impl BacktestStrategyContext {
@@ -68,7 +65,7 @@ impl BacktestStrategyContext {
                 return Ok(kline_data_lengths[0]);
             } else {
                 return Err(KlineDataLengthNotSameSnafu {
-                    strategy_name: self.strategy_name.clone(),
+                    strategy_name: self.strategy_name().clone(),
                 }
                 .build());
             }
@@ -85,7 +82,7 @@ impl BacktestStrategyContext {
         let keys_map = self.keys.read().await;
         if !keys_map.contains_key(&key) {
             return Err(GetDataFailedSnafu {
-                strategy_name: self.strategy_name.clone(),
+                strategy_name: self.strategy_name().clone(),
                 key: key.get_key_str(),
                 play_index: play_index as u32,
             }
@@ -135,7 +132,7 @@ impl BacktestStrategyContext {
         let keys_map = self.keys.read().await;
         if !keys_map.contains_key(&key) {
             return Err(GetDataByDatetimeFailedSnafu {
-                strategy_name: self.strategy_name.clone(),
+                strategy_name: self.strategy_name().clone(),
                 key: key.get_key_str(),
                 datetime: datetime.to_string(),
             }
@@ -187,42 +184,5 @@ impl BacktestStrategyContext {
                 indicator_data.clear();
             }
         });
-    }
-
-    pub(super) async fn reset_all_custom_variables(&mut self) {
-        let mut custom_variable_guard = self.custom_variable.write().await;
-        custom_variable_guard.iter_mut().for_each(|(_, custom_variable)| {
-            custom_variable.var_value = custom_variable.initial_value.clone();
-        });
-    }
-
-    pub(super) async fn reset_all_sys_variables(&mut self) {
-        let mut sys_variable_guard = self.sys_variable.write().await;
-        sys_variable_guard.clear();
-    }
-
-    pub async fn get_strategy_variable(&self) -> Vec<StrategyVariable> {
-        let mut strategy_variable = Vec::new();
-
-        let custom_variable_guard = self.custom_variable.read().await;
-        let custom_var = custom_variable_guard
-            .iter()
-            .map(|(_, custom_variable)| StrategyVariable::CustomVariable(custom_variable.clone()))
-            .collect::<Vec<StrategyVariable>>();
-
-        let sys_variable_guard = self.sys_variable.read().await;
-        let sys_var = sys_variable_guard
-            .iter()
-            .map(|(_, sys_variable)| StrategyVariable::SysVariable(sys_variable.clone()))
-            .collect::<Vec<StrategyVariable>>();
-
-        strategy_variable.extend(custom_var);
-        strategy_variable.extend(sys_var);
-        strategy_variable
-    }
-
-    pub async fn get_strategy_performance_report(&self) -> StrategyPerformanceReport {
-        let strategy_benchmark_guard = self.benchmark.read().await;
-        strategy_benchmark_guard.report().clone()
     }
 }
