@@ -1,31 +1,27 @@
-use crate::node::node_error::BacktestNodeError;
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode, generate_error_code_chain};
+use std::sync::Arc;
+
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
-use strategy_core::error::StrategyError;
-use strategy_core::error::strategy_state_machine_error::StrategyStateMachineError;
-use std::sync::Arc;
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
+use strategy_core::error::{StrategyError, strategy_state_machine_error::StrategyStateMachineError};
+
+use crate::node::node_error::BacktestNodeError;
 // use event_center::EventCenterError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum BacktestStrategyError {
-
     #[snafu(transparent)]
     StrategyError { source: StrategyError, backtrace: Backtrace },
 
-
     #[snafu(transparent)]
-    StrategyStateMachineError { source: StrategyStateMachineError, backtrace: Backtrace },
-
-    #[snafu(transparent)]
-    BacktestNodeError {
-        source: BacktestNodeError,
+    StrategyStateMachineError {
+        source: StrategyStateMachineError,
         backtrace: Backtrace,
     },
 
-
-
+    #[snafu(transparent)]
+    BacktestNodeError { source: BacktestNodeError, backtrace: Backtrace },
 
     #[snafu(display("[{strategy_name}] update status failed: {source}"))]
     UpdateStrategyStatusFailed {
@@ -66,10 +62,10 @@ pub enum BacktestStrategyError {
     },
 
     #[snafu(display("[{strategy_name}] get start node config failed"))]
-    GetStartNodeConfigFailed { 
-        strategy_name: String, 
-        source: Arc<dyn StarRiverErrorTrait>, 
-        backtrace: Backtrace
+    GetStartNodeConfigFailed {
+        strategy_name: String,
+        source: Arc<dyn StarRiverErrorTrait>,
+        backtrace: Backtrace,
     },
 
     #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
@@ -100,26 +96,23 @@ impl StarRiverErrorTrait for BacktestStrategyError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            BacktestStrategyError::StrategyError { .. } => 1001, // 策略错误.
-            BacktestStrategyError::StrategyStateMachineError { .. } => 1002, // 策略状态机错误
-            BacktestStrategyError::BacktestNodeError { .. } => 1003, // 节点错误
+            BacktestStrategyError::StrategyError { .. } => 1001,              // 策略错误.
+            BacktestStrategyError::StrategyStateMachineError { .. } => 1002,  // 策略状态机错误
+            BacktestStrategyError::BacktestNodeError { .. } => 1003,          // 节点错误
             BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1004, // 更新策略状态失败
-            BacktestStrategyError::PlayFinished { .. } => 1005,        // 所有回测数据播放完毕
-            BacktestStrategyError::AlreadyPlaying { .. } => 1006,      // 策略正在播放，无法再次播放
-            BacktestStrategyError::AlreadyPausing { .. } => 1007,      // 策略正在暂停，无法再次暂停
-            BacktestStrategyError::IntervalNotSame { .. } => 1008,     // 不同symbol的最小周期不相同
-            BacktestStrategyError::GetDataFailed { .. } => 1009,       // 获取数据失败
-            BacktestStrategyError::GetDataByDatetimeFailed { .. } => 1010, // 获取数据失败
-            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1011, // 获取开始节点配置失败
-            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1012, // kline数据长度不相同
-            BacktestStrategyError::KlineKeyNotFound { .. } => 1013,    // kline key未找到
-            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1014, // 播放索引超出范围
+            BacktestStrategyError::PlayFinished { .. } => 1005,               // 所有回测数据播放完毕
+            BacktestStrategyError::AlreadyPlaying { .. } => 1006,             // 策略正在播放，无法再次播放
+            BacktestStrategyError::AlreadyPausing { .. } => 1007,             // 策略正在暂停，无法再次暂停
+            BacktestStrategyError::IntervalNotSame { .. } => 1008,            // 不同symbol的最小周期不相同
+            BacktestStrategyError::GetDataFailed { .. } => 1009,              // 获取数据失败
+            BacktestStrategyError::GetDataByDatetimeFailed { .. } => 1010,    // 获取数据失败
+            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1011,   // 获取开始节点配置失败
+            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1012,     // kline数据长度不相同
+            BacktestStrategyError::KlineKeyNotFound { .. } => 1013,           // kline key未找到
+            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1014,        // 播放索引超出范围
         };
         format!("{prefix}_{code:04}")
     }
-    
-
-
 
     fn http_status_code(&self) -> StatusCode {
         match self {
@@ -129,21 +122,21 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::BacktestNodeError { source, .. } => source.http_status_code(),
 
             // 服务器内部错误 (500)
-            BacktestStrategyError::GetDataFailed { .. } |
-            BacktestStrategyError::GetDataByDatetimeFailed { .. } |
-            BacktestStrategyError::KlineDataLengthNotSame { .. } |
-            BacktestStrategyError::PlayIndexOutOfRange { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            BacktestStrategyError::GetDataFailed { .. }
+            | BacktestStrategyError::GetDataByDatetimeFailed { .. }
+            | BacktestStrategyError::KlineDataLengthNotSame { .. }
+            | BacktestStrategyError::PlayIndexOutOfRange { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             // 客户端错误 - 配置/数据问题 (400)
-            BacktestStrategyError::GetStartNodeConfigFailed { .. } |
-            BacktestStrategyError::IntervalNotSame { .. } => StatusCode::BAD_REQUEST,
+            BacktestStrategyError::GetStartNodeConfigFailed { .. } | BacktestStrategyError::IntervalNotSame { .. } => {
+                StatusCode::BAD_REQUEST
+            }
 
             // 客户端错误 - 资源未找到 (404)
             BacktestStrategyError::KlineKeyNotFound { .. } => StatusCode::NOT_FOUND,
 
             // 客户端错误 - 冲突/状态错误 (409)
-            BacktestStrategyError::AlreadyPlaying { .. } |
-            BacktestStrategyError::AlreadyPausing { .. } => StatusCode::CONFLICT,
+            BacktestStrategyError::AlreadyPlaying { .. } | BacktestStrategyError::AlreadyPausing { .. } => StatusCode::CONFLICT,
 
             // 成功但已完成 (200 - 虽然是错误但在业务上是正常完成)
             BacktestStrategyError::PlayFinished { .. } => StatusCode::OK,
@@ -152,7 +145,6 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::UpdateStrategyStatusFailed { .. } => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
-
 
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
@@ -163,12 +155,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::StrategyStateMachineError { source, .. } => source.error_message(language),
                 BacktestStrategyError::BacktestNodeError { source, .. } => source.error_message(language),
 
-
-                BacktestStrategyError::UpdateStrategyStatusFailed {
-                    strategy_name,
-                    source,
-                    ..
-                } => {
+                BacktestStrategyError::UpdateStrategyStatusFailed { strategy_name, source, .. } => {
                     format!("策略 [{strategy_name}] 更新状态失败: {source}")
                 }
                 BacktestStrategyError::PlayFinished { strategy_name, .. } => {
@@ -205,10 +192,17 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::KlineDataLengthNotSame { strategy_name, .. } => {
                     format!("策略 [{strategy_name}] kline数据长度不相同")
                 }
-                BacktestStrategyError::KlineKeyNotFound { strategy_name, kline_key, .. } => {
+                BacktestStrategyError::KlineKeyNotFound {
+                    strategy_name, kline_key, ..
+                } => {
                     format!("策略 [{strategy_name}] kline key 不存在: {kline_key}")
                 }
-                BacktestStrategyError::PlayIndexOutOfRange { strategy_name, kline_data_length, play_index, .. } => {
+                BacktestStrategyError::PlayIndexOutOfRange {
+                    strategy_name,
+                    kline_data_length,
+                    play_index,
+                    ..
+                } => {
                     format!("策略 [{strategy_name}] 播放索引超出范围: k线数据长度: {kline_data_length}, 播放索引: {play_index}")
                 }
             },

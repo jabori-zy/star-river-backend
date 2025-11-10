@@ -1,5 +1,7 @@
-use star_river_core::custom_type::{Balance, Leverage, Margin, MarginRatio, Price};
-use star_river_core::position::PositionSide;
+use star_river_core::{
+    custom_type::{Balance, Leverage, Margin, MarginRatio, Price},
+    position::PositionSide,
+};
 
 pub struct Formula;
 

@@ -1,9 +1,11 @@
-use strategy_core::communication::node::{NodeCommand, NodeResponse};
-use crate::strategy::strategy_config::BacktestStrategyConfig;
-use star_river_core::custom_type::NodeId;
 use derive_more::From;
-use strategy_core::communication::NodeCommandTrait;
+use star_river_core::custom_type::NodeId;
+use strategy_core::communication::{
+    NodeCommandTrait,
+    node::{NodeCommand, NodeResponse},
+};
 
+use crate::strategy::strategy_config::BacktestStrategyConfig;
 
 #[derive(Debug, From)]
 pub enum BacktestNodeCommand {
@@ -19,15 +21,6 @@ impl NodeCommandTrait for BacktestNodeCommand {
         }
     }
 }
-
-
-
-
-
-
-
-
-
 
 // ============ Get Start Node Config ============
 pub type GetStartNodeConfigCommand = NodeCommand<GetStartNodeConfigCmdPayload, GetStartNodeConfigRespPayload>;

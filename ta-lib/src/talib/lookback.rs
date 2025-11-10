@@ -1,6 +1,5 @@
 use super::TALib;
-use crate::talib_bindings::*;
-use crate::indicator::IndicatorConfig;
+use crate::{indicator::IndicatorConfig, talib_bindings::*};
 
 impl TALib {
     pub fn lookback(config: &IndicatorConfig) -> usize {
@@ -8,7 +7,7 @@ impl TALib {
             match config {
                 // Overlap
                 IndicatorConfig::BBANDS(bbands_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_BBANDS_Lookback(
                         bbands_config.time_period,
                         bbands_config.dev_up.into(),
@@ -16,7 +15,7 @@ impl TALib {
                         bbands_config.ma_type.clone() as i32,
                     );
 
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_BBANDS_Lookback(
                         bbands_config.time_period,
                         bbands_config.dev_up.into(),
@@ -43,9 +42,9 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::MA(ma_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_MA_Lookback(ma_config.time_period, ma_config.ma_type.clone() as i32);
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_MA_Lookback(ma_config.time_period, ma_config.ma_type.clone() as u32);
                     return lookback as usize;
                 }
@@ -112,9 +111,9 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::APO(apo_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_APO_Lookback(apo_config.fast_period, apo_config.slow_period, apo_config.ma_type.clone() as i32);
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_APO_Lookback(apo_config.fast_period, apo_config.slow_period, apo_config.ma_type.clone() as u32);
                     return lookback as usize;
                 }
@@ -147,7 +146,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::MACDEXT(macdext_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_MACDEXT_Lookback(
                         macdext_config.fast_period,
                         macdext_config.fast_ma_type.clone() as i32,
@@ -156,7 +155,7 @@ impl TALib {
                         macdext_config.signal_period,
                         macdext_config.signal_ma_type.clone() as i32,
                     );
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_MACDEXT_Lookback(
                         macdext_config.fast_period,
                         macdext_config.fast_ma_type.clone() as u32,
@@ -196,9 +195,9 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::PPO(ppo_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_PPO_Lookback(ppo_config.fast_period, ppo_config.slow_period, ppo_config.ma_type.clone() as i32);
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_PPO_Lookback(ppo_config.fast_period, ppo_config.slow_period, ppo_config.ma_type.clone() as u32);
                     return lookback as usize;
                 }
@@ -223,7 +222,7 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::STOCH(stoch_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_STOCH_Lookback(
                         stoch_config.fast_k_period,
                         stoch_config.slow_k_period,
@@ -231,7 +230,7 @@ impl TALib {
                         stoch_config.slow_d_period,
                         stoch_config.slow_d_ma_type.clone() as i32,
                     );
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_STOCH_Lookback(
                         stoch_config.fast_k_period,
                         stoch_config.slow_k_period,
@@ -242,13 +241,13 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::STOCHF(stochf_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_STOCHF_Lookback(
                         stochf_config.fast_k_period,
                         stochf_config.fast_d_period,
                         stochf_config.fast_d_ma_type.clone() as i32,
                     );
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_STOCHF_Lookback(
                         stochf_config.fast_k_period,
                         stochf_config.fast_d_period,
@@ -257,14 +256,14 @@ impl TALib {
                     return lookback as usize;
                 }
                 IndicatorConfig::STOCHRSI(stochrsi_config) => {
-                    #[cfg(target_os="windows")]
+                    #[cfg(target_os = "windows")]
                     let lookback = TA_STOCHRSI_Lookback(
                         stochrsi_config.time_period,
                         stochrsi_config.fast_k_period,
                         stochrsi_config.fast_d_period,
                         stochrsi_config.fast_d_ma_type.clone() as i32,
                     );
-                    #[cfg(target_os="macos")]
+                    #[cfg(target_os = "macos")]
                     let lookback = TA_STOCHRSI_Lookback(
                         stochrsi_config.time_period,
                         stochrsi_config.fast_k_period,

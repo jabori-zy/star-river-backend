@@ -1,19 +1,26 @@
-use crate::{node::{node_error::BacktestNodeError, node_state_machine::NodeStateTransTrigger}, node_catalog::indicator_node::state_machine::IndicatorNodeAction};
+use async_trait::async_trait;
+use strategy_core::node::{
+    context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+    node_state_machine::StateMachine,
+    node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
+};
+use tokio::time::Duration;
 
 use super::IndicatorNode;
-
-use strategy_core::node::{node_state_machine::StateMachine, node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle}};
-use async_trait::async_trait;
-use strategy_core::node::context_trait::{NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt};
-use tokio::time::Duration;
-use strategy_core::node::context_trait::NodeHandleExt;
-use crate::node::node_message::common_log_message::NodeStateLogMsg;
-use crate::node::node_utils::NodeUtils;
-use crate::node::node_message::common_log_message::{
-    ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, 
-    GetMinIntervalSymbolsSuccessMsg, };
-use crate::node::node_message::indicator_node_log_message::{CalculateIndicatorMsg, CalculateIndicatorSuccessMsg};
-
+use crate::{
+    node::{
+        node_error::BacktestNodeError,
+        node_message::{
+            common_log_message::{
+                GetMinIntervalSymbolsSuccessMsg, ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg,
+            },
+            indicator_node_log_message::{CalculateIndicatorMsg, CalculateIndicatorSuccessMsg},
+        },
+        node_state_machine::NodeStateTransTrigger,
+        node_utils::NodeUtils,
+    },
+    node_catalog::indicator_node::state_machine::IndicatorNodeAction,
+};
 
 #[async_trait]
 impl NodeLifecycle for IndicatorNode {
@@ -22,19 +29,15 @@ impl NodeLifecycle for IndicatorNode {
     type Trigger = NodeStateTransTrigger;
 
     async fn init(&self) -> Result<(), Self::Error> {
-        let node_name = self.with_ctx_read(|ctx| {
-            ctx.node_name().to_string()
-        }).await;
+        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
         tracing::info!("================={}====================", node_name);
         tracing::info!("[{node_name}] start init");
         // 开始初始化 created -> Initialize
         self.update_node_state(NodeStateTransTrigger::StartInit).await?;
 
-        let current_state = self.with_ctx_read_async(|ctx| {
-            Box::pin(async move {
-                ctx.run_state().await.clone()
-            })
-        }).await;
+        let current_state = self
+            .with_ctx_read_async(|ctx| Box::pin(async move { ctx.run_state().await.clone() }))
+            .await;
 
         tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
@@ -44,30 +47,28 @@ impl NodeLifecycle for IndicatorNode {
     }
 
     async fn stop(&self) -> Result<(), Self::Error> {
-        let node_name = self.with_ctx_read(|ctx| {
-            ctx.node_name().to_string()
-        }).await;
+        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
         tracing::info!("[{node_name}] start stop");
         self.update_node_state(NodeStateTransTrigger::StartStop).await?;
 
         // 休眠500毫秒
         tokio::time::sleep(Duration::from_secs(500)).await;
         // 切换为stopped状态
-        self.update_node_state(NodeStateTransTrigger::FinishStop)
-            .await
-            ?;
+        self.update_node_state(NodeStateTransTrigger::FinishStop).await?;
         Ok(())
     }
 
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
-        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self.with_ctx_read(|ctx| {
-            let node_name = ctx.node_name().to_string();
-            let node_id = ctx.node_id().clone();
-            let strategy_id = ctx.strategy_id().clone();
-            let strategy_output_handle = ctx.strategy_bound_handle().clone();
-            let state_machine = ctx.state_machine().clone();
-            (node_name, node_id, strategy_id, strategy_output_handle, state_machine)
-        }).await;
+        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+            .with_ctx_read(|ctx| {
+                let node_name = ctx.node_name().to_string();
+                let node_id = ctx.node_id().clone();
+                let strategy_id = ctx.strategy_id().clone();
+                let strategy_output_handle = ctx.strategy_bound_handle().clone();
+                let state_machine = ctx.state_machine().clone();
+                (node_name, node_id, strategy_id, strategy_output_handle, state_machine)
+            })
+            .await;
 
         let transition_result = {
             let mut state_machine = state_machine.write().await;
@@ -80,7 +81,7 @@ impl NodeLifecycle for IndicatorNode {
                 let state_machine = state_machine.read().await;
                 state_machine.current_state().clone()
             };
-            
+
             match action {
                 IndicatorNodeAction::LogTransition => {
                     tracing::info!(
@@ -100,8 +101,8 @@ impl NodeLifecycle for IndicatorNode {
                         current_state.to_string(),
                         IndicatorNodeAction::LogNodeState.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
+                    )
+                    .await;
                 }
                 IndicatorNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] starting to listen external events");
@@ -114,8 +115,9 @@ impl NodeLifecycle for IndicatorNode {
                         current_state.to_string(),
                         IndicatorNodeAction::ListenAndHandleExternalEvents.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
+                    )
+                    .await;
+
                     self.listen_engine_event().await;
                 }
                 IndicatorNodeAction::ListenAndHandleNodeEvents => {
@@ -129,8 +131,9 @@ impl NodeLifecycle for IndicatorNode {
                         current_state.to_string(),
                         IndicatorNodeAction::ListenAndHandleNodeEvents.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
+                    )
+                    .await;
+
                     self.listen_source_node_events().await;
                 }
                 IndicatorNodeAction::ListenAndHandleStrategyCommand => {
@@ -144,8 +147,9 @@ impl NodeLifecycle for IndicatorNode {
                         current_state.to_string(),
                         IndicatorNodeAction::ListenAndHandleStrategyCommand.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
+                    )
+                    .await;
+
                     self.listen_node_command().await;
                 }
 
@@ -154,100 +158,95 @@ impl NodeLifecycle for IndicatorNode {
                         Box::pin(async move {
                             ctx.init_indicator_lookback().await;
                         })
-                    }).await;
+                    })
+                    .await;
                     tracing::info!("[{node_name})] init indicator lookback complete");
                 }
 
                 IndicatorNodeAction::GetMinIntervalSymbols => {
-                    let _ = self.with_ctx_write_async(|ctx| {
-                        Box::pin(async move {
-                            ctx
-                            .get_min_interval_symbols_from_strategy()
-                            .await
-                            .map(|min_interval_symbols| {
+                    let _ = self
+                        .with_ctx_write_async(|ctx| {
+                            Box::pin(async move {
+                                ctx.get_min_interval_symbols_from_strategy().await.map(|min_interval_symbols| {
                                     ctx.set_min_interval_symbols(min_interval_symbols);
                                 })
+                            })
                         })
-                    }).await;
-                    
+                        .await;
+
                     let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
                     NodeUtils::send_success_status_event(
-                        strategy_id, 
-                        node_id.clone(), 
-                        node_name.clone(), 
-                        log_message.to_string(), 
-                        current_state.to_string(), 
-                        IndicatorNodeAction::GetMinIntervalSymbols.to_string(), 
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        IndicatorNodeAction::GetMinIntervalSymbols.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                        
-                    
+                    )
+                    .await;
                 }
 
                 IndicatorNodeAction::CalculateIndicator => {
                     tracing::info!("[{node_name}] starting to calculate indicator");
                     let log_message = CalculateIndicatorMsg::new(node_name.clone());
                     NodeUtils::send_success_status_event(
-                        strategy_id, 
-                        node_id.clone(), 
-                        node_name.clone(), 
-                        log_message.to_string(), 
-                        current_state.to_string(), 
-                        IndicatorNodeAction::CalculateIndicator.to_string(), 
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        IndicatorNodeAction::CalculateIndicator.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
-                    let cal_result = self.with_ctx_write_async(|ctx| {
-                        Box::pin(async move {
-                            ctx.calculate_indicator().await
-                        })
-                    }).await;
+                    )
+                    .await;
+
+                    let cal_result = self
+                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.calculate_indicator().await }))
+                        .await;
                     // 计算指标，在作用域内获取和释放写锁
-                    
+
                     // 在释放写锁后发送状态事件
                     match cal_result {
                         Ok(_) => {
                             let success_msg = CalculateIndicatorSuccessMsg::new(node_name.clone());
                             NodeUtils::send_success_status_event(
-                                strategy_id, 
-                                node_id.clone(), 
-                                node_name.clone(), 
-                                success_msg.to_string(), 
-                                current_state.to_string(), 
-                                IndicatorNodeAction::CalculateIndicator.to_string(), 
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                success_msg.to_string(),
+                                current_state.to_string(),
+                                IndicatorNodeAction::CalculateIndicator.to_string(),
                                 &strategy_output_handle,
-                            ).await;
-                            
+                            )
+                            .await;
                         }
                         Err(e) => {
                             NodeUtils::send_error_status_event(
-                                strategy_id, 
-                                node_id.clone(), 
-                                node_name.clone(), 
-                                IndicatorNodeAction::CalculateIndicator.to_string(), 
-                                &e, 
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                IndicatorNodeAction::CalculateIndicator.to_string(),
+                                &e,
                                 &strategy_output_handle,
-                            ).await;
+                            )
+                            .await;
                             return Err(e.into());
                         }
                     }
-
-                    
                 }
                 IndicatorNodeAction::CancelAsyncTask => {
                     tracing::debug!("[{node_name}] cancel async task");
                     self.with_ctx_read(|ctx| {
                         ctx.request_cancel();
-                    }).await;
+                    })
+                    .await;
                 }
                 _ => {}
             }
-            
+
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
         Ok(())
     }
 }
-
-
-

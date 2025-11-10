@@ -1,18 +1,20 @@
-use super::VariableNodeContext;
 use async_trait::async_trait;
-use strategy_core::node::context_trait::NodeEventHandlerExt;
-use crate::node::{node_command::NodeResetRespPayload, node_event::BacktestNodeEvent};
-use crate::node::node_command::BacktestNodeCommand;
 use event_center::Event;
-use strategy_core::node::context_trait::NodeIdentityExt;
-use star_river_event::backtest_strategy::node_event::IfElseNodeEvent;
-use strategy_core::benchmark::node_benchmark::CycleTracker;
-use star_river_event::backtest_strategy::node_event::{KlineNodeEvent, IndicatorNodeEvent};
-use strategy_core::node_infra::variable_node::trigger::dataflow::DataFlow;
-use strategy_core::node::context_trait::NodeBenchmarkExt;
-use crate::node::node_command::NodeResetResponse;
-use super::config_filter::{filter_condition_trigger_configs, filter_dataflow_trigger_configs};
+use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent};
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    node::context_trait::{NodeBenchmarkExt, NodeEventHandlerExt, NodeIdentityExt},
+    node_infra::variable_node::trigger::dataflow::DataFlow,
+};
 
+use super::{
+    VariableNodeContext,
+    config_filter::{filter_condition_trigger_configs, filter_dataflow_trigger_configs},
+};
+use crate::node::{
+    node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+    node_event::BacktestNodeEvent,
+};
 
 #[async_trait]
 impl NodeEventHandlerExt for VariableNodeContext {
@@ -67,7 +69,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
             _ => {}
         }
     }
-    
+
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {

@@ -1,6 +1,6 @@
+use std::{fmt::Debug, ops::Deref};
+
 use chrono::{DateTime, Utc};
-use std::fmt::Debug;
-use std::ops::Deref;
 use tokio::sync::oneshot;
 
 use super::response::Response;
@@ -28,7 +28,7 @@ impl<T, S> Command<T, S> {
         };
         Self {
             command_base,
-            command_payload
+            command_payload,
         }
     }
 
@@ -37,8 +37,7 @@ impl<T, S> Command<T, S> {
     }
 }
 
-impl<T, S> Command<T,S> {
-
+impl<T, S> Command<T, S> {
     pub fn datetime(&self) -> DateTime<Utc> {
         self.command_base.datetime
     }
@@ -51,7 +50,6 @@ impl<T, S> Command<T,S> {
 impl<T, S> Deref for Command<T, S> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self
-            .command_payload
+        &self.command_payload
     }
 }

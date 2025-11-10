@@ -154,7 +154,13 @@ fn test_utc8_to_utc_conversion() {
 /// 演示 chrono-tz 的实际功能
 fn demonstrate_chrono_tz_benefits() {
     // chrono-tz 实际功能演示
-    use chrono_tz::{Asia::Shanghai, Australia::Sydney, Europe::London, Tz, US::Eastern, US::Pacific};
+    use chrono_tz::{
+        Asia::Shanghai,
+        Australia::Sydney,
+        Europe::London,
+        Tz,
+        US::{Eastern, Pacific},
+    };
 
     let now = Utc::now();
 

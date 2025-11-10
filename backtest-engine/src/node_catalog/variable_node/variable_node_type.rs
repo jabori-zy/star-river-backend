@@ -1,7 +1,7 @@
 use serde::Deserialize;
+use strategy_core::node_infra::variable_node::{VariableConfig, VariableNodeExchangeModeConfig};
+
 use crate::strategy::strategy_config::BacktestDataSource;
-use strategy_core::node_infra::variable_node::VariableNodeExchangeModeConfig;
-use strategy_core::node_infra::variable_node::VariableConfig;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct VariableNodeBacktestConfig {

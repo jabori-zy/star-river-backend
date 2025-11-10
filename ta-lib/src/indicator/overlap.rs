@@ -1,8 +1,9 @@
+use chrono::{DateTime, Utc};
+
 use crate::{
     define_indicator,
     indicator::{MAType, PriceSource},
 };
-use chrono::{DateTime, Utc};
 
 //Bollinger Bands #布林带
 define_indicator!(BBANDS,

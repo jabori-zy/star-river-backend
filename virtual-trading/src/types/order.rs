@@ -1,8 +1,10 @@
-use star_river_core::custom_type::*;
-use star_river_core::exchange::Exchange;
-use star_river_core::order::{FuturesOrderSide, OrderStatus, OrderType, TpslType};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use star_river_core::{
+    custom_type::*,
+    exchange::Exchange,
+    order::{FuturesOrderSide, OrderStatus, OrderType, TpslType},
+};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

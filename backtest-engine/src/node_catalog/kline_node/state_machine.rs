@@ -1,9 +1,13 @@
-use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
-use strategy_core::error::node_state_machine_error::NodeTransFailedSnafu;
-use strategy_core::node::node_state_machine::{NodeStateMachine, StateChangeActions, Metadata, StateAction};
-use strategy_core::error::NodeStateMachineError;
-use crate::strategy::strategy_config::BacktestDataSource;
+use strategy_core::{
+    error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
+    node::node_state_machine::{Metadata, NodeStateMachine, StateAction, StateChangeActions},
+};
 use strum::Display;
+
+use crate::{
+    node::node_state_machine::{NodeRunState, NodeStateTransTrigger},
+    strategy::strategy_config::BacktestDataSource,
+};
 // ============================================================================
 // KlineNode 动作定义
 // ============================================================================
@@ -78,12 +82,10 @@ pub fn kline_node_transition(
         }
 
         // Initializing -> Ready
-        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Ready,
-                vec![KlineNodeAction::LogTransition, KlineNodeAction::LogNodeState],
-            ))
-        }
+        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
+            NodeRunState::Ready,
+            vec![KlineNodeAction::LogTransition, KlineNodeAction::LogNodeState],
+        )),
 
         // Ready -> Stopping
         (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => Ok(StateChangeActions::new(
@@ -112,10 +114,11 @@ pub fn kline_node_transition(
         )),
 
         // Invalid transition
-        _ => Err(NodeTransFailedSnafu{
+        _ => Err(NodeTransFailedSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.build()),
+        }
+        .build()),
     }
 }
 

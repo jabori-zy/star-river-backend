@@ -1,6 +1,5 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
-
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -34,16 +33,12 @@ impl StarRiverErrorTrait for NodeStateMachineError {
         }
     }
 
-    
-
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
             ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
                 NodeStateMachineError::NodeTransFailed {
-                    run_state,
-                    trans_trigger,
-                    ..
+                    run_state, trans_trigger, ..
                 } => {
                     format!("状态转换失败，运行状态: {}, 触发事件: {}", run_state, trans_trigger)
                 }

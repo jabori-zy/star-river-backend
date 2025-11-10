@@ -1,35 +1,27 @@
+pub mod error;
+pub mod event;
 pub mod order;
 pub mod position;
 pub mod statistics;
 pub mod transaction;
-pub(crate) mod utils;
-pub mod error;
-pub mod event;
 pub mod types;
+pub(crate) mod utils;
 
-use star_river_core::custom_type::*;
-use key::KlineKey;
-use star_river_core::order::OrderType;
-use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
-use tokio::sync::oneshot;
-// 外部的utils，不是当前crate的utils
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
+
 use chrono::{DateTime, Utc};
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::Kline;
-use crate::event::{
-    VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender,
-};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::{broadcast, mpsc};
-use std::fmt::Debug;
+use key::KlineKey;
+use star_river_core::{custom_type::*, exchange::Exchange, kline::Kline, order::OrderType};
+use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
+
+// 外部的utils，不是当前crate的utils
+use crate::event::{VirtualTradingSystemEvent, VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender};
+use crate::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 
 /// 虚拟交易系统
 ///
 #[derive(Debug)]
-pub struct VirtualTradingSystem
- {
+pub struct VirtualTradingSystem {
     current_datetime: DateTime<Utc>,       // 时间戳 (不是现实中的时间戳，而是回测时，播放到的k线的时间戳)
     kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
     pub event_publisher: VirtualTradingSystemEventSender, // 事件发布者
@@ -239,8 +231,6 @@ impl VirtualTradingSystem {
     pub fn get_leverage(&self) -> Leverage {
         self.leverage
     }
-
-    
 
     // 获取所有订单
     pub fn get_orders(&self) -> &Vec<VirtualOrder> {

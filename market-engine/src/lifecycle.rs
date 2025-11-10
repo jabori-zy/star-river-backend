@@ -1,22 +1,18 @@
 use async_trait::async_trait;
 use engine_core::{
-    EngineContextAccessor, EngineLifecycle, EngineEventListener,
-    context_trait::{EngineContextTrait, EngineStateMachineTrait}
+    EngineContextAccessor, EngineEventListener, EngineLifecycle,
+    context_trait::{EngineContextTrait, EngineStateMachineTrait},
+    state_machine::EngineStateTransTrigger,
 };
 
-use crate::state_machine::MarketEngineAction;
-use crate::MarketEngine;
-use crate::error::MarketEngineError;
-use engine_core::state_machine::EngineStateTransTrigger;
+use crate::{MarketEngine, error::MarketEngineError, state_machine::MarketEngineAction};
 
 #[async_trait]
 impl EngineLifecycle for MarketEngine {
     type Error = MarketEngineError;
 
     async fn start(&self) -> Result<(), Self::Error> {
-        let engine_name = self.with_ctx_read(|ctx| {
-            ctx.engine_name().to_string()
-        }).await;
+        let engine_name = self.with_ctx_read(|ctx| ctx.engine_name().to_string()).await;
         tracing::info!("=================start engine [{engine_name}]====================");
         tracing::info!("[{engine_name}] start to start");
 
@@ -30,9 +26,7 @@ impl EngineLifecycle for MarketEngine {
     }
 
     async fn stop(&self) -> Result<(), Self::Error> {
-        let engine_name = self.with_ctx_read(|ctx| {
-            ctx.engine_name().to_string()
-        }).await;
+        let engine_name = self.with_ctx_read(|ctx| ctx.engine_name().to_string()).await;
         tracing::info!("=================stop engine [{engine_name}]====================");
         tracing::info!("[{engine_name}] start to stop");
 
@@ -47,11 +41,13 @@ impl EngineLifecycle for MarketEngine {
     }
 
     async fn update_engine_state(&self, trans_trigger: EngineStateTransTrigger) -> Result<(), Self::Error> {
-        let (engine_name, state_machine) = self.with_ctx_read(|ctx| {
-            let engine_name = ctx.engine_name().to_string();
-            let state_machine = ctx.state_machine().clone();
-            (engine_name, state_machine)
-        }).await;
+        let (engine_name, state_machine) = self
+            .with_ctx_read(|ctx| {
+                let engine_name = ctx.engine_name().to_string();
+                let state_machine = ctx.state_machine().clone();
+                (engine_name, state_machine)
+            })
+            .await;
 
         let transition_result = {
             let mut state_machine = state_machine.write().await;

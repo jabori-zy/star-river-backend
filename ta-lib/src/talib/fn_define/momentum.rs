@@ -1,12 +1,8 @@
-use crate::talib::TALib;
-use crate::talib_bindings::*;
-// use crate::indicator_engine::talib_error::TalibError;
-use crate::talib_fn;
-use crate::talib_snake_fn;
 use chrono::{DateTime, Utc};
-use crate::Indicator;
-use crate::indicator::momentum::*;
+
+// use crate::indicator_engine::talib_error::TalibError;
 use super::MaTypeInt;
+use crate::{Indicator, indicator::momentum::*, talib::TALib, talib_bindings::*, talib_fn, talib_snake_fn};
 
 impl TALib {
     //ADX  Average Directional Movement Index #平均方向性指数

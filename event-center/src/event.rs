@@ -1,16 +1,9 @@
-pub use star_river_event::event::{exchange_event::ExchangeEvent, market_event::MarketEvent};
-
-use serde::Serialize;
-use strum::{Display, EnumIter};
-use event_center_core::event::EventTrait;
-use event_center_core::Channel as EventCenterChannel;
-use strum::IntoEnumIterator;
 use derive_more::From;
+use event_center_core::{Channel as EventCenterChannel, event::EventTrait};
+use serde::Serialize;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
-
-
-
-
+pub use star_river_event::event::{exchange_event::ExchangeEvent, market_event::MarketEvent};
+use strum::{Display, EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq, EnumIter, Display)]
 #[strum(serialize_all = "lowercase")]
@@ -27,7 +20,6 @@ impl EventCenterChannel for Channel {
         Channel::iter().collect()
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Display, From)]
 #[serde(tag = "channel")]
@@ -46,7 +38,6 @@ pub enum Event {
 }
 
 impl EventTrait for Event {
-
     type C = Channel;
 
     fn channel(&self) -> &Self::C {

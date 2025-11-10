@@ -1,7 +1,8 @@
-use super::custom_variable::VariableValue;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+
+use super::custom_variable::VariableValue;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumString, ToSchema)]
 pub enum SysVariableType {
@@ -29,7 +30,6 @@ pub enum SysVariableType {
     #[strum(serialize = "position_number")]
     PositionNumber, //持仓数量
 
-
     #[serde(rename = "total_filled_order_number")]
     #[strum(serialize = "total_filled_order_number")]
     TotalFilledOrderNumber, // 总成交订单数量
@@ -39,14 +39,12 @@ pub enum SysVariableType {
     FilledOrderNumber, // 已成交订单数量
 }
 
-
-
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct SysVariable {
-    pub var_name: SysVariableType,             // 变量名称
-    pub var_display_name: String,     // 变量显示名称
-    pub symbol: Option<String>,        // 交易对
-    pub var_value: VariableValue,     // 变量值
+    pub var_name: SysVariableType, // 变量名称
+    pub var_display_name: String,  // 变量显示名称
+    pub symbol: Option<String>,    // 交易对
+    pub var_value: VariableValue,  // 变量值
 }
 
 impl serde::Serialize for SysVariable {
@@ -55,7 +53,7 @@ impl serde::Serialize for SysVariable {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        
+
         let mut state = serializer.serialize_struct("SysVariable", 5)?;
         state.serialize_field("varType", "system")?;
         state.serialize_field("varName", &self.var_name)?;
@@ -77,8 +75,6 @@ impl SysVariable {
         }
     }
 }
-
-
 
 // impl From<StrategySysVariableModel> for SysVariable {
 //     fn from(model: StrategySysVariableModel) -> Self {

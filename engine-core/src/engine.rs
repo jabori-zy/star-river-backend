@@ -1,10 +1,8 @@
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
+
 use tokio::sync::RwLock;
 
-use crate::context_trait::EngineContextTrait;
-use crate::engine_trait::EngineContextAccessor;
-use crate::state_machine::EngineAction;
+use crate::{context_trait::EngineContextTrait, engine_trait::EngineContextAccessor, state_machine::EngineAction};
 
 // ============================================================================
 // EngineBase 结构
@@ -34,7 +32,6 @@ where
     }
 }
 
-
 impl<C, Action> EngineContextAccessor for EngineBase<C, Action>
 where
     C: EngineContextTrait<Action = Action>,
@@ -47,4 +44,3 @@ where
         &self.context
     }
 }
-

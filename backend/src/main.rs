@@ -1,7 +1,10 @@
 mod server;
 
-use star_river_api::{routes::create_app_routes, star_river::StarRiver, star_river::init_app};
 use axum::extract::State;
+use star_river_api::{
+    routes::create_app_routes,
+    star_river::{StarRiver, init_app},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

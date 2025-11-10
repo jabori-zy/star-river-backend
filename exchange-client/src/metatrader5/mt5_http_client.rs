@@ -1,14 +1,14 @@
-use crate::metatrader5::mt5_types::Mt5KlineInterval;
-use crate::metatrader5::url::Mt5HttpUrl;
+use exchange_core::exchange_trait::HttpClient;
 use serde::Serialize;
 use snafu::{OptionExt, ResultExt};
-use super::error::*;
-
-use super::mt5_types::Mt5CreateOrderParams;
-use super::mt5_types::Mt5GetPositionNumberParams;
 use star_river_core::system::TimeRange;
 use tracing::instrument;
-use exchange_core::exchange_trait::HttpClient;
+
+use super::{
+    error::*,
+    mt5_types::{Mt5CreateOrderParams, Mt5GetPositionNumberParams},
+};
+use crate::metatrader5::{mt5_types::Mt5KlineInterval, url::Mt5HttpUrl};
 
 #[derive(Debug)]
 pub struct Mt5HttpClient {
@@ -17,9 +17,7 @@ pub struct Mt5HttpClient {
     client: reqwest::Client,
 }
 
-
 impl HttpClient for Mt5HttpClient {}
-
 
 impl Mt5HttpClient {
     pub fn new(terminal_id: i32) -> Self {
@@ -40,7 +38,8 @@ impl Mt5HttpClient {
         } else {
             Err(HttpClientPortNotSetSnafu {
                 terminal_id: self.terminal_id,
-            }.build())
+            }
+            .build())
         }
     }
 
@@ -312,7 +311,6 @@ impl Mt5HttpClient {
         }
     }
 
-
     #[instrument(skip(self))]
     pub async fn get_symbol_info(&self, symbol: &str) -> Result<serde_json::Value, Mt5Error> {
         let url = self.get_url(Mt5HttpUrl::GetSymbolInfo)?;
@@ -365,8 +363,7 @@ impl Mt5HttpClient {
                 }
                 .fail()?;
             }
-        }
-        else {
+        } else {
             let status_code = response.status().as_u16();
             return ServerSnafu {
                 terminal_id: self.terminal_id,
@@ -384,13 +381,7 @@ impl Mt5HttpClient {
         let port = self.port.context(HttpClientPortNotSetSnafu {
             terminal_id: self.terminal_id,
         })?;
-        let url = format!(
-            "{}?symbol={}&interval={}&limit={}",
-            url,
-            symbol,
-            interval,
-            limit
-        );
+        let url = format!("{}?symbol={}&interval={}&limit={}", url, symbol, interval, limit);
         tracing::debug!(url = %url, symbol = %symbol, interval = %interval, limit = %limit, "Getting kline series");
 
         let response = self
@@ -492,11 +483,7 @@ impl Mt5HttpClient {
 
         let url = format!(
             "{}?symbol={}&interval={}&start_time={}&end_time={}",
-            url,
-            symbol,
-            interval,
-            start_time,
-            end_time
+            url, symbol, interval, start_time, end_time
         );
         tracing::debug!("get kline history. url: {}", url);
 

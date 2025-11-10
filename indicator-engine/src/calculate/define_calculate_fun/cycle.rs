@@ -1,8 +1,6 @@
-use crate::calculate_fn_snake;
-use ta_lib::Indicator;
-use ta_lib::indicator::cycle::*;
+use ta_lib::{Indicator, indicator::cycle::*};
 
-use crate::calculate::CalculateIndicatorFunction;
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn_snake};
 
 impl CalculateIndicatorFunction {
     // HT_DCPERIOD - Hilbert Transform - Dominant Cycle Period #希尔伯特变换 - 主导周期

@@ -1,27 +1,25 @@
-use strategy_core::strategy::{
-    context_trait::{StrategyEventHandlerExt, StrategyInfoExt, StrategyVariableExt, StrategyBenchmarkExt, StrategyWorkflowExt, StrategyIdentityExt},
-};
-use event_center::event::Event;
-use crate::node::node_event::BacktestNodeEvent;
-use async_trait::async_trait;
-use super::BacktestStrategyContext;
-use crate::strategy::strategy_command::*;
 use std::sync::Arc;
-use strategy_core::event::node_common_event::CommonEvent;
-use strategy_core::event::strategy_event::StrategyPerformanceUpdateEvent;
-use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
-use event_center::EventCenterSingleton;
-use star_river_event::backtest_strategy::node_event::{
-    KlineNodeEvent, IndicatorNodeEvent, VariableNodeEvent, 
-    PositionManagementNodeEvent, FuturesOrderNodeEvent
+
+use async_trait::async_trait;
+use event_center::{EventCenterSingleton, event::Event};
+use star_river_event::backtest_strategy::{
+    node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, PositionManagementNodeEvent, VariableNodeEvent},
+    strategy_event::BacktestStrategyEvent,
+};
+use strategy_core::{
+    event::{node_common_event::CommonEvent, strategy_event::StrategyPerformanceUpdateEvent},
+    strategy::context_trait::{
+        StrategyBenchmarkExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
+    },
 };
 
+use super::BacktestStrategyContext;
+use crate::{node::node_event::BacktestNodeEvent, strategy::strategy_command::*};
 
 #[async_trait]
 impl StrategyEventHandlerExt for BacktestStrategyContext {
     type EngineEvent = Event;
     type NodeEvent = BacktestNodeEvent;
-
 
     async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) {
         match command {
@@ -49,14 +47,14 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             }
             BacktestStrategyCommand::InitKlineData(cmd) => {
                 self.init_kline_data(&cmd.kline_key, cmd.init_kline_data.clone()).await;
-                let payload = InitKlineDataRespPayload{};
+                let payload = InitKlineDataRespPayload {};
                 let resp = InitKlineDataResponse::success(payload);
                 cmd.respond(resp);
             }
 
             BacktestStrategyCommand::AppendKlineData(cmd) => {
                 self.append_kline_data(&cmd.kline_key, cmd.kline_series.clone()).await;
-                let payload = AppendKlineDataRespPayload{};
+                let payload = AppendKlineDataRespPayload {};
                 let resp = AppendKlineDataResponse::success(payload);
                 cmd.respond(resp);
             }
@@ -84,7 +82,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
 
             BacktestStrategyCommand::InitIndicatorData(cmd) => {
                 self.init_indicator_data(&cmd.indicator_key, cmd.indicator_series.clone()).await;
-                let payload = InitIndicatorDataRespPayload{};
+                let payload = InitIndicatorDataRespPayload {};
                 let resp = InitIndicatorDataResponse::success(payload);
                 cmd.respond(resp);
             }
@@ -105,7 +103,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
 
             BacktestStrategyCommand::InitCustomVariableValue(cmd) => {
                 self.init_custom_variables(cmd.custom_variables.clone()).await;
-                let payload = InitCustomVarRespPayload{};
+                let payload = InitCustomVarRespPayload {};
                 let resp = InitCustomVarValueResponse::success(payload);
                 cmd.respond(resp);
             }
@@ -123,12 +121,13 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             }
 
             BacktestStrategyCommand::UpdateCustomVariableValue(cmd) => {
-
-                let result = self.update_custom_variable(
-                    &cmd.update_var_config.var_name, 
-                    &cmd.update_var_config.update_var_value_operation, 
-                    cmd.update_var_config.update_operation_value.as_ref()
-                ).await;
+                let result = self
+                    .update_custom_variable(
+                        &cmd.update_var_config.var_name,
+                        &cmd.update_var_config.update_var_value_operation,
+                        cmd.update_var_config.update_operation_value.as_ref(),
+                    )
+                    .await;
                 if let Ok(value) = result {
                     let payload = UpdateCustomVarRespPayload::new(value);
                     let resp = UpdateCustomVarValueResponse::success(payload);
@@ -159,7 +158,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 let resp = UpdateSysVarValueResponse::success(payload);
                 cmd.respond(resp);
             }
-            
+
             BacktestStrategyCommand::AddNodeCycleTracker(cmd) => {
                 let result = self.add_node_completed_cycle(cmd.node_id.clone(), cmd.cycle_tracker.clone()).await;
                 if let Err(e) = result {
@@ -174,8 +173,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
         }
     }
 
-    async fn handle_engine_event(&mut self, _event: Event) {
-    }
+    async fn handle_engine_event(&mut self, _event: Event) {}
 
     // 所有节点发送的事件都会汇集到这里
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
@@ -374,7 +372,4 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
     //     }
     //     Ok(())
     // }
-
-
-
 }

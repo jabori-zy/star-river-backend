@@ -1,44 +1,36 @@
-mod state_machine;
 mod context;
-mod if_else_node_type;
-mod utils;
 mod evaluate;
+mod if_else_node_type;
 mod node_lifecycle;
+mod state_machine;
+mod utils;
 
+use std::sync::Arc;
 
 use context::IfElseNodeContext;
-use strategy_core::node::NodeBase;
-use strategy_core::node::node_trait::NodeContextAccessor;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use star_river_core::{
-    custom_type::{NodeId, NodeName, StrategyId},
-};
+use if_else_node_type::IfElseNodeBacktestConfig;
+use snafu::ResultExt;
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use state_machine::{IfElseNodeStateMachine, if_else_node_transition};
 use strategy_core::{
     NodeType,
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{
-        metadata::NodeMetadata,
-        utils::generate_strategy_output_handle,
-    },
+    node::{NodeBase, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    node_infra::if_else_node::Case,
 };
-use if_else_node_type::IfElseNodeBacktestConfig;
-use crate::node::node_error::BacktestNodeError;
-use tokio::sync::{Mutex, mpsc};
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::PlayIndex;
-use strategy_core::node_infra::if_else_node::Case;
-use snafu::ResultExt;
-use crate::node::node_event::BacktestNodeEvent;
-use state_machine::{IfElseNodeStateMachine, if_else_node_transition};
-use crate::node::node_state_machine::NodeRunState;
+use tokio::sync::{Mutex, RwLock, mpsc};
+
+use crate::{
+    node::{
+        node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_event::BacktestNodeEvent, node_state_machine::NodeRunState,
+    },
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
 #[derive(Debug, Clone)]
 pub struct IfElseNode {
-    inner: NodeBase<IfElseNodeContext>
+    inner: NodeBase<IfElseNodeContext>,
 }
-
 
 impl std::ops::Deref for IfElseNode {
     type Target = NodeBase<IfElseNodeContext>;
@@ -47,7 +39,6 @@ impl std::ops::Deref for IfElseNode {
         &self.inner
     }
 }
-
 
 impl NodeContextAccessor for IfElseNode {
     type Context = IfElseNodeContext;
@@ -63,16 +54,11 @@ impl IfElseNode {
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Result<Self, BacktestNodeError> {
-
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
 
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
 
-        let state_machine = IfElseNodeStateMachine::new(
-            node_name.clone(),
-            NodeRunState::Created,
-            if_else_node_transition,
-        );
+        let state_machine = IfElseNodeStateMachine::new(node_name.clone(), NodeRunState::Created, if_else_node_transition);
         let metadata = NodeMetadata::new(
             strategy_id,
             node_id,
@@ -83,16 +69,11 @@ impl IfElseNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = IfElseNodeContext::new(
-            metadata,
-            backtest_config,
-            play_index_watch_rx,
-        );
+        let context = IfElseNodeContext::new(metadata, backtest_config, play_index_watch_rx);
         Ok(Self {
-            inner: NodeBase::new(context)
+            inner: NodeBase::new(context),
         })
     }
-
 
     fn check_if_else_node_config(
         node_config: serde_json::Value,

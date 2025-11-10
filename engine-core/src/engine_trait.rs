@@ -1,21 +1,19 @@
-use async_trait::async_trait;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::{future::Future, pin::Pin, sync::Arc};
 
-use crate::context_trait::{EngineContextTrait, EngineEventHandler};
-use crate::state_machine_error::EngineStateMachineError;
-use crate::state_machine::{EngineAction, EngineStateTransTrigger};
-use super::EngineEventReceiver;
+use async_trait::async_trait;
 // use event_center::EventCenterSingleton;
 use event_center::EventCenterSingleton;
-use tokio_stream::wrappers::BroadcastStream;
-use futures::stream::select_all;
-use futures::StreamExt;
+use futures::{StreamExt, stream::select_all};
 use star_river_core::error::StarRiverErrorTrait;
+use tokio::sync::RwLock;
+use tokio_stream::wrappers::BroadcastStream;
 
-
+use super::EngineEventReceiver;
+use crate::{
+    context_trait::{EngineContextTrait, EngineEventHandler},
+    state_machine::{EngineAction, EngineStateTransTrigger},
+    state_machine_error::EngineStateMachineError,
+};
 
 // 空 trait，仅用于标记
 pub trait Engine: Send + Sync + 'static {}
@@ -84,7 +82,10 @@ pub trait EngineContextAccessor: Send + Sync {
     ///     })
     /// }).await;
     /// ```
-    async fn with_ctx_read_async<R>(&self, f: impl for<'a> FnOnce(&'a Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send) -> R
+    async fn with_ctx_read_async<R>(
+        &self,
+        f: impl for<'a> FnOnce(&'a Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send,
+    ) -> R
     where
         R: Send,
     {
@@ -102,7 +103,10 @@ pub trait EngineContextAccessor: Send + Sync {
     ///     })
     /// }).await;
     /// ```
-    async fn with_ctx_write_async<R>(&self, f: impl for<'a> FnOnce(&'a mut Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send) -> R
+    async fn with_ctx_write_async<R>(
+        &self,
+        f: impl for<'a> FnOnce(&'a mut Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send,
+    ) -> R
     where
         R: Send,
     {
@@ -160,28 +164,27 @@ where
     /// 监听外部事件
     async fn listen_events(&self) {
         // 使用 with_ctx_read_async 正确处理生命周期
-        let (engine_name, event_receivers) = self.with_ctx_read_async(|ctx| {
-            Box::pin(async move {
-                let engine_name = ctx.engine_name().clone(); // 克隆以避免生命周期问题
-                let should_receive_channels = EngineEventReceiver::get_event_receivers(&engine_name);
-                let mut event_receivers = Vec::new();
-                for channel in should_receive_channels.iter() {
-                    let event_receiver = EventCenterSingleton::subscribe(channel).await.unwrap();
-                    event_receivers.push(event_receiver);
-                }
-                (engine_name, event_receivers)
+        let (engine_name, event_receivers) = self
+            .with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    let engine_name = ctx.engine_name().clone(); // 克隆以避免生命周期问题
+                    let should_receive_channels = EngineEventReceiver::get_event_receivers(&engine_name);
+                    let mut event_receivers = Vec::new();
+                    for channel in should_receive_channels.iter() {
+                        let event_receiver = EventCenterSingleton::subscribe(channel).await.unwrap();
+                        event_receivers.push(event_receiver);
+                    }
+                    (engine_name, event_receivers)
+                })
             })
-        }).await;
+            .await;
 
         if event_receivers.is_empty() {
             tracing::warn!("{}: 没有事件接收器", engine_name);
             return;
         }
 
-        let streams: Vec<_> = event_receivers
-            .into_iter()
-            .map(|receiver| BroadcastStream::new(receiver))
-            .collect();
+        let streams: Vec<_> = event_receivers.into_iter().map(|receiver| BroadcastStream::new(receiver)).collect();
 
         let mut combined_stream = select_all(streams);
         let context = self.context().clone();
@@ -208,14 +211,16 @@ where
 
     /// 监听引擎命令
     async fn listen_commands(&self) {
-        let (engine_name, command_receiver) = self.with_ctx_read_async(|ctx| {
-            Box::pin(async move {
-                let engine_name = ctx.engine_name().clone(); // 克隆以避免生命周期问题
-                let command_receiver = EventCenterSingleton::command_receiver(&engine_name.clone().into()).await.unwrap();
-                
-                (engine_name, command_receiver)
+        let (engine_name, command_receiver) = self
+            .with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    let engine_name = ctx.engine_name().clone(); // 克隆以避免生命周期问题
+                    let command_receiver = EventCenterSingleton::command_receiver(&engine_name.clone().into()).await.unwrap();
+
+                    (engine_name, command_receiver)
+                })
             })
-        }).await;
+            .await;
         tracing::debug!("#[{}]: start listening commands", engine_name);
 
         let context = self.context().clone();

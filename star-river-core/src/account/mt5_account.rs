@@ -1,10 +1,12 @@
-use crate::account::AccountConfig;
-use crate::account::AccountInfo;
-use crate::account::OriginalAccountInfo;
-use crate::exchange::Exchange;
-use crate::system::DateTimeUtc;
-use serde::{Deserialize, Serialize};
 use std::any::Any;
+
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    account::{AccountConfig, AccountInfo, OriginalAccountInfo},
+    exchange::Exchange,
+    system::DateTimeUtc,
+};
 
 // metatrader5 账户配置
 #[derive(Clone, Debug, Serialize, Deserialize)]

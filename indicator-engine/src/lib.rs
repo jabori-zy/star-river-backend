@@ -1,22 +1,19 @@
 mod context;
 // mod subkey;
-mod state_machine;
-mod indicator_engine_type;
-mod lifecycle;
 mod calculate;
 pub mod error;
+mod indicator_engine_type;
+mod lifecycle;
+mod state_machine;
 
-
-pub use ta_lib::TALib;
-pub use star_river_core::kline::Kline;
-
-
+use std::sync::Arc;
 
 use context::IndicatorEngineContext;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use engine_core::{EngineBase, EngineContextAccessor, engine_trait::Engine};
+pub use star_river_core::kline::Kline;
 use state_machine::IndicatorEngineAction;
+pub use ta_lib::TALib;
+use tokio::sync::RwLock;
 
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)
@@ -31,11 +28,10 @@ pub struct IndicatorEngine {
 impl IndicatorEngine {
     /// 创建新的交易所引擎实例
     pub fn new() -> Self {
-
         let context = IndicatorEngineContext::new();
 
         Self {
-            inner: EngineBase::new(context)
+            inner: EngineBase::new(context),
         }
     }
 }
@@ -51,7 +47,6 @@ impl std::ops::Deref for IndicatorEngine {
         &self.inner
     }
 }
-
 
 impl Engine for IndicatorEngine {}
 

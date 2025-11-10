@@ -1,19 +1,16 @@
 // workspace crate
-use star_river_core::{
-    system::DateTimeUtc,
-};
+use key::Key;
+use star_river_core::system::DateTimeUtc;
+use strategy_core::strategy::context_trait::StrategyIdentityExt;
 use strategy_stats::StatsSnapshot;
 use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
-use key::Key;
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::strategy::strategy_error::{
-    BacktestStrategyError, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, KlineDataLengthNotSameSnafu,
+use crate::strategy::{
+    PlayIndex,
+    strategy_error::{BacktestStrategyError, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, KlineDataLengthNotSameSnafu},
 };
-use strategy_core::strategy::context_trait::{StrategyIdentityExt};
-use crate::strategy::PlayIndex;
-
 
 impl BacktestStrategyContext {
     // 获取所有的virtual order

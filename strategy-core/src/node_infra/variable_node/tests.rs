@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::node_infra::variable_node::variable_config::VariableConfig;
-    use crate::node_infra::variable_node::trigger::TriggerConfig;
     use serde_json;
+
+    use crate::node_infra::variable_node::{trigger::TriggerConfig, variable_config::VariableConfig};
 
     #[test]
     fn test_deserialize_variable_configs() {

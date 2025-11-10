@@ -1,41 +1,34 @@
-mod node_handles;
-mod event_handler;
 mod benchmark;
+mod event_handler;
+mod node_handles;
 mod order_handler;
 mod status_handler;
 
+use std::{collections::HashMap, sync::Arc};
 
-use strategy_core::node::metadata::NodeMetadata;
-use super::state_machine::FuturesOrderNodeStateMachine;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use super::futures_order_node_types::FuturesOrderNodeBacktestConfig;
-use crate::strategy::PlayIndex;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-use star_river_core::custom_type::InputHandleId;
-use sea_orm::DatabaseConnection;
 use heartbeat::Heartbeat;
-use virtual_trading::VirtualTradingSystem;
-use virtual_trading::event::VirtualTradingSystemEventReceiver;
-use virtual_trading::types::order::VirtualOrder;
-use virtual_trading::types::transaction::VirtualTransaction;
-use star_river_core::instrument::Symbol;
-use strategy_core::node::context_trait::NodeMetaDataExt;
-use star_river_core::custom_type::OrderId;
-use star_river_core::order::OrderStatus;
+use sea_orm::DatabaseConnection;
+use star_river_core::{
+    custom_type::{InputHandleId, OrderId},
+    instrument::Symbol,
+    order::OrderStatus,
+};
+use strategy_core::node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata};
+use tokio::sync::{Mutex, RwLock};
+use virtual_trading::{
+    VirtualTradingSystem,
+    event::VirtualTradingSystemEventReceiver,
+    types::{order::VirtualOrder, transaction::VirtualTransaction},
+};
 
+use super::{futures_order_node_types::FuturesOrderNodeBacktestConfig, state_machine::FuturesOrderNodeStateMachine};
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
-pub type FuturesOrderNodeMetadata = NodeMetadata<
-    FuturesOrderNodeStateMachine,
-    BacktestNodeEvent,
-    BacktestNodeCommand,
-    BacktestStrategyCommand
->;
-
+pub type FuturesOrderNodeMetadata =
+    NodeMetadata<FuturesOrderNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
 
 #[derive(Debug)]
 pub struct FuturesOrderNodeContext {
@@ -49,9 +42,8 @@ pub struct FuturesOrderNodeContext {
     unfilled_virtual_order: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 未成交的虚拟订单列表 input_handle_id -> unfilled_virtual_order
     virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
-    symbol_info: Vec<Symbol>, // 交易对信息
+    symbol_info: Vec<Symbol>,                                                                  // 交易对信息
 }
-
 
 impl FuturesOrderNodeContext {
     pub fn new(
@@ -62,7 +54,6 @@ impl FuturesOrderNodeContext {
         heartbeat: Arc<Mutex<Heartbeat>>,
         virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     ) -> Self {
-        
         Self {
             metadata,
             node_config,
@@ -89,7 +80,6 @@ impl FuturesOrderNodeContext {
     }
 }
 
-
 impl NodeMetaDataExt for FuturesOrderNodeContext {
     type StateMachine = FuturesOrderNodeStateMachine;
     type NodeEvent = BacktestNodeEvent;
@@ -104,8 +94,6 @@ impl NodeMetaDataExt for FuturesOrderNodeContext {
         &mut self.metadata
     }
 }
-
-
 
 impl FuturesOrderNodeContext {
     async fn set_is_processing_order(&mut self, input_handle_id: &InputHandleId, is_processing_order: bool) {

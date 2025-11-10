@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
+
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use serde::de::DeserializeOwned;
-use crate::state_machine_error::EngineStateMachineError;
 use strum::Display;
+
+use crate::state_machine_error::EngineStateMachineError;
 
 /// 引擎运行状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
@@ -31,12 +31,7 @@ pub enum EngineStateTransTrigger {
     Error(String),
 }
 
-
-
 pub trait EngineAction: Clone + Debug + Send + Sync + 'static {}
-
-
-
 
 /// 节点元数据 - 只读的键值存储，用于存储节点的配置和运行时信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,8 +53,7 @@ impl Metadata {
 
     /// 获取并反序列化为指定类型
     pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.data.get(key)
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
+        self.data.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
     }
 
     /// 获取字符串
@@ -88,11 +82,6 @@ impl Metadata {
     }
 }
 
-
-
-
-
-
 /// Generic State Machine - replaces trait objects with generics for zero-cost abstractions
 ///
 /// Type parameters:
@@ -111,7 +100,8 @@ where
 
     /// State transition function - returns new state and actions based on current state, event, and metadata
     /// Uses function pointer to avoid extra heap allocations
-    transition_fn: fn(&EngineRunState, EngineStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, EngineStateMachineError>,
+    transition_fn:
+        fn(&EngineRunState, EngineStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, EngineStateMachineError>,
 
     /// Engine name for logging and debugging
     engine_name: String,
@@ -146,7 +136,11 @@ where
     pub fn new(
         engine_name: String,
         initial_state: EngineRunState,
-        transition_fn: fn(&EngineRunState, EngineStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, EngineStateMachineError>,
+        transition_fn: fn(
+            &EngineRunState,
+            EngineStateTransTrigger,
+            Option<&Metadata>,
+        ) -> Result<StateChangeActions<Action>, EngineStateMachineError>,
     ) -> Self {
         Self {
             current_state: initial_state,
@@ -166,7 +160,11 @@ where
     pub fn with_metadata(
         engine_name: String,
         initial_state: EngineRunState,
-        transition_fn: fn(&EngineRunState, EngineStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, EngineStateMachineError>,
+        transition_fn: fn(
+            &EngineRunState,
+            EngineStateTransTrigger,
+            Option<&Metadata>,
+        ) -> Result<StateChangeActions<Action>, EngineStateMachineError>,
         metadata: Option<Metadata>,
     ) -> Self {
         Self {

@@ -1,6 +1,7 @@
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
-use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]

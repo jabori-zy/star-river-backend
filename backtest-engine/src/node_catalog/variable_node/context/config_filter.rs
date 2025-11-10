@@ -1,7 +1,8 @@
 use star_river_event::backtest_strategy::node_event::if_else_node_event::ConditionMatchEvent;
-use strategy_core::node_infra::variable_node::VariableConfig;
-use strategy_core::node_infra::variable_node::trigger::{TriggerConfig, ConditionTrigger};
-
+use strategy_core::node_infra::variable_node::{
+    VariableConfig,
+    trigger::{ConditionTrigger, TriggerConfig},
+};
 
 /// 过滤匹配条件触发器的变量配置
 ///

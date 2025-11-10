@@ -1,30 +1,31 @@
-mod client;
 mod binance_data_processor;
 mod binance_http_client;
 mod binance_type;
 mod binance_ws_client;
-mod websocket;
-mod url;
+mod client;
+pub mod data_processor_error;
+pub mod error;
+mod lifecycle;
 mod metadata;
 mod state_machine;
-mod lifecycle;
-pub mod error;
-pub mod data_processor_error;
+mod url;
+mod websocket;
 
 // Re-export metadata for external use
-pub use metadata::BinanceMetadata;
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use exchange_core::{ExchangeBase, MetadataAccessor, ProcessorAccessor};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::binance::binance_http_client::BinanceHttpClient;
-use crate::binance::binance_ws_client::BinanceWebSocket;
-use crate::binance::binance_data_processor::BinanceDataProcessor;
-use crate::binance::state_machine::{BinanceStateMachine, BinanceAction};
+use exchange_core::{ExchangeBase, MetadataAccessor, ProcessorAccessor, state_machine::ExchangeRunState};
+pub use metadata::BinanceMetadata;
 use star_river_core::exchange::Exchange as ExchangeType;
-use exchange_core::state_machine::ExchangeRunState;
-use crate::binance::state_machine::binance_transition;
+use tokio::sync::RwLock;
+
+use crate::binance::{
+    binance_data_processor::BinanceDataProcessor,
+    binance_http_client::BinanceHttpClient,
+    binance_ws_client::BinanceWebSocket,
+    state_machine::{BinanceAction, BinanceStateMachine, binance_transition},
+};
 
 // ============================================================================
 // Binance Structure (newtype pattern)
@@ -49,26 +50,15 @@ impl Binance {
     ///
     /// # Returns
     /// Returns a new `Binance` instance
-    pub fn new(metadata:BinanceMetadata) -> Self {
-
+    pub fn new(metadata: BinanceMetadata) -> Self {
         let exchange = ExchangeType::Binance;
-        let state_machine = BinanceStateMachine::new(
-            exchange.to_string(),
-            ExchangeRunState::Created,
-            binance_transition,
-        );
-
+        let state_machine = BinanceStateMachine::new(exchange.to_string(), ExchangeRunState::Created, binance_transition);
 
         let http_client = BinanceHttpClient::new();
-        let processor = BinanceDataProcessor{};
+        let processor = BinanceDataProcessor {};
 
         Self {
-            inner: ExchangeBase::new(
-                http_client,
-                processor,
-                metadata,
-                state_machine,
-            ),
+            inner: ExchangeBase::new(http_client, processor, metadata, state_machine),
         }
     }
 }
@@ -104,7 +94,6 @@ impl ProcessorAccessor for Binance {
         self.inner.processor()
     }
 }
-
 
 #[async_trait]
 impl exchange_core::exchange_trait::Exchange for Binance {

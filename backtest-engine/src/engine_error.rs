@@ -1,9 +1,8 @@
 // External crate imports
-use sea_orm::error::DbErr;
-use snafu::{Backtrace, Snafu};
-
 // Workspace crate imports
 use engine_core::state_machine_error::EngineStateMachineError;
+use sea_orm::error::DbErr;
+use snafu::{Backtrace, Snafu};
 use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
 
 // Current crate imports
@@ -12,7 +11,6 @@ use crate::strategy::strategy_error::BacktestStrategyError;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum BacktestEngineError {
-
     #[snafu(transparent)]
     BacktestStrategyError {
         source: BacktestStrategyError,
@@ -73,8 +71,8 @@ impl StarRiverErrorTrait for BacktestEngineError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            BacktestEngineError::BacktestStrategyError { source ,..} => generate_error_code_chain(source),
-            BacktestEngineError::EngineStateMachineError { source ,..} => generate_error_code_chain(source),
+            BacktestEngineError::BacktestStrategyError { source, .. } => generate_error_code_chain(source),
+            BacktestEngineError::EngineStateMachineError { source, .. } => generate_error_code_chain(source),
 
             _ => vec![self.error_code()],
         }

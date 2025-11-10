@@ -1,14 +1,11 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum VariableNodeError {
     #[snafu(display("the symbol of system variable is null: {sys_var_name}"))]
-    SysVariableSymbolIsNull {
-        sys_var_name: String,
-        backtrace: Backtrace,
-    }
+    SysVariableSymbolIsNull { sys_var_name: String, backtrace: Backtrace },
 }
 
 impl StarRiverErrorTrait for VariableNodeError {

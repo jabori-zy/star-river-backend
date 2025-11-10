@@ -1,15 +1,13 @@
-use crate::types::order::VirtualOrder;
-use crate::types::position::VirtualPosition;
-use crate::types::transaction::VirtualTransaction;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use tokio::sync::broadcast;
+
+use crate::types::{order::VirtualOrder, position::VirtualPosition, transaction::VirtualTransaction};
 
 // 虚拟交易系统事件发送器
 pub type VirtualTradingSystemEventSender = broadcast::Sender<VirtualTradingSystemEvent>;
 // 虚拟交易系统事件接收器
 pub type VirtualTradingSystemEventReceiver = broadcast::Receiver<VirtualTradingSystemEvent>;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]

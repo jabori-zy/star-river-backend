@@ -1,9 +1,10 @@
-use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
-use strategy_core::error::node_state_machine_error::NodeTransFailedSnafu;
-use strategy_core::node::node_state_machine::{NodeStateMachine, StateChangeActions, StateAction};
-use strategy_core::error::NodeStateMachineError;
+use strategy_core::{
+    error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
+    node::node_state_machine::{NodeStateMachine, StateAction, StateChangeActions},
+};
 use strum::Display;
 
+use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 
 // ============================================================================
 // IfElseNode State Machine Type Alias
@@ -32,8 +33,6 @@ pub enum IfElseNodeAction {
 
 impl StateAction for IfElseNodeAction {}
 
-
-
 // ============================================================================
 // IfElseNode State Transition Function
 // ============================================================================
@@ -48,68 +47,50 @@ pub fn if_else_node_transition(
 ) -> Result<StateChangeActions<NodeRunState, IfElseNodeAction>, NodeStateMachineError> {
     match (state, &trans_trigger) {
         // Created -> Initializing
-        (NodeRunState::Created, &NodeStateTransTrigger::StartInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Initializing,
-                vec![
-                    IfElseNodeAction::LogTransition,
-                    IfElseNodeAction::ListenAndHandleStrategySignal,
-                    IfElseNodeAction::ListenAndHandleNodeEvents,
-                    IfElseNodeAction::ListenAndHandleStrategyCommand,
-                    IfElseNodeAction::InitReceivedData,
-                ],
-            ))
-        }
+        (NodeRunState::Created, &NodeStateTransTrigger::StartInit) => Ok(StateChangeActions::new(
+            NodeRunState::Initializing,
+            vec![
+                IfElseNodeAction::LogTransition,
+                IfElseNodeAction::ListenAndHandleStrategySignal,
+                IfElseNodeAction::ListenAndHandleNodeEvents,
+                IfElseNodeAction::ListenAndHandleStrategyCommand,
+                IfElseNodeAction::InitReceivedData,
+            ],
+        )),
 
         // Initializing -> Ready
-        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Ready,
-                vec![
-                    IfElseNodeAction::LogTransition,
-                    IfElseNodeAction::LogNodeState,
-                    IfElseNodeAction::Evaluate,
-                ],
-            ))
-        }
+        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
+            NodeRunState::Ready,
+            vec![
+                IfElseNodeAction::LogTransition,
+                IfElseNodeAction::LogNodeState,
+                IfElseNodeAction::Evaluate,
+            ],
+        )),
 
         // Ready -> Stopping
-        (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Stopping,
-                vec![
-                    IfElseNodeAction::LogTransition,
-                    IfElseNodeAction::CancelAsyncTask,
-                ],
-            ))
-        }
+        (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => Ok(StateChangeActions::new(
+            NodeRunState::Stopping,
+            vec![IfElseNodeAction::LogTransition, IfElseNodeAction::CancelAsyncTask],
+        )),
 
         // Stopping -> Stopped
-        (NodeRunState::Stopping, &NodeStateTransTrigger::FinishStop) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Stopped,
-                vec![
-                    IfElseNodeAction::LogTransition,
-                    IfElseNodeAction::LogNodeState,
-                ],
-            ))
-        }
+        (NodeRunState::Stopping, &NodeStateTransTrigger::FinishStop) => Ok(StateChangeActions::new(
+            NodeRunState::Stopped,
+            vec![IfElseNodeAction::LogTransition, IfElseNodeAction::LogNodeState],
+        )),
 
         // Any state -> Failed
-        (_, &NodeStateTransTrigger::EncounterError(ref error)) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Failed,
-                vec![
-                    IfElseNodeAction::LogTransition,
-                    IfElseNodeAction::LogError(error.clone()),
-                ],
-            ))
-        }
+        (_, &NodeStateTransTrigger::EncounterError(ref error)) => Ok(StateChangeActions::new(
+            NodeRunState::Failed,
+            vec![IfElseNodeAction::LogTransition, IfElseNodeAction::LogError(error.clone())],
+        )),
 
         // Invalid transition
-        _ => Err(NodeTransFailedSnafu{
+        _ => Err(NodeTransFailedSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.build()),
+        }
+        .build()),
     }
 }

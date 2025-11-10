@@ -1,7 +1,8 @@
-use super::PositionNodeContext;
-use tokio::sync::broadcast;
-use crate::node::node_event::BacktestNodeEvent;
 use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
+use tokio::sync::broadcast;
+
+use super::PositionNodeContext;
+use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for PositionNodeContext {
     fn set_output_handles(&mut self) {

@@ -1,5 +1,5 @@
-use std::ops::Deref;
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
+
 use tokio::sync::RwLock;
 
 // ==================== 模拟的类型定义 ====================
@@ -20,10 +20,7 @@ pub struct StrategyEngineContext {
 
 impl StrategyEngineContext {
     fn new(name: String) -> Self {
-        Self {
-            name,
-            strategy_count: 0,
-        }
+        Self { name, strategy_count: 0 }
     }
 
     // 这是 StrategyEngineContext 特有的方法
@@ -134,9 +131,7 @@ impl<'a> Deref for StrategyContextMutRef<'a> {
     fn deref(&self) -> &Self::Target {
         // 注意：这里需要 unsafe 或者另一种方式
         // 简化处理，仅用于只读访问
-        unsafe {
-            &*(self.guard.as_any() as *const dyn std::any::Any as *const StrategyEngineContext)
-        }
+        unsafe { &*(self.guard.as_any() as *const dyn std::any::Any as *const StrategyEngineContext) }
     }
 }
 
@@ -220,9 +215,7 @@ async fn main() {
     println!("\n❌ Traditional way (verbose):");
     {
         let guard = engine.context.read().await;
-        let strategy_context = guard.as_any()
-            .downcast_ref::<StrategyEngineContext>()
-            .unwrap();
+        let strategy_context = guard.as_any().downcast_ref::<StrategyEngineContext>().unwrap();
         let status = strategy_context.get_strategy_status(456).await.unwrap();
         println!("  Status: {}", status);
     }

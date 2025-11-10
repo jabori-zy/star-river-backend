@@ -1,21 +1,20 @@
+use strategy_core::node::{
+    context_trait::{NodeIdentityExt, NodeTaskControlExt},
+    node_trait::NodeContextAccessor,
+};
+
 use super::StartNode;
-use strategy_core::node::node_trait::NodeContextAccessor;
-use strategy_core::node::context_trait::{NodeTaskControlExt, NodeIdentityExt};
-
-
 
 impl StartNode {
-
     pub async fn listen_play_index_change(&self) {
-
-
-        let (mut play_index_watch_rx, cancel_token, node_name) = self.with_ctx_read(|ctx| {
-            let play_index_watch_rx = ctx.play_index_watch_rx().clone();
-            let cancel_token = ctx.cancel_token().clone();
-            let node_name = ctx.node_name().to_string();
-            (play_index_watch_rx, cancel_token, node_name)
-            
-        }).await;
+        let (mut play_index_watch_rx, cancel_token, node_name) = self
+            .with_ctx_read(|ctx| {
+                let play_index_watch_rx = ctx.play_index_watch_rx().clone();
+                let cancel_token = ctx.cancel_token().clone();
+                let node_name = ctx.node_name().to_string();
+                (play_index_watch_rx, cancel_token, node_name)
+            })
+            .await;
 
         let start_node = self.clone();
 

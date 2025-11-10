@@ -1,30 +1,27 @@
-use strategy_core::{
-    error::strategy_error::WaitAllNodesStoppedTimeoutSnafu, 
-    strategy::{
-        context_trait::{StrategyIdentityExt, StrategyInfraExt, StrategyStateMachineExt}, 
-        state_machine::{StrategyRunState, StrategyStateMachine, StrategyStateTransTrigger}, 
-        strategy_trait::{StrategyContextAccessor, StrategyLifecycle}
-    
-}};
-use super::BacktestStrategy;
-use super::strategy_state_machine::{BacktestStrategyStateTransTrigger, BacktestStrategyRunState, BacktestStrategyStateAction};
-use crate::strategy::strategy_error::BacktestStrategyError;
-use star_river_core::error::{StarRiverErrorTrait, ErrorLanguage};
-use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent};
-use strategy_core::event::log_event::LogLevel;
-use strategy_core::event::strategy_event::StrategyStateLogEvent;
-
-use event_center::EventCenterSingleton;
-use strategy_core::strategy::context_trait::StrategyWorkflowExt;
-use strategy_core::strategy::strategy_trait::StrategyEventListener;
-use crate::strategy::strategy_log_message::StrategyStateLogMsg;
 use chrono::Utc;
+use event_center::EventCenterSingleton;
+use star_river_core::error::{ErrorLanguage, StarRiverErrorTrait};
+use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
+use strategy_core::{
+    error::strategy_error::WaitAllNodesStoppedTimeoutSnafu,
+    event::{log_event::LogLevel, strategy_event::StrategyStateLogEvent},
+    strategy::{
+        context_trait::{StrategyIdentityExt, StrategyInfraExt, StrategyStateMachineExt, StrategyWorkflowExt},
+        state_machine::{StrategyRunState, StrategyStateMachine, StrategyStateTransTrigger},
+        strategy_trait::{StrategyContextAccessor, StrategyEventListener, StrategyLifecycle},
+    },
+};
+
+use super::{
+    BacktestStrategy,
+    strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateAction, BacktestStrategyStateTransTrigger},
+};
+use crate::strategy::{strategy_error::BacktestStrategyError, strategy_log_message::StrategyStateLogMsg};
 
 #[async_trait::async_trait]
 impl StrategyLifecycle for BacktestStrategy {
     type Trigger = BacktestStrategyStateTransTrigger;
     type Error = BacktestStrategyError;
-
 
     async fn init_strategy(&mut self) -> Result<(), Self::Error> {
         let strategy_name = self.with_ctx_read(|ctx| ctx.strategy_name().clone()).await;
@@ -32,18 +29,21 @@ impl StrategyLifecycle for BacktestStrategy {
 
         self.with_ctx_write_async(|ctx| {
             Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Initializing.to_string().to_lowercase()).await
+                ctx.store_strategy_status(BacktestStrategyRunState::Initializing.to_string().to_lowercase())
+                    .await
             })
-        }).await?;
-
+        })
+        .await?;
 
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::Initialize).await;
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
+                        .await
                 })
-            }).await?;
+            })
+            .await?;
             return Err(e);
         }
 
@@ -52,32 +52,33 @@ impl StrategyLifecycle for BacktestStrategy {
         tracing::info!("[{}] init finished.", strategy_name);
         self.with_ctx_write_async(|ctx| {
             Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase()).await
+                ctx.store_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase())
+                    .await
             })
-        }).await?;
+        })
+        .await?;
         let update_result = self
             .update_strategy_state(BacktestStrategyStateTransTrigger::InitializeComplete)
             .await;
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
+                        .await
                 })
-            }).await?;
+            })
+            .await?;
             return Err(e);
         }
 
         Ok(())
-
     }
 
     async fn stop_strategy(&mut self) -> Result<(), Self::Error> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
         let (strategy_name, current_state) = self
-            .with_ctx_read_async(|ctx| {
-                Box::pin(async move { (ctx.strategy_name().clone(), ctx.run_state().await) })
-            })
+            .with_ctx_read_async(|ctx| Box::pin(async move { (ctx.strategy_name().clone(), ctx.run_state().await) }))
             .await;
         if current_state == BacktestStrategyRunState::Stopping {
             tracing::info!("[{}] stopped.", strategy_name);
@@ -86,16 +87,20 @@ impl StrategyLifecycle for BacktestStrategy {
         tracing::info!("waiting for all nodes to stop...");
         self.with_ctx_write_async(|ctx| {
             Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Stopping.to_string().to_lowercase()).await
+                ctx.store_strategy_status(BacktestStrategyRunState::Stopping.to_string().to_lowercase())
+                    .await
             })
-        }).await?;
+        })
+        .await?;
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::Stop).await;
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
+                        .await
                 })
-            }).await?;
+            })
+            .await?;
             return Err(e);
         }
 
@@ -108,40 +113,43 @@ impl StrategyLifecycle for BacktestStrategy {
         if all_stopped {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Stopped.to_string().to_lowercase()).await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Stopped.to_string().to_lowercase())
+                        .await
                 })
-            }).await?;
-            
+            })
+            .await?;
+
             let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::StopComplete).await;
             if let Err(e) = update_result {
                 self.with_ctx_write_async(|ctx| {
                     Box::pin(async move {
-                        ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await
+                        ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
+                            .await
                     })
-                }).await?;
+                })
+                .await?;
                 return Err(e);
             }
             Ok(())
         } else {
             Err(WaitAllNodesStoppedTimeoutSnafu {}.build().into())
         }
-        
     }
 
     async fn update_strategy_state(&mut self, trigger: Self::Trigger) -> Result<(), Self::Error> {
         // 提前获取所有需要的数据，避免在循环中持有引用
-        let (strategy_name, mut state_machine) = self.with_ctx_read(|ctx| {
-            let strategy_name = ctx.strategy_name().clone();
-            let state_machine = ctx.state_machine().clone();
-            (strategy_name, state_machine)
-        }).await;
-
+        let (strategy_name, mut state_machine) = self
+            .with_ctx_read(|ctx| {
+                let strategy_name = ctx.strategy_name().clone();
+                let state_machine = ctx.state_machine().clone();
+                (strategy_name, state_machine)
+            })
+            .await;
 
         let transition_result = {
             let mut state_machine = state_machine.write().await;
             state_machine.transition(trigger)?
         };
-
 
         for action in transition_result.get_actions() {
             // action execute result flag
@@ -163,7 +171,8 @@ impl StrategyLifecycle for BacktestStrategy {
                                 tracing::error!("[{}] get start node config failed", &strategy_name_clone);
                             }
                         })
-                    }).await;
+                    })
+                    .await;
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
                     let strategy_name_clone = strategy_name.clone();
@@ -176,7 +185,8 @@ impl StrategyLifecycle for BacktestStrategy {
                                 tracing::error!("[{}] get signal count failed", &strategy_name_clone);
                             }
                         })
-                    }).await;
+                    })
+                    .await;
                 }
                 BacktestStrategyStateAction::InitVirtualTradingSystem => {
                     // let strategy_name_clone = strategy_name.clone();
@@ -222,7 +232,8 @@ impl StrategyLifecycle for BacktestStrategy {
                             Some(e.error_code()),
                             Some(e.error_code_chain()),
                             error_message,
-                        ).into();
+                        )
+                        .into();
 
                         // let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event);
                         let _ = futures::executor::block_on(EventCenterSingleton::publish(log_event.into()));
@@ -289,7 +300,9 @@ impl StrategyLifecycle for BacktestStrategy {
                     tracing::error!("[{}] {}", &strategy_name, error);
                 }
                 BacktestStrategyStateAction::LogStrategyState => {
-                    let (strategy_id, current_state) = self.with_ctx_read_async(|ctx| Box::pin(async move { (ctx.strategy_id(), ctx.run_state().await) })).await;
+                    let (strategy_id, current_state) = self
+                        .with_ctx_read_async(|ctx| Box::pin(async move { (ctx.strategy_id(), ctx.run_state().await) }))
+                        .await;
 
                     let log_message = StrategyStateLogMsg::new(strategy_id, strategy_name.clone(), current_state.to_string());
                     let log_event = StrategyStateLogEvent {
@@ -312,13 +325,7 @@ impl StrategyLifecycle for BacktestStrategy {
     }
 }
 
-
-
 impl BacktestStrategy {
-    
-
-
-
     pub async fn check_strategy(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.with_ctx_read(|ctx| ctx.strategy_name().clone()).await;
 
@@ -326,39 +333,44 @@ impl BacktestStrategy {
 
         self.with_ctx_write_async(|ctx| {
             Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Checking.to_string().to_lowercase()).await
+                ctx.store_strategy_status(BacktestStrategyRunState::Checking.to_string().to_lowercase())
+                    .await
             })
-        }).await;
+        })
+        .await;
 
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::Check).await;
-        
+
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
+                        .await
                 })
-            }).await;
+            })
+            .await;
             return Err(e);
         }
 
         tracing::info!("[{}] check finished.", strategy_name);
         self.with_ctx_write_async(|ctx| {
             Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::CheckPassed.to_string().to_lowercase()).await
+                ctx.store_strategy_status(BacktestStrategyRunState::CheckPassed.to_string().to_lowercase())
+                    .await
             })
-        }).await;
+        })
+        .await;
 
-
-        let update_result = self
-            .update_strategy_state(BacktestStrategyStateTransTrigger::CheckComplete)
-            .await;
+        let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::CheckComplete).await;
 
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase()).await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Failed.to_string().to_lowercase())
+                        .await
                 })
-            }).await;
+            })
+            .await;
             return Err(e);
         }
         Ok(())

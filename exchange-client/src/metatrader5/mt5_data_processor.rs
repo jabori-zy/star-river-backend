@@ -1,25 +1,20 @@
-use crate::metatrader5::mt5_types::Mt5Deal;
-use crate::metatrader5::mt5_types::Mt5KlineInterval;
-use crate::metatrader5::mt5_types::{Mt5Order, Mt5OrderState, Mt5Position};
 use chrono::{TimeZone, Utc};
 use event_center::EventCenterSingleton;
+use exchange_core::{error::data_processor_error::*, exchange_trait::DataProcessor};
 use snafu::{OptionExt, ResultExt};
-use star_river_core::account::OriginalAccountInfo;
-use star_river_core::account::mt5_account::OriginalMt5AccountInfo;
-use star_river_core::instrument::Symbol;
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::{Kline, KlineInterval};
-use star_river_core::exchange::MT5Server;
-use star_river_core::order::Order;
-use star_river_core::order::OriginalOrder;
-use star_river_core::position::PositionNumber;
-use star_river_core::position::{OriginalPosition, Position};
-use star_river_core::transaction::OriginalTransaction;
-use exchange_core::exchange_trait::DataProcessor;
-use super::data_processor_error::Mt5DataProcessorError;
-use exchange_core::error::data_processor_error::*;
-use star_river_event::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdatePayload, ExchangeKlineUpdateEvent};
+use star_river_core::{
+    account::{OriginalAccountInfo, mt5_account::OriginalMt5AccountInfo},
+    exchange::{Exchange, MT5Server},
+    instrument::Symbol,
+    kline::{Kline, KlineInterval},
+    order::{Order, OriginalOrder},
+    position::{OriginalPosition, Position, PositionNumber},
+    transaction::OriginalTransaction,
+};
+use star_river_event::event::exchange_event::{ExchangeEvent, ExchangeKlineUpdateEvent, ExchangeKlineUpdatePayload};
 
+use super::data_processor_error::Mt5DataProcessorError;
+use crate::metatrader5::mt5_types::{Mt5Deal, Mt5KlineInterval, Mt5Order, Mt5OrderState, Mt5Position};
 
 #[derive(Debug)]
 pub struct Mt5DataProcessor {
@@ -115,7 +110,6 @@ impl Mt5DataProcessor {
             kline,
         );
         let event: ExchangeEvent = ExchangeKlineUpdateEvent::new(payload).into();
-        
 
         // self.event_publisher.lock().await.publish(event).await.unwrap();
         EventCenterSingleton::publish(event.into()).await.unwrap();
@@ -133,11 +127,7 @@ impl Mt5DataProcessor {
                     tracing::warn!("Unknown stream data type: {}", unknown_type);
                 }
                 None => {
-                    return Err(ValueIsNoneSnafu {
-                        field: "type".to_string(),
-                    }
-                    .build()
-                    .into());
+                    return Err(ValueIsNoneSnafu { field: "type".to_string() }.build().into());
                 }
             }
         }
@@ -163,16 +153,18 @@ impl Mt5DataProcessor {
                     actual: "non-string".to_string(),
                 })?;
 
-            let point = symbol.get("point").context(MissingFieldSnafu {
-                field: "point".to_string(),
-                context: "parse symbol list".to_string(),
-            })?
-            .as_f64()
-            .context(InvalidFieldTypeSnafu {
-                field: "point".to_string(),
-                expected: "number".to_string(),
-                actual: "non-number".to_string(),
-            })?;
+            let point = symbol
+                .get("point")
+                .context(MissingFieldSnafu {
+                    field: "point".to_string(),
+                    context: "parse symbol list".to_string(),
+                })?
+                .as_f64()
+                .context(InvalidFieldTypeSnafu {
+                    field: "point".to_string(),
+                    expected: "number".to_string(),
+                    actual: "non-number".to_string(),
+                })?;
 
             let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()), point as f32);
             symbol_list.push(symbol);
@@ -181,34 +173,36 @@ impl Mt5DataProcessor {
         Ok(symbol_list)
     }
 
-
     pub fn process_symbol(&self, symbol_info: serde_json::Value) -> Result<Symbol, Mt5DataProcessorError> {
-        let symbol_name = symbol_info.get("name").context(MissingFieldSnafu {
-            field: "name".to_string(),
-            context: "parse symbol".to_string(),
-        })?
-        .as_str()
-        .context(InvalidFieldTypeSnafu {
-            field: "name".to_string(),
-            expected: "string".to_string(),
-            actual: "non-string".to_string(),
-        })?;
+        let symbol_name = symbol_info
+            .get("name")
+            .context(MissingFieldSnafu {
+                field: "name".to_string(),
+                context: "parse symbol".to_string(),
+            })?
+            .as_str()
+            .context(InvalidFieldTypeSnafu {
+                field: "name".to_string(),
+                expected: "string".to_string(),
+                actual: "non-string".to_string(),
+            })?;
 
-        let point = symbol_info.get("point").context(MissingFieldSnafu {
-            field: "point".to_string(),
-            context: Some("parse symbol".to_string()),
-        })?
-        .as_f64()
-        .context(InvalidFieldTypeSnafu {
-            field: "point".to_string(),
-            expected: "number".to_string(),
-            actual: "non-number".to_string(),
-        })?;
+        let point = symbol_info
+            .get("point")
+            .context(MissingFieldSnafu {
+                field: "point".to_string(),
+                context: Some("parse symbol".to_string()),
+            })?
+            .as_f64()
+            .context(InvalidFieldTypeSnafu {
+                field: "point".to_string(),
+                expected: "number".to_string(),
+                actual: "non-number".to_string(),
+            })?;
 
         let symbol = Symbol::new(symbol_name, None, None, Exchange::Metatrader5(self.server.clone()), point as f32);
         Ok(symbol)
     }
-    
 
     pub async fn process_kline_series(
         &self,
@@ -385,8 +379,7 @@ impl Mt5DataProcessor {
         position_json["server"] = self.server.clone().into();
 
         tracing::debug!("仓位信息 :{:?}", position_json);
-        let position = serde_json::from_value::<Mt5Position>(position_json.clone()).context(PositionDataParseFailedSnafu {
-        })?;
+        let position = serde_json::from_value::<Mt5Position>(position_json.clone()).context(PositionDataParseFailedSnafu {})?;
         tracing::info!("仓位信息: {:?}", position);
 
         Ok(Box::new(position))
@@ -400,9 +393,7 @@ impl Mt5DataProcessor {
         // tracing::debug!("最新仓位信息: {:?}", new_position_json);
         // 仓位数据
         new_position_json["server"] = self.server.clone().into();
-        let new_mt_position = serde_json::from_value::<Mt5Position>(new_position_json)
-        .context(PositionDataParseFailedSnafu {
-        })?;
+        let new_mt_position = serde_json::from_value::<Mt5Position>(new_position_json).context(PositionDataParseFailedSnafu {})?;
 
         // Validate timestamp conversion
         let create_time = Utc
@@ -530,9 +521,8 @@ impl Mt5DataProcessor {
         // 把account_id 添加到account_info_data中
         account_info["account_id"] = account_id.into();
 
-        let account_info = serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParseFailedSnafu {
-            account_id,
-        })?;
+        let account_info =
+            serde_json::from_value::<OriginalMt5AccountInfo>(account_info).context(AccountInfoParseFailedSnafu { account_id })?;
 
         Ok(Box::new(account_info))
     }

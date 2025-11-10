@@ -1,24 +1,18 @@
-use crate::EventCenter;
-use crate::error::EventCenterErrorBasic;
-use crate::event::Event;
-use event_center_core::error::ChannelNotFoundSnafu;
-use event_center_core::error::{InstanceAlreadyInitSnafu, InstanceNotInitSnafu, CommandSenderNotFoundSnafu, CommandReceiverNotFoundSnafu};
-use crate::error::{EventSendFailedSnafu, CommandSendFailedSnafu};
-use snafu::ResultExt;
-use std::sync::Arc;
-use std::sync::OnceLock;
-use tokio::sync::{RwLock, Mutex};
-use snafu::OptionExt;
-use crate::EngineCommand;
-use crate::CommandTargetEngine;
-use tokio::sync::{mpsc, broadcast};
-use crate::Channel;
+use std::sync::{Arc, OnceLock};
 
+use event_center_core::error::{
+    ChannelNotFoundSnafu, CommandReceiverNotFoundSnafu, CommandSenderNotFoundSnafu, InstanceAlreadyInitSnafu, InstanceNotInitSnafu,
+};
+use snafu::{OptionExt, ResultExt};
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
 
+use crate::{
+    Channel, CommandTargetEngine, EngineCommand, EventCenter,
+    error::{CommandSendFailedSnafu, EventCenterErrorBasic, EventSendFailedSnafu},
+    event::Event,
+};
 
 static EVENT_CENTER_INSTANCE: OnceLock<Arc<RwLock<EventCenter>>> = OnceLock::new();
-
-
 
 pub struct EventCenterSingleton;
 
@@ -40,7 +34,7 @@ impl EventCenterSingleton {
     /// * `command_buffer_size` - 命令通道的缓冲区大小
     pub fn init_with_size(event_buffer_size: usize, command_buffer_size: usize) -> Result<(), EventCenterErrorBasic> {
         let event_center = Arc::new(RwLock::new(
-            EventCenter::new().init_channels(event_buffer_size, command_buffer_size)
+            EventCenter::new().init_channels(event_buffer_size, command_buffer_size),
         ));
 
         EVENT_CENTER_INSTANCE
@@ -54,24 +48,19 @@ impl EventCenterSingleton {
         EVENT_CENTER_INSTANCE.get().is_some()
     }
 
-
     pub async fn get_instance() -> Result<&'static Arc<RwLock<EventCenter>>, EventCenterErrorBasic> {
-        let instance = EVENT_CENTER_INSTANCE
-            .get()
-            .ok_or_else(|| InstanceNotInitSnafu {}.build())?;
+        let instance = EVENT_CENTER_INSTANCE.get().ok_or_else(|| InstanceNotInitSnafu {}.build())?;
         Ok(instance)
     }
 
     pub async fn subscribe(channel: &Channel) -> Result<broadcast::Receiver<Event>, EventCenterErrorBasic> {
         let instance = Self::get_instance().await?;
         let instance_guard = instance.read().await;
-        let receiver = instance_guard
-            .subscribe(channel)
-            .context(ChannelNotFoundSnafu { channel: channel.to_string() })?;
+        let receiver = instance_guard.subscribe(channel).context(ChannelNotFoundSnafu {
+            channel: channel.to_string(),
+        })?;
         Ok(receiver)
-
     }
-
 
     pub async fn publish(event: Event) -> Result<(), EventCenterErrorBasic> {
         let instance = Self::get_instance().await?;
@@ -87,23 +76,23 @@ impl EventCenterSingleton {
         Ok(())
     }
 
-
     pub async fn command_sender(target: &CommandTargetEngine) -> Result<mpsc::Sender<EngineCommand>, EventCenterErrorBasic> {
         let instance = Self::get_instance().await?;
         let instance_guard = instance.read().await;
-        let sender = instance_guard
-            .command_sender(target)
-            .context(CommandSenderNotFoundSnafu { target: target.to_string() })?;
+        let sender = instance_guard.command_sender(target).context(CommandSenderNotFoundSnafu {
+            target: target.to_string(),
+        })?;
         Ok(sender)
-
     }
 
-    pub async fn command_receiver(target: &CommandTargetEngine) -> Result<Arc<Mutex<mpsc::Receiver<EngineCommand>>>, EventCenterErrorBasic> {
+    pub async fn command_receiver(
+        target: &CommandTargetEngine,
+    ) -> Result<Arc<Mutex<mpsc::Receiver<EngineCommand>>>, EventCenterErrorBasic> {
         let instance = Self::get_instance().await?;
         let instance_guard = instance.read().await;
-        let receiver = instance_guard
-            .command_receiver(target)
-            .context(CommandReceiverNotFoundSnafu { target: target.to_string() })?;
+        let receiver = instance_guard.command_receiver(target).context(CommandReceiverNotFoundSnafu {
+            target: target.to_string(),
+        })?;
         Ok(receiver)
     }
 }

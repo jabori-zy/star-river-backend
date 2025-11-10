@@ -1,11 +1,7 @@
-
 use super::custom_variable::VariableValue;
-use crate::node_infra::variable_node::variable_operation::UpdateVarValueOperation;
-
 // current crate
-use crate::error::strategy_error::{
-    StrategyError, CusVarUpdateOpValueIsNoneSnafu, DivideByZeroSnafu, UnSupportVariableOperationSnafu,
-};
+use crate::error::strategy_error::{CusVarUpdateOpValueIsNoneSnafu, DivideByZeroSnafu, StrategyError, UnSupportVariableOperationSnafu};
+use crate::node_infra::variable_node::variable_operation::UpdateVarValueOperation;
 
 /// Apply variable value update operation
 ///
@@ -350,13 +346,13 @@ fn apply_clear_operation(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // std
     use std::str::FromStr;
 
     // third-party
     use rust_decimal::Decimal;
+
+    use super::*;
 
     #[test]
     fn test_set_operation_number() {

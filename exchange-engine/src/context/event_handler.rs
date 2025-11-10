@@ -1,22 +1,18 @@
-use async_trait::async_trait;
-use super::ExchangeEngineContext;
-use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
 use std::sync::Arc;
-use event_center::{
-    event::Event,
-    communication::EngineCommand
-};
+
+use async_trait::async_trait;
+use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
+use event_center::{communication::EngineCommand, event::Event};
 use star_river_event::communication::{ExchangeEngineCommand, RegisterExchangeRespPayload, RegisterExchangeResponse};
 
-
+use super::ExchangeEngineContext;
 
 #[async_trait]
 impl EngineEventHandler for ExchangeEngineContext {
-
     async fn handle_event(&mut self, event: Event) {
         tracing::info!("[{}] received event: {:?}", self.engine_name(), event);
     }
-    
+
     async fn handle_command(&mut self, command: EngineCommand) {
         match command {
             EngineCommand::ExchangeEngine(exchange_engine_command) => {
@@ -42,5 +38,4 @@ impl EngineEventHandler for ExchangeEngineContext {
             _ => {}
         }
     }
-
 }

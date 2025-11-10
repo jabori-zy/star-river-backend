@@ -1,10 +1,8 @@
-use crate::talib::TALib;
-use crate::talib_bindings::*;
-// use crate::indicator_engine::talib_error::TalibError;
-use crate::talib_fn;
 use chrono::{DateTime, Utc};
-use crate::Indicator;
-use crate::indicator::volume::*;
+
+// use crate::indicator_engine::talib_error::TalibError;
+use crate::{Indicator, indicator::volume::*, talib_fn};
+use crate::{talib::TALib, talib_bindings::*};
 
 impl TALib {
     // AD                   Chaikin A/D Line #钱德动量线

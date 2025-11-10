@@ -1,19 +1,23 @@
+use strategy_core::node::{
+    context_trait::{NodeIdentityExt, NodeTaskControlExt},
+    node_trait::NodeContextAccessor,
+};
+use tokio::time::{Duration, interval};
+
 use super::IfElseNode;
 use crate::node::node_error::IfElseNodeError;
-use strategy_core::node::node_trait::NodeContextAccessor;
-use strategy_core::node::context_trait::{NodeTaskControlExt, NodeIdentityExt};
-use tokio::time::{interval, Duration};
-
 
 impl IfElseNode {
     pub async fn evaluate(&self) -> Result<(), IfElseNodeError> {
-        let (node_id, cancel_token) = self.with_ctx_read_async(|ctx| {
-            Box::pin(async move {
-                let node_id = ctx.node_id().clone();
-                let cancel_token = ctx.cancel_token().clone();
-                (node_id, cancel_token)
+        let (node_id, cancel_token) = self
+            .with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    let node_id = ctx.node_id().clone();
+                    let cancel_token = ctx.cancel_token().clone();
+                    (node_id, cancel_token)
+                })
             })
-        }).await;
+            .await;
 
         let node = self.clone();
         tokio::spawn(async move {

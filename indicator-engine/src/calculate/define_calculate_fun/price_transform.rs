@@ -1,6 +1,6 @@
-use crate::calculate_fn;
-use crate::calculate::CalculateIndicatorFunction;
 use ta_lib::Indicator;
+
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn};
 
 impl CalculateIndicatorFunction {
     // AVGPRICE - Average Price #平均价格

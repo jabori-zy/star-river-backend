@@ -1,12 +1,9 @@
-mod macros;
-pub mod indicator;
-mod utils;
 pub mod error;
-mod talib_bindings;
+pub mod indicator;
+mod macros;
 mod talib;
+mod talib_bindings;
+mod utils;
 
+pub use indicator::{Indicator, IndicatorConfig, *};
 pub use talib::*;
-pub use indicator::*;
-
-
-pub use indicator::{Indicator, IndicatorConfig};

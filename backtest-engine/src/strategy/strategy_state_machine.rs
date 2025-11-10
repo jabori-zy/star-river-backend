@@ -6,13 +6,15 @@
 // the strategy-core generic state machine framework. It references the original
 // BacktestStrategyStateMachine design while providing better type safety and extensibility.
 
-use strum::Display;
-use strategy_core::strategy::state_machine::{
-    GenericStrategyStateMachine, Metadata, StrategyRunState, StrategyStateAction,
-    StrategyStateChangeActions, StrategyStateTransTrigger, StrategyStateMachine,
-};
-use strategy_core::error::{StrategyStateMachineError, strategy_state_machine_error::StrategyStateTransFailedSnafu};
 use star_river_core::custom_type::StrategyName;
+use strategy_core::{
+    error::{StrategyStateMachineError, strategy_state_machine_error::StrategyStateTransFailedSnafu},
+    strategy::state_machine::{
+        GenericStrategyStateMachine, Metadata, StrategyRunState, StrategyStateAction, StrategyStateChangeActions, StrategyStateMachine,
+        StrategyStateTransTrigger,
+    },
+};
+use strum::Display;
 
 // ============================================================================
 // State Definitions
@@ -187,39 +189,29 @@ pub fn backtest_strategy_transition(
     trigger: BacktestStrategyStateTransTrigger,
     strategy_name: StrategyName,
     _metadata: Option<&Metadata>,
-) -> Result<
-    StrategyStateChangeActions<BacktestStrategyRunState, BacktestStrategyStateAction>,
-    StrategyStateMachineError,
-> {
+) -> Result<StrategyStateChangeActions<BacktestStrategyRunState, BacktestStrategyStateAction>, StrategyStateMachineError> {
     match (current_state, trigger) {
         // Created -> Checking: Start checking strategy
-        (BacktestStrategyRunState::Created, BacktestStrategyStateTransTrigger::Check) => {
-            Ok(StrategyStateChangeActions::new(
-                BacktestStrategyRunState::Checking,
-                vec![
-                    BacktestStrategyStateAction::LogTransition,
-                    BacktestStrategyStateAction::LogStrategyState,
-                    BacktestStrategyStateAction::CheckNode,
-                ],
-            ))
-        }
+        (BacktestStrategyRunState::Created, BacktestStrategyStateTransTrigger::Check) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::Checking,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::CheckNode,
+            ],
+        )),
 
         // Checking -> CheckPassed: Check completed
-        (BacktestStrategyRunState::Checking, BacktestStrategyStateTransTrigger::CheckComplete) => {
-            Ok(StrategyStateChangeActions::new(
-                BacktestStrategyRunState::CheckPassed,
-                vec![
-                    BacktestStrategyStateAction::LogTransition,
-                    BacktestStrategyStateAction::LogStrategyState,
-                ],
-            ))
-        }
+        (BacktestStrategyRunState::Checking, BacktestStrategyStateTransTrigger::CheckComplete) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::CheckPassed,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+            ],
+        )),
 
         // CheckPassed -> Initializing: Start initialization
-        (
-            BacktestStrategyRunState::CheckPassed,
-            BacktestStrategyStateTransTrigger::Initialize,
-        ) => Ok(StrategyStateChangeActions::new(
+        (BacktestStrategyRunState::CheckPassed, BacktestStrategyStateTransTrigger::Initialize) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Initializing,
             vec![
                 BacktestStrategyStateAction::LogTransition,
@@ -236,34 +228,28 @@ pub fn backtest_strategy_transition(
         )),
 
         // Initializing -> Ready: Initialization completed
-        (
-            BacktestStrategyRunState::Initializing,
-            BacktestStrategyStateTransTrigger::InitializeComplete,
-        ) => Ok(StrategyStateChangeActions::new(
-            BacktestStrategyRunState::Ready,
-            vec![
-                BacktestStrategyStateAction::LogTransition,
-                BacktestStrategyStateAction::LogStrategyState,
-            ],
-        )),
-
-        // Ready -> Stopping: Stop strategy
-        (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Stop) => {
+        (BacktestStrategyRunState::Initializing, BacktestStrategyStateTransTrigger::InitializeComplete) => {
             Ok(StrategyStateChangeActions::new(
-                BacktestStrategyRunState::Stopping,
+                BacktestStrategyRunState::Ready,
                 vec![
                     BacktestStrategyStateAction::LogTransition,
                     BacktestStrategyStateAction::LogStrategyState,
-                    BacktestStrategyStateAction::StopNode,
                 ],
             ))
         }
 
-        // Stopping -> Stopped: Stop completed
-        (
+        // Ready -> Stopping: Stop strategy
+        (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Stop) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Stopping,
-            BacktestStrategyStateTransTrigger::StopComplete,
-        ) => Ok(StrategyStateChangeActions::new(
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::StopNode,
+            ],
+        )),
+
+        // Stopping -> Stopped: Stop completed
+        (BacktestStrategyRunState::Stopping, BacktestStrategyStateTransTrigger::StopComplete) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Stopped,
             vec![
                 BacktestStrategyStateAction::LogTransition,
@@ -272,23 +258,22 @@ pub fn backtest_strategy_transition(
         )),
 
         // Any state -> Failed: Strategy failed
-        (_, BacktestStrategyStateTransTrigger::Fail(error)) => {
-            Ok(StrategyStateChangeActions::new(
-                BacktestStrategyRunState::Failed,
-                vec![
-                    BacktestStrategyStateAction::LogTransition,
-                    BacktestStrategyStateAction::LogStrategyState,
-                    BacktestStrategyStateAction::LogError(error),
-                ],
-            ))
-        }
+        (_, BacktestStrategyStateTransTrigger::Fail(error)) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::Failed,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::LogError(error),
+            ],
+        )),
 
         // Invalid state transition
-        (state, trigger) => Err(StrategyStateTransFailedSnafu{
+        (state, trigger) => Err(StrategyStateTransFailedSnafu {
             strategy_name: strategy_name.clone(),
             run_state: state.to_string(),
             trans_trigger: trigger.to_string(),
-        }.build()),
+        }
+        .build()),
     }
 }
 
@@ -297,8 +282,5 @@ pub fn backtest_strategy_transition(
 // ============================================================================
 
 /// Backtest strategy state machine type alias
-pub type BacktestStrategyStateMachine = GenericStrategyStateMachine<
-    BacktestStrategyRunState,
-    BacktestStrategyStateAction,
-    BacktestStrategyStateTransTrigger,
->;
+pub type BacktestStrategyStateMachine =
+    GenericStrategyStateMachine<BacktestStrategyRunState, BacktestStrategyStateAction, BacktestStrategyStateTransTrigger>;

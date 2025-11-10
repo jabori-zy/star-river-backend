@@ -1,7 +1,6 @@
-use crate::calculate::CalculateIndicatorFunction;
-use crate::{calculate_fn, calculate_fn_snake};
-use ta_lib::Indicator;
-use ta_lib::indicator::overlap::*;
+use ta_lib::{Indicator, indicator::overlap::*};
+
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn, calculate_fn_snake};
 
 impl CalculateIndicatorFunction {
     // Bollinger Bands #布林带

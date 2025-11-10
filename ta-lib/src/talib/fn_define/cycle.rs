@@ -1,10 +1,8 @@
-use crate::talib::TALib;
-use crate::talib_bindings::*;
-// use crate::indicator_engine::talib_error::TalibError;
-use crate::talib_snake_fn;
 use chrono::{DateTime, Utc};
-use crate::Indicator;
-use crate::indicator::cycle::*;
+
+// use crate::indicator_engine::talib_error::TalibError;
+use crate::{Indicator, indicator::cycle::*, talib_snake_fn};
+use crate::{talib::TALib, talib_bindings::*};
 
 impl TALib {
     // HT_DCPERIOD          Hilbert Transform - Dominant Cycle Period #希尔伯特变换 - 主导周期

@@ -1,19 +1,15 @@
 // std
 use std::sync::Arc;
 
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
 // third-party
 use tokio::sync::{Mutex, mpsc};
 
 // current crate
-use crate::node::node_command::BacktestNodeCommand;
-
-// current crate
 use super::BacktestStrategyContext;
-use crate::{
-    node::node_error::BacktestNodeError,
-    node_catalog::start_node::StartNode,
-};
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+// current crate
+use crate::node::node_command::BacktestNodeCommand;
+use crate::{node::node_error::BacktestNodeError, node_catalog::start_node::StartNode};
 
 impl BacktestStrategyContext {
     pub async fn build_start_node(

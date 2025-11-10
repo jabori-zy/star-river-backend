@@ -1,8 +1,6 @@
-
-
-use star_river_core::custom_type::{Balance, Equity};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{Balance, Equity};
 use utoipa::ToSchema;
 
 /// 资产快照 - 用于保存历史资产数据并生成图表

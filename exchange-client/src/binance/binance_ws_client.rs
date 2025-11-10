@@ -1,18 +1,16 @@
 // #![allow(dead_code, unused_imports)]
-use crate::binance::url::BinanceWsUrl;
-use crate::binance::websocket::Stream;
+use exchange_core::exchange_trait::WebSocketClient;
 use futures::SinkExt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async,
     tungstenite::{Error, Message, handshake::client::Response},
 };
-use exchange_core::exchange_trait::WebSocketClient;
+
+use crate::binance::{url::BinanceWsUrl, websocket::Stream};
 
 #[derive(Debug)]
 pub struct BinanceWsBuilder;
-
-
 
 impl BinanceWsBuilder {
     pub async fn connect(url: &str) -> Result<(BinanceWebSocket, Response), Error> {
@@ -38,7 +36,6 @@ pub struct BinanceWebSocket {
     socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
     id: u64,
 }
-
 
 impl WebSocketClient for BinanceWebSocket {}
 

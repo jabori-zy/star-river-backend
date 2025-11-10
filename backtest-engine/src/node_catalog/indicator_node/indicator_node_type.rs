@@ -1,7 +1,8 @@
-use strategy_core::strategy::{SelectedSymbol, SelectedAccount, SelectedIndicator};
 use serde::{Deserialize, Serialize};
-use ta_lib::IndicatorConfig;
 use star_river_core::system::TimeRange;
+use strategy_core::strategy::{SelectedAccount, SelectedIndicator, SelectedSymbol};
+use ta_lib::IndicatorConfig;
+
 use crate::strategy::strategy_config::BacktestDataSource;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,4 +36,3 @@ pub struct ExchangeModeConfig {
 pub struct FileModeConfig {
     pub file_path: String,
 }
-

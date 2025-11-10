@@ -1,19 +1,19 @@
 // third-party
 use snafu::OptionExt;
+use strategy_core::{
+    error::strategy_error::{EdgeConfigMissFieldSnafu, NodeNotFoundSnafu},
+    node::node_handles::NodeInputHandle,
+    strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt},
+};
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::{
-    strategy::strategy_error::BacktestStrategyError
-};
-use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt};
-use strategy_core::error::strategy_error::{EdgeConfigMissFieldSnafu, NodeNotFoundSnafu};
-use strategy_core::node::node_handles::NodeInputHandle;
+use crate::strategy::strategy_error::BacktestStrategyError;
 
 impl BacktestStrategyContext {
     pub async fn build_edge(&mut self, edge_config: serde_json::Value) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.strategy_name();
-        
+
         let source_handle_id = edge_config.get("sourceHandle").and_then(|v| v.as_str()).ok_or_else(|| {
             EdgeConfigMissFieldSnafu {
                 strategy_name: strategy_name.clone(),

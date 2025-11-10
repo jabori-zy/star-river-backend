@@ -2,12 +2,12 @@ pub mod calculate_macros;
 pub mod define_calculate_fun;
 
 use chrono::{DateTime, Utc};
-use crate::error::IndicatorEngineError;
 use ta_lib::{
     Indicator,
     indicator::{IndicatorConfig, PriceSource},
 };
-use crate::Kline;
+
+use crate::{Kline, error::IndicatorEngineError};
 
 pub struct CalculateIndicatorFunction;
 

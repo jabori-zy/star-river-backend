@@ -1,7 +1,9 @@
 use ::entity::system_config::Entity as SystemConfig;
 use chrono::Utc;
-use sea_orm_migration::prelude::*;
-use sea_orm_migration::sea_orm::{entity::*, query::*};
+use sea_orm_migration::{
+    prelude::*,
+    sea_orm::{entity::*, query::*},
+};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;

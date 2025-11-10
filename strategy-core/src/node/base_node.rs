@@ -1,18 +1,14 @@
-use super::context_trait::NodeMetaDataExt;
-use super::node_trait::NodeContextAccessor;
-
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 // third-party
 use tokio::sync::RwLock;
 
+use super::{context_trait::NodeMetaDataExt, node_trait::NodeContextAccessor};
 
 #[derive(Debug)]
 pub struct NodeBase<C>
-where C: NodeMetaDataExt,
+where
+    C: NodeMetaDataExt,
 {
     pub context: Arc<RwLock<C>>,
 }

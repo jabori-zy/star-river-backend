@@ -1,6 +1,6 @@
-use strategy_core::event::node::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use strategy_core::event::node::NodeEvent;
 use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]

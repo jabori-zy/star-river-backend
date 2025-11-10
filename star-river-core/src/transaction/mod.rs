@@ -1,14 +1,13 @@
 // pub mod virtual_transaction;
 
-use crate::exchange::Exchange;
-use crate::system::DateTimeUtc;
+use std::{any::Any, fmt::Debug, str::FromStr};
+
 use entity::transaction::Model as TransactionModel;
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fmt::Debug;
-use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+
+use crate::{exchange::Exchange, system::DateTimeUtc};
 
 // 交易明细类型
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema, PartialEq, Eq)]

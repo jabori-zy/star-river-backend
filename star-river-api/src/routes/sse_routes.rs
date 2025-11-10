@@ -1,15 +1,16 @@
+use axum::{Router, routing::get};
+
 use crate::sse::{
     account_sse_handler,
     backtest_strategy_event_sse_handler,
-    backtest_strategy_performance_sse_handler, 
-    backtest_strategy_running_log_sse_handler, 
-    backtest_strategy_state_log_sse_handler, 
-    indicator_sse_handler, 
+    backtest_strategy_performance_sse_handler,
+    backtest_strategy_running_log_sse_handler,
+    backtest_strategy_state_log_sse_handler,
+    indicator_sse_handler,
     // live_strategy_sse_handler,
     market_sse_handler,
 };
 use crate::star_river::StarRiver;
-use axum::{Router, routing::get};
 
 pub fn create_sse_routes() -> Router<StarRiver> {
     Router::new()

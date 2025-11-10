@@ -1,17 +1,19 @@
-use star_river_core::custom_type::{Balance, StrategyId};
-use crate::event::{StrategyStatsEvent, StrategyStatsUpdatedEvent};
-use crate::snapshot::{StatsSnapshot, StatsSnapshotHistory};
-use virtual_trading::event::VirtualTradingSystemEvent;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
-use tokio_stream::StreamExt;
-use tokio_stream::wrappers::BroadcastStream;
-use tokio_util::sync::CancellationToken;
-use virtual_trading::VirtualTradingSystem;
 
 use chrono::Utc;
-use star_river_core::system::DateTimeUtc;
-use tokio::sync::broadcast;
+use star_river_core::{
+    custom_type::{Balance, StrategyId},
+    system::DateTimeUtc,
+};
+use tokio::sync::{Mutex, RwLock, broadcast};
+use tokio_stream::{StreamExt, wrappers::BroadcastStream};
+use tokio_util::sync::CancellationToken;
+use virtual_trading::{VirtualTradingSystem, event::VirtualTradingSystemEvent};
+
+use crate::{
+    event::{StrategyStatsEvent, StrategyStatsUpdatedEvent},
+    snapshot::{StatsSnapshot, StatsSnapshotHistory},
+};
 
 // T: VirtualTradingSystem
 
@@ -28,12 +30,7 @@ pub struct StrategyStats {
 }
 
 impl StrategyStats {
-    pub fn new(
-        mode: &'static str,
-        strategy_id: StrategyId,
-    ) -> Self {
-
-
+    pub fn new(mode: &'static str, strategy_id: StrategyId) -> Self {
         let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
 
         Self {
@@ -121,7 +118,6 @@ impl StrategyStats {
         // let play_index = *self.play_index_watch_rx.borrow_and_update();
         // let trading_system_play_index = trading_system.get_play_index();
 
-        
         let datetime = trading_system.get_datetime(); // 时间戳
         let balance = trading_system.get_balance(); // 账户余额
         let available_balance = trading_system.get_available_balance(); // 可用余额
@@ -152,7 +148,8 @@ impl StrategyStats {
         };
 
         let _ = self
-            .strategy_stats_event_transceiver.0
+            .strategy_stats_event_transceiver
+            .0
             .send(StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event));
 
         // 添加到历史记录
@@ -163,7 +160,7 @@ impl StrategyStats {
         //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().equity,
         //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().cumulative_return,
         //     asset_snapshot_history_guard.get_latest_snapshot().unwrap().position_count);
-        
+
         Ok(())
     }
 

@@ -1,36 +1,33 @@
-mod state_machine;
 mod context;
-mod position_node_types;
 mod node_lifecycle;
+mod position_node_types;
+mod state_machine;
 
-use strategy_core::node::{NodeType, NodeBase};
-use context::PositionNodeContext;
-use strategy_core::node::node_trait::NodeContextAccessor;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use star_river_core::custom_type::{StrategyId, NodeId, NodeName};
-use crate::node::node_error::BacktestNodeError;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::PlayIndex;
-use snafu::ResultExt;
-use serde_json;
-use tokio::sync::Mutex;
-use tokio::sync::mpsc;
-use position_node_types::PositionNodeBacktestConfig;
-use strategy_core::error::node_error::{ConfigFieldValueNullSnafu, ConfigDeserializationFailedSnafu};
-use heartbeat::Heartbeat;
-use sea_orm::DatabaseConnection;
-use virtual_trading::VirtualTradingSystem;
-use strategy_core::node::utils::generate_strategy_output_handle;
-use state_machine::{position_node_transition, PositionNodeStateMachine};
-use strategy_core::node::metadata::NodeMetadata;
-use crate::node::node_state_machine::NodeRunState;
 
+use context::PositionNodeContext;
+use heartbeat::Heartbeat;
+use position_node_types::PositionNodeBacktestConfig;
+use sea_orm::DatabaseConnection;
+use serde_json;
+use snafu::ResultExt;
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use state_machine::{PositionNodeStateMachine, position_node_transition};
+use strategy_core::{
+    error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+};
+use tokio::sync::{Mutex, RwLock, mpsc};
+use virtual_trading::VirtualTradingSystem;
+
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_state_machine::NodeRunState},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
 #[derive(Debug, Clone)]
 pub struct PositionNode {
-    inner: NodeBase<PositionNodeContext>
+    inner: NodeBase<PositionNodeContext>,
 }
 
 impl std::ops::Deref for PositionNode {
@@ -48,7 +45,6 @@ impl NodeContextAccessor for PositionNode {
     }
 }
 
-
 impl PositionNode {
     pub fn new(
         node_config: serde_json::Value,
@@ -61,11 +57,7 @@ impl PositionNode {
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_position_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id);
-        let state_machine = PositionNodeStateMachine::new(
-            node_name.clone(),
-            NodeRunState::Created,
-            position_node_transition,
-        );
+        let state_machine = PositionNodeStateMachine::new(node_name.clone(), NodeRunState::Created, position_node_transition);
         let metadata = NodeMetadata::new(
             strategy_id,
             node_id,
@@ -85,11 +77,9 @@ impl PositionNode {
             virtual_trading_system,
         );
         Ok(Self {
-            inner: NodeBase::new(context)
+            inner: NodeBase::new(context),
         })
     }
-
-
 
     fn check_position_node_config(
         node_config: serde_json::Value,

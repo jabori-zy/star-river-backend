@@ -1,8 +1,9 @@
 use ::entity::position;
 use sea_orm::*;
-use star_river_core::exchange::Exchange;
-use star_river_core::position::Position;
-use star_river_core::position::{OriginalPosition, PositionState};
+use star_river_core::{
+    exchange::Exchange,
+    position::{OriginalPosition, Position, PositionState},
+};
 
 pub struct PositionMutation;
 

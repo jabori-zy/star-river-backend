@@ -1,12 +1,12 @@
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    ops::Deref,
+};
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
-use std::fmt::Debug;
-use std::hash::Hash;
 use strum::IntoEnumIterator;
-use std::fmt::Display;
-
-
 
 /// Trait for channel types that can enumerate all their variants
 /// 用户自定义的通道类型需要实现此 trait
@@ -14,16 +14,11 @@ pub trait Channel: Eq + Hash + Clone + IntoEnumIterator + Display {
     fn variants() -> Vec<Self>;
 }
 
-
-
 pub trait EventTrait: Clone + Debug + Send + Sync + 'static {
     type C: Channel;
     // 获取事件所属的通道
     fn channel(&self) -> &Self::C;
 }
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -41,7 +36,6 @@ impl EventBase {
     }
 }
 
-
 // 泛型事件结构
 // 类似 NodeEvent<T>，包含 EventBase 和 payload
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +52,6 @@ impl<T> Event<T> {
         Self { event_base, payload }
     }
 
-
     pub fn datetime(&self) -> chrono::DateTime<Utc> {
         self.event_base.datetime()
     }
@@ -72,6 +65,3 @@ impl<T> Deref for Event<T> {
         &self.payload
     }
 }
-
-
-

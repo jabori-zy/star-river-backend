@@ -1,17 +1,16 @@
-
-use super::binance_type::{BinanceKlineRaw, BinanceSymbolRaw};
-use chrono::{TimeZone, Utc};
-use snafu::{OptionExt, ResultExt};
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::Kline;
-use star_river_core::instrument::Symbol;
 use std::str::FromStr;
-use strum::Display;
-use strum::EnumString;
+
+use chrono::{TimeZone, Utc};
+use exchange_core::{error::data_processor_error::*, exchange_trait::DataProcessor};
+use snafu::{OptionExt, ResultExt};
+use star_river_core::{exchange::Exchange, instrument::Symbol, kline::Kline};
+use strum::{Display, EnumString};
+
+use super::{
+    binance_type::{BinanceKlineRaw, BinanceSymbolRaw},
+    data_processor_error::BinanceDataProcessorError,
+};
 use crate::binance::binance_type::BinanceKlineInterval;
-use exchange_core::exchange_trait::DataProcessor;
-use super::data_processor_error::BinanceDataProcessorError;
-use exchange_core::error::data_processor_error::*;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {
@@ -35,47 +34,49 @@ impl BinanceDataProcessor {
                 let raw: BinanceKlineRaw = serde_json::from_value(v.clone()).context(JsonParseFailedSnafu)?;
 
                 Ok(Kline {
-                    datetime: Utc
-                        .timestamp_millis_opt(raw.0)
-                        .single()
-                        .context(TimestampConversionFailedSnafu {
-                            message: "Failed to convert timestamp".to_string(),
-                            timestamp: Some(raw.0),
-                        })?,
+                    datetime: Utc.timestamp_millis_opt(raw.0).single().context(TimestampConversionFailedSnafu {
+                        message: "Failed to convert timestamp".to_string(),
+                        timestamp: Some(raw.0),
+                    })?,
                     open: raw.1.parse::<f64>().map_err(|_| {
                         InvalidFieldTypeSnafu {
                             field: "open".to_string(),
                             expected: "f64".to_string(),
                             actual: raw.1.clone(),
-                        }.build()
+                        }
+                        .build()
                     })?,
                     high: raw.2.parse::<f64>().map_err(|_| {
                         InvalidFieldTypeSnafu {
                             field: "high".to_string(),
                             expected: "f64".to_string(),
                             actual: raw.2.clone(),
-                        }.build()
+                        }
+                        .build()
                     })?,
                     low: raw.3.parse::<f64>().map_err(|_| {
                         InvalidFieldTypeSnafu {
                             field: "low".to_string(),
                             expected: "f64".to_string(),
                             actual: raw.3.clone(),
-                        }.build()
+                        }
+                        .build()
                     })?,
                     close: raw.4.parse::<f64>().map_err(|_| {
                         InvalidFieldTypeSnafu {
                             field: "close".to_string(),
                             expected: "f64".to_string(),
                             actual: raw.4.clone(),
-                        }.build()
+                        }
+                        .build()
                     })?,
                     volume: raw.5.parse::<f64>().map_err(|_| {
                         InvalidFieldTypeSnafu {
                             field: "volume".to_string(),
                             expected: "f64".to_string(),
                             actual: raw.5.clone(),
-                        }.build()
+                        }
+                        .build()
                     })?,
                 })
             })
@@ -178,7 +179,6 @@ impl BinanceDataProcessor {
     }
 
     pub fn process_symbol(&self, symbol_info: serde_json::Value) -> Result<Symbol, BinanceDataProcessorError> {
-
         let symbol_info = symbol_info
             .get("symbols")
             .context(MissingFieldSnafu {
@@ -195,7 +195,9 @@ impl BinanceDataProcessor {
             return Err(DataValidationFailedSnafu {
                 field: "symbols".to_string(),
                 value: format!("length: {}", symbol_info.len()),
-            }.build().into());
+            }
+            .build()
+            .into());
         }
 
         let symbol = Symbol::new(
@@ -222,8 +224,9 @@ impl BinanceDataProcessor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_process_kline_series() {

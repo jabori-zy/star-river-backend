@@ -1,5 +1,4 @@
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 fn build_ta_lib_windows() {
     println!("=== Build Script Starting ===");

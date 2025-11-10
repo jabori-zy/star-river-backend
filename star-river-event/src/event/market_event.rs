@@ -2,10 +2,12 @@ use chrono::Utc;
 use derive_more::From;
 use event_center_core::event::Event;
 use serde::{Deserialize, Serialize};
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::{Kline, KlineInterval};
 // use star_river_core::market::TickerPrice;
 use star_river_core::system::DateTimeUtc;
+use star_river_core::{
+    exchange::Exchange,
+    kline::{Kline, KlineInterval},
+};
 use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
@@ -18,7 +20,6 @@ pub enum MarketEvent {
     #[strum(serialize = "kline-series-update-event")]
     #[serde(rename = "kline-series-update-event")]
     KlineSeriesUpdate(KlineSeriesUpdateEvent),
-
     // #[strum(serialize = "ticker-price-update-event")]
     // #[serde(rename = "ticker-price-update-event")]
     // TickerPriceUpdate(TickerPriceUpdateEvent),

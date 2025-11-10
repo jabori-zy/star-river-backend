@@ -1,12 +1,10 @@
+use std::{fmt::Debug, ops::Deref, sync::Arc};
 
 use chrono::Utc;
-use star_river_core::error::error_trait::StarRiverErrorTrait;
-use std::ops::Deref;
-use std::sync::Arc;
+use star_river_core::{custom_type::NodeId, error::error_trait::StarRiverErrorTrait};
 use tokio::sync::oneshot;
-use star_river_core::custom_type::NodeId;
+
 use super::{StrategyCommandTrait, StrategyResponseTrait};
-use std::fmt::Debug;
 
 // ================================ Strategy Command ================================
 #[derive(Debug)]
@@ -17,8 +15,7 @@ pub struct StrategyCommandBase<S> {
 }
 
 #[derive(Debug)]
-pub struct StrategyCommand<P, S>
-{
+pub struct StrategyCommand<P, S> {
     pub command_base: StrategyCommandBase<S>,
     pub command_payload: P,
 }
@@ -59,8 +56,7 @@ where
 impl<P, S> Deref for StrategyCommand<P, S> {
     type Target = P;
     fn deref(&self) -> &Self::Target {
-        &self
-            .command_payload
+        &self.command_payload
     }
 }
 
@@ -152,8 +148,4 @@ impl<P> StrategyResponse<P> {
     }
 }
 
-impl<S> StrategyResponseTrait for StrategyResponse<S> 
-where
-    S: Debug + Send + Sync + 'static,
-{
-}
+impl<S> StrategyResponseTrait for StrategyResponse<S> where S: Debug + Send + Sync + 'static {}

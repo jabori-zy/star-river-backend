@@ -1,7 +1,10 @@
-use super::trigger::TriggerConfig;
-use super::variable_operation::{UpdateVarValueOperation, VariableOperation};
-use crate::variable::custom_variable::VariableValue;
 use serde::{Deserialize, Serialize};
+
+use super::{
+    trigger::TriggerConfig,
+    variable_operation::{UpdateVarValueOperation, VariableOperation},
+};
+use crate::variable::custom_variable::VariableValue;
 
 // ==================== 基础配置 ====================
 
@@ -52,7 +55,6 @@ pub mod get {
     }
 
     impl GetSystemVariableConfig {
-
         pub fn symbol(&self) -> &Option<String> {
             &self.symbol
         }

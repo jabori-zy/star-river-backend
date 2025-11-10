@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
+
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use serde::de::DeserializeOwned;
-use crate::error::ExchangeStateMachineError;
 use strum::Display;
+
+use crate::error::ExchangeStateMachineError;
 
 /// 引擎运行状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
@@ -32,12 +32,7 @@ pub enum ExchangeStateTransTrigger {
     Error(String),
 }
 
-
-
 pub trait ExchangeAction: Clone + Debug + Send + Sync + 'static {}
-
-
-
 
 /// 节点元数据 - 只读的键值存储，用于存储节点的配置和运行时信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,8 +54,7 @@ impl Metadata {
 
     /// 获取并反序列化为指定类型
     pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.data.get(key)
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
+        self.data.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
     }
 
     /// 获取字符串
@@ -89,11 +83,6 @@ impl Metadata {
     }
 }
 
-
-
-
-
-
 /// Generic State Machine - replaces trait objects with generics for zero-cost abstractions
 ///
 /// Type parameters:
@@ -112,7 +101,11 @@ where
 
     /// State transition function - returns new state and actions based on current state, event, and metadata
     /// Uses function pointer to avoid extra heap allocations
-    transition_fn: fn(&ExchangeRunState, ExchangeStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, ExchangeStateMachineError>,
+    transition_fn: fn(
+        &ExchangeRunState,
+        ExchangeStateTransTrigger,
+        Option<&Metadata>,
+    ) -> Result<StateChangeActions<Action>, ExchangeStateMachineError>,
 
     /// Exchange name for logging and debugging
     exchange_name: String,
@@ -147,7 +140,11 @@ where
     pub fn new(
         exchange_name: String,
         initial_state: ExchangeRunState,
-        transition_fn: fn(&ExchangeRunState, ExchangeStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, ExchangeStateMachineError>,
+        transition_fn: fn(
+            &ExchangeRunState,
+            ExchangeStateTransTrigger,
+            Option<&Metadata>,
+        ) -> Result<StateChangeActions<Action>, ExchangeStateMachineError>,
     ) -> Self {
         Self {
             current_state: initial_state,
@@ -167,7 +164,11 @@ where
     pub fn with_metadata(
         exchange_name: String,
         initial_state: ExchangeRunState,
-        transition_fn: fn(&ExchangeRunState, ExchangeStateTransTrigger, Option<&Metadata>) -> Result<StateChangeActions<Action>, ExchangeStateMachineError>,
+        transition_fn: fn(
+            &ExchangeRunState,
+            ExchangeStateTransTrigger,
+            Option<&Metadata>,
+        ) -> Result<StateChangeActions<Action>, ExchangeStateMachineError>,
         metadata: Option<Metadata>,
     ) -> Self {
         Self {
@@ -196,7 +197,10 @@ where
     /// # Returns
     /// - `Ok(StateChangeActions)`: Transition successful, contains new state and action list
     /// - `Err(ExchangeStateMachineError)`: Transition failed
-    pub fn transition(&mut self, trans_trigger: ExchangeStateTransTrigger) -> Result<StateChangeActions<Action>, ExchangeStateMachineError> {
+    pub fn transition(
+        &mut self,
+        trans_trigger: ExchangeStateTransTrigger,
+    ) -> Result<StateChangeActions<Action>, ExchangeStateMachineError> {
         // Call transition function to get new state and actions, passing metadata
         let state_change = (self.transition_fn)(&self.current_state, trans_trigger, self.metadata.as_ref())?;
 

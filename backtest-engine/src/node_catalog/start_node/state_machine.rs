@@ -1,10 +1,10 @@
-use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
-use strategy_core::error::node_state_machine_error::NodeTransFailedSnafu;
-use strategy_core::node::node_state_machine::{NodeStateMachine, StateChangeActions, Metadata, StateAction};
-use strategy_core::error::NodeStateMachineError;
+use strategy_core::{
+    error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
+    node::node_state_machine::{Metadata, NodeStateMachine, StateAction, StateChangeActions},
+};
 use strum::Display;
 
-
+use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 
 /// StartNode 状态机类型别名
 pub type StartNodeStateMachine = NodeStateMachine<NodeRunState, StartNodeAction, NodeStateTransTrigger>;
@@ -33,8 +33,6 @@ impl StateAction for StartNodeAction {}
 // ============================================================================
 // StartNode 状态机类型别名
 // ============================================================================
-
-
 
 // ============================================================================
 // StartNode 状态转换函数
@@ -87,9 +85,10 @@ pub fn start_node_transition(
         )),
 
         // Invalid transition
-        _ => Err(NodeTransFailedSnafu{
+        _ => Err(NodeTransFailedSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.build()),
+        }
+        .build()),
     }
 }

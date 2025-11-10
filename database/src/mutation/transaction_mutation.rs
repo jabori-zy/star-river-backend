@@ -1,7 +1,6 @@
 use ::entity::transaction;
 use sea_orm::*;
-use star_river_core::transaction::OriginalTransaction;
-use star_river_core::transaction::Transaction;
+use star_river_core::transaction::{OriginalTransaction, Transaction};
 
 pub struct TransactionMutation;
 

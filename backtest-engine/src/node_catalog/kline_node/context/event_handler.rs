@@ -1,41 +1,39 @@
 // third-party
 use async_trait::async_trait;
-use snafu::Report;
-use tokio::sync::oneshot;
-
-// workspace crate
-
+use event_center::Event;
 use key::{KeyTrait, KlineKey};
+use snafu::{IntoError, Report};
 use star_river_core::kline::Kline;
-use strategy_core::{benchmark::node_benchmark::CycleTracker, node::context_trait::NodeBenchmarkExt};
-use crate::strategy::PlayIndex;
+use star_river_event::backtest_strategy::node_event::{
+    kline_node_event::{TimeUpdateEvent, TimeUpdatePayload},
+    start_node_event::KlinePlayEvent,
+};
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    node::{
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+        node_handles::NodeOutputHandle,
+    },
+};
+use tokio::sync::oneshot;
 
 // current crate
 use super::{KlineNodeContext, utils::is_cross_interval};
+// workspace crate
+use crate::strategy::PlayIndex;
 use crate::{
-    node::node_error::kline_node_error::{
-        GetPlayKlineDataFailedSnafu, KlineNodeError, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu,
+    node::{
+        node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+        node_error::kline_node_error::{
+            GetPlayKlineDataFailedSnafu, KlineNodeError, KlineTimestampNotEqualSnafu, NoMinIntervalSymbolSnafu,
+        },
+        node_event::{BacktestNodeEvent, KlineNodeEvent, StartNodeEvent},
+    },
+    strategy::strategy_command::{
+        GetKlineDataCmdPayload, GetKlineDataCommand, GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsCommand,
+        UpdateKlineDataCmdPayload, UpdateKlineDataCommand,
     },
 };
-use star_river_event::backtest_strategy::node_event::start_node_event::KlinePlayEvent;
-use strategy_core::node::node_handles::NodeOutputHandle;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::strategy::strategy_command::{
-    UpdateKlineDataCmdPayload, UpdateKlineDataCommand, GetMinIntervalSymbolsCommand,
-    GetKlineDataCmdPayload, GetKlineDataCommand};
-use star_river_event::backtest_strategy::node_event::kline_node_event::{TimeUpdatePayload, TimeUpdateEvent};
-use crate::node::node_event::KlineNodeEvent;
-use strategy_core::node::context_trait::NodeEventHandlerExt;
-use crate::node::node_command::BacktestNodeCommand;
-use event_center::Event;
-use crate::node::node_command::NodeResetResponse;
-use crate::node::node_command::NodeResetRespPayload;
-use crate::node::node_event::StartNodeEvent;
-use strategy_core::node::context_trait::NodeRelationExt;
-use strategy_core::node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeIdentityExt};
-use crate::strategy::strategy_command::GetMinIntervalSymbolsCmdPayload;
-use snafu::IntoError;
-
 
 impl KlineNodeContext {
     pub(super) async fn send_kline(&mut self, play_event: KlinePlayEvent) {
@@ -93,7 +91,9 @@ impl KlineNodeContext {
             }
         }
         let completed_tracker = cycle_tracker.end();
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await.unwrap();
+        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+            .await
+            .unwrap();
     }
 
     // 提取发送K线事件的通用方法
@@ -310,13 +310,8 @@ impl KlineNodeContext {
 
             let kline_datetime = kline.last().unwrap().get_datetime();
             let payload = TimeUpdatePayload::new(kline_datetime);
-            let time_update_event: KlineNodeEvent = TimeUpdateEvent::new(
-                self.node_id().clone(),
-                self.node_name().clone(),
-                self.node_id().clone(),
-                payload,
-            )
-            .into();
+            let time_update_event: KlineNodeEvent =
+                TimeUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), self.node_id().clone(), payload).into();
             self.strategy_bound_handle().send(time_update_event.into()).unwrap();
         }
         // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳不为0，说明有错误，同一批k线的时间戳不一致
@@ -356,18 +351,15 @@ impl KlineNodeContext {
     }
 }
 
-
-
 #[async_trait]
 impl NodeEventHandlerExt for KlineNodeContext {
-
     type EngineEvent = Event;
 
     async fn handle_node_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
-                    let payload = NodeResetRespPayload{};
+                    let payload = NodeResetRespPayload {};
                     let response = NodeResetResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
                 }

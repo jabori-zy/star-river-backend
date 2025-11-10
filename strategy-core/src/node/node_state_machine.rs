@@ -2,24 +2,25 @@
 // 标准库导入
 // ============================================================================
 
-use std::{collections::HashMap, fmt::Display, cmp::PartialEq};
-use std::fmt::Debug;
+use std::{
+    cmp::PartialEq,
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
+
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::Value;
 
 // ============================================================================
 // 外部 crate 导入
 // ============================================================================
-
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value;
 use crate::error::NodeStateMachineError;
-
 
 pub trait RunState: Debug + Clone + Display + PartialEq + Send + Sync {}
 
 pub trait StateTransTrigger: Debug + Clone + Send + Sync {}
 
 pub trait StateAction: Clone + Debug + Display + Send + Sync {}
-
 
 /// 状态机 trait
 ///
@@ -90,8 +91,7 @@ impl Metadata {
 
     /// 获取并反序列化为指定类型
     pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.data.get(key)
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
+        self.data.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
     }
 
     /// 获取字符串
@@ -119,7 +119,6 @@ impl Metadata {
         self.data.contains_key(key)
     }
 }
-
 
 /// Generic State Machine - replaces trait objects with generics for zero-cost abstractions
 ///
@@ -150,7 +149,6 @@ where
     /// Optional metadata - stores node configuration and runtime information
     metadata: Option<Metadata>,
 }
-
 
 /// State change result - contains new state and list of actions to execute
 #[derive(Debug, Clone)]

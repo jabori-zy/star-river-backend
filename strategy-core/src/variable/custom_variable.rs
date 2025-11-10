@@ -1,8 +1,8 @@
+use chrono::Utc;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use utoipa::ToSchema;
-use chrono::Utc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 #[serde(rename_all = "lowercase")]
@@ -160,11 +160,11 @@ impl From<chrono::DateTime<Utc>> for VariableValue {
 
 #[derive(Debug, Clone, ToSchema)]
 pub struct CustomVariable {
-    pub var_name: String,             // 变量名称
-    pub var_display_name: String,     // 变量显示名称
-    pub initial_value: VariableValue, // 初始值
+    pub var_name: String,              // 变量名称
+    pub var_display_name: String,      // 变量显示名称
+    pub initial_value: VariableValue,  // 初始值
     pub previous_value: VariableValue, // 前一个值
-    pub var_value: VariableValue,     // 变量值
+    pub var_value: VariableValue,      // 变量值
 }
 
 impl serde::Serialize for CustomVariable {
@@ -173,7 +173,7 @@ impl serde::Serialize for CustomVariable {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        
+
         let mut state = serializer.serialize_struct("CustomVariable", 5)?;
         state.serialize_field("varType", "custom")?;
         state.serialize_field("varName", &self.var_name)?;

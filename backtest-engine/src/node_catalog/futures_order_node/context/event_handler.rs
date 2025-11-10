@@ -1,59 +1,41 @@
-use super::FuturesOrderNodeContext;
-use strategy_core::node::context_trait::{NodeEventHandlerExt, NodeHandleExt};
 use async_trait::async_trait;
 use event_center::Event;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::node::node_command::{BacktestNodeCommand, NodeResetRespPayload};
-use strategy_core::node::context_trait::NodeIdentityExt;
-use crate::node::node_command::NodeResetResponse;
-use strategy_core::node::context_trait::NodeRelationExt;
-use strategy_core::node::context_trait::NodeCommunicationExt;
-use star_river_core::custom_type::InputHandleId;
-use strategy_core::event::node_common_event::TriggerPayload;
-use strategy_core::event::node_common_event::TriggerEvent;
-use strategy_core::event::node_common_event::CommonEvent;
-use strategy_core::benchmark::node_benchmark::CycleTracker;
-use virtual_trading::types::VirtualOrder;
-use star_river_event::backtest_strategy::node_event::futures_order_node_event::{
-    TakeProfitOrderCanceledPayload,
-    TakeProfitOrderCreatedPayload,
-    TakeProfitOrderFilledPayload,
-    StopLossOrderCanceledPayload,
-    StopLossOrderCreatedPayload,
-    StopLossOrderFilledPayload,
-    FuturesOrderCanceledPayload,
-    FuturesOrderCreatedPayload,
-    FuturesOrderFilledPayload,
-    FuturesOrderCreatedEvent,
-    FuturesOrderFilledEvent,
-    FuturesOrderCanceledEvent,
-    TakeProfitOrderCreatedEvent,
-    TakeProfitOrderFilledEvent,
-    TakeProfitOrderCanceledEvent,
-    StopLossOrderCreatedEvent,
-    StopLossOrderFilledEvent,
-    StopLossOrderCanceledEvent,
+use star_river_core::{custom_type::InputHandleId, system::DateTimeUtc};
+use star_river_event::backtest_strategy::node_event::{
+    FuturesOrderNodeEvent, IfElseNodeEvent,
+    futures_order_node_event::{
+        FuturesOrderCanceledEvent, FuturesOrderCanceledPayload, FuturesOrderCreatedEvent, FuturesOrderCreatedPayload,
+        FuturesOrderFilledEvent, FuturesOrderFilledPayload, StopLossOrderCanceledEvent, StopLossOrderCanceledPayload,
+        StopLossOrderCreatedEvent, StopLossOrderCreatedPayload, StopLossOrderFilledEvent, StopLossOrderFilledPayload,
+        TakeProfitOrderCanceledEvent, TakeProfitOrderCanceledPayload, TakeProfitOrderCreatedEvent, TakeProfitOrderCreatedPayload,
+        TakeProfitOrderFilledEvent, TakeProfitOrderFilledPayload, TransactionCreatedEvent, TransactionCreatedPayload,
+    },
 };
-use crate::node::node_error::FuturesOrderNodeError;
-use strategy_core::node::context_trait::NodeBenchmarkExt;
-use star_river_event::backtest_strategy::node_event::IfElseNodeEvent;
-use crate::node::node_error::futures_order_node_error::OrderConfigNotFoundSnafu;
-use star_river_event::backtest_strategy::node_event::FuturesOrderNodeEvent;
-use virtual_trading::event::VirtualTradingSystemEvent;
-use strategy_core::event::log_event::StrategyRunningLogEvent;
-use crate::node::node_message::futures_order_node_log_message::OrderCreatedMsg;
-use strategy_core::event::log_event::StrategyRunningLogSource;
-use strategy_core::event::log_event::StrategyRunningLogType;
-use crate::node::node_message::futures_order_node_log_message::OrderCanceledMsg;
-use crate::node::node_message::futures_order_node_log_message::OrderFilledMsg;
-use star_river_event::backtest_strategy::node_event::futures_order_node_event::TransactionCreatedEvent;
-use star_river_event::backtest_strategy::node_event::futures_order_node_event::TransactionCreatedPayload;
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    communication::strategy::StrategyResponse,
+    event::{
+        log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
+    },
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+};
 use tokio::sync::oneshot;
-use star_river_core::system::DateTimeUtc;
-use virtual_trading::types::VirtualTransaction;
-use crate::strategy::strategy_command::{GetCurrentTimeCmdPayload, GetCurrentTimeCommand};
-use strategy_core::communication::strategy::StrategyResponse;
+use virtual_trading::{
+    event::VirtualTradingSystemEvent,
+    types::{VirtualOrder, VirtualTransaction},
+};
 
+use super::FuturesOrderNodeContext;
+use crate::{
+    node::{
+        node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+        node_error::{FuturesOrderNodeError, futures_order_node_error::OrderConfigNotFoundSnafu},
+        node_event::BacktestNodeEvent,
+        node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
+    },
+    strategy::strategy_command::{GetCurrentTimeCmdPayload, GetCurrentTimeCommand},
+};
 
 #[async_trait]
 impl NodeEventHandlerExt for FuturesOrderNodeContext {
@@ -66,7 +48,7 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
         tracing::info!("[{}] received node event: {:?}", self.node_name(), node_event);
     }
-    
+
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
@@ -89,8 +71,6 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
         }
     }
 }
-
-
 
 impl FuturesOrderNodeContext {
     /// 使用第一个有连接的output_handle发送trigger事件
@@ -148,7 +128,7 @@ impl FuturesOrderNodeContext {
                     let order_config_id = order_config.parse::<i32>().unwrap();
                     let phase_name = format!("handle condition match event for order {}", order_config_id);
                     cycle_tracker.start_phase(&phase_name);
-                    
+
                     // 根据input_handle_id获取订单配置
                     let order_config = {
                         self.node_config
@@ -163,7 +143,7 @@ impl FuturesOrderNodeContext {
                             )?
                             .clone()
                     };
-                    
+
                     // 创建订单
                     let create_order_result = self.create_order(&order_config).await;
                     if let Err(e) = create_order_result {
@@ -238,7 +218,6 @@ impl FuturesOrderNodeContext {
         }
     }
 
-    
     fn genarate_order_node_event(
         &self,
         output_handle_id: String,
@@ -336,7 +315,8 @@ impl FuturesOrderNodeContext {
                             message.to_string(),
                             serde_json::to_value(order).unwrap(),
                             order.create_time,
-                        ).into();
+                        )
+                        .into();
                         let _ = self.strategy_bound_handle_send(log_event.into());
                     }
 
@@ -355,7 +335,8 @@ impl FuturesOrderNodeContext {
                             message.to_string(),
                             serde_json::to_value(order).unwrap(),
                             order.update_time,
-                        ).into();
+                        )
+                        .into();
                         let _ = self.strategy_bound_handle_send(log_event.into());
                     }
 
@@ -374,7 +355,8 @@ impl FuturesOrderNodeContext {
                             message.to_string(),
                             serde_json::to_value(order).unwrap(),
                             order.update_time,
-                        ).into();
+                        )
+                        .into();
                         let _ = self.strategy_bound_handle_send(log_event.into());
                     }
 
@@ -403,16 +385,9 @@ impl FuturesOrderNodeContext {
                 let input_handle_id = format!("{}_input_{}", self.node_id(), transaction.order_config_id);
                 self.add_virtual_transaction_history(&input_handle_id, transaction.clone()).await;
                 let payload = TransactionCreatedPayload::new(transaction.clone());
-                let transaction_event: FuturesOrderNodeEvent = TransactionCreatedEvent::new(
-                    self.node_id().clone(),
-                    self.node_name().clone(),
-                    input_handle_id.clone(),
-                    payload,
-                )
-                .into();
+                let transaction_event: FuturesOrderNodeEvent =
+                    TransactionCreatedEvent::new(self.node_id().clone(), self.node_name().clone(), input_handle_id.clone(), payload).into();
                 let _ = self.strategy_bound_handle_send(transaction_event.into());
-
-                
             }
         }
 
@@ -427,7 +402,7 @@ impl FuturesOrderNodeContext {
 
         let response = rx.await.unwrap();
         match response {
-            StrategyResponse::Success { payload,.. } => {
+            StrategyResponse::Success { payload, .. } => {
                 return Ok(payload.current_time.clone());
             }
             StrategyResponse::Fail { error, .. } => {

@@ -1,32 +1,21 @@
-use super::MarketEngineContext;
-
-
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
-use std::sync::Arc;
-use event_center::{Event, EngineCommand};
+use event_center::{EngineCommand, Event};
 use star_river_event::communication::market_engine::{
-    MarketEngineCommand,
-    SubscribeKlineStreamRespPayload,
-    SubscribeKlineStreamResponse,
-    UnsubscribeKlineStreamRespPayload,
-    UnsubscribeKlineStreamResponse,
-    GetKlineHistoryRespPayload,
-    GetKlineHistoryResponse,
-    GetSymbolInfoRespPayload,
-    GetSymbolInfoResponse,
+    GetKlineHistoryRespPayload, GetKlineHistoryResponse, GetSymbolInfoRespPayload, GetSymbolInfoResponse, MarketEngineCommand,
+    SubscribeKlineStreamRespPayload, SubscribeKlineStreamResponse, UnsubscribeKlineStreamRespPayload, UnsubscribeKlineStreamResponse,
 };
 
-
+use super::MarketEngineContext;
 
 #[async_trait]
 impl EngineEventHandler for MarketEngineContext {
-
     async fn handle_event(&mut self, event: Event) {
         tracing::info!("[{}] received event: {:?}", self.engine_name(), event);
     }
-    
+
     async fn handle_command(&mut self, command: EngineCommand) {
         match command {
             // EngineCommand::MarketEngine(MarketEngineCommand::SubscribeKlineStream(cmd)) => {
@@ -110,5 +99,4 @@ impl EngineEventHandler for MarketEngineContext {
             _ => {}
         }
     }
-
 }

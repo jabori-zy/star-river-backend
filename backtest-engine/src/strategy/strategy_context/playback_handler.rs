@@ -1,30 +1,32 @@
 // std
 use std::sync::Arc;
 
+use event_center::EventCenterSingleton;
+use star_river_core::custom_type::StrategyId;
+use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent, PlayFinishedEvent};
+use strategy_core::{
+    benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker},
+    node::NodeTrait,
+    strategy::context_trait::{
+        StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyVariableExt, StrategyWorkflowExt,
+    },
+};
 // third-party
 use tokio::sync::{Notify, RwLock, oneshot};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-// workspace crate
-use star_river_core::custom_type::StrategyId;
-use crate::node::BacktestNode;
-use crate::strategy::PlayIndex;
 // current crate
-use crate::strategy::strategy_error::{
-    AlreadyPausingSnafu, AlreadyPlayingSnafu, BacktestStrategyError, PlayFinishedSnafu,
-};
-use strategy_core::benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker};
 use super::BacktestStrategyContext;
-use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt, StrategyBenchmarkExt};
-use strategy_core::node::NodeTrait;
-use star_river_event::backtest_strategy::strategy_event::PlayFinishedEvent;
-use event_center::EventCenterSingleton;
-use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
-use crate::strategy::strategy_state_machine::BacktestStrategyRunState;
-use strategy_core::strategy::context_trait::StrategyVariableExt;
-use crate::node::node_command::{NodeResetCmdPayload, NodeResetCommand};
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+// workspace crate
+use crate::{node::BacktestNode, strategy::PlayIndex};
+use crate::{
+    node::node_command::{NodeResetCmdPayload, NodeResetCommand},
+    strategy::{
+        strategy_error::{AlreadyPausingSnafu, AlreadyPlayingSnafu, BacktestStrategyError, PlayFinishedSnafu},
+        strategy_state_machine::BacktestStrategyRunState,
+    },
+};
 
 #[derive(Debug)]
 struct PlayContext {
@@ -54,7 +56,6 @@ impl BacktestStrategyContext {
     }
 
     async fn create_play_context(&self) -> PlayContext {
-
         let node = self.get_node("start_node").unwrap();
 
         PlayContext {
@@ -213,7 +214,8 @@ impl BacktestStrategyContext {
 
     // 处理播放完毕, 发送播放完毕事件
     async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: PlayIndex) {
-        let finish_event: BacktestStrategyEvent = PlayFinishedEvent::new(context.strategy_id, context.strategy_name.clone(), play_index).into();
+        let finish_event: BacktestStrategyEvent =
+            PlayFinishedEvent::new(context.strategy_id, context.strategy_name.clone(), play_index).into();
         let _ = EventCenterSingleton::publish(finish_event.into()).await;
 
         tracing::info!("[{}]: k线播放完毕，正常退出播放任务", strategy_name);
@@ -248,7 +250,8 @@ impl BacktestStrategyContext {
             tracing::warn!("[{}]: already played finished, cannot play more kline", self.strategy_name());
             return Err(PlayFinishedSnafu {
                 strategy_name: self.strategy_name().clone(),
-            }.build());
+            }
+            .build());
         }
 
         // 判断播放状态是否为true
@@ -359,7 +362,8 @@ impl BacktestStrategyContext {
             tracing::warn!("[{}] already played finished", self.strategy_name());
             return Err(PlayFinishedSnafu {
                 strategy_name: self.strategy_name().clone(),
-            }.build());
+            }
+            .build());
         }
 
         if !self.can_play_one_kline().await {
@@ -403,7 +407,8 @@ impl BacktestStrategyContext {
 
             tracing::warn!("play_index: {}, total_signal_count: {}", play_index, total_signal_count);
             if play_index == total_signal_count - 1 {
-                let finish_event: BacktestStrategyEvent = PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), play_index).into();
+                let finish_event: BacktestStrategyEvent =
+                    PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), play_index).into();
                 let _ = EventCenterSingleton::publish(finish_event.into()).await;
 
                 tracing::info!("[{}]: kline played finished, exit play task", self.strategy_name());
@@ -434,7 +439,7 @@ impl BacktestStrategyContext {
         for node in nodes {
             let (resp_tx, resp_rx) = oneshot::channel();
             let node_id = node.node_id().await;
-            let payload = NodeResetCmdPayload{};
+            let payload = NodeResetCmdPayload {};
             let cmd = NodeResetCommand::new(node_id, resp_tx, payload);
 
             self.send_node_command(cmd.into()).await;

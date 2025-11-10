@@ -1,19 +1,17 @@
-pub mod node_trait;
+mod base_node;
 pub mod context_trait;
+pub mod metadata;
 pub mod node_handles;
 pub mod node_state_machine;
-pub mod metadata;
+pub mod node_trait;
 pub mod utils;
-mod base_node;
 
+use std::str::FromStr;
 
 pub use base_node::NodeBase;
 pub use node_trait::NodeTrait;
-
-
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -27,8 +25,6 @@ pub enum NodeType {
     PositionNode,
     VariableNode,
 }
-
-
 
 impl FromStr for NodeType {
     type Err = String;

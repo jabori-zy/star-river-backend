@@ -6,5 +6,4 @@ pub mod price_transform;
 pub mod volatility;
 pub mod volume;
 
-
 use crate::indicator::MaTypeInt;

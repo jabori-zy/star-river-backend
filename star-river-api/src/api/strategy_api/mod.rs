@@ -1,19 +1,22 @@
 pub mod backtest;
 
-use crate::api::response::{ApiResponse, NewApiResponse};
-use crate::star_river::StarRiver;
-use axum::extract::State;
-use axum::extract::{Json, Path, Query};
-use axum::http::StatusCode;
-use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use database::query::strategy_config_query::StrategyConfigQuery;
+use axum::{
+    extract::{Json, Path, Query, State},
+    http::StatusCode,
+};
+use backtest_engine::engine_error::{BacktestEngineError, StrategyConfigNotFoundSnafu};
+use database::{mutation::strategy_config_mutation::StrategyConfigMutation, query::strategy_config_query::StrategyConfigQuery};
 use engine_core::EngineContextAccessor;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
-use backtest_engine::engine_error::{BacktestEngineError, StrategyConfigNotFoundSnafu};
 use strategy_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
+
+use crate::{
+    api::response::{ApiResponse, NewApiResponse},
+    star_river::StarRiver,
+};
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -290,12 +293,9 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result:Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
-        Box::pin(async move {
-            ctx.init(strategy_id).await
-        })
-    }).await;
-
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init(strategy_id).await }))
+        .await;
 
     if let Err(e) = result {
         return (StatusCode::CONFLICT, Json(NewApiResponse::error(e)));
@@ -303,7 +303,6 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 
     (StatusCode::OK, Json(NewApiResponse::success(())))
 }
-
 
 #[utoipa::path(
     post,
@@ -324,11 +323,9 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
-        Box::pin(async move {
-            ctx.stop(strategy_id).await
-        })
-    }).await;
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.stop(strategy_id).await }))
+        .await;
 
     if let Err(e) = result {
         let status_code = match &e {
@@ -341,6 +338,3 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 
     (StatusCode::OK, Json(NewApiResponse::success(())))
 }
-
-
-

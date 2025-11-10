@@ -6,11 +6,11 @@ pub mod variable_operation;
 mod tests;
 
 // use crate::strategy::backtest_strategy::BacktestDataSource;
-use crate::strategy::SelectedAccount;
 use serde::Deserialize;
-
 // 重新导出 VariableConfig 及其子类型
 pub use variable_config::VariableConfig;
+
+use crate::strategy::SelectedAccount;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct VariableNodeLiveConfig {

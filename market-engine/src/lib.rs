@@ -1,19 +1,16 @@
 mod context;
-mod subkey;
-mod state_machine;
-mod lifecycle;
 pub mod error;
+mod lifecycle;
+mod state_machine;
+mod subkey;
 
-
+use std::sync::Arc;
 
 use context::MarketEngineContext;
-use engine_core::engine_trait::Engine;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tokio::sync::Mutex;
-use engine_core::{EngineBase, EngineContextAccessor};
-use state_machine::MarketEngineAction;
+use engine_core::{EngineBase, EngineContextAccessor, engine_trait::Engine};
 use exchange_engine::ExchangeEngine;
+use state_machine::MarketEngineAction;
+use tokio::sync::{Mutex, RwLock};
 
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)
@@ -28,13 +25,10 @@ pub struct MarketEngine {
 impl MarketEngine {
     /// 创建新的交易所引擎实例
     pub fn new(exchange_engine: Arc<Mutex<ExchangeEngine>>) -> Self {
-
-        let context = MarketEngineContext::new(
-            exchange_engine
-        );
+        let context = MarketEngineContext::new(exchange_engine);
 
         Self {
-            inner: EngineBase::new(context)
+            inner: EngineBase::new(context),
         }
     }
 }
@@ -50,7 +44,6 @@ impl std::ops::Deref for MarketEngine {
         &self.inner
     }
 }
-
 
 impl Engine for MarketEngine {}
 

@@ -1,11 +1,11 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum IfElseNodeError {
     #[snafu(display("[{node_name}] evaluate result serialization failed. reason: {source}"))]
-    EvaluateResultSerializationFailed { 
+    EvaluateResultSerializationFailed {
         node_name: String,
         source: serde_json::Error,
         backtrace: Backtrace,
@@ -36,7 +36,6 @@ impl StarRiverErrorTrait for IfElseNodeError {
         match self {
             IfElseNodeError::EvaluateResultSerializationFailed { .. } => vec![self.error_code()],
         }
-        
     }
 
     fn error_message(&self, language: ErrorLanguage) -> String {

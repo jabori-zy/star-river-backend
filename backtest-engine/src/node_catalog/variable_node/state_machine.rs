@@ -1,9 +1,10 @@
-use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
-use strategy_core::error::node_state_machine_error::NodeTransFailedSnafu;
-use strategy_core::node::node_state_machine::{NodeStateMachine, StateChangeActions, StateAction};
-use strategy_core::error::NodeStateMachineError;
+use strategy_core::{
+    error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
+    node::node_state_machine::{NodeStateMachine, StateAction, StateChangeActions},
+};
 use strum::Display;
 
+use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 
 // ============================================================================
 // VariableNode State Machine Type Alias
@@ -30,8 +31,6 @@ pub enum VariableNodeAction {
 
 impl StateAction for VariableNodeAction {}
 
-
-
 // ============================================================================
 // VariableNode State Transition Function
 // ============================================================================
@@ -46,66 +45,48 @@ pub fn variable_node_transition(
 ) -> Result<StateChangeActions<NodeRunState, VariableNodeAction>, NodeStateMachineError> {
     match (state, &trans_trigger) {
         // Created -> Initializing
-        (NodeRunState::Created, &NodeStateTransTrigger::StartInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Initializing,
-                vec![
-                    VariableNodeAction::LogTransition,
-                    VariableNodeAction::ListenAndHandleNodeEvents,
-                    VariableNodeAction::ListenAndHandleStrategyCommand,
-                ],
-            ))
-        }
+        (NodeRunState::Created, &NodeStateTransTrigger::StartInit) => Ok(StateChangeActions::new(
+            NodeRunState::Initializing,
+            vec![
+                VariableNodeAction::LogTransition,
+                VariableNodeAction::ListenAndHandleNodeEvents,
+                VariableNodeAction::ListenAndHandleStrategyCommand,
+            ],
+        )),
 
         // Initializing -> Ready
-        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Ready,
-                vec![
-                    VariableNodeAction::LogTransition,
-                    VariableNodeAction::LogNodeState,
-                ],
-            ))
-        }
+        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
+            NodeRunState::Ready,
+            vec![VariableNodeAction::LogTransition, VariableNodeAction::LogNodeState],
+        )),
 
         // Ready -> Stopping
-        (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Stopping,
-                vec![
-                    VariableNodeAction::LogTransition,
-                    VariableNodeAction::RegisterTask,
-                    VariableNodeAction::CancelAsyncTask,
-                ],
-            ))
-        }
+        (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => Ok(StateChangeActions::new(
+            NodeRunState::Stopping,
+            vec![
+                VariableNodeAction::LogTransition,
+                VariableNodeAction::RegisterTask,
+                VariableNodeAction::CancelAsyncTask,
+            ],
+        )),
 
         // Stopping -> Stopped
-        (NodeRunState::Stopping, &NodeStateTransTrigger::FinishStop) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Stopped,
-                vec![
-                    VariableNodeAction::LogTransition,
-                    VariableNodeAction::LogNodeState,
-                ],
-            ))
-        }
+        (NodeRunState::Stopping, &NodeStateTransTrigger::FinishStop) => Ok(StateChangeActions::new(
+            NodeRunState::Stopped,
+            vec![VariableNodeAction::LogTransition, VariableNodeAction::LogNodeState],
+        )),
 
         // Any state -> Failed
-        (_, &NodeStateTransTrigger::EncounterError(ref error)) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Failed,
-                vec![
-                    VariableNodeAction::LogTransition,
-                    VariableNodeAction::LogError(error.clone()),
-                ],
-            ))
-        }
+        (_, &NodeStateTransTrigger::EncounterError(ref error)) => Ok(StateChangeActions::new(
+            NodeRunState::Failed,
+            vec![VariableNodeAction::LogTransition, VariableNodeAction::LogError(error.clone())],
+        )),
 
         // Invalid transition
-        _ => Err(NodeTransFailedSnafu{
+        _ => Err(NodeTransFailedSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.build()),
+        }
+        .build()),
     }
 }

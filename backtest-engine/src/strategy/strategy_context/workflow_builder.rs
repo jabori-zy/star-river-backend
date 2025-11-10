@@ -1,33 +1,30 @@
 mod build_edge;
-mod build_start_node;
 mod build_kline_node;
-mod symbol_config_checker;
 mod build_leaf_node;
+mod build_start_node;
+mod symbol_config_checker;
 
 // std
 use std::str::FromStr;
 
 // third-party
 use snafu::OptionExt;
+use strategy_core::{
+    error::strategy_error::{EdgeConfigNullSnafu, NodeConfigNullSnafu},
+    node::{
+        NodeTrait, NodeType,
+        context_trait::{NodeHandleExt, NodeIdentityExt},
+        node_trait::NodeContextAccessor,
+    },
+    strategy::context_trait::{StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyWorkflowExt},
+};
 use tokio::sync::mpsc;
 
 // workspace crate
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::strategy::strategy_error::BacktestStrategyError;
-
-use strategy_core::strategy::context_trait::StrategyIdentityExt;
-use strategy_core::error::strategy_error::NodeConfigNullSnafu;
-use strategy_core::node::NodeType;
-use strategy_core::strategy::context_trait::StrategyWorkflowExt;
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
-use crate::node::node_command::BacktestNodeCommand;
-use strategy_core::error::strategy_error::EdgeConfigNullSnafu;
-use strategy_core::strategy::context_trait::StrategyBenchmarkExt;
-use strategy_core::node::node_trait::NodeContextAccessor;
-use strategy_core::node::context_trait::{NodeIdentityExt, NodeHandleExt};
-use strategy_core::node::NodeTrait;
+use crate::{node::node_command::BacktestNodeCommand, strategy::strategy_error::BacktestStrategyError};
 
 impl BacktestStrategyContext {
     pub async fn build_workflow(&mut self) -> Result<(), BacktestStrategyError> {
@@ -53,7 +50,7 @@ impl BacktestStrategyContext {
                     let start_node = self.build_start_node(node_config.clone(), node_command_rx).await?;
                     // set output handles
                     start_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
-                    
+
                     let node_id = start_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;
                     self.add_node_command_sender(node_id, node_command_tx);
                     self.add_node(start_node.into()).await;
@@ -63,14 +60,16 @@ impl BacktestStrategyContext {
                     let kline_node = self.build_kline_node(node_config.clone(), node_command_rx).await?;
                     // set output handles
                     kline_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
-                    
-                    let (node_id, selected_symbol_keys) = kline_node.with_ctx_read(|ctx| (ctx.node_id().to_string(), ctx.selected_symbol_keys().clone())).await;
-                    
+
+                    let (node_id, selected_symbol_keys) = kline_node
+                        .with_ctx_read(|ctx| (ctx.node_id().to_string(), ctx.selected_symbol_keys().clone()))
+                        .await;
+
                     // set strategy keys
                     for (key, _) in selected_symbol_keys.iter() {
                         self.add_key(key.clone().into(), node_id.clone()).await;
                     }
-                    
+
                     self.add_node_command_sender(node_id, node_command_tx);
                     self.add_node(kline_node.into()).await;
                 }
@@ -101,11 +100,9 @@ impl BacktestStrategyContext {
             return Err(e);
         }
 
-
         // set leaf nodes
         tracing::debug!("workflow build phase 4: set leaf nodes");
         self.build_leaf_nodes().await;
-
 
         // add node benchmark
         for node in self.topological_sort()?.iter() {

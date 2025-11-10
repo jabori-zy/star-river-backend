@@ -1,15 +1,17 @@
-use crate::Event;
-use crate::EngineCommand;
-use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode,ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
 use event_center_core::error::EventCenterError as EventCenterCommonError;
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
+
+use crate::{EngineCommand, Event};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum EventCenterErrorBasic {
-
     #[snafu(transparent)]
-    EventCenterCommonError { source: EventCenterCommonError, backtrace: Backtrace },
+    EventCenterCommonError {
+        source: EventCenterCommonError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("Event send failed: {source}"))]
     EventSendFailed {

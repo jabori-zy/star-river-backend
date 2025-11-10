@@ -1,53 +1,44 @@
-mod state_machine;
 mod context;
 mod handle_play_index;
 mod node_lifecycle;
-
+mod state_machine;
 
 // ============================================================================
 // 重新导出（对外）
 // ============================================================================
 
-pub use context::StartNodeContext;
-pub use state_machine::{StartNodeStateMachine, start_node_transition};
-
 // ============================================================================
 // 标准库导入
 // ============================================================================
-
 use std::sync::Arc;
+
+pub use context::StartNodeContext;
+use snafu::{OptionExt, ResultExt};
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+pub use state_machine::{StartNodeStateMachine, start_node_transition};
+use strategy_core::{
+    error::node_error::{
+        ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu, ValueNotGreaterThanOrEqualToZeroSnafu, ValueNotGreaterThanZeroSnafu,
+    },
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+};
+// use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
+use tokio::sync::{Mutex, RwLock, mpsc};
 
 // ============================================================================
 // 外部 crate 导入
 // ============================================================================
-use snafu::{OptionExt, ResultExt};
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use crate::node::node_error::BacktestNodeError;
-
-use strategy_core::error::node_error::{
-    ConfigDeserializationFailedSnafu, 
-    ConfigFieldValueNullSnafu, 
-    ValueNotGreaterThanOrEqualToZeroSnafu, 
-    ValueNotGreaterThanZeroSnafu
-};
 use crate::strategy::strategy_config::BacktestStrategyConfig;
-// use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
-use tokio::sync::{Mutex, RwLock, mpsc};
 // use virtual_trading::VirtualTradingSystem;
 
 // ============================================================================
 // 当前模块内部导入
 // ============================================================================
-
-use strategy_core::node::{NodeType, NodeBase};
-use strategy_core::node::metadata::NodeMetadata;
-use crate::node::node_state_machine::NodeRunState;
-use strategy_core::node::node_trait::NodeContextAccessor;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::PlayIndex;
-use strategy_core::node::utils::generate_strategy_output_handle;
-use crate::node::node_event::BacktestNodeEvent;
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent, node_state_machine::NodeRunState},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
 // ============================================================================
 // StartNode 结构 (newtype 模式)
@@ -85,11 +76,7 @@ impl StartNode {
         let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
 
-        let state_machine = StartNodeStateMachine::new(
-            node_name.clone(),
-            NodeRunState::Created,
-            start_node_transition
-        );
+        let state_machine = StartNodeStateMachine::new(node_name.clone(), NodeRunState::Created, start_node_transition);
 
         let metadata = NodeMetadata::new(
             strategy_id,
@@ -102,14 +89,10 @@ impl StartNode {
             node_command_receiver,
         );
 
-        let context = StartNodeContext::new(
-            metadata,
-            Arc::new(RwLock::new(backtest_strategy_config)),
-            play_index_watch_rx,
-        );
+        let context = StartNodeContext::new(metadata, Arc::new(RwLock::new(backtest_strategy_config)), play_index_watch_rx);
 
         Ok(Self {
-            inner: NodeBase::new(context)
+            inner: NodeBase::new(context),
         })
     }
 
@@ -151,8 +134,7 @@ impl StartNode {
             .to_owned();
 
         let backtest_strategy_config =
-            serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json)
-            .context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
 
         // check initial balance (> 0)
         if backtest_strategy_config.initial_balance <= 0.0 {

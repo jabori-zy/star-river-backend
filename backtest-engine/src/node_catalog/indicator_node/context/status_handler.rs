@@ -1,12 +1,11 @@
+use event_center::EventCenterSingleton;
+use event_center_core::communication::Response;
+use star_river_event::communication::{GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand, IndicatorEngineCommand};
+use strategy_core::node::context_trait::NodeIdentityExt;
+use tokio::sync::oneshot;
+
 use super::IndicatorNodeContext;
 use crate::node::node_error::indicator_node_error::IndicatorNodeError;
-use star_river_event::communication::IndicatorEngineCommand;
-use event_center::EventCenterSingleton;
-use tokio::sync::oneshot;
-use strategy_core::node::context_trait::NodeIdentityExt;
-use star_river_event::communication::GetIndicatorLookbackCmdPayload;
-use star_river_event::communication::GetIndicatorLookbackCommand;
-use event_center_core::communication::Response;
 
 impl IndicatorNodeContext {
     pub(crate) async fn init_indicator_lookback(&mut self) {
@@ -26,7 +25,6 @@ impl IndicatorNodeContext {
 
     // 计算指标(一次性将指标全部计算完成)
     pub async fn calculate_indicator(&self) -> Result<(), IndicatorNodeError> {
-
         let kline_key = self.selected_kline_key.clone();
         let min_interval_symbols = self.min_interval_symbols();
 

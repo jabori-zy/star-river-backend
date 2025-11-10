@@ -1,34 +1,26 @@
 // third-party
+use event_center::EventCenterSingleton;
+use event_center_core::communication::response::Response;
+use key::{KeyTrait, KlineKey};
 use snafu::IntoError;
+use star_river_core::{custom_type::AccountId, exchange::Exchange, kline::Kline};
+use star_river_event::communication::{
+    ExchangeEngineCommand, GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand, RegisterExchangeCmdPayload,
+    RegisterExchangeCommand, RegisterExchangeRespPayload,
+};
+use strategy_core::{
+    communication::strategy::StrategyResponse,
+    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+};
 use tokio::sync::oneshot;
 use tracing::instrument;
-
-
-use star_river_core::{
-    custom_type::AccountId,
-};
-use key::{KeyTrait, KlineKey};
 
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
 use crate::{
-    node::node_error::kline_node_error::{
-        AppendKlineDataFailedSnafu, InitKlineDataFailedSnafu, LoadKlineFromExchangeFailedSnafu,
-    },
+    node::node_error::kline_node_error::{AppendKlineDataFailedSnafu, InitKlineDataFailedSnafu, LoadKlineFromExchangeFailedSnafu},
+    strategy::strategy_command::{AppendKlineDataCmdPayload, AppendKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand},
 };
-use strategy_core::{communication::strategy::StrategyResponse, node::context_trait::NodeIdentityExt};
-use star_river_core::exchange::Exchange;
-use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
-use event_center::EventCenterSingleton;
-use star_river_core::kline::Kline;
-use event_center_core::communication::response::Response;
-use crate::strategy::strategy_command::{InitKlineDataCmdPayload, InitKlineDataCommand, AppendKlineDataCmdPayload, AppendKlineDataCommand};
-use strategy_core::node::context_trait::NodeCommunicationExt;
-use star_river_event::communication::RegisterExchangeCmdPayload;
-use star_river_event::communication::ExchangeEngineCommand;
-use star_river_event::communication::RegisterExchangeCommand;
-use star_river_event::communication::RegisterExchangeRespPayload;
-
 
 impl KlineNodeContext {
     // 从交易所获取k线历史(仅获取最小interval的k线)
@@ -101,10 +93,7 @@ impl KlineNodeContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = InitKlineDataCmdPayload::new(symbol_key.clone(), kline_history.clone());
         let init_kline_data_command = InitKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
-        self.strategy_command_sender()
-            .send(init_kline_data_command.into())
-            .await
-            .unwrap();
+        self.strategy_command_sender().send(init_kline_data_command.into()).await.unwrap();
         let response = resp_rx.await.unwrap();
         match response {
             StrategyResponse::Success { payload, .. } => {
@@ -120,10 +109,7 @@ impl KlineNodeContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = AppendKlineDataCmdPayload::new(symbol_key.clone(), kline_series.clone());
         let append_kline_data_command = AppendKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
-        self.strategy_command_sender()
-            .send(append_kline_data_command.into())
-            .await
-            .unwrap();
+        self.strategy_command_sender().send(append_kline_data_command.into()).await.unwrap();
         let response = resp_rx.await.unwrap();
         match response {
             StrategyResponse::Success { payload, .. } => {

@@ -1,7 +1,6 @@
-use crate::calculate_fn;
-use crate::calculate::CalculateIndicatorFunction;
-use ta_lib::Indicator;
-use ta_lib::indicator::pattern_recognition::*;
+use ta_lib::{Indicator, indicator::pattern_recognition::*};
+
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn};
 
 impl CalculateIndicatorFunction {
     // CDL2CROWS - Two Crows #两只乌鸦

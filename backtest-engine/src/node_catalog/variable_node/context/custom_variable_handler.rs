@@ -1,22 +1,23 @@
-use strategy_core::communication::strategy::StrategyResponse;
-use tokio::sync::{mpsc, oneshot};
-use super::VariableNodeContext;
-use crate::strategy::PlayIndex;
-use crate::strategy::strategy_command::GetCustomVarCmdPayload;
-use crate::strategy::strategy_command::GetCustomVarValueCommand;
 use star_river_core::custom_type::NodeId;
-use strategy_core::node::node_handles::NodeOutputHandle;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node_catalog::variable_node::context::BacktestNodeEvent;
-use strategy_core::event::node_common_event::ExecuteOverPayload;
-use star_river_event::backtest_strategy::node_event::VariableNodeEvent;
-use star_river_event::backtest_strategy::node_event::variable_node_event::CustomVariableUpdateEvent;
-use star_river_event::backtest_strategy::node_event::variable_node_event::CustomVariableUpdatePayload;
-use strategy_core::event::node_common_event::CommonEvent;
-use strategy_core::event::node_common_event::ExecuteOverEvent;
-use strategy_core::event::node_common_event::TriggerEvent;
-use strategy_core::event::node_common_event::TriggerPayload;
+use star_river_event::backtest_strategy::node_event::{
+    VariableNodeEvent,
+    variable_node_event::{CustomVariableUpdateEvent, CustomVariableUpdatePayload},
+};
+use strategy_core::{
+    communication::strategy::StrategyResponse,
+    event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
+    node::node_handles::NodeOutputHandle,
+};
+use tokio::sync::{mpsc, oneshot};
 
+use super::VariableNodeContext;
+use crate::{
+    node_catalog::variable_node::context::BacktestNodeEvent,
+    strategy::{
+        PlayIndex,
+        strategy_command::{BacktestStrategyCommand, GetCustomVarCmdPayload, GetCustomVarValueCommand},
+    },
+};
 
 impl VariableNodeContext {
     /// 创建获取自定义变量的异步任务 Handle
@@ -33,8 +34,6 @@ impl VariableNodeContext {
         is_leaf_node: bool,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-
-
             let output_handle_id = output_handle.output_handle_id();
 
             let (resp_tx, resp_rx) = oneshot::channel();
@@ -47,14 +46,7 @@ impl VariableNodeContext {
                 StrategyResponse::Success { payload, .. } => {
                     let var_op = "get".to_string();
                     let custom_variable = payload.custom_variable;
-                    let payload = CustomVariableUpdatePayload::new(
-                        play_index,
-                        config_id,
-                        var_op,
-                        None,
-                        None,
-                        custom_variable.clone(),
-                    );
+                    let payload = CustomVariableUpdatePayload::new(play_index, config_id, var_op, None, None, custom_variable.clone());
                     let var_event: VariableNodeEvent =
                         CustomVariableUpdateEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into();
                     let backtest_var_event: BacktestNodeEvent = var_event.clone().into();
@@ -80,4 +72,3 @@ impl VariableNodeContext {
         })
     }
 }
-

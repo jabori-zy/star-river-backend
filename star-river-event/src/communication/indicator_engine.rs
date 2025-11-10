@@ -1,9 +1,11 @@
 use derive_more::From;
 use event_center_core::communication::{Command, Response};
-use star_river_core::custom_type::{NodeId, StrategyId};
-use key::{Key, IndicatorKey, KlineKey};
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::{Kline, KlineInterval};
+use key::{IndicatorKey, Key, KlineKey};
+use star_river_core::{
+    custom_type::{NodeId, StrategyId},
+    exchange::Exchange,
+    kline::{Kline, KlineInterval},
+};
 use ta_lib::{Indicator, IndicatorConfig};
 
 // ============ Indicator Engine Command Enum ============
@@ -144,12 +146,7 @@ pub struct CalculateIndicatorCmdPayload {
 }
 
 impl CalculateIndicatorCmdPayload {
-    pub fn new(
-        strategy_id: StrategyId,
-        node_id: NodeId,
-        kline_key: KlineKey,
-        indicator_config: IndicatorConfig,
-    ) -> Self {
+    pub fn new(strategy_id: StrategyId, node_id: NodeId, kline_key: KlineKey, indicator_config: IndicatorConfig) -> Self {
         Self {
             strategy_id,
             node_id,
@@ -167,10 +164,7 @@ pub struct CalculateIndicatorRespPayload {
 
 impl CalculateIndicatorRespPayload {
     pub fn new(indicator_key: Key, indicator: Option<Indicator>) -> Self {
-        Self {
-            indicator_key,
-            indicator,
-        }
+        Self { indicator_key, indicator }
     }
 }
 
@@ -200,9 +194,6 @@ pub struct GetIndicatorLookbackRespPayload {
 
 impl GetIndicatorLookbackRespPayload {
     pub fn new(indicator_key: IndicatorKey, lookback: usize) -> Self {
-        Self {
-            indicator_key,
-            lookback,
-        }
+        Self { indicator_key, lookback }
     }
 }

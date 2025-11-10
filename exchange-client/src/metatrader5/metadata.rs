@@ -18,13 +18,7 @@ pub struct Mt5Metadata {
 
 impl Mt5Metadata {
     /// Create new MT5 metadata
-    pub fn new(
-        server: String,
-        terminal_id: i32,
-        login: i64,
-        password: String,
-        terminal_path: String,
-    ) -> Self {
+    pub fn new(server: String, terminal_id: i32, login: i64, password: String, terminal_path: String) -> Self {
         Self {
             server,
             terminal_id,

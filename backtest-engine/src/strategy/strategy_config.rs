@@ -1,25 +1,20 @@
 // External crate imports
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
-
 // Current crate imports
-use star_river_core::custom_type::FeeRate;
-use star_river_core::system::{TimeRange, deserialize_time_range};
-use strategy_core::strategy::SelectedAccount;
-use strategy_core::variable::custom_variable::CustomVariable;
-
-
-
-
+use star_river_core::{
+    custom_type::FeeRate,
+    system::{TimeRange, deserialize_time_range},
+};
+use strategy_core::{strategy::SelectedAccount, variable::custom_variable::CustomVariable};
+use strum::{Display, EnumString};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum BacktestDataSource {
-    File, // 文件
+    File,     // 文件
     Exchange, // 交易所
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BacktestStrategyConfig {
@@ -44,9 +39,6 @@ pub struct BacktestStrategyConfig {
     #[serde(rename = "customVariables")]
     pub custom_variables: Vec<CustomVariable>, // 变量 var_name -> Variable
 }
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExchangeModeConfig {

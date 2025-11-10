@@ -2,9 +2,9 @@
 // 子模块声明
 // ============================================================================
 
+mod benchmark;
 mod event_handler;
 mod node_handles;
-mod benchmark;
 
 // ============================================================================
 // 标准库导入
@@ -12,17 +12,22 @@ mod benchmark;
 
 use std::sync::Arc;
 
-// ============================================================================
-// 外部 crate 导入
-// ============================================================================
-
-
-use crate::strategy::strategy_config::BacktestStrategyConfig;
+use star_river_event::backtest_strategy::node_event::{
+    StartNodeEvent,
+    start_node_event::{KlinePlayEvent, KlinePlayPayload},
+};
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    node::{
+        context_trait::{
+            NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeMetaDataExt,
+            NodeStateMachineExt,
+        },
+        metadata::NodeMetadata,
+    },
+};
 // use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::{Mutex, RwLock};
-// use virtual_trading::VirtualTradingSystem;
-use strategy_core::node::metadata::NodeMetadata;
-use crate::strategy::PlayIndex;
 
 // ============================================================================
 // 当前 crate 内部导入（使用绝对路径）
@@ -31,29 +36,23 @@ use crate::strategy::PlayIndex;
 // ============================================================================
 // 当前模块内部导入（相对路径）
 // ============================================================================
-
-use super::state_machine::StartNodeAction;
-use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
-use crate::node::node_event::BacktestNodeEvent;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::node_command::BacktestNodeCommand;
-use super::state_machine::StartNodeStateMachine;
-use strategy_core::node::context_trait::{
-    NodeMetaDataExt, 
-    NodeHandleExt, 
-    NodeIdentityExt, 
-    NodeBenchmarkExt, NodeStateMachineExt, NodeEventHandlerExt};
-use strategy_core::benchmark::node_benchmark::CycleTracker;
-use star_river_event::backtest_strategy::node_event::start_node_event::KlinePlayPayload;
-use star_river_event::backtest_strategy::node_event::StartNodeEvent;
-use star_river_event::backtest_strategy::node_event::start_node_event::KlinePlayEvent;
-use crate::strategy::strategy_command::{InitCustomVarCmdPayload, InitCustomVarValueCommand};
-use strategy_core::node::context_trait::NodeCommunicationExt;
-
+use super::state_machine::{StartNodeAction, StartNodeStateMachine};
+// use virtual_trading::VirtualTradingSystem;
+use crate::strategy::PlayIndex;
+// ============================================================================
+// 外部 crate 导入
+// ============================================================================
+use crate::strategy::strategy_config::BacktestStrategyConfig;
+use crate::{
+    node::{
+        node_command::BacktestNodeCommand,
+        node_event::BacktestNodeEvent,
+        node_state_machine::{NodeRunState, NodeStateTransTrigger},
+    },
+    strategy::strategy_command::{BacktestStrategyCommand, InitCustomVarCmdPayload, InitCustomVarValueCommand},
+};
 
 pub type StartNodeMetadata = NodeMetadata<StartNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
-
-
 
 #[derive(Debug)]
 pub struct StartNodeContext {
@@ -72,7 +71,6 @@ impl StartNodeContext {
         // virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
         // strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     ) -> Self {
-
         Self {
             metadata,
             node_config,
@@ -82,7 +80,6 @@ impl StartNodeContext {
         }
     }
 
-
     pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
         &self.play_index_watch_rx
     }
@@ -90,10 +87,6 @@ impl StartNodeContext {
     pub fn play_index(&self) -> PlayIndex {
         *self.play_index_watch_rx.borrow()
     }
-
-
-
-
 
     pub async fn send_play_signal(&self) {
         let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
@@ -109,7 +102,9 @@ impl StartNodeContext {
         self.default_output_handle().unwrap().send(kline_play_event.into()).unwrap();
         cycle_tracker.end_phase("send_play_signal");
         let completed_tracker = cycle_tracker.end();
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await.unwrap();
+        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+            .await
+            .unwrap();
     }
 
     pub async fn init_virtual_trading_system(&self) {
@@ -126,22 +121,16 @@ impl StartNodeContext {
         // strategy_stats.set_initial_balance(node_config.initial_balance);
     }
 
-
-
     pub async fn init_custom_variables(&self) {
         let custom_var_configs = {
             let node_config_guard = self.node_config.read().await;
             node_config_guard.custom_variables.clone()
-
         };
         let (resp_rx, resp_tx) = tokio::sync::oneshot::channel();
         let init_var_payload = InitCustomVarCmdPayload::new(custom_var_configs);
-        let init_var_cmd = InitCustomVarValueCommand::new(self.node_id().clone(),resp_rx, init_var_payload);
+        let init_var_cmd = InitCustomVarValueCommand::new(self.node_id().clone(), resp_rx, init_var_payload);
         self.strategy_command_sender().send(init_var_cmd.into()).await.unwrap();
         let response = resp_tx.await.unwrap();
-
-
-
     }
 }
 

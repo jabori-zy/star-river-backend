@@ -1,11 +1,11 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
-use snafu::{Backtrace, Snafu};
 use std::sync::Arc;
+
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum NodeError {
-
     #[snafu(display("unsupported backtest node type: {node_type}"))]
     UnsupportedNodeType { node_type: String, backtrace: Backtrace },
 
@@ -15,24 +15,14 @@ pub enum NodeError {
     #[snafu(display("backtest node config deserialization failed. reason: {source}"))]
     ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
-
     #[snafu(display("kline node [{node_id}] name is null"))]
-    NodeNameIsNull {
-        node_id: String,
-        backtrace: Backtrace,
-    },
+    NodeNameIsNull { node_id: String, backtrace: Backtrace },
 
     #[snafu(display("kline node id is null"))]
-    NodeIdIsNull {
-        backtrace: Backtrace,
-    },
+    NodeIdIsNull { backtrace: Backtrace },
 
     #[snafu(display("kline node [{node_id}] data is null"))]
-    NodeDataIsNull {
-        node_id: String,
-        backtrace: Backtrace,
-    },
-
+    NodeDataIsNull { node_id: String, backtrace: Backtrace },
 
     #[snafu(display("[{node_name}] config {config_name} should be greater than or equal to(>= 0) zero, but got {config_value}"))]
     ValueNotGreaterThanOrEqualToZero {
@@ -43,9 +33,7 @@ pub enum NodeError {
     },
 
     // > 0
-    #[snafu(display(
-        "[{node_name}] config {config_name} should be greater than(> 0) zero, but got {config_value}"
-    ))]
+    #[snafu(display("[{node_name}] config {config_name} should be greater than(> 0) zero, but got {config_value}"))]
     ValueNotGreaterThanZero {
         node_name: String,
         config_name: String,
@@ -54,17 +42,10 @@ pub enum NodeError {
     },
 
     #[snafu(display("[{node_name}] mount node cycle tracker failed"))]
-    NodeCycleTrackerMountFailed {
-        node_name: String,
-        backtrace: Backtrace,
-    },
-
+    NodeCycleTrackerMountFailed { node_name: String, backtrace: Backtrace },
 
     #[snafu(display("output handle not found: {handle_id}"))]
-    OutputHandleNotFound {
-        handle_id: String,
-        backtrace: Backtrace,
-    },
+    OutputHandleNotFound { handle_id: String, backtrace: Backtrace },
 
     #[snafu(display("node event send failed: {handle_id}, reason: {source}"))]
     NodeEventSendFailed {
@@ -100,23 +81,22 @@ impl StarRiverErrorTrait for NodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            NodeError::UnsupportedNodeType { .. } => 1002, // unsupported node type
-            NodeError::ConfigFieldValueNull { .. } => 1003, // node config field value is null
-            NodeError::ConfigDeserializationFailed { .. } => 1004, // node config deserialization failed
-            NodeError::NodeNameIsNull { .. } => 1005, // node name is null
-            NodeError::NodeIdIsNull { .. } => 1006, // node id is null
-            NodeError::NodeDataIsNull { .. } => 1007, // node data is null
+            NodeError::UnsupportedNodeType { .. } => 1002,              // unsupported node type
+            NodeError::ConfigFieldValueNull { .. } => 1003,             // node config field value is null
+            NodeError::ConfigDeserializationFailed { .. } => 1004,      // node config deserialization failed
+            NodeError::NodeNameIsNull { .. } => 1005,                   // node name is null
+            NodeError::NodeIdIsNull { .. } => 1006,                     // node id is null
+            NodeError::NodeDataIsNull { .. } => 1007,                   // node data is null
             NodeError::ValueNotGreaterThanOrEqualToZero { .. } => 1008, // value not greater than or equal to zero (>= 0)
-            NodeError::ValueNotGreaterThanZero { .. } => 1009, // value not greater than zero (> 0)
-            NodeError::NodeCycleTrackerMountFailed { .. } => 1010, // node cycle tracker mount failed
-            NodeError::OutputHandleNotFound { .. } => 1011, // output handle not found
-            NodeError::NodeEventSendFailed { .. } => 1012, // node event send failed
-            NodeError::StrategyCommandSendFailed { .. } => 1013, // strategy command send failed
-            NodeError::NodeCommandSendFailed { .. } => 1014, // node command send failed
+            NodeError::ValueNotGreaterThanZero { .. } => 1009,          // value not greater than zero (> 0)
+            NodeError::NodeCycleTrackerMountFailed { .. } => 1010,      // node cycle tracker mount failed
+            NodeError::OutputHandleNotFound { .. } => 1011,             // output handle not found
+            NodeError::NodeEventSendFailed { .. } => 1012,              // node event send failed
+            NodeError::StrategyCommandSendFailed { .. } => 1013,        // strategy command send failed
+            NodeError::NodeCommandSendFailed { .. } => 1014,            // node command send failed
         };
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn http_status_code(&self) -> StatusCode {
         match self {
@@ -160,10 +140,20 @@ impl StarRiverErrorTrait for NodeError {
                     NodeError::NodeDataIsNull { node_id, .. } => {
                         format!("节点 [{node_id}] 数据是空")
                     }
-                    NodeError::ValueNotGreaterThanOrEqualToZero { node_name, config_name, config_value, .. } => {
+                    NodeError::ValueNotGreaterThanOrEqualToZero {
+                        node_name,
+                        config_name,
+                        config_value,
+                        ..
+                    } => {
                         format!("[{node_name}] 配置 {config_name} 应该大于等于零(>= 0)，但值为 {config_value}")
                     }
-                    NodeError::ValueNotGreaterThanZero { node_name, config_name, config_value, .. } => {
+                    NodeError::ValueNotGreaterThanZero {
+                        node_name,
+                        config_name,
+                        config_value,
+                        ..
+                    } => {
                         format!("[{node_name}] 配置 {config_name} 应该大于零(> 0)，但值为 {config_value}")
                     }
 

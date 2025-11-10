@@ -1,13 +1,8 @@
-use star_river_event::communication::{IndicatorEngineCommand, MarketEngineCommand, ExchangeEngineCommand};
 use derive_more::From;
-use strum::{EnumIter, IntoEnumIterator, Display};
-use event_center_core::CommandTarget;
-use event_center_core::Target;
+use event_center_core::{CommandTarget, Target};
 use star_river_core::engine::EngineName;
-
-
-
-
+use star_river_event::communication::{ExchangeEngineCommand, IndicatorEngineCommand, MarketEngineCommand};
+use strum::{Display, EnumIter, IntoEnumIterator};
 
 // 定义引擎名称（示例）
 #[derive(Debug, Clone, Eq, Hash, PartialEq, EnumIter, Display)]
@@ -19,13 +14,11 @@ pub enum CommandTargetEngine {
     BacktestEngine,
 }
 
-
 impl CommandTarget for CommandTargetEngine {
     fn variants() -> Vec<Self> {
         CommandTargetEngine::iter().collect()
     }
 }
-
 
 impl From<EngineName> for CommandTargetEngine {
     fn from(engine_name: EngineName) -> Self {
@@ -37,12 +30,6 @@ impl From<EngineName> for CommandTargetEngine {
         }
     }
 }
-
-
-
-
-
-
 
 #[derive(Debug, From)]
 pub enum EngineCommand {

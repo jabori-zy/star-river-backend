@@ -1,40 +1,37 @@
-use rust_decimal::Decimal;
 use std::str::FromStr;
-use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
-use super::VariableNodeContext;
-use strategy_core::communication::strategy::StrategyResponse;
-use crate::strategy::PlayIndex;
-use star_river_core::custom_type::NodeId;
-use crate::node_catalog::variable_node::context::BacktestNodeEvent;
-use strategy_core::event::node_common_event::ExecuteOverPayload;
-use star_river_event::backtest_strategy::node_event::VariableNodeEvent;
-use strategy_core::event::node_common_event::CommonEvent;
-use strategy_core::event::node_common_event::ExecuteOverEvent;
-use strategy_core::event::node_common_event::TriggerEvent;
-use strategy_core::event::node_common_event::TriggerPayload;
-use strategy_core::node_infra::variable_node::variable_config::get::GetSystemVariableConfig;
+
+use rust_decimal::Decimal;
+use star_river_core::{custom_type::NodeId, order::OrderStatus};
+use star_river_event::backtest_strategy::node_event::{
+    VariableNodeEvent,
+    variable_node_event::{SysVariableUpdateEvent, SysVariableUpdatePayload},
+};
+use strategy_core::{
+    communication::strategy::StrategyResponse,
+    event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
+    node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node_infra::variable_node::variable_config::get::GetSystemVariableConfig,
+    variable::{
+        custom_variable::VariableValue,
+        sys_varibale::{SysVariable, SysVariableType},
+    },
+};
+use tokio::{sync::oneshot, task::JoinHandle};
 use virtual_trading::VirtualTradingSystem;
-use strategy_core::variable::sys_varibale::SysVariable;
-use strategy_core::variable::sys_varibale::SysVariableType;
-use strategy_core::node::context_trait::NodeRelationExt;
-use strategy_core::node::context_trait::NodeHandleExt;
-use strategy_core::node::context_trait::NodeIdentityExt;
-use strategy_core::node::context_trait::NodeCommunicationExt;
-use crate::strategy::strategy_command::UpdateSysVarCmdPayload;
-use crate::strategy::strategy_command::UpdateSysVarValueCommand;
-use star_river_event::backtest_strategy::node_event::variable_node_event::SysVariableUpdatePayload;
-use star_river_event::backtest_strategy::node_event::variable_node_event::SysVariableUpdateEvent;
-use strategy_core::variable::custom_variable::VariableValue;
-use star_river_core::order::OrderStatus;
-use crate::node::node_error::variable_node_error::SysVariableSymbolIsNullSnafu;
-use crate::node::node_error::VariableNodeError;
 
-
+use super::VariableNodeContext;
+use crate::{
+    node::node_error::{VariableNodeError, variable_node_error::SysVariableSymbolIsNullSnafu},
+    node_catalog::variable_node::context::BacktestNodeEvent,
+    strategy::{
+        PlayIndex,
+        strategy_command::{UpdateSysVarCmdPayload, UpdateSysVarValueCommand},
+    },
+};
 
 impl VariableNodeContext {
     /// 通用的系统变量 Handle 创建器
-    /// 
+    ///
     /// # 参数
     /// - `play_index`: 播放索引
     /// - `node_id`: 节点ID
@@ -71,11 +68,7 @@ impl VariableNodeContext {
             let response = resp_rx.await.unwrap();
             match response {
                 StrategyResponse::Success { payload, .. } => {
-                    let payload = SysVariableUpdatePayload::new(
-                        play_index,
-                        system_var_config.config_id(),
-                        sys_variable,
-                    );
+                    let payload = SysVariableUpdatePayload::new(play_index, system_var_config.config_id(), sys_variable);
                     let var_event: VariableNodeEvent = SysVariableUpdateEvent::new(
                         node_id.clone(),
                         node_name.clone(),
@@ -98,18 +91,16 @@ impl VariableNodeContext {
                 StrategyResponse::Fail { error, .. } => {
                     tracing::error!("update sys variable failed: {:?}", error);
                     let payload = TriggerPayload::new(play_index as u64);
-                    let trigger_event: CommonEvent = TriggerEvent::new(node_id, node_name, output_handle.output_handle_id().clone(), payload).into();
+                    let trigger_event: CommonEvent =
+                        TriggerEvent::new(node_id, node_name, output_handle.output_handle_id().clone(), payload).into();
                     let backtest_trigger_event: BacktestNodeEvent = trigger_event.into();
                     let _ = output_handle.send(backtest_trigger_event);
                 }
-            }  
+            }
         })
     }
     /// 创建获取总持仓数量的 Handle
-    pub(super) async fn create_total_position_number_handle(
-        &self,
-        system_var_config: GetSystemVariableConfig,
-    ) -> JoinHandle<()> {
+    pub(super) async fn create_total_position_number_handle(&self, system_var_config: GetSystemVariableConfig) -> JoinHandle<()> {
         let play_index = self.play_index();
         let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
@@ -122,12 +113,8 @@ impl VariableNodeContext {
         .await
     }
 
-
     /// 创建获取总成交订单数量的 Handle
-    pub(super) async fn create_total_filled_order_number_handle(
-        &self,
-        system_var_config: GetSystemVariableConfig,
-    ) -> JoinHandle<()> {
+    pub(super) async fn create_total_filled_order_number_handle(&self, system_var_config: GetSystemVariableConfig) -> JoinHandle<()> {
         let play_index = self.play_index();
         let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
@@ -144,7 +131,6 @@ impl VariableNodeContext {
         .await
     }
 
-
     /// 创建获取指定币种成交订单数量的 Handle
     pub(super) async fn create_filled_order_number_handle(
         &self,
@@ -152,7 +138,7 @@ impl VariableNodeContext {
     ) -> Result<JoinHandle<()>, VariableNodeError> {
         let play_index = self.play_index();
         let node_id = self.node_id().clone();
-        
+
         // 验证 symbol 不为空
         let symbol = system_var_config.symbol();
         if symbol.is_none() {
@@ -181,12 +167,7 @@ impl VariableNodeContext {
         Ok(handle)
     }
 
-
-
-    pub(super) async fn create_current_time_handle(
-        &self,
-        system_var_config: GetSystemVariableConfig,
-    ) -> JoinHandle<()> {
+    pub(super) async fn create_current_time_handle(&self, system_var_config: GetSystemVariableConfig) -> JoinHandle<()> {
         let play_index = self.play_index();
         let node_id = self.node_id().clone();
 
@@ -202,8 +183,4 @@ impl VariableNodeContext {
 
         handle
     }
-
-
-
-
 }

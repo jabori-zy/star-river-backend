@@ -1,21 +1,22 @@
+use key::{KeyTrait, KlineKey};
 use snafu::IntoError;
+use star_river_core::kline::Kline;
+use strategy_core::{
+    communication::strategy::StrategyResponse,
+    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+};
 // third-party
 use tokio::sync::oneshot;
-
-
-
 
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
 use crate::{
     node::node_error::kline_node_error::GetPlayKlineDataFailedSnafu,
+    strategy::{
+        PlayIndex,
+        strategy_command::{GetKlineDataCmdPayload, GetKlineDataCommand},
+    },
 };
-use key::{KeyTrait, KlineKey};
-use crate::strategy::PlayIndex;
-use star_river_core::kline::Kline;
-use crate::strategy::strategy_command::{GetKlineDataCmdPayload, GetKlineDataCommand};
-use strategy_core::node::context_trait::{NodeIdentityExt, NodeCommunicationExt};
-use strategy_core::communication::strategy::StrategyResponse;
 
 impl KlineNodeContext {
     // 从策略中获取k线数据
@@ -33,7 +34,7 @@ impl KlineNodeContext {
         // 等待响应
         let response = resp_rx.await.unwrap();
         match response {
-            StrategyResponse::Success { payload,.. } => {
+            StrategyResponse::Success { payload, .. } => {
                 return Ok(payload.kline_series.clone());
             }
             StrategyResponse::Fail { error, .. } => {
@@ -41,7 +42,8 @@ impl KlineNodeContext {
                     node_name: self.node_name().clone(),
                     kline_key: kline_key.get_key_str(),
                     play_index: play_index as u32,
-                }.into_error(error))
+                }
+                .into_error(error));
             }
         }
     }

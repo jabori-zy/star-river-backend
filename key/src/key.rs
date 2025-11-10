@@ -1,13 +1,11 @@
-use super::Key;
-use super::KeyTrait;
-use star_river_core::error::star_river_error::*;
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::KlineInterval;
-use star_river_core::system::TimeRange;
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
-use std::str::FromStr;
+use star_river_core::{error::star_river_error::*, exchange::Exchange, kline::KlineInterval, system::TimeRange};
 use ta_lib::IndicatorConfig;
+
+use super::{Key, KeyTrait};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct KlineKey {

@@ -1,19 +1,16 @@
-use axum::Router;
-use axum::http::HeaderValue;
-use std::fs;
-use std::net::SocketAddr;
-use std::path::Path;
-use time::UtcOffset;
-use time::macros::format_description;
+use std::{fs, net::SocketAddr, path::Path};
+
+use axum::{Router, http::HeaderValue};
+use time::{UtcOffset, macros::format_description};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::instrument;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::EnvFilter;
-use tracing_subscriber::fmt::layer;
-use tracing_subscriber::fmt::time::OffsetTime;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{
+    EnvFilter,
+    fmt::{layer, time::OffsetTime, writer::MakeWriterExt},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+};
 
 /// 初始化日志系统
 pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,10 +30,7 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
     let time_format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:6]");
     let timer = OffsetTime::new(offset, time_format);
 
-    let console_layer = layer()
-        .with_writer(stdout)
-        .with_ansi(true)
-        .with_timer(timer.clone());
+    let console_layer = layer().with_writer(stdout).with_ansi(true).with_timer(timer.clone());
 
     let file_layer = layer()
         .with_writer(non_blocking_appender)
@@ -172,9 +166,7 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
         if !found_processes.is_empty() {
             tracing::warn!("发现Metatrader5-*.exe进程: {:?}, 正在清理...", found_processes);
             for process_name in found_processes {
-                let _ = std::process::Command::new("taskkill")
-                    .args(&["/F", "/IM", &process_name])
-                    .output();
+                let _ = std::process::Command::new("taskkill").args(&["/F", "/IM", &process_name]).output();
             }
         }
     }

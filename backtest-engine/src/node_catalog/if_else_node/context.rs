@@ -1,32 +1,22 @@
 mod benchmark;
-mod node_handles;
 mod condition_op;
 mod event_handler;
+mod node_handles;
 
-use strategy_core::node::metadata::NodeMetadata;
-
-use crate::node::node_event::BacktestNodeEvent;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use super::state_machine::IfElseNodeStateMachine;
-use super::if_else_node_type::IfElseNodeBacktestConfig;
 use std::collections::HashMap;
+
 use star_river_core::custom_type::NodeId;
-use strategy_core::node::context_trait::NodeMetaDataExt;
-use crate::strategy::PlayIndex;
+use strategy_core::node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata};
 
-
+use super::{if_else_node_type::IfElseNodeBacktestConfig, state_machine::IfElseNodeStateMachine};
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
 pub type ConfigId = i32;
 
-
-pub type IfElseNodeMetadata = NodeMetadata<
-    IfElseNodeStateMachine,
-    BacktestNodeEvent,
-    BacktestNodeCommand,
-    BacktestStrategyCommand
->;
-
+pub type IfElseNodeMetadata = NodeMetadata<IfElseNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
 
 #[derive(Debug)]
 pub struct IfElseNodeContext {
@@ -35,13 +25,11 @@ pub struct IfElseNodeContext {
     received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
     received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-
 }
-
 
 impl IfElseNodeContext {
     pub fn new(
-        metadata: IfElseNodeMetadata, 
+        metadata: IfElseNodeMetadata,
         node_config: IfElseNodeBacktestConfig,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     ) -> Self {
@@ -55,7 +43,6 @@ impl IfElseNodeContext {
     }
 }
 
-
 impl IfElseNodeContext {
     pub fn play_index(&self) -> PlayIndex {
         *self.play_index_watch_rx.borrow()
@@ -65,8 +52,6 @@ impl IfElseNodeContext {
         &self.play_index_watch_rx
     }
 }
-
-
 
 impl NodeMetaDataExt for IfElseNodeContext {
     type StateMachine = IfElseNodeStateMachine;

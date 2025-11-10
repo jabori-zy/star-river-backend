@@ -1,6 +1,5 @@
 // third-party
 use snafu::{Backtrace, Snafu};
-
 // workspace crate
 use star_river_core::error::{ErrorCode, ErrorLanguage, ReqwestError, StarRiverErrorTrait};
 
@@ -27,12 +26,11 @@ impl StarRiverErrorTrait for ExchangeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            ExchangeError::HttpClientNotCreated { .. } => 1001,  // 客户端未创建
-            ExchangeError::HttpRequestFailed { .. } => 1002,     // HTTP请求失败
+            ExchangeError::HttpClientNotCreated { .. } => 1001, // 客户端未创建
+            ExchangeError::HttpRequestFailed { .. } => 1002,    // HTTP请求失败
         };
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
@@ -52,8 +50,7 @@ impl StarRiverErrorTrait for ExchangeError {
         match self {
             // CreateIndicatorFailed has source but serde_json::Error doesn't implement our trait
             // So we start the chain here
-            ExchangeError::HttpClientNotCreated { .. } |
-            ExchangeError::HttpRequestFailed { .. } => vec![self.error_code()],
+            ExchangeError::HttpClientNotCreated { .. } | ExchangeError::HttpRequestFailed { .. } => vec![self.error_code()],
         }
     }
 }

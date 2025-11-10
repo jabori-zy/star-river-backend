@@ -1,8 +1,6 @@
-use crate::calculate_fn;
-use crate::calculate_fn_snake;
-use crate::calculate::CalculateIndicatorFunction;
-use ta_lib::Indicator;
-use ta_lib::indicator::momentum::*;
+use ta_lib::{Indicator, indicator::momentum::*};
+
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn, calculate_fn_snake};
 
 impl CalculateIndicatorFunction {
     // ADX - Average Directional Movement Index #平均方向性指数

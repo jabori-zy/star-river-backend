@@ -1,40 +1,38 @@
-mod event_handler;
-mod data_handler;
 mod command_handler;
+mod data_handler;
+mod event_handler;
 mod node_lifecycle;
 mod node_operation;
-mod workflow_builder;
 mod playback_handler;
+mod workflow_builder;
 
+use std::{collections::HashMap, sync::Arc};
 
-use strategy_core::strategy::metadata::StrategyMetadata;
-use uuid::Uuid;
-use super::strategy_state_machine::{BacktestStrategyStateMachine, BacktestStrategyRunState, backtest_strategy_transition};
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::BacktestNode;
-use crate::strategy::PlayIndex;
-use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex, watch};
-use tokio::sync::Notify;
-use tokio_util::sync::CancellationToken;
-use crate::node::node_command::BacktestNodeCommand;
-use strategy_core::event::log_event::StrategyRunningLogEvent;
-use strategy_core::{
-    strategy::{StrategyConfig, context_trait::StrategyMetaDataExt}
-};
-use star_river_core::custom_type::{NodeId, NodeName, StrategyName};
 use heartbeat::Heartbeat;
+use key::{IndicatorKey, Key, KlineKey};
 use sea_orm::DatabaseConnection;
-use key::{KlineKey, IndicatorKey};
+use star_river_core::{
+    custom_type::{NodeId, NodeName, StrategyName},
+    kline::Kline,
+};
+use strategy_core::{
+    event::log_event::StrategyRunningLogEvent,
+    strategy::{StrategyConfig, context_trait::StrategyMetaDataExt, metadata::StrategyMetadata},
+};
 use ta_lib::indicator::Indicator;
-use star_river_core::kline::Kline;
-use std::collections::HashMap;
-use key::Key;
+use tokio::sync::{Mutex, Notify, RwLock, watch};
+use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 use virtual_trading::VirtualTradingSystem;
 
-pub type BacktestStrategyMetadata = StrategyMetadata<BacktestNode, BacktestStrategyStateMachine, BacktestStrategyCommand, BacktestNodeCommand>;
+use super::strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateMachine, backtest_strategy_transition};
+use crate::{
+    node::{BacktestNode, node_command::BacktestNodeCommand},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
-
+pub type BacktestStrategyMetadata =
+    StrategyMetadata<BacktestNode, BacktestStrategyStateMachine, BacktestStrategyCommand, BacktestNodeCommand>;
 
 #[derive(Debug)]
 pub struct BacktestStrategyContext {
@@ -58,29 +56,15 @@ pub struct BacktestStrategyContext {
 }
 
 impl BacktestStrategyContext {
-    pub fn new(
-        strategy_config: StrategyConfig,
-        database: DatabaseConnection,
-        heartbeat: Arc<Mutex<Heartbeat>>,
-    ) -> Self {
-
-
+    pub fn new(strategy_config: StrategyConfig, database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
         let strategy_name = strategy_config.name.clone();
-        let state_machine = 
-            BacktestStrategyStateMachine::new(
-                strategy_name.clone(), 
-                BacktestStrategyRunState::Created, 
-                backtest_strategy_transition
-            );
-
-        let metadata = BacktestStrategyMetadata::new(
-            "backtest", 
-            strategy_config, 
-            state_machine, 
-            database, 
-            heartbeat
+        let state_machine = BacktestStrategyStateMachine::new(
+            strategy_name.clone(),
+            BacktestStrategyRunState::Created,
+            backtest_strategy_transition,
         );
 
+        let metadata = BacktestStrategyMetadata::new("backtest", strategy_config, state_machine, database, heartbeat);
 
         let (play_index_watch_tx, play_index_watch_rx) = watch::channel::<PlayIndex>(-1);
         let virtual_trading_system = VirtualTradingSystem::new();
@@ -107,8 +91,6 @@ impl BacktestStrategyContext {
     }
 }
 
-
-
 impl StrategyMetaDataExt for BacktestStrategyContext {
     type Node = BacktestNode;
     type StateMachine = BacktestStrategyStateMachine;
@@ -123,7 +105,6 @@ impl StrategyMetaDataExt for BacktestStrategyContext {
         &mut self.metadata
     }
 }
-
 
 // ============================================================================
 // 非 Metadata 字段的访问方法
@@ -332,7 +313,6 @@ impl BacktestStrategyContext {
     pub async fn clear_running_log(&self) {
         self.running_log.write().await.clear();
     }
-
 
     pub fn virtual_trading_system(&self) -> &Arc<Mutex<VirtualTradingSystem>> {
         &self.virtual_trading_system

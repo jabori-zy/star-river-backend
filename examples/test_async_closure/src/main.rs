@@ -1,5 +1,3 @@
-
-
 #[tokio::main]
 async fn main() {
     println!("=== AsyncFnOnce 示例 ===\n");
@@ -27,7 +25,8 @@ async fn main() {
     let result = execute_once(async move |x| {
         println!("  处理数据: {:?}", data);
         x + data.len() as i32
-    }).await;
+    })
+    .await;
     println!("  结果: {}\n", result);
 
     // 示例 3: 展示只能调用一次的特性
@@ -58,13 +57,8 @@ async fn main() {
 
     // 示例 5: 错误处理
     println!("5. 错误处理:");
-    let risky_closure = async move |x: i32| -> Result<i32, String> {
-        if x > 0 {
-            Ok(x * 2)
-        } else {
-            Err("数值必须大于0".to_string())
-        }
-    };
+    let risky_closure =
+        async move |x: i32| -> Result<i32, String> { if x > 0 { Ok(x * 2) } else { Err("数值必须大于0".to_string()) } };
 
     match risky_closure(5).await {
         Ok(result) => println!("  成功: {}", result),

@@ -10,29 +10,30 @@ mod status_handler;
 mod utils;
 // mod node_handles;
 
-use super::kline_node_type::KlineNodeBacktestConfig;
-use star_river_core::custom_type::AccountId;
-use crate::strategy::PlayIndex;
-use crate::node::node_error::kline_node_error::*;
-use key::{KeyTrait, KlineKey};
-use star_river_core::kline::{KlineInterval, Kline};
-use star_river_core::exchange::{Exchange};
-use star_river_core::system::TimeRange;
-use strategy_core::benchmark::node_benchmark::CycleTracker;
-use std::collections::HashMap;
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
-use strategy_core::node::metadata::NodeMetadata;
-use super::state_machine::KlineNodeAction;
-use super::state_machine::KlineNodeStateMachine;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::node_command::BacktestNodeCommand;
-use strategy_core::node::context_trait::NodeMetaDataExt;
+use key::{KeyTrait, KlineKey};
+use star_river_core::{
+    custom_type::AccountId,
+    exchange::Exchange,
+    kline::{Kline, KlineInterval},
+    system::TimeRange,
+};
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata},
+};
+
+use super::{
+    kline_node_type::KlineNodeBacktestConfig,
+    state_machine::{KlineNodeAction, KlineNodeStateMachine},
+};
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_error::kline_node_error::*, node_event::BacktestNodeEvent},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
 pub type KlineNodeMetadata = NodeMetadata<KlineNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
-
-
 
 #[derive(Debug)]
 pub struct KlineNodeContext {
@@ -89,7 +90,6 @@ impl KlineNodeContext {
     }
 }
 
-
 impl KlineNodeContext {
     pub fn play_index(&self) -> PlayIndex {
         *self.play_index_watch_rx.borrow()
@@ -99,12 +99,6 @@ impl KlineNodeContext {
         &self.play_index_watch_rx
     }
 }
-
-
-
-
-
-
 
 impl NodeMetaDataExt for KlineNodeContext {
     type StateMachine = KlineNodeStateMachine;

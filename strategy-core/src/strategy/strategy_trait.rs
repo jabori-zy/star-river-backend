@@ -1,19 +1,13 @@
 // std
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::Arc,
-};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 // third-party
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 use star_river_core::error::StarRiverErrorTrait;
+use tokio::sync::RwLock;
 
 // current crate
-use super::context_trait::StrategyMetaDataExt;
-use super::state_machine::StrategyStateTransTrigger;
-
+use super::{context_trait::StrategyMetaDataExt, state_machine::StrategyStateTransTrigger};
 
 // ============================================================================
 // Strategy Context Accessor (provides convenient read/write lock access methods)
@@ -75,7 +69,10 @@ pub trait StrategyContextAccessor: Send + Sync {
     ///     })
     /// }).await;
     /// ```
-    async fn with_ctx_read_async<R>(&self, f: impl for<'a> FnOnce(&'a Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send) -> R
+    async fn with_ctx_read_async<R>(
+        &self,
+        f: impl for<'a> FnOnce(&'a Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send,
+    ) -> R
     where
         R: Send,
     {
@@ -93,7 +90,10 @@ pub trait StrategyContextAccessor: Send + Sync {
     ///     })
     /// }).await;
     /// ```
-    async fn with_ctx_write_async<R>(&self, f: impl for<'a> FnOnce(&'a mut Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send) -> R
+    async fn with_ctx_write_async<R>(
+        &self,
+        f: impl for<'a> FnOnce(&'a mut Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send,
+    ) -> R
     where
         R: Send,
     {
@@ -112,7 +112,6 @@ pub trait StrategyContextAccessor: Send + Sync {
 /// Depends on `StrategyContextAccessor` to access context
 #[async_trait]
 pub trait StrategyLifecycle: StrategyContextAccessor {
-
     type Trigger: StrategyStateTransTrigger;
 
     /// Error type

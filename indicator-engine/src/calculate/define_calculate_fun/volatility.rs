@@ -1,7 +1,6 @@
-use crate::calculate_fn;
-use crate::calculate::CalculateIndicatorFunction;
-use ta_lib::Indicator;
-use ta_lib::indicator::volatility::*;
+use ta_lib::{Indicator, indicator::volatility::*};
+
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn};
 
 impl CalculateIndicatorFunction {
     // ATR - Average True Range #平均真实波幅

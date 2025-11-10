@@ -1,9 +1,12 @@
-use star_river_core::custom_type::*;
-use star_river_core::exchange::Exchange;
-use star_river_core::position::{PositionSide, PositionState};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use star_river_core::{
+    custom_type::*,
+    exchange::Exchange,
+    position::{PositionSide, PositionState},
+};
 use utoipa::ToSchema;
+
 use super::order::VirtualOrder;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

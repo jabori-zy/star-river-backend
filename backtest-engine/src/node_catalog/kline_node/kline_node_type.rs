@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use star_river_core::system::TimeRange;
-use star_river_core::system::deserialize_time_range;
+use star_river_core::system::{TimeRange, deserialize_time_range};
 use strategy_core::strategy::{SelectedAccount, SelectedSymbol};
+
 use crate::strategy::strategy_config::BacktestDataSource;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

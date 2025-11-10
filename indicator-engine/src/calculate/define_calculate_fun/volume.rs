@@ -1,7 +1,6 @@
-use crate::calculate_fn;
-use crate::calculate::CalculateIndicatorFunction;
-use ta_lib::Indicator;
-use ta_lib::indicator::volume::*;
+use ta_lib::{Indicator, indicator::volume::*};
+
+use crate::{calculate::CalculateIndicatorFunction, calculate_fn};
 
 impl CalculateIndicatorFunction {
     // AD - Chaikin A/D Line #钱德动量线

@@ -1,14 +1,12 @@
-use super::BacktestEngineContext;
-
-use crate::{strategy::strategy_error::BacktestStrategyError, strategy::BacktestStrategy};
 use snafu::Report;
-use crate::engine_error::{BacktestEngineError, StrategyIsExistSnafu};
-use strategy_core::strategy::TradeMode;
+use strategy_core::strategy::{StrategyConfig, TradeMode, strategy_trait::StrategyLifecycle};
 use tokio::time::Duration;
-use strategy_core::strategy::StrategyConfig;
-use strategy_core::strategy::strategy_trait::StrategyLifecycle;
 
-
+use super::BacktestEngineContext;
+use crate::{
+    engine_error::{BacktestEngineError, StrategyIsExistSnafu},
+    strategy::{BacktestStrategy, strategy_error::BacktestStrategyError},
+};
 
 impl BacktestEngineContext {
     pub async fn init(&mut self, strategy_id: i32) -> Result<(), BacktestEngineError> {
@@ -67,20 +65,15 @@ impl BacktestEngineContext {
         Ok(())
     }
 
-
     pub async fn stop(&mut self, strategy_id: i32) -> Result<(), BacktestEngineError> {
         // 尝试使用访问器访问策略并执行停止操作
-        self.with_strategy_mut_async(strategy_id, |strategy| {
-            Box::pin(async move {
-                strategy.stop_strategy().await
-            })
-        })
-        .await?
-        .map_err(|e| {
-            let report = Report::from_error(&e);
-            tracing::error!("{}", report);
-            e
-        })?;
+        self.with_strategy_mut_async(strategy_id, |strategy| Box::pin(async move { strategy.stop_strategy().await }))
+            .await?
+            .map_err(|e| {
+                let report = Report::from_error(&e);
+                tracing::error!("{}", report);
+                e
+            })?;
 
         self.remove_strategy_instance(TradeMode::Backtest, strategy_id).await?;
 

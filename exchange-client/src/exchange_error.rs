@@ -1,7 +1,7 @@
-use crate::binance::error::BinanceError;
-use crate::metatrader5::error::Mt5Error;
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
+
+use crate::{binance::error::BinanceError, metatrader5::error::Mt5Error};
 
 /// Unified error type for all exchange clients
 ///

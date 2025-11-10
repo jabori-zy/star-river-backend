@@ -1,14 +1,15 @@
-use super::EngineManager;
+use std::sync::Arc;
+
 use axum::extract::State;
-use database::DatabaseManager;
-use database::query::system_config_query::SystemConfigQuery;
+use database::{DatabaseManager, query::system_config_query::SystemConfigQuery};
 // use event_center::EventCenterSingleton;
+use event_center::EventCenterSingleton;
 use heartbeat::Heartbeat;
 use star_river_core::system::system_config::SystemConfigManager;
-use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
-use event_center::EventCenterSingleton;
+
+use super::EngineManager;
 
 #[derive(Clone, Debug)]
 pub struct StarRiver {

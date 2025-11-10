@@ -1,5 +1,6 @@
-use super::VirtualTradingSystem;
 use star_river_core::custom_type::*;
+
+use super::VirtualTradingSystem;
 use crate::types::VirtualTransaction;
 
 impl VirtualTradingSystem {

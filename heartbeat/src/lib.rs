@@ -1,11 +1,16 @@
 // #![allow(unused_imports)]
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    future::Future,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
+    time::Duration,
+};
+
 use tokio::sync::Mutex;
 use tracing::instrument;
 use uuid::Uuid;

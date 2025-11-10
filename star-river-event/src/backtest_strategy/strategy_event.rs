@@ -1,27 +1,26 @@
 use chrono::Utc;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::StrategyId;
+use star_river_core::{custom_type::StrategyId, system::DateTimeUtc};
+// use log_event::{NodeStateLogEvent, StrategyRunningLogEvent, LogLevel};
+use strategy_core::event::{
+    log_event::{NodeStateLogEvent, StrategyRunningLogEvent},
+    strategy_event::{StrategyPerformanceUpdateEvent, StrategyStateLogEvent},
+};
 use strategy_stats::event::StrategyStatsUpdatedEvent;
-use star_river_core::system::DateTimeUtc;
 use strum::Display;
 
 use super::node_event::{
-    kline_node_event::KlineUpdateEvent,
-    indicator_node_event::IndicatorUpdateEvent,
-    variable_node_event::{CustomVariableUpdateEvent, SysVariableUpdateEvent},
     futures_order_node_event::{
-        FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent, 
-        TakeProfitOrderCreatedEvent, TakeProfitOrderFilledEvent, TakeProfitOrderCanceledEvent, 
-        StopLossOrderCreatedEvent, StopLossOrderFilledEvent, StopLossOrderCanceledEvent, TransactionCreatedEvent},
+        FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent, StopLossOrderCanceledEvent,
+        StopLossOrderCreatedEvent, StopLossOrderFilledEvent, TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent,
+        TakeProfitOrderFilledEvent, TransactionCreatedEvent,
+    },
+    indicator_node_event::IndicatorUpdateEvent,
+    kline_node_event::KlineUpdateEvent,
     position_node_event::{PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent},
+    variable_node_event::{CustomVariableUpdateEvent, SysVariableUpdateEvent},
 };
-// use log_event::{NodeStateLogEvent, StrategyRunningLogEvent, LogLevel};
-use strategy_core::event::strategy_event::{StrategyPerformanceUpdateEvent, StrategyStateLogEvent};
-use strategy_core::event::log_event::{NodeStateLogEvent, StrategyRunningLogEvent};
-
-
-
 
 #[derive(Debug, Clone, Serialize, Display, From)]
 #[serde(tag = "event")]
@@ -41,7 +40,6 @@ pub enum BacktestStrategyEvent {
     #[strum(serialize = "sys-variable-update-event")]
     #[serde(rename = "sys-variable-update-event")]
     SysVariableUpdate(SysVariableUpdateEvent), // 系统变量更新事件
-
 
     #[strum(serialize = "custom-variable-update-event")]
     #[serde(rename = "custom-variable-update-event")]
@@ -120,8 +118,6 @@ pub enum BacktestStrategyEvent {
     StrategyPerformanceUpdate(StrategyPerformanceUpdateEvent), // 策略性能更新事件
 }
 
-
-
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // #[serde(rename_all = "camelCase")]
 // pub struct StrategyStateLogEvent {
@@ -191,8 +187,6 @@ impl PlayFinishedEvent {
     }
 }
 
-
-
 // // 策略性能更新时间
 // #[derive(Debug, Clone, Serialize)]
 // #[serde(rename_all = "camelCase")]
@@ -210,10 +204,6 @@ impl PlayFinishedEvent {
 //     }
 // }
 
-
-
-
-
 // pub mod log_event {
 
 //     use derive_more::From;
@@ -222,7 +212,6 @@ impl PlayFinishedEvent {
 //     use utoipa::ToSchema;
 //     use chrono::{DateTime, Utc};
 //     use star_river_core::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
-
 
 //     #[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
 //     #[serde(rename_all = "lowercase")]
@@ -423,6 +412,5 @@ impl PlayFinishedEvent {
 //             }
 //         }
 //     }
-
 
 // }

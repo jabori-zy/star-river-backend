@@ -1,42 +1,37 @@
-use super::StartNode;
-
 use async_trait::async_trait;
-use strategy_core::event::node_common_event::CommonEvent;
-use crate::{
-    node::node_error::BacktestNodeError, 
-    node::node_state_machine::NodeStateTransTrigger};
-use strategy_core::node::node_trait::{NodeLifecycle, NodeContextAccessor};
-use strategy_core::node::context_trait::{NodeTaskControlExt, NodeHandleExt, NodeIdentityExt, NodeStateMachineExt};
-use strategy_core::node::node_state_machine::StateMachine;
-use super::state_machine::StartNodeAction;
-use crate::node::node_message::common_log_message::*;
-use crate::node::node_message::start_node_log_message::*;
-use crate::node::node_utils::NodeUtils;
-use strategy_core::event::log_event::NodeStateLogEvent;
-use strategy_core::node::node_trait::NodeEventListener;
+use strategy_core::{
+    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
+    node::{
+        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        node_state_machine::StateMachine,
+        node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
+    },
+};
 
+use super::{StartNode, state_machine::StartNodeAction};
+use crate::node::{
+    node_error::BacktestNodeError,
+    node_message::{common_log_message::*, start_node_log_message::*},
+    node_state_machine::NodeStateTransTrigger,
+    node_utils::NodeUtils,
+};
 
 #[async_trait]
 impl NodeLifecycle for StartNode {
-
     type Error = BacktestNodeError;
 
     type Trigger = NodeStateTransTrigger;
 
     async fn init(&self) -> Result<(), Self::Error> {
-        let node_name = self.with_ctx_read(|ctx| {
-            ctx.node_name().to_string()
-        }).await;
+        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
         tracing::info!("=================init node [{node_name}]====================");
         tracing::info!("[{node_name}] start to init");
         // 开始初始化 created -> Initialize
         self.update_node_state(NodeStateTransTrigger::StartInit).await?;
 
-        let current_state = self.with_ctx_read_async(|ctx| {
-            Box::pin(async move {
-                ctx.run_state().await.clone()
-            })
-        }).await;
+        let current_state = self
+            .with_ctx_read_async(|ctx| Box::pin(async move { ctx.run_state().await.clone() }))
+            .await;
 
         tracing::info!("[{node_name}] init complete: {:?}", current_state);
         // 初始化完成 Initialize -> InitializeComplete
@@ -45,9 +40,7 @@ impl NodeLifecycle for StartNode {
     }
 
     async fn stop(&self) -> Result<(), BacktestNodeError> {
-        let node_name = self.with_ctx_read(|ctx| {
-            ctx.node_name().to_string()
-        }).await;
+        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
         tracing::info!("=================stop node [{node_name}]====================");
         tracing::info!("[{node_name}] start to stop");
         self.update_node_state(NodeStateTransTrigger::StartStop).await?;
@@ -76,7 +69,7 @@ impl NodeLifecycle for StartNode {
         // 执行转换后需要执行的动作
         for action in transition_result.actions() {
             // 克隆actions避免移动问题
-            
+
             let current_state = {
                 let state_machine = state_machine.read().await;
                 state_machine.current_state().clone()
@@ -99,7 +92,8 @@ impl NodeLifecycle for StartNode {
                         current_state.to_string(),
                         StartNodeAction::ListenAndHandleStrategyCommand.to_string(),
                         log_message.to_string(),
-                    ).into();
+                    )
+                    .into();
                     let _ = strategy_output_handle.send(log_event.into());
                     self.listen_node_command().await;
                 }
@@ -113,7 +107,8 @@ impl NodeLifecycle for StartNode {
                         current_state.to_string(),
                         StartNodeAction::ListenAndHandlePlayIndex.to_string(),
                         &strategy_output_handle,
-                    ).await;
+                    )
+                    .await;
                     self.listen_play_index_change().await;
                 }
                 StartNodeAction::InitVirtualTradingSystem => {
@@ -122,7 +117,8 @@ impl NodeLifecycle for StartNode {
                         Box::pin(async move {
                             ctx.init_virtual_trading_system().await;
                         })
-                    }).await;
+                    })
+                    .await;
                     let log_message = InitVirtualTradingSystemMsg::new(node_name.clone());
                     NodeUtils::send_success_status_event(
                         strategy_id,
@@ -132,16 +128,18 @@ impl NodeLifecycle for StartNode {
                         current_state.to_string(),
                         StartNodeAction::InitVirtualTradingSystem.to_string(),
                         &strategy_output_handle,
-                    ).await;
+                    )
+                    .await;
                 }
                 StartNodeAction::InitStrategyStats => {
                     tracing::info!("[{node_name}] start to init strategy stats");
-                    
+
                     self.with_ctx_read_async(|ctx| {
                         Box::pin(async move {
                             ctx.init_strategy_stats().await;
                         })
-                    }).await;
+                    })
+                    .await;
                     let log_message = InitStrategyStatsMsg::new(node_name.clone());
                     NodeUtils::send_success_status_event(
                         strategy_id,
@@ -151,7 +149,8 @@ impl NodeLifecycle for StartNode {
                         current_state.to_string(),
                         StartNodeAction::InitStrategyStats.to_string(),
                         &strategy_output_handle,
-                    ).await;
+                    )
+                    .await;
                 }
                 StartNodeAction::InitCustomVariables => {
                     tracing::info!("[{node_name}] start to init custom variables");
@@ -159,7 +158,8 @@ impl NodeLifecycle for StartNode {
                         Box::pin(async move {
                             ctx.init_custom_variables().await;
                         })
-                    }).await;
+                    })
+                    .await;
                     let log_message = InitCustomVariableMsg::new(node_name.clone());
                     NodeUtils::send_success_status_event(
                         strategy_id,
@@ -169,8 +169,8 @@ impl NodeLifecycle for StartNode {
                         current_state.to_string(),
                         StartNodeAction::InitCustomVariables.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
+                    )
+                    .await;
                 }
                 StartNodeAction::LogNodeState => {
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
@@ -182,28 +182,26 @@ impl NodeLifecycle for StartNode {
                         current_state.to_string(),
                         StartNodeAction::LogNodeState.to_string(),
                         &strategy_output_handle,
-                    ).await;
-                    
+                    )
+                    .await;
                 }
                 StartNodeAction::CancelAsyncTask => {
                     tracing::debug!("[{node_name}] cancel async task");
                     self.with_ctx_read(|ctx| {
                         ctx.request_cancel();
-                    }).await;
+                    })
+                    .await;
                 }
                 _ => {}
-                
             }
             // 更新状态
             // {
             //     let mut state_guard = self.context.write().await;
             //     state_guard.set_state_machine(state_machine.clone_box());
             // }
-            
+
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
         Ok(())
     }
-
 }
-

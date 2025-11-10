@@ -1,9 +1,11 @@
-use super::KlineNodeContext;
+use strategy_core::node::{
+    context_trait::{NodeHandleExt, NodeIdentityExt},
+    utils::generate_default_output_handle_id,
+};
 use tokio::sync::broadcast;
-use strategy_core::node::utils::generate_default_output_handle_id;
-use crate::node::node_event::BacktestNodeEvent;
-use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
 
+use super::KlineNodeContext;
+use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for KlineNodeContext {
     fn set_output_handles(&mut self) {
@@ -18,7 +20,6 @@ impl NodeHandleExt for KlineNodeContext {
 
         self.add_output_handle(default_output_handle_id, tx);
 
-
         // 添加每一个symbol的出口
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.output_handle_id.clone();
@@ -26,6 +27,5 @@ impl NodeHandleExt for KlineNodeContext {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(symbol_output_handle_id, tx);
         }
-        
     }
 }

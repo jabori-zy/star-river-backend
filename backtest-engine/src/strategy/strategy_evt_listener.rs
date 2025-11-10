@@ -1,11 +1,12 @@
-use super::BacktestStrategy;
-use futures::StreamExt;
-use futures::stream::select_all;
-use tokio_stream::wrappers::BroadcastStream;
-use strategy_core::strategy::strategy_trait::{StrategyEventListener, StrategyContextAccessor};
-use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt, StrategyTaskControlExt, StrategyEventHandlerExt};
 use async_trait::async_trait;
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+use futures::{StreamExt, stream::select_all};
+use strategy_core::strategy::{
+    context_trait::{StrategyCommunicationExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyTaskControlExt, StrategyWorkflowExt},
+    strategy_trait::{StrategyContextAccessor, StrategyEventListener},
+};
+use tokio_stream::wrappers::BroadcastStream;
+
+use super::BacktestStrategy;
 
 #[async_trait]
 impl StrategyEventListener for BacktestStrategy {

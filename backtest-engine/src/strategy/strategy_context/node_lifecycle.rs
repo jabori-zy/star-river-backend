@@ -1,20 +1,22 @@
-use super::BacktestStrategyContext;
-use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyInfraExt, StrategyWorkflowExt};
-use crate::strategy::strategy_error::BacktestStrategyError;
-use snafu::IntoError;
-use tokio::time::Duration;
-use strategy_core::{error::strategy_error::{NodeInitTimeoutSnafu, NodeStateNotReadySnafu, TokioTaskFailedSnafu}};
-use crate::node::node_state_machine::NodeRunState;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+
 use async_trait::async_trait;
 use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use crate::strategy::strategy_error::UpdateStrategyStatusFailedSnafu;
-use snafu::ResultExt;
+use snafu::{IntoError, ResultExt};
+use strategy_core::{
+    error::strategy_error::{NodeInitTimeoutSnafu, NodeStateNotReadySnafu, TokioTaskFailedSnafu},
+    strategy::context_trait::{StrategyIdentityExt, StrategyInfraExt, StrategyWorkflowExt},
+};
+use tokio::{sync::RwLock, time::Duration};
+
+use super::BacktestStrategyContext;
+use crate::{
+    node::node_state_machine::NodeRunState,
+    strategy::strategy_error::{BacktestStrategyError, UpdateStrategyStatusFailedSnafu},
+};
 
 #[async_trait]
 impl StrategyWorkflowExt for BacktestStrategyContext {
-
     type Error = BacktestStrategyError;
 
     async fn init_node(context: Arc<RwLock<Self>>) -> Result<(), Self::Error> {
@@ -25,11 +27,9 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
 
         // 逐个初始化节点，不持有锁
         for n in nodes {
-            let node_clone = n.clone(); 
+            let node_clone = n.clone();
             let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
-                node_clone
-                    .init()
-                    .await?;
+                node_clone.init().await?;
                 Ok(())
             });
 
@@ -45,14 +45,13 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
                             node_name,
                         }
                         .into_error(e)
-                        .into()
-                    );
-                }
+                        .into());
+                    }
 
-                if let Ok(Err(e)) = result {
-                    return Err(e);
+                    if let Ok(Err(e)) = result {
+                        return Err(e);
+                    }
                 }
-            }
                 Err(e) => {
                     return Err(NodeInitTimeoutSnafu {
                         strategy_name: strategy_name.clone(),
@@ -161,7 +160,6 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
     }
 }
 
-
 impl BacktestStrategyContext {
     pub async fn wait_for_all_nodes_stopped(&self, timeout_secs: u64) -> Result<bool, BacktestStrategyError> {
         let start_time = std::time::Instant::now();
@@ -170,7 +168,7 @@ impl BacktestStrategyContext {
         let nodes = self.topological_sort()?;
         loop {
             let mut all_stopped = true;
-            
+
             // 检查所有节点状态
             for node in nodes.iter() {
                 if !node.is_in_state(NodeRunState::Stopped).await {
@@ -194,8 +192,7 @@ impl BacktestStrategyContext {
             // 短暂休眠后再次检查
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         }
-    }  
-
+    }
 
     pub async fn store_strategy_status(&mut self, status: String) -> Result<(), BacktestStrategyError> {
         let strategy_id = self.strategy_id();
@@ -208,5 +205,5 @@ impl BacktestStrategyContext {
                 strategy_name: strategy_name,
             })?;
         Ok(())
-    } 
+    }
 }

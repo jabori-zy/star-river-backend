@@ -1,16 +1,12 @@
 // third-party
 use petgraph::{Direction, graph::NodeIndex};
+use strategy_core::{node::NodeTrait, strategy::context_trait::StrategyWorkflowExt};
 
 // current crate
 use super::BacktestStrategyContext;
-use strategy_core::strategy::context_trait::StrategyWorkflowExt;
-use strategy_core::node::NodeTrait;
-
 
 impl BacktestStrategyContext {
-    pub async fn build_leaf_nodes(
-        &mut self,
-    ) {
+    pub async fn build_leaf_nodes(&mut self) {
         let leaf_nodes: Vec<NodeIndex> = self.get_leaf_node_indexs();
         let mut leaf_node_ids = Vec::new();
         for node_index in leaf_nodes {

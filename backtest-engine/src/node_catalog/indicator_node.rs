@@ -4,63 +4,44 @@ mod node_lifecycle;
 mod state_machine;
 
 // Standard library imports
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+// Local module imports
+use context::IndicatorNodeContext;
+use indicator_node_type::{ExchangeModeConfig, IndicatorNodeBacktestConfig};
+// External project crates
+use key::{IndicatorKey, KlineKey};
 // External crate imports
 use serde::de::IntoDeserializer;
 use snafu::ResultExt;
-use tokio::sync::{Mutex, RwLock, mpsc};
-
-// External project crates
-use key::{IndicatorKey, KlineKey};
 use star_river_core::{
     custom_type::{NodeId, NodeName, StrategyId},
     system::deserialize_time_range,
 };
+use state_machine::{IndicatorNodeStateMachine, indicator_node_transition};
 use strategy_core::{
     NodeType,
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{
-        NodeBase,
-        metadata::NodeMetadata,
-        node_trait::NodeContextAccessor,
-        utils::generate_strategy_output_handle,
-    },
+    node::{NodeBase, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
     strategy::{SelectedAccount, SelectedIndicator, SelectedSymbol},
 };
 use ta_lib::IndicatorConfig;
+use tokio::sync::{Mutex, RwLock, mpsc};
 
 // Crate imports
 use crate::{
     node::{
         node_command::BacktestNodeCommand,
-        node_error::{
-            BacktestNodeError,
-            IndicatorNodeError,
-            indicator_node_error::DataSourceParseFailedSnafu,
-        },
+        node_error::{BacktestNodeError, IndicatorNodeError, indicator_node_error::DataSourceParseFailedSnafu},
         node_event::BacktestNodeEvent,
         node_state_machine::NodeRunState,
     },
-    strategy::{
-        PlayIndex,
-        strategy_command::BacktestStrategyCommand,
-        strategy_config::BacktestDataSource,
-    },
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand, strategy_config::BacktestDataSource},
 };
-
-// Local module imports
-use context::IndicatorNodeContext;
-use indicator_node_type::{ExchangeModeConfig, IndicatorNodeBacktestConfig};
-use state_machine::{IndicatorNodeStateMachine, indicator_node_transition};
 
 #[derive(Debug, Clone)]
 pub struct IndicatorNode {
-    inner: NodeBase<IndicatorNodeContext>
+    inner: NodeBase<IndicatorNodeContext>,
 }
 
 impl std::ops::Deref for IndicatorNode {
@@ -78,8 +59,6 @@ impl NodeContextAccessor for IndicatorNode {
     }
 }
 
-
-
 impl IndicatorNode {
     pub fn new(
         node_config: serde_json::Value,
@@ -91,11 +70,7 @@ impl IndicatorNode {
 
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
 
-        let state_machine = IndicatorNodeStateMachine::new(
-            node_name.clone(),
-            NodeRunState::Created,
-            indicator_node_transition,
-        );
+        let state_machine = IndicatorNodeStateMachine::new(node_name.clone(), NodeRunState::Created, indicator_node_transition);
 
         let metadata = NodeMetadata::new(
             strategy_id,
@@ -112,18 +87,11 @@ impl IndicatorNode {
         // 通过配置，获取回测K线缓存键
         let selected_kline_key = Self::get_kline_key(&node_config);
 
-        let context = IndicatorNodeContext::new(
-            metadata,
-            node_config,
-            play_index_watch_rx,
-            selected_kline_key,
-            indicator_keys,
-        );
+        let context = IndicatorNodeContext::new(metadata, node_config, play_index_watch_rx, selected_kline_key, indicator_keys);
         Ok(Self {
-            inner: NodeBase::new(context)
+            inner: NodeBase::new(context),
         })
     }
-
 
     fn check_indicator_node_config(
         node_config: serde_json::Value,

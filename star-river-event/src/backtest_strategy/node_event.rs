@@ -7,8 +7,6 @@ pub mod position_node_event;
 pub mod start_node_event;
 pub mod variable_node_event;
 
-
-
 // pub use common_event::CommonEvent;
 pub use futures_order_node_event::FuturesOrderNodeEvent;
 pub use if_else_node_event::IfElseNodeEvent;

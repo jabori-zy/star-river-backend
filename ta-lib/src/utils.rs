@@ -1,14 +1,10 @@
-use snafu::ResultExt;
 use std::collections::HashMap;
+
+use snafu::ResultExt;
+
 use crate::error::{
-    TaLibError,
-    InvalidConfigFormatSnafu,
-    ParamEmptySnafu,
-    ParamFormatInvalidSnafu,
-    ConfigMissParamSnafu,
-    ParseIntParamFailedSnafu,
-    ParseFloatParamFailedSnafu,
-    ParseSpecialParamFailedSnafu,
+    ConfigMissParamSnafu, InvalidConfigFormatSnafu, ParamEmptySnafu, ParamFormatInvalidSnafu, ParseFloatParamFailedSnafu,
+    ParseIntParamFailedSnafu, ParseSpecialParamFailedSnafu, TaLibError,
 };
 
 pub fn parse_indicator_config_from_str(s: &str) -> Result<(String, HashMap<String, String>), TaLibError> {
@@ -62,32 +58,20 @@ pub fn parse_indicator_config_from_str(s: &str) -> Result<(String, HashMap<Strin
 
 /// 从参数HashMap中获取必需的整数参数
 pub fn get_required_i32_param(params: &HashMap<String, String>, key: &str) -> Result<i32, TaLibError> {
-    let value = params
-        .get(key)
-        .ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
-    value
-        .parse::<i32>()
-        .context(ParseIntParamFailedSnafu { param: key.to_string() })
+    let value = params.get(key).ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
+    value.parse::<i32>().context(ParseIntParamFailedSnafu { param: key.to_string() })
 }
 
 /// 从参数HashMap中获取必需的浮点数参数
 pub fn get_required_f64_param(params: &HashMap<String, String>, key: &str) -> Result<f64, TaLibError> {
-    let value = params
-        .get(key)
-        .ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
-    value
-        .parse::<f64>()
-        .context(ParseFloatParamFailedSnafu { param: key.to_string() })
+    let value = params.get(key).ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
+    value.parse::<f64>().context(ParseFloatParamFailedSnafu { param: key.to_string() })
 }
 
 /// 从参数HashMap中获取必需的f32浮点数参数
 pub fn get_required_f32_param(params: &HashMap<String, String>, key: &str) -> Result<f32, TaLibError> {
-    let value = params
-        .get(key)
-        .ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
-    value
-        .parse::<f32>()
-        .context(ParseFloatParamFailedSnafu { param: key.to_string() })
+    let value = params.get(key).ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
+    value.parse::<f32>().context(ParseFloatParamFailedSnafu { param: key.to_string() })
 }
 
 /// 从参数HashMap中获取必需的字符串参数并解析为指定类型
@@ -96,9 +80,7 @@ where
     T: std::str::FromStr,
     T::Err: std::fmt::Display,
 {
-    let value = params
-        .get(key)
-        .ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
+    let value = params.get(key).ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
     value.parse::<T>().map_err(|e| {
         ParseSpecialParamFailedSnafu {
             param: key.to_string(),

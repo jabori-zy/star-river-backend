@@ -55,6 +55,7 @@ pub fn backtest_engine_transition(
         _ => EngineTransitionSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.fail(),
+        }
+        .fail(),
     }
 }

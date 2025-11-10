@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-
 use strategy_core::strategy::SelectedAccount;
 use strum::{Display, EnumString};
 

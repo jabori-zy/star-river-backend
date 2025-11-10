@@ -1,5 +1,5 @@
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
+
 use tokio::sync::RwLock;
 
 use crate::{
@@ -97,12 +97,7 @@ where
     ///
     /// # Returns
     /// Returns a new `ExchangeBase` instance
-    pub fn new(
-        http_client: H,
-        processor: P,
-        metadata: M,
-        state_machine: ExchangeStateMachine<A>,
-    ) -> Self {
+    pub fn new(http_client: H, processor: P, metadata: M, state_machine: ExchangeStateMachine<A>) -> Self {
         Self {
             http_client: Arc::new(http_client),
             ws_client: Arc::new(RwLock::new(None)),
@@ -141,7 +136,6 @@ where
     pub fn ws_client(&self) -> &Arc<RwLock<Option<W>>> {
         &self.ws_client
     }
-
 
     pub async fn set_ws_client(&self, ws_client: W) {
         let mut guard = self.ws_client.write().await;
@@ -221,8 +215,6 @@ where
         self.state_machine.read().await.is_in_state(state)
     }
 }
-
-
 
 // ============================================================================
 // MetadataAccessor Implementation

@@ -1,15 +1,16 @@
-use exchange_core::state_machine::{ExchangeAction, ExchangeRunState, ExchangeStateTransTrigger, ExchangeStateMachine, StateChangeActions, Metadata};
-use exchange_core::error::state_machine_error::{ExchangeStateMachineError, ExchangeTransitionSnafu};
-
+use exchange_core::{
+    error::state_machine_error::{ExchangeStateMachineError, ExchangeTransitionSnafu},
+    state_machine::{ExchangeAction, ExchangeRunState, ExchangeStateMachine, ExchangeStateTransTrigger, Metadata, StateChangeActions},
+};
 
 pub type BinanceStateMachine = ExchangeStateMachine<BinanceAction>;
 
 #[derive(Debug, Clone)]
 pub enum BinanceAction {
-    InitHttpClient, // initialize the http client
-    InitWsClient,  // initialize the websocket client
+    InitHttpClient,   // initialize the http client
+    InitWsClient,     // initialize the websocket client
     LogExchangeState, // log the state of the binance
-    LogTransition, // log the transition result of the binance
+    LogTransition,    // log the transition result of the binance
     LogError(String), // log the error of the binance
 }
 
@@ -53,6 +54,7 @@ pub fn binance_transition(
         _ => ExchangeTransitionSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.fail(),
+        }
+        .fail(),
     }
 }

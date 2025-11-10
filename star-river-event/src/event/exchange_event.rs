@@ -2,10 +2,11 @@ use chrono::Utc;
 use derive_more::From;
 use event_center_core::event::Event;
 use serde::{Deserialize, Serialize};
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::{Kline, KlineInterval};
-use star_river_core::system::TimeRange;
-use star_river_core::system::DateTimeUtc;
+use star_river_core::{
+    exchange::Exchange,
+    kline::{Kline, KlineInterval},
+    system::{DateTimeUtc, TimeRange},
+};
 use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
@@ -21,7 +22,6 @@ pub enum ExchangeEvent {
     // #[strum(serialize = "exchange-ticker-price-update")]
     // #[serde(rename = "exchange-ticker-price-update")]
     // ExchangeTickerPriceUpdate(ExchangeTickerPriceUpdateEvent),
-
     #[strum(serialize = "exchange-kline-history-update")]
     #[serde(rename = "exchange-kline-history-update")]
     ExchangeKlineHistoryUpdate(ExchangeKlineHistoryUpdateEvent),

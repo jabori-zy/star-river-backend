@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use star_river_core::custom_type::StrategyId;
-use crate::benchmark::strategy_benchmark::StrategyPerformanceReport;
-use crate::event::log_event::LogLevel;
-use chrono::{DateTime, Utc};
+
+use crate::{benchmark::strategy_benchmark::StrategyPerformanceReport, event::log_event::LogLevel};
 
 // 策略性能更新时间
 #[derive(Debug, Clone, Serialize)]
@@ -14,17 +14,9 @@ pub struct StrategyPerformanceUpdateEvent {
 
 impl StrategyPerformanceUpdateEvent {
     pub fn new(strategy_id: StrategyId, report: StrategyPerformanceReport) -> Self {
-        Self {
-            strategy_id,
-            report,
-        }
+        Self { strategy_id, report }
     }
 }
-
-
-
-
-
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

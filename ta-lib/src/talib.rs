@@ -1,9 +1,7 @@
-pub mod lookback;
 pub mod fn_define;
+pub mod lookback;
 pub mod talib_macros;
 use crate::talib_bindings::*;
-
-
 
 #[derive(Clone)]
 pub struct TALib;

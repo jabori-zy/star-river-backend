@@ -1,21 +1,19 @@
-use std::fmt::Debug;
-use std::collections::HashMap;
-use std::sync::Arc;
-
-// third-party
-use tokio_util::sync::CancellationToken;
-use tokio::sync::{mpsc, broadcast, Mutex, RwLock};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
-use crate::node::{
-    NodeType,
-    node_handles::{HandleId,NodeInputHandle, NodeOutputHandle},
-};
-use super::node_state_machine::StateMachine;
-use super::utils::generate_default_output_handle_id;
-use crate::communication::{NodeCommandTrait, StrategyCommandTrait};
-use crate::event::node::NodeEventTrait;
+// third-party
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
+use tokio_util::sync::CancellationToken;
 
+use super::{node_state_machine::StateMachine, utils::generate_default_output_handle_id};
+use crate::{
+    communication::{NodeCommandTrait, StrategyCommandTrait},
+    event::node::NodeEventTrait,
+    node::{
+        NodeType,
+        node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
+    },
+};
 
 /// M: Node State Machine
 /// E: Node Event
@@ -45,10 +43,7 @@ where
     strategy_command_sender: mpsc::Sender<X>,
     node_command_receiver: Arc<Mutex<mpsc::Receiver<C>>>,
     is_leaf_node: bool,
-    
 }
-
-
 
 impl<M, E, C, X> NodeMetadata<M, E, C, X>
 where
@@ -88,8 +83,6 @@ where
     }
 }
 
-
-
 impl<M, E, C, X> NodeMetadata<M, E, C, X>
 where
     M: StateMachine,
@@ -97,9 +90,6 @@ where
     C: NodeCommandTrait,
     X: StrategyCommandTrait,
 {
-
-
-
     pub fn cycle_id(&self) -> CycleId {
         self.cycle_id
     }
@@ -111,7 +101,6 @@ where
     pub fn increment_cycle_id(&mut self) {
         self.cycle_id += 1;
     }
-
 
     /// Get node id
     pub fn node_id(&self) -> &NodeId {

@@ -1,65 +1,38 @@
 // External crate imports
 use snafu::ResultExt;
+// Current crate imports - star_river_core
+use star_river_core::{custom_type::NodeId, system::DateTimeUtc};
+// Current crate imports - star_river_event
+use star_river_event::backtest_strategy::node_event::{
+    IfElseNodeEvent,
+    if_else_node_event::{ConditionMatchEvent, ConditionMatchPayload},
+};
+// Current crate imports - strategy_core
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    communication::strategy::StrategyResponse,
+    event::{
+        log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
+    },
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},
+};
 use tokio::sync::oneshot;
 
-// Current crate imports - star_river_core
-use star_river_core::custom_type::NodeId;
-use star_river_core::system::DateTimeUtc;
-
-// Current crate imports - star_river_event
-use star_river_event::backtest_strategy::node_event::IfElseNodeEvent;
-use star_river_event::backtest_strategy::node_event::if_else_node_event::{
-    ConditionMatchEvent,
-    ConditionMatchPayload,
-};
-
-// Current crate imports - strategy_core
-use strategy_core::benchmark::node_benchmark::CycleTracker;
-use strategy_core::communication::strategy::StrategyResponse;
-use strategy_core::event::log_event::{
-    StrategyRunningLogEvent,
-    StrategyRunningLogSource,
-    StrategyRunningLogType,
-};
-use strategy_core::event::node_common_event::{
-    CommonEvent,
-    TriggerEvent,
-    TriggerPayload,
-};
-use strategy_core::node::context_trait::{
-    NodeBenchmarkExt,
-    NodeCommunicationExt,
-    NodeHandleExt,
-    NodeIdentityExt,
-    NodeRelationExt,
-};
-use strategy_core::node_infra::if_else_node::{
-    Case,
-    Condition,
-    ConditionResult,
-    FormulaRight,
-    LogicalSymbol,
-};
-
-// Local module imports
-use crate::node::node_error::IfElseNodeError;
-use crate::node::node_error::if_else_node_error::EvaluateResultSerializationFailedSnafu;
-use crate::node::node_message::if_else_node_log_message::ConditionMatchedMsg;
-use crate::node_catalog::if_else_node::utils::{
-    compare,
-    parse_condition_left_value,
-    parse_condition_right_value,
-};
-use crate::strategy::strategy_command::{
-    GetCurrentTimeCommand,
-    GetCurrentTimeCmdPayload,
-};
-
 // Relative imports
-use super::{ConfigId, IfElseNodeContext, IfElseNodeBacktestConfig};
+use super::{ConfigId, IfElseNodeBacktestConfig, IfElseNodeContext};
+// Local module imports
+use crate::{
+    node::{
+        node_error::{IfElseNodeError, if_else_node_error::EvaluateResultSerializationFailedSnafu},
+        node_message::if_else_node_log_message::ConditionMatchedMsg,
+    },
+    node_catalog::if_else_node::utils::{compare, parse_condition_left_value, parse_condition_right_value},
+    strategy::strategy_command::{GetCurrentTimeCmdPayload, GetCurrentTimeCommand},
+};
 
 impl IfElseNodeContext {
-
     pub fn update_received_flag(&mut self, from_node_id: NodeId, from_variable_id: ConfigId, flag: bool) {
         self.received_flag
             .entry((from_node_id, from_variable_id))
@@ -76,16 +49,13 @@ impl IfElseNodeContext {
                 let key = (condition.left.node_id.clone(), condition.left.var_config_id);
                 self.received_flag.insert(key.clone(), false);
                 self.received_message.insert(key, None);
-                
 
                 // 处理右值（如果是变量类型）
                 if let FormulaRight::Variable(variable) = &condition.right {
                     let key = (variable.node_id.clone(), variable.var_config_id);
                     self.received_flag.insert(key.clone(), false);
                     self.received_message.insert(key, None);
-
                 }
-
             }
         }
         tracing::debug!(node_id = %self.node_id(), "init received data success: {:?}, {:?}", self.received_flag, self.received_message);
@@ -105,7 +75,6 @@ impl IfElseNodeContext {
     // 开始评估各个分支
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
         let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
-
 
         let mut case_matched = false; // 是否匹配到case
         let current_time = self.get_current_time().await.unwrap();
@@ -168,7 +137,9 @@ impl IfElseNodeContext {
             ConditionMatchEvent::new(from_node_id.clone(), from_node_name.clone(), case_output_handle_id, payload).into();
 
         // 创建并发送日志事件
-        let condition_result_json = serde_json::to_value(condition_results).context(EvaluateResultSerializationFailedSnafu {node_name: self.node_name().clone()})?;
+        let condition_result_json = serde_json::to_value(condition_results).context(EvaluateResultSerializationFailedSnafu {
+            node_name: self.node_name().clone(),
+        })?;
         let message = ConditionMatchedMsg::new(from_node_name.clone(), case.case_id);
         let log_event: CommonEvent = StrategyRunningLogEvent::success(
             strategy_id,
@@ -179,7 +150,8 @@ impl IfElseNodeContext {
             message.to_string(),
             condition_result_json,
             current_time,
-        ).into();
+        )
+        .into();
         let _ = strategy_output_handle.send(log_event.into());
 
         // 根据节点类型处理事件发送
@@ -233,7 +205,6 @@ impl IfElseNodeContext {
             let _ = else_output_handle.send(else_event.into());
         }
     }
-
 
     pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
         match case.logical_symbol {

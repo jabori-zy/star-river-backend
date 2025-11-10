@@ -1,18 +1,12 @@
 // std
 use std::fmt::Debug;
 
+// workspace crate
+use star_river_core::custom_type::NodeId;
 // third-party
 use tokio::sync::broadcast;
 
-// workspace crate
-use star_river_core::custom_type::NodeId;
-
-
 pub type HandleId = String;
-
-
-
-
 
 #[derive(Debug)]
 pub struct NodeInputHandle<E: Clone> {
@@ -24,12 +18,7 @@ pub struct NodeInputHandle<E: Clone> {
 }
 
 impl<E: Clone> NodeInputHandle<E> {
-    pub fn new(
-        from_node_id: String,
-        from_handle_id: String,
-        input_handle_id: HandleId,
-        receiver: broadcast::Receiver<E>,
-    ) -> Self {
+    pub fn new(from_node_id: String, from_handle_id: String, input_handle_id: HandleId, receiver: broadcast::Receiver<E>) -> Self {
         Self {
             from_node_id,
             from_handle_id,
@@ -92,9 +81,7 @@ impl<E> NodeOutputHandle<E> {
     }
 
     pub fn send(&self, event: E) -> Result<usize, tokio::sync::broadcast::error::SendError<E>> {
-        
         self.node_event_sender.send(event)
-        
     }
 
     pub fn subscribe(&mut self, subscriber_id: String) -> broadcast::Receiver<E> {

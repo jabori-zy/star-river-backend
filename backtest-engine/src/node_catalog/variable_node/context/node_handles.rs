@@ -1,12 +1,12 @@
-use super::VariableNodeContext;
-use tokio::sync::broadcast;
-use crate::node::node_event::BacktestNodeEvent;
-use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
 use star_river_core::order::OrderType;
+use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
+use tokio::sync::broadcast;
+
+use super::VariableNodeContext;
+use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for VariableNodeContext {
     fn set_output_handles(&mut self) {
-
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
         let variable_configs = self.node_config.variable_configs.clone();
@@ -21,8 +21,6 @@ impl NodeHandleExt for VariableNodeContext {
         let default_output_handle_id = format!("{}_default_output", node_id);
         tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
         self.add_output_handle(default_output_handle_id, tx);
-
-        
 
         for variable in variable_configs {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);

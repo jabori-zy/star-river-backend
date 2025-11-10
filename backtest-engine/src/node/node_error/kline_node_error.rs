@@ -1,6 +1,7 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode, generate_error_code_chain};
-use snafu::{Backtrace, Snafu};
 use std::sync::Arc;
+
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -73,19 +74,18 @@ impl StarRiverErrorTrait for KlineNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            KlineNodeError::RegisterExchangeFailed { .. } => 1001, // register exchange failed
-            KlineNodeError::GetPlayKlineDataFailed { .. } => 1002, // get play kline data failed
-            KlineNodeError::KlineTimestampNotEqual { .. } => 1003, // kline timestamp not equal
-            KlineNodeError::NoMinIntervalSymbol { .. } => 1004,    // no min interval symbol found
+            KlineNodeError::RegisterExchangeFailed { .. } => 1001,      // register exchange failed
+            KlineNodeError::GetPlayKlineDataFailed { .. } => 1002,      // get play kline data failed
+            KlineNodeError::KlineTimestampNotEqual { .. } => 1003,      // kline timestamp not equal
+            KlineNodeError::NoMinIntervalSymbol { .. } => 1004,         // no min interval symbol found
             KlineNodeError::LoadKlineFromExchangeFailed { .. } => 1005, // load kline from exchange failed
-            KlineNodeError::InitKlineDataFailed { .. } => 1006,    // init kline data failed
-            KlineNodeError::AppendKlineDataFailed { .. } => 1007,  // append kline data failed
-            KlineNodeError::InsufficientMetaTrader5KlineData { .. } => 1008,  // insufficient meta trader 5 kline data
+            KlineNodeError::InitKlineDataFailed { .. } => 1006,         // init kline data failed
+            KlineNodeError::AppendKlineDataFailed { .. } => 1007,       // append kline data failed
+            KlineNodeError::InsufficientMetaTrader5KlineData { .. } => 1008, // insufficient meta trader 5 kline data
         };
 
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn http_status_code(&self) -> StatusCode {
         match self {
@@ -98,7 +98,6 @@ impl StarRiverErrorTrait for KlineNodeError {
             // 服务器内部错误
             KlineNodeError::GetPlayKlineDataFailed { .. } | // 500 - get play kline data failed
             KlineNodeError::KlineTimestampNotEqual { .. } => StatusCode::INTERNAL_SERVER_ERROR, // 500 - kline timestamp not equal
-            
             KlineNodeError::NoMinIntervalSymbol { .. } => StatusCode::NOT_FOUND, // 404 - no min interval symbol found
             KlineNodeError::InsufficientMetaTrader5KlineData { .. } => StatusCode::BAD_REQUEST, // 400 - insufficient meta trader 5 kline data
         }
@@ -107,11 +106,11 @@ impl StarRiverErrorTrait for KlineNodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // For transparent errors, delegate to the inner error's chain
-            KlineNodeError::RegisterExchangeFailed { source, .. } |
-            KlineNodeError::LoadKlineFromExchangeFailed { source, .. } |
-            KlineNodeError::InitKlineDataFailed { source, .. } |
-            KlineNodeError::AppendKlineDataFailed { source, .. } |
-            KlineNodeError::GetPlayKlineDataFailed { source, .. } => generate_error_code_chain(source.as_ref()),
+            KlineNodeError::RegisterExchangeFailed { source, .. }
+            | KlineNodeError::LoadKlineFromExchangeFailed { source, .. }
+            | KlineNodeError::InitKlineDataFailed { source, .. }
+            | KlineNodeError::AppendKlineDataFailed { source, .. }
+            | KlineNodeError::GetPlayKlineDataFailed { source, .. } => generate_error_code_chain(source.as_ref()),
 
             _ => vec![self.error_code()],
         }
@@ -152,11 +151,16 @@ impl StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::AppendKlineDataFailed { source, .. } => {
                     format!("追加K线数据失败。原因: [{}]", source)
                 }
-                KlineNodeError::InsufficientMetaTrader5KlineData {first_kline_datetime,start_time,end_time,..} => {
+                KlineNodeError::InsufficientMetaTrader5KlineData {
+                    first_kline_datetime,
+                    start_time,
+                    end_time,
+                    ..
+                } => {
                     format!(
                         "回测时间范围从{start_time}到{end_time}，但第一根K线的时间为{first_kline_datetime}。 前往Metatrader5终端的工具-> 选项 -> 图表，然后将最大图表数据量设置为Unlimited，然后重启Metatrader5。"
                     )
-                },
+                }
             },
         }
     }

@@ -1,7 +1,6 @@
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
-use snafu::{Backtrace, Snafu};
 use exchange_core::error::DataProcessorError;
-
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -22,7 +21,6 @@ impl StarRiverErrorTrait for BinanceDataProcessorError {
             BinanceDataProcessorError::DataProcessorError { source, .. } => source.error_code(),
         }
     }
-
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {

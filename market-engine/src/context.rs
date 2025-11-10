@@ -1,31 +1,25 @@
-mod symbol_handler;
 mod event_handler;
+mod symbol_handler;
 
+use std::{collections::HashMap, sync::Arc};
 
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use std::collections::HashMap;
-use star_river_core::custom_type::StrategyId;
-use super::subkey::KlineSubKey;
-use engine_core::EngineBaseContext;
-use super::state_machine::MarketEngineAction;
+use engine_core::{EngineBaseContext, EngineContextAccessor, context_trait::EngineContextTrait, state_machine::EngineRunState};
 use exchange_engine::ExchangeEngine;
-use crate::state_machine::{MarketEngineStateMachine, market_engine_transition};
-use engine_core::state_machine::EngineRunState;
-use engine_core::context_trait::EngineContextTrait;
-use star_river_core::custom_type::AccountId;
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::KlineInterval;
-use star_river_core::system::TimeRange;
-use star_river_core::kline::Kline;
-use crate::error::MarketEngineError;
 use snafu::Report;
-use engine_core::EngineContextAccessor;
-use star_river_core::engine::EngineName;
+use star_river_core::{
+    custom_type::{AccountId, StrategyId},
+    engine::EngineName,
+    exchange::Exchange,
+    kline::{Kline, KlineInterval},
+    system::TimeRange,
+};
+use tokio::sync::Mutex;
 
-
-
-
+use super::{state_machine::MarketEngineAction, subkey::KlineSubKey};
+use crate::{
+    error::MarketEngineError,
+    state_machine::{MarketEngineStateMachine, market_engine_transition},
+};
 
 #[derive(Debug, Clone)]
 pub struct MarketEngineContext {
@@ -34,20 +28,15 @@ pub struct MarketEngineContext {
     pub subscribe_klines: Arc<Mutex<HashMap<KlineSubKey, Vec<StrategyId>>>>, // 已订阅的k线
 }
 
-
 impl MarketEngineContext {
     pub fn new(exchange_engine: Arc<Mutex<ExchangeEngine>>) -> Self {
-
         let state_machine = MarketEngineStateMachine::new(
             EngineName::MarketEngine.to_string(),
             EngineRunState::Created,
-            market_engine_transition
+            market_engine_transition,
         );
-        let base_context = EngineBaseContext::new(
-            EngineName::MarketEngine,
-            state_machine
-        );
-        
+        let base_context = EngineBaseContext::new(EngineName::MarketEngine, state_machine);
+
         Self {
             base_context,
             exchange_engine,
@@ -55,7 +44,6 @@ impl MarketEngineContext {
         }
     }
 }
-
 
 impl EngineContextTrait for MarketEngineContext {
     type Action = MarketEngineAction;
@@ -66,12 +54,7 @@ impl EngineContextTrait for MarketEngineContext {
     fn base_context_mut(&mut self) -> &mut EngineBaseContext<MarketEngineAction> {
         &mut self.base_context
     }
-
 }
-
-
-
-
 
 impl MarketEngineContext {
     // async fn add_kline_key(
@@ -137,9 +120,7 @@ impl MarketEngineContext {
     /// 检查交易所是否已注册
     async fn exchange_is_registered(&self, account_id: AccountId) -> bool {
         let exchange_engine_guard = self.exchange_engine.lock().await;
-        exchange_engine_guard
-            .with_ctx_read(|ctx| ctx.is_registered(&account_id))
-            .await
+        exchange_engine_guard.with_ctx_read(|ctx| ctx.is_registered(&account_id)).await
     }
 
     /// 订阅 K 线流
@@ -276,8 +257,7 @@ impl MarketEngineContext {
                 let interval_clone = interval.clone();
                 Box::pin(async move {
                     // 获取交易所客户端
-                    let exchange_client = ctx.get_exchange_instance(&account_id).await
-                        .map_err(|e| e.to_string())?;
+                    let exchange_client = ctx.get_exchange_instance(&account_id).await.map_err(|e| e.to_string())?;
 
                     // 获取历史 k 线数据
                     let kline_history = exchange_client

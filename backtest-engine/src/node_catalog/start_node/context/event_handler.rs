@@ -3,26 +3,23 @@
 // ============================================================================
 
 use async_trait::async_trait;
-
-// ============================================================================
-// 当前 crate 内部导入（使用绝对路径）
-// ============================================================================
-
-use strategy_core::node::context_trait::{NodeIdentityExt,NodeEventHandlerExt};
 use event_center::event::Event;
-use crate::node::node_command::{BacktestNodeCommand, GetStartNodeConfigRespPayload, GetStartNodeConfigResponse, NodeResetRespPayload, NodeResetResponse};
+use strategy_core::node::context_trait::{NodeEventHandlerExt, NodeIdentityExt};
 
 // ============================================================================
 // 当前模块内部导入（相对路径）
 // ============================================================================
-
 use super::StartNodeContext;
+// ============================================================================
+// 当前 crate 内部导入（使用绝对路径）
+// ============================================================================
+use crate::node::node_command::{
+    BacktestNodeCommand, GetStartNodeConfigRespPayload, GetStartNodeConfigResponse, NodeResetRespPayload, NodeResetResponse,
+};
 
 #[async_trait]
 impl NodeEventHandlerExt for StartNodeContext {
-
     type EngineEvent = Event;
-
 
     /// 处理引擎事件
     async fn handle_engine_event(&mut self, event: Self::EngineEvent) {
@@ -33,7 +30,7 @@ impl NodeEventHandlerExt for StartNodeContext {
     async fn handle_node_event(&mut self, node_event: Self::NodeEvent) {
         tracing::info!("[{}] received node event: {:?}", self.node_name(), node_event);
     }
-    
+
     async fn handle_node_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::GetStartNodeConfig(cmd) => {
@@ -45,7 +42,7 @@ impl NodeEventHandlerExt for StartNodeContext {
             }
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
-                    let payload = NodeResetRespPayload{};
+                    let payload = NodeResetRespPayload {};
                     let response = NodeResetResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
                 }

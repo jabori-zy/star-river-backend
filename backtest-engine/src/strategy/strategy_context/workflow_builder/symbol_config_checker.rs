@@ -3,26 +3,23 @@ use std::collections::HashMap;
 
 // third-party
 use chrono::Utc;
-
 // workspace crate
-use star_river_core::{
-    kline::Kline,
-};
-use key::{KeyTrait, KlineKey, Key};
+use key::{Key, KeyTrait, KlineKey};
+use star_river_core::kline::Kline;
+use strategy_core::strategy::context_trait::StrategyIdentityExt;
 
 // current crate
 use super::BacktestStrategyContext;
 use crate::strategy::strategy_error::{BacktestStrategyError, IntervalNotSameSnafu};
-use strategy_core::strategy::context_trait::StrategyIdentityExt;
 
 // 检查策略的symbol配置
 impl BacktestStrategyContext {
     pub async fn check_symbol_config(&mut self) -> Result<(), BacktestStrategyError> {
         let strategy_name = self.strategy_name();
         tracing::info!("[{}] start check symbol config", strategy_name);
-    
+
         let keys = self.keys().await;
-    
+
         let mut min_symbol_map: HashMap<String, KlineKey> = HashMap::new();
         for (key, _) in keys {
             if let Key::Kline(kline_key) = key {
@@ -38,18 +35,17 @@ impl BacktestStrategyContext {
                 }
             }
         }
-    
+
         if min_symbol_map.is_empty() {
-            tracing::warn!("[{}] no kline symbols configured", strategy_name);  
+            tracing::warn!("[{}] no kline symbols configured", strategy_name);
             self.set_min_interval_symbols(Vec::new());
-            self
-            .virtual_trading_system
-            .lock()
-            .await
-            .set_kline_price(HashMap::<KlineKey, Kline>::new());
+            self.virtual_trading_system
+                .lock()
+                .await
+                .set_kline_price(HashMap::<KlineKey, Kline>::new());
             return Ok(());
         }
-    
+
         let min_interval_symbols: Vec<KlineKey> = min_symbol_map.into_values().collect();
         let reference_interval = min_interval_symbols[0].get_interval();
         if min_interval_symbols.iter().any(|key| key.get_interval() != reference_interval) {
@@ -63,7 +59,7 @@ impl BacktestStrategyContext {
         }
         tracing::debug!("set min interval symbols: {:?}", min_interval_symbols);
         self.set_min_interval_symbols(min_interval_symbols.clone());
-    
+
         let mut vts_guard = self.virtual_trading_system().lock().await;
         let mut kline_price = HashMap::with_capacity(min_interval_symbols.len());
         for kline_key in min_interval_symbols {
@@ -82,5 +78,4 @@ impl BacktestStrategyContext {
         vts_guard.set_kline_price(kline_price);
         Ok(())
     }
-
 }

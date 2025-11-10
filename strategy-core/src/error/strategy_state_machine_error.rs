@@ -1,6 +1,5 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
-
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -10,7 +9,7 @@ pub enum StrategyStateMachineError {
         strategy_name: String,
         run_state: String,
         trans_trigger: String,
-        backtrace: Backtrace
+        backtrace: Backtrace,
     },
 }
 
@@ -35,8 +34,6 @@ impl StarRiverErrorTrait for StrategyStateMachineError {
         }
     }
 
-    
-
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
             ErrorLanguage::English => self.to_string(),
@@ -47,7 +44,10 @@ impl StarRiverErrorTrait for StrategyStateMachineError {
                     trans_trigger,
                     ..
                 } => {
-                    format!("[{strategy_name}] 策略状态转换失败，运行状态: {}, 触发事件: {}", run_state, trans_trigger)
+                    format!(
+                        "[{strategy_name}] 策略状态转换失败，运行状态: {}, 触发事件: {}",
+                        run_state, trans_trigger
+                    )
                 }
             },
         }

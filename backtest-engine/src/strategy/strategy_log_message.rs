@@ -1,6 +1,5 @@
-use strategy_core::log_message::*;
-use strategy_core::log_message;
 use serde::{Deserialize, Serialize};
+use strategy_core::{log_message, log_message::*};
 log_message!(
     StrategyStateLogMsg,
     params: (

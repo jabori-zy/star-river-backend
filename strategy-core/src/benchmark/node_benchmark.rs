@@ -1,8 +1,9 @@
-use tokio::time::{Instant, Duration};
-use std::collections::{HashMap, VecDeque, BTreeMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+
 use serde::Serialize;
-use utoipa::ToSchema;
 use star_river_core::custom_type::NodeId;
+use tokio::time::{Duration, Instant};
+use utoipa::ToSchema;
 
 // ============================================================
 // 第一部分：CycleTracker - 单周期追踪器
@@ -27,10 +28,8 @@ impl CycleTracker {
     #[inline]
     pub fn start_phase(&mut self, phase_name: impl Into<String>) {
         // 直接记录当前时间作为阶段开始
-        self.phase_durations.push((
-            phase_name.into(),
-            Instant::now().duration_since(self.start_time)
-        ));
+        self.phase_durations
+            .push((phase_name.into(), Instant::now().duration_since(self.start_time)));
     }
 
     #[inline]
@@ -59,7 +58,7 @@ impl CycleTracker {
 #[derive(Debug, Clone)]
 pub struct CompletedCycle {
     cycle_id: u32,
-    duration: Duration, // 单次循环的总耗时
+    duration: Duration,                       // 单次循环的总耗时
     phase_durations: Vec<(String, Duration)>, // 各阶段的耗时
 }
 
@@ -112,7 +111,7 @@ impl NodeCycleReport {
         if self.duration.is_zero() {
             return 0.0;
         }
-        
+
         if let Some(duration) = self.phase_durations.iter().find(|(name, _)| name == phase_name) {
             let phase_ns = duration.1.as_nanos() as f64;
             let total_ns = self.duration.as_nanos() as f64;
@@ -135,30 +134,26 @@ impl std::fmt::Display for NodeCycleReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "┌─ Cycle Report [Play Index: {}]", self.cycle_id)?;
         writeln!(f, "│  Total Duration: {:?}", self.duration)?;
-        
+
         if !self.phase_durations.is_empty() {
             writeln!(f, "├─ Phase Details:")?;
-            
+
             for (i, (phase_name, duration)) in self.phase_durations.iter().enumerate() {
                 let percentage = if !self.duration.is_zero() {
                     (duration.as_nanos() as f64 / self.duration.as_nanos() as f64) * 100.0
                 } else {
                     0.0
                 };
-                
+
                 let prefix = if i == self.phase_durations.len() - 1 { "└" } else { "├" };
-                writeln!(
-                    f,
-                    "│  {} {}: {:?} ({:.2}%)",
-                    prefix, phase_name, duration, percentage
-                )?;
+                writeln!(f, "│  {} {}: {:?} ({:.2}%)", prefix, phase_name, duration, percentage)?;
             }
         }
-        
+
         if let Some((slowest_name, slowest_duration)) = self.get_slowest_phase() {
             writeln!(f, "├─ Slowest Phase: {} ({:?})", slowest_name, slowest_duration)?;
         }
-        
+
         write!(f, "└─────────────────────────────")
     }
 }
@@ -264,7 +259,6 @@ impl NodePhaseBenchmark {
 
     /// 生成阶段报告
     pub fn report(&self, node_avg_duration: Duration) -> NodePhaseReport {
-
         let duration_percentage = if node_avg_duration.is_zero() {
             0.0
         } else {
@@ -310,17 +304,10 @@ impl std::fmt::Display for NodePhaseReport {
         write!(
             f,
             "  ├─ {}: avg={:?}, min={:?}, max={:?}, cycles={}, percentage={:.2}%",
-            self.phase_name,
-            self.avg_duration,
-            self.min_duration,
-            self.max_duration,
-            self.total_cycles,
-            self.avg_duration_percentage
+            self.phase_name, self.avg_duration, self.min_duration, self.max_duration, self.total_cycles, self.avg_duration_percentage
         )
     }
 }
-
-
 
 #[derive(Debug, Clone)]
 pub struct NodeBenchmark {
@@ -343,7 +330,6 @@ pub struct NodeBenchmark {
 
     // 用于计算标准差的在线统计
     sum_squared_diff_ns: f64, // 平方差之和
-
 }
 
 impl NodeBenchmark {
@@ -458,15 +444,10 @@ impl NodeBenchmark {
         if self.all_cycles.is_empty() {
             return Duration::ZERO;
         }
-        
+
         let count = n.min(self.all_cycles.len());
-        let sum: Duration = self.all_cycles
-            .iter()
-            .rev()
-            .take(count)
-            .map(|t| t.get_duration())
-            .sum();
-        
+        let sum: Duration = self.all_cycles.iter().rev().take(count).map(|t| t.get_duration()).sum();
+
         sum / count as u32
     }
 
@@ -475,14 +456,14 @@ impl NodeBenchmark {
         if self.total_cycles < recent_count * 2 {
             return false; // 数据不足
         }
-        
+
         let recent_avg = self.recent_avg_duration(recent_count);
         let overall_avg = self.avg_duration;
-        
+
         if overall_avg.is_zero() {
             return false;
         }
-        
+
         let ratio = recent_avg.as_nanos() as f64 / overall_avg.as_nanos() as f64;
         ratio > (1.0 + threshold) // 如果最近的平均值比总体高出 threshold 倍，则认为性能退化
     }
@@ -494,9 +475,10 @@ impl NodeBenchmark {
         }
 
         // 计算每个阶段的耗时占比，然后生成报告
-        let mut results: Vec<NodePhaseReport> = self.all_phase_benchmarks
+        let mut results: Vec<NodePhaseReport> = self
+            .all_phase_benchmarks
             .values()
-            .map(|benchmark| {benchmark.report(self.avg_duration)})
+            .map(|benchmark| benchmark.report(self.avg_duration))
             .collect();
 
         // 按平均耗时降序排序
@@ -581,8 +563,6 @@ impl NodeBenchmark {
 // 第三部分：报告类型
 // ============================================================
 
-
-
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NodePerformanceReport {
@@ -619,7 +599,7 @@ impl std::fmt::Display for NodePerformanceReport {
         writeln!(f, "│  ├─ P95:     {:?}", self.p95)?;
         writeln!(f, "│  ├─ P99:     {:?}", self.p99)?;
         writeln!(f, "│  └─ Recent(100): {:?}", self.recent_avg_100)?;
-        
+
         if !self.phase_reports.is_empty() {
             writeln!(f, "├─ Phase Reports (top 5):")?;
             for (i, phase) in self.phase_reports.iter().take(5).enumerate() {
@@ -627,7 +607,7 @@ impl std::fmt::Display for NodePerformanceReport {
                 writeln!(f, "│  {} {}", prefix, phase)?;
             }
         }
-        
+
         write!(f, "└─────────────────────────────")
     }
 }

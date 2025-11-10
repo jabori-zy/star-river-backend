@@ -1,22 +1,28 @@
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
-use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+
 use exchange_core::error::state_machine_error::ExchangeStateMachineError;
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
+
 use crate::binance::data_processor_error::BinanceDataProcessorError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum BinanceError {
     #[snafu(transparent)]
-    DataProcessorError { source: BinanceDataProcessorError, backtrace: Backtrace },
+    DataProcessorError {
+        source: BinanceDataProcessorError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(transparent)]
-    StateMachineError { source: ExchangeStateMachineError, backtrace: Backtrace },
+    StateMachineError {
+        source: ExchangeStateMachineError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("http client not created"))]
     HttpClientNotCreated { backtrace: Backtrace },
-
-    
 
     #[snafu(display("network error: url: {url}, source: {source}"))]
     Network {
@@ -86,9 +92,8 @@ impl StarRiverErrorTrait for BinanceError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            
             BinanceError::StateMachineError { .. } => 1001,     // 状态机错误
-            BinanceError::DataProcessorError { .. } => 1002,     // 数据处理器错误
+            BinanceError::DataProcessorError { .. } => 1002,    // 数据处理器错误
             BinanceError::HttpClientNotCreated { .. } => 1003,  // 客户端未创建
             BinanceError::PingFailed { .. } => 1004,            // Ping失败
             BinanceError::Network { .. } => 1005,               // 网络错误
@@ -104,7 +109,6 @@ impl StarRiverErrorTrait for BinanceError {
         };
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {

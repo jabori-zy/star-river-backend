@@ -1,16 +1,13 @@
-
+//workspace crate
+use engine_core::state_machine_error::EngineStateMachineError;
+use exchange_client::{binance::error::BinanceError, exchange_error::ExchangeError, metatrader5::error::Mt5Error};
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
-//workspace crate
 use star_river_core::{
-    error::{StarRiverErrorTrait, ErrorCode, ErrorLanguage, generate_error_code_chain},
     custom_type::AccountId,
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain},
     exchange::Exchange,
 };
-use exchange_client::exchange_error::ExchangeError;
-use exchange_client::metatrader5::error::Mt5Error;
-use exchange_client::binance::error::BinanceError;
-use engine_core::state_machine_error::EngineStateMachineError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -25,7 +22,10 @@ pub enum ExchangeEngineError {
     },
 
     #[snafu(transparent)]
-    EngineStateMachineError { source: EngineStateMachineError, backtrace: Backtrace },
+    EngineStateMachineError {
+        source: EngineStateMachineError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(transparent)]
     BinanceError { source: BinanceError, backtrace: Backtrace },
@@ -181,11 +181,11 @@ impl StarRiverErrorTrait for ExchangeEngineError {
                 let prefix = "EXCHANGE_ENGINE";
                 let code = match self {
                     // Registration & Configuration (1002-1004)
-                    ExchangeEngineError::UnregistrationFailed { .. } => 1002,   // 注销交易所失败
-                    ExchangeEngineError::BinanceError { .. } => 1003, // 币安错误
-                    ExchangeEngineError::Mt5Error { .. } => 1004, // MetaTrader5错误
+                    ExchangeEngineError::UnregistrationFailed { .. } => 1002, // 注销交易所失败
+                    ExchangeEngineError::BinanceError { .. } => 1003,         // 币安错误
+                    ExchangeEngineError::Mt5Error { .. } => 1004,             // MetaTrader5错误
                     ExchangeEngineError::EngineStateMachineError { .. } => 1005, // 引擎状态机错误
-                    ExchangeEngineError::Database { .. } => 1005,               // 数据库错误
+                    ExchangeEngineError::Database { .. } => 1005,             // 数据库错误
                     ExchangeEngineError::UnsupportedExchangeType { .. } => 1006, // 不支持的交易所类型
 
                     // Exchange Client Management (1011-1013)
@@ -254,7 +254,9 @@ impl StarRiverErrorTrait for ExchangeEngineError {
                 } => {
                     format!(
                         "账户 {} 注册交易所失败: 交易所类型: {:?}, 原因: {}",
-                        account_id, exchange_type, source.error_message(language)
+                        account_id,
+                        exchange_type,
+                        source.error_message(language)
                     )
                 }
                 ExchangeEngineError::BinanceError { source, .. } => source.error_message(language),

@@ -1,12 +1,10 @@
+use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
-use deepsize::DeepSizeOf;
+
 use crate::system::DateTimeUtc;
-use serde_json::json;
-
-
-
 
 // k线间隔
 #[derive(Clone, Serialize, Deserialize, Display, EnumString, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, ToSchema)]
@@ -104,8 +102,6 @@ impl KlineInterval {
     }
 }
 
-
-
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct Kline {
     pub datetime: DateTimeUtc, // 时间戳，单位为毫秒
@@ -153,8 +149,6 @@ impl Kline {
     }
 }
 
-
-
 impl Kline {
     pub fn get_datetime(&self) -> DateTimeUtc {
         self.datetime
@@ -163,7 +157,7 @@ impl Kline {
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::to_value(self).unwrap()
     }
-    
+
     pub fn to_list(&self) -> Vec<f64> {
         vec![
             self.datetime.timestamp_millis() as f64,

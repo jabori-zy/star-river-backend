@@ -1,28 +1,28 @@
-use crate::api::response::NewApiResponse;
-use crate::star_river::StarRiver;
-use axum::extract::State;
-use axum::extract::{Json, Path, Query};
-use axum::http::StatusCode;
+use std::{collections::HashMap, str::FromStr};
+
+use axum::{
+    extract::{Json, Path, Query, State},
+    http::StatusCode,
+};
+use backtest_engine::engine_error::BacktestEngineError;
 use chrono::NaiveDateTime;
 use engine_core::EngineContextAccessor;
-use strategy_core::event::log_event::StrategyRunningLogEvent;
-use serde::{Deserialize, Serialize};
-use star_river_core::error::star_river_error::ParseDataTimeFailedSnafu;
-use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
-use strategy_core::variable::StrategyVariable;
-use strategy_core::benchmark::strategy_benchmark::StrategyPerformanceReport;
 use key::Key;
-use std::str::FromStr;
-use strategy_stats::StatsSnapshot;
-use utoipa::{IntoParams, ToSchema};
+use serde::{Deserialize, Serialize};
 use snafu::IntoError;
+use star_river_core::{custom_type::NodeId, error::star_river_error::ParseDataTimeFailedSnafu};
+use strategy_core::{
+    benchmark::strategy_benchmark::StrategyPerformanceReport,
+    event::log_event::StrategyRunningLogEvent,
+    strategy::context_trait::{StrategyBenchmarkExt, StrategyVariableExt},
+    variable::StrategyVariable,
+};
+use strategy_stats::StatsSnapshot;
 use tracing::instrument;
-use std::collections::HashMap;
-use star_river_core::custom_type::NodeId;
-use backtest_engine::engine_error::BacktestEngineError;
-use strategy_core::strategy::context_trait::StrategyVariableExt;
-use strategy_core::strategy::context_trait::StrategyBenchmarkExt;
+use utoipa::{IntoParams, ToSchema};
+use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 
+use crate::{api::response::NewApiResponse, star_river::StarRiver};
 
 #[utoipa::path(
     get,
@@ -44,15 +44,14 @@ pub async fn get_virtual_orders(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<VirtualOrder>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.get_virtual_orders().await
-                })
-            }).await
+    let result: Result<Vec<VirtualOrder>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.get_virtual_orders().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(virtual_orders) => (StatusCode::OK, Json(NewApiResponse::success(virtual_orders))),
@@ -86,19 +85,18 @@ pub async fn get_current_positions(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.get_current_positions().await
-                })
-            }).await
+    let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.get_current_positions().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(current_positions) => (StatusCode::OK, Json(NewApiResponse::success(current_positions))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -123,19 +121,18 @@ pub async fn get_virtual_transactions(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<VirtualTransaction>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.get_transactions().await
-                })
-            }).await
+    let result: Result<Vec<VirtualTransaction>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.get_transactions().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(virtual_transactions) => (StatusCode::OK, Json(NewApiResponse::success(virtual_transactions))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -176,19 +173,20 @@ pub async fn get_stats_history(
     let engine_guard = engine.lock().await;
 
     let play_index = params.play_index;
-    let result: Result<Vec<StatsSnapshot>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                Box::pin(async move {
-                    ctx.get_stats_history(play_index).await
+    let result: Result<Vec<StatsSnapshot>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, move |ctx| {
+                    Box::pin(async move { ctx.get_stats_history(play_index).await })
                 })
-            }).await
+                .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(stats_history) => (StatusCode::OK, Json(NewApiResponse::success(stats_history))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -213,19 +211,18 @@ pub async fn get_history_positions(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.get_history_positions().await
-                })
-            }).await
+    let result: Result<Vec<VirtualPosition>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.get_history_positions().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(history_positions) => (StatusCode::OK, Json(NewApiResponse::success(history_positions))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -250,15 +247,13 @@ pub async fn get_strategy_status(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<String, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.get_strategy_status(strategy_id).await
-        })
-    }).await;
+    let result: Result<String, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_strategy_status(strategy_id).await }))
+        .await;
 
     match result {
         Ok(status) => (StatusCode::OK, Json(NewApiResponse::success(status))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -283,19 +278,18 @@ pub async fn get_running_log(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<StrategyRunningLogEvent>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.running_log().await
-                })
-            }).await
+    let result: Result<Vec<StrategyRunningLogEvent>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.running_log().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(running_log) => (StatusCode::OK, Json(NewApiResponse::success(running_log))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -345,23 +339,23 @@ pub async fn get_strategy_data(
 
     let play_index = params.play_index;
     let limit = params.limit;
-    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            let data = ctx
-                .with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                    Box::pin(async move {
-                        ctx.get_strategy_data(play_index, key, limit).await
+    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                let data = ctx
+                    .with_strategy_ctx_read_async(strategy_id, move |ctx| {
+                        Box::pin(async move { ctx.get_strategy_data(play_index, key, limit).await })
                     })
-                })
-                .await?
-                .map_err(BacktestEngineError::from)?;
-            Ok(data)
+                    .await?
+                    .map_err(BacktestEngineError::from)?;
+                Ok(data)
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(data) => (StatusCode::OK, Json(NewApiResponse::success(data))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -410,12 +404,12 @@ pub async fn get_strategy_data_by_datetime(
 
     let datetime = match NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ") {
         Ok(dt) => dt.and_utc(),
-        Err(e) => return {
-            let error = ParseDataTimeFailedSnafu {
-                datetime: params.datetime,
-            }.into_error(e);
-            (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(error)))
-        },
+        Err(e) => {
+            return {
+                let error = ParseDataTimeFailedSnafu { datetime: params.datetime }.into_error(e);
+                (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(error)))
+            };
+        }
     };
 
     let engine_manager = star_river.engine_manager.lock().await;
@@ -423,23 +417,23 @@ pub async fn get_strategy_data_by_datetime(
     let engine_guard: tokio::sync::MutexGuard<'_, backtest_engine::BacktestEngine> = engine.lock().await;
 
     let limit = params.limit;
-    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            let data = ctx
-                .with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                    Box::pin(async move {
-                        ctx.get_strategy_data_by_datetime(key, datetime, limit).await
+    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                let data = ctx
+                    .with_strategy_ctx_read_async(strategy_id, move |ctx| {
+                        Box::pin(async move { ctx.get_strategy_data_by_datetime(key, datetime, limit).await })
                     })
-                })
-                .await?
-                .map_err(BacktestEngineError::from)?;
-            Ok(data)
+                    .await?
+                    .map_err(BacktestEngineError::from)?;
+                Ok(data)
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(data) => (StatusCode::OK, Json(NewApiResponse::success(data))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -465,19 +459,18 @@ pub async fn get_strategy_variable(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<StrategyVariable>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.strategy_variables().await
-                })
-            }).await
+    let result: Result<Vec<StrategyVariable>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.strategy_variables().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(strategy_variable) => (StatusCode::OK, Json(NewApiResponse::success(strategy_variable))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -503,24 +496,20 @@ pub async fn get_strategy_performance_report(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<StrategyPerformanceReport, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.strategy_performance_report().await
-                })
-            }).await
+    let result: Result<StrategyPerformanceReport, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.strategy_performance_report().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(strategy_performance_report) => (StatusCode::OK, Json(NewApiResponse::success(strategy_performance_report))),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
-
-
-
 
 #[utoipa::path(
     get,
@@ -544,15 +533,14 @@ pub async fn get_strategy_keys(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<HashMap<Key, NodeId>, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_read_async(strategy_id, |ctx| {
-                Box::pin(async move {
-                    ctx.keys().await
-                })
-            }).await
+    let result: Result<HashMap<Key, NodeId>, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.keys().await }))
+                    .await
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(keys_map) => {

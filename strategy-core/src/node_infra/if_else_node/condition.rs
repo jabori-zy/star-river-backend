@@ -1,8 +1,10 @@
-use crate::variable::custom_variable::{VariableValue, VariableValueType};
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+
+use serde::{Deserialize, Serialize};
 use strum::EnumString;
 use strum_macros::Display;
+
+use crate::variable::custom_variable::{VariableValue, VariableValueType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
 pub enum ComparisonSymbol {

@@ -1,15 +1,14 @@
-use axum::response::sse::{Event, Sse};
-use futures::stream::Stream;
 use std::{convert::Infallible, time::Duration};
-use tokio_stream::StreamExt;
 
 use async_stream::stream;
-use event_center::event::Channel;
-use event_center::EventCenterSingleton;
-use event_center::event::Event as EventCenterEvent;
+use axum::response::sse::{Event, Sse};
+use event_center::{
+    EventCenterSingleton,
+    event::{Channel, Event as EventCenterEvent},
+};
+use futures::stream::Stream;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
-
-
+use tokio_stream::StreamExt;
 
 #[utoipa::path(
     get,

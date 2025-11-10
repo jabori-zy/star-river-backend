@@ -1,6 +1,5 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::star_river_error::StarRiverError;
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, star_river_error::StarRiverError};
 
 /// Generic data processor error
 ///
@@ -9,24 +8,14 @@ use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum DataProcessorError {
-
     #[snafu(transparent)]
-    StarRiverError {
-        source: StarRiverError,
-        backtrace: Backtrace,
-    },
+    StarRiverError { source: StarRiverError, backtrace: Backtrace },
 
     #[snafu(display("JSON parsing failed"))]
-    JsonParseFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    JsonParseFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("Array data parsing failed: expected array type, got {actual_type}"))]
-    ArrayParseFailed {
-        actual_type: String,
-        backtrace: Backtrace,
-    },
+    ArrayParseFailed { actual_type: String, backtrace: Backtrace },
 
     #[snafu(display("Enum parsing failed for field '{field}': unknown variant '{variant}'"))]
     EnumParseFailed {
@@ -44,10 +33,7 @@ pub enum DataProcessorError {
     },
 
     #[snafu(display("Value is None for field '{field}'"))]
-    ValueIsNone {
-        field: String,
-        backtrace: Backtrace,
-    },
+    ValueIsNone { field: String, backtrace: Backtrace },
 
     #[snafu(display("Invalid data type for field '{field}': expected {expected}, got {actual}"))]
     InvalidFieldType {
@@ -57,14 +43,8 @@ pub enum DataProcessorError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display(
-        "Invalid kline array format: expected 6 elements [timestamp, open, high, low, close, volume], got {length}"
-    ))]
-    InvalidKlineArrayFormat {
-        length: usize,
-        data: String,
-        backtrace: Backtrace,
-    },
+    #[snafu(display("Invalid kline array format: expected 6 elements [timestamp, open, high, low, close, volume], got {length}"))]
+    InvalidKlineArrayFormat { length: usize, data: String, backtrace: Backtrace },
 
     #[snafu(display("Failed to convert data from {from} to {to}"))]
     TypeConversionFailed {
@@ -81,8 +61,6 @@ pub enum DataProcessorError {
         backtrace: Backtrace,
     },
 
-    
-
     #[snafu(display("Data validation failed: {field} value is {value}"))]
     DataValidationFailed {
         field: String,
@@ -91,9 +69,7 @@ pub enum DataProcessorError {
     },
 
     #[snafu(display("Stream data processing failed"))]
-    StreamProcessingFailed {
-        backtrace: Backtrace,
-    },
+    StreamProcessingFailed { backtrace: Backtrace },
 
     #[snafu(display("Stream data format error"))]
     InvalidStreamDataFormat {
@@ -117,10 +93,7 @@ pub enum DataProcessorError {
     },
 
     #[snafu(display("Failed to parse position"))]
-    PositionDataParseFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    },
+    PositionDataParseFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("Failed to parse deal '{deal_id}'"))]
     DealDataParseFailed {
@@ -138,11 +111,9 @@ pub enum DataProcessorError {
 }
 
 impl StarRiverErrorTrait for DataProcessorError {
-
     fn get_prefix(&self) -> &'static str {
         "DATA_PROCESSOR"
     }
-
 
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
@@ -183,25 +154,11 @@ impl StarRiverErrorTrait for DataProcessorError {
             ErrorLanguage::Chinese => match self {
                 // Basic Parsing Errors
                 DataProcessorError::JsonParseFailed { .. } => "JSON解析失败".to_string(),
-                DataProcessorError::ArrayParseFailed {
-                    actual_type,
-                    ..
-                } => {
-                    format!(
-                        "数组数据解析失败: 期望数组格式，实际类型 {}",
-                        actual_type
-                    )
+                DataProcessorError::ArrayParseFailed { actual_type, .. } => {
+                    format!("数组数据解析失败: 期望数组格式，实际类型 {}", actual_type)
                 }
-                DataProcessorError::EnumParseFailed {
-                    field,
-                    variant,
-                    ..
-                } => {
-                    format!(
-                        "枚举解析失败，字段 '{}': 未知变体 '{}'",
-                        field,
-                        variant
-                    )
+                DataProcessorError::EnumParseFailed { field, variant, .. } => {
+                    format!("枚举解析失败，字段 '{}': 未知变体 '{}'", field, variant)
                 }
 
                 // Data Structure Errors
@@ -212,15 +169,9 @@ impl StarRiverErrorTrait for DataProcessorError {
                     format!("字段 '{}' 的值为空", field)
                 }
                 DataProcessorError::InvalidFieldType {
-                    field,
-                    expected,
-                    actual,
-                    ..
+                    field, expected, actual, ..
                 } => {
-                    format!(
-                        "字段 '{}' 数据类型无效: 期望 {}，实际 {}",
-                        field, expected, actual
-                    )
+                    format!("字段 '{}' 数据类型无效: 期望 {}，实际 {}", field, expected, actual)
                 }
                 DataProcessorError::InvalidKlineArrayFormat { length, data, .. } => {
                     format!(
@@ -245,18 +196,12 @@ impl StarRiverErrorTrait for DataProcessorError {
                 }
 
                 // Data Validation Error
-                DataProcessorError::DataValidationFailed {
-                    field,
-                    value,
-                    ..
-                } => {
+                DataProcessorError::DataValidationFailed { field, value, .. } => {
                     format!("数据验证失败: 字段 '{}' 值为 '{}'", field, value)
                 }
 
                 // Stream Data Processing Errors
-                DataProcessorError::StreamProcessingFailed {
-                    ..
-                } => {
+                DataProcessorError::StreamProcessingFailed { .. } => {
                     format!("流数据处理失败")
                 }
                 DataProcessorError::InvalidStreamDataFormat {
@@ -268,26 +213,19 @@ impl StarRiverErrorTrait for DataProcessorError {
                 }
 
                 // Business Data Parsing Errors
-                DataProcessorError::KlineDataParseFailed {
-                    symbol,
-                    interval,
-                    ..
-                } => {
+                DataProcessorError::KlineDataParseFailed { symbol, interval, .. } => {
                     format!("解析K线数据失败: '{symbol}'  at interval '{interval}'")
                 }
                 DataProcessorError::OrderDataParseFailed { order_id, .. } => {
                     format!("解析订单数据失败: '{order_id}'")
                 }
-                DataProcessorError::PositionDataParseFailed {
-                    ..
-                } => format!("解析持仓数据失败"),
+                DataProcessorError::PositionDataParseFailed { .. } => format!("解析持仓数据失败"),
                 DataProcessorError::DealDataParseFailed { deal_id, .. } => {
                     format!("解析交易数据失败: '{deal_id}'")
                 }
                 DataProcessorError::AccountInfoParseFailed { account_id, .. } => {
                     format!("解析账户信息失败: '{account_id}'")
                 }
-
             },
         }
     }

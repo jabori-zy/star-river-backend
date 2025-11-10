@@ -1,30 +1,22 @@
 mod benchmark;
-mod node_handles;
 mod event_handler;
+mod node_handles;
 
-use strategy_core::node::metadata::NodeMetadata;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use super::state_machine::PositionNodeStateMachine;
-use super::position_node_types::PositionNodeBacktestConfig;
-use crate::strategy::PlayIndex;
-use sea_orm::DatabaseConnection;
 use std::sync::Arc;
+
+use heartbeat::Heartbeat;
+use sea_orm::DatabaseConnection;
+use strategy_core::node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata};
 use tokio::sync::Mutex;
 use virtual_trading::VirtualTradingSystem;
-use heartbeat::Heartbeat;
-use strategy_core::node::context_trait::NodeMetaDataExt;
 
+use super::{position_node_types::PositionNodeBacktestConfig, state_machine::PositionNodeStateMachine};
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
-
-pub type PositionNodeMetadata = NodeMetadata<
-    PositionNodeStateMachine,
-    BacktestNodeEvent,
-    BacktestNodeCommand,
-    BacktestStrategyCommand
->;
-
+pub type PositionNodeMetadata = NodeMetadata<PositionNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
 
 #[derive(Debug)]
 pub struct PositionNodeContext {
@@ -35,7 +27,6 @@ pub struct PositionNodeContext {
     heartbeat: Arc<Mutex<Heartbeat>>,
     virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
 }
-
 
 impl PositionNodeContext {
     pub fn new(
@@ -66,7 +57,6 @@ impl PositionNodeContext {
         &self.play_index_watch_rx
     }
 }
-
 
 impl NodeMetaDataExt for PositionNodeContext {
     type StateMachine = PositionNodeStateMachine;

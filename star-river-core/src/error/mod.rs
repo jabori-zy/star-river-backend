@@ -7,14 +7,10 @@ pub use axum::http::StatusCode;
 
 pub type ErrorCode = String;
 
-pub use error_trait::{StarRiverErrorTrait, ErrorLanguage};
-
+pub use error_trait::{ErrorLanguage, StarRiverErrorTrait};
 pub use reqwest::Error as ReqwestError;
 
 // pub use exchange_client_error::*;
-
-
-
 
 pub fn generate_error_code_chain(source: &dyn StarRiverErrorTrait) -> Vec<ErrorCode> {
     let mut chain = source.error_code_chain();

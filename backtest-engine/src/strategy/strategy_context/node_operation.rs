@@ -1,27 +1,27 @@
 use snafu::IntoError;
+use strategy_core::{
+    communication::node::NodeResponse,
+    strategy::context_trait::{StrategyCommunicationExt, StrategyIdentityExt},
+};
 // third-party
 use tokio::sync::oneshot;
 
-
 // current crate
 use super::BacktestStrategyContext;
-use crate::{strategy::strategy_error::{
-    BacktestStrategyError, GetStartNodeConfigFailedSnafu
-}, node::node_command::{GetStartNodeConfigCmdPayload, GetStartNodeConfigCommand}};
-use strategy_core::{
-    communication::node::NodeResponse, 
+use crate::{
+    node::node_command::{GetStartNodeConfigCmdPayload, GetStartNodeConfigCommand},
     strategy::{
-        context_trait::{StrategyCommunicationExt, StrategyIdentityExt}
-    }
+        strategy_config::BacktestStrategyConfig,
+        strategy_error::{BacktestStrategyError, GetStartNodeConfigFailedSnafu},
+    },
 };
-use crate::strategy::strategy_config::BacktestStrategyConfig;
 
 impl BacktestStrategyContext {
     // 获取start节点配置
     pub async fn get_start_node_config(&self) -> Result<BacktestStrategyConfig, BacktestStrategyError> {
         let (resp_tx, resp_rx) = oneshot::channel();
 
-        let payload = GetStartNodeConfigCmdPayload{};
+        let payload = GetStartNodeConfigCmdPayload {};
         let cmd = GetStartNodeConfigCommand::new("start_node".to_string(), resp_tx, payload);
 
         self.send_node_command(cmd.into()).await.unwrap();
@@ -32,11 +32,10 @@ impl BacktestStrategyContext {
             NodeResponse::Fail { error, .. } => {
                 let e = GetStartNodeConfigFailedSnafu {
                     strategy_name: self.strategy_name().clone(),
-                }.into_error(error);
+                }
+                .into_error(error);
                 Err(e)
             }
         }
     }
-
-    
 }

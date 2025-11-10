@@ -2,25 +2,26 @@
 // Standard library imports
 // ============================================================================
 
-use std::{collections::HashMap, fmt::Display, cmp::PartialEq};
-use std::fmt::Debug;
+use std::{
+    cmp::PartialEq,
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
+
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::Value;
 use star_river_core::custom_type::StrategyName;
 
 // ============================================================================
 // External crate imports
 // ============================================================================
-
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value;
 use crate::error::StrategyStateMachineError;
-
 
 pub trait StrategyRunState: Debug + Clone + Display + PartialEq + Send + Sync {}
 
 pub trait StrategyStateTransTrigger: Debug + Clone + Send + Sync {}
 
 pub trait StrategyStateAction: Clone + Debug + Display + Send + Sync {}
-
 
 /// Strategy State Machine trait
 ///
@@ -47,7 +48,10 @@ pub trait StrategyStateMachine: Debug + Clone + Send + Sync {
     /// # Returns
     /// - `Ok(StrategyStateChangeActions)`: Transition successful, contains new state and action list
     /// - `Err(StrategyStateMachineError)`: Transition failed
-    fn transition(&mut self, trans_trigger: Self::Trigger) -> Result<StrategyStateChangeActions<Self::State, Self::Action>, StrategyStateMachineError>;
+    fn transition(
+        &mut self,
+        trans_trigger: Self::Trigger,
+    ) -> Result<StrategyStateChangeActions<Self::State, Self::Action>, StrategyStateMachineError>;
 
     /// Check if currently in the specified state
     ///
@@ -91,8 +95,7 @@ impl Metadata {
 
     /// Get and deserialize to specified type
     pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.data.get(key)
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
+        self.data.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
     }
 
     /// Get string
@@ -121,7 +124,6 @@ impl Metadata {
     }
 }
 
-
 /// Generic Strategy State Machine - replaces trait objects with generics for zero-cost abstractions
 ///
 /// Type parameters:
@@ -149,7 +151,6 @@ where
     /// Optional metadata - stores strategy configuration and runtime information
     metadata: Option<Metadata>,
 }
-
 
 /// State change result - contains new state and list of actions to execute
 #[derive(Debug, Clone)]
@@ -243,13 +244,16 @@ where
     /// # Returns
     /// - `Ok(StrategyStateChangeActions)`: Transition successful, contains new state and action list
     /// - `Err(StrategyStateMachineError)`: Transition failed
-    fn transition(&mut self, trans_trigger: Self::Trigger) -> Result<StrategyStateChangeActions<Self::State, Self::Action>, StrategyStateMachineError> {
+    fn transition(
+        &mut self,
+        trans_trigger: Self::Trigger,
+    ) -> Result<StrategyStateChangeActions<Self::State, Self::Action>, StrategyStateMachineError> {
         // Call transition function to get new state and actions, passing metadata
         let state_change = (self.transition_fn)(
             &self.current_state,
             trans_trigger,
             self.strategy_name.clone(),
-            self.metadata.as_ref()
+            self.metadata.as_ref(),
         )?;
 
         // Update current state

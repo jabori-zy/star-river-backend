@@ -1,13 +1,15 @@
-use super::IndicatorNodeContext;
 use async_trait::async_trait;
+use strategy_core::node::{
+    context_trait::{NodeHandleExt, NodeIdentityExt},
+    utils::generate_default_output_handle_id,
+};
 use tokio::sync::broadcast;
-use strategy_core::node::utils::generate_default_output_handle_id;
+
+use super::IndicatorNodeContext;
 use crate::node::node_event::BacktestNodeEvent;
-use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
 
 impl NodeHandleExt for IndicatorNodeContext {
     fn set_output_handles(&mut self) {
-
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
         let selected_indicators = self.node_config.exchange_mode_config.as_ref().unwrap().selected_indicators.clone();

@@ -1,21 +1,19 @@
-use super::IndicatorEngineContext;
-use engine_core::context_trait::EngineEventHandler;
-use async_trait::async_trait;
 use std::sync::Arc;
-use ta_lib::TALib;
-use crate::calculate::CalculateIndicatorFunction;
-use event_center::{Event, EngineCommand};
+
+use async_trait::async_trait;
+use engine_core::context_trait::EngineEventHandler;
+use event_center::{EngineCommand, Event};
 use star_river_event::communication::indicator_engine::{
+    CalculateHistoryIndicatorRespPayload, CalculateHistoryIndicatorResponse, GetIndicatorLookbackRespPayload, GetIndicatorLookbackResponse,
     IndicatorEngineCommand,
-    CalculateHistoryIndicatorRespPayload,
-    CalculateHistoryIndicatorResponse,
-    GetIndicatorLookbackRespPayload,
-    GetIndicatorLookbackResponse,
 };
+use ta_lib::TALib;
+
+use super::IndicatorEngineContext;
+use crate::calculate::CalculateIndicatorFunction;
 
 #[async_trait]
 impl EngineEventHandler for IndicatorEngineContext {
-
     async fn handle_event(&mut self, _event: Event) {
         // if let Event::Indicator(indicator_event) = event {
         //     match indicator_event {

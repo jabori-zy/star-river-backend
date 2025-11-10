@@ -1,6 +1,7 @@
+use std::io;
+
 use chrono::{DateTime, Utc};
 use chrono_tz::{America::New_York, Asia::Shanghai};
-use std::io;
 
 fn user_input() -> i64 {
     println!("请输入时间戳(秒):");

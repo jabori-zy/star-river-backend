@@ -1,12 +1,10 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum PositionNodeError {
-    TestError {
-        backtrace: Backtrace,
-    },
+    TestError { backtrace: Backtrace },
 }
 
 impl StarRiverErrorTrait for PositionNodeError {

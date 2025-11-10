@@ -1,9 +1,8 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage};
-use snafu::{Backtrace, Snafu};
-use std::collections::HashMap;
-use std::sync::Arc;
-use virtual_trading::error::VirtualTradingSystemError;
+use std::{collections::HashMap, sync::Arc};
 
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
+use virtual_trading::error::VirtualTradingSystemError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -49,7 +48,6 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
 
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {

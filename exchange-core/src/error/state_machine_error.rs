@@ -1,5 +1,5 @@
-use star_river_core::error::{StarRiverErrorTrait, ErrorCode, ErrorLanguage};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -32,9 +32,7 @@ impl StarRiverErrorTrait for ExchangeStateMachineError {
             ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
                 ExchangeStateMachineError::ExchangeTransition {
-                    run_state,
-                    trans_trigger,
-                    ..
+                    run_state, trans_trigger, ..
                 } => {
                     format!("状态转换失败，运行状态: {}, 触发事件: {}", run_state, trans_trigger)
                 }

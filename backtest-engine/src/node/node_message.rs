@@ -4,9 +4,8 @@
 
 // 通用日志消息 - 多个节点共同使用的日志消息
 pub mod common_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
+    use strategy_core::{log_message, log_message::*};
 
     // 所有节点都有的通用状态日志
     log_message!(
@@ -177,9 +176,8 @@ pub mod common_log_message {
 
 // StartNode 独特的日志消息
 pub mod start_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         ListenPlayIndexChangeMsg,
@@ -320,9 +318,8 @@ pub mod start_node_log_message {
 
 // IndicatorNode 独特的日志消息
 pub mod indicator_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         RegisterIndicatorCacheKeyMsg,
@@ -440,10 +437,9 @@ pub mod indicator_node_log_message {
 
 // KlineNode 独特的日志消息
 pub mod kline_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
     use star_river_core::exchange::Exchange;
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         StartRegisterExchangeMsg,
@@ -549,9 +545,8 @@ pub mod kline_node_log_message {
 
 // IfElseNode 独特的日志消息
 pub mod if_else_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         ListenStrategySignalMsg,
@@ -603,9 +598,8 @@ pub mod if_else_node_log_message {
 
 // PositionManagementNode 特有的日志消息
 pub mod position_management_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         ExecutePositionOperationMsg,
@@ -744,9 +738,8 @@ pub mod position_management_node_log_message {
 
 // VariableNode 特有的日志消息
 pub mod variable_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         GetVariableMsg,
@@ -893,10 +886,9 @@ pub mod variable_node_log_message {
 
 // FuturesOrderNode 特有的日志消息
 pub mod futures_order_node_log_message {
-    use strategy_core::log_message::*;
-    use strategy_core::log_message;
     use serde::{Deserialize, Serialize};
     use star_river_core::custom_type::OrderId;
+    use strategy_core::{log_message, log_message::*};
 
     log_message!(
         ProcessingOrderMsg,
@@ -1077,7 +1069,7 @@ pub mod futures_order_node_log_message {
         en: "[{node_name}] symbol info retrieved successfully",
         zh: "[{node_name}] 交易对信息获取成功"
     );
-    
+
     log_message!(
         GetSymbolInfoFailedMsg,
         params: (

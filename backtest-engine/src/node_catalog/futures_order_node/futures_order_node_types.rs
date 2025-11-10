@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::InputHandleId;
-use star_river_core::order::{FuturesOrderSide, OrderType, TpslType};
-use star_river_core::system::{TimeRange, deserialize_time_range};
+use star_river_core::{
+    custom_type::InputHandleId,
+    order::{FuturesOrderSide, OrderType, TpslType},
+    system::{TimeRange, deserialize_time_range},
+};
 use strategy_core::strategy::SelectedAccount;
+
 use crate::strategy::strategy_config::BacktestDataSource;
 
 // 合约订单配置

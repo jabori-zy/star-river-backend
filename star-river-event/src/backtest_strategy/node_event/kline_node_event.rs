@@ -1,9 +1,9 @@
-use strategy_core::event::node::NodeEvent;
 use chrono::{DateTime, Utc};
 use derive_more::From;
-use serde::{Deserialize, Serialize};
 use key::{KeyTrait, KlineKey};
+use serde::{Deserialize, Serialize};
 use star_river_core::kline::Kline;
+use strategy_core::event::node::NodeEvent;
 use strum::Display;
 
 // TODO: Need to define NodeStateLogEvent and StrategyRunningLogEvent
@@ -23,7 +23,6 @@ pub enum KlineNodeEvent {
     // #[strum(serialize = "running-log-event")]
     // #[serde(rename = "running-log-event")]
     // RunningLog(StrategyRunningLogEvent),
-
     #[strum(serialize = "time-update-event")]
     #[serde(rename = "time-update-event")]
     TimeUpdate(TimeUpdateEvent),

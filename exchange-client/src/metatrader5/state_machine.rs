@@ -1,16 +1,16 @@
 use exchange_core::{
-    state_machine::{ExchangeAction, ExchangeRunState, ExchangeStateTransTrigger, ExchangeStateMachine, StateChangeActions, Metadata},
     error::{ExchangeStateMachineError, state_machine_error::ExchangeTransitionSnafu},
+    state_machine::{ExchangeAction, ExchangeRunState, ExchangeStateMachine, ExchangeStateTransTrigger, Metadata, StateChangeActions},
 };
 
 pub type Mt5StateMachine = ExchangeStateMachine<Mt5Action>;
 
 #[derive(Debug, Clone)]
 pub enum Mt5Action {
-    InitHttpClient, // initialize the http client
-    InitWsClient,  // initialize the websocket client
+    InitHttpClient,   // initialize the http client
+    InitWsClient,     // initialize the websocket client
     LogExchangeState, // log the state of the metatrader5
-    LogTransition, // log the transition result of the metatrader5
+    LogTransition,    // log the transition result of the metatrader5
     LogError(String), // log the error of the metatrader5
 }
 
@@ -24,11 +24,7 @@ pub fn metatrader5_transition(
     match (state, &trans_trigger) {
         (ExchangeRunState::Created, &ExchangeStateTransTrigger::StartInit) => Ok(StateChangeActions::new(
             ExchangeRunState::Initializing,
-            vec![
-                Mt5Action::LogTransition,
-                Mt5Action::InitHttpClient,
-                Mt5Action::InitWsClient,
-            ],
+            vec![Mt5Action::LogTransition, Mt5Action::InitHttpClient, Mt5Action::InitWsClient],
         )),
 
         (ExchangeRunState::Initializing, &ExchangeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
@@ -36,10 +32,9 @@ pub fn metatrader5_transition(
             vec![Mt5Action::LogTransition, Mt5Action::LogExchangeState],
         )),
 
-        (ExchangeRunState::Initialized, &ExchangeStateTransTrigger::Shutdown) => Ok(StateChangeActions::new(
-            ExchangeRunState::Stopping,
-            vec![Mt5Action::LogTransition],
-        )),
+        (ExchangeRunState::Initialized, &ExchangeStateTransTrigger::Shutdown) => {
+            Ok(StateChangeActions::new(ExchangeRunState::Stopping, vec![Mt5Action::LogTransition]))
+        }
 
         (ExchangeRunState::Stopping, &ExchangeStateTransTrigger::FinishShutdown) => Ok(StateChangeActions::new(
             ExchangeRunState::Stopped,
@@ -54,6 +49,7 @@ pub fn metatrader5_transition(
         _ => ExchangeTransitionSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.fail(),
+        }
+        .fail(),
     }
 }

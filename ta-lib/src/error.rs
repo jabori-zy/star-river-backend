@@ -1,5 +1,5 @@
-use snafu::{Backtrace, Snafu};
 use axum::http::StatusCode;
+use snafu::{Backtrace, Snafu};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -58,12 +58,7 @@ pub enum TaLibError {
     },
 
     #[snafu(display("data length not equal: {data_length:?}"))]
-    DataLengthNotEqual { 
-        data_length: Vec<usize>, 
-        backtrace: Backtrace
-    },
-
-
+    DataLengthNotEqual { data_length: Vec<usize>, backtrace: Backtrace },
 
     #[snafu(display("TA-Lib error code: {ret_code}"))]
     TalibErrorCode {
@@ -153,11 +148,19 @@ impl TaLibError {
                 TaLibError::ParseSpecialParamFailed { param, reason, .. } => {
                     format!("指标参数解析失败: {}. 原因: {}", param, reason)
                 }
-                TaLibError::DataLessThenLookback { indicator_name, lookback, data_length, .. } => {
+                TaLibError::DataLessThenLookback {
+                    indicator_name,
+                    lookback,
+                    data_length,
+                    ..
+                } => {
                     format!("{} 的 lookback 是 {} 但数据长度是 {}", indicator_name, lookback, data_length)
                 }
                 TaLibError::DataLengthNotEqual { data_length, .. } => {
-                    format!("数据长度不一致: {}", data_length.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
+                    format!(
+                        "数据长度不一致: {}",
+                        data_length.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")
+                    )
                 }
                 TaLibError::TalibErrorCode { ret_code, .. } => {
                     format!("TA-Lib 错误代码: {}", ret_code)

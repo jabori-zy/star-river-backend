@@ -1,16 +1,15 @@
-use std::fmt::Debug;
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
-use crate::error::star_river_error::*;
-use crate::system::DateTimeUtc;
 use deepsize::DeepSizeOf;
-use serde::ser::Serializer;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser::Serializer};
 use serde_json::{self, json};
-use std::fmt::Display;
-use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
+use crate::{error::star_river_error::*, system::DateTimeUtc};
 
 pub type MT5Server = String;
 
@@ -131,8 +130,6 @@ impl FromStr for Exchange {
         }
     }
 }
-
-
 
 pub fn deserialize_exchange<'de, D>(deserializer: D) -> Result<Exchange, D::Error>
 where

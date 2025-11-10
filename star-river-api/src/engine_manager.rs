@@ -2,24 +2,22 @@
 // use engine::backtest_strategy_engine::BacktestStrategyEngine;
 // use engine::backtest_engine::BacktestEngine;
 
-
 // use engine::cache_engine::CacheEngine;
 // use engine::exchange_engine::ExchangeEngine;
 // use engine::indicator_engine::IndicatorEngine;
 
 // use engine::live_strategy_engine::LiveStrategyEngine;
 // use engine::market_engine::MarketEngine;
-use heartbeat::Heartbeat;
-use sea_orm::DatabaseConnection;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use std::any::Any;
+use std::{any::Any, sync::Arc};
 
-use exchange_engine::ExchangeEngine;
-use market_engine::MarketEngine;
 // use indicator_engine::IndicatorEngine;
 use backtest_engine::BacktestEngine;
 use engine_core::engine_trait::EngineLifecycle;
+use exchange_engine::ExchangeEngine;
+use heartbeat::Heartbeat;
+use market_engine::MarketEngine;
+use sea_orm::DatabaseConnection;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct EngineManager {
@@ -38,7 +36,6 @@ pub struct EngineManager {
 
 impl EngineManager {
     pub async fn new(database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
-        
         // 缓存引擎
         // let cache_engine = Arc::new(Mutex::new(CacheEngine::new()));
         // 交易所引擎
@@ -57,7 +54,6 @@ impl EngineManager {
         // 账户引擎
         // let account_engine = AccountEngine::new(exchange_engine.clone(), database.clone(), heartbeat.clone());
 
-        
         // let live_strategy_engine = LiveStrategyEngine::new();
 
         Self {
@@ -73,10 +69,9 @@ impl EngineManager {
         self.start_engines().await;
 
         // 启动付费功能引擎
-        
+
         // self.start_premium_engines().await;
     }
-
 
     async fn start_engines(&self) {
         self.start_exchange_engine().await;
@@ -122,7 +117,6 @@ impl EngineManager {
         });
     }
 
-    
     // 启动缓存引擎并等待完成
     // async fn start_cache_engine(&self) {
     //     let engine = self.cache_engine.clone();

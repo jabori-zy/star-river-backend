@@ -1,20 +1,16 @@
+use std::{fmt::Debug, sync::Arc};
+
 use async_trait::async_trait;
-use std::fmt::Debug;
-use std::sync::Arc;
+use event_center::{communication::EngineCommand, event::Event};
+use star_river_core::engine::EngineName;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use star_river_core::engine::EngineName;
-use crate::state_machine::{EngineRunState, EngineAction, EngineStateMachine, EngineStateTransTrigger, StateChangeActions};
-use event_center::{event::Event, communication::EngineCommand};
-
-use crate::state_machine_error::EngineStateMachineError;
 use super::context::EngineBaseContext;
-
-
-
-
-
+use crate::{
+    state_machine::{EngineAction, EngineRunState, EngineStateMachine, EngineStateTransTrigger, StateChangeActions},
+    state_machine_error::EngineStateMachineError,
+};
 
 // ============================================================================
 // 引擎基础上下文 Trait
@@ -94,14 +90,13 @@ pub trait EngineStateMachineTrait: EngineContextTrait {
 
     /// 状态转换
     #[inline]
-    async fn transition_state(&self, trigger: EngineStateTransTrigger) -> Result<StateChangeActions<Self::Action>, EngineStateMachineError> {
+    async fn transition_state(
+        &self,
+        trigger: EngineStateTransTrigger,
+    ) -> Result<StateChangeActions<Self::Action>, EngineStateMachineError> {
         self.state_machine().write().await.transition(trigger)
     }
 }
 
 // 自动为所有实现 EngineContextTrait 的类型实现 EngineStateMachineTrait
-impl<T> EngineStateMachineTrait for T
-where
-    T: EngineContextTrait,
-{
-}
+impl<T> EngineStateMachineTrait for T where T: EngineContextTrait {}

@@ -1,25 +1,18 @@
-use super::BacktestEngineContext;
-
-use crate::strategy::BacktestStrategy;
-use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use database::query::strategy_config_query::StrategyConfigQuery;
-use snafu::{Report, ResultExt};
-use star_river_core::custom_type::StrategyId;
-use strategy_core::strategy::StrategyConfig;
-use crate::engine_error::{
-    BacktestEngineError,
-    StrategyInstanceNotFoundSnafu,
-    StrategyConfigNotFoundSnafu,
-    UnsupportedTradeModeSnafu,
-    DatabaseSnafu,
-};
-use strategy_core::strategy::TradeMode;
-use tokio::sync::{MutexGuard, OwnedMutexGuard};
 use std::collections::HashMap;
 
+use database::{mutation::strategy_config_mutation::StrategyConfigMutation, query::strategy_config_query::StrategyConfigQuery};
+use snafu::{Report, ResultExt};
+use star_river_core::custom_type::StrategyId;
+use strategy_core::strategy::{StrategyConfig, TradeMode};
+use tokio::sync::{MutexGuard, OwnedMutexGuard};
 
-
-
+use super::BacktestEngineContext;
+use crate::{
+    engine_error::{
+        BacktestEngineError, DatabaseSnafu, StrategyConfigNotFoundSnafu, StrategyInstanceNotFoundSnafu, UnsupportedTradeModeSnafu,
+    },
+    strategy::BacktestStrategy,
+};
 
 impl BacktestEngineContext {
     // pub async fn get_strategy_instance(&self, strategy_id: StrategyId) -> Result<&BacktestStrategy, BacktestEngineError> {
@@ -42,8 +35,6 @@ impl BacktestEngineContext {
         Ok(strategy)
     }
 
-
-
     pub async fn remove_strategy_instance(&mut self, trade_mode: TradeMode, strategy_id: i32) -> Result<(), BacktestEngineError> {
         match trade_mode {
             TradeMode::Backtest => {
@@ -61,7 +52,6 @@ impl BacktestEngineContext {
         Ok(())
     }
 
-
     // 获取回测策略的缓存键
     // pub async fn get_strategy_keys(&self, strategy_id: i32) -> Result<HashMap<Key, NodeId>, BacktestEngineError> {
     //     let strategy = self.get_strategy_instance(strategy_id).await?;
@@ -70,10 +60,9 @@ impl BacktestEngineContext {
     //             ctx.keys().await
     //         })
     //     }).await;
-        
+
     //     Ok(keys)
     // }
-
 
     pub async fn get_strategy_status(&self, strategy_id: i32) -> Result<String, BacktestEngineError> {
         // 检查是否正在初始化或有策略实例

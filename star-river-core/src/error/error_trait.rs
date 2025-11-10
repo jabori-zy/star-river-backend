@@ -1,8 +1,9 @@
-use super::ErrorCode;
 use std::error::Error;
+
 use axum::http::StatusCode;
 use strum::Display;
 
+use super::ErrorCode;
 
 #[derive(Debug, Clone, Display)]
 #[strum(serialize_all = "lowercase")]
@@ -34,8 +35,6 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
     /// For English, it returns the Display trait message (from snafu display)
     /// For other languages, it should return the localized version
     fn error_message(&self, language: ErrorLanguage) -> String;
-
-
 
     /// Returns the HTTP status code for this error
     /// Default implementation returns INTERNAL_SERVER_ERROR

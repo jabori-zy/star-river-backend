@@ -1,5 +1,5 @@
-pub mod engine_error;
 mod context;
+pub mod engine_error;
 mod engine_lifecycle;
 mod engine_state_machine;
 mod node;
@@ -9,18 +9,13 @@ pub(crate) mod strategy;
 // Standard library imports
 use std::sync::Arc;
 
+// Workspace crate imports
+use engine_core::{EngineBase, EngineBaseContext, EngineContextAccessor, engine_trait::Engine, state_machine::EngineRunState};
 // External crate imports
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
-use tokio::sync::{Mutex, RwLock};
-
-// Workspace crate imports
-use engine_core::{
-    EngineBase, EngineBaseContext, EngineContextAccessor,
-    engine_trait::Engine,
-    state_machine::EngineRunState,
-};
 use star_river_core::engine::EngineName;
+use tokio::sync::{Mutex, RwLock};
 
 // Current crate imports
 use crate::{
@@ -36,17 +31,12 @@ pub struct BacktestEngine {
 
 impl BacktestEngine {
     pub fn new(database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
-
         let state_machine = BacktestEngineStateMachine::new(
             EngineName::BacktestEngine.to_string(),
             EngineRunState::Created,
-            backtest_engine_transition
+            backtest_engine_transition,
         );
-        let base_context = EngineBaseContext::new(
-            EngineName::BacktestEngine,
-            state_machine
-        );
-
+        let base_context = EngineBaseContext::new(EngineName::BacktestEngine, state_machine);
 
         let context = BacktestEngineContext::new(base_context, database, heartbeat);
         Self {
@@ -54,7 +44,6 @@ impl BacktestEngine {
         }
     }
 }
-
 
 impl std::ops::Deref for BacktestEngine {
     type Target = EngineBase<BacktestEngineContext, BacktestEngineAction>;
@@ -64,10 +53,7 @@ impl std::ops::Deref for BacktestEngine {
     }
 }
 
-
 impl Engine for BacktestEngine {}
-
-
 
 impl EngineContextAccessor for BacktestEngine {
     type Context = BacktestEngineContext;

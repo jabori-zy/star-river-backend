@@ -5,8 +5,6 @@ pub mod variable_operation;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-
-
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum StrategyVariable {

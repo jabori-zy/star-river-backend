@@ -1,38 +1,30 @@
 mod benchmark;
-mod node_handles;
-mod event_handler;
 mod config_filter;
 mod custom_variable_handler;
+mod event_handler;
+mod node_handles;
 mod sys_variable_handler;
 mod variable_handler;
 
-use star_river_core::custom_type::NodeId;
-use strategy_core::node::metadata::NodeMetadata;
-use strategy_core::variable::custom_variable::VariableValue;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use super::state_machine::VariableNodeStateMachine;
-use super::variable_node_type::VariableNodeBacktestConfig;
-use crate::strategy::PlayIndex;
-use sea_orm::DatabaseConnection;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use virtual_trading::VirtualTradingSystem;
+use std::{collections::HashMap, sync::Arc};
+
 use heartbeat::Heartbeat;
-use strategy_core::node::context_trait::NodeMetaDataExt;
-use std::collections::HashMap;
-use tokio::sync::RwLock;
+use sea_orm::DatabaseConnection;
+use star_river_core::custom_type::NodeId;
+use strategy_core::{
+    node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata},
+    variable::custom_variable::VariableValue,
+};
+use tokio::sync::{Mutex, RwLock};
+use virtual_trading::VirtualTradingSystem;
 
+use super::{state_machine::VariableNodeStateMachine, variable_node_type::VariableNodeBacktestConfig};
+use crate::{
+    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
-
-pub type VariableNodeMetadata = NodeMetadata<
-    VariableNodeStateMachine,
-    BacktestNodeEvent,
-    BacktestNodeCommand,
-    BacktestStrategyCommand
->;
-
+pub type VariableNodeMetadata = NodeMetadata<VariableNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
 
 #[derive(Debug)]
 pub struct VariableNodeContext {
@@ -42,7 +34,6 @@ pub struct VariableNodeContext {
     virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
     variable_cache_value: Arc<RwLock<HashMap<(NodeId, i32, String), VariableValue>>>,
 }
-
 
 impl VariableNodeContext {
     pub fn new(
@@ -71,7 +62,6 @@ impl VariableNodeContext {
     }
 }
 
-
 impl NodeMetaDataExt for VariableNodeContext {
     type StateMachine = VariableNodeStateMachine;
     type NodeEvent = BacktestNodeEvent;
@@ -86,8 +76,6 @@ impl NodeMetaDataExt for VariableNodeContext {
         &mut self.metadata
     }
 }
-
-
 
 impl VariableNodeContext {
     pub async fn update_variable_cache_value(

@@ -6,47 +6,32 @@ pub(crate) mod node_state_machine;
 pub(crate) mod node_utils;
 
 // Standard library imports
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    sync::LazyLock,
-};
+use std::{collections::HashMap, fmt::Debug, sync::LazyLock};
 
 // External crate imports
 use async_trait::async_trait;
-use tokio::sync::broadcast;
-use tokio_util::sync::CancellationToken;
-
 // Workspace crate imports
 use event_center::event::Channel;
+use node_error::BacktestNodeError;
+use node_event::BacktestNodeEvent;
 use star_river_core::custom_type::{NodeId, NodeName};
 use strategy_core::node::{
-    NodeType, NodeTrait,
+    NodeTrait, NodeType,
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeRelationExt, NodeStateMachineExt, NodeTaskControlExt},
     node_handles::NodeInputHandle,
     node_trait::{NodeContextAccessor, NodeLifecycle},
 };
-
-
+use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
 
 // Current crate imports
 use crate::{
-    node_catalog::{
-        kline_node::KlineNode,
-        start_node::StartNode,
-        indicator_node::IndicatorNode,
-        if_else_node::IfElseNode,
-        futures_order_node::FuturesOrderNode,
-        position_node::PositionNode,
-        variable_node::VariableNode,
-    },
     node::node_state_machine::NodeRunState,
+    node_catalog::{
+        futures_order_node::FuturesOrderNode, if_else_node::IfElseNode, indicator_node::IndicatorNode, kline_node::KlineNode,
+        position_node::PositionNode, start_node::StartNode, variable_node::VariableNode,
+    },
 };
-use node_error::BacktestNodeError;
-use node_event::BacktestNodeEvent;
-
-
-
 
 #[derive(Debug, Clone)]
 pub enum BacktestNode {
@@ -87,10 +72,6 @@ impl NodeTrait for BacktestNode {
     }
 }
 
-
-
-
-
 impl BacktestNode {
     pub fn klind(&self) -> NodeType {
         match self {
@@ -130,13 +111,34 @@ impl BacktestNode {
 
     pub async fn is_in_state(&self, state: NodeRunState) -> bool {
         match self {
-            BacktestNode::Start(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
-            BacktestNode::Kline(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
-            BacktestNode::Indicator(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
-            BacktestNode::IfElse(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
-            BacktestNode::FuturesOrder(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
-            BacktestNode::Position(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
-            BacktestNode::Variable(node) => node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await })).await,
+            BacktestNode::Start(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
+            BacktestNode::Kline(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
+            BacktestNode::Indicator(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
+            BacktestNode::IfElse(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
+            BacktestNode::FuturesOrder(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
+            BacktestNode::Position(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
+            BacktestNode::Variable(node) => {
+                node.with_ctx_read_async(|ctx| Box::pin(async move { ctx.is_in_state(&state).await }))
+                    .await
+            }
         }
     }
 
@@ -184,27 +186,27 @@ impl BacktestNode {
             }
             BacktestNode::Kline(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                .await
+                    .await
             }
             BacktestNode::Indicator(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                .await
+                    .await
             }
             BacktestNode::IfElse(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                .await
+                    .await
             }
             BacktestNode::FuturesOrder(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                .await
+                    .await
             }
             BacktestNode::Position(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                .await
+                    .await
             }
             BacktestNode::Variable(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                .await
+                    .await
             }
         }
     }
@@ -282,12 +284,6 @@ impl BacktestNode {
     }
 }
 
-
-
-
-
-
-
 static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> = LazyLock::new(|| {
     HashMap::from([
         (NodeType::StartNode, vec![]),
@@ -308,5 +304,3 @@ impl BacktestNodeEventReceiver {
         BACKTEST_NODE_EVENT_RECEIVERS.get(node_kind).cloned().unwrap_or_default()
     }
 }
-
-

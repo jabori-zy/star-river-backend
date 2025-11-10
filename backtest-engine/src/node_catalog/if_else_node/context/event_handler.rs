@@ -1,36 +1,28 @@
-use super::IfElseNodeContext;
-use strategy_core::node::context_trait::NodeEventHandlerExt;
-use event_center::Event;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::node::node_event::BacktestNodeEvent;
-use crate::node::node_command::NodeResetRespPayload;
-use crate::node::node_command::NodeResetResponse;
-use crate::node::node_event::StartNodeEvent;
-use crate::strategy::strategy_command::GetMinIntervalSymbolsCmdPayload;
 use async_trait::async_trait;
-use strategy_core::node::context_trait::NodeIdentityExt;
-use key::{KeyTrait, IndicatorKey, KlineKey};
-use ta_lib::{Indicator, IndicatorConfig};
-use star_river_event::backtest_strategy::node_event::{IndicatorNodeEvent, KlineNodeEvent};
+use event_center::Event;
+use key::{IndicatorKey, KeyTrait, KlineKey};
 use star_river_event::backtest_strategy::node_event::{
+    IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent,
+    indicator_node_event::{IndicatorUpdateEvent, IndicatorUpdatePayload},
     kline_node_event::KlineUpdateEvent,
-    indicator_node_event::{
-        IndicatorUpdatePayload, IndicatorUpdateEvent
-    }
 };
-use star_river_event::backtest_strategy::node_event::VariableNodeEvent;
-use strategy_core::node::context_trait::NodeRelationExt;
-use strategy_core::node::context_trait::{NodeCommunicationExt, NodeHandleExt};
-use strategy_core::event::node_common_event::TriggerPayload;
-use strategy_core::event::node_common_event::CommonEvent;
-use strategy_core::event::node_common_event::TriggerEvent;
+use strategy_core::{
+    event::node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
+    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+};
+use ta_lib::{Indicator, IndicatorConfig};
 
-
-
+use super::IfElseNodeContext;
+use crate::{
+    node::{
+        node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+        node_event::{BacktestNodeEvent, StartNodeEvent},
+    },
+    strategy::strategy_command::GetMinIntervalSymbolsCmdPayload,
+};
 
 #[async_trait]
 impl NodeEventHandlerExt for IfElseNodeContext {
-
     type EngineEvent = Event;
 
     async fn handle_node_command(&mut self, node_command: Self::NodeCommand) {
@@ -57,16 +49,14 @@ impl NodeEventHandlerExt for IfElseNodeContext {
             BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
                 self.play_index() == kline_update_event.play_index
             }
-            BacktestNodeEvent::VariableNode(variable_node_event) => {
-                match variable_node_event {
-                    VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => {
-                        self.play_index() == sys_variable_updated_event.play_index
-                    }
-                    VariableNodeEvent::CustomVariableUpdate(custom_variable_update_event) => {
-                        self.play_index() == custom_variable_update_event.play_index
-                    }
+            BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
+                VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => {
+                    self.play_index() == sys_variable_updated_event.play_index
                 }
-            }
+                VariableNodeEvent::CustomVariableUpdate(custom_variable_update_event) => {
+                    self.play_index() == custom_variable_update_event.play_index
+                }
+            },
             _ => false,
         };
 
@@ -92,9 +82,6 @@ impl NodeEventHandlerExt for IfElseNodeContext {
     }
 }
 
-
-
-
 impl IfElseNodeContext {
     pub(super) fn update_received_event(&mut self, received_event: BacktestNodeEvent) {
         // tracing::debug!("接收到的变量消息: {:?}", received_event);
@@ -102,15 +89,15 @@ impl IfElseNodeContext {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
                 (indicator_update_event.from_node_id().clone(), indicator_update_event.config_id)
             }
-            BacktestNodeEvent::VariableNode(variable_node_event) => {
-                match variable_node_event {
-                    VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => {
-                        (sys_variable_updated_event.from_node_id().clone(), sys_variable_updated_event.variable_config_id)
-                    }
-                    VariableNodeEvent::CustomVariableUpdate(custom_variable_updated_event) => {
-                        (custom_variable_updated_event.from_node_id().clone(), custom_variable_updated_event.variable_config_id)
-                    }
-                }
+            BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
+                VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => (
+                    sys_variable_updated_event.from_node_id().clone(),
+                    sys_variable_updated_event.variable_config_id,
+                ),
+                VariableNodeEvent::CustomVariableUpdate(custom_variable_updated_event) => (
+                    custom_variable_updated_event.from_node_id().clone(),
+                    custom_variable_updated_event.variable_config_id,
+                ),
             },
             BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
                 (kline_update_event.from_node_id().clone(), kline_update_event.config_id)

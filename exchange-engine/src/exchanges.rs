@@ -1,23 +1,22 @@
-use exchange_client::binance::Binance;
-use exchange_client::metatrader5::MetaTrader5;
+use exchange_client::{binance::Binance, exchange_error::ExchangeError, metatrader5::MetaTrader5};
+use exchange_core::{
+    exchange_trait::{Exchange as ExchangeTrait, ExchangeMarketDataExt, ExchangeSymbolExt},
+    state_machine::ExchangeRunState,
+};
+use star_river_core::{
+    exchange::Exchange as ExchangeType,
+    instrument::Symbol,
+    kline::{Kline, KlineInterval},
+    system::TimeRange,
+};
 
-use star_river_core::exchange::Exchange as ExchangeType;
-use exchange_core::state_machine::ExchangeRunState;
-use exchange_core::exchange_trait::Exchange as ExchangeTrait;
-use star_river_core::instrument::Symbol;
-use exchange_core::exchange_trait::{ExchangeSymbolExt, ExchangeMarketDataExt};
-use star_river_core::kline::{Kline, KlineInterval};
-use star_river_core::system::TimeRange;
-use exchange_client::exchange_error::ExchangeError;
 use crate::error::ExchangeEngineError;
-
 
 #[derive(Debug)]
 pub enum Exchange {
     Binance(Binance),
     MetaTrader5(MetaTrader5),
 }
-
 
 impl From<Binance> for Exchange {
     fn from(binance: Binance) -> Self {
@@ -67,7 +66,6 @@ impl Exchange {
         }
     }
 
-
     pub async fn kline_series(&self, symbol: &String, interval: KlineInterval, cache_size: u32) -> Result<Vec<Kline>, ExchangeEngineError> {
         match self {
             Exchange::Binance(exchange) => Ok(exchange.kline_series(symbol, interval, cache_size).await?),
@@ -75,8 +73,12 @@ impl Exchange {
         }
     }
 
-
-    pub async fn kline_history(&self, symbol: &String, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, ExchangeEngineError> {
+    pub async fn kline_history(
+        &self,
+        symbol: &String,
+        interval: KlineInterval,
+        time_range: TimeRange,
+    ) -> Result<Vec<Kline>, ExchangeEngineError> {
         match self {
             Exchange::Binance(exchange) => Ok(exchange.kline_history(symbol, interval, time_range).await?),
             Exchange::MetaTrader5(exchange) => Ok(exchange.kline_history(symbol, interval, time_range).await?),

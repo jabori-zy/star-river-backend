@@ -1,19 +1,21 @@
-use crate::api::response::ApiResponse;
-use crate::api::response::NewApiResponse;
-use crate::star_river::StarRiver;
-use axum::extract::Json;
-use axum::extract::State;
-use axum::http::StatusCode;
-use database::mutation::system_config_mutation::SystemConfigMutation;
-use database::query::system_config_query::SystemConfigQuery;
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+};
+use database::{mutation::system_config_mutation::SystemConfigMutation, query::system_config_query::SystemConfigQuery};
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
-use star_river_core::error::star_river_error::*;
-use star_river_core::system::system_config::Localization;
-use star_river_core::system::system_config::SystemConfig;
-use star_river_core::system::system_config::SystemConfigManager;
+use star_river_core::{
+    error::star_river_error::*,
+    system::system_config::{Localization, SystemConfig, SystemConfigManager},
+};
 use tracing::instrument;
 use utoipa::ToSchema;
+
+use crate::{
+    api::response::{ApiResponse, NewApiResponse},
+    star_river::StarRiver,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SystemConfigUpdateParams {

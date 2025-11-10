@@ -1,8 +1,8 @@
 use engine_core::EngineContextAccessor;
-use star_river_core::custom_type::AccountId;
-use star_river_core::instrument::Symbol;
-use crate::error::MarketEngineError;
+use star_river_core::{custom_type::AccountId, instrument::Symbol};
+
 use super::MarketEngineContext;
+use crate::error::MarketEngineError;
 
 impl MarketEngineContext {
     /// 获取指定账户的交易品种列表

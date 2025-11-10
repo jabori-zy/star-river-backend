@@ -1,26 +1,21 @@
-
-use crate::binance::url::BinanceHttpUrl;
-use snafu::ResultExt;
-use crate::binance::binance_type::BinanceKlineInterval;
-use super::error::*;
 use exchange_core::exchange_trait::HttpClient;
+use snafu::ResultExt;
 
-
+use super::error::*;
+use crate::binance::{binance_type::BinanceKlineInterval, url::BinanceHttpUrl};
 
 #[derive(Clone, Debug)]
 
 pub struct BinanceHttpClient {
-    client: reqwest::Client
+    client: reqwest::Client,
 }
 
-
 impl HttpClient for BinanceHttpClient {}
-
 
 impl BinanceHttpClient {
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::new()
+            client: reqwest::Client::new(),
         }
     }
 
@@ -28,18 +23,15 @@ impl BinanceHttpClient {
         let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::Ping);
         tracing::debug!("ping url: {:?}", url);
 
-        let result = self.client
+        let result = self
+            .client
             .get(&url)
             .send()
             .await
-            .context(NetworkSnafu {
-                url: url.clone(),
-            })?
+            .context(NetworkSnafu { url: url.clone() })?
             .text()
             .await
-            .context(ResponseSnafu {
-                url: url.clone(),
-            })?;
+            .context(ResponseSnafu { url: url.clone() })?;
         tracing::debug!("ping result: {:?}", result);
         // 如果body为空，则认为连接成功
         if result == "{}" {
@@ -51,26 +43,21 @@ impl BinanceHttpClient {
 
     pub async fn get_server_time(&self) -> Result<i64, BinanceError> {
         let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ServerTime);
-        let result = self.client
+        let result = self
+            .client
             .get(&url)
             .send()
             .await
-            .context(NetworkSnafu {
-                url: url.clone(),
-            })?
+            .context(NetworkSnafu { url: url.clone() })?
             .text()
-            .await.context(ResponseSnafu {
-                url: url.clone(),
-            })?;
+            .await
+            .context(ResponseSnafu { url: url.clone() })?;
 
         // 解析JSON字符串
         let result: serde_json::Value = serde_json::from_str(&result).context(ParseServerTimeFailedSnafu {})?;
 
         // 提取时间戳
-        Ok(result
-            .get("serverTime")
-            .and_then(|v| v.as_i64())
-            .unwrap())
+        Ok(result.get("serverTime").and_then(|v| v.as_i64()).unwrap())
     }
 
     // pub async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
@@ -133,14 +120,10 @@ impl BinanceHttpClient {
             .get(&url)
             .send()
             .await
-            .context(NetworkSnafu {
-                url: url.clone(),
-            })?
+            .context(NetworkSnafu { url: url.clone() })?
             .json::<Vec<serde_json::Value>>()
             .await
-            .context(ResponseSnafu {
-                url: url.clone(),
-            })?;
+            .context(ResponseSnafu { url: url.clone() })?;
 
         // log::debug!("kline: {:?}", raw_kline);
 
@@ -149,36 +132,30 @@ impl BinanceHttpClient {
 
     pub async fn get_exchange_info(&self) -> Result<serde_json::Value, BinanceError> {
         let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ExchangeInfo);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
-            .context(NetworkSnafu {
-                url: url.clone(),
-            })?
+            .context(NetworkSnafu { url: url.clone() })?
             .json::<serde_json::Value>()
             .await
-            .context(ResponseSnafu {
-                url: url.clone(),
-            })?;
+            .context(ResponseSnafu { url: url.clone() })?;
 
         Ok(response)
     }
 
     pub async fn get_symbol_info(&self, symbol: &str) -> Result<serde_json::Value, BinanceError> {
         let url = format!("{}{}?symbol={}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ExchangeInfo, symbol);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
-            .context(NetworkSnafu {
-                url: url.clone(),
-            })?
+            .context(NetworkSnafu { url: url.clone() })?
             .json::<serde_json::Value>()
             .await
-            .context(ResponseSnafu {
-                url: url.clone(),
-            })?;
+            .context(ResponseSnafu { url: url.clone() })?;
         Ok(response)
     }
 }

@@ -1,12 +1,12 @@
 pub mod mutation;
 pub mod query;
 
+use std::{env, path::PathBuf};
+
 use log::LevelFilter;
 use migration::Migrator;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::MigratorTrait;
-use std::env;
-use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct DatabaseManager {
@@ -29,16 +29,15 @@ impl DatabaseManager {
     /// 连接关闭后数据会自动销毁，无需手动清理。
     pub async fn new_in_memory() -> Result<Self, DbErr> {
         let database_url = "sqlite::memory:";
-        
+
         let mut opt = ConnectOptions::new(database_url);
-        opt.sqlx_logging(false)
-           .sqlx_logging_level(LevelFilter::Debug);
-        
+        opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);
+
         let conn = Database::connect(opt).await?;
-        
+
         // 应用所有迁移，确保 schema 与生产环境一致
         Self::migrate(&conn).await;
-        
+
         Ok(Self {
             path: PathBuf::from(":memory:"),
             conn,
@@ -70,7 +69,7 @@ impl DatabaseManager {
             // 查找 workspace 根目录（包含顶层 Cargo.toml 的目录）
             let root_path = Self::find_workspace_root()?;
             let db_path = root_path.join("db");
-            
+
             // 检查是否存在db目录,如果没有则创建
             if !db_path.exists() {
                 std::fs::create_dir_all(&db_path)?;
@@ -102,7 +101,7 @@ impl DatabaseManager {
                 current = parent.to_path_buf();
             }
         }
-        
+
         // 如果上面失败，使用当前工作目录向上查找
         let mut current = env::current_dir()?;
         loop {
@@ -113,13 +112,13 @@ impl DatabaseManager {
                     return Ok(current);
                 }
             }
-            
+
             match current.parent() {
                 Some(parent) => current = parent.to_path_buf(),
                 None => break,
             }
         }
-        
+
         // 如果都找不到，返回当前工作目录
         env::current_dir().map_err(|e| e.into())
     }

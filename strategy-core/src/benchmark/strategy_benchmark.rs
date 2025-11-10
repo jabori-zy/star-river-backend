@@ -1,12 +1,15 @@
-use snafu::{OptionExt, Snafu, Backtrace};
-use tokio::time::{Instant, Duration};
-use std::collections::{HashMap, VecDeque};
-use utoipa::ToSchema;
-use super::node_benchmark::{CompletedCycle, NodeBenchmark, NodePerformanceReport, NodeCycleReport};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+
 use serde::Serialize;
-use std::collections::BTreeMap;
-use star_river_core::error::{StarRiverErrorTrait, ErrorCode, ErrorLanguage, StatusCode};
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId, StrategyName};
+use snafu::{Backtrace, OptionExt, Snafu};
+use star_river_core::{
+    custom_type::{NodeId, NodeName, StrategyId, StrategyName},
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode},
+};
+use tokio::time::{Duration, Instant};
+use utoipa::ToSchema;
+
+use super::node_benchmark::{CompletedCycle, NodeBenchmark, NodeCycleReport, NodePerformanceReport};
 
 // ============================================================
 // 第一部分：StrategyCycleTracker - 策略单周期追踪器
@@ -33,10 +36,8 @@ impl StrategyCycleTracker {
     #[inline]
     pub fn start_phase(&mut self, phase_name: impl Into<String>) {
         // 直接记录当前时间作为阶段开始
-        self.phase_durations.push((
-            phase_name.into(),
-            Instant::now().duration_since(self.start_time)
-        ));
+        self.phase_durations
+            .push((phase_name.into(), Instant::now().duration_since(self.start_time)));
     }
 
     /// 结束追踪一个阶段
@@ -102,7 +103,7 @@ impl CompletedStrategyCycle {
             cycle_id: self.cycle_id,
             total_duration: self.total_duration,
             phase_durations: self.phase_durations.clone(),
-            node_cycle_reports: Vec::new(), // 这里留空,在 StrategyBenchmark 中填充
+            node_cycle_reports: Vec::new(),      // 这里留空,在 StrategyBenchmark 中填充
             node_execute_percentage: Vec::new(), // 这里留空,在 StrategyBenchmark 中填充
         }
     }
@@ -118,7 +119,7 @@ pub struct StrategyCycleReport {
     pub cycle_id: u32,
     pub total_duration: Duration,
     pub phase_durations: Vec<(String, Duration)>,
-    pub node_cycle_reports: Vec<NodeCycleReport>, // 该周期内所有节点的周期报告
+    pub node_cycle_reports: Vec<NodeCycleReport>,    // 该周期内所有节点的周期报告
     pub node_execute_percentage: Vec<(NodeId, f64)>, // 该周期内所有节点的执行占比
 }
 
@@ -136,7 +137,7 @@ impl StrategyCycleReport {
         if self.total_duration.is_zero() {
             return 0.0;
         }
-        
+
         if let Some(duration) = self.phase_durations.iter().find(|(name, _)| name == phase_name) {
             let phase_ns = duration.1.as_nanos() as f64;
             let total_ns = self.total_duration.as_nanos() as f64;
@@ -172,11 +173,7 @@ impl std::fmt::Display for StrategyCycleReport {
                 };
 
                 let prefix = if i == self.phase_durations.len() - 1 { "└" } else { "├" };
-                writeln!(
-                    f,
-                    "│  {} {}: {:?} ({:.2}%)",
-                    prefix, phase_name, duration, percentage
-                )?;
+                writeln!(f, "│  {} {}: {:?} ({:.2}%)", prefix, phase_name, duration, percentage)?;
             }
         }
 
@@ -208,7 +205,12 @@ impl std::fmt::Display for StrategyCycleReport {
                 let node_prefix = if is_last_node { "└" } else { "├" };
 
                 writeln!(f, "│  {} {} ({})", node_prefix, node_report.node_name, node_report.node_id)?;
-                writeln!(f, "│  {}   Total Duration: {:?}", if is_last_node { " " } else { "│" }, node_report.duration)?;
+                writeln!(
+                    f,
+                    "│  {}   Total Duration: {:?}",
+                    if is_last_node { " " } else { "│" },
+                    node_report.duration
+                )?;
 
                 if !node_report.phase_durations.is_empty() {
                     writeln!(f, "│  {}   Phases:", if is_last_node { " " } else { "│" })?;
@@ -255,7 +257,7 @@ pub struct StrategyPhaseBenchmark {
     pub total_duration_ns: u128,
     pub sum_squared_diff_ns: f64,
     pub all_phase_durations: BTreeMap<u64, usize>, // 存储纳秒值(key: 纳秒, value: 该耗时的周期数)
-    pub duration_percentage: f32, // 耗时占比
+    pub duration_percentage: f32,                  // 耗时占比
 }
 
 impl StrategyPhaseBenchmark {
@@ -372,8 +374,7 @@ impl StrategyPhaseBenchmark {
 
 /// 策略性能统计（聚合多个周期的数据）
 #[derive(Debug)]
-pub struct StrategyBenchmark
- {
+pub struct StrategyBenchmark {
     pub strategy_id: StrategyId,
     pub strategy_name: String,
 
@@ -395,8 +396,7 @@ pub struct StrategyBenchmark
     sum_squared_diff_ns: f64,
 }
 
-impl StrategyBenchmark
- {
+impl StrategyBenchmark {
     pub fn new(strategy_id: StrategyId, strategy_name: StrategyName) -> Self {
         Self {
             strategy_id,
@@ -415,15 +415,12 @@ impl StrategyBenchmark
         }
     }
 
-
     pub fn add_node_benchmark(&mut self, node_id: NodeId, node_name: String, node_type: String) {
         let node_benchmark = NodeBenchmark::new(node_type, node_id.clone(), node_name);
         self.node_benchmarks.insert(node_id, node_benchmark);
     }
 
-
     pub fn add_complete_node_cycle(&mut self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), NodeBenchmarkNotFountError> {
-
         self.node_benchmarks
             .get_mut(&node_id)
             .context(NodeBenchmarkNotFountSnafu { node_id: node_id.clone() })?
@@ -495,12 +492,9 @@ impl StrategyBenchmark
         if self.all_strategy_cycles.is_empty() {
             return Duration::ZERO;
         }
-        
-        let mut durations: Vec<Duration> = self.all_strategy_cycles
-            .iter()
-            .map(|t| t.get_total_duration())
-            .collect();
-        
+
+        let mut durations: Vec<Duration> = self.all_strategy_cycles.iter().map(|t| t.get_total_duration()).collect();
+
         durations.sort_unstable();
         durations[durations.len() / 2]
     }
@@ -537,15 +531,16 @@ impl StrategyBenchmark
         if self.all_strategy_cycles.is_empty() {
             return Duration::ZERO;
         }
-        
+
         let count = n.min(self.all_strategy_cycles.len());
-        let sum: Duration = self.all_strategy_cycles
+        let sum: Duration = self
+            .all_strategy_cycles
             .iter()
             .rev()
             .take(count)
             .map(|t| t.get_total_duration())
             .sum();
-        
+
         sum / count as u32
     }
 
@@ -554,14 +549,14 @@ impl StrategyBenchmark
         if self.total_cycles < recent_count * 2 {
             return false;
         }
-        
+
         let recent_avg = self.recent_avg_duration(recent_count);
         let overall_avg = self.avg_duration;
-        
+
         if overall_avg.is_zero() {
             return false;
         }
-        
+
         let ratio = recent_avg.as_nanos() as f64 / overall_avg.as_nanos() as f64;
         ratio > (1.0 + threshold)
     }
@@ -574,7 +569,8 @@ impl StrategyBenchmark
 
         // 计算每个阶段的耗时占比，然后生成报告
         let strategy_total_duration_ns = self.total_duration_ns;
-        let mut results: Vec<StrategyPhaseReport> = self.all_phase_benchmarks
+        let mut results: Vec<StrategyPhaseReport> = self
+            .all_phase_benchmarks
             .values()
             .map(|benchmark| benchmark.report(strategy_total_duration_ns))
             .collect();
@@ -587,7 +583,8 @@ impl StrategyBenchmark
     /// 生成性能报告
     pub fn report(&self) -> StrategyPerformanceReport {
         // 收集所有节点的性能报告
-        let mut node_reports: Vec<NodePerformanceReport> = self.node_benchmarks
+        let mut node_reports: Vec<NodePerformanceReport> = self
+            .node_benchmarks
             .values()
             .map(|node_benchmark| node_benchmark.report(self.avg_duration))
             .collect();
@@ -736,12 +733,7 @@ impl std::fmt::Display for StrategyPhaseReport {
         write!(
             f,
             "  ├─ {}: avg={:?}, min={:?}, max={:?}, cycles={}, percentage={:.2}%",
-            self.phase_name,
-            self.avg_duration,
-            self.min_duration,
-            self.max_duration,
-            self.total_cycles,
-            self.duration_percentage
+            self.phase_name, self.avg_duration, self.min_duration, self.max_duration, self.total_cycles, self.duration_percentage
         )
     }
 }
@@ -789,8 +781,16 @@ impl std::fmt::Display for StrategyPerformanceReport {
             writeln!(f, "╟───────────────────────────────────────────────────────────╢")?;
             writeln!(f, "║ Strategy Phase Reports (top 5):")?;
             for (i, phase) in self.strategy_phase_reports.iter().take(5).enumerate() {
-                let prefix = if i == self.strategy_phase_reports.len().min(5) - 1 { "└" } else { "├" };
-                writeln!(f, "║  {} {}: avg={:?}, cycles={}, percentage={:.2}%", prefix, phase.phase_name, phase.avg_duration, phase.total_cycles, phase.duration_percentage)?;
+                let prefix = if i == self.strategy_phase_reports.len().min(5) - 1 {
+                    "└"
+                } else {
+                    "├"
+                };
+                writeln!(
+                    f,
+                    "║  {} {}: avg={:?}, cycles={}, percentage={:.2}%",
+                    prefix, phase.phase_name, phase.avg_duration, phase.total_cycles, phase.duration_percentage
+                )?;
             }
         }
 
@@ -804,7 +804,11 @@ impl std::fmt::Display for StrategyPerformanceReport {
                 writeln!(f, "║ {}. {} [{}]", i + 1, node_report.node_name, node_report.node_type)?;
                 writeln!(f, "║    Node ID: {}", node_report.node_id)?;
                 writeln!(f, "║    Total Cycles: {}", node_report.total_cycles)?;
-                writeln!(f, "║    ├─ Average:      {:>12?} ({:.2}%)", node_report.avg_duration, node_report.avg_duration_percentage)?;
+                writeln!(
+                    f,
+                    "║    ├─ Average:      {:>12?} ({:.2}%)",
+                    node_report.avg_duration, node_report.avg_duration_percentage
+                )?;
                 writeln!(f, "║    ├─ Min:          {:>12?}", node_report.min_duration)?;
                 writeln!(f, "║    ├─ Max:          {:>12?}", node_report.max_duration)?;
                 writeln!(f, "║    ├─ StdDev:       {:>12?}", node_report.std_deviation)?;
@@ -818,8 +822,16 @@ impl std::fmt::Display for StrategyPerformanceReport {
                 if !node_report.phase_reports.is_empty() {
                     writeln!(f, "║    Phase Reports (top 3):")?;
                     for (j, phase) in node_report.phase_reports.iter().take(3).enumerate() {
-                        let prefix = if j == node_report.phase_reports.len().min(3) - 1 { "└" } else { "├" };
-                        writeln!(f, "║      {} {}: avg={:?} ({:.2}%)", prefix, phase.phase_name, phase.avg_duration, phase.avg_duration_percentage)?;
+                        let prefix = if j == node_report.phase_reports.len().min(3) - 1 {
+                            "└"
+                        } else {
+                            "├"
+                        };
+                        writeln!(
+                            f,
+                            "║      {} {}: avg={:?} ({:.2}%)",
+                            prefix, phase.phase_name, phase.avg_duration, phase.avg_duration_percentage
+                        )?;
                     }
                 }
             }
@@ -829,7 +841,6 @@ impl std::fmt::Display for StrategyPerformanceReport {
     }
 }
 
-
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 #[snafu(display("node benchmark not found: {node_id}"))]
@@ -837,7 +848,6 @@ pub struct NodeBenchmarkNotFountError {
     pub node_id: NodeId,
     pub backtrace: Backtrace,
 }
-
 
 impl StarRiverErrorTrait for NodeBenchmarkNotFountError {
     fn get_prefix(&self) -> &'static str {

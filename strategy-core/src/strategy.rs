@@ -1,23 +1,23 @@
 // pub mod backtest_strategy;
+pub mod context_trait;
 pub mod metadata;
 pub mod state_machine;
-pub mod context_trait;
 pub mod strategy_trait;
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-use star_river_core::exchange::{Exchange, deserialize_exchange};
-use strum::{Display, EnumString};
-use chrono::{DateTime, Utc, Duration};
-use std::str::FromStr;
-use std::fmt;
-use star_river_core::system::DateTimeUtc;
+use std::{fmt, str::FromStr};
+
+use chrono::{DateTime, Duration, Utc};
 use entity::strategy_config::Model as StrategyConfigModel;
-use star_river_core::custom_type::{StrategyId, StrategyName};
-use star_river_core::kline::KlineInterval;
+use serde::{Deserialize, Serialize};
+use star_river_core::{
+    custom_type::{StrategyId, StrategyName},
+    exchange::{Exchange, deserialize_exchange},
+    kline::KlineInterval,
+    system::DateTimeUtc,
+};
+use strum::{Display, EnumString};
 use ta_lib::IndicatorConfig;
-
-
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StrategyConfig {
@@ -71,7 +71,6 @@ impl From<StrategyConfigModel> for StrategyConfig {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Display, EnumString, Eq, PartialEq, Hash, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum TradeMode {
@@ -82,9 +81,6 @@ pub enum TradeMode {
     #[strum(serialize = "live")]
     Live, // 实盘
 }
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SelectedAccount {
@@ -101,8 +97,6 @@ pub struct SelectedAccount {
     pub available_balance: f64, // 可用余额
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectedSymbol {
@@ -111,7 +105,6 @@ pub struct SelectedSymbol {
     pub symbol: String,
     pub interval: KlineInterval,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectedIndicator {
@@ -124,14 +117,6 @@ pub struct SelectedIndicator {
     #[serde(rename = "indicatorConfig")]
     pub indicator_config: IndicatorConfig,
 }
-
-
-
-
-
-
-
-
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // pub struct TimeRange {

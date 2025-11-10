@@ -1,6 +1,6 @@
-use crate::define_indicator;
-
 use chrono::{DateTime, Utc};
+
+use crate::define_indicator;
 
 // ATR                  Average True Range #平均真实波幅 #平均真实波幅
 define_indicator!(ATR,

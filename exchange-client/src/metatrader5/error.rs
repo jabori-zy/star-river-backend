@@ -1,22 +1,23 @@
-use super::data_processor_error::Mt5DataProcessorError;
-use star_river_core::{
-    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain},
-    custom_type::AccountId,
-};
-use snafu::{Backtrace, Snafu};
 use std::collections::HashMap;
+
+use snafu::{Backtrace, Snafu};
+use star_river_core::{
+    custom_type::AccountId,
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain},
+};
+
+use super::data_processor_error::Mt5DataProcessorError;
 
 pub type MT5ErrorCode = i64;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Mt5Error {
-
     #[snafu(transparent)]
-    DataProcessorError { source: Mt5DataProcessorError, backtrace: Backtrace },
-
-
-
+    DataProcessorError {
+        source: Mt5DataProcessorError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("network error: terminal_id={terminal_id}, url={url}"))]
     Network {
@@ -242,9 +243,6 @@ pub enum Mt5Error {
 
     #[snafu(display("MetaTrader5 http client port not set: terminal_id:{terminal_id}"))]
     HttpClientPortNotSet { terminal_id: i32, backtrace: Backtrace },
-
-    
-
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error

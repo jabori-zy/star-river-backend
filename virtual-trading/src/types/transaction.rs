@@ -1,14 +1,14 @@
-use star_river_core::custom_type::*;
-use star_river_core::exchange::Exchange;
-use star_river_core::order::FuturesOrderSide;
-use star_river_core::transaction::TransactionSide;
-use star_river_core::transaction::TransactionType;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use super::order::VirtualOrder;
-use super::position::VirtualPosition;
-use utoipa::IntoParams;
-use utoipa::ToSchema;
+use star_river_core::{
+    custom_type::*,
+    exchange::Exchange,
+    order::FuturesOrderSide,
+    transaction::{TransactionSide, TransactionType},
+};
+use utoipa::{IntoParams, ToSchema};
+
+use super::{order::VirtualOrder, position::VirtualPosition};
 
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
 pub struct VirtualTransaction {

@@ -1,21 +1,19 @@
 mod context;
-mod state_machine;
-mod lifecycle;
-mod exchanges;
 pub mod error;
+mod exchanges;
+mod lifecycle;
+mod state_machine;
+
+use std::sync::Arc;
 
 use context::ExchangeEngineContext;
+use engine_core::{EngineBase, EngineBaseContext, EngineContextAccessor, engine_trait::Engine, state_machine::EngineRunState};
 use sea_orm::DatabaseConnection;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use engine_core::{EngineBase, EngineContextAccessor, engine_trait::Engine};
-use state_machine::ExchangeEngineAction;
-
-use crate::state_machine::ExchangeEngineStateMachine;
-use engine_core::state_machine::EngineRunState;
-use crate::state_machine::exchange_engine_transition;
-use engine_core::EngineBaseContext;
 use star_river_core::engine::EngineName;
+use state_machine::ExchangeEngineAction;
+use tokio::sync::RwLock;
+
+use crate::state_machine::{ExchangeEngineStateMachine, exchange_engine_transition};
 
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)
@@ -33,19 +31,13 @@ impl ExchangeEngine {
         let state_machine = ExchangeEngineStateMachine::new(
             EngineName::ExchangeEngine.to_string(),
             EngineRunState::Created,
-            exchange_engine_transition
+            exchange_engine_transition,
         );
-        let base_context = EngineBaseContext::new(
-            EngineName::ExchangeEngine,
-            state_machine
-        );
-        let context = ExchangeEngineContext::new(
-            base_context,
-            database
-        );
+        let base_context = EngineBaseContext::new(EngineName::ExchangeEngine, state_machine);
+        let context = ExchangeEngineContext::new(base_context, database);
 
         Self {
-            inner: EngineBase::new(context)
+            inner: EngineBase::new(context),
         }
     }
 }
@@ -62,7 +54,6 @@ impl std::ops::Deref for ExchangeEngine {
     }
 }
 
-
 impl Engine for ExchangeEngine {}
 
 // ============================================================================
@@ -77,5 +68,3 @@ impl EngineContextAccessor for ExchangeEngine {
         self.inner.context()
     }
 }
-
-

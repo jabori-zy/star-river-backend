@@ -1,17 +1,15 @@
-use star_river_core::custom_type::NodeId;
 use std::collections::HashMap;
+
 use rust_decimal::Decimal;
+use star_river_core::custom_type::NodeId;
+use star_river_event::backtest_strategy::node_event::{IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent};
+use strategy_core::{
+    node_infra::if_else_node::{ComparisonSymbol, FormulaRight, Variable},
+    variable::custom_variable::VariableValue,
+};
+
 use super::context::ConfigId;
 use crate::node::node_event::BacktestNodeEvent;
-use strategy_core::variable::custom_variable::VariableValue;
-use star_river_event::backtest_strategy::node_event::IndicatorNodeEvent;
-use star_river_event::backtest_strategy::node_event::KlineNodeEvent;
-use star_river_event::backtest_strategy::node_event::VariableNodeEvent;
-
-use strategy_core::node_infra::if_else_node::Variable;
-use strategy_core::node_infra::if_else_node::FormulaRight;
-use strategy_core::node_infra::if_else_node::ComparisonSymbol;
-
 
 // 获取变量值
 pub fn parse_variable_value(
@@ -35,7 +33,7 @@ pub fn parse_variable_value(
                 .and_then(|v| Decimal::try_from(v).ok())
                 .map(VariableValue::Number)
                 .unwrap_or(VariableValue::Null)
-            }
+        }
 
         BacktestNodeEvent::KlineNode(kline_node_event) => {
             if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_node_event {
@@ -51,16 +49,12 @@ pub fn parse_variable_value(
                 VariableValue::Null
             }
         }
-        BacktestNodeEvent::VariableNode(variable_node_event) => {
-            match variable_node_event {
-                VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => {
-                    sys_variable_updated_event.sys_variable.var_value.clone()
-                }
-                VariableNodeEvent::CustomVariableUpdate(custom_variable_updated_event) => {
-                    custom_variable_updated_event.custom_variable.var_value.clone()
-                }
+        BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
+            VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => sys_variable_updated_event.sys_variable.var_value.clone(),
+            VariableNodeEvent::CustomVariableUpdate(custom_variable_updated_event) => {
+                custom_variable_updated_event.custom_variable.var_value.clone()
             }
-        }
+        },
         _ => VariableValue::Null,
     }
 }
@@ -74,9 +68,7 @@ pub fn parse_condition_left_value(
     let variable_id = left.var_config_id;
     let variable_name = &left.var_name;
     parse_variable_value(node_id.clone(), variable_id, variable_name, received_value)
-
 }
-
 
 pub fn parse_condition_right_value(
     right: &FormulaRight,
@@ -93,18 +85,16 @@ pub fn parse_condition_right_value(
     }
 }
 
-
-
 pub fn compare(left: &VariableValue, right: &VariableValue, comparison_symbol: &ComparisonSymbol) -> bool {
     match (left, right) {
         // number和number比较
         (VariableValue::Number(left_value), VariableValue::Number(right_value)) => {
             match comparison_symbol {
-                ComparisonSymbol::GreaterThan => left_value > right_value, //>
-                ComparisonSymbol::LessThan => left_value < right_value, //<
-                ComparisonSymbol::Equal => left_value == right_value, // Decimal精确比较
+                ComparisonSymbol::GreaterThan => left_value > right_value,         //>
+                ComparisonSymbol::LessThan => left_value < right_value,            //<
+                ComparisonSymbol::Equal => left_value == right_value,              // Decimal精确比较
                 ComparisonSymbol::GreaterThanOrEqual => left_value >= right_value, //>=
-                ComparisonSymbol::LessThanOrEqual => left_value <= right_value, //<=
+                ComparisonSymbol::LessThanOrEqual => left_value <= right_value,    //<=
                 ComparisonSymbol::NotEqual => left_value != right_value,
                 _ => false,
             }
@@ -123,13 +113,11 @@ pub fn compare(left: &VariableValue, right: &VariableValue, comparison_symbol: &
             }
         }
 
-        (VariableValue::Boolean(left_value), VariableValue::Boolean(right_value)) => {
-            match comparison_symbol {
-                ComparisonSymbol::Is => left_value == right_value,
-                ComparisonSymbol::IsNot => left_value != right_value,
-                _ => false,
-            }
-        }
+        (VariableValue::Boolean(left_value), VariableValue::Boolean(right_value)) => match comparison_symbol {
+            ComparisonSymbol::Is => left_value == right_value,
+            ComparisonSymbol::IsNot => left_value != right_value,
+            _ => false,
+        },
 
         (VariableValue::Percentage(left_value), VariableValue::Percentage(right_value)) => {
             match comparison_symbol {
@@ -143,17 +131,15 @@ pub fn compare(left: &VariableValue, right: &VariableValue, comparison_symbol: &
             }
         }
 
-        (VariableValue::Time(left_value), VariableValue::Time(right_value)) => {
-            match comparison_symbol {
-                ComparisonSymbol::GreaterThan => left_value > right_value,
-                ComparisonSymbol::LessThan => left_value < right_value,
-                ComparisonSymbol::Equal => left_value == right_value,
-                ComparisonSymbol::GreaterThanOrEqual => left_value >= right_value,
-                ComparisonSymbol::LessThanOrEqual => left_value <= right_value,
-                ComparisonSymbol::NotEqual => left_value != right_value,
-                _ => false,
-            }
-        }
+        (VariableValue::Time(left_value), VariableValue::Time(right_value)) => match comparison_symbol {
+            ComparisonSymbol::GreaterThan => left_value > right_value,
+            ComparisonSymbol::LessThan => left_value < right_value,
+            ComparisonSymbol::Equal => left_value == right_value,
+            ComparisonSymbol::GreaterThanOrEqual => left_value >= right_value,
+            ComparisonSymbol::LessThanOrEqual => left_value <= right_value,
+            ComparisonSymbol::NotEqual => left_value != right_value,
+            _ => false,
+        },
 
         _ => false,
     }

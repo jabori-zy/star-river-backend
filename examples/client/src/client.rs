@@ -1,9 +1,7 @@
-use futures_util::stream::FuturesUnordered;
-use futures_util::{SinkExt, StreamExt};
-use std::ops::ControlFlow;
-use std::time::Instant;
-use tokio_tungstenite::tungstenite::Utf8Bytes;
+use std::{ops::ControlFlow, time::Instant};
 
+use futures_util::{SinkExt, StreamExt, stream::FuturesUnordered};
+use tokio_tungstenite::tungstenite::Utf8Bytes;
 // we will use tungstenite for websocket client impl (same library as what axum is using)
 use tokio_tungstenite::{
     connect_async,

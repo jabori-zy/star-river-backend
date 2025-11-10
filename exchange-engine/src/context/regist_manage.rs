@@ -1,8 +1,8 @@
-use super::ExchangeEngineContext;
-use star_river_core::custom_type::AccountId;
-use star_river_core::exchange::Exchange;
 use database::query::account_config_query::AccountConfigQuery;
 use snafu::Report;
+use star_river_core::{custom_type::AccountId, exchange::Exchange};
+
+use super::ExchangeEngineContext;
 use crate::error::{ExchangeEngineError, UnsupportedExchangeTypeSnafu};
 
 impl ExchangeEngineContext {
@@ -55,38 +55,36 @@ impl ExchangeEngineContext {
 
     pub async fn unregister_exchange(&mut self, account_id: AccountId) -> Result<(), ExchangeEngineError> {
         self.exchanges.remove(&account_id);
-        
 
         // let mut exchange = self.get_exchange_instance(&account_id).await?;
         // match exchange.exchange_type() {
-            // Exchange::Metatrader5(_) => {
-            //     let mt5 = exchange.as_any_mut().downcast_mut::<MetaTrader5>().unwrap();
+        // Exchange::Metatrader5(_) => {
+        //     let mt5 = exchange.as_any_mut().downcast_mut::<MetaTrader5>().unwrap();
 
-            //     match tokio::time::timeout(tokio::time::Duration::from_secs(15), mt5.stop_mt5_server()).await {
-            //         Ok(result) => match result {
-            //             Ok(true) => {
-            //                 tracing::info!("MT5 server stopped successfully, account_id: {}", account_id);
-            //                 self.exchanges.remove(&account_id);
-            //             }
-            //             Ok(false) => {
-            //                 tracing::error!("MT5 server stop failed, but still remove instance, account_id: {}", account_id);
-            //                 self.exchanges.remove(&account_id);
-            //             }
-            //             Err(e) => {
-            //                 tracing::error!("MT5 server stop error: {}, account_id: {}", e, account_id);
-            //                 self.exchanges.remove(&account_id);
-            //             }
-            //         },
-            //         Err(_) => {
-            //             tracing::error!("MT5 server stop timeout, account_id: {}", account_id);
-            //             self.exchanges.remove(&account_id);
-            //         }
-            //     }
-            // }
-            // _ => {
-            //     self.exchanges.remove(&account_id);
-            // }
-        
+        //     match tokio::time::timeout(tokio::time::Duration::from_secs(15), mt5.stop_mt5_server()).await {
+        //         Ok(result) => match result {
+        //             Ok(true) => {
+        //                 tracing::info!("MT5 server stopped successfully, account_id: {}", account_id);
+        //                 self.exchanges.remove(&account_id);
+        //             }
+        //             Ok(false) => {
+        //                 tracing::error!("MT5 server stop failed, but still remove instance, account_id: {}", account_id);
+        //                 self.exchanges.remove(&account_id);
+        //             }
+        //             Err(e) => {
+        //                 tracing::error!("MT5 server stop error: {}, account_id: {}", e, account_id);
+        //                 self.exchanges.remove(&account_id);
+        //             }
+        //         },
+        //         Err(_) => {
+        //             tracing::error!("MT5 server stop timeout, account_id: {}", account_id);
+        //             self.exchanges.remove(&account_id);
+        //         }
+        //     }
+        // }
+        // _ => {
+        //     self.exchanges.remove(&account_id);
+        // }
 
         Ok(())
     }

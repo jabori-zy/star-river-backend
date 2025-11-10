@@ -1,28 +1,29 @@
-mod mt5_data_processor;
-mod mt5_types;
-mod mt5_http_client;
-mod url;
-mod mt5_ws_client;
 mod client;
-mod state_machine;
-mod metadata;
-pub mod error;
 pub mod data_processor_error;
+pub mod error;
+mod metadata;
+mod mt5_data_processor;
+mod mt5_http_client;
+mod mt5_types;
+mod mt5_ws_client;
+mod state_machine;
+mod url;
 
 // Re-export metadata for external use
-pub use metadata::Mt5Metadata;
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use exchange_core::{ExchangeBase, MetadataAccessor, ProcessorAccessor};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::metatrader5::mt5_http_client::Mt5HttpClient;
-use crate::metatrader5::mt5_ws_client::Mt5WsClient;
-use crate::metatrader5::mt5_data_processor::Mt5DataProcessor;
-use crate::metatrader5::state_machine::{Mt5StateMachine, Mt5Action};
+use exchange_core::{ExchangeBase, MetadataAccessor, ProcessorAccessor, state_machine::ExchangeRunState};
+pub use metadata::Mt5Metadata;
 use star_river_core::exchange::Exchange as ExchangeType;
-use exchange_core::state_machine::ExchangeRunState;
-use crate::metatrader5::state_machine::metatrader5_transition;
+use tokio::sync::RwLock;
+
+use crate::metatrader5::{
+    mt5_data_processor::Mt5DataProcessor,
+    mt5_http_client::Mt5HttpClient,
+    mt5_ws_client::Mt5WsClient,
+    state_machine::{Mt5Action, Mt5StateMachine, metatrader5_transition},
+};
 
 // ============================================================================
 // MetaTrader5 Structure (newtype pattern)
@@ -48,24 +49,13 @@ impl MetaTrader5 {
     ///
     /// # Returns
     /// Returns a new `MetaTrader5` instance
-    pub fn new(
-        metadata:Mt5Metadata,
-    ) -> Self {
+    pub fn new(metadata: Mt5Metadata) -> Self {
         let exchange = ExchangeType::Metatrader5(metadata.server().to_string());
-        let state_machine = Mt5StateMachine::new(
-            exchange.to_string(),
-            ExchangeRunState::Created,
-            metatrader5_transition,
-        );
+        let state_machine = Mt5StateMachine::new(exchange.to_string(), ExchangeRunState::Created, metatrader5_transition);
         let http_client = Mt5HttpClient::new(metadata.terminal_id());
         let processor = Mt5DataProcessor::new(metadata.server().to_string());
         Self {
-            inner: ExchangeBase::new(
-                http_client,
-                processor,
-                metadata,
-                state_machine,
-            ),
+            inner: ExchangeBase::new(http_client, processor, metadata, state_machine),
         }
     }
 }
@@ -102,10 +92,8 @@ impl ProcessorAccessor for MetaTrader5 {
     }
 }
 
-
 #[async_trait]
 impl exchange_core::exchange_trait::Exchange for MetaTrader5 {
-
     async fn exchange_type(&self) -> ExchangeType {
         ExchangeType::Metatrader5(self.with_metadata_read(|meta| meta.server().to_string()).await)
     }
@@ -118,5 +106,3 @@ impl exchange_core::exchange_trait::Exchange for MetaTrader5 {
         self.state_machine().read().await.is_in_state(state)
     }
 }
-
-

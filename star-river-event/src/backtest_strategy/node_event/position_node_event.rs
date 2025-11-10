@@ -1,8 +1,8 @@
-use strategy_core::event::node::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use virtual_trading::types::VirtualPosition;
+use strategy_core::event::node::NodeEvent;
 use strum::Display;
+use virtual_trading::types::VirtualPosition;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event_type")]

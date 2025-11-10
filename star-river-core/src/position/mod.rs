@@ -1,14 +1,13 @@
 // pub mod virtual_position;
 
-use crate::exchange::Exchange;
-use crate::system::DateTimeUtc;
+use std::{any::Any, fmt::Debug, str::FromStr};
+
 use entity::position::Model as PositionModel;
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fmt::Debug;
-use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
+
+use crate::{exchange::Exchange, system::DateTimeUtc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPositionNumberParam {

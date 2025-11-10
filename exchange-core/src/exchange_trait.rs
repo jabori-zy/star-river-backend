@@ -1,22 +1,18 @@
+use std::{fmt::Debug, future::Future, pin::Pin, sync::Arc};
+
 use async_trait::async_trait;
 use star_river_core::{
     account::OriginalAccountInfo,
     error::StarRiverErrorTrait,
     exchange::Exchange as ExchangeType,
+    instrument::Symbol,
     kline::{Kline, KlineInterval},
     position::{GetPositionNumberParams, GetPositionParam, OriginalPosition, Position, PositionNumber},
-    instrument::Symbol,
+    system::TimeRange,
 };
-
-use star_river_core::system::TimeRange;
-
+use tokio::sync::RwLock;
 
 use crate::{ExchangeRunState, state_machine::ExchangeStateTransTrigger};
-use std::fmt::Debug;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 // ============================================================================
 // Base Component Trait Definitions
@@ -484,7 +480,6 @@ pub trait ExchangeLifecycle: MetadataAccessor {
     async fn update_state(&self, trans_trigger: ExchangeStateTransTrigger) -> Result<(), Self::Error>;
 }
 
-
 /// Main exchange trait
 ///
 /// Combines all exchange functionality traits
@@ -530,14 +525,6 @@ pub trait Exchange:
     async fn is_in_state(&self, state: &ExchangeRunState) -> bool;
 }
 
-
-
-
-
-
-
-
-
 // ============================================================================
 // Exchange Feature Extension Traits
 // ============================================================================
@@ -581,12 +568,7 @@ pub trait ExchangeMarketDataExt {
     ///
     /// # Returns
     /// Returns a vector of kline data
-    async fn kline_series(
-        &self,
-        symbol: &str,
-        interval: KlineInterval,
-        limit: u32,
-    ) -> Result<Vec<Kline>, Self::Error>;
+    async fn kline_series(&self, symbol: &str, interval: KlineInterval, limit: u32) -> Result<Vec<Kline>, Self::Error>;
 
     /// Get historical kline data
     ///
@@ -597,12 +579,7 @@ pub trait ExchangeMarketDataExt {
     ///
     /// # Returns
     /// Returns a vector of historical kline data
-    async fn kline_history(
-        &self,
-        symbol: &str,
-        interval: KlineInterval,
-        time_range: TimeRange,
-    ) -> Result<Vec<Kline>, Self::Error>;
+    async fn kline_history(&self, symbol: &str, interval: KlineInterval, time_range: TimeRange) -> Result<Vec<Kline>, Self::Error>;
 }
 
 /// Account management extension trait
@@ -737,8 +714,6 @@ pub trait ExchangePositionExt {
     /// Returns updated position information
     async fn latest_position(&self, position: &Position) -> Result<Position, Self::Error>;
 }
-
-
 
 /// Symbol management extension trait
 ///

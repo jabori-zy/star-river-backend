@@ -1,15 +1,13 @@
 // third-party
 use chrono::{Datelike, Timelike, Weekday};
-
-// workspace crate
-use star_river_event::backtest_strategy::node_event::kline_node_event::{
-    KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload,
-};
-use star_river_core::system::DateTimeUtc;
-
-use star_river_core::kline::{Kline, KlineInterval};
 use key::KlineKey;
-use star_river_core::system::TimeRange;
+// workspace crate
+use star_river_core::system::DateTimeUtc;
+use star_river_core::{
+    kline::{Kline, KlineInterval},
+    system::TimeRange,
+};
+use star_river_event::backtest_strategy::node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload};
 use strategy_core::node::context_trait::NodeIdentityExt;
 
 // current crate
@@ -87,8 +85,6 @@ impl KlineNodeContext {
         kline_data: Kline,
     ) -> KlineNodeEvent {
         let payload = KlineUpdatePayload::new(config_id, index, should_calculate, kline_key.clone(), kline_data);
-        KlineNodeEvent::KlineUpdate(
-            KlineUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id, payload).into(),
-        )
+        KlineNodeEvent::KlineUpdate(KlineUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id, payload).into())
     }
 }

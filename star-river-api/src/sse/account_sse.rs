@@ -1,14 +1,15 @@
-use axum::response::sse::{Event, Sse};
-use futures::stream::Stream;
 use std::{convert::Infallible, time::Duration};
+
+use async_stream::stream;
+use axum::{
+    extract::State,
+    response::sse::{Event, Sse},
+};
+use event_center::{EventCenterSingleton, event::Channel};
+use futures::stream::Stream;
 use tokio_stream::StreamExt;
 
 use crate::StarRiver;
-use async_stream::stream;
-use axum::extract::State;
-use event_center::event::Channel;
-use event_center::EventCenterSingleton;
-
 
 #[utoipa::path(
     get,

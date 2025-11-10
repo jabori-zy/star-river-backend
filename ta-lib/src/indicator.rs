@@ -6,23 +6,22 @@ pub mod price_transform;
 pub mod volatility;
 pub mod volume;
 
+use std::fmt::Debug;
 
 use cycle::*;
+use deepsize::DeepSizeOf;
 use momentum::*;
 use overlap::*;
 use pattern_recognition::*;
 use price_transform::*;
-use volatility::*;
-use volume::*;
-use crate::{impl_indicator, impl_indicator_config};
-use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fmt::Debug;
-use strum::{Display, EnumString};
-
-
 use snafu::ResultExt;
+use strum::{Display, EnumString};
+use volatility::*;
+use volume::*;
+
+use crate::{impl_indicator, impl_indicator_config};
 
 #[cfg(target_os = "windows")]
 pub type MaTypeInt = i32;

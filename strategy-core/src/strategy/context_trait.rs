@@ -5,36 +5,45 @@ use std::{fmt::Debug, sync::Arc};
 // third-party
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use heartbeat::Heartbeat;
-use star_river_core::error::StarRiverErrorTrait;
 use event_center_core::event::EventTrait;
-use tokio::sync::{RwLock, Mutex, mpsc};
+use heartbeat::Heartbeat;
+use petgraph::{Directed, Direction, Graph, graph::NodeIndex};
+use sea_orm::DatabaseConnection;
+use snafu::OptionExt;
+use star_river_core::{
+    custom_type::{NodeId, NodeName, StrategyId, StrategyName},
+    error::StarRiverErrorTrait,
+};
+use tokio::sync::{Mutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId, StrategyName};
 
 // current crate
 use super::metadata::StrategyMetadata;
-use crate::benchmark::StrategyBenchmark;
-use crate::benchmark::node_benchmark::CompletedCycle;
-use crate::node_infra::variable_node::variable_operation::UpdateVarValueOperation;
-use crate::strategy::state_machine::{StrategyStateMachine, StrategyStateChangeActions};
-use crate::communication::StrategyCommandTrait;
-use crate::node::NodeTrait;
-use crate::event::node::NodeEventTrait;
-use crate::error::StrategyStateMachineError;
-use crate::communication::NodeCommandTrait;
-use crate::variable::StrategyVariable;
-use crate::benchmark::strategy_benchmark::{StrategyCycleTracker, StrategyPerformanceReport};
-use crate::variable::custom_variable::CustomVariable;
-use crate::variable::sys_varibale::SysVariable;
-use crate::error::{StrategyError,strategy_error::{CustomVariableNotExistSnafu, NodeCycleDetectedSnafu}};
-use snafu::OptionExt;
-use crate::variable::{custom_variable::VariableValue, variable_operation::apply_variable_operation};
-use sea_orm::DatabaseConnection;
-use crate::strategy::StrategyConfig;
-use petgraph::graph::NodeIndex;
-use petgraph::{Graph,Directed,Direction};
-
+use crate::{
+    benchmark::{
+        StrategyBenchmark,
+        node_benchmark::CompletedCycle,
+        strategy_benchmark::{StrategyCycleTracker, StrategyPerformanceReport},
+    },
+    communication::{NodeCommandTrait, StrategyCommandTrait},
+    error::{
+        StrategyError, StrategyStateMachineError,
+        strategy_error::{CustomVariableNotExistSnafu, NodeCycleDetectedSnafu},
+    },
+    event::node::NodeEventTrait,
+    node::NodeTrait,
+    node_infra::variable_node::variable_operation::UpdateVarValueOperation,
+    strategy::{
+        StrategyConfig,
+        state_machine::{StrategyStateChangeActions, StrategyStateMachine},
+    },
+    variable::{
+        StrategyVariable,
+        custom_variable::{CustomVariable, VariableValue},
+        sys_varibale::SysVariable,
+        variable_operation::apply_variable_operation,
+    },
+};
 
 // ============================================================================
 // Metadata Trait StrategyMetadata
@@ -43,8 +52,7 @@ use petgraph::{Graph,Directed,Direction};
 /// Strategy context core trait
 ///
 /// All strategy contexts must implement this trait to provide access to base context
-pub trait StrategyMetaDataExt: Debug + Send + Sync + 'static
-{
+pub trait StrategyMetaDataExt: Debug + Send + Sync + 'static {
     type Node: NodeTrait;
     type StateMachine: StrategyStateMachine;
     type StrategyCommand: StrategyCommandTrait;
@@ -64,16 +72,12 @@ pub trait StrategyMetaDataExt: Debug + Send + Sync + 'static
 /// Strategy identity information extension
 ///
 /// Provides access to read-only information such as strategy ID and name
-pub trait StrategyIdentityExt: StrategyMetaDataExt
-{
-
-
+pub trait StrategyIdentityExt: StrategyMetaDataExt {
     /// Get strategy config
     #[inline]
     fn strategy_config(&self) -> &StrategyConfig {
         self.metadata().strategy_config()
     }
-
 
     /// Get strategy ID
     #[inline]
@@ -89,17 +93,10 @@ pub trait StrategyIdentityExt: StrategyMetaDataExt
 }
 
 // Automatically implement StrategyIdentity for all types that implement StrategyMetaDataExt
-impl<Ctx> StrategyIdentityExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
-
-
+impl<Ctx> StrategyIdentityExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 #[async_trait]
-pub trait StrategyInfoExt: StrategyMetaDataExt
-{
+pub trait StrategyInfoExt: StrategyMetaDataExt {
     async fn current_time(&self) -> DateTime<Utc> {
         self.metadata().current_time().await
     }
@@ -107,21 +104,9 @@ pub trait StrategyInfoExt: StrategyMetaDataExt
     async fn set_current_time(&mut self, current_time: DateTime<Utc>) {
         self.metadata_mut().set_current_time(current_time).await;
     }
-
 }
 
-impl<Ctx> StrategyInfoExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
-
-
-
-
-
-
-
+impl<Ctx> StrategyInfoExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Extension Trait 2: StrategyWorkflow - Workflow management (topological sort)
@@ -131,8 +116,7 @@ where
 ///
 /// Provides workflow management capabilities such as topological sorting and node lifecycle management
 #[async_trait]
-pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
-{
+pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt {
     /// Error type
     type Error: StarRiverErrorTrait;
 
@@ -154,11 +138,15 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
     fn topological_sort(&self) -> Result<Vec<Self::Node>, StrategyError> {
         let result = petgraph::algo::toposort(&self.metadata().graph(), None);
         match result {
-            Ok(nodes_index) => Ok(nodes_index.into_iter().map(|index| self.metadata().graph()[index].clone()).collect()),
+            Ok(nodes_index) => Ok(nodes_index
+                .into_iter()
+                .map(|index| self.metadata().graph()[index].clone())
+                .collect()),
             Err(_) => {
                 let error = NodeCycleDetectedSnafu {
                     strategy_name: self.strategy_name().clone(),
-                }.build();
+                }
+                .build();
                 return Err(error);
             }
         }
@@ -206,7 +194,6 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
     where
         Self: Sized;
 
-
     fn node(&self, node_index: NodeIndex) -> Option<&Self::Node> {
         self.metadata().graph().node_weight(node_index)
     }
@@ -215,12 +202,9 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
         self.metadata_mut().graph_mut().node_weight_mut(node_index)
     }
 
-
     fn get_leaf_node_indexs(&self) -> Vec<NodeIndex> {
         self.metadata().graph().externals(Direction::Outgoing).collect()
     }
-
-
 
     fn graph(&self) -> &Graph<Self::Node, (), Directed> {
         self.metadata().graph()
@@ -229,7 +213,6 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
     fn graph_mut(&mut self) -> &mut Graph<Self::Node, (), Directed> {
         self.metadata_mut().graph_mut()
     }
-
 
     fn node_indices(&self) -> &HashMap<NodeId, NodeIndex> {
         self.metadata().node_indices()
@@ -244,17 +227,13 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
         self.metadata().graph().node_weight(*node_index)
     }
 
-
-    
     fn leaf_node_ids(&self) -> &Vec<NodeId> {
         self.metadata().leaf_node_ids()
     }
 
-
     fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
         self.metadata_mut().set_leaf_node_ids(leaf_node_ids);
     }
-
 
     async fn add_node(&mut self, node: Self::Node) -> NodeIndex {
         let node_id = node.node_id().await;
@@ -262,8 +241,6 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
         self.metadata_mut().node_indices_mut().insert(node_id.to_string(), node_index);
         node_index
     }
-
-
 }
 
 // ============================================================================
@@ -274,8 +251,7 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt
 ///
 /// Defines how strategy handles various events, requires concrete strategy types to implement
 #[async_trait]
-pub trait StrategyEventHandlerExt: StrategyMetaDataExt
-{
+pub trait StrategyEventHandlerExt: StrategyMetaDataExt {
     /// Engine event type (e.g., market events, exchange events)
     type EngineEvent: EventTrait;
 
@@ -317,8 +293,7 @@ pub trait StrategyEventHandlerExt: StrategyMetaDataExt
 /// Strategy task control extension
 ///
 /// Provides task control functionality (cancellation, pause, etc.)
-pub trait StrategyTaskControlExt: StrategyMetaDataExt
-{
+pub trait StrategyTaskControlExt: StrategyMetaDataExt {
     /// Get cancellation token
     #[inline]
     fn cancel_token(&self) -> &CancellationToken {
@@ -339,11 +314,7 @@ pub trait StrategyTaskControlExt: StrategyMetaDataExt
 }
 
 // Automatically implement StrategyTaskControl for all types that implement StrategyMetaDataExt
-impl<Ctx> StrategyTaskControlExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
+impl<Ctx> StrategyTaskControlExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Extension Trait 5: StrategyCommunication - Communication management
@@ -353,8 +324,7 @@ where
 ///
 /// Manages communication channels for strategy commands
 #[async_trait]
-pub trait StrategyCommunicationExt: StrategyMetaDataExt
-{
+pub trait StrategyCommunicationExt: StrategyMetaDataExt {
     /// Get strategy command sender
     #[inline]
     fn strategy_command_sender(&self) -> &mpsc::Sender<Self::StrategyCommand> {
@@ -366,7 +336,6 @@ pub trait StrategyCommunicationExt: StrategyMetaDataExt
     fn strategy_command_receiver(&self) -> &Arc<Mutex<mpsc::Receiver<Self::StrategyCommand>>> {
         &self.metadata().strategy_command_receiver()
     }
-
 
     fn add_node_command_sender(&mut self, node_id: NodeId, node_command_sender: mpsc::Sender<Self::NodeCommand>) {
         self.metadata_mut().add_node_command_sender(node_id, node_command_sender);
@@ -383,11 +352,7 @@ pub trait StrategyCommunicationExt: StrategyMetaDataExt
 }
 
 // Automatically implement StrategyCommunication for all types that implement StrategyMetaDataExt
-impl<Ctx> StrategyCommunicationExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
+impl<Ctx> StrategyCommunicationExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Extension Trait 6: StrategyStateMachine - State machine operations
@@ -397,8 +362,7 @@ where
 ///
 /// Manages strategy runtime state and state transitions
 #[async_trait]
-pub trait StrategyStateMachineExt: StrategyMetaDataExt
-{
+pub trait StrategyStateMachineExt: StrategyMetaDataExt {
     /// Get state machine reference
     fn state_machine(&self) -> Arc<RwLock<Self::StateMachine>> {
         self.metadata().state_machine()
@@ -420,10 +384,13 @@ pub trait StrategyStateMachineExt: StrategyMetaDataExt
     #[inline]
     async fn transition_state(
         &self,
-        trigger: <Self::StateMachine as StrategyStateMachine>::Trigger
+        trigger: <Self::StateMachine as StrategyStateMachine>::Trigger,
     ) -> Result<
-        StrategyStateChangeActions<<Self::StateMachine as StrategyStateMachine>::State, <Self::StateMachine as StrategyStateMachine>::Action>,
-        StrategyStateMachineError
+        StrategyStateChangeActions<
+            <Self::StateMachine as StrategyStateMachine>::State,
+            <Self::StateMachine as StrategyStateMachine>::Action,
+        >,
+        StrategyStateMachineError,
     > {
         self.state_machine().write().await.transition(trigger)
     }
@@ -431,12 +398,7 @@ pub trait StrategyStateMachineExt: StrategyMetaDataExt
 
 // Automatically implement StrategyStateMachineOps for all types that implement StrategyMetaDataExt
 #[async_trait]
-impl<Ctx> StrategyStateMachineExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
-
+impl<Ctx> StrategyStateMachineExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Extension Trait 7: StrategyVariable - Variable management
@@ -446,9 +408,7 @@ where
 ///
 /// Manages strategy variables
 #[async_trait]
-pub trait StrategyVariableExt: StrategyMetaDataExt
-{
-
+pub trait StrategyVariableExt: StrategyMetaDataExt {
     async fn init_custom_variables(&mut self, custom_variables: Vec<CustomVariable>) {
         let custom_variable = self.metadata_mut().custom_variable();
         let mut custom_variable_guard = custom_variable.write().await;
@@ -465,7 +425,6 @@ pub trait StrategyVariableExt: StrategyMetaDataExt
         })?;
         Ok(custom_var.clone())
     }
-
 
     async fn strategy_variables(&self) -> Vec<StrategyVariable> {
         let mut strategy_variable = Vec::new();
@@ -486,7 +445,6 @@ pub trait StrategyVariableExt: StrategyMetaDataExt
         strategy_variable.extend(custom_var);
         strategy_variable.extend(sys_var);
         strategy_variable
-    
     }
 
     async fn update_sys_variable(&mut self, sys_variable: &SysVariable) {
@@ -495,41 +453,34 @@ pub trait StrategyVariableExt: StrategyMetaDataExt
         sys_variable_guard.insert(sys_variable.var_name.clone(), sys_variable.clone());
     }
 
+    async fn update_custom_variable(
+        &mut self,
+        var_name: &str,
+        operation: &UpdateVarValueOperation,
+        operation_value: Option<&VariableValue>,
+    ) -> Result<CustomVariable, StrategyError> {
+        let custom_variable = self.metadata_mut().custom_variable();
+        let mut custom_variable_guard = custom_variable.write().await;
 
-    async fn update_custom_variable(&mut self, 
-        var_name: &str, 
-        operation: &UpdateVarValueOperation, 
-        operation_value: Option<&VariableValue>) -> Result<CustomVariable, StrategyError> {
+        let custom_var = custom_variable_guard.get_mut(var_name).context(CustomVariableNotExistSnafu {
+            var_name: var_name.to_string(),
+        })?;
 
-            let custom_variable = self.metadata_mut().custom_variable();
-            let mut custom_variable_guard = custom_variable.write().await;
-
-            let custom_var = custom_variable_guard.get_mut(var_name).context(CustomVariableNotExistSnafu {
-                var_name: var_name.to_string(),
-            })?;
-
-            // 使用工具函数计算新值
-            let new_value = apply_variable_operation(
-                &var_name,
-                &custom_var.var_value,
-                operation,
-                operation_value,
-            )?;
-            // 更新前一个值
-            custom_var.previous_value = custom_var.var_value.clone();
-            // 更新当前值
-            custom_var.var_value = new_value.clone();
-            Ok(custom_var.clone())
-        }
-
-
+        // 使用工具函数计算新值
+        let new_value = apply_variable_operation(&var_name, &custom_var.var_value, operation, operation_value)?;
+        // 更新前一个值
+        custom_var.previous_value = custom_var.var_value.clone();
+        // 更新当前值
+        custom_var.var_value = new_value.clone();
+        Ok(custom_var.clone())
+    }
 
     async fn reset_custom_variable(&mut self, var_name: &str) -> Result<CustomVariable, StrategyError> {
         let custom_variable = self.metadata_mut().custom_variable();
         let mut custom_variable_guard = custom_variable.write().await;
-        let custom_variable = custom_variable_guard
-            .get_mut(var_name)
-            .context(CustomVariableNotExistSnafu { var_name: var_name.to_string() })?;
+        let custom_variable = custom_variable_guard.get_mut(var_name).context(CustomVariableNotExistSnafu {
+            var_name: var_name.to_string(),
+        })?;
         custom_variable.var_value = custom_variable.initial_value.clone();
         Ok(custom_variable.clone())
     }
@@ -549,16 +500,8 @@ pub trait StrategyVariableExt: StrategyMetaDataExt
     }
 }
 
-
 #[async_trait]
-impl<Ctx> StrategyVariableExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-    
-}
-
-
+impl<Ctx> StrategyVariableExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Extension Trait 8: StrategyPerformance - Performance management
@@ -568,16 +511,21 @@ where
 ///
 /// Manages strategy performance
 #[async_trait]
-pub trait StrategyBenchmarkExt: StrategyMetaDataExt
-{
-
+pub trait StrategyBenchmarkExt: StrategyMetaDataExt {
     async fn add_node_benchmark(&mut self, node_id: NodeId, node_name: NodeName, node_type: String) {
-        self.metadata_mut().benchmark().write().await.add_node_benchmark(node_id, node_name, node_type);
+        self.metadata_mut()
+            .benchmark()
+            .write()
+            .await
+            .add_node_benchmark(node_id, node_name, node_type);
     }
 
-
     async fn add_node_completed_cycle(&mut self, node_id: NodeId, cycle: CompletedCycle) -> Result<(), StrategyError> {
-        self.metadata_mut().benchmark().write().await.add_complete_node_cycle(node_id, cycle)?;
+        self.metadata_mut()
+            .benchmark()
+            .write()
+            .await
+            .add_complete_node_cycle(node_id, cycle)?;
         Ok(())
     }
 
@@ -585,17 +533,13 @@ pub trait StrategyBenchmarkExt: StrategyMetaDataExt
         self.metadata_mut().set_cycle_tracker(cycle_tracker).await;
     }
 
-
     fn benchmark(&self) -> &Arc<RwLock<StrategyBenchmark>> {
         &self.metadata().benchmark()
     }
 
-
     fn cycle_tracker(&self) -> &Arc<RwLock<Option<StrategyCycleTracker>>> {
         &self.metadata().cycle_tracker()
     }
-
-
 
     async fn strategy_performance_report(&self) -> StrategyPerformanceReport {
         let strategy_benchmark = self.metadata().benchmark();
@@ -604,19 +548,12 @@ pub trait StrategyBenchmarkExt: StrategyMetaDataExt
 }
 
 #[async_trait]
-impl<Ctx> StrategyBenchmarkExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
-
-
+impl<Ctx> StrategyBenchmarkExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Extension Trait 9: StrategyInfra - Infrastructure management
 // ============================================================================
-pub trait StrategyInfraExt: StrategyMetaDataExt
-{
+pub trait StrategyInfraExt: StrategyMetaDataExt {
     fn database(&self) -> &DatabaseConnection {
         self.metadata().database()
     }
@@ -624,25 +561,10 @@ pub trait StrategyInfraExt: StrategyMetaDataExt
     fn heartbeat(&self) -> &Arc<Mutex<Heartbeat>> {
         self.metadata().heartbeat()
     }
-
 }
 
 #[async_trait]
-impl<Ctx> StrategyInfraExt for Ctx
-where
-    Ctx: StrategyMetaDataExt,
-{
-}
-
-
-
-
-
-
-
-
-
-
+impl<Ctx> StrategyInfraExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 // ============================================================================
 // Composite Trait: StrategyContext (collection of all functionality)
@@ -666,8 +588,7 @@ pub trait StrategyContextExt:
 }
 
 // Automatically implement StrategyContext for all types that satisfy all constraints
-impl<Ctx> StrategyContextExt for Ctx
-where
+impl<Ctx> StrategyContextExt for Ctx where
     Ctx: StrategyMetaDataExt
         + StrategyIdentityExt
         + StrategyWorkflowExt
@@ -677,6 +598,6 @@ where
         + StrategyStateMachineExt
         + StrategyVariableExt
         + StrategyBenchmarkExt
-        + StrategyInfraExt,
+        + StrategyInfraExt
 {
 }

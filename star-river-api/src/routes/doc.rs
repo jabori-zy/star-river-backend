@@ -1,10 +1,9 @@
 // use crate::api::account_api::ExchangeType;
 // use crate::api::account_api::{AccountConfigType, AddAccountConfigParams, Mt5AccountConfigParams};
-use crate::api::response::ApiResponse;
-use crate::api::system_api::SystemConfigUpdateParams;
 use star_river_core::account::AccountConfig;
 use utoipa::OpenApi;
 
+use crate::api::{response::ApiResponse, system_api::SystemConfigUpdateParams};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -16,7 +15,6 @@ use utoipa::OpenApi;
         crate::api::strategy_api::update_strategy,
         crate::api::strategy_api::delete_strategy,
         crate::api::strategy_api::init_strategy,
-        
         crate::api::strategy_api::stop_strategy,
 
 

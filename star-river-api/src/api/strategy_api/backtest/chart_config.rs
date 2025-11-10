@@ -1,14 +1,14 @@
-use crate::api::response::ApiResponse;
-use crate::star_river::StarRiver;
-use axum::extract::State;
-use axum::extract::{Json, Path};
-use axum::http::StatusCode;
-use database::mutation::strategy_config_mutation::StrategyConfigMutation;
-use database::query::strategy_config_query::StrategyConfigQuery;
+use axum::{
+    extract::{Json, Path, State},
+    http::StatusCode,
+};
+use database::{mutation::strategy_config_mutation::StrategyConfigMutation, query::strategy_config_query::StrategyConfigQuery};
 use serde::{Deserialize, Serialize};
 use strategy_core::strategy::StrategyConfig;
 use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
+
+use crate::{api::response::ApiResponse, star_river::StarRiver};
 
 #[derive(Debug, Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(

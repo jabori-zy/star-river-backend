@@ -1,37 +1,26 @@
 // std
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::Arc,
-};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 // third-party
 use async_trait::async_trait;
-use star_river_core::error::StarRiverErrorTrait;
+use star_river_core::{custom_type::NodeId, error::StarRiverErrorTrait};
 use tokio::sync::RwLock;
 
 // workspace crate
 
 // current crate
-use super::context_trait::{
-    NodeMetaDataExt, NodeContextExt,
-    NodeHandleExt, NodeTaskControlExt, NodeIdentityExt, 
-    NodeEventHandlerExt, NodeCommunicationExt,
+use super::{
+    context_trait::{
+        NodeCommunicationExt, NodeContextExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeMetaDataExt, NodeTaskControlExt,
+    },
+    node_state_machine::StateTransTrigger,
 };
-use super::node_state_machine::StateTransTrigger;
 use crate::error::NodeStateMachineError;
-use star_river_core::custom_type::NodeId;
-
-
 
 #[async_trait]
 pub trait NodeTrait: Clone + Send + Sync + 'static {
     async fn node_id(&self) -> NodeId;
-
 }
-
-
-
 
 // ============================================================================
 // 节点上下文访问器（提供便捷的读写锁访问方法）
@@ -93,7 +82,10 @@ pub trait NodeContextAccessor: Send + Sync {
     ///     })
     /// }).await;
     /// ```
-    async fn with_ctx_read_async<R>(&self, f: impl for<'a> FnOnce(&'a Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send) -> R
+    async fn with_ctx_read_async<R>(
+        &self,
+        f: impl for<'a> FnOnce(&'a Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send,
+    ) -> R
     where
         R: Send,
     {
@@ -111,7 +103,10 @@ pub trait NodeContextAccessor: Send + Sync {
     ///     })
     /// }).await;
     /// ```
-    async fn with_ctx_write_async<R>(&self, f: impl for<'a> FnOnce(&'a mut Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send) -> R
+    async fn with_ctx_write_async<R>(
+        &self,
+        f: impl for<'a> FnOnce(&'a mut Self::Context) -> Pin<Box<dyn Future<Output = R> + Send + 'a>> + Send,
+    ) -> R
     where
         R: Send,
     {
@@ -163,7 +158,7 @@ pub trait NodeLifecycle: NodeContextAccessor {
 /// 定义节点监听各种事件的方法（外部事件、上游节点事件、策略命令）
 /// 依赖 `NodeContextAccessor` 来访问上下文
 #[async_trait]
-pub trait NodeEventListener: NodeContextAccessor 
+pub trait NodeEventListener: NodeContextAccessor
 where
     Self::Context: NodeContextExt,
 {
@@ -183,14 +178,16 @@ where
         use futures::{StreamExt, stream::select_all};
         use tokio_stream::wrappers::BroadcastStream;
 
-        let (input_handles, cancel_token, node_id) = self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                let input_handles = ctx.input_handles().to_vec();
-                let cancel_token = ctx.cancel_token().clone();
-                let node_id = ctx.node_id().to_string();
-                (input_handles, cancel_token, node_id)
+        let (input_handles, cancel_token, node_id) = self
+            .with_ctx_write_async(|ctx| {
+                Box::pin(async move {
+                    let input_handles = ctx.input_handles().to_vec();
+                    let cancel_token = ctx.cancel_token().clone();
+                    let node_id = ctx.node_id().to_string();
+                    (input_handles, cancel_token, node_id)
+                })
             })
-        }).await;
+            .await;
 
         if input_handles.is_empty() {
             tracing::warn!("{}: 没有消息接收器", node_id);
@@ -241,14 +238,16 @@ where
     ///
     /// 监听来自策略层的控制命令
     async fn listen_node_command(&self) {
-        let (node_command_receiver, cancel_token, node_id) = self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                let receiver = ctx.node_command_receiver();
-                let cancel_token = ctx.cancel_token().clone();
-                let node_id = ctx.node_id().to_string();
-                (receiver, cancel_token, node_id)
+        let (node_command_receiver, cancel_token, node_id) = self
+            .with_ctx_write_async(|ctx| {
+                Box::pin(async move {
+                    let receiver = ctx.node_command_receiver();
+                    let cancel_token = ctx.cancel_token().clone();
+                    let node_id = ctx.node_id().to_string();
+                    (receiver, cancel_token, node_id)
+                })
             })
-        }).await;
+            .await;
 
         let context = self.context().clone();
 

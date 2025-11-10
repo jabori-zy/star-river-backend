@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use strum::{Display, EnumString};
-use strum::EnumIter;
+
+use serde::{Deserialize, Serialize};
+use strum::{Display, EnumIter, EnumString};
 // use event_center::event::Event;
 // use event_center::communication::engine::EngineCommand;
 
@@ -21,13 +21,11 @@ pub enum EngineName {
 
     // #[strum(serialize = "cache-engine")]
     // CacheEngine, // 缓存引擎
-
     #[strum(serialize = "backtest-engine")]
     BacktestEngine, // 回测引擎
-    // #[strum(serialize = "live-strategy-engine")]
-    // LiveStrategyEngine, // 实时策略引擎
+                    // #[strum(serialize = "live-strategy-engine")]
+                    // LiveStrategyEngine, // 实时策略引擎
 }
-
 
 // #[async_trait]
 // pub trait EngineContext {

@@ -1,16 +1,14 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode, generate_error_code_chain};
-use ta_lib::error::TaLibError;
-use snafu::{Backtrace, Snafu};
 use std::sync::Arc;
+
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
+use ta_lib::error::TaLibError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum IndicatorNodeError {
-
     #[snafu(transparent)]
     TaLibError { source: TaLibError, backtrace: Backtrace },
-
-    
 
     #[snafu(display("data source [{data_source}] parse failed. reason: [{source}]"))]
     DataSourceParseFailed {
@@ -41,15 +39,14 @@ impl StarRiverErrorTrait for IndicatorNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            IndicatorNodeError::TaLibError { .. } => 1001,       // indicator error
-            IndicatorNodeError::DataSourceParseFailed { .. } => 1002, // data source parse failed
-            IndicatorNodeError::GetKlineDataFailed { .. } => 1003,   // get kline data failed
+            IndicatorNodeError::TaLibError { .. } => 1001,               // indicator error
+            IndicatorNodeError::DataSourceParseFailed { .. } => 1002,    // data source parse failed
+            IndicatorNodeError::GetKlineDataFailed { .. } => 1003,       // get kline data failed
             IndicatorNodeError::CalculateIndicatorFailed { .. } => 1004, // calculate indicator failed
         };
 
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn http_status_code(&self) -> StatusCode {
         match self {
@@ -57,7 +54,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::TaLibError { source, .. } => StatusCode::INTERNAL_SERVER_ERROR,
             IndicatorNodeError::GetKlineDataFailed { source, .. } => source.http_status_code(),
             IndicatorNodeError::CalculateIndicatorFailed { source, .. } => source.http_status_code(),
-            
+
             // non-transparent errors - use custom http status code
             IndicatorNodeError::DataSourceParseFailed { .. } => StatusCode::BAD_REQUEST,
         }
@@ -70,12 +67,13 @@ impl StarRiverErrorTrait for IndicatorNodeError {
                 let mut chain = source.error_code_chain();
                 chain.push(source.error_code());
                 chain
-            },
-            IndicatorNodeError::GetKlineDataFailed { source, .. } |
-            IndicatorNodeError::CalculateIndicatorFailed { source, .. } => generate_error_code_chain(source.as_ref()),
+            }
+            IndicatorNodeError::GetKlineDataFailed { source, .. } | IndicatorNodeError::CalculateIndicatorFailed { source, .. } => {
+                generate_error_code_chain(source.as_ref())
+            }
 
             // For errors with external sources that don't implement our trait
-            _ => vec![self.error_code()]
+            _ => vec![self.error_code()],
         }
     }
 
@@ -86,15 +84,13 @@ impl StarRiverErrorTrait for IndicatorNodeError {
                 // transparent errors - return source message directly
                 IndicatorNodeError::TaLibError { source, .. } => source.error_message(&language.to_string()),
                 IndicatorNodeError::GetKlineDataFailed { source, .. } => source.error_message(language),
-                
+
                 IndicatorNodeError::CalculateIndicatorFailed { source, .. } => source.error_message(language),
-                
+
                 // non-transparent errors - use custom message
                 IndicatorNodeError::DataSourceParseFailed { data_source, source, .. } => {
                     format!("数据源 [{}] 解析失败，原因: [{}]", data_source, source)
                 }
-
-                
             },
         }
     }

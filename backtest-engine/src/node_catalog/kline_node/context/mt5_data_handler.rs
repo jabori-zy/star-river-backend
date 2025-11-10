@@ -3,28 +3,23 @@ use std::sync::Arc;
 
 // third-party
 use chrono::Duration;
+// workspace crate
+use event_center::EventCenterSingleton;
+use event_center_core::communication::response::Response;
+use key::{KeyTrait, KlineKey};
 use snafu::IntoError;
+use star_river_core::{
+    custom_type::AccountId,
+    kline::{Kline, KlineInterval},
+    system::TimeRange,
+};
+use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
+use strategy_core::node::context_trait::NodeIdentityExt;
 use tokio::sync::{Semaphore, oneshot};
 
-// workspace crate
-
-use star_river_core::custom_type::AccountId;
-use star_river_core::system::TimeRange;
-use key::{KeyTrait, KlineKey};
-use strategy_core::node::context_trait::NodeIdentityExt;
-use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
-use event_center::EventCenterSingleton;
-use star_river_core::kline::{Kline, KlineInterval};
-use event_center_core::communication::response::Response;
-
 // current crate
-use super::{
-    KlineNodeContext, KlineNodeError,
-    utils::bar_number,
-};
-use crate::{
-    node::node_error::kline_node_error::{InsufficientMetaTrader5KlineDataSnafu, LoadKlineFromExchangeFailedSnafu},
-};
+use super::{KlineNodeContext, KlineNodeError, utils::bar_number};
+use crate::node::node_error::kline_node_error::{InsufficientMetaTrader5KlineDataSnafu, LoadKlineFromExchangeFailedSnafu};
 
 impl KlineNodeContext {
     pub(super) async fn get_mt5_kline_history(&self, account_id: AccountId, time_range: &TimeRange) -> Result<(), KlineNodeError> {
@@ -170,9 +165,7 @@ impl KlineNodeContext {
 
                 let response = resp_rx.await.unwrap();
                 match response {
-                    Response::Success { payload, .. } => {
-                        Ok(payload.kline_history.clone())
-                    }
+                    Response::Success { payload, .. } => Ok(payload.kline_history.clone()),
                     Response::Fail { error, .. } => {
                         return Err(LoadKlineFromExchangeFailedSnafu {
                             exchange: chunk_key.get_exchange().to_string(),

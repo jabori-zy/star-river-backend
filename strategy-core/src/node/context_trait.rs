@@ -1,35 +1,36 @@
 // std
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 // third-party
 use async_trait::async_trait;
+use event_center_core::event::EventTrait;
 use snafu::{IntoError, OptionExt, ResultExt};
-use star_river_core::error::StarRiverErrorTrait;
+use star_river_core::{
+    custom_type::{CycleId, NodeId, NodeName, StrategyId},
+    error::StarRiverErrorTrait,
+};
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
 
 // current crate
-use super::metadata::NodeMetadata;
-use crate::{error::node_error::{NodeCommandSendFailedSnafu, NodeEventSendFailedSnafu, OutputHandleNotFoundSnafu, StrategyCommandSendFailedSnafu}, node::{
-    NodeType,
-    node_handles::{HandleId, NodeInputHandle, NodeOutputHandle}, 
-    node_state_machine::{StateChangeActions, StateMachine},
-}};
-use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
-use crate::error::NodeStateMachineError;
-use super::utils::generate_default_output_handle_id;
-use event_center_core::event::EventTrait;
-use crate::communication::{NodeCommandTrait, StrategyCommandTrait};
-use crate::event::node::NodeEventTrait;
-use crate::benchmark::node_benchmark::CompletedCycle;
-use crate::event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload};
-use crate::event::node_common_event::TriggerPayload;
-use crate::event::node_common_event::TriggerEvent;
-use std::collections::HashMap;
-
+use super::{metadata::NodeMetadata, utils::generate_default_output_handle_id};
+use crate::{
+    benchmark::node_benchmark::CompletedCycle,
+    communication::{NodeCommandTrait, StrategyCommandTrait},
+    error::{
+        NodeStateMachineError,
+        node_error::{NodeCommandSendFailedSnafu, NodeEventSendFailedSnafu, OutputHandleNotFoundSnafu, StrategyCommandSendFailedSnafu},
+    },
+    event::{
+        node::NodeEventTrait,
+        node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
+    },
+    node::{
+        NodeType,
+        node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
+        node_state_machine::{StateChangeActions, StateMachine},
+    },
+};
 
 // ============================================================================
 // Metadata Trait：NodeMetadata
@@ -38,8 +39,7 @@ use std::collections::HashMap;
 /// 节点上下文核心 trait
 ///
 /// 所有节点上下文必须实现此 trait，提供对基础上下文的访问
-pub trait NodeMetaDataExt: Debug + Send + Sync + 'static
-{
+pub trait NodeMetaDataExt: Debug + Send + Sync + 'static {
     type StateMachine: StateMachine;
     type NodeEvent: NodeEventTrait + From<CommonEvent>;
     type NodeCommand: NodeCommandTrait;
@@ -59,9 +59,7 @@ pub trait NodeMetaDataExt: Debug + Send + Sync + 'static
 /// 节点身份信息扩展
 ///
 /// 提供节点 ID、名称、类型等只读信息的访问
-pub trait NodeIdentityExt: NodeMetaDataExt
-{
-
+pub trait NodeIdentityExt: NodeMetaDataExt {
     /// 获取周期 ID
     #[inline]
     fn cycle_id(&self) -> CycleId {
@@ -76,7 +74,7 @@ pub trait NodeIdentityExt: NodeMetaDataExt
 
     /// 获取节点名称
     #[inline]
-    fn node_name(&self) -> &NodeName{
+    fn node_name(&self) -> &NodeName {
         self.metadata().node_name()
     }
 
@@ -100,11 +98,7 @@ pub trait NodeIdentityExt: NodeMetaDataExt
 }
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeIdentity
-impl<Ctx> NodeIdentityExt for Ctx
-where
-    Ctx: NodeMetaDataExt,
-{
-}
+impl<Ctx> NodeIdentityExt for Ctx where Ctx: NodeMetaDataExt {}
 
 // ============================================================================
 // 扩展 Trait 2: NodeRelation - 节点关系管理
@@ -113,8 +107,7 @@ where
 /// 节点关系管理扩展
 ///
 /// 管理节点之间的拓扑关系（上游节点、叶子节点等）
-pub trait NodeRelationExt: NodeMetaDataExt
-{
+pub trait NodeRelationExt: NodeMetaDataExt {
     /// 添加源节点（上游节点）ID
     #[inline]
     fn add_source_node(&mut self, source_node_id: NodeId) {
@@ -153,13 +146,7 @@ pub trait NodeRelationExt: NodeMetaDataExt
 }
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeRelation
-impl<Ctx> NodeRelationExt for Ctx
-where
-    Ctx: NodeMetaDataExt,
-{
-}
-
-
+impl<Ctx> NodeRelationExt for Ctx where Ctx: NodeMetaDataExt {}
 
 // ============================================================================
 // 扩展 Trait 3: NodeHandle - 句柄管理
@@ -168,9 +155,7 @@ where
 /// 节点句柄管理扩展
 ///
 /// 管理节点的输入/输出句柄和策略输出句柄
-pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt
-{
-
+pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt {
     fn set_output_handles(&mut self);
 
     /// 添加输入句柄
@@ -220,7 +205,6 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt
         self.metadata_mut().add_output_handle(handle);
     }
 
-
     fn output_handles(&self) -> &HashMap<HandleId, NodeOutputHandle<Self::NodeEvent>> {
         self.metadata().output_handles()
     }
@@ -261,8 +245,7 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt
 ///
 /// 管理节点的运行状态和状态转换
 #[async_trait]
-pub trait NodeStateMachineExt: NodeMetaDataExt
-{
+pub trait NodeStateMachineExt: NodeMetaDataExt {
     /// 获取状态机引用
     fn state_machine(&self) -> Arc<RwLock<Self::StateMachine>> {
         self.metadata().state_machine()
@@ -283,11 +266,11 @@ pub trait NodeStateMachineExt: NodeMetaDataExt
     /// 状态转换
     #[inline]
     async fn transition_state(
-        &self, 
-        trigger: <Self::StateMachine as StateMachine>::Trigger
+        &self,
+        trigger: <Self::StateMachine as StateMachine>::Trigger,
     ) -> Result<
-        StateChangeActions<<Self::StateMachine as StateMachine>::State, <Self::StateMachine as StateMachine>::Action>, 
-        NodeStateMachineError
+        StateChangeActions<<Self::StateMachine as StateMachine>::State, <Self::StateMachine as StateMachine>::Action>,
+        NodeStateMachineError,
     > {
         self.state_machine().write().await.transition(trigger)
     }
@@ -295,11 +278,7 @@ pub trait NodeStateMachineExt: NodeMetaDataExt
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeStateMachineOps
 #[async_trait]
-impl<Ctx> NodeStateMachineExt for Ctx
-where
-    Ctx: NodeMetaDataExt,
-{
-}
+impl<Ctx> NodeStateMachineExt for Ctx where Ctx: NodeMetaDataExt {}
 
 // ============================================================================
 // 扩展 Trait 5: NodeCommunication - 通信管理
@@ -309,26 +288,21 @@ where
 ///
 /// 管理与策略和其他节点的通信，包括命令收发和事件发送
 #[async_trait]
-pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelationExt + NodeHandleExt
-{
-
-
-
+pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelationExt + NodeHandleExt {
     /// 获取策略命令发送器
     #[inline]
     fn strategy_command_sender(&self) -> &mpsc::Sender<Self::StrategyCommand> {
         self.metadata().strategy_command_sender()
     }
 
-
     async fn send_strategy_command(&self, command: Self::StrategyCommand) -> Result<(), crate::error::NodeError> {
-        self
-        .strategy_command_sender()
-        .send(command)
-        .await
-        .map_err(|e| StrategyCommandSendFailedSnafu { node_id: self.node_id().clone(),  }.into_error(Arc::new(e)))?;
+        self.strategy_command_sender().send(command).await.map_err(|e| {
+            StrategyCommandSendFailedSnafu {
+                node_id: self.node_id().clone(),
+            }
+            .into_error(Arc::new(e))
+        })?;
         Ok(())
-    
     }
 
     /// 获取节点命令接收器
@@ -337,20 +311,22 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         self.metadata().node_command_receiver()
     }
 
-
     /// 发送事件到指定的输出句柄
     ///
     /// # Arguments
     /// - `handle_id` - 输出句柄 ID
     /// - `event` - 要发送的事件
     fn output_handle_send(&self, handle_id: &str, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
-        let output_handle = self
-            .output_handle(handle_id)
-            .context(OutputHandleNotFoundSnafu { handle_id: handle_id.to_string() })?;
+        let output_handle = self.output_handle(handle_id).context(OutputHandleNotFoundSnafu {
+            handle_id: handle_id.to_string(),
+        })?;
 
-        output_handle
-            .send(event)
-            .map_err(|e| NodeEventSendFailedSnafu { handle_id: handle_id.to_string(),  }.into_error(Arc::new(e)))?;
+        output_handle.send(event).map_err(|e| {
+            NodeEventSendFailedSnafu {
+                handle_id: handle_id.to_string(),
+            }
+            .into_error(Arc::new(e))
+        })?;
 
         Ok(())
     }
@@ -362,9 +338,12 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     fn strategy_bound_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
         let strategy_handle = self.strategy_bound_handle();
 
-        strategy_handle
-            .send(event)
-            .map_err(|e| NodeEventSendFailedSnafu { handle_id: strategy_handle.output_handle_id().to_string(),  }.into_error(Arc::new(e)))?;
+        strategy_handle.send(event).map_err(|e| {
+            NodeEventSendFailedSnafu {
+                handle_id: strategy_handle.output_handle_id().to_string(),
+            }
+            .into_error(Arc::new(e))
+        })?;
 
         Ok(())
     }
@@ -374,19 +353,21 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     /// # Arguments
     /// - `event` - 要发送的事件
     fn default_output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
-        let default_handle = self
-            .default_output_handle()
-            .context(OutputHandleNotFoundSnafu { handle_id: generate_default_output_handle_id(self.node_id()) })?;
+        let default_handle = self.default_output_handle().context(OutputHandleNotFoundSnafu {
+            handle_id: generate_default_output_handle_id(self.node_id()),
+        })?;
 
         if default_handle.is_connected() {
-            default_handle
-                .send(event)
-                .map_err(|e| NodeEventSendFailedSnafu { handle_id: generate_default_output_handle_id(self.node_id()),  }.into_error(Arc::new(e)))?;
+            default_handle.send(event).map_err(|e| {
+                NodeEventSendFailedSnafu {
+                    handle_id: generate_default_output_handle_id(self.node_id()),
+                }
+                .into_error(Arc::new(e))
+            })?;
         }
 
         Ok(())
     }
-
 
     fn send_execute_over_event(&self) -> Result<(), crate::error::NodeError> {
         if !self.is_leaf_node() {
@@ -395,10 +376,10 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
 
         let payload = ExecuteOverPayload::new(self.cycle_id());
         let execute_over_event: CommonEvent = ExecuteOverEvent::new(
-            self.node_id().clone(), 
-            self.node_name().to_string(), 
-            self.node_id().clone(), 
-            payload
+            self.node_id().clone(),
+            self.node_name().to_string(),
+            self.node_id().clone(),
+            payload,
         )
         .into();
 
@@ -406,7 +387,6 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
 
         Ok(())
     }
-
 
     async fn send_trigger_event(&self, handle_id: &str) -> Result<(), crate::error::NodeError> {
         // 叶子节点不发送触发事件
@@ -418,33 +398,23 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         let trigger_event: CommonEvent =
             TriggerEvent::new(self.node_id().clone(), self.node_name().to_string(), handle_id.to_string(), payload).into();
 
-        let output_handle = self
-            .output_handle(handle_id)
-            .context(OutputHandleNotFoundSnafu { handle_id: handle_id.to_string() })?;
+        let output_handle = self.output_handle(handle_id).context(OutputHandleNotFoundSnafu {
+            handle_id: handle_id.to_string(),
+        })?;
 
-        output_handle
-            .send(trigger_event.into())
-            .map_err(|e| NodeEventSendFailedSnafu { handle_id: handle_id.to_string(),  }.into_error(Arc::new(e)))?;
+        output_handle.send(trigger_event.into()).map_err(|e| {
+            NodeEventSendFailedSnafu {
+                handle_id: handle_id.to_string(),
+            }
+            .into_error(Arc::new(e))
+        })?;
 
         Ok(())
     }
-
-
-
-
 }
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeControl
-impl<Ctx> NodeCommunicationExt for Ctx
-where
-    Ctx: NodeMetaDataExt + NodeIdentityExt + NodeRelationExt + NodeHandleExt,
-{
-}
-
-
-
-
-
+impl<Ctx> NodeCommunicationExt for Ctx where Ctx: NodeMetaDataExt + NodeIdentityExt + NodeRelationExt + NodeHandleExt {}
 
 // ============================================================================
 // 扩展 Trait 6: NodeControl - 节点运行控制
@@ -453,8 +423,7 @@ where
 /// 节点运行控制扩展
 ///
 /// 提供节点运行控制相关功能（取消、暂停等）
-pub trait NodeTaskControlExt: NodeMetaDataExt
-{
+pub trait NodeTaskControlExt: NodeMetaDataExt {
     /// 获取取消令牌
     #[inline]
     fn cancel_token(&self) -> &CancellationToken {
@@ -475,11 +444,7 @@ pub trait NodeTaskControlExt: NodeMetaDataExt
 }
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeControl
-impl<Ctx> NodeTaskControlExt for Ctx
-where
-    Ctx: NodeMetaDataExt,
-{
-}
+impl<Ctx> NodeTaskControlExt for Ctx where Ctx: NodeMetaDataExt {}
 
 // ============================================================================
 // 扩展 Trait 7: NodeEventHandler - 事件处理（需要具体实现）
@@ -489,8 +454,7 @@ where
 ///
 /// 定义节点如何处理各种事件，需要具体节点类型实现
 #[async_trait]
-pub trait NodeEventHandlerExt: NodeMetaDataExt
-{
+pub trait NodeEventHandlerExt: NodeMetaDataExt {
     type EngineEvent: EventTrait;
 
     async fn handle_engine_event(&mut self, event: Self::EngineEvent);
@@ -515,11 +479,8 @@ pub trait NodeEventHandlerExt: NodeMetaDataExt
 ///
 /// 提供向策略发送性能统计数据的功能
 #[async_trait]
-pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeIdentityExt + NodeCommunicationExt
-
-{
+pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeIdentityExt + NodeCommunicationExt {
     type Error: StarRiverErrorTrait;
-
 
     /// 挂载节点周期追踪数据
     ///
@@ -552,8 +513,7 @@ pub trait NodeContextExt:
 }
 
 // 自动为所有满足所有约束的类型实现 StrategyNodeContext
-impl<Ctx> NodeContextExt for Ctx
-where
+impl<Ctx> NodeContextExt for Ctx where
     Ctx: NodeMetaDataExt
         + NodeIdentityExt
         + NodeRelationExt
@@ -562,9 +522,7 @@ where
         + NodeCommunicationExt
         + NodeTaskControlExt
         + NodeEventHandlerExt
-        + NodeBenchmarkExt,
-    // Ctx::Event: Clone + Send + Sync,
-    // Ctx::NodeCommand: Send,
+        + NodeBenchmarkExt // Ctx::Event: Clone + Send + Sync,
+                           // Ctx::NodeCommand: Send,
 {
 }
-

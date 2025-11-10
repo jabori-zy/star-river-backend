@@ -1,5 +1,6 @@
-use crate::define_indicator;
 use chrono::{DateTime, Utc};
+
+use crate::define_indicator;
 
 // AD                   Chaikin A/D Line #钱德动量线
 define_indicator!(AD,

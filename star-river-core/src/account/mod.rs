@@ -1,14 +1,15 @@
 pub mod mt5_account;
 
-use crate::exchange::{Exchange, ExchangeStatus};
-use crate::system::DateTimeUtc;
-use entity::account_config::Model as AccountConfigModel;
-use entity::account_info::Model as AccountInfoModel;
+use std::{any::Any, fmt::Debug, str::FromStr};
+
+use entity::{account_config::Model as AccountConfigModel, account_info::Model as AccountInfoModel};
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fmt::Debug;
-use std::str::FromStr;
 use utoipa::ToSchema;
+
+use crate::{
+    exchange::{Exchange, ExchangeStatus},
+    system::DateTimeUtc,
+};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // #[serde(untagged)]

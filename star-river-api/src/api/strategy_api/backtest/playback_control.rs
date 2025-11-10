@@ -1,10 +1,11 @@
-use crate::api::response::NewApiResponse;
-use crate::star_river::StarRiver;
-use axum::extract::State;
-use axum::extract::{Json, Path};
-use axum::http::StatusCode;
-use engine_core::EngineContextAccessor;
+use axum::{
+    extract::{Json, Path, State},
+    http::StatusCode,
+};
 use backtest_engine::engine_error::BacktestEngineError;
+use engine_core::EngineContextAccessor;
+
+use crate::{api::response::NewApiResponse, star_river::StarRiver};
 
 #[utoipa::path(
     post,
@@ -23,20 +24,20 @@ pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
-                Box::pin(async move {
-                    ctx.play().await
-                })
-            }).await?.map_err(BacktestEngineError::from)?;
-            Ok(())
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| Box::pin(async move { ctx.play().await }))
+                    .await?
+                    .map_err(BacktestEngineError::from)?;
+                Ok(())
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -61,16 +62,17 @@ pub async fn play_one(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<i32, BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
-        Box::pin(async move {
-            let play_index = ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
-                Box::pin(async move {
-                    ctx.play_one().await
-                })
-            }).await?.map_err(BacktestEngineError::from)?;
-            Ok(play_index)
+    let result: Result<i32, BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| {
+            Box::pin(async move {
+                let play_index = ctx
+                    .with_strategy_ctx_write_async(strategy_id, move |ctx| Box::pin(async move { ctx.play_one().await }))
+                    .await?
+                    .map_err(BacktestEngineError::from)?;
+                Ok(play_index)
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(played_signal_count) => (
@@ -79,7 +81,7 @@ pub async fn play_one(
                 "played_signal_count": played_signal_count
             }))),
         ),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -101,20 +103,20 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
-                Box::pin(async move {
-                    ctx.pause().await
-                })
-            }).await?.map_err(BacktestEngineError::from)?;
-            Ok(())
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| Box::pin(async move { ctx.pause().await }))
+                    .await?
+                    .map_err(BacktestEngineError::from)?;
+                Ok(())
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -139,16 +141,16 @@ pub async fn get_play_index(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<i32, BacktestEngineError> = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            let play_index = ctx.with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                Box::pin(async move {
-                    ctx.play_index().await
-                })
-            }).await?;
-            Ok(play_index)
+    let result: Result<i32, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                let play_index = ctx
+                    .with_strategy_ctx_read_async(strategy_id, move |ctx| Box::pin(async move { ctx.play_index().await }))
+                    .await?;
+                Ok(play_index)
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(play_index) => (
@@ -157,7 +159,7 @@ pub async fn get_play_index(
                 "play_index": play_index
             }))),
         ),
-        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::NOT_FOUND, Json(NewApiResponse::error(e))),
     }
 }
 
@@ -179,19 +181,19 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<(), BacktestEngineError> = engine_guard.with_ctx_write_async(|ctx| {
-        Box::pin(async move {
-            ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| {
-                Box::pin(async move {
-                    ctx.reset().await
-                })
-            }).await?.map_err(BacktestEngineError::from)?;
-            Ok(())
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| {
+            Box::pin(async move {
+                ctx.with_strategy_ctx_write_async(strategy_id, move |ctx| Box::pin(async move { ctx.reset().await }))
+                    .await?
+                    .map_err(BacktestEngineError::from)?;
+                Ok(())
+            })
         })
-    }).await;
+        .await;
 
     match result {
         Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e)))
+        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
     }
 }

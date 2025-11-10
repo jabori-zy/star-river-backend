@@ -1,15 +1,20 @@
-use super::super::futures_order_node_types::*;
-use super::FuturesOrderNodeContext;
 use snafu::OptionExt;
-use strategy_core::event::node_common_event::CommonEvent;
-use crate::node::node_error::FuturesOrderNodeError;
-use crate::node::node_message::futures_order_node_log_message::ProcessingOrderMsg;
-use strategy_core::node::context_trait::{NodeIdentityExt, NodeCommunicationExt};
-use strategy_core::event::log_event::StrategyRunningLogEvent;
-use strategy_core::event::log_event::StrategyRunningLogSource;
-use strategy_core::event::log_event::StrategyRunningLogType;
-use crate::node::node_error::futures_order_node_error::CannotCreateOrderSnafu;
-use crate::node::node_error::futures_order_node_error::SymbolInfoNotFoundSnafu;
+use strategy_core::{
+    event::{
+        log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        node_common_event::CommonEvent,
+    },
+    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+};
+
+use super::{super::futures_order_node_types::*, FuturesOrderNodeContext};
+use crate::node::{
+    node_error::{
+        FuturesOrderNodeError,
+        futures_order_node_error::{CannotCreateOrderSnafu, SymbolInfoNotFoundSnafu},
+    },
+    node_message::futures_order_node_log_message::ProcessingOrderMsg,
+};
 
 impl FuturesOrderNodeContext {
     pub(super) async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), FuturesOrderNodeError> {
@@ -27,7 +32,8 @@ impl FuturesOrderNodeContext {
                 message.to_string(),
                 serde_json::Value::Null,
                 current_time,
-            ).into();
+            )
+            .into();
             let _ = self.strategy_bound_handle_send(log_event.into());
             return Err(CannotCreateOrderSnafu.build());
         }
@@ -46,10 +52,13 @@ impl FuturesOrderNodeContext {
             .clone();
         // 创建订单
         // 获取symbol的point
-        let point = self.symbol_info
+        let point = self
+            .symbol_info
             .iter()
             .find(|s| s.name == order_config.symbol)
-            .context(SymbolInfoNotFoundSnafu { symbol: order_config.symbol.clone() })?
+            .context(SymbolInfoNotFoundSnafu {
+                symbol: order_config.symbol.clone(),
+            })?
             .point();
         let create_order_result = virtual_trading_system_guard.create_order(
             self.strategy_id().clone(),

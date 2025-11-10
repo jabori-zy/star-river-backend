@@ -1,8 +1,10 @@
-use crate::error::ErrorCode;
-use crate::error::error_trait::ErrorLanguage;
-use crate::error::error_trait::StarRiverErrorTrait;
 use sea_orm::DbErr;
 use snafu::{Backtrace, Snafu};
+
+use crate::error::{
+    ErrorCode,
+    error_trait::{ErrorLanguage, StarRiverErrorTrait},
+};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -55,16 +57,16 @@ impl StarRiverErrorTrait for StarRiverError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            StarRiverError::UpdateSystemConfigFailed { .. } => 1001,         // 更新系统配置失败
-            StarRiverError::GetSystemConfigFailed { .. } => 1002,            // 获取系统配置失败
-            StarRiverError::InvalidKeyType { .. } => 1003,                   // 无效的缓存键类型
-            StarRiverError::InvalidIndicatorType { .. } => 1004,             // 无效的指标类型
-            StarRiverError::InvalidKeyFormat { .. } => 1005,                 // 无效的缓存键格式
-            StarRiverError::ParseExchangeFailed { .. } => 1006,              // 解析交易所失败
-            StarRiverError::ParseKlineIntervalFailed { .. } => 1007,         // 解析K线周期失败
-            StarRiverError::ParseDataTimeFailed { .. } => 1008,              // 解析时间失败
-            StarRiverError::InvalidTimestamp { .. } => 1009,                 // 无效的时间戳
-            StarRiverError::TransformTimestampFailed { .. } => 1010,         // 时间戳转换失败
+            StarRiverError::UpdateSystemConfigFailed { .. } => 1001, // 更新系统配置失败
+            StarRiverError::GetSystemConfigFailed { .. } => 1002,    // 获取系统配置失败
+            StarRiverError::InvalidKeyType { .. } => 1003,           // 无效的缓存键类型
+            StarRiverError::InvalidIndicatorType { .. } => 1004,     // 无效的指标类型
+            StarRiverError::InvalidKeyFormat { .. } => 1005,         // 无效的缓存键格式
+            StarRiverError::ParseExchangeFailed { .. } => 1006,      // 解析交易所失败
+            StarRiverError::ParseKlineIntervalFailed { .. } => 1007, // 解析K线周期失败
+            StarRiverError::ParseDataTimeFailed { .. } => 1008,      // 解析时间失败
+            StarRiverError::InvalidTimestamp { .. } => 1009,         // 无效的时间戳
+            StarRiverError::TransformTimestampFailed { .. } => 1010, // 时间戳转换失败
         };
         format!("{}_{:04}", prefix, code)
     }

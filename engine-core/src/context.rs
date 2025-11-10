@@ -1,14 +1,11 @@
-use std::fmt::Debug;
-use tokio_util::sync::CancellationToken;
+use std::{fmt::Debug, sync::Arc};
 
 use star_river_core::engine::EngineName;
-use crate::state_machine::EngineAction;
-use super::state_machine::EngineStateMachine;
-use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 
-
-
+use super::state_machine::EngineStateMachine;
+use crate::state_machine::EngineAction;
 
 #[derive(Debug, Clone)]
 pub struct EngineBaseContext<Action>
@@ -20,19 +17,16 @@ where
     state_machine: Arc<RwLock<EngineStateMachine<Action>>>,
 }
 
-
 impl<Action> EngineBaseContext<Action>
 where
     Action: EngineAction,
 {
-    pub fn new(
-        engine_name: EngineName,  
-        state_machine: EngineStateMachine<Action>
-    ) -> Self {
-        Self { 
-            engine_name, 
-            cancel_token: CancellationToken::new(), 
-            state_machine: Arc::new(RwLock::new(state_machine)) }
+    pub fn new(engine_name: EngineName, state_machine: EngineStateMachine<Action>) -> Self {
+        Self {
+            engine_name,
+            cancel_token: CancellationToken::new(),
+            state_machine: Arc::new(RwLock::new(state_machine)),
+        }
     }
 
     pub fn engine_name(&self) -> &EngineName {
@@ -47,8 +41,3 @@ where
         Arc::clone(&self.state_machine)
     }
 }
-
-
-
-
-

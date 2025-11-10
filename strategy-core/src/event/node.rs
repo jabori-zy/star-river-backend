@@ -1,18 +1,12 @@
+use std::{fmt::Debug, ops::Deref};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
-use std::fmt::Debug;
 use star_river_core::custom_type::{NodeId, NodeName};
+
 use crate::node::node_handles::HandleId;
 
-
 pub trait NodeEventTrait: Debug + Send + Sync + Clone {}
-
-
-
-
-
 
 // 泛型事件结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,8 +44,6 @@ impl<T: Debug + Send + Sync + Clone> Deref for NodeEvent<T> {
         &self.payload
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

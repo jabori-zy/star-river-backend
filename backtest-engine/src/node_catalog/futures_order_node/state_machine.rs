@@ -1,9 +1,10 @@
-use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
-use strategy_core::error::node_state_machine_error::NodeTransFailedSnafu;
-use strategy_core::node::node_state_machine::{NodeStateMachine, StateChangeActions, StateAction};
-use strategy_core::error::NodeStateMachineError;
+use strategy_core::{
+    error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
+    node::node_state_machine::{NodeStateMachine, StateAction, StateChangeActions},
+};
 use strum::Display;
 
+use crate::node::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 
 // ============================================================================
 // FuturesOrderNode State Machine Type Alias
@@ -19,21 +20,19 @@ pub type FuturesOrderNodeStateMachine = NodeStateMachine<NodeRunState, FuturesOr
 /// Actions to be executed after FuturesOrderNode state transitions
 #[derive(Debug, Clone, Display)]
 pub enum FuturesOrderNodeAction {
-    ListenAndHandleExternalEvents,              // Handle external events (strategy signals)
-    ListenAndHandleNodeEvents,                  // Listen and handle node messages
-    ListenAndHandleStrategyCommand,             // Handle strategy commands
-    ListenAndHandleVirtualTradingSystemEvent,   // Handle virtual trading system events
-    GetSymbolInfo,                              // Get trading pair information
-    RegisterTask,                               // Register task
-    LogNodeState,                               // Log node state
-    LogTransition,                              // Log state transition
-    LogError(String),                           // Log error
-    CancelAsyncTask,                            // Cancel async task
+    ListenAndHandleExternalEvents,            // Handle external events (strategy signals)
+    ListenAndHandleNodeEvents,                // Listen and handle node messages
+    ListenAndHandleStrategyCommand,           // Handle strategy commands
+    ListenAndHandleVirtualTradingSystemEvent, // Handle virtual trading system events
+    GetSymbolInfo,                            // Get trading pair information
+    RegisterTask,                             // Register task
+    LogNodeState,                             // Log node state
+    LogTransition,                            // Log state transition
+    LogError(String),                         // Log error
+    CancelAsyncTask,                          // Cancel async task
 }
 
 impl StateAction for FuturesOrderNodeAction {}
-
-
 
 // ============================================================================
 // FuturesOrderNode State Transition Function
@@ -49,69 +48,51 @@ pub fn futures_order_node_transition(
 ) -> Result<StateChangeActions<NodeRunState, FuturesOrderNodeAction>, NodeStateMachineError> {
     match (state, &trans_trigger) {
         // Created -> Initializing
-        (NodeRunState::Created, &NodeStateTransTrigger::StartInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Initializing,
-                vec![
-                    FuturesOrderNodeAction::LogTransition,
-                    FuturesOrderNodeAction::ListenAndHandleExternalEvents,
-                    FuturesOrderNodeAction::ListenAndHandleNodeEvents,
-                    FuturesOrderNodeAction::ListenAndHandleStrategyCommand,
-                    FuturesOrderNodeAction::ListenAndHandleVirtualTradingSystemEvent,
-                    FuturesOrderNodeAction::GetSymbolInfo,
-                    FuturesOrderNodeAction::RegisterTask,
-                ],
-            ))
-        }
+        (NodeRunState::Created, &NodeStateTransTrigger::StartInit) => Ok(StateChangeActions::new(
+            NodeRunState::Initializing,
+            vec![
+                FuturesOrderNodeAction::LogTransition,
+                FuturesOrderNodeAction::ListenAndHandleExternalEvents,
+                FuturesOrderNodeAction::ListenAndHandleNodeEvents,
+                FuturesOrderNodeAction::ListenAndHandleStrategyCommand,
+                FuturesOrderNodeAction::ListenAndHandleVirtualTradingSystemEvent,
+                FuturesOrderNodeAction::GetSymbolInfo,
+                FuturesOrderNodeAction::RegisterTask,
+            ],
+        )),
 
         // Initializing -> Ready
-        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Ready,
-                vec![
-                    FuturesOrderNodeAction::LogTransition,
-                    FuturesOrderNodeAction::LogNodeState,
-                ],
-            ))
-        }
+        (NodeRunState::Initializing, &NodeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
+            NodeRunState::Ready,
+            vec![FuturesOrderNodeAction::LogTransition, FuturesOrderNodeAction::LogNodeState],
+        )),
 
         // Ready -> Stopping
-        (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Stopping,
-                vec![
-                    FuturesOrderNodeAction::LogTransition,
-                    FuturesOrderNodeAction::CancelAsyncTask,
-                ],
-            ))
-        }
+        (NodeRunState::Ready, &NodeStateTransTrigger::StartStop) => Ok(StateChangeActions::new(
+            NodeRunState::Stopping,
+            vec![FuturesOrderNodeAction::LogTransition, FuturesOrderNodeAction::CancelAsyncTask],
+        )),
 
         // Stopping -> Stopped
-        (NodeRunState::Stopping, &NodeStateTransTrigger::FinishStop) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Stopped,
-                vec![
-                    FuturesOrderNodeAction::LogTransition,
-                    FuturesOrderNodeAction::LogNodeState,
-                ],
-            ))
-        }
+        (NodeRunState::Stopping, &NodeStateTransTrigger::FinishStop) => Ok(StateChangeActions::new(
+            NodeRunState::Stopped,
+            vec![FuturesOrderNodeAction::LogTransition, FuturesOrderNodeAction::LogNodeState],
+        )),
 
         // Any state -> Failed
-        (_, &NodeStateTransTrigger::EncounterError(ref error)) => {
-            Ok(StateChangeActions::new(
-                NodeRunState::Failed,
-                vec![
-                    FuturesOrderNodeAction::LogTransition,
-                    FuturesOrderNodeAction::LogError(error.clone()),
-                ],
-            ))
-        }
+        (_, &NodeStateTransTrigger::EncounterError(ref error)) => Ok(StateChangeActions::new(
+            NodeRunState::Failed,
+            vec![
+                FuturesOrderNodeAction::LogTransition,
+                FuturesOrderNodeAction::LogError(error.clone()),
+            ],
+        )),
 
         // Invalid transition
-        _ => Err(NodeTransFailedSnafu{
+        _ => Err(NodeTransFailedSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.build()),
+        }
+        .build()),
     }
 }

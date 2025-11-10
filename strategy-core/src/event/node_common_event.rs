@@ -1,26 +1,24 @@
-use crate::event::node::NodeEvent;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-
-use crate::event::log_event::{StrategyRunningLogEvent, NodeStateLogEvent};
 use star_river_core::custom_type::CycleId;
 
-
+use crate::event::{
+    log_event::{NodeStateLogEvent, StrategyRunningLogEvent},
+    node::NodeEvent,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, From)]
 pub enum CommonEvent {
-    Trigger(TriggerEvent), // Trigger event
+    Trigger(TriggerEvent),               // Trigger event
     ExecuteOver(ExecuteOverEvent),       // Execute over
     RunningLog(StrategyRunningLogEvent), // Running log
-    StateLog(NodeStateLogEvent), // State log
+    StateLog(NodeStateLogEvent),         // State log
 }
 
 // Type aliases
 
 pub type TriggerEvent = NodeEvent<TriggerPayload>;
 pub type ExecuteOverEvent = NodeEvent<ExecuteOverPayload>;
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerPayload {
@@ -33,8 +31,6 @@ impl TriggerPayload {
         Self { cycle_id }
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecuteOverPayload {

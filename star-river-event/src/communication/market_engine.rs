@@ -1,11 +1,12 @@
 use derive_more::From;
-use star_river_core::custom_type::AccountId;
-use star_river_core::custom_type::StrategyId;
-use star_river_core::exchange::Exchange;
-use star_river_core::kline::{Kline, KlineInterval};
-use star_river_core::instrument::Symbol;
-use star_river_core::system::TimeRange;
 use event_center_core::communication::{Command, Response};
+use star_river_core::{
+    custom_type::{AccountId, StrategyId},
+    exchange::Exchange,
+    instrument::Symbol,
+    kline::{Kline, KlineInterval},
+    system::TimeRange,
+};
 
 // ============ Market Engine Command Enum ============
 #[derive(Debug, From)]
@@ -196,10 +197,7 @@ pub struct GetSymbolInfoCmdPayload {
 
 impl GetSymbolInfoCmdPayload {
     pub fn new(account_id: AccountId, symbol: String) -> Self {
-        Self {
-            account_id,
-            symbol,
-        }
+        Self { account_id, symbol }
     }
 }
 

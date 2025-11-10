@@ -1,7 +1,5 @@
-use strum::Display;
 use strategy_core::node::node_state_machine::{RunState, StateTransTrigger};
-
-
+use strum::Display;
 
 #[derive(Debug, Clone, PartialEq, Display)]
 pub enum NodeRunState {
@@ -34,9 +32,6 @@ pub enum NodeRunState {
 }
 
 impl RunState for NodeRunState {}
-
-
-
 
 #[derive(Debug, Display, Clone)]
 pub enum NodeStateTransTrigger {

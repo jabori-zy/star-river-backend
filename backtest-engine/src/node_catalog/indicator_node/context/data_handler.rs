@@ -1,20 +1,24 @@
-use tokio::sync::oneshot;
-use snafu::IntoError;
-use super::IndicatorNodeContext;
-use key::{KeyTrait, IndicatorKey, KlineKey};
-use star_river_core::kline::Kline;
-use crate::strategy::strategy_command::{GetIndicatorDataCmdPayload, GetIndicatorDataCommand};
-use ta_lib::{Indicator, IndicatorConfig};
-use strategy_core::node::context_trait::{NodeIdentityExt, NodeCommunicationExt};
-use crate::node::node_error::indicator_node_error::{IndicatorNodeError, GetKlineDataFailedSnafu, CalculateIndicatorFailedSnafu};
-use star_river_event::communication::{CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand};
-use crate::strategy::strategy_command::GetKlineDataCommand;
-use star_river_event::communication::IndicatorEngineCommand;
 use event_center::EventCenterSingleton;
-use crate::strategy::strategy_command::{InitIndicatorDataCmdPayload, InitIndicatorDataCommand};
-use strategy_core::communication::strategy::StrategyResponse;
-use crate::strategy::strategy_command::GetKlineDataCmdPayload;
 use event_center_core::communication::Response;
+use key::{IndicatorKey, KeyTrait, KlineKey};
+use snafu::IntoError;
+use star_river_core::kline::Kline;
+use star_river_event::communication::{CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, IndicatorEngineCommand};
+use strategy_core::{
+    communication::strategy::StrategyResponse,
+    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+};
+use ta_lib::{Indicator, IndicatorConfig};
+use tokio::sync::oneshot;
+
+use super::IndicatorNodeContext;
+use crate::{
+    node::node_error::indicator_node_error::{CalculateIndicatorFailedSnafu, GetKlineDataFailedSnafu, IndicatorNodeError},
+    strategy::strategy_command::{
+        GetIndicatorDataCmdPayload, GetIndicatorDataCommand, GetKlineDataCmdPayload, GetKlineDataCommand, InitIndicatorDataCmdPayload,
+        InitIndicatorDataCommand,
+    },
+};
 
 impl IndicatorNodeContext {
     // 更新当前节点缓存的用于计算的k线数据
@@ -61,7 +65,7 @@ impl IndicatorNodeContext {
         // 等待响应
         let response = resp_rx.await.unwrap();
         match response {
-            StrategyResponse::Success { payload,.. } => {
+            StrategyResponse::Success { payload, .. } => {
                 return Ok(payload.indicator_series.last().unwrap().clone());
             }
             StrategyResponse::Fail { error, .. } => {
@@ -70,27 +74,29 @@ impl IndicatorNodeContext {
         }
     }
 
-
     pub(super) async fn get_kline_data(&self) -> Result<Vec<Kline>, IndicatorNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-            let payload = GetKlineDataCmdPayload::new(self.selected_kline_key.clone(), None, None);
-            // 获取所有K线
-            let get_kline_series_cmd = GetKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
+        let payload = GetKlineDataCmdPayload::new(self.selected_kline_key.clone(), None, None);
+        // 获取所有K线
+        let get_kline_series_cmd = GetKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
 
-            self.send_strategy_command(get_kline_series_cmd.into()).await.unwrap();
-            let response = resp_rx.await.unwrap();
-            match response {
-                StrategyResponse::Success { payload,.. } => {
-                    return Ok(payload.kline_series.clone());
-                }
-                StrategyResponse::Fail { error, .. } => {
-                    return Err(GetKlineDataFailedSnafu{}.into_error(error));
-                }
+        self.send_strategy_command(get_kline_series_cmd.into()).await.unwrap();
+        let response = resp_rx.await.unwrap();
+        match response {
+            StrategyResponse::Success { payload, .. } => {
+                return Ok(payload.kline_series.clone());
             }
+            StrategyResponse::Fail { error, .. } => {
+                return Err(GetKlineDataFailedSnafu {}.into_error(error));
+            }
+        }
     }
 
-
-    pub(super) async fn calculate_single_indicator(&self, indicator_key: &IndicatorKey, kline_data: &Vec<Kline>) -> Result<Vec<Indicator>, IndicatorNodeError> {
+    pub(super) async fn calculate_single_indicator(
+        &self,
+        indicator_key: &IndicatorKey,
+        kline_data: &Vec<Kline>,
+    ) -> Result<Vec<Indicator>, IndicatorNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = CalculateHistoryIndicatorCmdPayload::new(
             self.strategy_id().clone(),
@@ -101,21 +107,23 @@ impl IndicatorNodeContext {
         );
         let cmd: IndicatorEngineCommand = CalculateHistoryIndicatorCommand::new(self.node_id().clone(), resp_tx, payload).into();
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();
-        
+
         let response = resp_rx.await.unwrap();
         match response {
-            Response::Success { payload,.. } => {
+            Response::Success { payload, .. } => {
                 return Ok(payload.indicators.clone());
             }
             Response::Fail { error, .. } => {
-                return Err(CalculateIndicatorFailedSnafu{}.into_error(error));
+                return Err(CalculateIndicatorFailedSnafu {}.into_error(error));
             }
         }
-        
     }
 
-
-    pub(super) async fn init_stragegy_indicator_data(&self, indicator_key: &IndicatorKey, indicators: &Vec<Indicator>) -> Result<(), IndicatorNodeError> {
+    pub(super) async fn init_stragegy_indicator_data(
+        &self,
+        indicator_key: &IndicatorKey,
+        indicators: &Vec<Indicator>,
+    ) -> Result<(), IndicatorNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = InitIndicatorDataCmdPayload::new(indicator_key.clone(), indicators.clone());
         let cmd = InitIndicatorDataCommand::new(self.node_id().clone(), resp_tx, payload);
@@ -131,4 +139,3 @@ impl IndicatorNodeContext {
         }
     }
 }
-

@@ -1,16 +1,12 @@
 // workspace crate
+use key::{IndicatorKey, KeyTrait, KlineKey};
+use star_river_core::kline::Kline;
+use strategy_core::strategy::context_trait::StrategyIdentityExt;
 use ta_lib::Indicator;
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::{
-    strategy::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu},
-};
-use key::{KlineKey, IndicatorKey};
-use star_river_core::kline::Kline;
-use strategy_core::strategy::context_trait::{StrategyIdentityExt};
-use key::KeyTrait;
-
+use crate::strategy::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu};
 
 mod kline {
 

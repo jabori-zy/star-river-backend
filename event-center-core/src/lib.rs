@@ -1,19 +1,12 @@
-pub mod event;
 pub mod communication;
 pub mod error;
+pub mod event;
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc, Mutex};
+use std::{collections::HashMap, sync::Arc};
 
-pub use event::{Event, EventBase, EventTrait, Channel};
-pub use communication::{Target, CommandTarget};
-
-
-
-
-
-
+pub use communication::{CommandTarget, Target};
+pub use event::{Channel, Event, EventBase, EventTrait};
+use tokio::sync::{Mutex, broadcast, mpsc};
 
 /// 泛型事件中心基础结构
 ///
@@ -27,14 +20,12 @@ where
     EC: Channel,
     CC: CommandTarget,
     E: EventTrait<C = EC>, // broadcast channel 要求 Event 类型实现 Clone
-    T: Target<T = CC>, // mpsc channel 要求 Command 类型实现 CommandTrait
+    T: Target<T = CC>,     // mpsc channel 要求 Command 类型实现 CommandTrait
 {
     event_channels: HashMap<EC, broadcast::Sender<E>>,
     command_targets: HashMap<CC, (mpsc::Sender<T>, Arc<Mutex<mpsc::Receiver<T>>>)>,
     _black_hole: HashMap<EC, broadcast::Receiver<E>>,
 }
-
-
 
 impl<EC, CC, E, T> EventCenterBase<EC, CC, E, T>
 where
@@ -51,11 +42,7 @@ where
         }
     }
 
-    pub fn init_event_channels_from_iter(
-        mut self,
-        channels: impl IntoIterator<Item = EC>,
-        buffer_size: usize,
-    ) -> Self {
+    pub fn init_event_channels_from_iter(mut self, channels: impl IntoIterator<Item = EC>, buffer_size: usize) -> Self {
         for channel in channels {
             let (tx, rx) = broadcast::channel::<E>(buffer_size);
             self.event_channels.insert(channel.clone(), tx);
@@ -69,15 +56,10 @@ where
     /// # Arguments
     /// * `channels` - 命令通道的迭代器
     /// * `buffer_size` - 每个通道的缓冲区大小
-    pub fn init_command_channels_from_iter(
-        mut self,
-        channels: impl IntoIterator<Item = CC>,
-        buffer_size: usize,
-    ) -> Self {
+    pub fn init_command_channels_from_iter(mut self, channels: impl IntoIterator<Item = CC>, buffer_size: usize) -> Self {
         for channel in channels {
             let (tx, rx) = mpsc::channel::<T>(buffer_size);
-            self.command_targets
-                .insert(channel, (tx, Arc::new(Mutex::new(rx))));
+            self.command_targets.insert(channel, (tx, Arc::new(Mutex::new(rx))));
         }
         self
     }
@@ -88,8 +70,6 @@ where
         self._black_hole.insert(channel, rx);
         self
     }
-
-
 
     // 订阅指定通道的事件
     pub fn subscribe(&self, channel: &EC) -> Option<broadcast::Receiver<E>> {
@@ -106,18 +86,16 @@ where
         }
     }
 
-
     pub async fn send_command(&self, command: T) -> Result<(), mpsc::error::SendError<T>> {
         let target = command.target();
         match self.command_targets.get(target) {
-            Some((sender,_)) => {
+            Some((sender, _)) => {
                 sender.send(command).await?;
                 Ok(())
             }
             None => Err(mpsc::error::SendError(command)), // 通道不存在，返回错误
         }
     }
-
 
     pub fn command_sender(&self, target: &CC) -> Option<mpsc::Sender<T>> {
         self.command_targets.get(target).map(|(sender, _)| sender.clone())
@@ -126,7 +104,6 @@ where
     pub fn command_receiver(&self, target: &CC) -> Option<Arc<Mutex<mpsc::Receiver<T>>>> {
         self.command_targets.get(target).map(|(_, receiver)| receiver.clone())
     }
-
 }
 
 impl<EC, CC, E, T> EventCenterBase<EC, CC, E, T>

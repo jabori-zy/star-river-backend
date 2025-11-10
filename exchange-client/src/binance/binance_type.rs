@@ -1,7 +1,6 @@
-use strum::{Display, EnumString};
 use serde::{Deserialize, Serialize};
 use star_river_core::kline::KlineInterval;
-
+use strum::{Display, EnumString};
 
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
@@ -49,7 +48,7 @@ impl From<BinanceKlineInterval> for KlineInterval {
             BinanceKlineInterval::Hours12 => KlineInterval::Hours12,
             BinanceKlineInterval::Days1 => KlineInterval::Days1,
             BinanceKlineInterval::Weeks1 => KlineInterval::Weeks1,
-            BinanceKlineInterval::Months1 => KlineInterval::Months1
+            BinanceKlineInterval::Months1 => KlineInterval::Months1,
         }
     }
 }
@@ -115,8 +114,6 @@ impl BinanceKlineInterval {
 //         }
 //     }
 // }
-
-
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]

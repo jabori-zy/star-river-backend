@@ -1,7 +1,8 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::ErrorCode;
-use star_river_core::error::error_trait::ErrorLanguage;
-use star_river_core::error::error_trait::StarRiverErrorTrait;
+use star_river_core::error::{
+    ErrorCode,
+    error_trait::{ErrorLanguage, StarRiverErrorTrait},
+};
 
 /// 泛型事件中心错误类型
 ///
@@ -10,43 +11,27 @@ use star_river_core::error::error_trait::StarRiverErrorTrait;
 /// - `C`: Command 类型（用于 CommandSendError）
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
-pub enum EventCenterError{
+pub enum EventCenterError {
     #[snafu(display("Channel [{channel}] not initialized"))]
-    ChannelNotInitialized {
-        channel: String,
-        backtrace: Backtrace
-    },
+    ChannelNotInitialized { channel: String, backtrace: Backtrace },
 
     #[snafu(display("Channel [{channel}] not found"))]
-    ChannelNotFound {
-        channel: String,
-        backtrace: Backtrace
-    },
+    ChannelNotFound { channel: String, backtrace: Backtrace },
 
     #[snafu(display("Engine command receiver for [{target}] not found"))]
-    CommandReceiverNotFound {
-        target: String,
-        backtrace: Backtrace
-    },
+    CommandReceiverNotFound { target: String, backtrace: Backtrace },
 
     #[snafu(display("Engine command sender for [{target}] not found"))]
-    CommandSenderNotFound {
-        target: String,
-        backtrace: Backtrace
-    },
+    CommandSenderNotFound { target: String, backtrace: Backtrace },
 
     #[snafu(display("EventCenter already initialized"))]
-    InstanceAlreadyInit {
-        backtrace: Backtrace
-    },
+    InstanceAlreadyInit { backtrace: Backtrace },
 
     #[snafu(display("EventCenter not initialized"))]
-    InstanceNotInit {
-        backtrace: Backtrace
-    },
+    InstanceNotInit { backtrace: Backtrace },
 }
 
-impl StarRiverErrorTrait for EventCenterError{
+impl StarRiverErrorTrait for EventCenterError {
     fn get_prefix(&self) -> &'static str {
         "EVENT_CENTER"
     }
@@ -81,12 +66,8 @@ impl StarRiverErrorTrait for EventCenterError{
                 EventCenterError::CommandSenderNotFound { target, .. } => {
                     format!("命令目标 [{}] 的命令发送器未找到", target)
                 }
-                EventCenterError::InstanceAlreadyInit { .. } => {
-                    "事件中心实例已初始化".to_string()
-                }
-                EventCenterError::InstanceNotInit { .. } => {
-                    "事件中心实例未初始化".to_string()
-                }
+                EventCenterError::InstanceAlreadyInit { .. } => "事件中心实例已初始化".to_string(),
+                EventCenterError::InstanceNotInit { .. } => "事件中心实例未初始化".to_string(),
             },
         }
     }

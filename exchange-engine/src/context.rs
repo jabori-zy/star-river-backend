@@ -1,21 +1,18 @@
-mod event_handler;
 mod binance_handler;
+mod event_handler;
 // mod mt5_handler;
 mod regist_manage;
 
-use star_river_core::custom_type::AccountId;
-use engine_core::EngineBaseContext;
 use std::collections::HashMap;
-use sea_orm::DatabaseConnection;
+
 use database::query::account_config_query::AccountConfigQuery;
-use super::state_machine::ExchangeEngineAction;
-use engine_core::context_trait::EngineContextTrait;
-use super::exchanges::Exchange;
+use engine_core::{EngineBaseContext, context_trait::EngineContextTrait};
 use exchange_core::state_machine::ExchangeRunState;
-use crate::error::{ExchangeEngineError, ExchangeClientNotRegisteredSnafu};
+use sea_orm::DatabaseConnection;
+use star_river_core::custom_type::AccountId;
 
-
-
+use super::{exchanges::Exchange, state_machine::ExchangeEngineAction};
+use crate::error::{ExchangeClientNotRegisteredSnafu, ExchangeEngineError};
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
@@ -25,10 +22,7 @@ pub struct ExchangeEngineContext {
 }
 
 impl ExchangeEngineContext {
-    pub fn new(
-        base_context: EngineBaseContext<ExchangeEngineAction>,
-        database: DatabaseConnection
-    ) -> Self {
+    pub fn new(base_context: EngineBaseContext<ExchangeEngineAction>, database: DatabaseConnection) -> Self {
         Self {
             base_context,
             exchanges: HashMap::new(),
@@ -36,8 +30,6 @@ impl ExchangeEngineContext {
         }
     }
 }
-
-
 
 impl EngineContextTrait for ExchangeEngineContext {
     type Action = ExchangeEngineAction;
@@ -49,22 +41,16 @@ impl EngineContextTrait for ExchangeEngineContext {
     fn base_context_mut(&mut self) -> &mut EngineBaseContext<Self::Action> {
         &mut self.base_context
     }
-
 }
 
-
-
 impl ExchangeEngineContext {
-
     pub fn is_registered(&self, account_id: &i32) -> bool {
         self.exchanges.contains_key(account_id)
     }
 
     pub async fn get_exchange_instance(&self, account_id: &i32) -> Result<&Exchange, ExchangeEngineError> {
         match self.exchanges.get(account_id) {
-            Some(client) => {
-                Ok(client)
-            }
+            Some(client) => Ok(client),
             None => {
                 let account_config = AccountConfigQuery::get_account_config_by_id(&self.database, *account_id).await?;
                 Err(ExchangeClientNotRegisteredSnafu {

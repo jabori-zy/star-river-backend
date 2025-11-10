@@ -1,5 +1,7 @@
-use engine_core::state_machine::{EngineAction, EngineRunState, EngineStateTransTrigger, EngineStateMachine, StateChangeActions, Metadata};
-use engine_core::state_machine_error::{EngineTransitionSnafu, EngineStateMachineError};
+use engine_core::{
+    state_machine::{EngineAction, EngineRunState, EngineStateMachine, EngineStateTransTrigger, Metadata, StateChangeActions},
+    state_machine_error::{EngineStateMachineError, EngineTransitionSnafu},
+};
 
 pub type ExchangeEngineStateMachine = EngineStateMachine<ExchangeEngineAction>;
 
@@ -52,6 +54,7 @@ pub fn exchange_engine_transition(
         _ => EngineTransitionSnafu {
             run_state: state.to_string(),
             trans_trigger: trans_trigger.to_string(),
-        }.fail(),
+        }
+        .fail(),
     }
 }

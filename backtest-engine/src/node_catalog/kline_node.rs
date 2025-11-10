@@ -1,42 +1,35 @@
-
-mod state_machine;
-mod kline_node_type;
 mod context;
+mod kline_node_type;
 mod node_lifecycle;
-
-
-use strategy_core::node::metadata::NodeMetadata;
+mod state_machine;
 
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex, mpsc};
-use crate::strategy::PlayIndex;
-use crate::node::node_error::BacktestNodeError;
-use crate::node_catalog::kline_node::state_machine::KlineNodeStateMachine;
-use strategy_core::error::node_error::{ConfigFieldValueNullSnafu, ConfigDeserializationFailedSnafu};
-use snafu::{OptionExt, ResultExt};
-use star_river_core::custom_type::{StrategyId, NodeId, NodeName};
-use kline_node_type::KlineNodeBacktestConfig;
-use strategy_core::node::{NodeType, NodeBase};
-
-
-use strategy_core::node::node_trait::NodeContextAccessor;
-use crate::strategy::strategy_command::BacktestStrategyCommand;
-use crate::node::node_command::BacktestNodeCommand;
-use crate::node::node_event::BacktestNodeEvent;
-use strategy_core::node::utils::generate_strategy_output_handle;
-use crate::node::node_state_machine::NodeRunState;
-use crate::node_catalog::kline_node::state_machine::kline_node_transition;
-use strategy_core::node::node_state_machine::Metadata;
-
 
 use context::KlineNodeContext;
+use kline_node_type::KlineNodeBacktestConfig;
+use snafu::{OptionExt, ResultExt};
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use strategy_core::{
+    error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
+    node::{
+        NodeBase, NodeType, metadata::NodeMetadata, node_state_machine::Metadata, node_trait::NodeContextAccessor,
+        utils::generate_strategy_output_handle,
+    },
+};
+use tokio::sync::{Mutex, RwLock, mpsc};
 
+use crate::{
+    node::{
+        node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_event::BacktestNodeEvent, node_state_machine::NodeRunState,
+    },
+    node_catalog::kline_node::state_machine::{KlineNodeStateMachine, kline_node_transition},
+    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+};
 
 #[derive(Debug, Clone)]
 pub struct KlineNode {
-    inner: NodeBase<KlineNodeContext>
+    inner: NodeBase<KlineNodeContext>,
 }
-
 
 impl std::ops::Deref for KlineNode {
     type Target = NodeBase<KlineNodeContext>;
@@ -52,7 +45,6 @@ impl NodeContextAccessor for KlineNode {
         self.inner.context()
     }
 }
-
 
 impl KlineNode {
     pub fn new(
@@ -78,22 +70,20 @@ impl KlineNode {
         );
 
         let metadata = NodeMetadata::new(
-            strategy_id, 
-            node_id, 
-            node_name, 
-            NodeType::KlineNode, 
-            state_machine, 
-            strategy_bound_handle, 
-            strategy_command_sender, 
-            node_command_receiver
+            strategy_id,
+            node_id,
+            node_name,
+            NodeType::KlineNode,
+            state_machine,
+            strategy_bound_handle,
+            strategy_command_sender,
+            node_command_receiver,
         );
         let context = KlineNodeContext::new(metadata, node_config, play_index_watch_rx);
         Ok(Self {
-            inner: NodeBase::new(context)
+            inner: NodeBase::new(context),
         })
     }
-
-
 
     fn check_kline_node_config(
         node_config: serde_json::Value,
@@ -136,8 +126,7 @@ impl KlineNode {
             .to_owned();
 
         let node_config =
-            serde_json::from_value::<KlineNodeBacktestConfig>(kline_node_backtest_config)
-            .context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<KlineNodeBacktestConfig>(kline_node_backtest_config).context(ConfigDeserializationFailedSnafu {})?;
 
         Ok((strategy_id, node_id, node_name, node_config))
     }

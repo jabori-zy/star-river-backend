@@ -1,32 +1,27 @@
-pub mod start_node_error;
 pub mod futures_order_node_error;
 pub mod if_else_node_error;
 pub mod indicator_node_error;
 pub mod kline_node_error;
 pub mod position_node_error;
+pub mod start_node_error;
 pub mod variable_node_error;
 
 pub use futures_order_node_error::FuturesOrderNodeError;
-pub use variable_node_error::VariableNodeError;
 pub use if_else_node_error::IfElseNodeError;
 pub use indicator_node_error::IndicatorNodeError;
 pub use kline_node_error::KlineNodeError;
 pub use position_node_error::PositionNodeError;
-pub use start_node_error::StartNodeError;
-
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode, generate_error_code_chain};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
+pub use start_node_error::StartNodeError;
 use strategy_core::error::{NodeError, NodeStateMachineError};
+pub use variable_node_error::VariableNodeError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum BacktestNodeError {
-
     #[snafu(transparent)]
-    NodeError {
-        source: NodeError,
-        backtrace: Backtrace,
-    },
+    NodeError { source: NodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
     StateMachineError {
@@ -47,10 +42,7 @@ pub enum BacktestNodeError {
     IfElseNodeError { source: IfElseNodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    VariableNodeError {
-        source: VariableNodeError,
-        backtrace: Backtrace,
-    },
+    VariableNodeError { source: VariableNodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
     FuturesOrderNodeError {
@@ -59,12 +51,7 @@ pub enum BacktestNodeError {
     },
 
     #[snafu(transparent)]
-    PositionNodeError {
-        source: PositionNodeError,
-        backtrace: Backtrace,
-    },
-
-    
+    PositionNodeError { source: PositionNodeError, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for BacktestNodeError
@@ -89,7 +76,6 @@ impl StarRiverErrorTrait for BacktestNodeError {
         };
         format!("{}_{:04}", prefix, code)
     }
-
 
     fn http_status_code(&self) -> StatusCode {
         match self {

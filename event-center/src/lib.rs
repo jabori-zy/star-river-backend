@@ -1,19 +1,14 @@
-pub mod event;
 pub mod communication;
-pub mod singleton;
 pub mod error;
+pub mod event;
+pub mod singleton;
 
+pub use communication::{CommandTargetEngine, EngineCommand};
+pub use event::Event;
+use event_center_core::EventCenterBase;
 pub use singleton::EventCenterSingleton;
 
-pub use communication::CommandTargetEngine;
-
-pub use event::Event;
-pub use communication::EngineCommand;
-
-use event_center_core::EventCenterBase;
-
 use crate::event::Channel;
-
 
 pub struct EventCenter {
     inner: EventCenterBase<Channel, CommandTargetEngine, Event, EngineCommand>,
@@ -34,7 +29,8 @@ impl EventCenter {
     /// * `command_buffer_size` - 命令通道的缓冲区大小
     pub fn init_channels(self, event_buffer_size: usize, command_buffer_size: usize) -> Self {
         Self {
-            inner: self.inner
+            inner: self
+                .inner
                 .init_event_channels(event_buffer_size)
                 .init_command_channels(command_buffer_size),
         }

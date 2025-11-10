@@ -1,31 +1,28 @@
-use star_river_core::error::{ErrorCode, StarRiverErrorTrait, ErrorLanguage, StatusCode};
 use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum StartNodeError {
-    Empty {
-        backtrace: Backtrace,
-    }
-    // >= 0
-    // #[snafu(display("[{node_name}] config {config_name} should be greater than or equal to(>= 0) zero, but got [{config_value}]"))]
-    // ValueNotGreaterThanOrEqualToZero {
-    //     node_name: String,
-    //     config_name: String,
-    //     config_value: f64,
-    //     backtrace: Backtrace,
-    // },
+    Empty { backtrace: Backtrace }, // >= 0
+                                    // #[snafu(display("[{node_name}] config {config_name} should be greater than or equal to(>= 0) zero, but got [{config_value}]"))]
+                                    // ValueNotGreaterThanOrEqualToZero {
+                                    //     node_name: String,
+                                    //     config_name: String,
+                                    //     config_value: f64,
+                                    //     backtrace: Backtrace,
+                                    // },
 
-    // // > 0
-    // #[snafu(display(
-    //     "[{node_name}] config [{config_name}] should be greater than(> 0) zero, but got [{config_value}]"
-    // ))]
-    // ValueNotGreaterThanZero {
-    //     node_name: String,
-    //     config_name: String,
-    //     config_value: f64,
-    //     backtrace: Backtrace,
-    // },
+                                    // // > 0
+                                    // #[snafu(display(
+                                    //     "[{node_name}] config [{config_name}] should be greater than(> 0) zero, but got [{config_value}]"
+                                    // ))]
+                                    // ValueNotGreaterThanZero {
+                                    //     node_name: String,
+                                    //     config_name: String,
+                                    //     config_value: f64,
+                                    //     backtrace: Backtrace,
+                                    // },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -57,9 +54,7 @@ impl StarRiverErrorTrait for StartNodeError {
             }
             ErrorLanguage::Chinese => match self {
                 StartNodeError::Empty { .. } => {
-                    format!(
-                        "开始节点是空的"
-                    )
+                    format!("开始节点是空的")
                 }
             },
         }

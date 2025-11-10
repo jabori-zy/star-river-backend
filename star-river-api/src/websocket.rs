@@ -1,10 +1,14 @@
-use axum::body::Bytes;
-use axum::extract::connect_info::ConnectInfo;
-use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
-use axum::response::IntoResponse;
+use std::{net::SocketAddr, ops::ControlFlow};
+
+use axum::{
+    body::Bytes,
+    extract::{
+        connect_info::ConnectInfo,
+        ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
+    },
+    response::IntoResponse,
+};
 use futures::{sink::SinkExt, stream::StreamExt};
-use std::net::SocketAddr;
-use std::ops::ControlFlow;
 
 pub async fn ws_handler(ws: WebSocketUpgrade, ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, addr))

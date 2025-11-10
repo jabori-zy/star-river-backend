@@ -1,15 +1,14 @@
-use crate::api::strategy_api::{
-    create_strategy, delete_strategy, get_strategy_by_id,
-    get_strategy_list, init_strategy, stop_strategy, update_strategy,
-};
 use axum::{
     Router,
     routing::{delete, get, post},
 };
 
-use crate::api::strategy_api::backtest::*;
-
-use crate::star_river::StarRiver;
+use crate::{
+    api::strategy_api::{
+        backtest::*, create_strategy, delete_strategy, get_strategy_by_id, get_strategy_list, init_strategy, stop_strategy, update_strategy,
+    },
+    star_river::StarRiver,
+};
 
 pub fn create_strategy_routes() -> Router<StarRiver> {
     Router::new()

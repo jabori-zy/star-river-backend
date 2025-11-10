@@ -1,18 +1,18 @@
 // External crate imports
 use derive_more::From;
-use ta_lib::Indicator;
-
 // Current crate imports
 use key::{IndicatorKey, Key, KlineKey};
-use star_river_core::custom_type::NodeId;
-use star_river_core::kline::Kline;
-use star_river_core::system::DateTimeUtc;
-use strategy_core::benchmark::node_benchmark::CompletedCycle;
-use strategy_core::communication::StrategyCommandTrait;
-use strategy_core::communication::strategy::{StrategyCommand, StrategyResponse};
-use strategy_core::node_infra::variable_node::variable_config::UpdateVariableConfig;
-use strategy_core::variable::custom_variable::CustomVariable;
-use strategy_core::variable::sys_varibale::SysVariable;
+use star_river_core::{custom_type::NodeId, kline::Kline, system::DateTimeUtc};
+use strategy_core::{
+    benchmark::node_benchmark::CompletedCycle,
+    communication::{
+        StrategyCommandTrait,
+        strategy::{StrategyCommand, StrategyResponse},
+    },
+    node_infra::variable_node::variable_config::UpdateVariableConfig,
+    variable::{custom_variable::CustomVariable, sys_varibale::SysVariable},
+};
+use ta_lib::Indicator;
 
 #[derive(Debug, From)]
 pub enum BacktestStrategyCommand {
@@ -166,7 +166,10 @@ pub struct InitKlineDataCmdPayload {
 
 impl InitKlineDataCmdPayload {
     pub fn new(kline_key: KlineKey, init_kline_data: Vec<Kline>) -> Self {
-        Self { kline_key, init_kline_data }
+        Self {
+            kline_key,
+            init_kline_data,
+        }
     }
 }
 

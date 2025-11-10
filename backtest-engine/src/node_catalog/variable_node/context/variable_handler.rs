@@ -1,28 +1,34 @@
+use std::{collections::HashMap, str::FromStr};
+
 use rust_decimal::Decimal;
 use star_river_core::custom_type::NodeId;
-use strategy_core::communication::strategy::StrategyResponse;
-use std::{collections::HashMap, str::FromStr};
+use star_river_event::backtest_strategy::node_event::{
+    VariableNodeEvent,
+    variable_node_event::{CustomVariableUpdateEvent, CustomVariableUpdatePayload},
+};
+use strategy_core::{
+    communication::strategy::StrategyResponse,
+    event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
+    node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node_infra::variable_node::{
+        VariableConfig,
+        trigger::{
+            TriggerConfig,
+            dataflow::{DataFlow, DataflowErrorPolicy, DataflowErrorType},
+        },
+        variable_config::{get::GetVariableConfig, reset::ResetVariableConfig, update::UpdateVariableConfig},
+    },
+    variable::{custom_variable::VariableValue, sys_varibale::SysVariableType},
+};
 use tokio::sync::oneshot;
+
 use super::VariableNodeContext;
-use strategy_core::node_infra::variable_node::VariableConfig;
-use strategy_core::node_infra::variable_node::trigger::dataflow::{DataFlow, DataflowErrorPolicy, DataflowErrorType};
-use strategy_core::node_infra::variable_node::variable_config::get::GetVariableConfig;
-use strategy_core::node_infra::variable_node::variable_config::reset::ResetVariableConfig;
-use strategy_core::node_infra::variable_node::variable_config::update::UpdateVariableConfig;
-use strategy_core::node_infra::variable_node::trigger::TriggerConfig;
-use strategy_core::variable::custom_variable::VariableValue;
-use strategy_core::variable::sys_varibale::SysVariableType;
-use strategy_core::event::node_common_event::CommonEvent;
-use strategy_core::node::context_trait::{NodeCommunicationExt, NodeIdentityExt, NodeHandleExt, NodeRelationExt};
-use strategy_core::event::node_common_event::TriggerEvent;
-use strategy_core::event::node_common_event::TriggerPayload;
-use crate::node::node_error::VariableNodeError;
-use crate::strategy::strategy_command::{ResetCustomVarCmdPayload, ResetCustomVarValueCommand, UpdateCustomVarValueCmdPayload, UpdateCustomVarValueCommand};
-use star_river_event::backtest_strategy::node_event::variable_node_event::CustomVariableUpdatePayload;
-use strategy_core::event::node_common_event::ExecuteOverPayload;
-use star_river_event::backtest_strategy::node_event::VariableNodeEvent;
-use star_river_event::backtest_strategy::node_event::variable_node_event::CustomVariableUpdateEvent;
-use strategy_core::event::node_common_event::ExecuteOverEvent;
+use crate::{
+    node::node_error::VariableNodeError,
+    strategy::strategy_command::{
+        ResetCustomVarCmdPayload, ResetCustomVarValueCommand, UpdateCustomVarValueCmdPayload, UpdateCustomVarValueCommand,
+    },
+};
 
 impl VariableNodeContext {
     pub(super) async fn handle_condition_trigger(&mut self, condition_trigger_configs: &Vec<VariableConfig>) {
@@ -142,7 +148,7 @@ impl VariableNodeContext {
         let node_name = self.node_name();
         let play_index = self.play_index();
         let strategy_command_sender = self.strategy_command_sender().clone();
-        let strategy_output_handle  = self.strategy_bound_handle().clone();
+        let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();
 
         for config in get_var_configs {
@@ -168,29 +174,20 @@ impl VariableNodeContext {
                     let system_var = SysVariableType::from_str(system_config.var_name()).unwrap();
                     match system_var {
                         SysVariableType::TotalPositionNumber => {
-                            let handle = self.create_total_position_number_handle(
-                                system_config.clone(),
-                            ).await;
+                            let handle = self.create_total_position_number_handle(system_config.clone()).await;
                             get_var_handles.push(handle);
-
                         }
                         SysVariableType::TotalFilledOrderNumber => {
-                            let handle = self.create_total_filled_order_number_handle(
-                                system_config.clone(),
-                            ).await;
+                            let handle = self.create_total_filled_order_number_handle(system_config.clone()).await;
                             get_var_handles.push(handle);
                         }
 
                         SysVariableType::FilledOrderNumber => {
-                            let handle = self.create_filled_order_number_handle(
-                                system_config.clone(),
-                            ).await?;
+                            let handle = self.create_filled_order_number_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
                         SysVariableType::CurrentTime => {
-                            let handle = self.create_current_time_handle(
-                                system_config.clone(),
-                            ).await;
+                            let handle = self.create_current_time_handle(system_config.clone()).await;
                             get_var_handles.push(handle);
                         }
                         _ => {}
@@ -277,7 +274,6 @@ impl VariableNodeContext {
                         let _ = output_handle.send(trigger_event.into());
                     }
                 }
-
             });
             update_handles.push(handle);
         }
@@ -323,14 +319,8 @@ impl VariableNodeContext {
                 let response = resp_rx.await.unwrap();
                 match response {
                     StrategyResponse::Success { payload, .. } => {
-                        let payload = CustomVariableUpdatePayload::new(
-                            play_index,
-                            config_id,
-                            var_op,
-                            None,
-                            None,
-                            payload.custom_variable.clone(),
-                        );
+                        let payload =
+                            CustomVariableUpdatePayload::new(play_index, config_id, var_op, None, None, payload.custom_variable.clone());
                         let var_event: VariableNodeEvent = CustomVariableUpdateEvent::new(
                             node_id_clone.clone(),
                             node_name_clone.clone(),

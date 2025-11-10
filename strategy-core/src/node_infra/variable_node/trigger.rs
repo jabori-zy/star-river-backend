@@ -208,9 +208,8 @@ pub mod dataflow {
     use std::collections::HashMap;
 
     use serde::{Deserialize, Serialize};
-    use ta_lib::Indicator;
     use star_river_core::kline::Kline;
-
+    use ta_lib::Indicator;
 
     use super::timer::TimeUnit;
     use crate::variable::custom_variable::{VariableValue, VariableValueType};

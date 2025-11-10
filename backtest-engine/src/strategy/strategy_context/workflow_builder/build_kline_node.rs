@@ -1,21 +1,18 @@
 // std
 use std::sync::Arc;
 
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
 // third-party
 use tokio::sync::{Mutex, mpsc};
 
-use crate::node::node_command::BacktestNodeCommand;
 // current crate
 use super::BacktestStrategyContext;
 use crate::{
-    node::node_error::BacktestNodeError,
+    node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError},
     node_catalog::kline_node::KlineNode,
 };
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
-
 
 impl BacktestStrategyContext {
-
     pub async fn build_kline_node(
         &self,
         node_config: serde_json::Value,
@@ -23,7 +20,7 @@ impl BacktestStrategyContext {
     ) -> Result<KlineNode, BacktestNodeError> {
         let strategy_command_sender = self.strategy_command_sender().clone();
         let play_index_watch_rx = self.play_index_watch_rx();
-        
+
         let node = KlineNode::new(
             node_config,
             strategy_command_sender,

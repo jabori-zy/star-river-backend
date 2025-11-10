@@ -1,11 +1,8 @@
-use chrono::Utc;
+use std::{fmt::Debug, ops::Deref, sync::Arc};
 
-use star_river_core::error::error_trait::StarRiverErrorTrait;
-use std::ops::Deref;
-use std::sync::Arc;
+use chrono::Utc;
+use star_river_core::{custom_type::NodeId, error::error_trait::StarRiverErrorTrait};
 use tokio::sync::oneshot;
-use star_river_core::custom_type::NodeId;
-use std::fmt::Debug;
 
 // ================================ Node Command ================================
 #[derive(Debug)]
@@ -68,8 +65,6 @@ where
         &self.command_payload
     }
 }
-
-
 
 // ================================ Node Response ================================
 
@@ -169,7 +164,11 @@ where
         F: FnOnce(P) -> U,
     {
         match self {
-            Self::Success { node_id, payload, datetime } => NodeResponse::Success {
+            Self::Success {
+                node_id,
+                payload,
+                datetime,
+            } => NodeResponse::Success {
                 node_id,
                 payload: f(payload),
                 datetime,
