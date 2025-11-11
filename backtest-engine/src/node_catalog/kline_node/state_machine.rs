@@ -1,6 +1,7 @@
+use star_river_core::state_machine::Metadata;
 use strategy_core::{
     error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
-    node::node_state_machine::{Metadata, NodeStateMachine, StateAction, StateChangeActions},
+    node::node_state_machine::{NodeStateMachine, StateAction, StateChangeActions},
 };
 use strum::Display;
 

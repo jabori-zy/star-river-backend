@@ -70,6 +70,14 @@ pub enum NodeError {
         source: Arc<dyn std::error::Error + Send + Sync + 'static>,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("strategy command response receive failed: {node_id}, reason: {source}"))]
+    StrategyCommandRespRecvFailed {
+        node_id: String,
+        #[snafu(source(true))]
+        source: tokio::sync::oneshot::error::RecvError,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for NodeError
@@ -93,7 +101,8 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::OutputHandleNotFound { .. } => 1011,             // output handle not found
             NodeError::NodeEventSendFailed { .. } => 1012,              // node event send failed
             NodeError::StrategyCommandSendFailed { .. } => 1013,        // strategy command send failed
-            NodeError::NodeCommandSendFailed { .. } => 1014,            // node command send failed
+            NodeError::NodeCommandSendFailed { .. } => 1014,            // node command send failed.
+            NodeError::StrategyCommandRespRecvFailed { .. } => 1015,    // strategy command response receive failed.
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -113,6 +122,7 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::NodeEventSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::StrategyCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::NodeCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            NodeError::StrategyCommandRespRecvFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -171,6 +181,9 @@ impl StarRiverErrorTrait for NodeError {
                     }
                     NodeError::NodeCommandSendFailed { node_id, source, .. } => {
                         format!("节点命令发送失败: [{node_id}], 原因: {}", source)
+                    }
+                    NodeError::StrategyCommandRespRecvFailed { node_id, source, .. } => {
+                        format!("策略命令响应接收失败: [{node_id}], 原因: {}", source)
                     }
                 }
             }

@@ -3345,6 +3345,7 @@ dependencies = [
  "database",
  "engine-core",
  "event-center",
+ "exchange-core",
  "exchange-engine",
  "futures",
  "futures-util",

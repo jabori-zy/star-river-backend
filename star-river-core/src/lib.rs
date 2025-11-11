@@ -10,3 +10,4 @@ pub mod transaction;
 pub mod exchange;
 pub mod instrument;
 pub mod kline;
+pub mod state_machine;

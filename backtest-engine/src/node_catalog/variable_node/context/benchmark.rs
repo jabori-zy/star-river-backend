@@ -1,7 +1,9 @@
 use async_trait::async_trait;
+use snafu::ResultExt;
 use star_river_core::custom_type::NodeId;
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
+    error::node_error::StrategyCommandRespRecvFailedSnafu,
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt},
 };
 
@@ -18,10 +20,12 @@ impl NodeBenchmarkExt for VariableNodeContext {
     async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
         let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
         let payload = AddNodeCycleTrackerCmdPayload::new(node_id.clone(), cycle_tracker);
-        let command = AddNodeCycleTrackerCommand::new(node_id, resp_tx, payload).into();
+        let command = AddNodeCycleTrackerCommand::new(node_id.clone(), resp_tx, payload).into();
 
         self.send_strategy_command(command).await?;
-        resp_rx.await.unwrap();
+        resp_rx.await.context(StrategyCommandRespRecvFailedSnafu {
+            node_id: node_id.to_string(),
+        })?;
         Ok(())
     }
 }

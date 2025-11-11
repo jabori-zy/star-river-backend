@@ -97,6 +97,7 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
         }; // 读锁在这里释放
 
         for n in nodes {
+            tracing::debug!("@[{}] 1111", n.node_name().await);
             let node_clone = n.clone();
             let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
                 node_clone.stop().await?;
@@ -104,6 +105,7 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
             });
 
             let node_name = n.node_name().await;
+            tracing::debug!("@[{node_name}] stopping...");
 
             // 等待节点停止完成
             match tokio::time::timeout(Duration::from_secs(10), node_handle).await {
@@ -141,9 +143,9 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
 
             while retry_count < max_retries {
                 if n.is_in_state(NodeRunState::Stopped).await {
-                    tracing::debug!("[{node_name}] node is stopped");
+                    tracing::debug!("@[{node_name}] node is stopped");
                     tokio::time::sleep(Duration::from_millis(10)).await;
-                    return Ok(());
+                    break;
                 }
                 retry_count += 1;
                 tokio::time::sleep(Duration::from_millis(10)).await;

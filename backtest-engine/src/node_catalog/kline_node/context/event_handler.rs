@@ -372,7 +372,7 @@ impl NodeEventHandlerExt for KlineNodeContext {
         match node_event {
             BacktestNodeEvent::StartNode(start_node_event) => match start_node_event {
                 StartNodeEvent::KlinePlay(play_event) => {
-                    tracing::info!("{}: 收到KlinePlay事件: {:?}", self.node_id(), play_event);
+                    // tracing::info!("{}: 收到KlinePlay事件: {:?}", self.node_id(), play_event);
                     self.send_kline(play_event).await;
                 }
             },

@@ -106,13 +106,14 @@ impl StrategyLifecycle for BacktestStrategy {
 
         // 发送完信号后，循环遍历所有的节点，获取节点的状态，如果所有的节点状态都为stopped，则更新策略状态为Stopped
         let all_stopped = self
-            .with_ctx_read_async(|ctx| Box::pin(ctx.wait_for_all_nodes_stopped(10)))
+            .with_ctx_read_async(|ctx| Box::pin(ctx.wait_for_all_nodes_stopped(20)))
             .await
             .unwrap();
 
         if all_stopped {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
+                    tracing::debug!("store strategy status to stopped");
                     ctx.store_strategy_status(BacktestStrategyRunState::Stopped.to_string().to_lowercase())
                         .await
                 })
@@ -138,7 +139,7 @@ impl StrategyLifecycle for BacktestStrategy {
 
     async fn update_strategy_state(&mut self, trigger: Self::Trigger) -> Result<(), Self::Error> {
         // 提前获取所有需要的数据，避免在循环中持有引用
-        let (strategy_name, mut state_machine) = self
+        let (strategy_name, state_machine) = self
             .with_ctx_read(|ctx| {
                 let strategy_name = ctx.strategy_name().clone();
                 let state_machine = ctx.state_machine().clone();
@@ -264,40 +265,42 @@ impl StrategyLifecycle for BacktestStrategy {
                     // 传入 context 引用，让 init_node 方法内部控制锁的生命周期
                     StrategyWorkflowExt::init_node(self.context.clone()).await.unwrap();
 
-                    tracing::info!("[{}] all nodes initialized.", &strategy_name);
+                    tracing::info!("#[{}] all nodes initialized.", &strategy_name);
                 }
 
                 BacktestStrategyStateAction::StopNode => {
-                    tracing::info!("[{}] start stop node", &strategy_name);
+                    tracing::info!("#[{}] start stop node", &strategy_name);
                     // 传入 context 引用，让 stop_node 方法内部控制锁的生命周期
                     StrategyWorkflowExt::stop_node(self.context.clone()).await.unwrap();
-                    tracing::info!("[{}] all nodes stopped", &strategy_name);
                 }
 
                 BacktestStrategyStateAction::LogTransition => {
-                    let current_state = self.with_ctx_read_async(|ctx| Box::pin(async move { ctx.run_state().await })).await;
+                    let (previous_state, current_state) = {
+                        let state_machine = state_machine.read().await;
+                        (state_machine.previous_state().clone(), state_machine.current_state().clone())
+                    };
                     tracing::debug!(
-                        "[{}] state transition: {:?} -> {:?}",
+                        "#[{}] state transition: {:?} -> {:?}",
                         &strategy_name,
-                        current_state,
-                        transition_result.get_new_state()
+                        previous_state,
+                        current_state
                     );
                 }
 
                 BacktestStrategyStateAction::ListenAndHandleNodeEvent => {
-                    tracing::info!("[{}] listen node events", &strategy_name);
+                    tracing::info!("#[{}] listen node events", &strategy_name);
                     self.listen_node_events().await;
                 }
                 BacktestStrategyStateAction::ListenAndHandleStrategyCommand => {
-                    tracing::info!("[{}] listen strategy command", &strategy_name);
+                    tracing::info!("#[{}] listen strategy command", &strategy_name);
                     self.listen_strategy_command().await;
                 }
                 BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent => {
-                    tracing::info!("[{}] listen strategy stats event", &strategy_name);
+                    tracing::info!("#[{}] listen strategy stats event", &strategy_name);
                     // self.listen_strategy_stats_event().await;
                 }
                 BacktestStrategyStateAction::LogError(error) => {
-                    tracing::error!("[{}] {}", &strategy_name, error);
+                    tracing::error!("#[{}] {}", &strategy_name, error);
                 }
                 BacktestStrategyStateAction::LogStrategyState => {
                     let (strategy_id, current_state) = self

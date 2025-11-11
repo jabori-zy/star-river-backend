@@ -8,14 +8,11 @@ use crate::error::ExchangeStateMachineError;
 
 /// 引擎运行状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "lowercase")]
 pub enum ExchangeRunState {
     NotRegistered,
     Created,
     Initializing,
-    Initialized,
-    Running,
+    Connected,
     Stopping,
     Stopped,
     Error,

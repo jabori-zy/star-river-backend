@@ -55,17 +55,17 @@ impl EngineLifecycle for MarketEngine {
         };
 
         for action in transition_result.actions() {
-            let current_state = {
+            let (previous_state, current_state) = {
                 let state_machine = state_machine.read().await;
-                state_machine.current_state().clone()
+                (state_machine.previous_state().clone(), state_machine.current_state().clone())
             };
 
             match action {
                 MarketEngineAction::LogTransition => {
                     tracing::debug!(
                         "[{engine_name}] state transition: {:?} -> {:?}",
-                        current_state,
-                        transition_result.new_state()
+                        previous_state,
+                        current_state
                     );
                 }
 

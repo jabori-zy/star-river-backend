@@ -47,13 +47,13 @@ use crate::api::{response::ApiResponse, system_api::SystemConfigUpdateParams};
         // crate::api::account_api::start_mt5_terminal,
         // crate::sse::account_sse::account_sse_handler,
         // 市场相关路径
-        // crate::api::market_api::get_symbol_list,
-        // crate::api::market_api::get_support_kline_intervals,
-        // crate::api::market_api::get_symbol,
+        crate::api::market_api::get_symbol_list,
+        crate::api::market_api::get_support_kline_intervals,
+        crate::api::market_api::get_symbol,
 
         // 交易所相关路径
-        // crate::api::exchange_api::get_exchange_status,
-        // crate::api::exchange_api::connect_exchange,
+        crate::api::exchange_api::get_exchange_status,
+        crate::api::exchange_api::connect_exchange,
 
         //sse
         crate::sse::backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler,

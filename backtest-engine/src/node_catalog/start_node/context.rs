@@ -2,7 +2,6 @@
 // 子模块声明
 // ============================================================================
 
-mod benchmark;
 mod event_handler;
 mod node_handles;
 
@@ -12,12 +11,14 @@ mod node_handles;
 
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use star_river_core::custom_type::NodeId;
 use star_river_event::backtest_strategy::node_event::{
     StartNodeEvent,
     start_node_event::{KlinePlayEvent, KlinePlayPayload},
 };
 use strategy_core::{
-    benchmark::node_benchmark::CycleTracker,
+    benchmark::node_benchmark::{CompletedCycle, CycleTracker},
     node::{
         context_trait::{
             NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeMetaDataExt,
@@ -146,5 +147,15 @@ impl NodeMetaDataExt for StartNodeContext {
 
     fn metadata_mut(&mut self) -> &mut NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &mut self.metadata
+    }
+}
+
+#[async_trait]
+impl NodeBenchmarkExt for StartNodeContext {
+    type Error = crate::node::node_error::BacktestNodeError;
+
+    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+        Ok(())
     }
 }

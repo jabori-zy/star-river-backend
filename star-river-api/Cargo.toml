@@ -42,5 +42,6 @@ strategy-core = { path = "../strategy-core" }
 key = { path = "../key" }
 virtual-trading = { path = "../virtual-trading" }
 strategy-stats = { path = "../strategy-stats" }
+exchange-core = { path = "../exchange-core" }
 
 

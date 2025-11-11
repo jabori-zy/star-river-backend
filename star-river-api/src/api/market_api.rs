@@ -2,13 +2,15 @@ use crate::StarRiver;
 use crate::api::response::NewApiResponse;
 use axum::extract::{Path, State, Query};
 use axum::{Json, http::StatusCode};
-use engine::market_engine::MarketEngine;
 use star_river_core::custom_type::AccountId;
 use star_river_core::engine::EngineName;
-use star_river_core::error::engine_error::{ExchangeEngineError, MarketEngineError};
-use star_river_core::market::KlineInterval;
-use star_river_core::market::Symbol;
 use serde::Deserialize;
+use engine_core::EngineContextAccessor;
+use star_river_core::instrument::Symbol;
+use market_engine::error::MarketEngineError;
+use exchange_engine::error::ExchangeEngineError;
+use star_river_core::error::StarRiverErrorTrait;
+use star_river_core::kline::KlineInterval;
 
 
 
@@ -30,10 +32,14 @@ pub async fn get_symbol_list(
     Path(account_id): Path<AccountId>,
 ) -> (StatusCode, Json<NewApiResponse<Vec<Symbol>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::MarketEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let market_engine = engine_guard.as_any_mut().downcast_mut::<MarketEngine>().unwrap();
-    let symbol_list = market_engine.get_symbol_list(account_id).await;
+    let engine = engine_manager.market_engine().await;
+    let engine_guard = engine.lock().await;
+    let symbol_list = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            ctx.get_symbol_list(account_id).await
+        })
+    })
+    .await;
     match symbol_list {
         Ok(symbol_list) => (
             StatusCode::OK,
@@ -41,30 +47,10 @@ pub async fn get_symbol_list(
         ),
         Err(e) => {
             tracing::error!("get symbol list error: {}", e);
-            match e {
-                MarketEngineError::ExchangeEngine { ref source, .. } => {
-                    match source {
-                        ExchangeEngineError::ExchangeClientNotRegistered { .. } => {
-                            (
-                                StatusCode::NOT_FOUND,
-                                Json(NewApiResponse::error(e)),
-                            )
-                        }
-                        _ => {
-                            (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Json(NewApiResponse::error(e)),
-                            )
-                        }
-                    }
-                }
-                _ => {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(NewApiResponse::error(e)),
-                    )
-                }
-            }
+            (
+                e.http_status_code(),
+                Json(NewApiResponse::error(e)),
+            )
         }
     }
 }
@@ -88,10 +74,14 @@ pub async fn get_support_kline_intervals(
     Path(account_id): Path<AccountId>,
 ) -> (StatusCode, Json<NewApiResponse<Vec<KlineInterval>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::MarketEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let market_engine = engine_guard.as_any_mut().downcast_mut::<MarketEngine>().unwrap();
-    let support_kline_intervals = market_engine.get_support_kline_intervals(account_id).await;
+    let engine = engine_manager.market_engine().await;
+    let engine_guard = engine.lock().await;
+    let support_kline_intervals = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            ctx.get_support_kline_intervals(account_id).await
+        })
+    })
+    .await;
     match support_kline_intervals {
         Ok(support_kline_intervals) => (
             StatusCode::OK,
@@ -99,30 +89,10 @@ pub async fn get_support_kline_intervals(
         ),
         Err(e) => {
             tracing::error!("get support kline intervals error: {}", e);
-            match e {
-                MarketEngineError::ExchangeEngine { ref source, .. } => {
-                    match source {
-                        ExchangeEngineError::ExchangeClientNotRegistered { .. } => {
-                            (
-                                StatusCode::NOT_FOUND,
-                                Json(NewApiResponse::error(e)),
-                            )
-                        }
-                        _ => {
-                            (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Json(NewApiResponse::error(e)),
-                            )
-                        }
-                    }
-                }
-                _ => {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(NewApiResponse::error(e)),
-                    )
-                }
-            }
+            (
+                e.http_status_code(),
+                Json(NewApiResponse::error(e)),
+            )
         }
     }
 }
@@ -156,10 +126,14 @@ pub async fn get_symbol(
     Query(query): Query<SymbolQuery>,
 ) -> (StatusCode, Json<NewApiResponse<Symbol>>) {
     let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.get_engine(EngineName::MarketEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let market_engine = engine_guard.as_any_mut().downcast_mut::<MarketEngine>().unwrap();
-    let symbol = market_engine.get_symbol(account_id, query.symbol).await;
+    let engine = engine_manager.market_engine().await;
+    let engine_guard = engine.lock().await;
+    let symbol = engine_guard.with_ctx_read_async(|ctx| {
+        Box::pin(async move {
+            ctx.get_symbol(account_id, query.symbol).await
+        })
+    })
+    .await;
     match symbol {
         Ok(symbol) => (
             StatusCode::OK,
@@ -167,30 +141,10 @@ pub async fn get_symbol(
         ),
         Err(e) => {
             tracing::error!("get symbol error: {}", e);
-            match e {
-                MarketEngineError::ExchangeEngine { ref source, .. } => {
-                    match source {
-                        ExchangeEngineError::ExchangeClientNotRegistered { .. } => {
-                            (
-                                StatusCode::NOT_FOUND,
-                                Json(NewApiResponse::error(e)),
-                            )
-                        }
-                        _ => {
-                            (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Json(NewApiResponse::error(e)),
-                            )
-                        }
-                    }
-                }
-                _ => {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(NewApiResponse::error(e)),
-                    )
-                }
-            }
+            (
+                e.http_status_code(),
+                Json(NewApiResponse::error(e)),
+            )
         }
     }
 }

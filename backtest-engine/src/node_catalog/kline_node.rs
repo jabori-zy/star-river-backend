@@ -8,13 +8,13 @@ use std::sync::Arc;
 use context::KlineNodeContext;
 use kline_node_type::KlineNodeBacktestConfig;
 use snafu::{OptionExt, ResultExt};
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use star_river_core::{
+    custom_type::{NodeId, NodeName, StrategyId},
+    state_machine::Metadata,
+};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{
-        NodeBase, NodeType, metadata::NodeMetadata, node_state_machine::Metadata, node_trait::NodeContextAccessor,
-        utils::generate_strategy_output_handle,
-    },
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
 };
 use tokio::sync::{Mutex, RwLock, mpsc};
 

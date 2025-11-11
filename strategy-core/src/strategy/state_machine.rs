@@ -4,13 +4,10 @@
 
 use std::{
     cmp::PartialEq,
-    collections::HashMap,
     fmt::{Debug, Display},
 };
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::Value;
-use star_river_core::custom_type::StrategyName;
+use star_river_core::{custom_type::StrategyName, state_machine::Metadata};
 
 // ============================================================================
 // External crate imports
@@ -36,6 +33,9 @@ pub trait StrategyStateMachine: Debug + Clone + Send + Sync {
 
     /// Get reference to current state
     fn current_state(&self) -> &Self::State;
+
+    /// Get reference to previous state
+    fn previous_state(&self) -> &Self::State;
 
     /// Get strategy name
     fn strategy_name(&self) -> &StrategyName;
@@ -75,55 +75,6 @@ pub trait StrategyStateMachine: Debug + Clone + Send + Sync {
 // StrategyMetadata Structure Definition
 // ============================================================================
 
-/// Strategy metadata - read-only key-value store for storing strategy configuration and runtime information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Metadata {
-    data: HashMap<String, Value>,
-}
-
-impl Metadata {
-    /// Create from HashMap
-    pub fn from_map(data: HashMap<String, Value>) -> Self {
-        Self { data }
-    }
-
-    /// Create from JSON string
-    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
-        let data: HashMap<String, Value> = serde_json::from_str(json)?;
-        Ok(Self { data })
-    }
-
-    /// Get and deserialize to specified type
-    pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.data.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
-    }
-
-    /// Get string
-    pub fn get_str(&self, key: &str) -> Option<&str> {
-        self.data.get(key)?.as_str()
-    }
-
-    /// Get integer
-    pub fn get_i64(&self, key: &str) -> Option<i64> {
-        self.data.get(key)?.as_i64()
-    }
-
-    /// Get float
-    pub fn get_f64(&self, key: &str) -> Option<f64> {
-        self.data.get(key)?.as_f64()
-    }
-
-    /// Get boolean
-    pub fn get_bool(&self, key: &str) -> Option<bool> {
-        self.data.get(key)?.as_bool()
-    }
-
-    /// Check if contains key
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.data.contains_key(key)
-    }
-}
-
 /// Generic Strategy State Machine - replaces trait objects with generics for zero-cost abstractions
 ///
 /// Type parameters:
@@ -140,6 +91,9 @@ where
 {
     /// Current state
     current_state: S,
+
+    /// Previous state (initially same as current_state)
+    previous_state: S,
 
     /// State transition function - returns new state and actions based on current state, event, and metadata
     /// Uses function pointer to avoid extra heap allocations
@@ -185,7 +139,8 @@ where
         transition_fn: fn(&S, T, StrategyName, Option<&Metadata>) -> Result<StrategyStateChangeActions<S, A>, StrategyStateMachineError>,
     ) -> Self {
         Self {
-            current_state: initial_state,
+            current_state: initial_state.clone(),
+            previous_state: initial_state,
             transition_fn,
             strategy_name,
             metadata: None,
@@ -207,7 +162,8 @@ where
         metadata: Option<Metadata>,
     ) -> Self {
         Self {
-            current_state: initial_state,
+            current_state: initial_state.clone(),
+            previous_state: initial_state,
             transition_fn,
             strategy_name,
             metadata,
@@ -229,6 +185,11 @@ where
     /// Get reference to current state
     fn current_state(&self) -> &Self::State {
         &self.current_state
+    }
+
+    /// Get reference to previous state
+    fn previous_state(&self) -> &Self::State {
+        &self.previous_state
     }
 
     /// Get strategy name
@@ -255,6 +216,9 @@ where
             self.strategy_name.clone(),
             self.metadata.as_ref(),
         )?;
+
+        // Save current state as previous state before updating
+        self.previous_state = self.current_state.clone();
 
         // Update current state
         self.current_state = state_change.new_state.clone();

@@ -29,33 +29,11 @@ impl NodeLifecycle for IndicatorNode {
     type Trigger = NodeStateTransTrigger;
 
     async fn init(&self) -> Result<(), Self::Error> {
-        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
-        tracing::info!("================={}====================", node_name);
-        tracing::info!("[{node_name}] start init");
-        // 开始初始化 created -> Initialize
-        self.update_node_state(NodeStateTransTrigger::StartInit).await?;
-
-        let current_state = self
-            .with_ctx_read_async(|ctx| Box::pin(async move { ctx.run_state().await.clone() }))
-            .await;
-
-        tracing::info!("[{node_name}] init complete: {:?}", current_state);
-        // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(NodeStateTransTrigger::FinishInit).await?;
-
-        Ok(())
+        NodeUtils::init_node(self, None).await
     }
 
     async fn stop(&self) -> Result<(), Self::Error> {
-        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
-        tracing::info!("[{node_name}] start stop");
-        self.update_node_state(NodeStateTransTrigger::StartStop).await?;
-
-        // 休眠500毫秒
-        tokio::time::sleep(Duration::from_secs(500)).await;
-        // 切换为stopped状态
-        self.update_node_state(NodeStateTransTrigger::FinishStop).await?;
-        Ok(())
+        NodeUtils::stop_node(self, Some(500)).await
     }
 
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
@@ -77,17 +55,17 @@ impl NodeLifecycle for IndicatorNode {
 
         // 执行转换后需要执行的动作
         for action in transition_result.actions() {
-            let current_state = {
+            let (previous_state, current_state) = {
                 let state_machine = state_machine.read().await;
-                state_machine.current_state().clone()
+                (state_machine.previous_state().clone(), state_machine.current_state().clone())
             };
 
             match action {
                 IndicatorNodeAction::LogTransition => {
                     tracing::info!(
                         "[{node_name}] state transition: {:?} -> {:?}",
-                        current_state,
-                        transition_result.new_state()
+                        previous_state,
+                        current_state
                     );
                 }
                 IndicatorNodeAction::LogNodeState => {

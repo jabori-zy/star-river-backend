@@ -77,7 +77,7 @@ impl ExchangeEngineContext {
     //     }
     // }
 
-    pub(super) async fn get_exchange_status(&self, account_id: &AccountId) -> ExchangeRunState {
+    pub async fn exchange_status(&self, account_id: &AccountId) -> ExchangeRunState {
         let exchange = self.get_exchange_instance(account_id).await;
         match exchange {
             Ok(exchange) => exchange.run_state().await,

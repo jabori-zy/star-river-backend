@@ -1,4 +1,3 @@
-mod benchmark;
 mod event_handler;
 mod node_handles;
 
@@ -12,16 +11,20 @@ mod utils;
 
 use std::{collections::HashMap, fmt::Debug};
 
+use async_trait::async_trait;
 use key::{KeyTrait, KlineKey};
 use star_river_core::{
-    custom_type::AccountId,
+    custom_type::{AccountId, NodeId},
     exchange::Exchange,
     kline::{Kline, KlineInterval},
     system::TimeRange,
 };
 use strategy_core::{
-    benchmark::node_benchmark::CycleTracker,
-    node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata},
+    benchmark::node_benchmark::{CompletedCycle, CycleTracker},
+    node::{
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
+        metadata::NodeMetadata,
+    },
 };
 
 use super::{
@@ -112,5 +115,15 @@ impl NodeMetaDataExt for KlineNodeContext {
 
     fn metadata_mut(&mut self) -> &mut NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &mut self.metadata
+    }
+}
+
+#[async_trait]
+impl NodeBenchmarkExt for KlineNodeContext {
+    type Error = crate::node::node_error::BacktestNodeError;
+
+    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+        Ok(())
     }
 }

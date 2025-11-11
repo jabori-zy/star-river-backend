@@ -1,4 +1,3 @@
-mod benchmark;
 mod data_handler;
 mod event_handler;
 mod node_handles;
@@ -8,9 +7,16 @@ mod status_handler;
 use std::{collections::HashMap, fmt::Debug};
 
 // External project crates
+use async_trait::async_trait;
 use key::{IndicatorKey, KlineKey};
-use star_river_core::kline::Kline;
-use strategy_core::node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata};
+use star_river_core::{custom_type::NodeId, kline::Kline};
+use strategy_core::{
+    benchmark::node_benchmark::CompletedCycle,
+    node::{
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
+        metadata::NodeMetadata,
+    },
+};
 
 // Local module imports
 use super::{indicator_node_type::IndicatorNodeBacktestConfig, state_machine::IndicatorNodeStateMachine};
@@ -89,5 +95,15 @@ impl NodeMetaDataExt for IndicatorNodeContext {
 
     fn metadata_mut(&mut self) -> &mut NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &mut self.metadata
+    }
+}
+
+#[async_trait]
+impl NodeBenchmarkExt for IndicatorNodeContext {
+    type Error = crate::node::node_error::BacktestNodeError;
+
+    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+        Ok(())
     }
 }

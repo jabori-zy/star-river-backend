@@ -6,11 +6,11 @@
 // the strategy-core generic state machine framework. It references the original
 // BacktestStrategyStateMachine design while providing better type safety and extensibility.
 
-use star_river_core::custom_type::StrategyName;
+use star_river_core::{custom_type::StrategyName, state_machine::Metadata};
 use strategy_core::{
     error::{StrategyStateMachineError, strategy_state_machine_error::StrategyStateTransFailedSnafu},
     strategy::state_machine::{
-        GenericStrategyStateMachine, Metadata, StrategyRunState, StrategyStateAction, StrategyStateChangeActions, StrategyStateMachine,
+        GenericStrategyStateMachine, StrategyRunState, StrategyStateAction, StrategyStateChangeActions, StrategyStateMachine,
         StrategyStateTransTrigger,
     },
 };

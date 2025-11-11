@@ -28,11 +28,11 @@ pub fn metatrader5_transition(
         )),
 
         (ExchangeRunState::Initializing, &ExchangeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
-            ExchangeRunState::Initialized,
+            ExchangeRunState::Connected,
             vec![Mt5Action::LogTransition, Mt5Action::LogExchangeState],
         )),
 
-        (ExchangeRunState::Initialized, &ExchangeStateTransTrigger::Shutdown) => {
+        (ExchangeRunState::Connected, &ExchangeStateTransTrigger::Shutdown) => {
             Ok(StateChangeActions::new(ExchangeRunState::Stopping, vec![Mt5Action::LogTransition]))
         }
 

@@ -23,30 +23,11 @@ impl NodeLifecycle for StartNode {
     type Trigger = NodeStateTransTrigger;
 
     async fn init(&self) -> Result<(), Self::Error> {
-        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
-        tracing::info!("=================init node [{node_name}]====================");
-        tracing::info!("[{node_name}] start to init");
-        // 开始初始化 created -> Initialize
-        self.update_node_state(NodeStateTransTrigger::StartInit).await?;
-
-        let current_state = self
-            .with_ctx_read_async(|ctx| Box::pin(async move { ctx.run_state().await.clone() }))
-            .await;
-
-        tracing::info!("[{node_name}] init complete: {:?}", current_state);
-        // 初始化完成 Initialize -> InitializeComplete
-        self.update_node_state(NodeStateTransTrigger::FinishInit).await?;
-        Ok(())
+        NodeUtils::init_node(self, None).await
     }
 
     async fn stop(&self) -> Result<(), BacktestNodeError> {
-        let node_name = self.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
-        tracing::info!("=================stop node [{node_name}]====================");
-        tracing::info!("[{node_name}] start to stop");
-        self.update_node_state(NodeStateTransTrigger::StartStop).await?;
-        // 切换为stopped状态
-        self.update_node_state(NodeStateTransTrigger::FinishStop).await?;
-        Ok(())
+        NodeUtils::stop_node(self, None).await
     }
 
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
@@ -70,16 +51,16 @@ impl NodeLifecycle for StartNode {
         for action in transition_result.actions() {
             // 克隆actions避免移动问题
 
-            let current_state = {
+            let (previous_state, current_state) = {
                 let state_machine = state_machine.read().await;
-                state_machine.current_state().clone()
+                (state_machine.previous_state().clone(), state_machine.current_state().clone())
             };
             match action {
                 StartNodeAction::LogTransition => {
                     tracing::debug!(
                         "[{node_name}] state transition: {:?} -> {:?}",
-                        current_state,
-                        transition_result.new_state()
+                        previous_state,
+                        current_state
                     );
                 }
                 StartNodeAction::ListenAndHandleStrategyCommand => {

@@ -1,3 +1,4 @@
+use star_river_core::state_machine::Metadata;
 use strategy_core::{
     error::{NodeStateMachineError, node_state_machine_error::NodeTransFailedSnafu},
     node::node_state_machine::{NodeStateMachine, StateAction, StateChangeActions},
@@ -44,7 +45,7 @@ impl StateAction for IndicatorNodeAction {}
 pub fn indicator_node_transition(
     state: &NodeRunState,
     trans_trigger: NodeStateTransTrigger,
-    _metadata: Option<&strategy_core::node::node_state_machine::Metadata>,
+    _metadata: Option<&Metadata>,
 ) -> Result<StateChangeActions<NodeRunState, IndicatorNodeAction>, NodeStateMachineError> {
     match (state, &trans_trigger) {
         // Created -> Initializing

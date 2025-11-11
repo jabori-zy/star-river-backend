@@ -1,8 +1,9 @@
 // Workspace crate imports
 use engine_core::{
-    state_machine::{EngineAction, EngineRunState, EngineStateMachine, EngineStateTransTrigger, Metadata, StateChangeActions},
+    state_machine::{EngineAction, EngineRunState, EngineStateMachine, EngineStateTransTrigger, StateChangeActions},
     state_machine_error::{EngineStateMachineError, EngineTransitionSnafu},
 };
+use star_river_core::state_machine::Metadata;
 
 pub type BacktestEngineStateMachine = EngineStateMachine<BacktestEngineAction>;
 

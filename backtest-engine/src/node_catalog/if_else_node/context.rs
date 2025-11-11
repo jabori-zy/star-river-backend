@@ -1,12 +1,18 @@
-mod benchmark;
 mod condition_op;
 mod event_handler;
 mod node_handles;
 
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use star_river_core::custom_type::NodeId;
-use strategy_core::node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata};
+use strategy_core::{
+    benchmark::node_benchmark::CompletedCycle,
+    node::{
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
+        metadata::NodeMetadata,
+    },
+};
 
 use super::{if_else_node_type::IfElseNodeBacktestConfig, state_machine::IfElseNodeStateMachine};
 use crate::{
@@ -65,5 +71,15 @@ impl NodeMetaDataExt for IfElseNodeContext {
 
     fn metadata_mut(&mut self) -> &mut NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &mut self.metadata
+    }
+}
+
+#[async_trait]
+impl NodeBenchmarkExt for IfElseNodeContext {
+    type Error = crate::node::node_error::BacktestNodeError;
+
+    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+        Ok(())
     }
 }

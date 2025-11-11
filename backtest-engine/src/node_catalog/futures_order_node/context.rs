@@ -1,4 +1,3 @@
-mod benchmark;
 mod event_handler;
 mod node_handles;
 mod order_handler;
@@ -6,14 +5,21 @@ mod status_handler;
 
 use std::{collections::HashMap, sync::Arc};
 
+use async_trait::async_trait;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::{
-    custom_type::{InputHandleId, OrderId},
+    custom_type::{InputHandleId, NodeId, OrderId},
     instrument::Symbol,
     order::OrderStatus,
 };
-use strategy_core::node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata};
+use strategy_core::{
+    benchmark::node_benchmark::CompletedCycle,
+    node::{
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
+        metadata::NodeMetadata,
+    },
+};
 use tokio::sync::{Mutex, RwLock};
 use virtual_trading::{
     VirtualTradingSystem,
@@ -92,6 +98,16 @@ impl NodeMetaDataExt for FuturesOrderNodeContext {
 
     fn metadata_mut(&mut self) -> &mut NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &mut self.metadata
+    }
+}
+
+#[async_trait]
+impl NodeBenchmarkExt for FuturesOrderNodeContext {
+    type Error = crate::node::node_error::BacktestNodeError;
+
+    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+        Ok(())
     }
 }
 

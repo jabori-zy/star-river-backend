@@ -32,11 +32,11 @@ pub fn binance_transition(
         )),
 
         (ExchangeRunState::Initializing, &ExchangeStateTransTrigger::FinishInit) => Ok(StateChangeActions::new(
-            ExchangeRunState::Initialized,
+            ExchangeRunState::Connected,
             vec![BinanceAction::LogTransition, BinanceAction::LogExchangeState],
         )),
 
-        (ExchangeRunState::Initialized, &ExchangeStateTransTrigger::Shutdown) => Ok(StateChangeActions::new(
+        (ExchangeRunState::Connected, &ExchangeStateTransTrigger::Shutdown) => Ok(StateChangeActions::new(
             ExchangeRunState::Stopping,
             vec![BinanceAction::LogTransition],
         )),
