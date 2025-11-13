@@ -6,17 +6,21 @@ use strategy_core::{
     error::strategy_error::WaitAllNodesStoppedTimeoutSnafu,
     event::{log_event::LogLevel, strategy_event::StrategyStateLogEvent},
     strategy::{
-        context_trait::{StrategyIdentityExt, StrategyInfraExt, StrategyStateMachineExt, StrategyWorkflowExt},
-        state_machine::{StrategyRunState, StrategyStateMachine, StrategyStateTransTrigger},
+        context_trait::{StrategyIdentityExt, StrategyStateMachineExt, StrategyWorkflowExt},
+        state_machine::StrategyStateMachine,
         strategy_trait::{StrategyContextAccessor, StrategyEventListener, StrategyLifecycle},
     },
 };
+use virtual_trading::vts_trait::{VTSEventListener, VtsCtxAccessor};
 
 use super::{
     BacktestStrategy,
     strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateAction, BacktestStrategyStateTransTrigger},
 };
-use crate::strategy::{strategy_error::BacktestStrategyError, strategy_log_message::StrategyStateLogMsg};
+use crate::{
+    strategy::{strategy_error::BacktestStrategyError, strategy_log_message::StrategyStateLogMsg},
+    virtual_trading_system::BacktestVtsContext,
+};
 
 #[async_trait::async_trait]
 impl StrategyLifecycle for BacktestStrategy {
@@ -160,20 +164,17 @@ impl StrategyLifecycle for BacktestStrategy {
                     let strategy_name_clone = strategy_name.clone();
                     self.with_ctx_write_async(|ctx| {
                         Box::pin(async move {
-                            let start_node_config = ctx.get_start_node_config().await;
-                            if let Ok(start_node_config) = start_node_config {
-                                ctx.set_initial_play_speed(start_node_config.play_speed as u32).await;
-                                tracing::info!(
-                                    "[{}] init initial play speed success. initial play speed: {:?}",
-                                    &strategy_name_clone,
-                                    ctx.initial_play_speed().await
-                                );
-                            } else {
-                                tracing::error!("[{}] get start node config failed", &strategy_name_clone);
-                            }
+                            let strategy_config = ctx.get_strategy_config().await?;
+                            ctx.set_initial_play_speed(strategy_config.play_speed as u32).await;
+                            tracing::info!(
+                                "[{}] init initial play speed success. initial play speed: {:?}",
+                                &strategy_name_clone,
+                                ctx.initial_play_speed().await
+                            );
+                            Ok::<(), BacktestStrategyError>(())
                         })
                     })
-                    .await;
+                    .await?;
                 }
                 BacktestStrategyStateAction::InitSignalCount => {
                     let strategy_name_clone = strategy_name.clone();
@@ -190,16 +191,25 @@ impl StrategyLifecycle for BacktestStrategy {
                     .await;
                 }
                 BacktestStrategyStateAction::InitVirtualTradingSystem => {
-                    // let strategy_name_clone = strategy_name.clone();
-                    // self.with_ctx_write_async(|ctx| {
-                    //     Box::pin(async move {
-                    //         if let Err(e) = VirtualTradingSystem::listen_play_index(ctx.virtual_trading_system().clone()).await {
-                    //             tracing::error!("[{}] init virtual trading system failed: {}", &strategy_name_clone, e);
-                    //         } else {
-                    //             tracing::info!("[{}] init virtual trading system success", &strategy_name_clone);
-                    //         }
-                    //     })
-                    // }).await;
+                    self.with_ctx_write_async(|ctx| {
+                        Box::pin(async move {
+                            let strategy_config = ctx.get_strategy_config().await?;
+                            {
+                                let vts_guard = ctx.virtual_trading_system().lock().await;
+                                vts_guard
+                                    .with_ctx_write(|ctx| {
+                                        ctx.set_initial_balance(strategy_config.initial_balance);
+                                        ctx.set_leverage(strategy_config.leverage as u32);
+                                        ctx.set_fee_rate(strategy_config.fee_rate);
+                                    })
+                                    .await;
+                                vts_guard.start().await;
+                            }
+                            tracing::info!("[{}] init virtual trading system success", ctx.strategy_name());
+                            Ok::<(), BacktestStrategyError>(())
+                        })
+                    })
+                    .await?;
                 }
                 BacktestStrategyStateAction::InitStrategyStats => {
                     // let strategy_name_clone = strategy_name.clone();
@@ -245,18 +255,6 @@ impl StrategyLifecycle for BacktestStrategy {
                     if let Err(e) = self.with_ctx_write_async(|ctx| Box::pin(ctx.build_workflow())).await {
                         return Err(handle_error(e));
                     }
-                    // if let Err(e) = self.add_edge().await {
-                    //     return Err(handle_error(e));
-                    // }
-                    // if let Err(e) = self.check_symbol_config().await {
-                    //     return Err(handle_error(e));
-                    // }
-                    // if let Err(e) = self.set_leaf_nodes().await {
-                    //     return Err(handle_error(e));
-                    // }
-                    // if let Err(e) = self.set_strategy_output_handles().await {
-                    //     return Err(handle_error(e));
-                    // }
                 }
 
                 BacktestStrategyStateAction::InitNode => {
@@ -340,7 +338,7 @@ impl BacktestStrategy {
                     .await
             })
         })
-        .await;
+        .await?;
 
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::Check).await;
 
@@ -351,7 +349,7 @@ impl BacktestStrategy {
                         .await
                 })
             })
-            .await;
+            .await?;
             return Err(e);
         }
 
@@ -362,7 +360,7 @@ impl BacktestStrategy {
                     .await
             })
         })
-        .await;
+        .await?;
 
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::CheckComplete).await;
 
@@ -373,7 +371,7 @@ impl BacktestStrategy {
                         .await
                 })
             })
-            .await;
+            .await?;
             return Err(e);
         }
         Ok(())

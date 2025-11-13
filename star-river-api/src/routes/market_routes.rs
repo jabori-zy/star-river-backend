@@ -1,10 +1,9 @@
-use axum::{
-    Router,
-    routing::{get},
-};
+use axum::{Router, routing::get};
 
-use crate::api::market_api::{get_support_kline_intervals, get_symbol, get_symbol_list};
-use crate::star_river::StarRiver;
+use crate::{
+    api::market_api::{get_support_kline_intervals, get_symbol, get_symbol_list},
+    star_river::StarRiver,
+};
 
 pub fn create_market_routes() -> Router<StarRiver> {
     Router::new()

@@ -20,10 +20,10 @@ use strategy_core::{
         metadata::NodeMetadata,
     },
 };
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
 use virtual_trading::{
-    VirtualTradingSystem,
-    event::VirtualTradingSystemEventReceiver,
+    command::VtsCommand,
+    event::VtsEvent,
     types::{order::VirtualOrder, transaction::VirtualTransaction},
 };
 
@@ -44,7 +44,9 @@ pub struct FuturesOrderNodeContext {
     is_processing_order: Arc<RwLock<HashMap<InputHandleId, bool>>>, // 是否正在处理订单 input_handle_id -> is_processing_order
     database: DatabaseConnection,                                   // 数据库连接
     heartbeat: Arc<Mutex<Heartbeat>>,                               // 心跳
-    virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,       // 虚拟交易系统
+    // virtual_trading_system: Arc<Mutex<BacktestVts>>,                // 虚拟交易系统
+    vts_command_sender: mpsc::Sender<VtsCommand>,
+    pub vts_event_receiver: broadcast::Receiver<VtsEvent>,
     unfilled_virtual_order: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 未成交的虚拟订单列表 input_handle_id -> unfilled_virtual_order
     virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
@@ -58,7 +60,8 @@ impl FuturesOrderNodeContext {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        vts_command_sender: mpsc::Sender<VtsCommand>,
+        vts_event_receiver: broadcast::Receiver<VtsEvent>,
     ) -> Self {
         Self {
             metadata,
@@ -67,7 +70,8 @@ impl FuturesOrderNodeContext {
             is_processing_order: Arc::new(RwLock::new(HashMap::new())),
             database,
             heartbeat,
-            virtual_trading_system,
+            vts_command_sender,
+            vts_event_receiver,
             unfilled_virtual_order: Arc::new(RwLock::new(HashMap::new())),
             virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
             virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
@@ -173,11 +177,9 @@ impl FuturesOrderNodeContext {
     }
 
     async fn check_order_status(&mut self, order_id: OrderId) -> Result<OrderStatus, String> {
-        let virtual_trading_system_guard = self.virtual_trading_system.lock().await;
-        let order = virtual_trading_system_guard.get_order(order_id);
-        if let Some(order) = order {
-            return Ok(order.order_status.clone());
-        }
-        Err("订单不存在".to_string())
+        // let virtual_trading_system_guard = self.virtual_trading_system.lock().await;
+        // let order = virtual_trading_system_guard.get_order_by_id(&order_id).unwrap();
+        // Ok(order.order_status.clone())
+        Ok(OrderStatus::Created)
     }
 }

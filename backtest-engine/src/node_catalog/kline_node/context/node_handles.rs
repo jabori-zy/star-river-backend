@@ -18,14 +18,14 @@ impl NodeHandleExt for KlineNodeContext {
         let default_output_handle_id = generate_default_output_handle_id(&node_id);
         tracing::debug!("[{node_name}] set default output handle: {}", default_output_handle_id);
 
-        self.add_output_handle(default_output_handle_id, tx);
+        self.add_output_handle(true, default_output_handle_id, tx);
 
         // 添加每一个symbol的出口
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.output_handle_id.clone();
             tracing::debug!("[{node_name}] setting symbol output handle: {}", symbol_output_handle_id);
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            self.add_output_handle(symbol_output_handle_id, tx);
+            self.add_output_handle(false, symbol_output_handle_id, tx);
         }
     }
 }

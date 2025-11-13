@@ -5,7 +5,7 @@ use star_river_core::{custom_type::NodeId, system::DateTimeUtc};
 // Current crate imports - star_river_event
 use star_river_event::backtest_strategy::node_event::{
     IfElseNodeEvent,
-    if_else_node_event::{ConditionMatchEvent, ConditionMatchPayload},
+    if_else_node_event::{CaseFalseEvent, CaseFalsePayload, CaseTrueEvent, CaseTruePayload, ElseTrueEvent, ElseTruePayload},
 };
 // Current crate imports - strategy_core
 use strategy_core::{
@@ -13,7 +13,7 @@ use strategy_core::{
     communication::strategy::StrategyResponse,
     event::{
         log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
-        node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
+        node_common_event::CommonEvent,
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
     node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},
@@ -21,7 +21,7 @@ use strategy_core::{
 use tokio::sync::oneshot;
 
 // Relative imports
-use super::{ConfigId, IfElseNodeBacktestConfig, IfElseNodeContext};
+use super::{ConfigId, IfElseNodeContext};
 // Local module imports
 use crate::{
     node::{
@@ -80,26 +80,26 @@ impl IfElseNodeContext {
         let current_time = self.get_current_time().await.unwrap();
 
         // 遍历case进行条件评估
-        for (index, case) in self.node_config.cases.iter().enumerate() {
+        for case in self.node_config.cases.iter() {
             let phase_name = format!("evaluate case {}", case.case_id);
             cycle_tracker.start_phase(&phase_name);
+
+            // evaluate result (is ture, result)
             let case_result = self.evaluate_case(case).await;
 
             // 如果条件匹配，处理匹配的case
             if case_result.0 {
-                tracing::debug!("[{}] 条件匹配，处理匹配的case 分支", self.node_name());
+                // tracing::debug!("[{}] condition matched, handle matched case branch", self.node_name());
+                case_matched = true;
+                cycle_tracker.end_phase(&phase_name);
                 self.handle_matched_case(case, case_result.1, current_time).await?;
+                break; // 找到匹配的case后立即退出
             }
-            // 如果条件不匹配，并且是最后一个case, 则发送trigger事件
+            // condition is false
             else {
-                if index == self.node_config.cases.len() - 1 {
-                    tracing::debug!("[{}] 条件不匹配，发送trigger事件", self.node_name());
-                    self.handle_not_matched_case(case).await;
-                }
+                // tracing::debug!("[{}] 条件不匹配，发送trigger事件", self.node_name());
+                self.handle_not_matched_case(case).await;
             }
-            case_matched = true;
-            cycle_tracker.end_phase(&phase_name);
-            break; // 找到匹配的case后立即退出
         }
 
         // 如果没有case匹配，处理else分支
@@ -111,7 +111,9 @@ impl IfElseNodeContext {
             cycle_tracker.end_phase(&phase_name);
         }
         let completed_tracker = cycle_tracker.end();
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await;
+        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+            .await
+            .unwrap();
         Ok(())
     }
 
@@ -127,14 +129,12 @@ impl IfElseNodeContext {
         let from_node_name = self.node_name().clone();
         let play_index = self.play_index();
 
-        let case_output_handle_id = format!("{}_output_{}", self.node_id(), case.case_id);
-        let case_output_handle = self.output_handle(&case_output_handle_id).unwrap();
-        let strategy_output_handle = self.strategy_bound_handle();
+        let case_output_handle_id = case.output_handle_id.clone();
 
         // 创建条件匹配事件
-        let payload = ConditionMatchPayload::new(play_index, Some(case.case_id));
+        let payload = CaseTruePayload::new(play_index, case.case_id);
         let condition_match_event: IfElseNodeEvent =
-            ConditionMatchEvent::new(from_node_id.clone(), from_node_name.clone(), case_output_handle_id, payload).into();
+            CaseTrueEvent::new(from_node_id.clone(), from_node_name.clone(), case_output_handle_id.clone(), payload).into();
 
         // 创建并发送日志事件
         let condition_result_json = serde_json::to_value(condition_results).context(EvaluateResultSerializationFailedSnafu {
@@ -152,58 +152,63 @@ impl IfElseNodeContext {
             current_time,
         )
         .into();
-        let _ = strategy_output_handle.send(log_event.into());
+        // let _ = strategy_output_handle.send(log_event.into());
+        self.strategy_bound_handle_send(log_event.into()).unwrap();
 
         // 根据节点类型处理事件发送
         if self.is_leaf_node() {
             // 叶子节点：发送执行结束事件
-            self.send_execute_over_event();
+            self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
         } else {
             // 非叶子节点：将事件传递给下游节点
-            let _ = case_output_handle.send(condition_match_event.into());
+            self.output_handle_send(&case_output_handle_id, condition_match_event.into())
+                .unwrap();
+            // let _ = case_output_handle.send(condition_match_event.into());
         }
 
         Ok(())
     }
 
     async fn handle_not_matched_case(&self, case: &Case) {
-        if self.is_leaf_node() {
-            self.send_execute_over_event();
-            return;
-        }
-
-        let case_output_handle_id = format!("{}_output_{}", self.node_id(), case.case_id);
-        let case_output_handle = self.output_handle(&case_output_handle_id).unwrap();
-        let payload = TriggerPayload::new(self.play_index() as u64);
-
-        let condition_not_match_event: CommonEvent = TriggerEvent::new(
+        // if self.is_leaf_node() {
+        //     self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
+        //     return;
+        // }
+        let case_output_handle_id = case.output_handle_id.clone();
+        let payload = CaseFalsePayload::new(self.play_index(), case.case_id);
+        let condition_not_match_event: IfElseNodeEvent = CaseFalseEvent::new(
             self.node_id().clone(),
             self.node_name().clone(),
             case_output_handle_id.clone(),
             payload,
         )
         .into();
-        let _ = case_output_handle.send(condition_not_match_event.into());
+        self.output_handle_send(&case_output_handle_id, condition_not_match_event.into())
+            .unwrap();
     }
 
     // 处理else分支
     async fn handle_else_branch(&self) {
         if self.is_leaf_node() {
             // 叶子节点：发送执行结束事件
-            self.send_execute_over_event();
-        } else {
-            // 非叶子节点：发送事件到else输出句柄
-            let else_output_handle = self.default_output_handle().unwrap();
-            let payload = ConditionMatchPayload::new(self.play_index(), None);
-            let else_event: IfElseNodeEvent = ConditionMatchEvent::new(
-                self.node_id().clone(),
-                self.node_name().clone(),
-                else_output_handle.output_handle_id().clone(),
-                payload,
-            )
-            .into();
-            let _ = else_output_handle.send(else_event.into());
+            self.send_execute_over_event(self.play_index() as u64, None).unwrap();
+            return;
         }
+
+        let else_output_handle = self.default_output_handle().unwrap();
+        tracing::debug!(
+            "handle_else_branch, else_output_handle: {:?}",
+            else_output_handle.output_handle_id()
+        );
+        let payload = ElseTruePayload::new(self.play_index());
+        let else_event: IfElseNodeEvent = ElseTrueEvent::new(
+            self.node_id().clone(),
+            self.node_name().clone(),
+            else_output_handle.output_handle_id().clone(),
+            payload,
+        )
+        .into();
+        let _ = else_output_handle.send(else_event.into());
     }
 
     pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {

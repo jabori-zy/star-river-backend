@@ -62,11 +62,7 @@ impl NodeLifecycle for IndicatorNode {
 
             match action {
                 IndicatorNodeAction::LogTransition => {
-                    tracing::info!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::info!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 IndicatorNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);
@@ -132,6 +128,7 @@ impl NodeLifecycle for IndicatorNode {
                 }
 
                 IndicatorNodeAction::InitIndicatorLookback => {
+                    tracing::info!("@[{node_name}] starting to init indicator lookback");
                     self.with_ctx_write_async(|ctx| {
                         Box::pin(async move {
                             ctx.init_indicator_lookback().await;

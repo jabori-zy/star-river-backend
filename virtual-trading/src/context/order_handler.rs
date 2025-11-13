@@ -1,6 +1,8 @@
 // External crate imports
 use chrono::{DateTime, Utc};
+use key::KlineKey;
 use snafu::Report;
+use star_river_core::kline::Kline;
 // Current crate imports
 use star_river_core::{
     custom_type::*,
@@ -10,14 +12,17 @@ use star_river_core::{
 };
 
 // Local module imports
-use super::VirtualTradingSystem;
+use super::VirtualTradingSystemContext;
 use crate::{
     error::{KlineKeyNotFoundSnafu, UnsupportedOrderTypeSnafu, VirtualTradingSystemError},
-    event::VirtualTradingSystemEvent,
+    event::VtsEvent,
     types::{VirtualOrder, VirtualPosition},
 };
 
-impl VirtualTradingSystem {
+impl<E> VirtualTradingSystemContext<E>
+where
+    E: Clone + Send + Sync + 'static,
+{
     // 生成订单ID, 从0开始
     fn generate_order_id(&self) -> i32 {
         self.orders.len() as i32
@@ -26,8 +31,9 @@ impl VirtualTradingSystem {
     // 创建订单
     pub fn create_order(
         &mut self,
-        strategy_id: i32,
-        node_id: String,
+        strategy_id: StrategyId,
+        node_id: NodeId,
+        node_name: NodeName,
         order_config_id: i32,
         symbol: String,
         exchange: Exchange,
@@ -43,8 +49,8 @@ impl VirtualTradingSystem {
     ) -> Result<(), VirtualTradingSystemError> {
         let order_id = self.generate_order_id();
         let kline_key = self.get_kline_key(&exchange, &symbol);
-        let current_datetime = self.current_datetime;
-        if let Some(kline_key) = kline_key {
+        // let current_datetime = self.current_datetime;
+        if let Ok(kline_key) = kline_key {
             // 根据订单类型判断是否需要立即成交
             match &order_type {
                 // 市价单
@@ -57,9 +63,10 @@ impl VirtualTradingSystem {
                     // 市价单忽略创建订单时的价格，而是使用最新的价格
                     let market_order = VirtualOrder::new(
                         None,
-                        order_id,
                         strategy_id,
+                        order_id,
                         node_id,
+                        node_name,
                         order_config_id,
                         exchange.clone(),
                         symbol.clone(),
@@ -76,8 +83,8 @@ impl VirtualTradingSystem {
                     );
                     tracing::debug!("market order created: {:?}", market_order);
 
-                    let order_create_event = VirtualTradingSystemEvent::FuturesOrderCreated(market_order.clone());
-                    let _ = self.event_publisher.send(order_create_event);
+                    let order_create_event = VtsEvent::FuturesOrderCreated(market_order.clone());
+                    let _ = self.event_transceiver.0.send(order_create_event);
 
                     // 插入订单
                     self.orders.push(market_order.clone());
@@ -88,11 +95,13 @@ impl VirtualTradingSystem {
                 // 限价单
                 OrderType::Limit => {
                     // 限价单不立即成交
+                    let current_datetime = self.get_kline_price(&kline_key)?.datetime;
                     let limit_order = VirtualOrder::new(
                         None,
-                        order_id,
                         strategy_id,
+                        order_id,
                         node_id,
+                        node_name,
                         order_config_id,
                         exchange,
                         symbol,
@@ -108,8 +117,8 @@ impl VirtualTradingSystem {
                         current_datetime,
                     );
                     tracing::debug!("limit order created: {:?}", limit_order);
-                    let order_create_event = VirtualTradingSystemEvent::FuturesOrderCreated(limit_order.clone());
-                    let _ = self.event_publisher.send(order_create_event);
+                    let order_create_event = VtsEvent::FuturesOrderCreated(limit_order.clone());
+                    self.send_event(order_create_event)?;
                     // 插入订单
                     self.orders.push(limit_order.clone());
                 }
@@ -142,16 +151,13 @@ impl VirtualTradingSystem {
         order_id: OrderId,
         order_status: OrderStatus,
         datetime: DateTime<Utc>,
-    ) -> Result<VirtualOrder, String> {
-        if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
-            // 更新订单状态
-            order.order_status = order_status;
-            // 更新订单更新时间
-            order.update_time = datetime;
-            Ok(order.clone())
-        } else {
-            Err(format!("订单不存在: {:?}", order_id))
-        }
+    ) -> Result<VirtualOrder, VirtualTradingSystemError> {
+        let order = self.get_order_by_id_mut(&order_id)?;
+        // 更新订单状态
+        order.order_status = order_status;
+        // 更新订单更新时间
+        order.update_time = datetime;
+        Ok(order.clone())
     }
 
     pub fn update_order_position_id(&mut self, order_id: OrderId, position_id: PositionId, datetime: DateTime<Utc>) -> Result<(), String> {
@@ -173,78 +179,93 @@ impl VirtualTradingSystem {
             .collect::<Vec<VirtualOrder>>()
     }
 
-    // 检查未成交订单（包括挂单，止盈止损订单），如果未成交，则立即成交
-    pub fn check_unfilled_orders(&mut self) {
-        // 获取未成交订单
-        let unfilled_orders = self.get_unfilled_orders();
-        for order in unfilled_orders {
-            if let Some(kline_key) = self.get_kline_key(&order.exchange, &order.symbol) {
-                if let Some(current_kline) = self.kline_price.get(&kline_key) {
-                    let high_price = current_kline.high;
-                    let low_price = current_kline.low;
+    // find unfilled order by kline key
+    pub fn get_unfilled_orders_by_kline_key(&self, kline_key: &KlineKey) -> Vec<VirtualOrder> {
+        self.orders
+            .iter()
+            .filter(|order| {
+                order.exchange == kline_key.exchange
+                    && order.symbol == kline_key.symbol
+                    && (order.order_status == OrderStatus::Created || order.order_status == OrderStatus::Placed)
+            })
+            .cloned()
+            .collect::<Vec<VirtualOrder>>()
+    }
 
-                    match order.order_type {
-                        OrderType::Limit => {
-                            match order.order_side {
-                                FuturesOrderSide::OpenLong => {
-                                    // 限价开多：最低价格 <= 订单价格时执行
-                                    if low_price <= order.open_price {
-                                        // 限价单的成交价格应该是挂单的价格
-                                        self.execute_order(&order, order.open_price, self.current_datetime).unwrap();
-                                    }
-                                }
-                                FuturesOrderSide::OpenShort => {
-                                    // 限价开空：最高价格 >= 订单价格时执行
-                                    if high_price >= order.open_price {
-                                        // 限价单的成交价格应该是挂单的价格
-                                        self.execute_order(&order, order.open_price, self.current_datetime).unwrap();
-                                    }
-                                }
-                                _ => {}
+    // 检查未成交订单（包括挂单，止盈止损订单），如果未成交，则立即成交
+    pub fn check_unfilled_orders(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VirtualTradingSystemError> {
+        // 获取未成交订单
+        let unfilled_orders = self.get_unfilled_orders_by_kline_key(kline_key);
+
+        if unfilled_orders.is_empty() {
+            return Ok(());
+        }
+
+        let high_price = kline.high;
+        let low_price = kline.low;
+        let execute_datetime = kline.datetime;
+        for order in unfilled_orders {
+            match order.order_type {
+                OrderType::Limit => {
+                    match order.order_side {
+                        FuturesOrderSide::OpenLong => {
+                            // 限价开多：最低价格 <= 订单价格时执行
+                            if low_price <= order.open_price {
+                                // 限价单的成交价格应该是挂单的价格
+                                self.execute_order(&order, order.open_price, execute_datetime).unwrap();
                             }
                         }
-                        OrderType::StopMarket => {
-                            match order.order_side {
-                                FuturesOrderSide::CloseLong => {
-                                    // 平多止损：最低价格 <= 止损价格时执行
-                                    if low_price <= order.open_price {
-                                        self.execute_sl_order(&order);
-                                    }
-                                }
-                                FuturesOrderSide::CloseShort => {
-                                    // 平空止损：最高价格 >= 止损价格时执行
-                                    if high_price >= order.open_price {
-                                        self.execute_sl_order(&order);
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        OrderType::TakeProfitMarket => {
-                            match order.order_side {
-                                FuturesOrderSide::CloseLong => {
-                                    // 平多止盈：最高价格 >= 止盈价格时执行
-                                    if high_price >= order.open_price {
-                                        self.execute_tp_order(&order);
-                                    }
-                                }
-                                FuturesOrderSide::CloseShort => {
-                                    // 平空止盈：最低价格 <= 止盈价格时执行
-                                    if low_price <= order.open_price {
-                                        self.execute_tp_order(&order);
-                                    }
-                                }
-                                _ => {}
+                        FuturesOrderSide::OpenShort => {
+                            // 限价开空：最高价格 >= 订单价格时执行
+                            if high_price >= order.open_price {
+                                // 限价单的成交价格应该是挂单的价格
+                                self.execute_order(&order, order.open_price, execute_datetime).unwrap();
                             }
                         }
                         _ => {}
                     }
                 }
+                OrderType::StopMarket => {
+                    match order.order_side {
+                        FuturesOrderSide::CloseLong => {
+                            // 平多止损：最低价格 <= 止损价格时执行
+                            if low_price <= order.open_price {
+                                self.execute_sl_order(&order, execute_datetime)?;
+                            }
+                        }
+                        FuturesOrderSide::CloseShort => {
+                            // 平空止损：最高价格 >= 止损价格时执行
+                            if high_price >= order.open_price {
+                                self.execute_sl_order(&order, execute_datetime)?;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                OrderType::TakeProfitMarket => {
+                    match order.order_side {
+                        FuturesOrderSide::CloseLong => {
+                            // 平多止盈：最高价格 >= 止盈价格时执行
+                            if high_price >= order.open_price {
+                                self.execute_tp_order(&order, execute_datetime)?;
+                            }
+                        }
+                        FuturesOrderSide::CloseShort => {
+                            // 平空止盈：最低价格 <= 止盈价格时执行
+                            if low_price <= order.open_price {
+                                self.execute_tp_order(&order, execute_datetime)?;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
         }
+        Ok(())
     }
 
-    pub fn create_take_profit_order(&mut self, position: &VirtualPosition) -> Option<VirtualOrder> {
+    pub fn create_take_profit_order(&mut self, position: &VirtualPosition, execute_datetime: DateTime<Utc>) -> Option<VirtualOrder> {
         // 生成止盈订单
         if let Some(tp) = position.tp {
             let order_id = self.generate_order_id();
@@ -259,6 +280,7 @@ impl VirtualTradingSystem {
                 order_id,
                 position.strategy_id,
                 position.node_id.clone(),
+                position.node_name.clone(),
                 position.order_config_id,
                 position.exchange.clone(),
                 position.symbol.clone(),
@@ -271,14 +293,14 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
-                self.current_datetime,
+                execute_datetime,
             );
             return Some(tp_order);
         }
         None
     }
 
-    pub fn create_stop_loss_order(&mut self, position: &VirtualPosition) -> Option<VirtualOrder> {
+    pub fn create_stop_loss_order(&mut self, position: &VirtualPosition, current_datetime: DateTime<Utc>) -> Option<VirtualOrder> {
         // 生成止盈止损订单
         if let Some(sl) = position.sl {
             let order_id = self.generate_order_id();
@@ -293,6 +315,7 @@ impl VirtualTradingSystem {
                 order_id,
                 position.strategy_id,
                 position.node_id.clone(),
+                position.node_name.clone(),
                 position.order_config_id,
                 position.exchange.clone(),
                 position.symbol.clone(),
@@ -305,7 +328,7 @@ impl VirtualTradingSystem {
                 None,
                 None,
                 None,
-                self.current_datetime,
+                current_datetime,
             );
             return Some(sl_order);
         }

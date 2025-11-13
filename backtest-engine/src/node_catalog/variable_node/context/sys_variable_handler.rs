@@ -1,10 +1,9 @@
-use std::str::FromStr;
-
+use chrono::Utc;
 use rust_decimal::Decimal;
 use star_river_core::{custom_type::NodeId, order::OrderStatus};
 use star_river_event::backtest_strategy::node_event::{
     VariableNodeEvent,
-    variable_node_event::{SysVariableUpdateEvent, SysVariableUpdatePayload},
+    variable_node_event::{SysVarUpdateEvent, SysVarUpdatePayload},
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
@@ -17,7 +16,7 @@ use strategy_core::{
     },
 };
 use tokio::{sync::oneshot, task::JoinHandle};
-use virtual_trading::VirtualTradingSystem;
+use virtual_trading::vts_trait::VtsCtxAccessor;
 
 use super::VariableNodeContext;
 use crate::{
@@ -27,6 +26,7 @@ use crate::{
         PlayIndex,
         strategy_command::{UpdateSysVarCmdPayload, UpdateSysVarValueCommand},
     },
+    virtual_trading_system::BacktestVts,
 };
 
 impl VariableNodeContext {
@@ -36,7 +36,7 @@ impl VariableNodeContext {
     /// - `play_index`: 播放索引
     /// - `node_id`: 节点ID
     /// - `system_var_config`: 系统变量配置
-    /// - `value_calculator`: 计算变量值的闭包，接收虚拟交易系统的引用
+    /// - `value_calculator`: 计算变量值的异步闭包，接收虚拟交易系统的引用
     async fn create_sys_variable_handle<F>(
         &self,
         play_index: PlayIndex,
@@ -45,7 +45,9 @@ impl VariableNodeContext {
         value_calculator: F,
     ) -> JoinHandle<()>
     where
-        F: FnOnce(&VirtualTradingSystem) -> SysVariable + Send + 'static,
+        F: for<'a> FnOnce(&'a BacktestVts) -> std::pin::Pin<Box<dyn std::future::Future<Output = SysVariable> + Send + 'a>>
+            + Send
+            + 'static,
     {
         let output_handle = self.output_handle(&system_var_config.output_handle_id()).unwrap().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
@@ -54,11 +56,11 @@ impl VariableNodeContext {
         let virtual_trading_system = self.virtual_trading_system.clone();
         let strategy_command_sender = self.strategy_command_sender().clone();
         tokio::spawn(async move {
-            let var_name = SysVariableType::from_str(system_var_config.var_name()).unwrap();
+            // let var_name = SysVariableType::from_str(system_var_config.var_name()).unwrap();
 
-            // 使用闭包计算变量值
+            // 使用异步闭包计算变量值
             let virtual_trading_system_guard = virtual_trading_system.lock().await;
-            let sys_variable = value_calculator(&virtual_trading_system_guard);
+            let sys_variable = value_calculator(&virtual_trading_system_guard).await;
             drop(virtual_trading_system_guard);
 
             let (resp_tx, resp_rx) = oneshot::channel();
@@ -67,9 +69,9 @@ impl VariableNodeContext {
             let _ = strategy_command_sender.send(cmd.into()).await;
             let response = resp_rx.await.unwrap();
             match response {
-                StrategyResponse::Success { payload, .. } => {
-                    let payload = SysVariableUpdatePayload::new(play_index, system_var_config.config_id(), sys_variable);
-                    let var_event: VariableNodeEvent = SysVariableUpdateEvent::new(
+                StrategyResponse::Success { .. } => {
+                    let payload = SysVarUpdatePayload::new(play_index, system_var_config.config_id(), sys_variable);
+                    let var_event: VariableNodeEvent = SysVarUpdateEvent::new(
                         node_id.clone(),
                         node_name.clone(),
                         output_handle.output_handle_id().clone(),
@@ -79,11 +81,10 @@ impl VariableNodeContext {
                     let backtest_var_event: BacktestNodeEvent = var_event.clone().into();
                     let _ = strategy_output_handle.send(backtest_var_event.clone());
                     if is_leaf_node {
-                        let payload = ExecuteOverPayload::new(play_index as u64);
+                        let payload = ExecuteOverPayload::new(play_index as u64, None);
                         let execute_over_event: CommonEvent =
                             ExecuteOverEvent::new(node_id, node_name, output_handle.output_handle_id().clone(), payload).into();
-                        let backtest_execute_over_event: BacktestNodeEvent = execute_over_event.into();
-                        let _ = strategy_output_handle.send(backtest_execute_over_event);
+                        let _ = strategy_output_handle.send(execute_over_event.into());
                     } else {
                         let _ = output_handle.send(backtest_var_event);
                     }
@@ -105,10 +106,12 @@ impl VariableNodeContext {
         let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
         self.create_sys_variable_handle(play_index, node_id, system_var_config, |vts| {
-            let current_positions = vts.get_current_positions();
-            let var_name = SysVariableType::TotalPositionNumber;
-            let var_value = VariableValue::Number(Decimal::from(current_positions.len()));
-            SysVariable::new(var_name, var_display_name, None, var_value)
+            Box::pin(async move {
+                let current_positions = vts.with_ctx_read(|ctx| ctx.get_current_positions().clone()).await;
+                let var_name = SysVariableType::TotalPositionNumber;
+                let var_value = VariableValue::Number(Decimal::from(current_positions.len()));
+                SysVariable::new(var_name, var_display_name, None, var_value)
+            })
         })
         .await
     }
@@ -119,14 +122,16 @@ impl VariableNodeContext {
         let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
         self.create_sys_variable_handle(play_index, node_id, system_var_config, |vts| {
-            let orders = vts.get_orders();
-            let filled_order_number = orders
-                .iter()
-                .filter(|order| matches!(order.order_status, OrderStatus::Filled))
-                .count();
-            let var_name = SysVariableType::TotalFilledOrderNumber;
-            let var_value = VariableValue::Number(Decimal::from(filled_order_number));
-            SysVariable::new(var_name, var_display_name, None, var_value)
+            Box::pin(async move {
+                let orders = vts.with_ctx_read(|ctx| ctx.get_orders().clone()).await;
+                let filled_order_number = orders
+                    .iter()
+                    .filter(|order| matches!(order.order_status, OrderStatus::Filled))
+                    .count();
+                let var_name = SysVariableType::TotalFilledOrderNumber;
+                let var_value = VariableValue::Number(Decimal::from(filled_order_number));
+                SysVariable::new(var_name, var_display_name, None, var_value)
+            })
         })
         .await
     }
@@ -153,14 +158,16 @@ impl VariableNodeContext {
         // 调用通用方法，并在闭包中使用捕获的 symbol
         let handle = self
             .create_sys_variable_handle(play_index, node_id, system_var_config, move |vts| {
-                let orders = vts.get_orders();
-                let filled_order_number = orders
-                    .iter()
-                    .filter(|order| order.symbol == symbol && matches!(order.order_status, OrderStatus::Filled))
-                    .count();
-                let var_name = SysVariableType::FilledOrderNumber;
-                let var_value = VariableValue::Number(Decimal::from(filled_order_number));
-                SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
+                Box::pin(async move {
+                    let orders = vts.with_ctx_read(|ctx| ctx.get_orders().clone()).await;
+                    let filled_order_number = orders
+                        .iter()
+                        .filter(|order| order.symbol == symbol && matches!(order.order_status, OrderStatus::Filled))
+                        .count();
+                    let var_name = SysVariableType::FilledOrderNumber;
+                    let var_value = VariableValue::Number(Decimal::from(filled_order_number));
+                    SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
+                })
             })
             .await;
 
@@ -173,11 +180,14 @@ impl VariableNodeContext {
 
         let var_display_name = system_var_config.var_display_name().clone();
         let handle = self
-            .create_sys_variable_handle(play_index, node_id, system_var_config, move |vts| {
-                let current_time = vts.get_datetime();
-                let var_name = SysVariableType::CurrentTime;
-                let var_value = VariableValue::Time(current_time);
-                SysVariable::new(var_name, var_display_name, None, var_value)
+            .create_sys_variable_handle(play_index, node_id, system_var_config, move |_vts| {
+                Box::pin(async move {
+                    // let current_time = vts.get_datetime();
+                    let current_time = Utc::now();
+                    let var_name = SysVariableType::CurrentTime;
+                    let var_value = VariableValue::Time(current_time);
+                    SysVariable::new(var_name, var_display_name, None, var_value)
+                })
             })
             .await;
 

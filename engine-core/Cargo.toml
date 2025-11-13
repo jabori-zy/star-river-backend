@@ -17,7 +17,6 @@ tokio.workspace = true
 tokio-util.workspace = true
 futures.workspace = true
 tokio-stream.workspace = true
-thiserror.workspace = true
 tracing.workspace = true
 futures-util.workspace = true
 snafu.workspace = true

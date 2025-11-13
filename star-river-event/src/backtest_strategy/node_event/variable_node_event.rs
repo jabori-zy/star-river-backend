@@ -15,27 +15,27 @@ use strum::Display;
 pub enum VariableNodeEvent {
     #[strum(serialize = "sys-variable-update-event")]
     #[serde(rename = "sys-variable-update-event")]
-    SysVariableUpdate(SysVariableUpdateEvent), // System variable update
+    SysVarUpdate(SysVarUpdateEvent), // System variable update
 
     #[strum(serialize = "custom-variable-update-event")]
     #[serde(rename = "custom-variable-update-event")]
-    CustomVariableUpdate(CustomVariableUpdateEvent),
+    CustomVarUpdate(CustomVarUpdateEvent),
 }
 
 // Type aliases
-pub type SysVariableUpdateEvent = NodeEvent<SysVariableUpdatePayload>;
-pub type CustomVariableUpdateEvent = NodeEvent<CustomVariableUpdatePayload>;
+pub type SysVarUpdateEvent = NodeEvent<SysVarUpdatePayload>;
+pub type CustomVarUpdateEvent = NodeEvent<CustomVarUpdatePayload>;
 
 // Payload type definitions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SysVariableUpdatePayload {
+pub struct SysVarUpdatePayload {
     pub play_index: i32,
     pub variable_config_id: i32, // Variable config ID
     pub sys_variable: SysVariable,
 }
 
-impl SysVariableUpdatePayload {
+impl SysVarUpdatePayload {
     pub fn new(play_index: i32, variable_config_id: i32, sys_variable: SysVariable) -> Self {
         Self {
             play_index,
@@ -47,7 +47,7 @@ impl SysVariableUpdatePayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CustomVariableUpdatePayload {
+pub struct CustomVarUpdatePayload {
     pub play_index: i32,
     pub variable_config_id: i32,
     pub var_operation: String,                             // get, update, reset
@@ -56,7 +56,7 @@ pub struct CustomVariableUpdatePayload {
     pub custom_variable: CustomVariable,
 }
 
-impl CustomVariableUpdatePayload {
+impl CustomVarUpdatePayload {
     pub fn new(
         play_index: i32,
         variable_config_id: i32,

@@ -19,7 +19,6 @@ use crate::{node::node_event::BacktestNodeEvent, strategy::strategy_command::*};
 #[async_trait]
 impl StrategyEventHandlerExt for BacktestStrategyContext {
     type EngineEvent = Event;
-    type NodeEvent = BacktestNodeEvent;
 
     async fn handle_strategy_command(&mut self, command: BacktestStrategyCommand) {
         match command {
@@ -182,17 +181,12 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             match signal_event {
                 // 执行结束
                 CommonEvent::ExecuteOver(execute_over_event) => {
-                    // tracing::debug!("leaf_node_ids: {:#?}", self.leaf_node_ids);
+                    tracing::debug!("execute_over_event: {:#?}", execute_over_event);
+                    self.leaf_node_execution_completed(execute_over_event.from_node_id().clone());
+                    let should_finalize = self.leaf_node_execution_tracker().is_all_completed();
 
-                    // 第一步：快速更新 execute_over_node_ids 并检查是否所有叶子节点都完成
-                    let should_finalize = {
-                        let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
-                        if !execute_over_node_ids.contains(&execute_over_event.from_node_id()) {
-                            execute_over_node_ids.push(execute_over_event.from_node_id().clone());
-                        }
-                        // 判断是否所有叶子节点都完成，然后立即释放锁
-                        execute_over_node_ids.len() == self.leaf_node_ids().len()
-                    }; // execute_over_node_ids 锁在这里释放
+                    tracing::debug!("{:#?}", self.leaf_node_execution_tracker());
+                    tracing::debug!("should_finalize: {}", should_finalize);
 
                     // 第二步：如果所有叶子节点都完成，先执行清理和通知，再记录 benchmark
                     if should_finalize {
@@ -204,10 +198,8 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                         }
 
                         // 先清空 execute_over_node_ids
-                        {
-                            let mut execute_over_node_ids = self.execute_over_node_ids.write().await;
-                            execute_over_node_ids.clear();
-                        } // execute_over_node_ids 锁在这里释放
+
+                        self.reset_leaf_node_execution_info();
 
                         // 通知等待的线程（包含更多执行逻辑在 benchmark 中）
                         self.execute_over_notify.notify_waiters();
@@ -287,11 +279,11 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
 
         if let BacktestNodeEvent::VariableNode(variable_node_event) = &node_event {
             match variable_node_event {
-                VariableNodeEvent::CustomVariableUpdate(custom_variable_update_event) => {
+                VariableNodeEvent::CustomVarUpdate(custom_variable_update_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::CustomVariableUpdate(custom_variable_update_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
-                VariableNodeEvent::SysVariableUpdate(sys_variable_update_event) => {
+                VariableNodeEvent::SysVarUpdate(sys_variable_update_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::SysVariableUpdate(sys_variable_update_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }

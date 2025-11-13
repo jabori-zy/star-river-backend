@@ -96,7 +96,7 @@ impl KlineNodeContext {
         self.strategy_command_sender().send(init_kline_data_command.into()).await.unwrap();
         let response = resp_rx.await.unwrap();
         match response {
-            StrategyResponse::Success { payload, .. } => {
+            StrategyResponse::Success { .. } => {
                 return Ok(());
             }
             StrategyResponse::Fail { error, .. } => {
@@ -112,7 +112,7 @@ impl KlineNodeContext {
         self.strategy_command_sender().send(append_kline_data_command.into()).await.unwrap();
         let response = resp_rx.await.unwrap();
         match response {
-            StrategyResponse::Success { payload, .. } => {
+            StrategyResponse::Success { .. } => {
                 return Ok(());
             }
             StrategyResponse::Fail { error, .. } => {

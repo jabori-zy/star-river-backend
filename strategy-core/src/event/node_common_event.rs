@@ -36,10 +36,13 @@ impl TriggerPayload {
 pub struct ExecuteOverPayload {
     #[serde(rename = "cycleId")]
     pub cycle_id: CycleId,
+
+    #[serde(rename = "configId")]
+    pub config_id: Option<i32>,
 }
 
 impl ExecuteOverPayload {
-    pub fn new(cycle_id: CycleId) -> Self {
-        Self { cycle_id }
+    pub fn new(cycle_id: CycleId, config_id: Option<i32>) -> Self {
+        Self { cycle_id, config_id }
     }
 }

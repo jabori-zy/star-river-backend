@@ -62,11 +62,7 @@ impl EngineLifecycle for IndicatorEngine {
 
             match action {
                 IndicatorEngineAction::LogTransition => {
-                    tracing::debug!(
-                        "[{engine_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{engine_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
 
                 IndicatorEngineAction::ListenAndHandleEvents => {

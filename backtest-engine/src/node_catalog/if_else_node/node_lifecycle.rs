@@ -36,7 +36,7 @@ impl NodeLifecycle for IfElseNode {
     }
 
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
-        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+        let (node_name, node_id, strategy_id, strategy_output_handle, state_machine) = self
             .with_ctx_read(|ctx| {
                 let node_name = ctx.node_name().to_string();
                 let node_id = ctx.node_id().clone();
@@ -60,11 +60,7 @@ impl NodeLifecycle for IfElseNode {
             };
             match action {
                 IfElseNodeAction::LogTransition => {
-                    tracing::info!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::info!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 IfElseNodeAction::ListenAndHandleStrategySignal => {
                     tracing::info!("[{node_name}] starting to listen strategy signal");
@@ -141,7 +137,7 @@ impl NodeLifecycle for IfElseNode {
                         &strategy_output_handle,
                     )
                     .await;
-                    self.evaluate().await;
+                    self.evaluate().await?;
                 }
                 IfElseNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");

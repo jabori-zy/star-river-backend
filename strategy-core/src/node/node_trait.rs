@@ -168,7 +168,7 @@ where
     async fn listen_engine_event(&self) {
         // TODO: 实现引擎事件监听逻辑
         // 需要根据具体的引擎事件系统实现订阅逻辑
-        tracing::warn!("listen_engine_event 需要具体实现");
+        tracing::warn!("listen_engine_event");
     }
 
     /// 监听节点事件（来自上游节点的消息）

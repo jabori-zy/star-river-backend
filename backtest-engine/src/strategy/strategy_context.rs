@@ -23,16 +23,16 @@ use ta_lib::indicator::Indicator;
 use tokio::sync::{Mutex, Notify, RwLock, watch};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use virtual_trading::VirtualTradingSystem;
 
 use super::strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateMachine, backtest_strategy_transition};
 use crate::{
-    node::{BacktestNode, node_command::BacktestNodeCommand},
+    node::{BacktestNode, node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    virtual_trading_system::{BacktestVts, BacktestVtsContext},
 };
 
 pub type BacktestStrategyMetadata =
-    StrategyMetadata<BacktestNode, BacktestStrategyStateMachine, BacktestStrategyCommand, BacktestNodeCommand>;
+    StrategyMetadata<BacktestNode, BacktestStrategyStateMachine, BacktestStrategyCommand, BacktestNodeCommand, BacktestNodeEvent>;
 
 #[derive(Debug)]
 pub struct BacktestStrategyContext {
@@ -52,7 +52,7 @@ pub struct BacktestStrategyContext {
     kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,
     indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>,
     keys: Arc<RwLock<HashMap<Key, NodeId>>>,
-    virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    virtual_trading_system: Arc<Mutex<BacktestVts>>,
 }
 
 impl BacktestStrategyContext {
@@ -67,7 +67,8 @@ impl BacktestStrategyContext {
         let metadata = BacktestStrategyMetadata::new("backtest", strategy_config, state_machine, database, heartbeat);
 
         let (play_index_watch_tx, play_index_watch_rx) = watch::channel::<PlayIndex>(-1);
-        let virtual_trading_system = VirtualTradingSystem::new();
+
+        let virtual_trading_system = BacktestVts::new(BacktestVtsContext::new());
 
         Self {
             metadata,
@@ -96,12 +97,15 @@ impl StrategyMetaDataExt for BacktestStrategyContext {
     type StateMachine = BacktestStrategyStateMachine;
     type StrategyCommand = BacktestStrategyCommand;
     type NodeCommand = BacktestNodeCommand;
+    type NodeEvent = BacktestNodeEvent;
 
-    fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand> {
+    fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent> {
         &self.metadata
     }
 
-    fn metadata_mut(&mut self) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand> {
+    fn metadata_mut(
+        &mut self,
+    ) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent> {
         &mut self.metadata
     }
 }
@@ -314,7 +318,7 @@ impl BacktestStrategyContext {
         self.running_log.write().await.clear();
     }
 
-    pub fn virtual_trading_system(&self) -> &Arc<Mutex<VirtualTradingSystem>> {
+    pub fn virtual_trading_system(&self) -> &Arc<Mutex<BacktestVts>> {
         &self.virtual_trading_system
     }
 }

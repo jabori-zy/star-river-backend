@@ -16,11 +16,11 @@ use strategy_core::{
 };
 use tokio::sync::{Mutex, RwLock, mpsc};
 use variable_node_type::VariableNodeBacktestConfig;
-use virtual_trading::VirtualTradingSystem;
 
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_state_machine::NodeRunState},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    virtual_trading_system::BacktestVts,
 };
 
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ impl VariableNode {
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        virtual_trading_system: Arc<Mutex<BacktestVts>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_variable_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id);

@@ -3,8 +3,10 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::api::exchange_api::{connect_exchange, get_exchange_status};
-use crate::star_river::StarRiver;
+use crate::{
+    api::exchange_api::{connect_exchange, get_exchange_status},
+    star_river::StarRiver,
+};
 
 pub fn create_exchange_routes() -> Router<StarRiver> {
     Router::new()

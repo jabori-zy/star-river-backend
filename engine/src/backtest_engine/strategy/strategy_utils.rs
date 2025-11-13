@@ -48,11 +48,11 @@ fn apply_set_operation(
         .build()
     })?;
 
-    tracing::debug!(
-        "apply_set_operation: {var_name}, current_value: {:#?}, op_value: {:#?}",
-        current_value,
-        op_value
-    );
+    // tracing::debug!(
+    //     "apply_set_operation: {var_name}, current_value: {:#?}, op_value: {:#?}",
+    //     current_value,
+    //     op_value
+    // );
     match (current_value, op_value) {
         (VariableValue::Number(_) | VariableValue::Null, VariableValue::Number(v)) => Ok(VariableValue::Number(*v)),
         (VariableValue::Percentage(_) | VariableValue::Null, VariableValue::Percentage(v)) => Ok(VariableValue::Percentage(*v)),

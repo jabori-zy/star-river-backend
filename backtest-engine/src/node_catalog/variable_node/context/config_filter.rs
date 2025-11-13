@@ -1,4 +1,4 @@
-use star_river_event::backtest_strategy::node_event::if_else_node_event::ConditionMatchEvent;
+use star_river_event::backtest_strategy::node_event::if_else_node_event::{CaseTrueEvent, ElseTrueEvent};
 use strategy_core::node_infra::variable_node::{
     VariableConfig,
     trigger::{ConditionTrigger, TriggerConfig},
@@ -12,7 +12,7 @@ use strategy_core::node_infra::variable_node::{
 ///
 /// # 返回
 /// 过滤后的变量配置向量
-pub fn filter_condition_trigger_configs<'a, I>(variable_configs: I, match_event: &ConditionMatchEvent) -> Vec<VariableConfig>
+pub fn filter_case_trigger_configs<'a, I>(variable_configs: I, case_id: i32, from_node_id: &String) -> Vec<VariableConfig>
 where
     I: Iterator<Item = &'a VariableConfig>,
 {
@@ -20,20 +20,33 @@ where
         .filter(|config| matches!(config.trigger_config(), TriggerConfig::Condition(_)))
         .filter(|config| match config.trigger_config() {
             TriggerConfig::Condition(condition_trigger) => match condition_trigger {
-                ConditionTrigger::Case(case_trigger) => {
-                    if let Some(case_id) = match_event.case_id {
-                        case_trigger.case_id == case_id && &case_trigger.from_node_id == match_event.from_node_id()
-                    } else {
-                        false
-                    }
-                }
-                ConditionTrigger::Else(else_trigger) => {
-                    if match_event.case_id.is_none() {
-                        &else_trigger.from_node_id == match_event.from_node_id()
-                    } else {
-                        false
-                    }
-                }
+                ConditionTrigger::Case(case_trigger) => case_trigger.case_id == case_id && &case_trigger.from_node_id == from_node_id,
+                ConditionTrigger::Else(_) => false,
+            },
+            _ => false,
+        })
+        .cloned()
+        .collect()
+}
+
+/// 过滤匹配条件触发器的变量配置
+///
+/// # 参数
+/// * `variable_configs` - 变量配置迭代器
+/// * `match_event` - 条件匹配事件
+///
+/// # 返回
+/// 过滤后的变量配置向量
+pub fn filter_else_trigger_configs<'a, I>(variable_configs: I, from_node_id: &String) -> Vec<VariableConfig>
+where
+    I: Iterator<Item = &'a VariableConfig>,
+{
+    variable_configs
+        .filter(|config| matches!(config.trigger_config(), TriggerConfig::Condition(_)))
+        .filter(|config| match config.trigger_config() {
+            TriggerConfig::Condition(condition_trigger) => match condition_trigger {
+                ConditionTrigger::Case(_) => false,
+                ConditionTrigger::Else(else_trigger) => &else_trigger.from_node_id == from_node_id,
             },
             _ => false,
         })

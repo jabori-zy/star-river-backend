@@ -1,10 +1,15 @@
-use snafu::OptionExt;
+use snafu::{OptionExt, ResultExt};
 use strategy_core::{
     event::{
         log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
         node_common_event::CommonEvent,
     },
     node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+};
+use tokio::sync::oneshot;
+use virtual_trading::{
+    command::{CreateOrderCmdPayload, CreateOrderCommand, VtsResponse},
+    error::{CommandSendFailedSnafu, ResponseRecvFailedSnafu},
 };
 
 use super::{super::futures_order_node_types::*, FuturesOrderNodeContext};
@@ -17,6 +22,7 @@ use crate::node::{
 };
 
 impl FuturesOrderNodeContext {
+    // create a virtual order
     pub(super) async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), FuturesOrderNodeError> {
         // 如果当前是正在处理订单的状态，或者未成交的订单列表不为空，则不创建订单
         if !self.can_create_order(&order_config.input_handle_id).await {
@@ -37,11 +43,10 @@ impl FuturesOrderNodeContext {
             let _ = self.strategy_bound_handle_send(log_event.into());
             return Err(CannotCreateOrderSnafu.build());
         }
-
         // 将input_handle_id的is_processing_order设置为true
         self.set_is_processing_order(&order_config.input_handle_id, true).await;
 
-        let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
+        // let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
         let exchange = self
             .node_config
             .exchange_mode_config
@@ -60,9 +65,11 @@ impl FuturesOrderNodeContext {
                 symbol: order_config.symbol.clone(),
             })?
             .point();
-        let create_order_result = virtual_trading_system_guard.create_order(
+
+        let payload = CreateOrderCmdPayload::new(
             self.strategy_id().clone(),
             self.node_id().clone(),
+            self.node_name().clone(),
             order_config.order_config_id,
             order_config.symbol.clone(),
             exchange,
@@ -77,15 +84,19 @@ impl FuturesOrderNodeContext {
             Some(point as f64),
         );
 
-        drop(virtual_trading_system_guard);
+        let (tx, rx) = oneshot::channel();
+        let cmd = CreateOrderCommand::new(tx, payload);
+        self.vts_command_sender.send(cmd.into()).await.context(CommandSendFailedSnafu {})?;
 
-        if let Err(e) = create_order_result {
-            // 如果创建订单失败，则直接重置is_processing_order
-            self.set_is_processing_order(&order_config.input_handle_id, false).await;
-
-            return Err(e.into());
+        let response = rx.await.context(ResponseRecvFailedSnafu {})?;
+        match response {
+            VtsResponse::Success { .. } => {
+                return Ok(());
+            }
+            VtsResponse::Fail { error, .. } => {
+                self.set_is_processing_order(&order_config.input_handle_id, false).await;
+                return Err(error.into());
+            }
         }
-
-        Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use star_river_core::custom_type::NodeId;
 use star_river_event::backtest_strategy::node_event::{
     VariableNodeEvent,
-    variable_node_event::{CustomVariableUpdateEvent, CustomVariableUpdatePayload},
+    variable_node_event::{CustomVarUpdateEvent, CustomVarUpdatePayload},
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
@@ -27,7 +27,6 @@ impl VariableNodeContext {
         node_name: String,
         config_id: i32,
         var_name: String,
-        var_display_name: String,
         output_handle: NodeOutputHandle<BacktestNodeEvent>,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         strategy_output_handle: NodeOutputHandle<BacktestNodeEvent>,
@@ -46,19 +45,17 @@ impl VariableNodeContext {
                 StrategyResponse::Success { payload, .. } => {
                     let var_op = "get".to_string();
                     let custom_variable = payload.custom_variable;
-                    let payload = CustomVariableUpdatePayload::new(play_index, config_id, var_op, None, None, custom_variable.clone());
+                    let payload = CustomVarUpdatePayload::new(play_index, config_id, var_op, None, None, custom_variable.clone());
                     let var_event: VariableNodeEvent =
-                        CustomVariableUpdateEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into();
-                    let backtest_var_event: BacktestNodeEvent = var_event.clone().into();
-                    let _ = strategy_output_handle.send(backtest_var_event.clone());
+                        CustomVarUpdateEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into();
+                    let _ = strategy_output_handle.send(var_event.clone().into());
                     if is_leaf_node {
-                        let payload = ExecuteOverPayload::new(play_index as u64);
+                        let payload = ExecuteOverPayload::new(play_index as u64, Some(config_id));
                         let execute_over_event: CommonEvent =
                             ExecuteOverEvent::new(node_id, node_name, output_handle_id.clone(), payload).into();
-                        let backtest_execute_over_event: BacktestNodeEvent = execute_over_event.into();
-                        let _ = strategy_output_handle.send(backtest_execute_over_event);
+                        let _ = strategy_output_handle.send(execute_over_event.into());
                     } else {
-                        let _ = output_handle.send(backtest_var_event);
+                        let _ = output_handle.send(var_event.clone().into());
                     }
                 }
                 StrategyResponse::Fail { error, .. } => {

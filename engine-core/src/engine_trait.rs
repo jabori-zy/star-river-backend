@@ -12,7 +12,6 @@ use super::EngineEventReceiver;
 use crate::{
     context_trait::{EngineContextTrait, EngineEventHandler},
     state_machine::{EngineAction, EngineStateTransTrigger},
-    state_machine_error::EngineStateMachineError,
 };
 
 // 空 trait，仅用于标记

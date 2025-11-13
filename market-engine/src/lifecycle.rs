@@ -62,11 +62,7 @@ impl EngineLifecycle for MarketEngine {
 
             match action {
                 MarketEngineAction::LogTransition => {
-                    tracing::debug!(
-                        "[{engine_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{engine_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
 
                 MarketEngineAction::ListenAndHandleEvents => {

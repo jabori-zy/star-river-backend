@@ -1,7 +1,7 @@
 // third-party
 use snafu::OptionExt;
 use strategy_core::{
-    error::strategy_error::{EdgeConfigMissFieldSnafu, NodeNotFoundSnafu},
+    error::strategy_error::{EdgeConfigMissFieldSnafu, NodeNotFoundByIdSnafu},
     node::node_handles::NodeInputHandle,
     strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt},
 };
@@ -47,12 +47,12 @@ impl BacktestStrategyContext {
         })?;
 
         let (source, target) = {
-            let source = self.node_indices().get(source_node_id).copied().context(NodeNotFoundSnafu {
+            let source = self.node_indices().get(source_node_id).copied().context(NodeNotFoundByIdSnafu {
                 strategy_name: strategy_name.clone(),
                 node_id: source_node_id.to_string(),
             })?;
 
-            let target = self.node_indices().get(target_node_id).copied().context(NodeNotFoundSnafu {
+            let target = self.node_indices().get(target_node_id).copied().context(NodeNotFoundByIdSnafu {
                 strategy_name: strategy_name.clone(),
                 node_id: target_node_id.to_string(),
             })?;

@@ -8,7 +8,7 @@ use star_river_core::{
 use tokio::sync::{Mutex, RwLock, broadcast};
 use tokio_stream::{StreamExt, wrappers::BroadcastStream};
 use tokio_util::sync::CancellationToken;
-use virtual_trading::{VirtualTradingSystem, event::VirtualTradingSystemEvent};
+use virtual_trading::{context::VirtualTradingSystemContext, event::VtsEvent};
 
 use crate::{
     event::{StrategyStatsEvent, StrategyStatsUpdatedEvent},
@@ -18,18 +18,24 @@ use crate::{
 // T: VirtualTradingSystem
 
 #[derive(Debug)]
-pub struct StrategyStats {
+pub struct StrategyStats<E>
+where
+    E: Clone + Send + Sync + 'static,
+{
     mode: &'static str,
     strategy_id: StrategyId,
     initial_balance: Balance,
-    virtual_trading_system: Option<Arc<Mutex<VirtualTradingSystem>>>,
+    virtual_trading_system: Option<Arc<Mutex<VirtualTradingSystemContext<E>>>>,
     strategy_stats_event_transceiver: (broadcast::Sender<StrategyStatsEvent>, broadcast::Receiver<StrategyStatsEvent>),
     cancel_token: CancellationToken,
     asset_snapshot_history: Arc<RwLock<StatsSnapshotHistory>>, // 资产快照历史
     datetime: DateTimeUtc,
 }
 
-impl StrategyStats {
+impl<E> StrategyStats<E>
+where
+    E: Clone + Send + Sync + 'static,
+{
     pub fn new(mode: &'static str, strategy_id: StrategyId) -> Self {
         let (strategy_stats_event_tx, strategy_stats_event_rx) = broadcast::channel::<StrategyStatsEvent>(100);
 
@@ -54,11 +60,15 @@ impl StrategyStats {
         self.datetime = datetime;
     }
 
+    pub fn set_virtual_trading_system(&mut self, virtual_trading_system: Arc<Mutex<VirtualTradingSystemContext<E>>>) {
+        self.virtual_trading_system = Some(virtual_trading_system);
+    }
+
     pub async fn handle_virtual_trading_system_events(stats: Arc<RwLock<Self>>) -> Result<(), String> {
         let (receiver, cancel_token) = {
             let guard = stats.read().await;
             let virtual_trading_system = guard.virtual_trading_system.as_ref().unwrap().lock().await;
-            let receiver = virtual_trading_system.get_virtual_trading_system_event_receiver();
+            let receiver = virtual_trading_system.get_vts_event_receiver();
             let cancel_token = guard.cancel_token.clone();
             (receiver, cancel_token)
         };
@@ -99,10 +109,10 @@ impl StrategyStats {
         Ok(())
     }
 
-    async fn handle_virtual_trading_system_event(&mut self, event: VirtualTradingSystemEvent) -> Result<(), String> {
+    async fn handle_virtual_trading_system_event(&mut self, event: VtsEvent) -> Result<(), String> {
         // 处理事件并更新资产快照
         match event {
-            VirtualTradingSystemEvent::UpdateFinished => {
+            VtsEvent::UpdateFinished => {
                 self.create_backtest_snapshot().await?;
             }
             _ => {}
@@ -118,13 +128,14 @@ impl StrategyStats {
         // let play_index = *self.play_index_watch_rx.borrow_and_update();
         // let trading_system_play_index = trading_system.get_play_index();
 
-        let datetime = trading_system.get_datetime(); // 时间戳
-        let balance = trading_system.get_balance(); // 账户余额
-        let available_balance = trading_system.get_available_balance(); // 可用余额
+        // let datetime = trading_system.get_datetime(); // 时间戳
+        let datetime = Utc::now();
+        let balance = trading_system.balance(); // 账户余额
+        let available_balance = trading_system.available_balance(); // 可用余额
         let positions = trading_system.get_current_positions(); // 当前持仓
-        let unrealized_pnl = trading_system.get_unrealized_pnl(); // 未实现盈亏
-        let equity = trading_system.get_equity(); // 净值
-        let realized_pnl = trading_system.get_realized_pnl(); // 已实现盈亏
+        let unrealized_pnl = trading_system.unrealized_pnl(); // 未实现盈亏
+        let equity = trading_system.equity(); // 净值
+        let realized_pnl = trading_system.realized_pnl(); // 已实现盈亏
         let position_count = positions.len() as u32; // 持仓数量
 
         drop(trading_system);

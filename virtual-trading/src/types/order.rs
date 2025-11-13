@@ -22,6 +22,9 @@ pub struct VirtualOrder {
     #[serde(rename = "nodeId")]
     pub node_id: NodeId, // 节点ID
 
+    #[serde(rename = "nodeName")]
+    pub node_name: NodeName, // 节点名称
+
     #[serde(rename = "orderConfigId")]
     pub order_config_id: i32, // 订单配置ID
 
@@ -62,9 +65,10 @@ pub struct VirtualOrder {
 impl VirtualOrder {
     pub fn new(
         position_id: Option<PositionId>,
-        order_id: OrderId,
         strategy_id: StrategyId,
+        order_id: OrderId,
         node_id: NodeId,
+        node_name: NodeName,
         order_config_id: i32,
         exchange: Exchange,
         symbol: String,
@@ -84,6 +88,7 @@ impl VirtualOrder {
             order_id,
             strategy_id,
             node_id,
+            node_name,
             order_config_id,
             exchange,
             symbol,

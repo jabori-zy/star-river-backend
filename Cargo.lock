@@ -864,7 +864,6 @@ dependencies = [
  "star-river-core",
  "strum 0.27.2",
  "strum_macros",
- "thiserror 2.0.16",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -3351,6 +3350,7 @@ dependencies = [
  "futures-util",
  "headers",
  "heartbeat",
+ "indicator-engine",
  "key",
  "market-engine",
  "migration",
@@ -3466,7 +3466,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "utoipa",
- "virtual-trading",
 ]
 
 [[package]]
@@ -4234,8 +4233,11 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "virtual-trading"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
+ "derive_more",
  "event-center-core",
+ "futures",
  "key",
  "serde",
  "serde_json",
@@ -4243,6 +4245,8 @@ dependencies = [
  "star-river-core",
  "strum 0.27.2",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
  "tracing",
  "utoipa",
 ]

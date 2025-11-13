@@ -59,11 +59,7 @@ impl NodeLifecycle for PositionNode {
 
             match action {
                 PositionNodeAction::LogTransition => {
-                    tracing::debug!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 PositionNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);

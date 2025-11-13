@@ -19,7 +19,7 @@ use super::node_event::{
     indicator_node_event::IndicatorUpdateEvent,
     kline_node_event::KlineUpdateEvent,
     position_node_event::{PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent},
-    variable_node_event::{CustomVariableUpdateEvent, SysVariableUpdateEvent},
+    variable_node_event::{CustomVarUpdateEvent, SysVarUpdateEvent},
 };
 
 #[derive(Debug, Clone, Serialize, Display, From)]
@@ -39,11 +39,11 @@ pub enum BacktestStrategyEvent {
 
     #[strum(serialize = "sys-variable-update-event")]
     #[serde(rename = "sys-variable-update-event")]
-    SysVariableUpdate(SysVariableUpdateEvent), // 系统变量更新事件
+    SysVariableUpdate(SysVarUpdateEvent), // 系统变量更新事件
 
     #[strum(serialize = "custom-variable-update-event")]
     #[serde(rename = "custom-variable-update-event")]
-    CustomVariableUpdate(CustomVariableUpdateEvent), // 自定义变量更新事件
+    CustomVariableUpdate(CustomVarUpdateEvent), // 自定义变量更新事件
 
     #[strum(serialize = "futures-order-filled-event")]
     #[serde(rename = "futures-order-filled-event")]

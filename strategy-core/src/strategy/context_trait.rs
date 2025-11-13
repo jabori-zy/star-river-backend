@@ -18,7 +18,10 @@ use tokio::sync::{Mutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
 
 // current crate
-use super::metadata::StrategyMetadata;
+use super::{
+    leaf_node_execution_tracker::{LeafNodeExecutionInfo, LeafNodeExecutionTracker},
+    metadata::StrategyMetadata,
+};
 use crate::{
     benchmark::{
         StrategyBenchmark,
@@ -57,12 +60,15 @@ pub trait StrategyMetaDataExt: Debug + Send + Sync + 'static {
     type StateMachine: StrategyStateMachine;
     type StrategyCommand: StrategyCommandTrait;
     type NodeCommand: NodeCommandTrait;
+    type NodeEvent: NodeEventTrait;
 
     /// Get immutable reference to base context
-    fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand>;
+    fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent>;
 
     /// Get mutable reference to base context
-    fn metadata_mut(&mut self) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand>;
+    fn metadata_mut(
+        &mut self,
+    ) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent>;
 }
 
 // ============================================================================
@@ -228,11 +234,27 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt {
     }
 
     fn leaf_node_ids(&self) -> &Vec<NodeId> {
-        self.metadata().leaf_node_ids()
+        &self.metadata().leaf_node_execution_tracker().leaf_node_ids
     }
 
-    fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
-        self.metadata_mut().set_leaf_node_ids(leaf_node_ids);
+    fn leaf_node_execution_tracker(&self) -> &LeafNodeExecutionTracker {
+        self.metadata().leaf_node_execution_tracker()
+    }
+
+    async fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
+        self.metadata_mut().set_leaf_node_ids(leaf_node_ids).await;
+    }
+
+    async fn set_leaf_node_execution_info(&mut self, execution_info: HashMap<NodeId, LeafNodeExecutionInfo>) {
+        self.metadata_mut().set_leaf_node_execution_info(execution_info).await;
+    }
+
+    fn leaf_node_execution_completed(&mut self, node_id: NodeId) {
+        self.metadata_mut().leaf_node_execution_tracker_mut().execute_completed(node_id);
+    }
+
+    fn reset_leaf_node_execution_info(&mut self) {
+        self.metadata_mut().leaf_node_execution_tracker_mut().reset();
     }
 
     async fn add_node(&mut self, node: Self::Node) -> NodeIndex {
@@ -256,7 +278,6 @@ pub trait StrategyEventHandlerExt: StrategyMetaDataExt {
     type EngineEvent: EventTrait;
 
     /// Node event type (events from nodes)
-    type NodeEvent: NodeEventTrait;
 
     /// Strategy stats event type (performance statistics events)
     // type StrategyStatsEvent: EventTrait;

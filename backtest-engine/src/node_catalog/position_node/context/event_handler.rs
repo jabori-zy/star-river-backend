@@ -29,7 +29,7 @@ impl NodeEventHandlerExt for PositionNodeContext {
                     //     self.is_leaf_node()
                     // );
                     if self.is_leaf_node() {
-                        let payload = ExecuteOverPayload::new(self.play_index() as u64);
+                        let payload = ExecuteOverPayload::new(self.play_index() as u64, None);
                         let execute_over_event: CommonEvent =
                             ExecuteOverEvent::new(self.node_id().clone(), self.node_name().clone(), self.node_id().clone(), payload).into();
                         self.strategy_bound_handle().send(execute_over_event.into()).unwrap();
@@ -41,7 +41,7 @@ impl NodeEventHandlerExt for PositionNodeContext {
             BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
                 tracing::debug!("{}: 收到订单事件: {:?}", self.node_name(), futures_order_node_event);
                 if self.is_leaf_node() {
-                    let payload = ExecuteOverPayload::new(self.play_index() as u64);
+                    let payload = ExecuteOverPayload::new(self.play_index() as u64, None);
                     let execute_over_event: CommonEvent =
                         ExecuteOverEvent::new(self.node_id().clone(), self.node_name().clone(), self.node_id().clone(), payload).into();
                     self.strategy_bound_handle().send(execute_over_event.into()).unwrap();

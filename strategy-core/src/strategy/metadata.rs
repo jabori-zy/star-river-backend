@@ -9,11 +9,13 @@ use strategy_stats::{StrategyStats, StrategyStatsEvent};
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
 
+use super::leaf_node_execution_tracker::LeafNodeExecutionInfo;
 use crate::{
     benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker},
     communication::{NodeCommandTrait, StrategyCommandTrait},
+    event::node::NodeEventTrait,
     node::NodeTrait,
-    strategy::{StrategyConfig, state_machine::StrategyStateMachine},
+    strategy::{StrategyConfig, leaf_node_execution_tracker::LeafNodeExecutionTracker, state_machine::StrategyStateMachine},
     variable::{
         custom_variable::CustomVariable,
         sys_varibale::{SysVariable, SysVariableType},
@@ -21,12 +23,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct StrategyMetadata<N, M, X, Y>
+pub struct StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     strategy_config: StrategyConfig,
     current_time: Arc<RwLock<DateTime<Utc>>>,
@@ -36,22 +39,23 @@ where
     heartbeat: Arc<Mutex<Heartbeat>>,
     cancel_token: CancellationToken,
     state_machine: Arc<RwLock<M>>,
-    leaf_node_ids: Vec<NodeId>,
     custom_variable: Arc<RwLock<HashMap<String, CustomVariable>>>,
     sys_variable: Arc<RwLock<HashMap<SysVariableType, SysVariable>>>,
     benchmark: Arc<RwLock<StrategyBenchmark>>,
     cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
-    strategy_stats: Arc<RwLock<StrategyStats>>,
+    strategy_stats: Arc<RwLock<StrategyStats<E>>>,
     strategy_command_transceiver: (mpsc::Sender<X>, Arc<Mutex<mpsc::Receiver<X>>>),
     node_command_sender: HashMap<NodeId, mpsc::Sender<Y>>,
+    leaf_node_execution_tracker: LeafNodeExecutionTracker,
 }
 
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     pub fn new(
         mode: &'static str,
@@ -78,12 +82,12 @@ where
             strategy_command_transceiver: (strategy_command_tx, Arc::new(Mutex::new(strategy_command_rx))),
             node_command_sender: HashMap::new(),
             current_time: Arc::new(RwLock::new(Utc::now())),
-            leaf_node_ids: Vec::new(),
             custom_variable: Arc::new(RwLock::new(HashMap::new())),
             sys_variable: Arc::new(RwLock::new(HashMap::new())),
             benchmark: Arc::new(RwLock::new(StrategyBenchmark::new(strategy_id, strategy_name))),
             cycle_tracker: Arc::new(RwLock::new(None)),
             strategy_stats,
+            leaf_node_execution_tracker: LeafNodeExecutionTracker::new(),
         }
     }
 }
@@ -91,12 +95,13 @@ where
 // ============================================================================
 // Basic Information Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     pub fn strategy_config(&self) -> &StrategyConfig {
         &self.strategy_config
@@ -116,12 +121,13 @@ where
 // ============================================================================
 // State Machine Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get reference to state machine
     pub fn state_machine(&self) -> Arc<RwLock<M>> {
@@ -132,12 +138,13 @@ where
 // ============================================================================
 // Graph Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get reference to graph
     pub fn graph(&self) -> &Graph<N, (), Directed> {
@@ -169,26 +176,34 @@ where
         self.node_indices.insert(node_id, node_index);
     }
 
-    /// Get leaf node ids
-    pub fn leaf_node_ids(&self) -> &Vec<NodeId> {
-        &self.leaf_node_ids
+    pub fn leaf_node_execution_tracker(&self) -> &LeafNodeExecutionTracker {
+        &self.leaf_node_execution_tracker
+    }
+
+    pub fn leaf_node_execution_tracker_mut(&mut self) -> &mut LeafNodeExecutionTracker {
+        &mut self.leaf_node_execution_tracker
     }
 
     /// Set leaf node ids
-    pub fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
-        self.leaf_node_ids = leaf_node_ids;
+    pub async fn set_leaf_node_ids(&mut self, leaf_node_ids: Vec<NodeId>) {
+        self.leaf_node_execution_tracker.set_leaf_node_ids(leaf_node_ids);
+    }
+
+    pub async fn set_leaf_node_execution_info(&mut self, execution_info: HashMap<NodeId, LeafNodeExecutionInfo>) {
+        self.leaf_node_execution_tracker.set_leaf_node_execution_info(execution_info);
     }
 }
 
 // ============================================================================
 // Communication Accessors (Command Sender/Receiver)
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get strategy command sender
     pub fn strategy_command_sender(&self) -> &mpsc::Sender<X> {
@@ -213,12 +228,13 @@ where
 // ============================================================================
 // Variable Management Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get custom variables
     pub fn custom_variable(&self) -> Arc<RwLock<HashMap<String, CustomVariable>>> {
@@ -234,12 +250,13 @@ where
 // ============================================================================
 // Benchmark Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get benchmark
     pub fn benchmark(&self) -> &Arc<RwLock<StrategyBenchmark>> {
@@ -260,12 +277,13 @@ where
 // ============================================================================
 // Cancellation Token Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get cancellation token
     pub fn cancel_token(&self) -> &CancellationToken {
@@ -276,12 +294,13 @@ where
 // ============================================================================
 // Other Accessors
 // ============================================================================
-impl<N, M, X, Y> StrategyMetadata<N, M, X, Y>
+impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
+    E: NodeEventTrait,
 {
     /// Get heartbeat
     pub fn heartbeat(&self) -> &Arc<Mutex<Heartbeat>> {

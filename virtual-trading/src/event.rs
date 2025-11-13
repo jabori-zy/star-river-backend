@@ -5,13 +5,13 @@ use tokio::sync::broadcast;
 use crate::types::{order::VirtualOrder, position::VirtualPosition, transaction::VirtualTransaction};
 
 // 虚拟交易系统事件发送器
-pub type VirtualTradingSystemEventSender = broadcast::Sender<VirtualTradingSystemEvent>;
+pub type VirtualTradingSystemEventSender = broadcast::Sender<VtsEvent>;
 // 虚拟交易系统事件接收器
-pub type VirtualTradingSystemEventReceiver = broadcast::Receiver<VirtualTradingSystemEvent>;
+pub type VirtualTradingSystemEventReceiver = broadcast::Receiver<VtsEvent>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]
-pub enum VirtualTradingSystemEvent {
+pub enum VtsEvent {
     // 所有数据已更新
     UpdateFinished,
 

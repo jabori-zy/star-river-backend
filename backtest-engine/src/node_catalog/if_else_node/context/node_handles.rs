@@ -1,7 +1,10 @@
-use async_trait::async_trait;
-use strategy_core::node::{
-    context_trait::{NodeHandleExt, NodeIdentityExt},
-    utils::generate_default_output_handle_id,
+use snafu::OptionExt;
+use strategy_core::{
+    error::{NodeError, node_error::OutputHandleNotFoundSnafu},
+    node::{
+        context_trait::{NodeHandleExt, NodeIdentityExt},
+        node_handles::NodeOutputHandle,
+    },
 };
 use tokio::sync::broadcast;
 
@@ -18,7 +21,7 @@ impl NodeHandleExt for IfElseNodeContext {
             self.node_name(),
             else_output_handle_id
         );
-        self.add_output_handle(else_output_handle_id, tx);
+        self.add_output_handle(true, else_output_handle_id, tx);
 
         let cases = &self.node_config.cases;
         let case_output_handle_ids = cases.iter().map(|case| case.output_handle_id.clone()).collect::<Vec<String>>();
@@ -26,7 +29,14 @@ impl NodeHandleExt for IfElseNodeContext {
         case_output_handle_ids.into_iter().for_each(|id| {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{}] set case output handle: {}", self.node_name(), &id);
-            self.add_output_handle(id, tx);
+            self.add_output_handle(false, id, tx);
         });
+    }
+
+    fn default_output_handle(&self) -> Result<&NodeOutputHandle<BacktestNodeEvent>, NodeError> {
+        let default_handle_id = format!("{}_else_output", self.node_id());
+        self.output_handles().get(&default_handle_id).context(OutputHandleNotFoundSnafu {
+            handle_id: default_handle_id.to_string(),
+        })
     }
 }

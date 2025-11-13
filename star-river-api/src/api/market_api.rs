@@ -1,18 +1,15 @@
-use crate::StarRiver;
-use crate::api::response::NewApiResponse;
-use axum::extract::{Path, State, Query};
-use axum::{Json, http::StatusCode};
-use star_river_core::custom_type::AccountId;
-use star_river_core::engine::EngineName;
-use serde::Deserialize;
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+    http::StatusCode,
+};
 use engine_core::EngineContextAccessor;
-use star_river_core::instrument::Symbol;
-use market_engine::error::MarketEngineError;
 use exchange_engine::error::ExchangeEngineError;
-use star_river_core::error::StarRiverErrorTrait;
-use star_river_core::kline::KlineInterval;
+use market_engine::error::MarketEngineError;
+use serde::Deserialize;
+use star_river_core::{custom_type::AccountId, engine::EngineName, error::StarRiverErrorTrait, instrument::Symbol, kline::KlineInterval};
 
-
+use crate::{StarRiver, api::response::NewApiResponse};
 
 #[utoipa::path(
     get,
@@ -34,23 +31,14 @@ pub async fn get_symbol_list(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.market_engine().await;
     let engine_guard = engine.lock().await;
-    let symbol_list = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.get_symbol_list(account_id).await
-        })
-    })
-    .await;
+    let symbol_list = engine_guard
+        .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_symbol_list(account_id).await }))
+        .await;
     match symbol_list {
-        Ok(symbol_list) => (
-            StatusCode::OK,
-            Json(NewApiResponse::success(symbol_list)),
-        ),
+        Ok(symbol_list) => (StatusCode::OK, Json(NewApiResponse::success(symbol_list))),
         Err(e) => {
             tracing::error!("get symbol list error: {}", e);
-            (
-                e.http_status_code(),
-                Json(NewApiResponse::error(e)),
-            )
+            (e.http_status_code(), Json(NewApiResponse::error(e)))
         }
     }
 }
@@ -76,34 +64,22 @@ pub async fn get_support_kline_intervals(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.market_engine().await;
     let engine_guard = engine.lock().await;
-    let support_kline_intervals = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.get_support_kline_intervals(account_id).await
-        })
-    })
-    .await;
+    let support_kline_intervals = engine_guard
+        .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_support_kline_intervals(account_id).await }))
+        .await;
     match support_kline_intervals {
-        Ok(support_kline_intervals) => (
-            StatusCode::OK,
-            Json(NewApiResponse::success(support_kline_intervals)),
-        ),
+        Ok(support_kline_intervals) => (StatusCode::OK, Json(NewApiResponse::success(support_kline_intervals))),
         Err(e) => {
             tracing::error!("get support kline intervals error: {}", e);
-            (
-                e.http_status_code(),
-                Json(NewApiResponse::error(e)),
-            )
+            (e.http_status_code(), Json(NewApiResponse::error(e)))
         }
     }
 }
-
-
 
 #[derive(Deserialize)]
 pub struct SymbolQuery {
     pub symbol: String,
 }
-
 
 // 获取单个symbol
 #[utoipa::path(
@@ -128,23 +104,14 @@ pub async fn get_symbol(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.market_engine().await;
     let engine_guard = engine.lock().await;
-    let symbol = engine_guard.with_ctx_read_async(|ctx| {
-        Box::pin(async move {
-            ctx.get_symbol(account_id, query.symbol).await
-        })
-    })
-    .await;
+    let symbol = engine_guard
+        .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_symbol(account_id, query.symbol).await }))
+        .await;
     match symbol {
-        Ok(symbol) => (
-            StatusCode::OK,
-            Json(NewApiResponse::success(symbol)),
-        ),
+        Ok(symbol) => (StatusCode::OK, Json(NewApiResponse::success(symbol))),
         Err(e) => {
             tracing::error!("get symbol error: {}", e);
-            (
-                e.http_status_code(),
-                Json(NewApiResponse::error(e)),
-            )
+            (e.http_status_code(), Json(NewApiResponse::error(e)))
         }
     }
 }

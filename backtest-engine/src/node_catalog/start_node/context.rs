@@ -59,8 +59,6 @@ pub type StartNodeMetadata = NodeMetadata<StartNodeStateMachine, BacktestNodeEve
 pub struct StartNodeContext {
     pub metadata: StartNodeMetadata,
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
-    // pub virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-    // pub strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }
 
@@ -69,8 +67,6 @@ impl StartNodeContext {
         metadata: StartNodeMetadata,
         node_config: Arc<RwLock<BacktestStrategyConfig>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-        // virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
-        // strategy_stats: Arc<RwLock<BacktestStrategyStats>>,
     ) -> Self {
         Self {
             metadata,

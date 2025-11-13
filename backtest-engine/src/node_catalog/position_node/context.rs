@@ -15,12 +15,12 @@ use strategy_core::{
     },
 };
 use tokio::sync::Mutex;
-use virtual_trading::VirtualTradingSystem;
 
 use super::{position_node_types::PositionNodeBacktestConfig, state_machine::PositionNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    virtual_trading_system::BacktestVts,
 };
 
 pub type PositionNodeMetadata = NodeMetadata<PositionNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
@@ -32,7 +32,7 @@ pub struct PositionNodeContext {
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     database: DatabaseConnection,
     heartbeat: Arc<Mutex<Heartbeat>>,
-    virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    virtual_trading_system: Arc<Mutex<BacktestVts>>,
 }
 
 impl PositionNodeContext {
@@ -42,7 +42,7 @@ impl PositionNodeContext {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        virtual_trading_system: Arc<Mutex<BacktestVts>>,
     ) -> Self {
         Self {
             metadata,

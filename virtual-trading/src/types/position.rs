@@ -26,6 +26,9 @@ pub struct VirtualPosition {
     #[serde(rename = "nodeId")]
     pub node_id: NodeId,
 
+    #[serde(rename = "nodeName")]
+    pub node_name: NodeName,
+
     #[serde(rename = "exchange")]
     pub exchange: Exchange,
 
@@ -89,6 +92,7 @@ impl VirtualPosition {
             order_config_id: virtual_order.order_config_id,
             strategy_id: virtual_order.strategy_id,
             node_id: virtual_order.node_id.clone(),
+            node_name: virtual_order.node_name.clone(),
             exchange: virtual_order.exchange.clone(),
             symbol: virtual_order.symbol.clone(),
             position_side,

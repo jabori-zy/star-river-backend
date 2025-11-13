@@ -6,7 +6,7 @@ use star_river_core::custom_type::{NodeId, NodeName};
 
 use crate::node::node_handles::HandleId;
 
-pub trait NodeEventTrait: Debug + Send + Sync + Clone {}
+pub trait NodeEventTrait: Debug + Send + Sync + Clone + 'static {}
 
 // 泛型事件结构
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,4 +1,5 @@
 mod context;
+mod event_listener;
 mod futures_order_node_types;
 mod node_lifecycle;
 mod state_machine;
@@ -6,6 +7,7 @@ mod state_machine;
 use std::sync::Arc;
 
 use context::FuturesOrderNodeContext;
+use futures::StreamExt;
 use futures_order_node_types::FuturesOrderNodeBacktestConfig;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -15,10 +17,17 @@ use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use state_machine::{FuturesOrderNodeStateMachine, futures_order_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    node::{
+        NodeBase, NodeType,
+        context_trait::{NodeIdentityExt, NodeTaskControlExt},
+        metadata::NodeMetadata,
+        node_trait::NodeContextAccessor,
+        utils::generate_strategy_output_handle,
+    },
 };
-use tokio::sync::{Mutex, RwLock, mpsc};
-use virtual_trading::VirtualTradingSystem;
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
+use tokio_stream::wrappers::BroadcastStream;
+use virtual_trading::{command::VtsCommand, event::VtsEvent};
 
 use crate::{
     node::{
@@ -55,7 +64,8 @@ impl FuturesOrderNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        vts_command_sender: mpsc::Sender<VtsCommand>,
+        vts_event_receiver: broadcast::Receiver<VtsEvent>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_futures_order_node_config(node_config)?;
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
@@ -77,7 +87,8 @@ impl FuturesOrderNode {
             play_index_watch_rx,
             database,
             heartbeat,
-            virtual_trading_system,
+            vts_command_sender,
+            vts_event_receiver,
         );
         Ok(Self {
             inner: NodeBase::new(context),
@@ -140,5 +151,51 @@ impl FuturesOrderNode {
         let node_config =
             serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
         Ok((strategy_id, node_id, node_name, node_config))
+    }
+
+    async fn listen_vts_events(&self) {
+        let (vts_event_receiver, cancel_token, node_name) = self
+            .with_ctx_read(|ctx| {
+                let receiver = ctx.vts_event_receiver.resubscribe();
+                let cancel_token = ctx.cancel_token().clone();
+                let node_name = ctx.node_name().clone();
+                (receiver, cancel_token, node_name)
+            })
+            .await;
+
+        // Create a stream for receiving VTS events
+        let mut stream = BroadcastStream::new(vts_event_receiver);
+        let context = self.context().clone();
+
+        // Spawn task to receive VTS events
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // If cancel signal is triggered, abort task
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("[{}] virtual trading system events listener stopped", node_name);
+                        break;
+                    }
+                    // Receive events
+                    receive_result = stream.next() => {
+                        match receive_result {
+                            Some(Ok(event)) => {
+                                let mut context_guard = context.write().await;
+                                if let Err(e) = context_guard.handle_vts_event(event).await {
+                                    tracing::error!("[{}] failed to handle virtual trading system event: {}", node_name, e);
+                                }
+                            }
+                            Some(Err(e)) => {
+                                tracing::error!("[{}] failed to receive VTS event: {}", node_name, e);
+                            }
+                            None => {
+                                tracing::warn!("[{}] VTS event stream closed", node_name);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 }

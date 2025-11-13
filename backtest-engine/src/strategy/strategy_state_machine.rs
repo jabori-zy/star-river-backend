@@ -155,6 +155,9 @@ pub enum BacktestStrategyStateAction {
     #[strum(serialize = "ListenAndHandleStrategyStatsEvent")]
     ListenAndHandleStrategyStatsEvent,
 
+    // /// Initialize virtual trading system
+    // #[strum(serialize = "InitVirtualTradingSystem")]
+    // InitVirtualTradingSystem,
     /// Log strategy state
     #[strum(serialize = "LogStrategyState")]
     LogStrategyState,

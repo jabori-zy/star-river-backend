@@ -268,6 +268,14 @@ pub enum VariableConfig {
 }
 
 impl VariableConfig {
+    pub fn confing_id(&self) -> i32 {
+        match self {
+            VariableConfig::Get(config) => config.config_id(),
+            VariableConfig::Update(config) => config.config_id(),
+            VariableConfig::Reset(config) => config.config_id(),
+        }
+    }
+
     /// 判断是否为获取变量配置
     pub fn is_get(&self) -> bool {
         matches!(self, VariableConfig::Get(_))

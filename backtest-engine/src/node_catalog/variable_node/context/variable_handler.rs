@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use star_river_core::custom_type::NodeId;
 use star_river_event::backtest_strategy::node_event::{
     VariableNodeEvent,
-    variable_node_event::{CustomVariableUpdateEvent, CustomVariableUpdatePayload},
+    variable_node_event::{CustomVarUpdateEvent, CustomVarUpdatePayload},
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
@@ -24,7 +24,7 @@ use tokio::sync::oneshot;
 
 use super::VariableNodeContext;
 use crate::{
-    node::node_error::VariableNodeError,
+    node::node_error::{BacktestNodeError, VariableNodeError},
     strategy::strategy_command::{
         ResetCustomVarCmdPayload, ResetCustomVarValueCommand, UpdateCustomVarValueCmdPayload, UpdateCustomVarValueCommand,
     },
@@ -58,7 +58,7 @@ impl VariableNodeContext {
             .collect::<Vec<_>>();
 
         if !get_var_configs.is_empty() {
-            self.get_variable(&get_var_configs).await;
+            self.get_variable(&get_var_configs).await.unwrap();
         }
 
         if !update_var_configs.is_empty() {
@@ -70,12 +70,12 @@ impl VariableNodeContext {
         }
     }
 
-    pub(super) async fn handle_dataflow_trigger(&mut self, dataflow_trigger_configs: &Vec<VariableConfig>, dataflow: DataFlow) {
+    pub(super) async fn handle_dataflow_trigger(
+        &mut self,
+        dataflow_trigger_configs: &Vec<VariableConfig>,
+        dataflow: DataFlow,
+    ) -> Result<(), BacktestNodeError> {
         let mut update_var_configs = Vec::new();
-
-        let play_index = self.play_index();
-        let node_id = self.node_id().clone();
-        let node_name = self.node_name().clone();
 
         for config in dataflow_trigger_configs {
             // 使用 if let 链式语法
@@ -113,11 +113,11 @@ impl VariableNodeContext {
                 {
                     Some(val) => val,
                     None => {
-                        // 发送trigger事件
-                        let payload = TriggerPayload::new(play_index as u64);
-                        let trigger_event: CommonEvent =
-                            TriggerEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into();
-                        let _ = self.output_handle_send(&output_handle_id, trigger_event.into()).unwrap();
+                        if self.is_leaf_node() {
+                            self.send_execute_over_event(self.play_index() as u64, Some(config.config_id()))?
+                        } else {
+                            self.send_trigger_event(&output_handle_id).await?;
+                        }
                         continue;
                     } // 如果返回 None，跳过当前迭代
                 };
@@ -136,7 +136,10 @@ impl VariableNodeContext {
 
         if !update_var_configs.is_empty() {
             self.update_variable(&update_var_configs).await;
+            return Ok(());
         }
+
+        Ok(())
     }
 
     async fn get_variable(&self, get_var_configs: &Vec<GetVariableConfig>) -> Result<(), VariableNodeError> {
@@ -161,7 +164,6 @@ impl VariableNodeContext {
                         node_name.clone(),
                         custom_config.config_id(),
                         custom_config.var_name().to_string(),
-                        custom_config.var_display_name.clone(),
                         self.output_handle(&output_handle_id).unwrap().clone(),
                         strategy_command_sender.clone(),
                         strategy_output_handle.clone(),
@@ -241,7 +243,7 @@ impl VariableNodeContext {
                 let response = resp_rx.await.unwrap();
                 match response {
                     StrategyResponse::Success { payload, .. } => {
-                        let payload = CustomVariableUpdatePayload::new(
+                        let payload = CustomVarUpdatePayload::new(
                             play_index,
                             config_id,
                             var_op,
@@ -249,7 +251,7 @@ impl VariableNodeContext {
                             update_operation_value,
                             payload.custom_variable.clone(),
                         );
-                        let var_event: VariableNodeEvent = CustomVariableUpdateEvent::new(
+                        let var_event: VariableNodeEvent = CustomVarUpdateEvent::new(
                             node_id_clone.clone(),
                             node_name_clone.clone(),
                             output_handle_id_clone.clone(),
@@ -258,7 +260,7 @@ impl VariableNodeContext {
                         .into();
                         let _ = strategy_output_handle_clone.send(var_event.clone().into());
                         if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(play_index as u64);
+                            let payload = ExecuteOverPayload::new(play_index as u64, None);
                             let execute_over_event: CommonEvent =
                                 ExecuteOverEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
                             let _ = strategy_output_handle_clone.send(execute_over_event.into());
@@ -297,7 +299,6 @@ impl VariableNodeContext {
         for config in reset_var_configs {
             // 只克隆配置特定的字段
             let var_name = config.var_name().to_string();
-            let var_display_name = config.var_display_name.clone();
             let var_op = "reset".to_string();
             let config_id = config.config_id();
 
@@ -320,8 +321,8 @@ impl VariableNodeContext {
                 match response {
                     StrategyResponse::Success { payload, .. } => {
                         let payload =
-                            CustomVariableUpdatePayload::new(play_index, config_id, var_op, None, None, payload.custom_variable.clone());
-                        let var_event: VariableNodeEvent = CustomVariableUpdateEvent::new(
+                            CustomVarUpdatePayload::new(play_index, config_id, var_op, None, None, payload.custom_variable.clone());
+                        let var_event: VariableNodeEvent = CustomVarUpdateEvent::new(
                             node_id_clone.clone(),
                             node_name_clone.clone(),
                             output_handle_id_clone.clone(),
@@ -330,7 +331,7 @@ impl VariableNodeContext {
                         .into();
                         let _ = strategy_output_handle_clone.send(var_event.clone().into());
                         if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(play_index as u64);
+                            let payload = ExecuteOverPayload::new(play_index as u64, None);
                             let execute_over_event: CommonEvent =
                                 ExecuteOverEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
                             let _ = strategy_output_handle_clone.send(execute_over_event.into());

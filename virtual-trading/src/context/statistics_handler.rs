@@ -1,7 +1,10 @@
-use super::VirtualTradingSystem;
+use super::VirtualTradingSystemContext;
 use crate::utils::Formula;
 
-impl VirtualTradingSystem {
+impl<E> VirtualTradingSystemContext<E>
+where
+    E: Clone + Send + Sync + 'static,
+{
     // 更新未实现盈亏
     pub fn update_unrealized_pnl(&mut self) {
         self.unrealized_pnl = self.current_positions.iter().map(|position| position.unrealized_profit).sum();
@@ -9,6 +12,7 @@ impl VirtualTradingSystem {
 
     // 更新已实现盈亏
     pub fn update_realized_pnl(&mut self) {
+        // if profit is None, set default value to 0.0
         self.realized_pnl = self.transactions.iter().map(|transaction| transaction.profit.unwrap_or(0.0)).sum();
     }
 

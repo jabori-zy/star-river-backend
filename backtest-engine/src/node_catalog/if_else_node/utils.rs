@@ -50,8 +50,8 @@ pub fn parse_variable_value(
             }
         }
         BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
-            VariableNodeEvent::SysVariableUpdate(sys_variable_updated_event) => sys_variable_updated_event.sys_variable.var_value.clone(),
-            VariableNodeEvent::CustomVariableUpdate(custom_variable_updated_event) => {
+            VariableNodeEvent::SysVarUpdate(sys_variable_updated_event) => sys_variable_updated_event.sys_variable.var_value.clone(),
+            VariableNodeEvent::CustomVarUpdate(custom_variable_updated_event) => {
                 custom_variable_updated_event.custom_variable.var_value.clone()
             }
         },

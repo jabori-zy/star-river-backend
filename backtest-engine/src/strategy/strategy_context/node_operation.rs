@@ -18,7 +18,7 @@ use crate::{
 
 impl BacktestStrategyContext {
     // 获取start节点配置
-    pub async fn get_start_node_config(&self) -> Result<BacktestStrategyConfig, BacktestStrategyError> {
+    pub async fn get_strategy_config(&self) -> Result<BacktestStrategyConfig, BacktestStrategyError> {
         let (resp_tx, resp_rx) = oneshot::channel();
 
         let payload = GetStartNodeConfigCmdPayload {};

@@ -58,11 +58,7 @@ impl NodeLifecycle for FuturesOrderNode {
             };
             match action {
                 FuturesOrderNodeAction::LogTransition => {
-                    tracing::debug!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 FuturesOrderNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);
@@ -163,7 +159,7 @@ impl NodeLifecycle for FuturesOrderNode {
                         &strategy_output_handle,
                     )
                     .await;
-                    self.listen_source_node_events().await;
+                    self.listen_source_node_events_spec().await;
                 }
                 FuturesOrderNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
@@ -181,12 +177,21 @@ impl NodeLifecycle for FuturesOrderNode {
                     self.listen_node_command().await;
                 }
 
-                // FuturesOrderNodeAction::ListenAndHandleVirtualTradingSystemEvent => {
-                //     tracing::info!("[{node_name}] start to listen virtual trading system events");
-                //     let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
-                //     NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), FuturesOrderNodeAction::ListenAndHandleVirtualTradingSystemEvent.to_string(), &strategy_output_handle).await;
-                //     let _ = self.listen_virtual_trading_system_events().await;
-                // }
+                FuturesOrderNodeAction::ListenAndHandleVtsEvent => {
+                    tracing::info!("[{node_name}] start to listen virtual trading system events");
+                    let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
+                    NodeUtils::send_success_status_event(
+                        strategy_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        log_message.to_string(),
+                        current_state.to_string(),
+                        FuturesOrderNodeAction::ListenAndHandleVtsEvent.to_string(),
+                        &strategy_output_handle,
+                    )
+                    .await;
+                    let _ = self.listen_vts_events().await;
+                }
                 FuturesOrderNodeAction::LogError(error) => {
                     tracing::error!("[{node_name}] error occurred: {}", error);
                 }

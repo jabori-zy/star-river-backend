@@ -57,11 +57,7 @@ impl NodeLifecycle for StartNode {
             };
             match action {
                 StartNodeAction::LogTransition => {
-                    tracing::debug!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 StartNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");
@@ -92,47 +88,47 @@ impl NodeLifecycle for StartNode {
                     .await;
                     self.listen_play_index_change().await;
                 }
-                StartNodeAction::InitVirtualTradingSystem => {
-                    tracing::info!("[{node_name}] start to init virtual trading system");
-                    self.with_ctx_read_async(|ctx| {
-                        Box::pin(async move {
-                            ctx.init_virtual_trading_system().await;
-                        })
-                    })
-                    .await;
-                    let log_message = InitVirtualTradingSystemMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
-                        strategy_id,
-                        node_id.clone(),
-                        node_name.clone(),
-                        log_message.to_string(),
-                        current_state.to_string(),
-                        StartNodeAction::InitVirtualTradingSystem.to_string(),
-                        &strategy_output_handle,
-                    )
-                    .await;
-                }
-                StartNodeAction::InitStrategyStats => {
-                    tracing::info!("[{node_name}] start to init strategy stats");
+                // StartNodeAction::InitVirtualTradingSystem => {
+                //     tracing::info!("[{node_name}] start to init virtual trading system");
+                //     self.with_ctx_read_async(|ctx| {
+                //         Box::pin(async move {
+                //             ctx.init_virtual_trading_system().await;
+                //         })
+                //     })
+                //     .await;
+                //     let log_message = InitVirtualTradingSystemMsg::new(node_name.clone());
+                //     NodeUtils::send_success_status_event(
+                //         strategy_id,
+                //         node_id.clone(),
+                //         node_name.clone(),
+                //         log_message.to_string(),
+                //         current_state.to_string(),
+                //         StartNodeAction::InitVirtualTradingSystem.to_string(),
+                //         &strategy_output_handle,
+                //     )
+                //     .await;
+                // }
+                // StartNodeAction::InitStrategyStats => {
+                //     tracing::info!("[{node_name}] start to init strategy stats");
 
-                    self.with_ctx_read_async(|ctx| {
-                        Box::pin(async move {
-                            ctx.init_strategy_stats().await;
-                        })
-                    })
-                    .await;
-                    let log_message = InitStrategyStatsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
-                        strategy_id,
-                        node_id.clone(),
-                        node_name.clone(),
-                        log_message.to_string(),
-                        current_state.to_string(),
-                        StartNodeAction::InitStrategyStats.to_string(),
-                        &strategy_output_handle,
-                    )
-                    .await;
-                }
+                //     self.with_ctx_read_async(|ctx| {
+                //         Box::pin(async move {
+                //             ctx.init_strategy_stats().await;
+                //         })
+                //     })
+                //     .await;
+                //     let log_message = InitStrategyStatsMsg::new(node_name.clone());
+                //     NodeUtils::send_success_status_event(
+                //         strategy_id,
+                //         node_id.clone(),
+                //         node_name.clone(),
+                //         log_message.to_string(),
+                //         current_state.to_string(),
+                //         StartNodeAction::InitStrategyStats.to_string(),
+                //         &strategy_output_handle,
+                //     )
+                //     .await;
+                // }
                 StartNodeAction::InitCustomVariables => {
                     tracing::info!("[{node_name}] start to init custom variables");
                     self.with_ctx_read_async(|ctx| {

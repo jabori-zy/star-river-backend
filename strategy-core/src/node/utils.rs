@@ -6,7 +6,7 @@ use super::node_handles::{HandleId, NodeOutputHandle};
 pub fn generate_strategy_output_handle<E: Clone>(node_id: &NodeId) -> NodeOutputHandle<E> {
     let (tx, _) = broadcast::channel::<E>(100);
     let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-    let strategy_output_handle = NodeOutputHandle::new(node_id.clone(), strategy_output_handle_id, tx);
+    let strategy_output_handle = NodeOutputHandle::new(node_id.clone(), false, strategy_output_handle_id, tx);
     strategy_output_handle
 }
 

@@ -4,7 +4,6 @@ use strategy_core::node::{
     node_state_machine::StateMachine,
     node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
 };
-use tokio::time::Duration;
 
 use super::VariableNode;
 use crate::{
@@ -59,11 +58,7 @@ impl NodeLifecycle for VariableNode {
 
             match action {
                 VariableNodeAction::LogTransition => {
-                    tracing::debug!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 VariableNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);

@@ -64,11 +64,7 @@ impl EngineLifecycle for BacktestEngine {
 
             match action {
                 BacktestEngineAction::LogTransition => {
-                    tracing::debug!(
-                        "[{engine_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{engine_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
 
                 BacktestEngineAction::ListenAndHandleEvents => {

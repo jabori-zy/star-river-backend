@@ -58,11 +58,7 @@ impl NodeLifecycle for KlineNode {
 
             match action {
                 KlineNodeAction::LogTransition => {
-                    tracing::debug!(
-                        "[{node_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{node_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
                 KlineNodeAction::LogNodeState => {
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());

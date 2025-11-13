@@ -87,9 +87,16 @@ pub enum StrategyError {
     },
 
     #[snafu(display("[{strategy_name}] node [{node_id}] not found"))]
-    NodeNotFound {
+    NodeNotFoundById {
         strategy_name: String,
         node_id: NodeId,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("[{strategy_name}] node [{node_index}] not found"))]
+    NodeNotFoundByIndex {
+        strategy_name: String,
+        node_index: usize,
         backtrace: Backtrace,
     },
 
@@ -136,25 +143,26 @@ impl StarRiverErrorTrait for StrategyError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            StrategyError::StrategyBenchmarkError { .. } => 1002,     // 节点benchmark未找到
-            StrategyError::NodeCheckFailed { .. } => 1003,            // 节点检查错误
-            StrategyError::NodeInitFailed { .. } => 1004,             // 节点初始化错误
-            StrategyError::NodeStopFailed { .. } => 1005,             // 节点停止错误
-            StrategyError::NodeInitTimeout { .. } => 1006,            // 节点初始化超时
-            StrategyError::NodeStopTimeout { .. } => 1007,            // 节点停止超时
-            StrategyError::TokioTaskFailed { .. } => 1008,            // 执行任务失败
-            StrategyError::NodeStateNotReady { .. } => 1009,          // 节点状态未就绪
-            StrategyError::NodeConfigNull { .. } => 1010,             // 节点配置为空
-            StrategyError::EdgeConfigNull { .. } => 1011,             // 边配置为空
-            StrategyError::EdgeConfigMissField { .. } => 1012,        // 边配置缺少字段
-            StrategyError::NodeNotFound { .. } => 1013,               // 节点未找到
-            StrategyError::WaitAllNodesStoppedTimeout { .. } => 1016, // 等待所有节点停止超时
-            StrategyError::CustomVariableNotExist { .. } => 1027,     // 自定义变量不存在
-            StrategyError::CusVarUpdateOpValueIsNone { .. } => 1028,  // custom variable update operation value is none
-            StrategyError::UnSupportVariableOperation { .. } => 1029, // 不支持的变量操作
-            StrategyError::DivideByZero { .. } => 1030,               // 除零错误
-            StrategyError::NodeBenchmarkNotFound { .. } => 1031,      // 节点benchmark未找到
-            StrategyError::NodeCycleDetected { .. } => 1032,          // 节点存在循环依赖
+            StrategyError::StrategyBenchmarkError { .. } => 1001,     // 节点benchmark未找到
+            StrategyError::NodeCheckFailed { .. } => 1002,            // 节点检查错误
+            StrategyError::NodeInitFailed { .. } => 1003,             // 节点初始化错误
+            StrategyError::NodeStopFailed { .. } => 1004,             // 节点停止错误
+            StrategyError::NodeInitTimeout { .. } => 1005,            // 节点初始化超时
+            StrategyError::NodeStopTimeout { .. } => 1006,            // 节点停止超时
+            StrategyError::TokioTaskFailed { .. } => 1007,            // 执行任务失败
+            StrategyError::NodeStateNotReady { .. } => 1008,          // 节点状态未就绪
+            StrategyError::NodeConfigNull { .. } => 1009,             // 节点配置为空
+            StrategyError::EdgeConfigNull { .. } => 1010,             // 边配置为空
+            StrategyError::EdgeConfigMissField { .. } => 1011,        // 边配置缺少字段
+            StrategyError::NodeNotFoundById { .. } => 1012,           // 节点未找到
+            StrategyError::NodeNotFoundByIndex { .. } => 1013,        // 节点未找到(by index)
+            StrategyError::WaitAllNodesStoppedTimeout { .. } => 1014, // 等待所有节点停止超时
+            StrategyError::CustomVariableNotExist { .. } => 1015,     // 自定义变量不存在
+            StrategyError::CusVarUpdateOpValueIsNone { .. } => 1016,  // custom variable update operation value is none
+            StrategyError::UnSupportVariableOperation { .. } => 1017, // 不支持的变量操作
+            StrategyError::DivideByZero { .. } => 1018,               // 除零错误
+            StrategyError::NodeBenchmarkNotFound { .. } => 1019,      // 节点benchmark未找到
+            StrategyError::NodeCycleDetected { .. } => 1020,          // 节点存在循环依赖
         };
         format!("{prefix}_{code}")
     }
@@ -184,7 +192,8 @@ impl StarRiverErrorTrait for StrategyError {
             | StrategyError::UnSupportVariableOperation { .. } => StatusCode::BAD_REQUEST,
 
             // 客户端错误 - 资源未找到 (404)
-            StrategyError::NodeNotFound { .. }
+            StrategyError::NodeNotFoundById { .. }
+            | StrategyError::NodeNotFoundByIndex { .. }
             | StrategyError::CustomVariableNotExist { .. }
             | StrategyError::NodeBenchmarkNotFound { .. } => StatusCode::NOT_FOUND,
         }
@@ -224,7 +233,7 @@ impl StarRiverErrorTrait for StrategyError {
                 } => {
                     format!("策略 [{strategy_name}] 边配置缺少字段: {field_name}")
                 }
-                StrategyError::NodeNotFound {
+                StrategyError::NodeNotFoundById {
                     strategy_name,
                     node_id: node_name,
                     ..
@@ -233,6 +242,12 @@ impl StarRiverErrorTrait for StrategyError {
                 }
                 StrategyError::WaitAllNodesStoppedTimeout { .. } => {
                     format!("等待节点停止超时")
+                }
+
+                StrategyError::NodeNotFoundByIndex {
+                    strategy_name, node_index, ..
+                } => {
+                    format!("策略 [{strategy_name}] 的索引为 [{node_index}] 的节点未找到")
                 }
 
                 StrategyError::CustomVariableNotExist { var_name, .. } => {

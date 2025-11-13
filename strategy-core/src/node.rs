@@ -49,7 +49,7 @@ impl FromStr for NodeType {
             // 驼峰格式
             "startNode" => Ok(NodeType::StartNode),
             "klineNode" => Ok(NodeType::KlineNode),
-            "IndicatorNode" => Ok(NodeType::IndicatorNode),
+            "indicatorNode" => Ok(NodeType::IndicatorNode),
             "ifElseNode" => Ok(NodeType::IfElseNode),
             "futuresOrderNode" => Ok(NodeType::FuturesOrderNode),
             "positionNode" => Ok(NodeType::PositionNode),

@@ -5,6 +5,7 @@ mod engine_state_machine;
 mod node;
 mod node_catalog;
 pub(crate) mod strategy;
+mod virtual_trading_system;
 
 // Standard library imports
 use std::sync::Arc;

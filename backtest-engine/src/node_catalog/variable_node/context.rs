@@ -8,20 +8,19 @@ mod variable_handler;
 
 use std::{collections::HashMap, sync::Arc};
 
-use heartbeat::Heartbeat;
-use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::NodeId;
 use strategy_core::{
     node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata},
     variable::custom_variable::VariableValue,
 };
-use tokio::sync::{Mutex, RwLock};
-use virtual_trading::VirtualTradingSystem;
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
+use virtual_trading::{command::VtsCommand, event::VtsEvent};
 
 use super::{state_machine::VariableNodeStateMachine, variable_node_type::VariableNodeBacktestConfig};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    virtual_trading_system::BacktestVts,
 };
 
 pub type VariableNodeMetadata = NodeMetadata<VariableNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
@@ -31,7 +30,9 @@ pub struct VariableNodeContext {
     metadata: VariableNodeMetadata,
     node_config: VariableNodeBacktestConfig,
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+    // vts_command_sender: mpsc::Sender<VtsCommand>,
+    // vts_event_receiver: broadcast::Receiver<VtsEvent>,
+    virtual_trading_system: Arc<Mutex<BacktestVts>>,
     variable_cache_value: Arc<RwLock<HashMap<(NodeId, i32, String), VariableValue>>>,
 }
 
@@ -40,12 +41,16 @@ impl VariableNodeContext {
         metadata: VariableNodeMetadata,
         node_config: VariableNodeBacktestConfig,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        // vts_command_sender: mpsc::Sender<VtsCommand>,
+        // vts_event_receiver: broadcast::Receiver<VtsEvent>,
     ) -> Self {
         Self {
             metadata,
             node_config,
             play_index_watch_rx,
+            // vts_command_sender,
+            // vts_event_receiver,
             virtual_trading_system,
             variable_cache_value: Arc::new(RwLock::new(HashMap::new())),
         }

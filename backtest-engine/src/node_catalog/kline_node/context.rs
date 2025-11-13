@@ -12,25 +12,17 @@ mod utils;
 use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
-use key::{KeyTrait, KlineKey};
-use star_river_core::{
-    custom_type::{AccountId, NodeId},
-    exchange::Exchange,
-    kline::{Kline, KlineInterval},
-    system::TimeRange,
-};
+use key::KlineKey;
+use star_river_core::custom_type::NodeId;
 use strategy_core::{
-    benchmark::node_benchmark::{CompletedCycle, CycleTracker},
+    benchmark::node_benchmark::CompletedCycle,
     node::{
         context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
         metadata::NodeMetadata,
     },
 };
 
-use super::{
-    kline_node_type::KlineNodeBacktestConfig,
-    state_machine::{KlineNodeAction, KlineNodeStateMachine},
-};
+use super::{kline_node_type::KlineNodeBacktestConfig, state_machine::KlineNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::kline_node_error::*, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
@@ -84,7 +76,7 @@ impl KlineNodeContext {
     }
 
     pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
-        tracing::debug!("set min interval symbols: {:?}", min_interval_symbols);
+        // tracing::debug!("set min interval symbols: {:?}", min_interval_symbols);
         self.min_interval_symbols = min_interval_symbols;
     }
 

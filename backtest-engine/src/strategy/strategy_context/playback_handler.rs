@@ -311,6 +311,9 @@ impl BacktestStrategyContext {
         // 重置所有系统变量
         self.reset_all_sys_variables().await;
 
+        // reset leaf node execution tracker
+        self.reset_leaf_node_execution_info();
+
         // 重置策略性能报告
         {
             let mut benchmark_guard = self.benchmark().write().await;

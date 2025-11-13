@@ -9,7 +9,6 @@ edition.workspace = true
 event-center-core = { path = "../event-center-core" }
 star-river-core = { path = "../star-river-core" }
 strategy-stats = { path = "../strategy-stats" }
-virtual-trading = { path = "../virtual-trading" }
 heartbeat = { path = "../heartbeat" }
 entity = { path = "../entity" }
 ta-lib = { path = "../ta-lib" }

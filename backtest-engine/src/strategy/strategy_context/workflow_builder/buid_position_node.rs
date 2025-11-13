@@ -1,0 +1,37 @@
+use std::sync::Arc;
+
+use heartbeat::Heartbeat;
+use sea_orm::DatabaseConnection;
+use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+use tokio::sync::{Mutex, mpsc};
+
+use super::BacktestStrategyContext;
+use crate::{
+    node::node_command::BacktestNodeCommand, node_catalog::position_node::PositionNode, strategy::strategy_error::BacktestStrategyError,
+    virtual_trading_system::BacktestVts,
+};
+
+impl BacktestStrategyContext {
+    pub async fn build_position_node(
+        &mut self,
+        node_config: serde_json::Value,
+        node_command_receiver: mpsc::Receiver<BacktestNodeCommand>,
+        database: DatabaseConnection,
+        heartbeat: Arc<Mutex<Heartbeat>>,
+        virtual_trading_system: Arc<Mutex<BacktestVts>>,
+    ) -> Result<PositionNode, BacktestStrategyError> {
+        let strategy_command_sender = self.strategy_command_sender().clone();
+        let play_index_watch_rx = self.play_index_watch_rx();
+
+        let node = PositionNode::new(
+            node_config,
+            strategy_command_sender,
+            Arc::new(Mutex::new(node_command_receiver)),
+            play_index_watch_rx,
+            database,
+            heartbeat,
+            virtual_trading_system,
+        )?;
+        Ok(node)
+    }
+}

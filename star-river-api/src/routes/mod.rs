@@ -30,12 +30,12 @@ pub fn create_app_routes(star_river: StarRiver) -> Router {
         .nest("/api/v1/strategy", strategy_routes::create_strategy_routes())
         // .nest("/api/v1/strategy/live", strategy_routes::create_live_strategy_routes())
         .nest("/api/v1/strategy/backtest", strategy_routes::create_backtest_strategy_routes())
-    // 嵌套账户相关路由
-    // .nest("/api/v1/account", account_routes::create_account_routes())
-    // 嵌套市场相关路由
-    .nest("/api/v1/market", market_routes::create_market_routes())
-    // 嵌套交易所相关路由
-    .nest("/api/v1/exchange", exchange_routes::create_exchange_routes());
+        // 嵌套账户相关路由
+        // .nest("/api/v1/account", account_routes::create_account_routes())
+        // 嵌套市场相关路由
+        .nest("/api/v1/market", market_routes::create_market_routes())
+        // 嵌套交易所相关路由
+        .nest("/api/v1/exchange", exchange_routes::create_exchange_routes());
 
     // 条件性地添加缓存路由
 

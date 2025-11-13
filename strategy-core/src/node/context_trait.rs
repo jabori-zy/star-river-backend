@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 // third-party
 use async_trait::async_trait;
 use event_center_core::event::EventTrait;
-use snafu::{IntoError, OptionExt, ResultExt};
+use snafu::{IntoError, OptionExt};
 use star_river_core::{
     custom_type::{CycleId, NodeId, NodeName, StrategyId},
     error::StarRiverErrorTrait,
@@ -18,8 +18,8 @@ use crate::{
     benchmark::node_benchmark::CompletedCycle,
     communication::{NodeCommandTrait, StrategyCommandTrait},
     error::{
-        NodeStateMachineError,
-        node_error::{NodeCommandSendFailedSnafu, NodeEventSendFailedSnafu, OutputHandleNotFoundSnafu, StrategyCommandSendFailedSnafu},
+        NodeError, NodeStateMachineError,
+        node_error::{NodeEventSendFailedSnafu, OutputHandleNotFoundSnafu, StrategyCommandSendFailedSnafu},
     },
     event::{
         node::NodeEventTrait,
@@ -185,9 +185,14 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt {
 
     /// 获取默认输出句柄
     #[inline]
-    fn default_output_handle(&self) -> Option<&NodeOutputHandle<Self::NodeEvent>> {
+    fn default_output_handle(&self) -> Result<&NodeOutputHandle<Self::NodeEvent>, NodeError> {
         let default_handle_id = generate_default_output_handle_id(self.node_id());
-        self.metadata().output_handles().get(&default_handle_id)
+        self.metadata()
+            .output_handles()
+            .get(&default_handle_id)
+            .context(OutputHandleNotFoundSnafu {
+                handle_id: default_handle_id.to_string(),
+            })
     }
 
     /// 检查是否有默认输出句柄
@@ -199,9 +204,9 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt {
 
     /// 添加输出句柄
     #[inline]
-    fn add_output_handle(&mut self, handle_id: HandleId, sender: broadcast::Sender<Self::NodeEvent>) {
+    fn add_output_handle(&mut self, is_default: bool, handle_id: HandleId, sender: broadcast::Sender<Self::NodeEvent>) {
         let node_id = self.node_id().clone();
-        let handle = NodeOutputHandle::new(node_id, handle_id.clone(), sender);
+        let handle = NodeOutputHandle::new(node_id, is_default, handle_id, sender);
         self.metadata_mut().add_output_handle(handle);
     }
 
@@ -321,12 +326,14 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
             handle_id: handle_id.to_string(),
         })?;
 
-        output_handle.send(event).map_err(|e| {
-            NodeEventSendFailedSnafu {
-                handle_id: handle_id.to_string(),
-            }
-            .into_error(Arc::new(e))
-        })?;
+        if output_handle.is_connected() {
+            output_handle.send(event).map_err(|e| {
+                NodeEventSendFailedSnafu {
+                    handle_id: handle_id.to_string(),
+                }
+                .into_error(Arc::new(e))
+            })?;
+        }
 
         Ok(())
     }
@@ -353,14 +360,12 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     /// # Arguments
     /// - `event` - 要发送的事件
     fn default_output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
-        let default_handle = self.default_output_handle().context(OutputHandleNotFoundSnafu {
-            handle_id: generate_default_output_handle_id(self.node_id()),
-        })?;
+        let default_handle = self.default_output_handle()?;
 
         if default_handle.is_connected() {
             default_handle.send(event).map_err(|e| {
                 NodeEventSendFailedSnafu {
-                    handle_id: generate_default_output_handle_id(self.node_id()),
+                    handle_id: default_handle.output_handle_id().clone(),
                 }
                 .into_error(Arc::new(e))
             })?;
@@ -369,16 +374,16 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         Ok(())
     }
 
-    fn send_execute_over_event(&self) -> Result<(), crate::error::NodeError> {
+    fn send_execute_over_event(&self, cycle_id: CycleId, config_id: Option<i32>) -> Result<(), crate::error::NodeError> {
         if !self.is_leaf_node() {
             return Ok(());
         }
 
-        let payload = ExecuteOverPayload::new(self.cycle_id());
+        let payload = ExecuteOverPayload::new(cycle_id, config_id);
         let execute_over_event: CommonEvent = ExecuteOverEvent::new(
             self.node_id().clone(),
             self.node_name().to_string(),
-            self.node_id().clone(),
+            self.strategy_bound_handle().output_handle_id().clone(),
             payload,
         )
         .into();
@@ -388,9 +393,11 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         Ok(())
     }
 
+    // send trigger event to downstream node. if current node is leaf node, send execute over event instead.
     async fn send_trigger_event(&self, handle_id: &str) -> Result<(), crate::error::NodeError> {
         // 叶子节点不发送触发事件
         if self.is_leaf_node() {
+            // self.send_execute_over_event()?;
             return Ok(());
         }
 

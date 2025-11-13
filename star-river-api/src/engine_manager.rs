@@ -15,6 +15,7 @@ use backtest_engine::BacktestEngine;
 use engine_core::engine_trait::EngineLifecycle;
 use exchange_engine::ExchangeEngine;
 use heartbeat::Heartbeat;
+use indicator_engine::IndicatorEngine;
 use market_engine::MarketEngine;
 use sea_orm::DatabaseConnection;
 use tokio::sync::Mutex;
@@ -23,7 +24,7 @@ use tokio::sync::Mutex;
 pub struct EngineManager {
     exchange_engine: Arc<Mutex<ExchangeEngine>>,
     market_engine: Arc<Mutex<MarketEngine>>,
-    // indicator_engine: Arc<Mutex<IndicatorEngine>>,
+    indicator_engine: Arc<Mutex<IndicatorEngine>>,
     // strategy_engine: Arc<Mutex<BacktestStrategyEngine>>,
     backtest_engine: Arc<Mutex<BacktestEngine>>,
     // account_engine: Arc<Mutex<AccountEngine>>,
@@ -45,7 +46,7 @@ impl EngineManager {
         let market_engine = MarketEngine::new(exchange_engine.clone());
 
         // 指标引擎
-        // let indicator_engine = IndicatorEngine::new();
+        let indicator_engine = IndicatorEngine::new();
 
         // 策略引擎
         // let strategy_engine = BacktestStrategyEngine::new(database.clone(), heartbeat.clone());
@@ -59,7 +60,7 @@ impl EngineManager {
         Self {
             exchange_engine,
             market_engine: Arc::new(Mutex::new(market_engine)),
-            // indicator_engine: Arc::new(Mutex::new(indicator_engine)),
+            indicator_engine: Arc::new(Mutex::new(indicator_engine)),
             backtest_engine: Arc::new(Mutex::new(strategy_engine)),
         }
     }
@@ -76,7 +77,7 @@ impl EngineManager {
     async fn start_engines(&self) {
         self.start_exchange_engine().await;
         self.start_market_engine().await;
-        // self.start_indicator_engine().await;
+        self.start_indicator_engine().await;
         self.start_backtest_engine().await;
         // self.start_account_engine().await;
     }
@@ -86,7 +87,7 @@ impl EngineManager {
         let engine = self.exchange_engine.clone();
         tokio::spawn(async move {
             let engine = engine.lock().await;
-            engine.start().await;
+            engine.start().await
         });
     }
 
@@ -100,13 +101,13 @@ impl EngineManager {
     }
 
     // 启动指标引擎并等待完成
-    // async fn start_indicator_engine(&self) {
-    //     let engine = self.indicator_engine.clone();
-    //     tokio::spawn(async move {
-    //         let engine = engine.lock().await;
-    //         engine.start().await
-    //     });
-    // }
+    async fn start_indicator_engine(&self) {
+        let engine = self.indicator_engine.clone();
+        tokio::spawn(async move {
+            let engine = engine.lock().await;
+            engine.start().await
+        });
+    }
 
     // 启动策略引擎并等待完成
     async fn start_backtest_engine(&self) {
@@ -135,20 +136,20 @@ impl EngineManager {
     //     });
     // }
 
-    pub async fn backtest_engine(&self) -> Arc<Mutex<BacktestEngine>> {
-        self.backtest_engine.clone()
+    pub async fn backtest_engine(&self) -> &Arc<Mutex<BacktestEngine>> {
+        &self.backtest_engine
     }
 
-    pub async fn market_engine(&self) -> Arc<Mutex<MarketEngine>> {
-        self.market_engine.clone()
+    pub async fn market_engine(&self) -> &Arc<Mutex<MarketEngine>> {
+        &self.market_engine
     }
 
-    // pub async fn indicator_engine(&self) -> Arc<Mutex<IndicatorEngine>> {
-    //     self.indicator_engine.clone()
-    // }
+    pub async fn indicator_engine(&self) -> &Arc<Mutex<IndicatorEngine>> {
+        &self.indicator_engine
+    }
 
-    pub async fn exchange_engine(&self) -> Arc<Mutex<ExchangeEngine>> {
-        self.exchange_engine.clone()
+    pub async fn exchange_engine(&self) -> &Arc<Mutex<ExchangeEngine>> {
+        &self.exchange_engine
     }
     // pub async fn get_cache_engine(&self) -> Arc<Mutex<CacheEngine>> {
     //     self.cache_engine.clone()

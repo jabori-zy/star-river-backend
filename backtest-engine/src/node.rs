@@ -10,15 +10,16 @@ use std::{collections::HashMap, fmt::Debug, sync::LazyLock};
 
 // External crate imports
 use async_trait::async_trait;
+use derive_more::From;
 // Workspace crate imports
 use event_center::event::Channel;
 use node_error::BacktestNodeError;
 use node_event::BacktestNodeEvent;
-use star_river_core::custom_type::{NodeId, NodeName};
+use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 use strategy_core::node::{
     NodeTrait, NodeType,
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeRelationExt, NodeStateMachineExt, NodeTaskControlExt},
-    node_handles::NodeInputHandle,
+    node_handles::{NodeInputHandle, NodeOutputHandle},
     node_trait::{NodeContextAccessor, NodeLifecycle},
 };
 use tokio::sync::broadcast;
@@ -33,7 +34,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, From)]
 pub enum BacktestNode {
     Start(StartNode),
     Kline(KlineNode),
@@ -42,19 +43,6 @@ pub enum BacktestNode {
     FuturesOrder(FuturesOrderNode),
     Position(PositionNode),
     Variable(VariableNode),
-}
-
-// 为 BacktestNode 实现 From trait
-impl From<StartNode> for BacktestNode {
-    fn from(node: StartNode) -> Self {
-        BacktestNode::Start(node)
-    }
-}
-
-impl From<KlineNode> for BacktestNode {
-    fn from(node: KlineNode) -> Self {
-        BacktestNode::Kline(node)
-    }
 }
 
 #[async_trait]
@@ -256,6 +244,18 @@ impl BacktestNode {
             BacktestNode::FuturesOrder(node) => node.with_ctx_write(|ctx| ctx.add_source_node(source_node_id)).await,
             BacktestNode::Position(node) => node.with_ctx_write(|ctx| ctx.add_source_node(source_node_id)).await,
             BacktestNode::Variable(node) => node.with_ctx_write(|ctx| ctx.add_source_node(source_node_id)).await,
+        }
+    }
+
+    pub async fn output_handles(&self) -> HashMap<HandleId, NodeOutputHandle<BacktestNodeEvent>> {
+        match self {
+            BacktestNode::Start(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
+            BacktestNode::Kline(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
+            BacktestNode::Indicator(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
+            BacktestNode::IfElse(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
+            BacktestNode::FuturesOrder(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
+            BacktestNode::Position(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
+            BacktestNode::Variable(node) => node.with_ctx_read(|ctx| ctx.output_handles().clone()).await,
         }
     }
 

@@ -55,11 +55,7 @@ impl EngineLifecycle for ExchangeEngine {
 
             match action {
                 ExchangeEngineAction::LogTransition => {
-                    tracing::debug!(
-                        "[{engine_name}] state transition: {:?} -> {:?}",
-                        previous_state,
-                        current_state
-                    );
+                    tracing::debug!("[{engine_name}] state transition: {:?} -> {:?}", previous_state, current_state);
                 }
 
                 ExchangeEngineAction::ListenAndHandleEvents => {

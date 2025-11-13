@@ -7,6 +7,7 @@ use chrono::Utc;
 use key::{Key, KeyTrait, KlineKey};
 use star_river_core::kline::Kline;
 use strategy_core::strategy::context_trait::StrategyIdentityExt;
+use virtual_trading::vts_trait::VtsCtxAccessor;
 
 // current crate
 use super::BacktestStrategyContext;
@@ -42,7 +43,8 @@ impl BacktestStrategyContext {
             self.virtual_trading_system
                 .lock()
                 .await
-                .set_kline_price(HashMap::<KlineKey, Kline>::new());
+                .with_ctx_write(|ctx| ctx.set_kline_price(HashMap::<KlineKey, Kline>::new()))
+                .await;
             return Ok(());
         }
 
@@ -60,7 +62,6 @@ impl BacktestStrategyContext {
         tracing::debug!("set min interval symbols: {:?}", min_interval_symbols);
         self.set_min_interval_symbols(min_interval_symbols.clone());
 
-        let mut vts_guard = self.virtual_trading_system().lock().await;
         let mut kline_price = HashMap::with_capacity(min_interval_symbols.len());
         for kline_key in min_interval_symbols {
             kline_price.insert(
@@ -75,7 +76,11 @@ impl BacktestStrategyContext {
                 },
             );
         }
-        vts_guard.set_kline_price(kline_price);
+        self.virtual_trading_system()
+            .lock()
+            .await
+            .with_ctx_write(|ctx| ctx.set_kline_price(kline_price))
+            .await;
         Ok(())
     }
 }

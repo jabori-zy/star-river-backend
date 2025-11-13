@@ -14,7 +14,7 @@ use star_river_event::{
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     communication::strategy::StrategyResponse,
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
 };
 use ta_lib::{Indicator, IndicatorConfig};
 use tokio::sync::oneshot;
@@ -23,7 +23,7 @@ use super::IndicatorNodeContext;
 use crate::{
     node::{
         node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
-        node_event::{BacktestNodeEvent, StartNodeEvent},
+        node_event::BacktestNodeEvent,
     },
     strategy::strategy_command::{
         GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsCommand, UpdateIndicatorDataCmdPayload, UpdateIndicatorDataCommand,
@@ -81,31 +81,44 @@ impl IndicatorNodeContext {
         play_index: i32,
         node_id: &String,
         node_name: &String,
-        to_strategy: bool,
-    ) {
-        let payload = IndicatorUpdatePayload::new(
-            indicator_key.get_exchange(),
-            indicator_key.get_symbol(),
-            indicator_key.get_interval(),
-            config_id.clone(),
-            indicator_key.get_indicator_config(),
-            indicator_key.clone(),
-            indicator_value,
-            play_index,
-        );
-        let indicator_update_event: IndicatorNodeEvent =
-            IndicatorUpdateEvent::new(node_id.clone(), node_name.clone(), handle_id.clone(), payload).into();
+    ) -> Result<(), crate::node::node_error::BacktestNodeError> {
+        // 事件生成闭包
+        let generate_event = |target_handle_id: String| {
+            let payload = IndicatorUpdatePayload::new(
+                indicator_key.get_exchange(),
+                indicator_key.get_symbol(),
+                indicator_key.get_interval(),
+                config_id.clone(),
+                indicator_key.get_indicator_config(),
+                indicator_key.clone(),
+                indicator_value.clone(),
+                play_index,
+            );
+            let indicator_update_event: IndicatorNodeEvent =
+                IndicatorUpdateEvent::new(node_id.clone(), node_name.clone(), target_handle_id, payload).into();
+            let backtest_node_event: BacktestNodeEvent = indicator_update_event.into();
+            backtest_node_event
+        };
 
-        // 发送到指标特定的输出handle（如果存在）
-        let _ = self.output_handle_send(&handle_id, indicator_update_event.clone().into());
+        // 渠道1: 发送到策略绑定输出句柄
+        let strategy_output_handle = self.strategy_bound_handle();
+        let event = generate_event(strategy_output_handle.output_handle_id().clone());
+        self.strategy_bound_handle_send(event)?;
 
-        // 发送到默认输出handle
-        let _ = self.default_output_handle_send(indicator_update_event.clone().into());
-
-        // 发送到strategy
-        if to_strategy {
-            let _ = self.strategy_bound_handle_send(indicator_update_event.into());
+        // 渠道2: 根据节点类型发送到符号特定输出句柄
+        if self.is_leaf_node() {
+            self.send_execute_over_event(self.play_index() as u64, Some(*config_id))?;
+        } else {
+            let event = generate_event(handle_id.clone());
+            self.output_handle_send(&handle_id, event)?;
         }
+
+        // 渠道3: 发送到默认输出句柄
+        let default_output_handle = self.default_output_handle().unwrap();
+        let event = generate_event(default_output_handle.output_handle_id().clone());
+        self.default_output_handle_send(event)?;
+
+        Ok(())
     }
 
     // 处理k线更新事件
@@ -132,7 +145,11 @@ impl IndicatorNodeContext {
                 let kline_series = self.kline_value.get(indicator_key).unwrap();
                 let lookback = self.indicator_lookback.get(indicator_key).unwrap();
                 if kline_series.len() < *lookback + 1 {
-                    self.send_trigger_event(output_handle_id).await;
+                    if self.is_leaf_node() {
+                        self.send_execute_over_event(self.play_index() as u64, Some(*config_id)).unwrap();
+                    } else {
+                        self.send_trigger_event(output_handle_id).await.unwrap();
+                    }
                     cycle_tracker.end_phase(&phase_name);
                     continue;
                 }
@@ -145,7 +162,7 @@ impl IndicatorNodeContext {
                     let update_result = self.update_strategy_indciator_data(indicator_key, last_indicator.clone()).await;
                     if let Ok(()) = update_result {
                         // 使用工具方法发送指标更新事件
-                        self.send_indicator_update_event(
+                        if let Err(e) = self.send_indicator_update_event(
                             output_handle_id.clone(),
                             &indicator_key,
                             &config_id,
@@ -153,12 +170,17 @@ impl IndicatorNodeContext {
                             kline_update_event.play_index,
                             &node_id,
                             &node_name,
-                            true,
-                        );
+                        ) {
+                            tracing::error!(
+                                node_id = %self.node_id(),
+                                node_name = %self.node_name(),
+                                "Failed to send indicator update event: {}", e
+                            );
+                        }
                     }
                 } else {
                     // 发送触发事件
-                    self.send_trigger_event(output_handle_id).await;
+                    self.send_trigger_event(output_handle_id).await.unwrap();
                 }
 
                 // 结束当前指标的追踪
@@ -174,11 +196,11 @@ impl IndicatorNodeContext {
                 // 获取指标缓存数据，增加错误处理
                 let indicator_data = match self.get_indicator_data(&indicator_key, kline_update_event.play_index).await {
                     Ok(data) => data,
-                    Err(e) => continue,
+                    Err(_) => continue,
                 };
 
                 // 使用工具方法发送指标更新事件
-                self.send_indicator_update_event(
+                if let Err(e) = self.send_indicator_update_event(
                     output_handle_id.clone(),
                     &indicator_key,
                     &config_id,
@@ -186,43 +208,24 @@ impl IndicatorNodeContext {
                     kline_update_event.play_index,
                     &node_id,
                     &node_name,
-                    true,
-                );
+                ) {
+                    tracing::error!(
+                        node_id = %self.node_id(),
+                        node_name = %self.node_name(),
+                        "Failed to send indicator update event: {}", e
+                    );
+                }
                 cycle_tracker.end_phase(&phase_name);
             }
         }
 
-        // 发送trigger事件
-        let _ = self.send_execute_over_event();
-
         // 结束周期追踪并记录到 benchmark
         let completed_tracker = cycle_tracker.end();
         // tracing::debug!("{}", completed_tracker.get_cycle_report());
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await;
+        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+            .await
+            .unwrap();
         // tracing::debug!("{}", self.benchmark.report());
-
-        // ========== 调试示例 ==========
-        // 方式1: 打印最近一个周期的详细报告（每个阶段的耗时和占比）
-        // self.print_last_cycle_report();
-
-        // 方式2: 每100个周期打印一次性能报告
-        // if self.benchmark.get_total_cycles() % 100 == 0 {
-        //     let report = self.get_performance_report();
-        //     tracing::info!("\n{}", report);
-        // }
-
-        // 方式3: 检查性能异常
-        // if let Some(warning) = self.check_performance_anomaly() {
-        //     tracing::warn!("{}", warning);
-        // }
-
-        // 方式4: 获取最近5个周期的报告进行分析
-        // let recent_reports = self.get_recent_cycle_reports(5);
-        // for report in recent_reports {
-        //     if let Some((slowest_phase, _)) = report.get_slowest_phase() {
-        //         tracing::debug!("Play {}: slowest phase = {}", report.play_index, slowest_phase);
-        //     }
-        // }
     }
 
     pub async fn get_min_interval_symbols_from_strategy(&mut self) -> Result<Vec<KlineKey>, String> {

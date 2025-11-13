@@ -22,7 +22,7 @@ use strategy_core::{
 };
 use tokio::sync::oneshot;
 use virtual_trading::{
-    event::VirtualTradingSystemEvent,
+    event::VtsEvent,
     types::{VirtualOrder, VirtualTransaction},
 };
 
@@ -42,11 +42,11 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
     type EngineEvent = Event;
 
     async fn handle_engine_event(&mut self, event: Self::EngineEvent) {
-        tracing::info!("[{}] received engine event: {:?}", self.node_name(), event);
+        tracing::info!("@[{}] received engine event: {:?}", self.node_name(), event);
     }
 
     async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
-        tracing::info!("[{}] received node event: {:?}", self.node_name(), node_event);
+        tracing::info!("@[{}] received node event: {:?}", self.node_name(), node_event);
     }
 
     async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
@@ -76,7 +76,7 @@ impl FuturesOrderNodeContext {
     /// 使用第一个有连接的output_handle发送trigger事件
     async fn send_trigger_event_spec(&self) {
         if self.is_leaf_node() {
-            self.send_execute_over_event();
+            self.send_execute_over_event(self.play_index() as u64, None).unwrap();
             return;
         }
         let all_output_handles = self.output_handles();
@@ -113,12 +113,14 @@ impl FuturesOrderNodeContext {
                     }
                     cycle_tracker.end_phase(&phase_name);
                     let completed_tracker = cycle_tracker.end();
-                    self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await;
+                    self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                        .await
+                        .unwrap();
                 }
 
                 _ => {}
             },
-            BacktestNodeEvent::IfElseNode(IfElseNodeEvent::ConditionMatch(condition_match_evt)) => {
+            BacktestNodeEvent::IfElseNode(IfElseNodeEvent::CaseTrue(condition_match_evt)) => {
                 if condition_match_evt.play_index == self.play_index() {
                     let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
                     // 根据input_handle_id获取订单配置
@@ -151,12 +153,16 @@ impl FuturesOrderNodeContext {
                         self.send_trigger_event_spec().await;
                         cycle_tracker.end_phase(&phase_name);
                         let completed_tracker = cycle_tracker.end();
-                        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await;
+                        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                            .await
+                            .unwrap();
                         return Err(e);
                     }
                     cycle_tracker.end_phase(&phase_name);
                     let completed_tracker = cycle_tracker.end();
-                    self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker).await;
+                    self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                        .await
+                        .unwrap();
                 } else {
                     tracing::warn!("{}: 当前k线缓存索引不匹配, 跳过", self.node_id());
                 }
@@ -166,7 +172,7 @@ impl FuturesOrderNodeContext {
         Ok(())
     }
 
-    pub(super) async fn send_order_status_event(&mut self, virtual_order: VirtualOrder, event_type: &VirtualTradingSystemEvent) {
+    pub(super) async fn send_order_status_event(&mut self, virtual_order: VirtualOrder, event_type: &VtsEvent) {
         let order_status = &virtual_order.order_status;
         let node_id = self.node_id().clone();
         let order_status_output_handle_id = format!("{}_{}_output_{}", node_id, order_status.to_string(), virtual_order.order_config_id);
@@ -222,50 +228,50 @@ impl FuturesOrderNodeContext {
         &self,
         output_handle_id: String,
         virtual_order: VirtualOrder,
-        event_type: &VirtualTradingSystemEvent,
+        event_type: &VtsEvent,
     ) -> Option<FuturesOrderNodeEvent> {
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
 
         let order_event: Option<FuturesOrderNodeEvent> = match event_type {
             // 期货订单事件
-            VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
+            VtsEvent::FuturesOrderCreated(_) => {
                 let payload = FuturesOrderCreatedPayload::new(virtual_order.clone());
                 Some(FuturesOrderCreatedEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
-            VirtualTradingSystemEvent::FuturesOrderFilled(_) => {
+            VtsEvent::FuturesOrderFilled(_) => {
                 let payload = FuturesOrderFilledPayload::new(virtual_order.clone());
                 Some(FuturesOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
-            VirtualTradingSystemEvent::FuturesOrderCanceled(_) => {
+            VtsEvent::FuturesOrderCanceled(_) => {
                 let payload = FuturesOrderCanceledPayload::new(virtual_order.clone());
                 Some(FuturesOrderCanceledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
 
             // 止盈订单事件
-            VirtualTradingSystemEvent::TakeProfitOrderCreated(_) => {
+            VtsEvent::TakeProfitOrderCreated(_) => {
                 let payload = TakeProfitOrderCreatedPayload::new(virtual_order.clone());
                 Some(TakeProfitOrderCreatedEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
-            VirtualTradingSystemEvent::TakeProfitOrderFilled(_) => {
+            VtsEvent::TakeProfitOrderFilled(_) => {
                 let payload = TakeProfitOrderFilledPayload::new(virtual_order.clone());
                 Some(TakeProfitOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
-            VirtualTradingSystemEvent::TakeProfitOrderCanceled(_) => {
+            VtsEvent::TakeProfitOrderCanceled(_) => {
                 let payload = TakeProfitOrderCanceledPayload::new(virtual_order.clone());
                 Some(TakeProfitOrderCanceledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
 
             // 止损订单事件
-            VirtualTradingSystemEvent::StopLossOrderCreated(_) => {
+            VtsEvent::StopLossOrderCreated(_) => {
                 let payload = StopLossOrderCreatedPayload::new(virtual_order.clone());
                 Some(StopLossOrderCreatedEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
-            VirtualTradingSystemEvent::StopLossOrderFilled(_) => {
+            VtsEvent::StopLossOrderFilled(_) => {
                 let payload = StopLossOrderFilledPayload::new(virtual_order.clone());
                 Some(StopLossOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
-            VirtualTradingSystemEvent::StopLossOrderCanceled(_) => {
+            VtsEvent::StopLossOrderCanceled(_) => {
                 let payload = StopLossOrderCanceledPayload::new(virtual_order.clone());
                 Some(StopLossOrderCanceledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
             }
@@ -275,20 +281,17 @@ impl FuturesOrderNodeContext {
     }
 
     // 处理虚拟交易系统事件
-    pub(crate) async fn handle_virtual_trading_system_event(
-        &mut self,
-        virtual_trading_system_event: VirtualTradingSystemEvent,
-    ) -> Result<(), String> {
+    pub(crate) async fn handle_vts_event(&mut self, virtual_trading_system_event: VtsEvent) -> Result<(), String> {
         let order: Option<&VirtualOrder> = match &virtual_trading_system_event {
-            VirtualTradingSystemEvent::FuturesOrderCreated(order)
-            | VirtualTradingSystemEvent::FuturesOrderFilled(order)
-            | VirtualTradingSystemEvent::FuturesOrderCanceled(order)
-            | VirtualTradingSystemEvent::TakeProfitOrderCreated(order)
-            | VirtualTradingSystemEvent::TakeProfitOrderFilled(order)
-            | VirtualTradingSystemEvent::TakeProfitOrderCanceled(order)
-            | VirtualTradingSystemEvent::StopLossOrderCreated(order)
-            | VirtualTradingSystemEvent::StopLossOrderFilled(order)
-            | VirtualTradingSystemEvent::StopLossOrderCanceled(order) => Some(order),
+            VtsEvent::FuturesOrderCreated(order)
+            | VtsEvent::FuturesOrderFilled(order)
+            | VtsEvent::FuturesOrderCanceled(order)
+            | VtsEvent::TakeProfitOrderCreated(order)
+            | VtsEvent::TakeProfitOrderFilled(order)
+            | VtsEvent::TakeProfitOrderCanceled(order)
+            | VtsEvent::StopLossOrderCreated(order)
+            | VtsEvent::StopLossOrderFilled(order)
+            | VtsEvent::StopLossOrderCanceled(order) => Some(order),
             _ => None,
         };
 
@@ -296,7 +299,7 @@ impl FuturesOrderNodeContext {
             if order.node_id == self.node_id().clone() {
                 let input_handle_id = format!("{}_input_{}", self.node_id(), order.order_config_id);
                 match virtual_trading_system_event {
-                    VirtualTradingSystemEvent::FuturesOrderCreated(_) => {
+                    VtsEvent::FuturesOrderCreated(_) => {
                         tracing::debug!("[{}] receive futures order created event", self.node_name());
                         self.add_unfilled_virtual_order(&input_handle_id, order.clone()).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
@@ -320,7 +323,7 @@ impl FuturesOrderNodeContext {
                         let _ = self.strategy_bound_handle_send(log_event.into());
                     }
 
-                    VirtualTradingSystemEvent::FuturesOrderFilled(_) => {
+                    VtsEvent::FuturesOrderFilled(_) => {
                         self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
                         self.add_virtual_order_history(&input_handle_id, order.clone()).await;
                         self.set_is_processing_order(&input_handle_id, false).await;
@@ -340,7 +343,7 @@ impl FuturesOrderNodeContext {
                         let _ = self.strategy_bound_handle_send(log_event.into());
                     }
 
-                    VirtualTradingSystemEvent::FuturesOrderCanceled(_) => {
+                    VtsEvent::FuturesOrderCanceled(_) => {
                         self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
                         self.add_virtual_order_history(&input_handle_id, order.clone()).await;
                         self.set_is_processing_order(&input_handle_id, false).await;
@@ -361,12 +364,12 @@ impl FuturesOrderNodeContext {
                     }
 
                     // 只是发送事件
-                    VirtualTradingSystemEvent::TakeProfitOrderCreated(_)
-                    | VirtualTradingSystemEvent::TakeProfitOrderFilled(_)
-                    | VirtualTradingSystemEvent::TakeProfitOrderCanceled(_)
-                    | VirtualTradingSystemEvent::StopLossOrderCreated(_)
-                    | VirtualTradingSystemEvent::StopLossOrderFilled(_)
-                    | VirtualTradingSystemEvent::StopLossOrderCanceled(_) => {
+                    VtsEvent::TakeProfitOrderCreated(_)
+                    | VtsEvent::TakeProfitOrderFilled(_)
+                    | VtsEvent::TakeProfitOrderCanceled(_)
+                    | VtsEvent::StopLossOrderCreated(_)
+                    | VtsEvent::StopLossOrderFilled(_)
+                    | VtsEvent::StopLossOrderCanceled(_) => {
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                     }
 
@@ -376,7 +379,7 @@ impl FuturesOrderNodeContext {
         }
 
         let transaction: Option<&VirtualTransaction> = match &virtual_trading_system_event {
-            VirtualTradingSystemEvent::TransactionCreated(transaction) => Some(transaction),
+            VtsEvent::TransactionCreated(transaction) => Some(transaction),
             _ => None,
         };
 

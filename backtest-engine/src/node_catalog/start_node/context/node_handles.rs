@@ -17,6 +17,6 @@ impl NodeHandleExt for StartNodeContext {
         let (tx, _) = broadcast::channel::<Self::NodeEvent>(100);
         let default_output_handle_id = generate_default_output_handle_id(&node_id);
         tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
-        self.add_output_handle(default_output_handle_id, tx);
+        self.add_output_handle(true, default_output_handle_id, tx);
     }
 }

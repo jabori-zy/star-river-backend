@@ -18,11 +18,11 @@ use strategy_core::{
     node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
 };
 use tokio::sync::{Mutex, RwLock, mpsc};
-use virtual_trading::VirtualTradingSystem;
 
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_state_machine::NodeRunState},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    virtual_trading_system::BacktestVts,
 };
 
 #[derive(Debug, Clone)]
@@ -53,7 +53,7 @@ impl PositionNode {
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        virtual_trading_system: Arc<Mutex<VirtualTradingSystem>>,
+        virtual_trading_system: Arc<Mutex<BacktestVts>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_position_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id);

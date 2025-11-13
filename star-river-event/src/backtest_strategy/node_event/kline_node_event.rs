@@ -16,13 +16,6 @@ pub enum KlineNodeEvent {
     #[serde(rename = "kline-update-event")]
     KlineUpdate(KlineUpdateEvent),
 
-    // #[strum(serialize = "state-log-event")]
-    // #[serde(rename = "state-log-event")]
-    // StateLog(NodeStateLogEvent),
-
-    // #[strum(serialize = "running-log-event")]
-    // #[serde(rename = "running-log-event")]
-    // RunningLog(StrategyRunningLogEvent),
     #[strum(serialize = "time-update-event")]
     #[serde(rename = "time-update-event")]
     TimeUpdate(TimeUpdateEvent),

@@ -5,22 +5,19 @@ use key::{KeyTrait, KlineKey};
 use snafu::{IntoError, Report};
 use star_river_core::kline::Kline;
 use star_river_event::backtest_strategy::node_event::{
-    kline_node_event::{TimeUpdateEvent, TimeUpdatePayload},
+    kline_node_event::{KlineUpdateEvent, KlineUpdatePayload, TimeUpdateEvent, TimeUpdatePayload},
     start_node_event::KlinePlayEvent,
 };
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
-    node::{
-        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
-        node_handles::NodeOutputHandle,
-    },
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
 };
 use tokio::sync::oneshot;
 
 // current crate
 use super::{KlineNodeContext, utils::is_cross_interval};
 // workspace crate
-use crate::strategy::PlayIndex;
+use crate::{node::node_error::BacktestNodeError, strategy::PlayIndex};
 use crate::{
     node::{
         node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
@@ -84,11 +81,11 @@ impl KlineNodeContext {
                 cycle_tracker.end_phase(&phase_name);
             }
 
-            if index == exchange_mode_config.selected_symbols.len() - 1 {
-                if self.is_leaf_node() {
-                    self.send_execute_over_event().unwrap();
-                }
-            }
+            // if index == exchange_mode_config.selected_symbols.len() - 1 {
+            //     if self.is_leaf_node() {
+            //         self.send_execute_over_event().unwrap();
+            //     }
+            // }
         }
         let completed_tracker = cycle_tracker.end();
         self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
@@ -104,36 +101,39 @@ impl KlineNodeContext {
         should_calculate: bool,
         play_index: PlayIndex,
         kline_data: Kline,
-    ) {
-        let send_kline_event = |handle_id: String, output_handle: &NodeOutputHandle<BacktestNodeEvent>| {
-            let kline_update_event = self.get_kline_update_event(
-                handle_id,
+    ) -> Result<(), BacktestNodeError> {
+        let generate_event = |handle_id: String| {
+            let payload = KlineUpdatePayload::new(
                 symbol_info.0.clone(),
-                should_calculate,
-                kline_key,
                 play_index,
+                should_calculate,
+                kline_key.clone(),
                 kline_data.clone(),
             );
-            let kline_node_event = BacktestNodeEvent::KlineNode(kline_update_event);
-            let _ = output_handle.send(kline_node_event);
+            let kline_update_event: KlineNodeEvent =
+                KlineUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id, payload).into();
+            let backtest_node_event: BacktestNodeEvent = kline_update_event.into();
+            backtest_node_event
         };
-
-        // 发送到交易对特定的输出handle
-        let symbol_handle_id = symbol_info.1.clone();
-        let symbol_output_handle = self.output_handle(&symbol_handle_id).unwrap();
-        if symbol_output_handle.is_connected() {
-            send_kline_event(symbol_handle_id, symbol_output_handle);
-        }
-
-        // 发送到默认输出handle
-        let default_output_handle = self.default_output_handle().unwrap();
-        if default_output_handle.is_connected() {
-            send_kline_event(default_output_handle.output_handle_id().clone(), default_output_handle);
-        }
 
         // 发送到策略输出handle
         let strategy_output_handle = self.strategy_bound_handle();
-        send_kline_event(strategy_output_handle.output_handle_id().clone(), strategy_output_handle);
+        let event = generate_event(strategy_output_handle.output_handle_id().clone());
+        self.strategy_bound_handle_send(event)?;
+
+        let symbol_handle_id = symbol_info.1.clone();
+        if self.is_leaf_node() {
+            self.send_execute_over_event(self.play_index() as u64, Some(symbol_info.0))?;
+        } else {
+            let event = generate_event(symbol_handle_id.clone());
+            self.output_handle_send(&symbol_handle_id, event)?;
+        }
+
+        //
+        let default_output_handle = self.default_output_handle().unwrap();
+        let event = generate_event(default_output_handle.output_handle_id().clone());
+        self.default_output_handle_send(event)?;
+        Ok(())
     }
 
     // 处理插值算法的独立方法
@@ -222,7 +222,8 @@ impl KlineNodeContext {
 
         if response.is_success() {
             // 发送K线事件
-            self.send_kline_events(symbol_info, symbol_key, true, current_play_index, min_interval_kline.clone());
+            self.send_kline_events(symbol_info, symbol_key, true, current_play_index, min_interval_kline.clone())
+                .unwrap();
             Ok(())
         } else {
             let error = response.error().unwrap();
@@ -275,7 +276,8 @@ impl KlineNodeContext {
 
             if response.is_success() {
                 // 使用通用方法发送K线事件
-                self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline);
+                self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline)
+                    .unwrap();
                 Ok(())
             } else {
                 let error = response.error().unwrap();
@@ -293,7 +295,7 @@ impl KlineNodeContext {
         }
     }
 
-    // 处理最小周期K线
+    // handle min interval kline (get kline from strategy)
     async fn handle_min_interval_kline(
         &self,
         symbol_key: &KlineKey,
@@ -330,7 +332,8 @@ impl KlineNodeContext {
         }
 
         // 使用通用方法发送K线事件
-        self.send_kline_events(symbol_info, symbol_key, false, current_play_index, kline.last().unwrap().clone());
+        self.send_kline_events(symbol_info, symbol_key, false, current_play_index, kline.last().unwrap().clone())
+            .unwrap();
 
         Ok(())
     }
