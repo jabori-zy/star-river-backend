@@ -9,11 +9,13 @@ pub enum IfElseNodeEvent {
     CaseTrue(CaseTrueEvent),
     CaseFalse(CaseFalseEvent),
     ElseTrue(ElseTrueEvent),
+    ElseFalse(ElseFalseEvent),
 }
 
 pub type CaseTrueEvent = NodeEvent<CaseTruePayload>;
 pub type CaseFalseEvent = NodeEvent<CaseFalsePayload>;
 pub type ElseTrueEvent = NodeEvent<ElseTruePayload>;
+pub type ElseFalseEvent = NodeEvent<ElseFalsePayload>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaseTruePayload {
@@ -48,6 +50,18 @@ pub struct ElseTruePayload {
 }
 
 impl ElseTruePayload {
+    pub fn new(play_index: i32) -> Self {
+        Self { play_index }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElseFalsePayload {
+    #[serde(rename = "playIndex")]
+    pub play_index: i32,
+}
+
+impl ElseFalsePayload {
     pub fn new(play_index: i32) -> Self {
         Self { play_index }
     }

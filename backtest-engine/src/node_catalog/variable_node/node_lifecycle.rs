@@ -127,7 +127,7 @@ impl NodeLifecycle for VariableNode {
                     )
                     .await;
 
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
                 VariableNodeAction::LogError(error) => {
                     tracing::error!("[{node_name}] error occurred: {}", error);

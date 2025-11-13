@@ -24,7 +24,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
         tracing::info!("[{}] received engine event: {:?}", self.node_name(), event);
     }
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) {
         match node_event {
             BacktestNodeEvent::IfElseNode(if_else_node_event) => {
                 match if_else_node_event {
@@ -44,12 +44,11 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             .await
                             .unwrap();
                     }
-                    IfElseNodeEvent::CaseFalse(not_match_event) => {
-                        tracing::debug!("[{}] received node event: {:?}", self.node_name(), not_match_event);
+                    IfElseNodeEvent::CaseFalse(case_false_event) => {
                         let configs = filter_case_trigger_configs(
                             self.node_config.variable_configs.iter(),
-                            not_match_event.case_id,
-                            not_match_event.from_node_id(),
+                            case_false_event.case_id,
+                            case_false_event.from_node_id(),
                         );
                         if self.is_leaf_node() {
                             configs.iter().for_each(|config| {
@@ -70,6 +69,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             .await
                             .unwrap();
                     }
+                    _ => {}
                 }
             }
             // k线更新，处理dataflow
@@ -110,7 +110,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
         }
     }
 
-    async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {

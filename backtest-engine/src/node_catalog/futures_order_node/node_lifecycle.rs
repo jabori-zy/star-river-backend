@@ -161,7 +161,7 @@ impl NodeLifecycle for FuturesOrderNode {
                     .await;
                     self.listen_source_node_events_spec().await;
                 }
-                FuturesOrderNodeAction::ListenAndHandleStrategyCommand => {
+                FuturesOrderNodeAction::ListenAndHandleCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
                     NodeUtils::send_success_status_event(
@@ -170,11 +170,11 @@ impl NodeLifecycle for FuturesOrderNode {
                         node_name.clone(),
                         log_message.to_string(),
                         current_state.to_string(),
-                        FuturesOrderNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        FuturesOrderNodeAction::ListenAndHandleCommand.to_string(),
                         &strategy_output_handle,
                     )
                     .await;
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
 
                 FuturesOrderNodeAction::ListenAndHandleVtsEvent => {

@@ -29,8 +29,10 @@ use virtual_trading::{
 use super::FuturesOrderNodeContext;
 use crate::{
     node::{
-        node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
-        node_error::{FuturesOrderNodeError, futures_order_node_error::OrderConfigNotFoundSnafu},
+        node_command::{
+            BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
+        },
+        node_error::futures_order_node_error::OrderConfigNotFoundSnafu,
         node_event::BacktestNodeEvent,
         node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
     },
@@ -41,15 +43,11 @@ use crate::{
 impl NodeEventHandlerExt for FuturesOrderNodeContext {
     type EngineEvent = Event;
 
-    async fn handle_engine_event(&mut self, event: Self::EngineEvent) {
-        tracing::info!("@[{}] received engine event: {:?}", self.node_name(), event);
-    }
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) {}
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
-        tracing::info!("@[{}] received node event: {:?}", self.node_name(), node_event);
-    }
+    async fn handle_source_node_event(&mut self, _node_event: BacktestNodeEvent) {}
 
-    async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -64,6 +62,15 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
 
                     let payload = NodeResetRespPayload;
                     let response = NodeResetResponse::success(self.node_id().clone(), payload);
+                    cmd.respond(response);
+                }
+            }
+            BacktestNodeCommand::GetFuturesOrderConfig(cmd) => {
+                tracing::debug!("@[{}] received get futures order config command", self.node_name());
+                if cmd.node_id() == self.node_id() {
+                    let futures_order_node_config = self.node_config.clone();
+                    let payload = GetFuturesOrderConfigRespPayload::new(futures_order_node_config);
+                    let response = GetFuturesOrderConfigResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
                 }
             }
@@ -100,8 +107,8 @@ impl FuturesOrderNodeContext {
         &mut self,
         node_event: BacktestNodeEvent,
         input_handle_id: &InputHandleId,
-    ) -> Result<(), FuturesOrderNodeError> {
-        // tracing::debug!("{}: 接收器 {} 接收到节点事件: {:?}", self.node_id(), input_handle_id, node_event);
+        order_config_id: i32,
+    ) {
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(trigger_evt) => {
@@ -120,56 +127,59 @@ impl FuturesOrderNodeContext {
 
                 _ => {}
             },
-            BacktestNodeEvent::IfElseNode(IfElseNodeEvent::CaseTrue(condition_match_evt)) => {
-                if condition_match_evt.play_index == self.play_index() {
-                    let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
-                    // 根据input_handle_id获取订单配置
-                    //"if_else_node_1761319649542_p2q1x2e_output_1"
-                    // 取最后一个_后面的数字
-                    let order_config = input_handle_id.split("_").last().unwrap();
-                    let order_config_id = order_config.parse::<i32>().unwrap();
-                    let phase_name = format!("handle condition match event for order {}", order_config_id);
-                    cycle_tracker.start_phase(&phase_name);
+            BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
+                match ifelse_node_event {
+                    IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
+                        let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
 
-                    // 根据input_handle_id获取订单配置
-                    let order_config = {
-                        self.node_config
-                            .futures_order_configs
-                            .iter()
-                            .find(|config| config.input_handle_id == *input_handle_id)
-                            .ok_or(
-                                OrderConfigNotFoundSnafu {
-                                    input_handle_id: input_handle_id.to_string(),
-                                }
-                                .build(),
-                            )?
-                            .clone()
-                    };
+                        let phase_name = format!("handle condition match event for order {}", order_config_id);
+                        cycle_tracker.start_phase(&phase_name);
 
-                    // 创建订单
-                    let create_order_result = self.create_order(&order_config).await;
-                    if let Err(e) = create_order_result {
-                        // 发送trigger事件
-                        self.send_trigger_event_spec().await;
+                        // 根据input_handle_id获取订单配置
+                        let order_config = {
+                            self.node_config
+                                .futures_order_configs
+                                .iter()
+                                .find(|config| config.input_handle_id == *input_handle_id)
+                                .ok_or(
+                                    OrderConfigNotFoundSnafu {
+                                        input_handle_id: input_handle_id.to_string(),
+                                    }
+                                    .build(),
+                                )
+                                .unwrap()
+                                .clone()
+                        };
+
+                        // 创建订单
+                        let create_order_result = self.create_order(&order_config).await;
+                        if let Err(_) = create_order_result {
+                            // 发送trigger事件
+                            self.send_trigger_event_spec().await;
+                            cycle_tracker.end_phase(&phase_name);
+                            let completed_tracker = cycle_tracker.end();
+                            self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                                .await
+                                .unwrap();
+                            return;
+                        }
                         cycle_tracker.end_phase(&phase_name);
                         let completed_tracker = cycle_tracker.end();
                         self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
                             .await
                             .unwrap();
-                        return Err(e);
                     }
-                    cycle_tracker.end_phase(&phase_name);
-                    let completed_tracker = cycle_tracker.end();
-                    self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
-                        .await
-                        .unwrap();
-                } else {
-                    tracing::warn!("{}: 当前k线缓存索引不匹配, 跳过", self.node_id());
+                    IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
+                        tracing::debug!("@[{}] receive event {}", self.node_name(), order_config_id);
+                        if self.is_leaf_node() {
+                            self.send_execute_over_event(self.play_index() as u64, Some(order_config_id))
+                                .unwrap();
+                        }
+                    }
                 }
             }
             _ => {}
         }
-        Ok(())
     }
 
     pub(super) async fn send_order_status_event(&mut self, virtual_order: VirtualOrder, event_type: &VtsEvent) {

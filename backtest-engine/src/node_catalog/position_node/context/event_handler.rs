@@ -19,7 +19,7 @@ impl NodeEventHandlerExt for PositionNodeContext {
         tracing::info!("[{}] received engine event: {:?}", self.node_name(), event);
     }
 
-    async fn handle_node_event(&mut self, node_event: Self::NodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: Self::NodeEvent) {
         match node_event {
             BacktestNodeEvent::Common(signal_event) => match signal_event {
                 CommonEvent::Trigger(_) => {
@@ -52,7 +52,7 @@ impl NodeEventHandlerExt for PositionNodeContext {
         }
     }
 
-    async fn handle_node_command(&mut self, node_command: BacktestNodeCommand) {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {

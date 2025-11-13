@@ -152,7 +152,7 @@ impl NodeLifecycle for IfElseNode {
                         &strategy_output_handle,
                     )
                     .await;
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
 
                 IfElseNodeAction::CancelAsyncTask => {

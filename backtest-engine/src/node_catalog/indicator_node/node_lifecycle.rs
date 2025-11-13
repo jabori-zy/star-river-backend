@@ -124,7 +124,7 @@ impl NodeLifecycle for IndicatorNode {
                     )
                     .await;
 
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
 
                 IndicatorNodeAction::InitIndicatorLookback => {

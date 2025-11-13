@@ -6,7 +6,11 @@ use snafu::OptionExt;
 use strategy_core::{
     NodeType,
     error::strategy_error::{NodeNotFoundByIndexSnafu, StrategyError},
-    node::NodeTrait,
+    node::{
+        NodeTrait,
+        context_trait::{NodeHandleExt, NodeIdentityExt},
+        node_trait::NodeContextAccessor,
+    },
     strategy::{
         context_trait::{StrategyIdentityExt, StrategyWorkflowExt},
         leaf_node_execution_tracker::LeafNodeExecutionInfo,
@@ -15,9 +19,10 @@ use strategy_core::{
 
 // current crate
 use super::BacktestStrategyContext;
+use crate::{node::BacktestNode, strategy::strategy_error::BacktestStrategyError};
 
 impl BacktestStrategyContext {
-    pub async fn build_leaf_nodes(&mut self) -> Result<(), StrategyError> {
+    pub async fn build_leaf_nodes(&mut self) -> Result<(), BacktestStrategyError> {
         let leaf_nodes: Vec<NodeIndex> = self.get_leaf_node_indexs();
         let strategy_name = self.strategy_name().clone();
         let mut leaf_node_ids = Vec::new();
@@ -32,18 +37,26 @@ impl BacktestStrategyContext {
             leaf_node_ids.push(node_id.clone());
 
             // if the node type is if else node, the count == 1
-            let execute_complete_event_expected_count = if node.node_type().await == NodeType::IfElseNode {
-                1
+            // Because if-else nodes are executed sequentially, only one case will send a message in a single loop.
+            let execute_complete_event_expected_count = if node.node_type().await == NodeType::FuturesOrderNode {
+                match node {
+                    BacktestNode::FuturesOrder(futures_order_node) => {
+                        let (node_name, node_config, input_handles) = futures_order_node
+                            .with_ctx_read(|ctx| (ctx.node_name().to_string(), ctx.node_config().clone(), ctx.input_handles().to_vec()))
+                            .await;
+                        let config_count = node_config.futures_order_configs.len();
+                        let input_handles_count = input_handles.len();
+                        if input_handles_count == config_count {
+                            config_count
+                        } else {
+                            tracing::warn!("@[{node_name}] have {config_count} order configs, but only {input_handles_count} is connected");
+                            input_handles_count
+                        }
+                    }
+                    _ => 0,
+                }
             } else {
-                node.output_handles()
-                    .await
-                    .values()
-                    .filter(
-                        |handle: &&strategy_core::node::node_handles::NodeOutputHandle<crate::node::node_event::BacktestNodeEvent>| {
-                            !handle.is_default()
-                        },
-                    )
-                    .count()
+                node.output_handles().await.values().filter(|handle| !handle.is_default()).count()
             };
             let info = LeafNodeExecutionInfo::new(node_id.clone(), execute_complete_event_expected_count as i32);
             leaf_node_execution_info.insert(node_id.clone(), info);

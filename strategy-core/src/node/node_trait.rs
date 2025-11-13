@@ -178,19 +178,19 @@ where
         use futures::{StreamExt, stream::select_all};
         use tokio_stream::wrappers::BroadcastStream;
 
-        let (input_handles, cancel_token, node_id) = self
+        let (input_handles, cancel_token, node_name) = self
             .with_ctx_write_async(|ctx| {
                 Box::pin(async move {
                     let input_handles = ctx.input_handles().to_vec();
                     let cancel_token = ctx.cancel_token().clone();
-                    let node_id = ctx.node_id().to_string();
-                    (input_handles, cancel_token, node_id)
+                    let node_name = ctx.node_name().to_string();
+                    (input_handles, cancel_token, node_name)
                 })
             })
             .await;
 
         if input_handles.is_empty() {
-            tracing::warn!("{}: 没有消息接收器", node_id);
+            tracing::warn!("@[{}] have no input handles", node_name);
             return;
         }
 
@@ -203,13 +203,14 @@ where
         let mut combined_stream = select_all(streams);
         let context = self.context().clone();
 
+        tracing::debug!("@[{}] start to listen source node events", node_name);
         // 节点接收数据
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 节点消息监听任务已中止", node_id);
+                        tracing::info!("@[{}] source node events listener task cancelled", node_name);
                         break;
                     }
                     // 接收消息
@@ -218,13 +219,13 @@ where
                             Some(Ok(message)) => {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut context_guard = context.write().await;
-                                context_guard.handle_node_event(message).await;
+                                context_guard.handle_source_node_event(message).await;
                             }
                             Some(Err(e)) => {
-                                tracing::error!("节点{}接收消息错误: {}", node_id, e);
+                                tracing::error!("@[{}] receive source node event error: {}", node_name, e);
                             }
                             None => {
-                                tracing::warn!("节点{}所有消息流已关闭", node_id);
+                                tracing::warn!("@[{}] all source node event streams are closed", node_name);
                                 break;
                             }
                         }
@@ -237,27 +238,27 @@ where
     /// 监听策略命令
     ///
     /// 监听来自策略层的控制命令
-    async fn listen_node_command(&self) {
-        let (node_command_receiver, cancel_token, node_id) = self
+    async fn listen_command(&self) {
+        let (node_command_receiver, cancel_token, node_name) = self
             .with_ctx_write_async(|ctx| {
                 Box::pin(async move {
                     let receiver = ctx.node_command_receiver();
                     let cancel_token = ctx.cancel_token().clone();
-                    let node_id = ctx.node_id().to_string();
-                    (receiver, cancel_token, node_id)
+                    let node_name = ctx.node_name().to_string();
+                    (receiver, cancel_token, node_name)
                 })
             })
             .await;
 
         let context = self.context().clone();
-
+        tracing::debug!("@[{}] start to listen command", node_name);
         // 节点接收数据
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 策略命令监听任务已中止", node_id);
+                        tracing::info!("@[{}] command listener task cancelled", node_name);
                         break;
                     }
 
@@ -266,7 +267,7 @@ where
 
                         if let Some(received_command) = command_receiver_guard.recv().await {
                             let mut context_guard = context.write().await;
-                            context_guard.handle_node_command(received_command).await;
+                            context_guard.handle_command(received_command).await;
                         }
                     } => {}
                 }

@@ -11,11 +11,6 @@ impl NodeHandleExt for FuturesOrderNodeContext {
         let node_name = self.node_name().clone();
         let futures_order_configs = self.node_config.futures_order_configs.clone();
 
-        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-        let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        self.add_output_handle(false, strategy_output_handle_id, tx);
-
         // 为每一个订单添加出口
         for order_config in futures_order_configs.iter() {
             let all_output_handle_id = format!("{}_all_status_output_{}", node_id, order_config.order_config_id);

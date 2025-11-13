@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
+use star_river_core::{
+    custom_type::{NodeId, NodeName},
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
+};
 use strategy_core::error::{StrategyError, strategy_state_machine_error::StrategyStateMachineError};
 
 use crate::node::node_error::BacktestNodeError;
@@ -68,6 +71,14 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
+    #[snafu(display("#[{strategy_name}] get node @[{node_name}] config failed"))]
+    GetNodeConfigFailed {
+        strategy_name: String,
+        node_name: NodeName,
+        source: Arc<dyn StarRiverErrorTrait>,
+        backtrace: Backtrace,
+    },
+
     #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
     KlineDataLengthNotSame { strategy_name: String, backtrace: Backtrace },
 
@@ -110,6 +121,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::KlineDataLengthNotSame { .. } => 1012,     // kline数据长度不相同
             BacktestStrategyError::KlineKeyNotFound { .. } => 1013,           // kline key未找到
             BacktestStrategyError::PlayIndexOutOfRange { .. } => 1014,        // 播放索引超出范围
+            BacktestStrategyError::GetNodeConfigFailed { .. } => 1015,        // 获取节点配置失败
         };
         format!("{prefix}_{code:04}")
     }
@@ -125,7 +137,8 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::GetDataFailed { .. }
             | BacktestStrategyError::GetDataByDatetimeFailed { .. }
             | BacktestStrategyError::KlineDataLengthNotSame { .. }
-            | BacktestStrategyError::PlayIndexOutOfRange { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | BacktestStrategyError::PlayIndexOutOfRange { .. }
+            | BacktestStrategyError::GetNodeConfigFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             // 客户端错误 - 配置/数据问题 (400)
             BacktestStrategyError::GetStartNodeConfigFailed { .. } | BacktestStrategyError::IntervalNotSame { .. } => {
@@ -203,7 +216,12 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                     play_index,
                     ..
                 } => {
-                    format!("策略 [{strategy_name}] 播放索引超出范围: k线数据长度: {kline_data_length}, 播放索引: {play_index}")
+                    format!("#[{strategy_name}] 播放索引超出范围: k线数据长度: {kline_data_length}, 播放索引: {play_index}")
+                }
+                BacktestStrategyError::GetNodeConfigFailed {
+                    strategy_name, node_name, ..
+                } => {
+                    format!("#[{strategy_name}] 获取节点 @[{node_name}] 配置失败")
                 }
             },
         }

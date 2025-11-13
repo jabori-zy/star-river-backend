@@ -41,7 +41,7 @@ pub struct FuturesOrderConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FuturesOrderNodeBacktestConfig {
+pub struct FuturesOrderNodeConfig {
     #[serde(rename = "dataSource")]
     pub data_source: BacktestDataSource,
 

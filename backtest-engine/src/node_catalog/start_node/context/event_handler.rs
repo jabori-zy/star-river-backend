@@ -27,11 +27,11 @@ impl NodeEventHandlerExt for StartNodeContext {
     }
 
     /// 处理节点事件
-    async fn handle_node_event(&mut self, node_event: Self::NodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: Self::NodeEvent) {
         tracing::info!("[{}] received node event: {:?}", self.node_name(), node_event);
     }
 
-    async fn handle_node_command(&mut self, node_command: Self::NodeCommand) {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::GetStartNodeConfig(cmd) => {
                 let start_node_config = self.node_config.read().await.clone();
@@ -47,6 +47,7 @@ impl NodeEventHandlerExt for StartNodeContext {
                     cmd.respond(response);
                 }
             }
+            _ => {}
         }
     }
 }

@@ -144,7 +144,7 @@ impl NodeLifecycle for PositionNode {
                     )
                     .await;
 
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
                 PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent => {
                     tracing::info!("[{node_name}] start to listen virtual trading system events");

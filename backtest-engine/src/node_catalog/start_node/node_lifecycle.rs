@@ -72,7 +72,7 @@ impl NodeLifecycle for StartNode {
                     )
                     .into();
                     let _ = strategy_output_handle.send(log_event.into());
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
                 StartNodeAction::ListenAndHandlePlayIndex => {
                     let log_message = ListenPlayIndexChangeMsg::new(node_name.clone());

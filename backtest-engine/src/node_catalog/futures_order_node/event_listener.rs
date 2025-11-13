@@ -29,11 +29,14 @@ impl FuturesOrderNode {
             let cancel_token = cancel_token.clone();
             let node_name = node_name.clone();
             let input_handle_id = input_handle.input_handle_id.clone();
+            let order_config = input_handle_id.split("_").last().unwrap();
+            let order_config_id = order_config.parse::<i32>().unwrap();
 
             // 为每个接收器创建独立的监听流
             let mut stream = BroadcastStream::new(input_handle.receiver());
 
             let context = context.clone();
+            tracing::debug!("@[{}] start to listen source node events for order {}", node_name, order_config_id);
             tokio::spawn(async move {
                 loop {
                     tokio::select! {
@@ -47,14 +50,12 @@ impl FuturesOrderNode {
                             match receive_result {
                                 Some(Ok(node_event)) => {
                                     // 根据订单配置处理特定订单的事件
-
                                     let mut context_guard = context.write().await;
-                                    if let Err(e) = context_guard.handle_node_event_for_specific_order(
+                                    context_guard.handle_node_event_for_specific_order(
                                         node_event,
-                                        &input_handle_id
-                                    ).await {
-                                        tracing::error!("@[{}] handle specific order event error: {}", node_name, e);
-                                    }
+                                        &input_handle_id,
+                                        order_config_id
+                                    ).await;
                                 }
                                 Some(Err(e)) => {
                                     tracing::error!("@[{}] input handle {} receive message error: {}", node_name, input_handle_id, e);

@@ -16,7 +16,7 @@ use crate::node::{
 impl NodeEventHandlerExt for IfElseNodeContext {
     type EngineEvent = Event;
 
-    async fn handle_node_command(&mut self, node_command: Self::NodeCommand) {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -29,7 +29,7 @@ impl NodeEventHandlerExt for IfElseNodeContext {
         }
     }
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) {
         // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
 
         // 检查是否需要更新接收事件(play_index相同)

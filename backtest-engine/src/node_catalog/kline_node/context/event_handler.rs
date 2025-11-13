@@ -358,7 +358,7 @@ impl KlineNodeContext {
 impl NodeEventHandlerExt for KlineNodeContext {
     type EngineEvent = Event;
 
-    async fn handle_node_command(&mut self, node_command: Self::NodeCommand) {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -371,7 +371,7 @@ impl NodeEventHandlerExt for KlineNodeContext {
         }
     }
 
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) {
         match node_event {
             BacktestNodeEvent::StartNode(start_node_event) => match start_node_event {
                 StartNodeEvent::KlinePlay(play_event) => {

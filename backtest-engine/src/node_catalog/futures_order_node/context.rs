@@ -27,7 +27,7 @@ use virtual_trading::{
     types::{order::VirtualOrder, transaction::VirtualTransaction},
 };
 
-use super::{futures_order_node_types::FuturesOrderNodeBacktestConfig, state_machine::FuturesOrderNodeStateMachine};
+use super::{futures_order_node_types::FuturesOrderNodeConfig, state_machine::FuturesOrderNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
@@ -39,7 +39,7 @@ pub type FuturesOrderNodeMetadata =
 #[derive(Debug)]
 pub struct FuturesOrderNodeContext {
     metadata: FuturesOrderNodeMetadata,
-    node_config: FuturesOrderNodeBacktestConfig,
+    node_config: FuturesOrderNodeConfig,
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     is_processing_order: Arc<RwLock<HashMap<InputHandleId, bool>>>, // 是否正在处理订单 input_handle_id -> is_processing_order
     database: DatabaseConnection,                                   // 数据库连接
@@ -56,7 +56,7 @@ pub struct FuturesOrderNodeContext {
 impl FuturesOrderNodeContext {
     pub fn new(
         metadata: FuturesOrderNodeMetadata,
-        node_config: FuturesOrderNodeBacktestConfig,
+        node_config: FuturesOrderNodeConfig,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
@@ -87,6 +87,10 @@ impl FuturesOrderNodeContext {
 
     pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
         &self.play_index_watch_rx
+    }
+
+    pub fn node_config(&self) -> &FuturesOrderNodeConfig {
+        &self.node_config
     }
 }
 

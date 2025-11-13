@@ -5,7 +5,9 @@ use star_river_core::{custom_type::NodeId, system::DateTimeUtc};
 // Current crate imports - star_river_event
 use star_river_event::backtest_strategy::node_event::{
     IfElseNodeEvent,
-    if_else_node_event::{CaseFalseEvent, CaseFalsePayload, CaseTrueEvent, CaseTruePayload, ElseTrueEvent, ElseTruePayload},
+    if_else_node_event::{
+        CaseFalseEvent, CaseFalsePayload, CaseTrueEvent, CaseTruePayload, ElseFalseEvent, ElseFalsePayload, ElseTrueEvent, ElseTruePayload,
+    },
 };
 // Current crate imports - strategy_core
 use strategy_core::{
@@ -72,42 +74,55 @@ impl IfElseNodeContext {
         }
     }
 
-    // 开始评估各个分支
+    // Start evaluating all branches
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
-        let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
+        let mut cycle_tracker: CycleTracker = CycleTracker::new(self.play_index() as u32);
 
-        let mut case_matched = false; // 是否匹配到case
+        let mut have_true_case = false; // Track whether any case has matched
         let current_time = self.get_current_time().await.unwrap();
 
-        // 遍历case进行条件评估
+        // Iterate through all cases for condition evaluation
         for case in self.node_config.cases.iter() {
             let phase_name = format!("evaluate case {}", case.case_id);
             cycle_tracker.start_phase(&phase_name);
 
-            // evaluate result (is ture, result)
-            let case_result = self.evaluate_case(case).await;
+            // Only evaluate condition if no case has matched yet
+            if !have_true_case {
+                // evaluate result (is true, result)
+                let case_result = self.evaluate_case(case).await;
 
-            // 如果条件匹配，处理匹配的case
-            if case_result.0 {
-                // tracing::debug!("[{}] condition matched, handle matched case branch", self.node_name());
-                case_matched = true;
+                // If condition matches, handle the matched case
+                if case_result.0 {
+                    // tracing::debug!("[{}] condition matched, handle matched case branch", self.node_name());
+                    have_true_case = true;
+                    cycle_tracker.end_phase(&phase_name);
+                    self.handle_case_true(case, case_result.1, current_time).await?;
+                    // Continue to process remaining cases as false (do not break)
+                }
+                // condition is false
+                else {
+                    // tracing::debug!("@[{}] condition not matched, send case false event", self.node_name());
+                    self.handle_case_false(case).await;
+                }
+            } else {
+                // A case has already matched, treat all subsequent cases as false
+                // Skip condition evaluation and directly handle as not matched
+                self.handle_case_false(case).await;
                 cycle_tracker.end_phase(&phase_name);
-                self.handle_matched_case(case, case_result.1, current_time).await?;
-                break; // 找到匹配的case后立即退出
-            }
-            // condition is false
-            else {
-                // tracing::debug!("[{}] 条件不匹配，发送trigger事件", self.node_name());
-                self.handle_not_matched_case(case).await;
             }
         }
 
-        // 如果没有case匹配，处理else分支
-        if !case_matched {
-            tracing::debug!("[{}] 条件不匹配，处理else分支", self.node_name());
+        // If no case matched, handle the else branch
+        if !have_true_case {
+            // tracing::debug!("[{}] no case matched, handle else branch", self.node_name());
             let phase_name = format!("handle else branch");
             cycle_tracker.start_phase(&phase_name);
-            self.handle_else_branch().await;
+            self.handle_else_true().await;
+            cycle_tracker.end_phase(&phase_name);
+        } else {
+            let phase_name = format!("handle else false");
+            cycle_tracker.start_phase(&phase_name);
+            self.handle_else_false().await;
             cycle_tracker.end_phase(&phase_name);
         }
         let completed_tracker = cycle_tracker.end();
@@ -118,7 +133,7 @@ impl IfElseNodeContext {
     }
 
     // 处理匹配的case
-    async fn handle_matched_case(
+    async fn handle_case_true(
         &self,
         case: &Case,
         condition_results: Vec<ConditionResult>,
@@ -169,31 +184,32 @@ impl IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_not_matched_case(&self, case: &Case) {
-        // if self.is_leaf_node() {
-        //     self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
-        //     return;
-        // }
+    async fn handle_case_false(&self, case: &Case) {
+        if self.is_leaf_node() {
+            self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
+            return;
+        }
+
         let case_output_handle_id = case.output_handle_id.clone();
         let payload = CaseFalsePayload::new(self.play_index(), case.case_id);
-        let condition_not_match_event: IfElseNodeEvent = CaseFalseEvent::new(
+        let case_false_event: IfElseNodeEvent = CaseFalseEvent::new(
             self.node_id().clone(),
             self.node_name().clone(),
             case_output_handle_id.clone(),
             payload,
         )
         .into();
-        self.output_handle_send(&case_output_handle_id, condition_not_match_event.into())
-            .unwrap();
+        // tracing::debug!("@[{}] send case false event for case {}", self.node_name(), case.case_id);
+        self.output_handle_send(&case_output_handle_id, case_false_event.into()).unwrap();
     }
 
     // 处理else分支
-    async fn handle_else_branch(&self) {
-        if self.is_leaf_node() {
-            // 叶子节点：发送执行结束事件
-            self.send_execute_over_event(self.play_index() as u64, None).unwrap();
-            return;
-        }
+    async fn handle_else_true(&self) {
+        // if self.is_leaf_node() {
+        //     // 叶子节点：发送执行结束事件
+        //     self.send_execute_over_event(self.play_index() as u64, None).unwrap();
+        //     return;
+        // }
 
         let else_output_handle = self.default_output_handle().unwrap();
         tracing::debug!(
@@ -202,6 +218,27 @@ impl IfElseNodeContext {
         );
         let payload = ElseTruePayload::new(self.play_index());
         let else_event: IfElseNodeEvent = ElseTrueEvent::new(
+            self.node_id().clone(),
+            self.node_name().clone(),
+            else_output_handle.output_handle_id().clone(),
+            payload,
+        )
+        .into();
+        let _ = else_output_handle.send(else_event.into());
+    }
+
+    // 处理else分支
+    async fn handle_else_false(&self) {
+        // if self.is_leaf_node() {
+        //     // 叶子节点：发送执行结束事件
+        //     self.send_execute_over_event(self.play_index() as u64, None).unwrap();
+        //     return;
+        // }
+
+        let else_output_handle = self.default_output_handle().unwrap();
+        tracing::debug!("handle_else_false, else_output_handle: {:?}", else_output_handle.output_handle_id());
+        let payload = ElseFalsePayload::new(self.play_index());
+        let else_event: IfElseNodeEvent = ElseFalseEvent::new(
             self.node_id().clone(),
             self.node_name().clone(),
             else_output_handle.output_handle_id().clone(),
@@ -233,16 +270,16 @@ impl IfElseNodeContext {
 
         let compare_result = compare(&left_value, &right_value, comparison_symbol);
         if compare_result {
-            tracing::debug!(
-                "当前play_index: {}, 左变量名：{:?}, 左值={:?}, 比较符号:{:?}, 右变量名：{:?}, 右值={:?}, 结果={}",
-                self.play_index(),
-                condition.left.var_name,
-                left_value,
-                comparison_symbol.to_string(),
-                condition.right,
-                right_value,
-                compare_result
-            );
+            // tracing::debug!(
+            //     "当前play_index: {}, 左变量名：{:?}, 左值={:?}, 比较符号:{:?}, 右变量名：{:?}, 右值={:?}, 结果={}",
+            //     self.play_index(),
+            //     condition.left.var_name,
+            //     left_value,
+            //     comparison_symbol.to_string(),
+            //     condition.right,
+            //     right_value,
+            //     compare_result
+            // );
         } else {
             tracing::warn!(
                 "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前play_index: {}",

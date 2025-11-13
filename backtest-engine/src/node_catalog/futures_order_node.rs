@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use context::FuturesOrderNodeContext;
 use futures::StreamExt;
-use futures_order_node_types::FuturesOrderNodeBacktestConfig;
+pub use futures_order_node_types::FuturesOrderNodeConfig;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use serde_json;
@@ -97,7 +97,7 @@ impl FuturesOrderNode {
 
     fn check_futures_order_node_config(
         node_config: serde_json::Value,
-    ) -> Result<(StrategyId, NodeId, NodeName, FuturesOrderNodeBacktestConfig), BacktestNodeError> {
+    ) -> Result<(StrategyId, NodeId, NodeName, FuturesOrderNodeConfig), BacktestNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
@@ -149,7 +149,7 @@ impl FuturesOrderNode {
             .to_owned();
 
         let node_config =
-            serde_json::from_value::<FuturesOrderNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<FuturesOrderNodeConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
         Ok((strategy_id, node_id, node_name, node_config))
     }
 

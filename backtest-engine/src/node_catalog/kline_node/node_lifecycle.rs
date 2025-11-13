@@ -246,7 +246,7 @@ impl NodeLifecycle for KlineNode {
                 }
                 KlineNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
-                    self.listen_node_command().await;
+                    self.listen_command().await;
                 }
 
                 KlineNodeAction::CancelAsyncTask => {
