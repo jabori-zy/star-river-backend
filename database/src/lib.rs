@@ -1,4 +1,6 @@
+pub mod error;
 pub mod mutation;
+pub mod page;
 pub mod query;
 
 use std::{env, path::PathBuf};

@@ -7,6 +7,7 @@ use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, gene
 
 // Current crate imports
 use crate::strategy::strategy_error::BacktestStrategyError;
+use database::error::DatabaseError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -23,6 +24,12 @@ pub enum BacktestEngineError {
         backtrace: Backtrace,
     },
 
+    #[snafu(transparent)]
+    Database { 
+        source: DatabaseError, 
+        backtrace: Backtrace 
+    },
+
     #[snafu(display("strategy type {} is unsupported", strategy_type))]
     UnsupportedStrategyType { strategy_type: String, backtrace: Backtrace },
 
@@ -32,18 +39,10 @@ pub enum BacktestEngineError {
     #[snafu(display("strategy instance not found: {}", strategy_id))]
     StrategyInstanceNotFound { strategy_id: i32, backtrace: Backtrace },
 
-    #[snafu(display("database error: {}", source))]
-    Database { source: DbErr, backtrace: Backtrace },
+    
 
     #[snafu(display("trade mode {} is unsupported", trade_mode))]
     UnsupportedTradeMode { trade_mode: String, backtrace: Backtrace },
-
-    #[snafu(display("strategy {strategy_id} config not found"))]
-    StrategyConfigNotFound {
-        strategy_id: i32,
-        source: DbErr,
-        backtrace: Backtrace,
-    },
 }
 
 // Implement the StarRiverErrorTrait for StrategyEngineError
@@ -64,7 +63,6 @@ impl StarRiverErrorTrait for BacktestEngineError {
             BacktestEngineError::StrategyInstanceNotFound { .. } => 1005,
             BacktestEngineError::Database { .. } => 1006,
             BacktestEngineError::UnsupportedTradeMode { .. } => 1007,
-            BacktestEngineError::StrategyConfigNotFound { .. } => 1008,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -98,9 +96,6 @@ impl StarRiverErrorTrait for BacktestEngineError {
                 }
                 BacktestEngineError::UnsupportedTradeMode { trade_mode, .. } => {
                     format!("不支持的交易模式: {}", trade_mode)
-                }
-                BacktestEngineError::StrategyConfigNotFound { strategy_id, source, .. } => {
-                    format!("策略 {} 配置不存在: {}", strategy_id, source)
                 }
             },
         }

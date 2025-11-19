@@ -29,7 +29,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Transaction::Quantity).double().not_null())
                     .col(ColumnDef::new(Transaction::Price).double().not_null())
                     .col(
-                        ColumnDef::new(Transaction::CreatedTime)
+                        ColumnDef::new(Transaction::CreateTime)
                             .timestamp()
                             .not_null()
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
@@ -62,6 +62,6 @@ pub enum Transaction {
     TransactionSide,       // 交易方向
     Quantity,              // 数量
     Price,                 // 价格
-    CreatedTime,           //创建时间
+    CreateTime,           //创建时间
     ExtraInfo,             // 额外信息
 }

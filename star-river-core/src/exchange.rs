@@ -5,11 +5,9 @@ use std::{
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize, ser::Serializer};
-use serde_json::{self, json};
-use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
-use crate::{error::star_river_error::*, system::DateTimeUtc};
+use crate::core_error::{CoreError, ParseExchangeFailedSnafu};
 
 pub type MT5Server = String;
 
@@ -93,7 +91,7 @@ impl Serialize for Exchange {
 }
 
 impl FromStr for Exchange {
-    type Err = StarRiverError;
+    type Err = CoreError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {

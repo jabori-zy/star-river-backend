@@ -32,13 +32,13 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Position::Tp).double())
                     .col(ColumnDef::new(Position::ExtraInfo).json())
                     .col(
-                        ColumnDef::new(Position::CreatedTime)
+                        ColumnDef::new(Position::CreateTime)
                             .timestamp()
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
                     .col(
-                        ColumnDef::new(Position::UpdatedTime)
+                        ColumnDef::new(Position::UpdateTime)
                             .timestamp()
                             .not_null()
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
@@ -80,6 +80,6 @@ pub enum Position {
     Tp,
     Sl,
     ExtraInfo,   // 额外信息
-    CreatedTime, //创建时间
-    UpdatedTime, //更新时间
+    CreateTime, //创建时间
+    UpdateTime, //更新时间
 }

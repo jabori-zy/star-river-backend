@@ -5,18 +5,63 @@ use axum::{
 use backtest_engine::engine_error::BacktestEngineError;
 use engine_core::EngineContextAccessor;
 
-use crate::{api::response::NewApiResponse, star_river::StarRiver};
+use crate::{api::response::{NewApiResponse, ApiResponseEnum}, star_river::StarRiver};
+use tracing::instrument;
+use star_river_core::error::StarRiverErrorTrait;
+use snafu::Report;
+
+
+const BACKTEST_CONTROL_TAG: &str = "Backtest Control";
+
+
+
+// 初始化策略
+#[utoipa::path(
+    post,
+    path = "/api/v1/strategy/backtest/{strategy_id}/init",
+    tag = BACKTEST_CONTROL_TAG,
+    summary = "Initialize strategy",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to initialize")
+    ),
+    responses(
+        (status = OK, description = "Initialize strategy successfully", content_type = "application/json"),
+    )
+)]
+#[instrument(skip(star_river))]
+pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponseEnum<()>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init(strategy_id).await }))
+        .await;
+
+    if let Err(e) = result {
+        let report = Report::from_error(&e);
+        tracing::error!("{}", report);
+        return (e.http_status_code(), Json(ApiResponseEnum::error(e)));
+    } else {
+        tracing::info!("initialize strategy {} successfully", strategy_id);
+        (StatusCode::OK, Json(ApiResponseEnum::success(())))
+    }
+}
+
+
+
+
 
 #[utoipa::path(
     post,
     path = "/api/v1/strategy/backtest/{strategy_id}/play",
-    tag = "回测策略",
+    tag = BACKTEST_CONTROL_TAG,
     summary = "播放k线",
     params(
-        ("strategy_id" = i32, Path, description = "要播放的策略ID")
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to play")
     ),
     responses(
-        (status = 200, description = "播放策略成功")
+        (status = 200, description = "Play strategy successfully")
     )
 )]
 pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {

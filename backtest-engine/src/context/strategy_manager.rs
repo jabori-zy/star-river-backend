@@ -9,7 +9,7 @@ use tokio::sync::{MutexGuard, OwnedMutexGuard};
 use super::BacktestEngineContext;
 use crate::{
     engine_error::{
-        BacktestEngineError, DatabaseSnafu, StrategyConfigNotFoundSnafu, StrategyInstanceNotFoundSnafu, UnsupportedTradeModeSnafu,
+        BacktestEngineError, StrategyInstanceNotFoundSnafu, UnsupportedTradeModeSnafu,
     },
     strategy::BacktestStrategy,
 };
@@ -30,8 +30,7 @@ impl BacktestEngineContext {
 
     pub async fn get_strategy_info_by_id(&self, id: i32) -> Result<StrategyConfig, BacktestEngineError> {
         let strategy = StrategyConfigQuery::get_strategy_by_id(&self.database, id)
-            .await
-            .context(StrategyConfigNotFoundSnafu { strategy_id: id })?;
+            .await?;
         Ok(strategy)
     }
 
@@ -69,8 +68,7 @@ impl BacktestEngineContext {
         let is_initializing = self.initializing_strategies.lock().await.contains(&strategy_id);
         let has_instance = self.strategy_list.lock().await.contains_key(&strategy_id);
         let strategy_status = StrategyConfigQuery::get_strategy_status_by_strategy_id(&self.database, strategy_id)
-            .await
-            .context(DatabaseSnafu {})?;
+            .await?;
 
         let status = ["initializing", "running", "playing", "ready", "pausing"];
         if is_initializing || has_instance {
@@ -81,8 +79,7 @@ impl BacktestEngineContext {
         else if (!is_initializing && !has_instance) && (status.contains(&strategy_status.as_str())) {
             // 无实例且未初始化，将状态设为stopped并返回
             StrategyConfigMutation::update_strategy_status(&self.database, strategy_id, "stopped".to_string())
-                .await
-                .context(DatabaseSnafu {})?;
+                .await?;
             Ok("stopped".to_string())
         } else {
             Ok(strategy_status)

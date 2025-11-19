@@ -32,13 +32,13 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Order::Tp).double())
                     .col(ColumnDef::new(Order::ExtraInfo).json())
                     .col(
-                        ColumnDef::new(Order::CreatedTime)
+                        ColumnDef::new(Order::CreateTime)
                             .timestamp()
                             .not_null()
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
                     )
                     .col(
-                        ColumnDef::new(Order::UpdatedTime)
+                        ColumnDef::new(Order::UpdateTime)
                             .timestamp()
                             .not_null()
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
@@ -79,6 +79,6 @@ pub enum Order {
     Tp,              // 止盈
     Sl,              // 止损
     ExtraInfo,       // 额外信息
-    CreatedTime,     //创建时间
-    UpdatedTime,     //更新时间
+    CreateTime,     //创建时间
+    UpdateTime,     //更新时间
 }

@@ -9,7 +9,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-sqlx = {version = "0.8.3", features = ["runtime-tokio", "sqlite"]}
+sqlx = {version = "0.8.6", features = ["runtime-tokio", "sqlite"]}
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -18,7 +18,9 @@ sea-orm.workspace = true
 chrono.workspace = true
 migration = { path = "../migration" }
 entity = { path = "../entity" }
-sea-orm-migration = {version="1.1.14", features = ["sqlx-sqlite","runtime-tokio"]}
+sea-orm-migration.workspace = true
 star-river-core = { path = "../star-river-core" }
 strategy-core = { path = "../strategy-core" }
-log = "0.4.26"
+log.workspace = true
+snafu.workspace = true
+utoipa.workspace = true

@@ -27,7 +27,7 @@ use crate::{api::response::ApiResponse, star_river::StarRiver};
     })
 )]
 pub struct UpdateBacktestChartConfigParams {
-    pub backtest_chart_config: Option<serde_json::Value>,
+    pub backtest_chart_config: serde_json::Value,
 }
 
 #[utoipa::path(
@@ -49,7 +49,7 @@ pub async fn update_backtest_chart_config(
 ) -> (StatusCode, Json<ApiResponse<serde_json::Value>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    match StrategyConfigMutation::update_backtest_chart_config(conn, strategy_id, params.backtest_chart_config).await {
+    match StrategyConfigMutation::update_backtest_chart_config(conn, strategy_id, Some(params.backtest_chart_config)).await {
         Ok(backtest_chart_config) => {
             tracing::info!(strategy_id = strategy_id, "update backtest chart config success");
             (

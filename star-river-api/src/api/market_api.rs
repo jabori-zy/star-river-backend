@@ -31,7 +31,7 @@ pub async fn get_symbol_list(
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.market_engine().await;
     let engine_guard = engine.lock().await;
-    let symbol_list = engine_guard
+    let symbol_list: Result<Vec<Symbol>, MarketEngineError> = engine_guard
         .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_symbol_list(account_id).await }))
         .await;
     match symbol_list {

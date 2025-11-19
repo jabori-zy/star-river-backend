@@ -1,12 +1,14 @@
 // pub mod cache_entry;
 pub mod key;
+pub mod error;
 
 use std::{fmt::Debug, hash::Hash, str::FromStr};
 
 // use cache_entry::{IndicatorCacheEntry, KlineCacheEntry};
 pub use key::{IndicatorKey, KlineKey};
 use serde::{Deserialize, Serialize};
-use star_river_core::{error::star_river_error::*, exchange::Exchange, kline::KlineInterval, system::TimeRange};
+use star_river_core::{exchange::Exchange, kline::KlineInterval, system::TimeRange};
+use crate::error::{KeyError, InvalidKeyTypeSnafu};
 
 pub trait KeyTrait: Clone + Debug {
     fn get_key_str(&self) -> String;
@@ -25,7 +27,7 @@ pub enum Key {
 }
 
 impl FromStr for Key {
-    type Err = StarRiverError;
+    type Err = KeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();

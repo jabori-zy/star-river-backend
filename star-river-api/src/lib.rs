@@ -10,7 +10,7 @@ pub mod api;
 pub mod routes;
 pub mod sse;
 pub mod star_river;
-
+pub mod error;
 // 重新导出常用类型
 pub use engine_manager::EngineManager;
 pub use star_river::{StarRiver, init_app};

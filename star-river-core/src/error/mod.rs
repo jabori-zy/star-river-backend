@@ -1,7 +1,7 @@
 // pub mod datetime_error;
 pub mod error_trait;
 // pub mod indicator_error;
-pub mod star_river_error;
+// pub mod star_river_error;
 
 pub use axum::http::StatusCode;
 

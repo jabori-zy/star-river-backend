@@ -9,16 +9,16 @@ use crate::api::{response::ApiResponse, system_api::SystemConfigUpdateParams};
 #[openapi(
     paths(
         // 策略相关路径
-        crate::api::strategy_api::create_strategy,
-        crate::api::strategy_api::get_strategy_list,
-        crate::api::strategy_api::get_strategy_by_id,
-        crate::api::strategy_api::update_strategy,
-        crate::api::strategy_api::delete_strategy,
-        crate::api::strategy_api::init_strategy,
+        crate::api::strategy_api::strategy_management::create_strategy,
+        crate::api::strategy_api::strategy_management::get_strategy_list,
+        crate::api::strategy_api::strategy_management::get_strategy_by_id,
+        crate::api::strategy_api::strategy_management::update_strategy,
+        crate::api::strategy_api::strategy_management::delete_strategy,
         crate::api::strategy_api::stop_strategy,
 
 
         // 回测策略
+        crate::api::strategy_api::backtest::init_strategy,
         crate::api::strategy_api::backtest::play,
         crate::api::strategy_api::backtest::pause,
         crate::api::strategy_api::backtest::reset,

@@ -8,7 +8,7 @@
 
 // use engine::live_strategy_engine::LiveStrategyEngine;
 // use engine::market_engine::MarketEngine;
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 
 // use indicator_engine::IndicatorEngine;
 use backtest_engine::BacktestEngine;

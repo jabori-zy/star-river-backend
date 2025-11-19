@@ -10,7 +10,7 @@ use engine_core::EngineContextAccessor;
 use key::Key;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
-use star_river_core::{custom_type::NodeId, error::star_river_error::ParseDataTimeFailedSnafu};
+use star_river_core::{custom_type::NodeId};
 use strategy_core::{
     benchmark::strategy_benchmark::StrategyPerformanceReport,
     event::log_event::StrategyRunningLogEvent,
@@ -22,7 +22,8 @@ use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 
-use crate::{api::response::NewApiResponse, star_river::StarRiver};
+use crate::{api::response::NewApiResponse, error::{ApiError, ParseDataTimeFailedSnafu}, star_river::StarRiver};
+use star_river_core::error::StarRiverErrorTrait;
 
 #[utoipa::path(
     get,
@@ -407,7 +408,7 @@ pub async fn get_strategy_data_by_datetime(
         Err(e) => {
             return {
                 let error = ParseDataTimeFailedSnafu { datetime: params.datetime }.into_error(e);
-                (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(error)))
+                (error.http_status_code(), Json(NewApiResponse::error(error)))
             };
         }
     };
@@ -548,12 +549,8 @@ pub async fn get_strategy_keys(
             (StatusCode::OK, Json(NewApiResponse::success(keys_str)))
         }
         Err(e) => {
-            let status_code = match &e {
-                BacktestEngineError::StrategyInstanceNotFound { .. } => StatusCode::NOT_FOUND,
-                BacktestEngineError::StrategyConfigNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            };
-            (status_code, Json(NewApiResponse::error(e)))
+            
+            (e.http_status_code(), Json(NewApiResponse::error(e)))
         }
     }
 }

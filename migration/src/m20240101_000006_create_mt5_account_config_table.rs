@@ -32,8 +32,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Mt5AccountConfig::TerminalPath).string().not_null())
                     .col(ColumnDef::new(Mt5AccountConfig::IsDeleted).boolean().not_null().default(false))
                     .col(ColumnDef::new(Mt5AccountConfig::SortIndex).integer().not_null())
-                    .col(ColumnDef::new(Mt5AccountConfig::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(Mt5AccountConfig::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(Mt5AccountConfig::CreateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(Mt5AccountConfig::UpdateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     .index(
                         Index::create()
                         .unique()
@@ -68,6 +68,6 @@ pub enum Mt5AccountConfig {
     TerminalPath, // 终端路径
     SortIndex, // 排序索引
     IsDeleted, // 是否删除
-    CreatedTime,//创建时间
-    UpdatedTime,//更新时间
+    CreateTime,//创建时间
+    UpdateTime,//更新时间
 }

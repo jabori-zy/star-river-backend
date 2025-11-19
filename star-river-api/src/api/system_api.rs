@@ -4,9 +4,8 @@ use axum::{
 };
 use database::{mutation::system_config_mutation::SystemConfigMutation, query::system_config_query::SystemConfigQuery};
 use serde::{Deserialize, Serialize};
-use snafu::IntoError;
+use snafu::{IntoError, Report};
 use star_river_core::{
-    error::star_river_error::*,
     system::system_config::{Localization, SystemConfig, SystemConfigManager},
 };
 use tracing::instrument;
@@ -69,8 +68,9 @@ pub async fn update_system_config(
             (StatusCode::OK, Json(NewApiResponse::success(system_config)))
         }
         Err(e) => {
-            let error = UpdateSystemConfigFailedSnafu {}.into_error(e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(error)))
+            let report = Report::from_error(&e);
+            tracing::error!("{}",report);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e)))
         }
     }
 }
@@ -93,8 +93,9 @@ pub async fn get_system_config(State(star_river): State<StarRiver>) -> (StatusCo
     match system_config {
         Ok(system_config) => (StatusCode::OK, Json(NewApiResponse::success(system_config))),
         Err(e) => {
-            let error = GetSystemConfigFailedSnafu {}.into_error(e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(error)))
+            let report = Report::from_error(&e);
+            tracing::error!("{}",report);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e)))
         }
     }
 }

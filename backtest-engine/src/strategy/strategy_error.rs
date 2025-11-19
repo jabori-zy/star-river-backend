@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
     custom_type::{NodeId, NodeName},
@@ -9,6 +8,7 @@ use star_river_core::{
 use strategy_core::error::{StrategyError, strategy_state_machine_error::StrategyStateMachineError};
 
 use crate::node::node_error::BacktestNodeError;
+use database::error::DatabaseError;
 // use event_center::EventCenterError;
 
 #[derive(Debug, Snafu)]
@@ -29,7 +29,7 @@ pub enum BacktestStrategyError {
     #[snafu(display("[{strategy_name}] update status failed: {source}"))]
     UpdateStrategyStatusFailed {
         strategy_name: String,
-        source: DbErr,
+        source: DatabaseError,
         backtrace: Backtrace,
     },
 

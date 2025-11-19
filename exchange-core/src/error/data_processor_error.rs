@@ -1,5 +1,5 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, star_river_error::StarRiverError};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 
 /// Generic data processor error
 ///
@@ -8,8 +8,8 @@ use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, star
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum DataProcessorError {
-    #[snafu(transparent)]
-    StarRiverError { source: StarRiverError, backtrace: Backtrace },
+    // #[snafu(transparent)]
+    // StarRiverError { source: StarRiverError, backtrace: Backtrace },
 
     #[snafu(display("JSON parsing failed"))]
     JsonParseFailed { source: serde_json::Error, backtrace: Backtrace },
@@ -118,7 +118,6 @@ impl StarRiverErrorTrait for DataProcessorError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            DataProcessorError::StarRiverError { .. } => 1001,
             DataProcessorError::JsonParseFailed { .. } => 1002,
             DataProcessorError::ArrayParseFailed { .. } => 1003,
             DataProcessorError::EnumParseFailed { .. } => 1004,
@@ -190,9 +189,6 @@ impl StarRiverErrorTrait for DataProcessorError {
                     } else {
                         format!("时间戳转换失败: {}", message)
                     }
-                }
-                DataProcessorError::StarRiverError { source, .. } => {
-                    format!("系统错误: {}", source)
                 }
 
                 // Data Validation Error

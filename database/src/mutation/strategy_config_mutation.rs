@@ -3,18 +3,20 @@ use chrono::Utc;
 use sea_orm::*;
 use strategy_core::strategy::StrategyConfig;
 
+use crate::error::DatabaseError;
+
 pub struct StrategyConfigMutation;
 
 impl StrategyConfigMutation {
-    pub async fn create_strategy(db: &DbConn, strategy_name: String, strategy_description: String) -> Result<StrategyConfig, DbErr> {
+    pub async fn create_strategy(db: &DbConn, strategy_name: String, strategy_description: String) -> Result<StrategyConfig, DatabaseError> {
         let strategy_config_model = strategy_config::ActiveModel {
             id: NotSet,
             name: Set(strategy_name),
             description: Set(strategy_description),
             status: Set("stopped".to_string()),
             is_deleted: Set(false),
-            created_time: Set(Utc::now()),
-            updated_time: Set(Utc::now()),
+            create_time: Set(Utc::now()),
+            update_time: Set(Utc::now()),
             ..Default::default()
         }
         .insert(db)
@@ -28,7 +30,6 @@ impl StrategyConfigMutation {
         strategy_name: String,
         strategy_description: String,
         strategy_trade_mode: String,
-        strategy_config: Option<JsonValue>,
         nodes: Option<JsonValue>,
         edges: Option<JsonValue>,
     ) -> Result<StrategyConfig, DbErr> {
@@ -43,10 +44,9 @@ impl StrategyConfigMutation {
             name: Set(strategy_name),
             description: Set(strategy_description),
             trade_mode: Set(strategy_trade_mode),
-            config: Set(strategy_config),
             nodes: Set(nodes),
             edges: Set(edges),
-            updated_time: Set(Utc::now()),
+            update_time: Set(Utc::now()),
             ..Default::default()
         }
         .update(db)
@@ -54,7 +54,7 @@ impl StrategyConfigMutation {
         Ok(strategy_config_model.into())
     }
 
-    pub async fn delete_strategy(db: &DbConn, strategy_id: i32) -> Result<(), DbErr> {
+    pub async fn delete_strategy(db: &DbConn, strategy_id: i32) -> Result<(), DatabaseError> {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
@@ -64,7 +64,7 @@ impl StrategyConfigMutation {
         strategy_config::ActiveModel {
             id: strategy.id,
             is_deleted: Set(true), // 设置为删除状态
-            updated_time: Set(Utc::now()),
+            update_time: Set(Utc::now()),
             ..Default::default()
         }
         .update(db)
@@ -88,7 +88,7 @@ impl StrategyConfigMutation {
         let strategy_config_model = strategy_config::ActiveModel {
             id: strategy.id,
             backtest_chart_config: Set(backtest_chart_config),
-            updated_time: Set(Utc::now()),
+            update_time: Set(Utc::now()),
             ..Default::default()
         }
         .update(db)
@@ -96,7 +96,7 @@ impl StrategyConfigMutation {
         Ok(strategy_config_model.backtest_chart_config.unwrap_or(JsonValue::Null))
     }
 
-    pub async fn update_strategy_status(db: &DbConn, strategy_id: i32, strategy_status: String) -> Result<StrategyConfig, DbErr> {
+    pub async fn update_strategy_status(db: &DbConn, strategy_id: i32, strategy_status: String) -> Result<StrategyConfig, DatabaseError> {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
@@ -106,7 +106,77 @@ impl StrategyConfigMutation {
         let strategy_config_model = strategy_config::ActiveModel {
             id: strategy.id,
             status: Set(strategy_status),
-            updated_time: Set(Utc::now()),
+            update_time: Set(Utc::now()),
+            ..Default::default()
+        }
+        .update(db)
+        .await?;
+        Ok(strategy_config_model.into())
+    }
+
+    pub async fn update_strategy_name(
+        db: &DbConn,
+        strategy_id: i32,
+        name: String,
+        description: String,
+    ) -> Result<StrategyConfig, DatabaseError> {
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound(format!("Cannot find strategy {strategy_id}.")))
+            .map(Into::into)?;
+
+        let strategy_config_model = strategy_config::ActiveModel {
+            id: strategy.id,
+            name: Set(name),
+            description: Set(description),
+            update_time: Set(Utc::now()),
+            ..Default::default()
+        }
+        .update(db)
+        .await?;
+        Ok(strategy_config_model.into())
+    }
+
+    pub async fn update_strategy_trade_mode(
+        db: &DbConn,
+        strategy_id: i32,
+        trade_mode: String,
+    ) -> Result<StrategyConfig, DatabaseError> {
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound(format!("Cannot find strategy {strategy_id}.")))
+            .map(Into::into)?;
+
+        let strategy_config_model = strategy_config::ActiveModel {
+            id: strategy.id,
+            trade_mode: Set(trade_mode),
+            update_time: Set(Utc::now()),
+            ..Default::default()
+        }
+        .update(db)
+        .await?;
+        Ok(strategy_config_model.into())
+    }
+
+    pub async fn update_strategy_workflow(
+        db: &DbConn,
+        strategy_id: i32,
+        nodes: Option<JsonValue>,
+        edges: Option<JsonValue>,
+    ) -> Result<StrategyConfig, DatabaseError> {
+        let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound(format!("Cannot find strategy {strategy_id}.")))
+            .map(Into::into)?;
+
+        let strategy_config_model = strategy_config::ActiveModel {
+            id: strategy.id,
+            nodes: Set(nodes),
+            edges: Set(edges),
+            update_time: Set(Utc::now()),
             ..Default::default()
         }
         .update(db)

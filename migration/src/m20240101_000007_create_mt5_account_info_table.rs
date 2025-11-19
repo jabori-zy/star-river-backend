@@ -54,8 +54,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Mt5AccountInfo::Server).string().not_null())
                     .col(ColumnDef::new(Mt5AccountInfo::Currency).string().not_null())
                     .col(ColumnDef::new(Mt5AccountInfo::Company).string().not_null())
-                    .col(ColumnDef::new(Mt5AccountInfo::CreatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
-                    .col(ColumnDef::new(Mt5AccountInfo::UpdatedTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(Mt5AccountInfo::CreateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
+                    .col(ColumnDef::new(Mt5AccountInfo::UpdateTime).timestamp().not_null().default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())))
                     .to_owned(),
             )
             .await
@@ -105,6 +105,6 @@ pub enum Mt5AccountInfo {
     Server,
     Currency,
     Company,
-    CreatedTime,
-    UpdatedTime,
+    CreateTime,
+    UpdateTime,
 }

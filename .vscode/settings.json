@@ -1,4 +1,5 @@
 {
     "postman.settings.dotenv-detection-notification-visibility": false,
-    "workbench.tree.stickyScrollMaxItemCount": 24
+    "workbench.tree.stickyScrollMaxItemCount": 24,
+    "rust-analyzer.checkOnSave": true
 }

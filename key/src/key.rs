@@ -2,8 +2,9 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
-use star_river_core::{error::star_river_error::*, exchange::Exchange, kline::KlineInterval, system::TimeRange};
+use star_river_core::{exchange::Exchange, kline::KlineInterval, system::TimeRange};
 use ta_lib::IndicatorConfig;
+use crate::error::{KeyError, InvalidKeyFormatSnafu, ParseExchangeFailedSnafu, ParseKlineIntervalFailedSnafu};
 
 use super::{Key, KeyTrait};
 
@@ -25,7 +26,7 @@ impl From<KlineKey> for Key {
 //todo:: 之后处理，With this change KlineKey::get_key_str still emits short keys like "kline|binance|BTCUSDT|1m" whenever no start/end time
 // is set, but the new FromStr implementation now hard-requires exactly six pipe-delimited fields.
 impl FromStr for KlineKey {
-    type Err = StarRiverError;
+    type Err = KeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();
@@ -114,7 +115,7 @@ impl From<IndicatorKey> for Key {
 }
 
 impl FromStr for IndicatorKey {
-    type Err = StarRiverError;
+    type Err = KeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('|').collect();

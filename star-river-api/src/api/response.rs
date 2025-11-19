@@ -51,3 +51,43 @@ impl<T> NewApiResponse<T> {
         }
     }
 }
+
+#[derive(Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum ApiResponseEnum<T> {
+    Success {
+        success: bool,
+        timestamp: String,
+        data: T,
+    },
+    Error {
+        success: bool,
+        timestamp: String,
+        message: String,
+        #[serde(rename = "errorCode")]
+        error_code: ErrorCode,
+        #[serde(rename = "errorCodeChain")]
+        error_code_chain: Vec<ErrorCode>,
+    },
+}
+
+impl<T> ApiResponseEnum<T> {
+    pub fn success(data: T) -> Self {
+        Self::Success {
+            success: true,
+            timestamp: Utc::now().to_string(),
+            data,
+        }
+    }
+
+    pub fn error(error: impl Error + StarRiverErrorTrait) -> Self {
+        let report = Report::from_error(&error);
+        Self::Error {
+            success: false,
+            timestamp: Utc::now().to_string(),
+            message: report.to_string().trim().to_string(),
+            error_code: error.error_code(),
+            error_code_chain: error.error_code_chain(),
+        }
+    }
+}

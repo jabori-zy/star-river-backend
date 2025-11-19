@@ -25,22 +25,21 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(StrategyConfig::Name).string().not_null())
                     .col(ColumnDef::new(StrategyConfig::Description).string().not_null())
-                    .col(ColumnDef::new(StrategyConfig::Status).integer().not_null().default(0))
+                    .col(ColumnDef::new(StrategyConfig::Status).string().not_null().default("stopped"))
                     .col(ColumnDef::new(StrategyConfig::IsDeleted).boolean().not_null().default(false))
                     .col(ColumnDef::new(StrategyConfig::TradeMode).string().not_null().default("backtest"))
-                    .col(ColumnDef::new(StrategyConfig::Config).json())
                     .col(ColumnDef::new(StrategyConfig::Nodes).json())
                     .col(ColumnDef::new(StrategyConfig::Edges).json())
                     .col(ColumnDef::new(StrategyConfig::LiveChartConfig).json())
                     .col(ColumnDef::new(StrategyConfig::BacktestChartConfig).json())
                     .col(
-                        ColumnDef::new(StrategyConfig::CreatedTime)
+                        ColumnDef::new(StrategyConfig::CreateTime)
                             .timestamp()
                             .not_null()
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
                     )
                     .col(
-                        ColumnDef::new(StrategyConfig::UpdatedTime)
+                        ColumnDef::new(StrategyConfig::UpdateTime)
                             .timestamp()
                             .not_null()
                             .default(SimpleExpr::Custom("CURRENT_TIMESTAMP".to_string())),
@@ -72,11 +71,10 @@ pub enum StrategyConfig {
     Status,              //策略状态 1=开启 0=关闭
     IsDeleted,           //是否删除 0=正常 1=删除
     TradeMode,           //交易模式 实盘，模拟，回测
-    Config,              //策略配置
     Nodes,               //节点
     Edges,               //边
     LiveChartConfig,     //实盘图表配置
     BacktestChartConfig, //回测图表配置
-    CreatedTime,         //创建时间
-    UpdatedTime,         //更新时间
+    CreateTime,         //创建时间
+    UpdateTime,         //更新时间
 }

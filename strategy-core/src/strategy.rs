@@ -20,6 +20,7 @@ use ta_lib::IndicatorConfig;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyConfig {
     /// 策略ID
     pub id: StrategyId,
@@ -33,8 +34,6 @@ pub struct StrategyConfig {
     pub is_deleted: bool,
     /// 交易模式
     pub trade_mode: TradeMode,
-    /// 策略配置
-    pub config: Option<serde_json::Value>,
     /// 策略节点
     pub nodes: Option<serde_json::Value>,
     /// 策略边
@@ -45,10 +44,10 @@ pub struct StrategyConfig {
     pub backtest_chart_config: Option<serde_json::Value>,
     /// 创建时间
     #[schema(value_type = String, example = "2021-01-01 00:00:00")]
-    pub created_time: DateTimeUtc,
+    pub create_time: DateTimeUtc,
     /// 更新时间
     #[schema(value_type = String, example = "2021-01-01 00:00:00")]
-    pub updated_time: DateTimeUtc,
+    pub update_time: DateTimeUtc,
 }
 
 impl From<StrategyConfigModel> for StrategyConfig {
@@ -60,13 +59,12 @@ impl From<StrategyConfigModel> for StrategyConfig {
             status: model.status,
             is_deleted: model.is_deleted,
             trade_mode: TradeMode::from_str(model.trade_mode.as_str()).unwrap(),
-            config: model.config,
             nodes: model.nodes,
             edges: model.edges,
             live_chart_config: model.live_chart_config,
             backtest_chart_config: model.backtest_chart_config,
-            created_time: model.created_time,
-            updated_time: model.updated_time,
+            create_time: model.create_time,
+            update_time: model.update_time,
         }
     }
 }
