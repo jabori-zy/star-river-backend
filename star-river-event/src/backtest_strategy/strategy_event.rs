@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use star_river_core::{custom_type::StrategyId, system::DateTimeUtc};
 // use log_event::{NodeStateLogEvent, StrategyRunningLogEvent, LogLevel};
 use strategy_core::event::{
-    log_event::{NodeStateLogEvent, StrategyRunningLogEvent},
-    strategy_event::{StrategyPerformanceUpdateEvent, StrategyStateLogEvent},
+    log_event::NodeStateLogEvent,
+    strategy_event::{StrategyPerformanceUpdateEvent, StrategyStateLogEvent,StrategyRunningLogEvent},
 };
 use strategy_stats::event::StrategyStatsUpdatedEvent;
 use strum::Display;

@@ -1,4 +1,4 @@
-// pub mod account_api;
+pub mod account_api;
 pub mod market_api;
 pub mod response;
 pub mod strategy_api;

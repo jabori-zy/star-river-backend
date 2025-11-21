@@ -15,6 +15,10 @@ use crate::{
     strategy::strategy_error::{BacktestStrategyError, UpdateStrategyStatusFailedSnafu},
 };
 
+
+const INIT_NODE_INTERVAL: u64 = 2000;
+
+
 #[async_trait]
 impl StrategyWorkflowExt for BacktestStrategyContext {
     type Error = BacktestStrategyError;
@@ -70,7 +74,7 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
                 if n.is_in_state(NodeRunState::Ready).await {
                     tracing::debug!("[{node_name}] node is ready");
                     // 节点初始化间隔
-                    tokio::time::sleep(Duration::from_millis(1)).await;
+                    tokio::time::sleep(Duration::from_millis(INIT_NODE_INTERVAL)).await;
                     break;
                 }
                 retry_count += 1;

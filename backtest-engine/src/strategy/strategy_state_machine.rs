@@ -10,7 +10,7 @@ use star_river_core::{custom_type::StrategyName, state_machine::Metadata};
 use strategy_core::{
     error::{StrategyStateMachineError, strategy_state_machine_error::StrategyStateTransFailedSnafu},
     strategy::state_machine::{
-        GenericStrategyStateMachine, StrategyRunState, StrategyStateAction, StrategyStateChangeActions, StrategyStateMachine,
+        GenericStrategyStateMachine, StrategyRunState, StrategyStateAction, StrategyStateChangeActions,
         StrategyStateTransTrigger,
     },
 };
@@ -24,48 +24,37 @@ use strum::Display;
 #[derive(Debug, Clone, PartialEq, Display)]
 pub enum BacktestStrategyRunState {
     /// Strategy created but not initialized
-    #[strum(serialize = "Created")]
     Created,
 
     /// Strategy is checking configuration
-    #[strum(serialize = "Checking")]
     Checking,
 
     /// Strategy check passed
-    #[strum(serialize = "CheckPassed")]
     CheckPassed,
 
     /// Strategy is initializing
-    #[strum(serialize = "Initializing")]
     Initializing,
 
     /// Strategy is ready
-    #[strum(serialize = "Ready")]
     Ready,
 
     /// Strategy is playing/backtesting
-    #[strum(serialize = "Playing")]
     Playing,
 
     /// Strategy is pausing
-    #[strum(serialize = "Pausing")]
     Pausing,
 
     /// Strategy playback completed
-    #[strum(serialize = "PlayComplete")]
     PlayComplete,
 
     /// Strategy is stopping
-    #[strum(serialize = "Stopping")]
     Stopping,
 
     /// Strategy stopped
-    #[strum(serialize = "Stopped")]
     Stopped,
 
     /// Strategy failed
-    #[strum(serialize = "Failed")]
-    Failed,
+    Error,
 }
 
 impl StrategyRunState for BacktestStrategyRunState {}
@@ -78,31 +67,34 @@ impl StrategyRunState for BacktestStrategyRunState {}
 #[derive(Debug, Clone, Display)]
 pub enum BacktestStrategyStateTransTrigger {
     /// Start checking strategy
-    #[strum(serialize = "Check")]
     Check,
 
     /// Check completed
-    #[strum(serialize = "CheckComplete")]
     CheckComplete,
 
     /// Start initialization
-    #[strum(serialize = "Initialize")]
     Initialize,
 
     /// Initialization completed
-    #[strum(serialize = "InitializeComplete")]
     InitializeComplete,
 
+
+    /// Play strategy
+    Play,
+
+    /// Pause strategy
+    Pause,
+
+    /// Play completed
+    PlayComplete,
+
     /// Stop strategy
-    #[strum(serialize = "Stop")]
     Stop,
 
     /// Stop completed
-    #[strum(serialize = "StopComplete")]
     StopComplete,
 
     /// Strategy failed
-    #[strum(serialize = "Fail")]
     Fail(String),
 }
 
@@ -155,9 +147,11 @@ pub enum BacktestStrategyStateAction {
     #[strum(serialize = "ListenAndHandleStrategyStatsEvent")]
     ListenAndHandleStrategyStatsEvent,
 
-    // /// Initialize virtual trading system
-    // #[strum(serialize = "InitVirtualTradingSystem")]
-    // InitVirtualTradingSystem,
+
+    /// Store strategy status
+    #[strum(serialize = "StoreStrategyStatus")]
+    StoreStrategyStatus,
+
     /// Log strategy state
     #[strum(serialize = "LogStrategyState")]
     LogStrategyState,
@@ -251,6 +245,44 @@ pub fn backtest_strategy_transition(
             ],
         )),
 
+
+        (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Play) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::Playing,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::StoreStrategyStatus,
+            ],
+        )),
+
+        (BacktestStrategyRunState::Playing, BacktestStrategyStateTransTrigger::Pause) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::Pausing,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::StoreStrategyStatus,
+            ],
+        )),
+
+
+        (BacktestStrategyRunState::Playing, BacktestStrategyStateTransTrigger::PlayComplete) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::PlayComplete,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::StoreStrategyStatus,
+            ],
+        )),
+
+        (BacktestStrategyRunState::PlayComplete, BacktestStrategyStateTransTrigger::Stop) => Ok(StrategyStateChangeActions::new(
+            BacktestStrategyRunState::Stopping,
+            vec![
+                BacktestStrategyStateAction::LogTransition,
+                BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::StoreStrategyStatus,
+            ],
+        )),
+
         // Stopping -> Stopped: Stop completed
         (BacktestStrategyRunState::Stopping, BacktestStrategyStateTransTrigger::StopComplete) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Stopped,
@@ -262,7 +294,7 @@ pub fn backtest_strategy_transition(
 
         // Any state -> Failed: Strategy failed
         (_, BacktestStrategyStateTransTrigger::Fail(error)) => Ok(StrategyStateChangeActions::new(
-            BacktestStrategyRunState::Failed,
+            BacktestStrategyRunState::Error,
             vec![
                 BacktestStrategyStateAction::LogTransition,
                 BacktestStrategyStateAction::LogStrategyState,

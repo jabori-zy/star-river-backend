@@ -1,12 +1,11 @@
 use async_trait::async_trait;
 use snafu::{IntoError, Report};
 use strategy_core::{
-    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
-    node::{
+    NodeType, event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent}, node::{
         context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-    },
+    }
 };
 
 use super::{KlineNode, state_machine::KlineNodeAction};
@@ -62,13 +61,14 @@ impl NodeLifecycle for KlineNode {
                 }
                 KlineNodeAction::LogNodeState => {
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::KlineNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        KlineNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        KlineNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;
@@ -76,13 +76,14 @@ impl NodeLifecycle for KlineNode {
                 KlineNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] starting to listen external events");
                     let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::KlineNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        KlineNodeAction::ListenAndHandleExternalEvents.to_string(),
+                        current_state,
+                        KlineNodeAction::ListenAndHandleExternalEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -92,13 +93,14 @@ impl NodeLifecycle for KlineNode {
                 KlineNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] starting to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::KlineNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        KlineNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        current_state,
+                        KlineNodeAction::ListenAndHandleNodeEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -120,13 +122,14 @@ impl NodeLifecycle for KlineNode {
                     match result {
                         Ok(()) => {
                             let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_success_status_event(
+                            NodeUtils::send_info_status_event(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
+                                NodeType::KlineNode,
                                 log_message.to_string(),
-                                current_state.to_string(),
-                                KlineNodeAction::GetMinIntervalSymbols.to_string(),
+                                current_state,
+                                KlineNodeAction::GetMinIntervalSymbols,
                                 &strategy_output_handle,
                             )
                             .await;
@@ -163,26 +166,28 @@ impl NodeLifecycle for KlineNode {
 
                     // 发送开始注册日志
                     let log_message = StartRegisterExchangeMsg::new(node_name.clone(), exchange.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::KlineNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        KlineNodeAction::RegisterExchange.to_string(),
+                        current_state.clone(),
+                        KlineNodeAction::RegisterExchange,
                         &strategy_output_handle,
                     )
                     .await;
 
                     if response.is_success() {
                         let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
-                        NodeUtils::send_success_status_event(
+                        NodeUtils::send_info_status_event(
                             strategy_id,
                             node_id.clone(),
                             node_name.clone(),
+                            NodeType::KlineNode,
                             log_message.to_string(),
-                            current_state.to_string(),
-                            KlineNodeAction::RegisterExchange.to_string(),
+                            current_state,
+                            KlineNodeAction::RegisterExchange,
                             &strategy_output_handle,
                         )
                         .await;
@@ -193,17 +198,17 @@ impl NodeLifecycle for KlineNode {
                             node_name: node_name.clone(),
                         }
                         .into_error(error.clone());
-
-                        let log_event: CommonEvent = NodeStateLogEvent::error(
-                            strategy_id.clone(),
+                        
+                        NodeUtils::send_error_status_event(
+                            strategy_id,
                             node_id.clone(),
                             node_name.clone(),
-                            NodeRunState::Failed.to_string(),
-                            KlineNodeAction::RegisterExchange.to_string(),
+                            NodeType::KlineNode,
+                            KlineNodeAction::RegisterExchange,
                             &kline_error,
+                            &strategy_output_handle,
                         )
-                        .into();
-                        let _ = strategy_output_handle.send(log_event.into());
+                        .await;
                         return Err(kline_error.into());
                     }
                 }
@@ -217,13 +222,14 @@ impl NodeLifecycle for KlineNode {
                         Ok(()) => {
                             tracing::info!("[{node_name}] load kline history from exchange success");
                             let log_message = LoadKlineDataSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_success_status_event(
+                            NodeUtils::send_info_status_event(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
+                                NodeType::KlineNode,
                                 log_message.to_string(),
-                                current_state.to_string(),
-                                KlineNodeAction::LoadHistoryFromExchange.to_string(),
+                                current_state,
+                                KlineNodeAction::LoadHistoryFromExchange,
                                 &strategy_output_handle,
                             )
                             .await;
@@ -235,7 +241,8 @@ impl NodeLifecycle for KlineNode {
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
-                                KlineNodeAction::LoadHistoryFromExchange.to_string(),
+                                NodeType::KlineNode,
+                                KlineNodeAction::LoadHistoryFromExchange,
                                 &err,
                                 &strategy_output_handle,
                             )

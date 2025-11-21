@@ -42,6 +42,12 @@ pub enum ApiError {
 
     #[snafu(display("items per page must be between 1 and 100. requested items per page: {items_per_page}"))]
     TooManyItemsPerPage { items_per_page: u64, backtrace: Backtrace },
+
+    #[snafu(display("deserialize params failed. reason: {source}"))]
+    DeserializeParamsFailed {
+        source: serde_json::Error,
+        backtrace: Backtrace,
+    }
 }
 
 // Implement the StarRiverErrorTrait for StarRiverError
@@ -60,6 +66,7 @@ impl StarRiverErrorTrait for ApiError {
             ApiError::EmptyCharacter { .. } => 1005, // 字符为空
             ApiError::PageMustGreaterThanOne { .. } => 1006, // 页码必须大于等于1
             ApiError::TooManyItemsPerPage { .. } => 1007, // 每页数量必须大于等于1且小于等于100
+            ApiError::DeserializeParamsFailed { .. } => 1008, // 解析参数失败
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -89,6 +96,9 @@ impl StarRiverErrorTrait for ApiError {
                 ApiError::TooManyItemsPerPage { items_per_page, .. } => {
                     format!("每页数量必须大于等于1且小于等于100。请求每页数量: {}", items_per_page)
                 }
+                ApiError::DeserializeParamsFailed { source, .. } => {
+                    format!("解析参数失败，原因: {}", source)
+                }
             },
         }
     }
@@ -102,6 +112,7 @@ impl StarRiverErrorTrait for ApiError {
             ApiError::PageMustGreaterThanOne { .. } |
             ApiError::TooManyItemsPerPage { .. } => StatusCode::BAD_REQUEST,
             ApiError::TransformTimestampFailed { .. } => StatusCode::BAD_REQUEST,
+            ApiError::DeserializeParamsFailed { .. } => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -113,7 +124,8 @@ impl StarRiverErrorTrait for ApiError {
             | ApiError::EmptyCharacter { .. }
             | ApiError::TransformTimestampFailed { .. }
             | ApiError::PageMustGreaterThanOne { .. }
-            | ApiError::TooManyItemsPerPage { .. } => vec![self.error_code()],
+            | ApiError::TooManyItemsPerPage { .. }
+            | ApiError::DeserializeParamsFailed { .. } => vec![self.error_code()],
         }
     }
 }

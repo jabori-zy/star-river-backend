@@ -3,11 +3,13 @@ use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::CycleId;
 
 use crate::event::{
-    log_event::{NodeStateLogEvent, StrategyRunningLogEvent},
+    log_event::NodeStateLogEvent,
+    strategy_event::StrategyRunningLogEvent,
     node::NodeEvent,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, From)]
+#[derive(Debug, Clone, Serialize, From)]
+#[serde(tag = "event_type")]
 pub enum CommonEvent {
     Trigger(TriggerEvent),               // Trigger event
     ExecuteOver(ExecuteOverEvent),       // Execute over

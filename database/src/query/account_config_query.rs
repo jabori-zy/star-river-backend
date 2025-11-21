@@ -1,11 +1,12 @@
 use ::entity::{account_config, account_config::Entity as AccountConfigEntity};
 use sea_orm::*;
 use star_river_core::{account::AccountConfig, custom_type::AccountId};
+use crate::error::DatabaseError;
 
 pub struct AccountConfigQuery;
 
 impl AccountConfigQuery {
-    pub async fn get_account_config_by_exchange(db: &DbConn, exchange: String) -> Result<Vec<AccountConfig>, DbErr> {
+    pub async fn get_account_config_list_by_exchange(db: &DbConn, exchange: String) -> Result<Vec<AccountConfig>, DatabaseError> {
         let account_config_models = AccountConfigEntity::find()
             .filter(account_config::Column::Exchange.eq(exchange))
             .filter(account_config::Column::IsDelete.eq(false))
@@ -34,7 +35,7 @@ impl AccountConfigQuery {
         Ok(account_config_model.into())
     }
 
-    pub async fn get_all_account_config(db: &DbConn) -> Result<Vec<AccountConfig>, DbErr> {
+    pub async fn get_all_account_config(db: &DbConn) -> Result<Vec<AccountConfig>, DatabaseError> {
         let account_config_models = AccountConfigEntity::find()
             .filter(account_config::Column::IsDelete.eq(false))
             .all(db)

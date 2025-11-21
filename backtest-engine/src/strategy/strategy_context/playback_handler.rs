@@ -266,7 +266,7 @@ impl BacktestStrategyContext {
         }
 
         // 更新策略状态为playing
-        self.store_strategy_status(BacktestStrategyRunState::Playing.to_string().to_lowercase())
+        self.store_strategy_status(BacktestStrategyRunState::Playing.to_string())
             .await?;
 
         tokio::spawn(async move {
@@ -284,7 +284,7 @@ impl BacktestStrategyContext {
         }
         tracing::info!("[{}]: request pause play", self.strategy_name());
         // 更新策略状态为pausing
-        self.store_strategy_status(BacktestStrategyRunState::Pausing.to_string().to_lowercase())
+        self.store_strategy_status(BacktestStrategyRunState::Pausing.to_string())
             .await?;
 
         self.cancel_play_token.cancel();
@@ -296,7 +296,7 @@ impl BacktestStrategyContext {
     // 重置播放
     pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
         // 更新策略状态为ready
-        self.store_strategy_status(BacktestStrategyRunState::Ready.to_string().to_lowercase())
+        self.store_strategy_status(BacktestStrategyRunState::Ready.to_string())
             .await?;
 
         // 清空日志

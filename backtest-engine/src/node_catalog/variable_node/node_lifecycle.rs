@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use strategy_core::node::{
+use strategy_core::{NodeType, node::{
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
     node_state_machine::StateMachine,
     node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-};
+}};
 
 use super::VariableNode;
 use crate::{
@@ -65,13 +65,14 @@ impl NodeLifecycle for VariableNode {
 
                     // Send node state log event
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::VariableNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        VariableNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        VariableNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;
@@ -79,13 +80,14 @@ impl NodeLifecycle for VariableNode {
                 VariableNodeAction::RegisterTask => {
                     tracing::info!("[{node_name}] registering variable retrieval task");
                     let log_message = RegisterVariableRetrievalTaskMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::VariableNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        VariableNodeAction::RegisterTask.to_string(),
+                        current_state,
+                        VariableNodeAction::RegisterTask,
                         &strategy_output_handle,
                     )
                     .await;
@@ -100,13 +102,14 @@ impl NodeLifecycle for VariableNode {
                 VariableNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] start to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::VariableNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        VariableNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        current_state,
+                        VariableNodeAction::ListenAndHandleNodeEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -116,13 +119,14 @@ impl NodeLifecycle for VariableNode {
                 VariableNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::VariableNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        VariableNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        current_state,
+                        VariableNodeAction::ListenAndHandleStrategyCommand,
                         &strategy_output_handle,
                     )
                     .await;

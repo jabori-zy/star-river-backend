@@ -20,7 +20,7 @@ use strum::Display;
 /// Backtest node event unified enum
 ///
 /// Wraps all types of node events and provides a unified event interface
-#[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
+#[derive(Debug, Clone, Serialize, Display, From)]
 #[serde(tag = "node_type")]
 pub enum BacktestNodeEvent {
     #[strum(serialize = "start_node")]

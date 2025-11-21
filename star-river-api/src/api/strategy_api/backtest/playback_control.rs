@@ -50,6 +50,41 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
 
 
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/strategy/backtest/{strategy_id}/stop",
+    tag = BACKTEST_CONTROL_TAG,
+    summary = "stop strategy",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to stop")
+    ),
+    responses(
+        (status = OK, description = "Stop strategy successfully", content_type = "application/json"),
+        (status = BAD_REQUEST, description = "Stop strategy failed", content_type = "application/json")
+    )
+)]
+#[instrument(skip(star_river))]
+pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<ApiResponseEnum<()>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<(), BacktestEngineError> = engine_guard
+        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.stop(strategy_id).await }))
+        .await;
+
+    if let Err(e) = result {
+        let report = Report::from_error(&e);
+        tracing::error!("{}", report);
+        return (e.http_status_code(), Json(ApiResponseEnum::error(e)));
+    } else {
+        tracing::info!("stop strategy {} successfully", strategy_id);
+        (StatusCode::OK, Json(ApiResponseEnum::success(())))
+    }
+}
+
+
+
 
 
 #[utoipa::path(

@@ -1,10 +1,9 @@
 use async_trait::async_trait;
-use strategy_core::node::{
+use strategy_core::{NodeType, node::{
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
     node_state_machine::StateMachine,
     node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-};
-use tokio::time::Duration;
+}};
 
 use super::PositionNode;
 use crate::{
@@ -66,13 +65,14 @@ impl NodeLifecycle for PositionNode {
 
                     // Send node state log event
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::PositionNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        PositionNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        PositionNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;
@@ -80,13 +80,14 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] start to listen external events");
                     let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::PositionNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        PositionNodeAction::ListenAndHandleExternalEvents.to_string(),
+                        current_state,
+                        PositionNodeAction::ListenAndHandleExternalEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -96,13 +97,14 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::RegisterTask => {
                     tracing::info!("[{node_name}] registering position monitoring task");
                     let log_message = RegisterTaskMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::PositionNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        PositionNodeAction::RegisterTask.to_string(),
+                        current_state,
+                        PositionNodeAction::RegisterTask,
                         &strategy_output_handle,
                     )
                     .await;
@@ -117,13 +119,14 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] start to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::PositionNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        PositionNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        current_state,
+                        PositionNodeAction::ListenAndHandleNodeEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -133,13 +136,14 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::PositionNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        PositionNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        current_state,
+                        PositionNodeAction::ListenAndHandleStrategyCommand,
                         &strategy_output_handle,
                     )
                     .await;
@@ -149,13 +153,14 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent => {
                     tracing::info!("[{node_name}] start to listen virtual trading system events");
                     let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::PositionNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent.to_string(),
+                        current_state,
+                        PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent,
                         &strategy_output_handle,
                     )
                     .await;

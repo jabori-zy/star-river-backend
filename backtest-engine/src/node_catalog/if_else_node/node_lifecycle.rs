@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use strategy_core::node::{
+use strategy_core::{NodeType, node::{
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
     node_state_machine::StateMachine,
     node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-};
+}};
 
 use super::IfElseNode;
 use crate::{
@@ -65,13 +65,14 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::ListenAndHandleStrategySignal => {
                     tracing::info!("[{node_name}] starting to listen strategy signal");
                     let log_message = ListenStrategySignalMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IfElseNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IfElseNodeAction::ListenAndHandleStrategySignal.to_string(),
+                        current_state,
+                        IfElseNodeAction::ListenAndHandleStrategySignal,
                         &strategy_output_handle,
                     )
                     .await;
@@ -79,13 +80,14 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IfElseNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IfElseNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        IfElseNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;
@@ -94,13 +96,14 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] starting to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IfElseNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IfElseNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        current_state,
+                        IfElseNodeAction::ListenAndHandleNodeEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -110,13 +113,14 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::InitReceivedData => {
                     tracing::info!("[{node_name}] initializing received data flags");
                     let log_message = InitReceivedDataMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IfElseNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IfElseNodeAction::InitReceivedData.to_string(),
+                        current_state,
+                        IfElseNodeAction::InitReceivedData,
                         &strategy_output_handle,
                     )
                     .await;
@@ -127,13 +131,14 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::Evaluate => {
                     tracing::info!("[{node_name}] starting condition evaluation");
                     let log_message = StartConditionEvaluationMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IfElseNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IfElseNodeAction::Evaluate.to_string(),
+                        current_state,
+                        IfElseNodeAction::Evaluate,
                         &strategy_output_handle,
                     )
                     .await;
@@ -142,13 +147,14 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IfElseNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IfElseNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        current_state,
+                        IfElseNodeAction::ListenAndHandleStrategyCommand,
                         &strategy_output_handle,
                     )
                     .await;

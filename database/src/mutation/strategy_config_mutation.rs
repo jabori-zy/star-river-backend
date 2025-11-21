@@ -13,7 +13,7 @@ impl StrategyConfigMutation {
             id: NotSet,
             name: Set(strategy_name),
             description: Set(strategy_description),
-            status: Set("stopped".to_string()),
+            status: Set("Stopped".to_string()),
             is_deleted: Set(false),
             create_time: Set(Utc::now()),
             update_time: Set(Utc::now()),
@@ -97,6 +97,7 @@ impl StrategyConfigMutation {
     }
 
     pub async fn update_strategy_status(db: &DbConn, strategy_id: i32, strategy_status: String) -> Result<StrategyConfig, DatabaseError> {
+        tracing::info!("update strategy status: strategy_id: {}, strategy_status: {}", strategy_id, strategy_status);
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?

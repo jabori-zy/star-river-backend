@@ -16,7 +16,7 @@ use star_river_core::{
     kline::Kline,
 };
 use strategy_core::{
-    event::log_event::StrategyRunningLogEvent,
+    event::strategy_event::StrategyRunningLogEvent,
     strategy::{StrategyConfig, context_trait::StrategyMetaDataExt, metadata::StrategyMetadata},
 };
 use ta_lib::indicator::Indicator;

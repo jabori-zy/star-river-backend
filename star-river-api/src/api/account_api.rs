@@ -1,4 +1,5 @@
 use crate::api::response::ApiResponse;
+use crate::error::DeserializeParamsFailedSnafu;
 use crate::star_river::StarRiver;
 use axum::extract::State;
 use axum::extract::{Path, Query};
@@ -6,59 +7,63 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use database::mutation::account_config_mutation::AccountConfigMutation;
 use database::query::account_config_query::AccountConfigQuery;
-use engine::account_engine::AccountEngine;
 use event_center::EventCenterSingleton;
-use event_center::event::AccountEvent;
 use event_center::event::Event;
 use serde::{Deserialize, Serialize};
 use star_river_core::account::AccountConfig;
 use star_river_core::engine::EngineName;
-use star_river_core::market::Exchange;
+use star_river_core::exchange::Exchange;
 use std::str::FromStr;
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, ToSchema};
+use crate::api::response::ApiResponseEnum;
+use star_river_core::error::StarRiverErrorTrait;
+use snafu::{Report, IntoError};
 
-#[derive(Serialize, Deserialize, IntoParams, ToSchema)]
-#[schema(title = "登录MT5账户参数", description = "登录指定MT5账户")]
-pub struct LoginMt5AccountParams {
-    pub account_id: i32,
-}
+// #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
+// #[schema(title = "登录MT5账户参数", description = "登录指定MT5账户")]
+// pub struct LoginMt5AccountParams {
+//     pub account_id: i32,
+// }
 
-#[axum::debug_handler]
-#[utoipa::path(
-    post,
-    path = "/api/v1/account/start_mt5_terminal",
-    tag = "账户管理",
-    summary = "启动MT5客户端",
-    description = "启动MT5客户端并登录指定MT5账户",
-    request_body = LoginMt5AccountParams,
-    responses(
-        (status = 200, description = "登录成功", content_type = "application/json"),
-        (status = 400, description = "登录失败", content_type = "application/json")
-    )
-)]
-pub async fn start_mt5_terminal(
-    State(star_river): State<StarRiver>,
-    Json(params): Json<LoginMt5AccountParams>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
-    let account_id = params.account_id;
+// #[axum::debug_handler]
+// #[utoipa::path(
+//     post,
+//     path = "/api/v1/account/start_mt5_terminal",
+//     tag = "账户管理",
+//     summary = "启动MT5客户端",
+//     description = "启动MT5客户端并登录指定MT5账户",
+//     request_body = LoginMt5AccountParams,
+//     responses(
+//         (status = 200, description = "登录成功", content_type = "application/json"),
+//         (status = 400, description = "登录失败", content_type = "application/json")
+//     )
+// )]
+// pub async fn start_mt5_terminal(
+//     State(star_river): State<StarRiver>,
+//     Json(params): Json<LoginMt5AccountParams>,
+// ) -> (StatusCode, Json<ApiResponse<()>>) {
+//     let account_id = params.account_id;
 
-    let engine_manager = star_river.engine_manager.lock().await;
-    // 获取account_engine
-    let engine = engine_manager.get_engine(EngineName::AccountEngine).await;
-    let mut engine_guard = engine.lock().await;
-    let account_engine = engine_guard.as_any_mut().downcast_mut::<AccountEngine>().unwrap();
-    account_engine.register_exchange(account_id).await.unwrap();
+//     let engine_manager = star_river.engine_manager.lock().await;
+//     // 获取account_engine
+//     let engine = engine_manager.get_engine(EngineName::AccountEngine).await;
+//     let mut engine_guard = engine.lock().await;
+//     let account_engine = engine_guard.as_any_mut().downcast_mut::<AccountEngine>().unwrap();
+//     account_engine.register_exchange(account_id).await.unwrap();
 
-    (
-        StatusCode::OK,
-        Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: None,
-        }),
-    )
-}
+//     (
+//         StatusCode::OK,
+//         Json(ApiResponse {
+//             code: 0,
+//             message: "success".to_string(),
+//             data: None,
+//         }),
+//     )
+// }
+
+
+const ACCOUNT_MANAGEMENT_TAG: &str = "Account Management";
 
 #[derive(Serialize, Deserialize, ToSchema, EnumString, Display)]
 #[schema(title = "交易所类型", description = "交易所类型")]
@@ -79,7 +84,7 @@ pub enum ExchangeType {
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(title = "获取指定交易所的账户配置参数", description = "获取指定交易所的账户配置")]
-pub struct GetAccountConfigByExchangeQuery {
+pub struct GetAccountConfigListByExchangeQuery {
     /// 交易所
     #[schema(example = "metatrader5")]
     pub exchange: Option<ExchangeType>,
@@ -88,34 +93,34 @@ pub struct GetAccountConfigByExchangeQuery {
 #[utoipa::path(
     get,
     path = "/api/v1/account/config",
-    tag = "账户管理",
+    tag = ACCOUNT_MANAGEMENT_TAG,
     summary = "获取账户配置",
-    params(GetAccountConfigByExchangeQuery),
+    params(GetAccountConfigListByExchangeQuery),
     responses(
-        (status = 200, description = "获取成功", content_type = "application/json", body = ApiResponse<Vec<AccountConfig>>),
-        (status = 400, description = "获取失败", content_type = "application/json", body = ApiResponse<String>)
+        (status = 200, description = "获取成功", content_type = "application/json", body = ApiResponseEnum<Vec<AccountConfig>>),
+        (status = 400, description = "获取失败", content_type = "application/json", body = ApiResponseEnum<Vec<AccountConfig>>)
     )
 )]
-pub async fn get_account_configs(
+pub async fn get_account_config_list(
     State(star_river): State<StarRiver>,
-    Query(params): Query<GetAccountConfigByExchangeQuery>,
-) -> (StatusCode, Json<ApiResponse<Vec<AccountConfig>>>) {
+    Query(params): Query<GetAccountConfigListByExchangeQuery>,
+) -> (StatusCode, Json<ApiResponseEnum<Vec<AccountConfig>>>) {
     let db = &star_river.database.lock().await.conn;
     let account_config = match params.exchange {
-        Some(exchange) => AccountConfigQuery::get_account_config_by_exchange(db, exchange.to_string())
-            .await
-            .unwrap(),
-        None => AccountConfigQuery::get_all_account_config(db).await.unwrap(),
+        Some(exchange) => AccountConfigQuery::get_account_config_list_by_exchange(db, exchange.to_string())
+            .await,
+        None => AccountConfigQuery::get_all_account_config(db).await,
     };
-    (
-        StatusCode::OK,
-        Json(ApiResponse {
-            code: 0,
-            message: "success".to_string(),
-            data: Some(account_config),
-        }),
-    )
+    match account_config {
+        Ok(account_config) => {
+            (StatusCode::OK, Json(ApiResponseEnum::success(account_config)))
+        }
+        Err(e) => (e.http_status_code(), Json(ApiResponseEnum::error(e))),
+    }
 }
+
+
+
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -197,66 +202,69 @@ pub struct AddAccountConfigParams {
 #[utoipa::path(
     post,
     path = "/api/v1/account/config",
-    tag = "账户管理",
-    summary = "新增账户配置",
+    tag = ACCOUNT_MANAGEMENT_TAG,
+    summary = "Add account config",
     request_body = AddAccountConfigParams,
     responses(
-        (status = 200, description = "账户配置创建成功", content_type = "application/json", body = ApiResponse<AccountConfig>),
-        (status = 400, description = "账户配置创建失败", content_type = "application/json", body = ApiResponse<String>)
+        (status = 200, description = "Account config added successfully", content_type = "application/json", body = ApiResponseEnum<AccountConfig>),
+        (status = 400, description = "Account config added failed", content_type = "application/json", body = ApiResponseEnum<AccountConfig>)
     )
 )]
-// 新增账户配置
 pub async fn add_account_config(
     State(star_river): State<StarRiver>,
     Json(request): Json<AddAccountConfigParams>,
-) -> (StatusCode, Json<ApiResponse<AccountConfig>>) {
+) -> (StatusCode, Json<ApiResponseEnum<AccountConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
 
-    let account_config_json = serde_json::to_value(&request.account_config).expect("Invalid account config");
-    tracing::info!("account_config_json: {:?}", account_config_json);
+    let account_config_json = match serde_json::to_value(&request.account_config) {
+        Ok(account_config_json) => account_config_json,
+        Err(e) => {
+            let error = DeserializeParamsFailedSnafu{}.into_error(e);
+            let report = Report::from_error(&error);
+            tracing::error!("{}", report);
+            return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
+        }
+    };
+    let exchange = match Exchange::from_str(request.exchange.as_str()) {
+        Ok(exchange) => exchange,
+        Err(e) => {
+            let report = Report::from_error(&e);
+            tracing::error!("{}", report);
+            return (e.http_status_code(), Json(ApiResponseEnum::error(e)));
+        }
+    };
+
     match AccountConfigMutation::insert_account_config(
         conn,
         request.account_name,
-        Exchange::from_str(request.exchange.as_str()).expect("Invalid exchange"),
+        exchange,
         account_config_json,
     )
     .await
     {
         Ok(account_config) => {
             // 添加成功之后，发布账户配置已添加事件
-            tracing::info!("添加账户配置成功: {:?}", account_config);
-            // let event_center = star_river.event_center.lock().await;
-            // let event_publisher = EventCenterSingleton::publisher().await.unwrap();
-            // let event_publisher = event_center.get_event_publisher();
-            let event = Event::Account(AccountEvent::AccountConfigAdded(account_config.id));
-            EventCenterSingleton::publish(event).await.unwrap();
+            tracing::info!("account config added successfully. account config: {:?}", account_config);
 
+            (StatusCode::OK, Json(ApiResponseEnum::success(account_config)))
+        }
+        Err(e) => {
+            let report = Report::from_error(&e);
+            tracing::error!("add account config failed: {}", report);
             (
-                StatusCode::OK,
-                Json(ApiResponse {
-                    code: 0,
-                    message: "success".to_string(),
-                    data: Some(account_config),
-                }),
+                e.http_status_code(),
+                Json(ApiResponseEnum::error(e))
             )
         }
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: e.to_string(),
-                data: None,
-            }),
-        ),
     }
 }
 
 #[utoipa::path(
     delete,
     path = "/api/v1/account/config/{account_id}",
-    tag = "账户管理",
-    summary = "删除账户配置",
+    tag = ACCOUNT_MANAGEMENT_TAG,
+    summary = "Delete account config",
     description = "根据账户ID删除指定的账户配置，删除成功后会发布账户配置已删除事件",
     params(
         ("account_id" = i32, Path, description = "要删除的账户配置ID")
@@ -269,35 +277,22 @@ pub async fn add_account_config(
 pub async fn delete_account_config(
     State(star_river): State<StarRiver>,
     Path(account_id): Path<i32>,
-) -> (StatusCode, Json<ApiResponse<()>>) {
+) -> (StatusCode, Json<ApiResponseEnum<()>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match AccountConfigMutation::delete_account_config(conn, account_id).await {
         Ok(_) => {
-            // 删除成功之后，发布账户配置已删除事件
-            // let event_center = star_river.event_center.lock().await;
-            // let event_publisher = event_center.get_event_publisher();
-            let event_publisher = EventCenterSingleton::publisher().await.unwrap();
-            let event = Event::Account(AccountEvent::AccountConfigDeleted(account_id));
-            EventCenterSingleton::publish(event).await.unwrap();
-
+            tracing::info!("account config deleted successfully. account id: {}", account_id);
             (
                 StatusCode::OK,
-                Json(ApiResponse {
-                    code: 0,
-                    message: "账户配置删除成功".to_string(),
-                    data: None,
-                }),
+                Json(ApiResponseEnum::success(())),
             )
         }
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: e.to_string(),
-                data: None,
-            }),
-        ),
+        Err(e) => {
+            let report = Report::from_error(&e);
+            tracing::error!("{}", report);
+            (e.http_status_code(), Json(ApiResponseEnum::error(e)))
+        }
     }
 }
 
@@ -327,22 +322,31 @@ pub struct UpdateAccountConfigParams {
 #[utoipa::path(
     put,
     path = "/api/v1/account/config/{account_id}",
-    tag = "账户管理",
-    summary = "更新账户配置",
+    tag = ACCOUNT_MANAGEMENT_TAG,
+    summary = "Update account config",
     request_body = UpdateAccountConfigParams,
     responses(
-        (status = 200, description = "账户配置更新成功", content_type = "application/json", body = ApiResponse<AccountConfig>),
-        (status = 400, description = "账户配置更新失败", content_type = "application/json", body = ApiResponse<String>)
+        (status = 200, description = "Account config updated successfully", content_type = "application/json", body = ApiResponseEnum<AccountConfig>),
+        (status = 400, description = "Account config updated failed", content_type = "application/json", body = ApiResponseEnum<AccountConfig>)
     )
 )]
 pub async fn update_account_config(
     State(star_river): State<StarRiver>,
     Path(account_id): Path<i32>,
     Json(params): Json<UpdateAccountConfigParams>,
-) -> (StatusCode, Json<ApiResponse<AccountConfig>>) {
+) -> (StatusCode, Json<ApiResponseEnum<AccountConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
-    let account_config_json = serde_json::to_value(&params.account_config).expect("Invalid account config");
+    let account_config_json = serde_json::to_value(&params.account_config);
+    let account_config_json = match account_config_json {
+        Ok(account_config_json) => account_config_json,
+        Err(e) => {
+            let error = DeserializeParamsFailedSnafu{}.into_error(e);
+            let report = Report::from_error(&error);
+            tracing::error!("{}", report);
+            return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
+        }
+    };
     match AccountConfigMutation::update_account_config(
         conn,
         account_id,
@@ -354,30 +358,17 @@ pub async fn update_account_config(
     .await
     {
         Ok(account_config) => {
-            // 更新成功之后，发布账户配置已更新事件
-            // let event_center = star_river.event_center.lock().await;
-            // let event_publisher = event_center.get_event_publisher();
-            let event_publisher = EventCenterSingleton::publisher().await.unwrap();
-            let event = Event::Account(AccountEvent::AccountConfigUpdated(account_config.clone()));
-            EventCenterSingleton::publish(event).await.unwrap();
 
             (
                 StatusCode::OK,
-                Json(ApiResponse {
-                    code: 0,
-                    message: "账户配置更新成功".to_string(),
-                    data: Some(account_config),
-                }),
+                Json(ApiResponseEnum::success(account_config))
             )
         }
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: e.to_string(),
-                data: None,
-            }),
-        ),
+        Err(e) => {
+            let report = Report::from_error(&e);
+            tracing::error!("{}", report);
+            (e.http_status_code(), Json(ApiResponseEnum::error(e)))
+        }
     }
 }
 
@@ -392,50 +383,37 @@ pub struct UpdateAccountIsAvailableQuery {
 #[utoipa::path(
     patch,
     path = "/api/v1/account/config/{account_id}/status",
-    tag = "账户管理",
-    summary = "更新账户可用状态",
-    description = "更新指定账户配置的可用状态",
+    tag = ACCOUNT_MANAGEMENT_TAG,
+    summary = "Update account is available",
+    description = "Update account is available by account id",
     params(
-        ("account_id" = i32, Path, description = "账户配置ID"),
+        ("account_id" = i32, Path, description = "Account config id"),
         UpdateAccountIsAvailableQuery
     ),
     responses(
-        (status = 200, description = "状态更新成功", content_type = "application/json", body = ApiResponse<AccountConfig>),
-        (status = 400, description = "状态更新失败", content_type = "application/json", body = ApiResponse<String>)
+        (status = 200, description = "Account is available updated successfully", content_type = "application/json", body = ApiResponseEnum<AccountConfig>),
+        (status = 400, description = "Account is available updated failed", content_type = "application/json", body = ApiResponseEnum<AccountConfig>)
     )
 )]
 pub async fn update_account_is_available(
     State(star_river): State<StarRiver>,
     Path(account_id): Path<i32>,
     Query(query): Query<UpdateAccountIsAvailableQuery>,
-) -> (StatusCode, Json<ApiResponse<AccountConfig>>) {
+) -> (StatusCode, Json<ApiResponseEnum<AccountConfig>>) {
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match AccountConfigMutation::update_account_config_is_available(conn, account_id, query.is_available).await {
         Ok(account_config) => {
-            // 更新成功之后，发布账户配置已更新事件
-            // let event_center = star_river.event_center.lock().await;
-            // let event_publisher = event_center.get_event_publisher();
-            // let event_publisher = EventCenterSingleton::publisher().await.unwrap();
-            let event = Event::Account(AccountEvent::AccountConfigUpdated(account_config.clone()));
-            EventCenterSingleton::publish(event).await.unwrap();
-
+            tracing::info!("account is available updated successfully. account id: {}, is available: {}", account_id, query.is_available);
             (
                 StatusCode::OK,
-                Json(ApiResponse {
-                    code: 0,
-                    message: "状态更新成功".to_string(),
-                    data: Some(account_config),
-                }),
+                Json(ApiResponseEnum::success(account_config))
             )
         }
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(ApiResponse {
-                code: -1,
-                message: e.to_string(),
-                data: None,
-            }),
-        ),
+        Err(e) => {
+            let report = Report::from_error(&e);
+            tracing::error!("{}", report);
+            (e.http_status_code(), Json(ApiResponseEnum::error(e)))
+        }
     }
 }

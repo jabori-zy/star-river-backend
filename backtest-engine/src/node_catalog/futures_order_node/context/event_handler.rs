@@ -15,7 +15,7 @@ use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     communication::strategy::StrategyResponse,
     event::{
-        log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
         node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
@@ -319,7 +319,7 @@ impl FuturesOrderNodeContext {
                             order.open_price,
                             order.order_side.to_string(),
                         );
-                        let log_event: CommonEvent = StrategyRunningLogEvent::success(
+                        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
@@ -339,7 +339,7 @@ impl FuturesOrderNodeContext {
                         self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                         let message = OrderFilledMsg::new(self.node_name().clone(), order.order_id, order.quantity, order.open_price);
-                        let log_event: CommonEvent = StrategyRunningLogEvent::success(
+                        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
@@ -359,7 +359,7 @@ impl FuturesOrderNodeContext {
                         self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                         let message = OrderCanceledMsg::new(self.node_name().clone(), order.order_id);
-                        let log_event: CommonEvent = StrategyRunningLogEvent::success(
+                        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),

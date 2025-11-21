@@ -1,10 +1,9 @@
 use async_trait::async_trait;
-use strategy_core::node::{
+use strategy_core::{NodeType, node::{
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
     node_state_machine::StateMachine,
     node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-};
-use tokio::time::Duration;
+}};
 
 use super::IndicatorNode;
 use crate::{
@@ -67,13 +66,14 @@ impl NodeLifecycle for IndicatorNode {
                 IndicatorNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IndicatorNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IndicatorNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        IndicatorNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;
@@ -81,13 +81,14 @@ impl NodeLifecycle for IndicatorNode {
                 IndicatorNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] starting to listen external events");
                     let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IndicatorNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IndicatorNodeAction::ListenAndHandleExternalEvents.to_string(),
+                        current_state,
+                        IndicatorNodeAction::ListenAndHandleExternalEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -97,13 +98,14 @@ impl NodeLifecycle for IndicatorNode {
                 IndicatorNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] starting to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IndicatorNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IndicatorNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        current_state,
+                        IndicatorNodeAction::ListenAndHandleNodeEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -113,13 +115,14 @@ impl NodeLifecycle for IndicatorNode {
                 IndicatorNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IndicatorNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IndicatorNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        current_state,
+                        IndicatorNodeAction::ListenAndHandleStrategyCommand,
                         &strategy_output_handle,
                     )
                     .await;
@@ -150,13 +153,14 @@ impl NodeLifecycle for IndicatorNode {
                         .await;
 
                     let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IndicatorNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IndicatorNodeAction::GetMinIntervalSymbols.to_string(),
+                        current_state,
+                        IndicatorNodeAction::GetMinIntervalSymbols,
                         &strategy_output_handle,
                     )
                     .await;
@@ -165,13 +169,14 @@ impl NodeLifecycle for IndicatorNode {
                 IndicatorNodeAction::CalculateIndicator => {
                     tracing::info!("[{node_name}] starting to calculate indicator");
                     let log_message = CalculateIndicatorMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::IndicatorNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        IndicatorNodeAction::CalculateIndicator.to_string(),
+                        current_state.clone(),
+                        IndicatorNodeAction::CalculateIndicator,
                         &strategy_output_handle,
                     )
                     .await;
@@ -185,13 +190,14 @@ impl NodeLifecycle for IndicatorNode {
                     match cal_result {
                         Ok(_) => {
                             let success_msg = CalculateIndicatorSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_success_status_event(
+                            NodeUtils::send_info_status_event(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
+                                NodeType::IndicatorNode,
                                 success_msg.to_string(),
-                                current_state.to_string(),
-                                IndicatorNodeAction::CalculateIndicator.to_string(),
+                                current_state,
+                                IndicatorNodeAction::CalculateIndicator,
                                 &strategy_output_handle,
                             )
                             .await;
@@ -201,7 +207,8 @@ impl NodeLifecycle for IndicatorNode {
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
-                                IndicatorNodeAction::CalculateIndicator.to_string(),
+                                NodeType::IndicatorNode,
+                                IndicatorNodeAction::CalculateIndicator,
                                 &e,
                                 &strategy_output_handle,
                             )

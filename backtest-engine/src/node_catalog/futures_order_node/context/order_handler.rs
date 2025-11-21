@@ -1,7 +1,7 @@
 use snafu::{OptionExt, ResultExt};
 use strategy_core::{
     event::{
-        log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
         node_common_event::CommonEvent,
     },
     node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
@@ -29,13 +29,15 @@ impl FuturesOrderNodeContext {
             tracing::warn!("{}: 当前正在处理订单, 跳过", self.node_name());
             let message = ProcessingOrderMsg::new(order_config.order_config_id);
             let current_time = self.get_current_time().await.unwrap();
-            let log_event: CommonEvent = StrategyRunningLogEvent::warn(
+            let log_event: CommonEvent = StrategyRunningLogEvent::warn_with_time(
                 self.strategy_id().clone(),
                 self.node_id().clone(),
                 self.node_name().clone(),
                 StrategyRunningLogSource::Node,
                 StrategyRunningLogType::ProcessingOrder,
                 message.to_string(),
+                None,
+                None,
                 serde_json::Value::Null,
                 current_time,
             )

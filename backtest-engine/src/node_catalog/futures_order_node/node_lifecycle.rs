@@ -1,10 +1,9 @@
 use async_trait::async_trait;
-use strategy_core::node::{
+use strategy_core::{NodeType, node::{
     context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
     node_state_machine::StateMachine,
     node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-};
-use tokio::time::Duration;
+}};
 
 use super::FuturesOrderNode;
 use crate::{
@@ -65,13 +64,14 @@ impl NodeLifecycle for FuturesOrderNode {
 
                     // 发送节点状态日志事件
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::FuturesOrderNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        FuturesOrderNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        FuturesOrderNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;
@@ -79,13 +79,14 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] start to listen external events");
                     let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::FuturesOrderNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        FuturesOrderNodeAction::ListenAndHandleExternalEvents.to_string(),
+                        current_state,
+                        FuturesOrderNodeAction::ListenAndHandleExternalEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -95,13 +96,14 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::GetSymbolInfo => {
                     tracing::info!("[{node_name}] start to get symbol info");
                     let log_message = GetSymbolInfoMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::FuturesOrderNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        FuturesOrderNodeAction::GetSymbolInfo.to_string(),
+                        current_state.clone(),
+                        FuturesOrderNodeAction::GetSymbolInfo,
                         &strategy_output_handle,
                     )
                     .await;
@@ -111,13 +113,14 @@ impl NodeLifecycle for FuturesOrderNode {
                     match result {
                         Ok(_) => {
                             let log_message = GetSymbolInfoSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_success_status_event(
+                            NodeUtils::send_info_status_event(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
+                                NodeType::FuturesOrderNode,
                                 log_message.to_string(),
-                                current_state.to_string(),
-                                FuturesOrderNodeAction::GetSymbolInfo.to_string(),
+                                current_state,
+                                FuturesOrderNodeAction::GetSymbolInfo,
                                 &strategy_output_handle,
                             )
                             .await;
@@ -127,7 +130,8 @@ impl NodeLifecycle for FuturesOrderNode {
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
-                                FuturesOrderNodeAction::GetSymbolInfo.to_string(),
+                                NodeType::FuturesOrderNode,
+                                FuturesOrderNodeAction::GetSymbolInfo,
                                 &err,
                                 &strategy_output_handle,
                             )
@@ -138,7 +142,7 @@ impl NodeLifecycle for FuturesOrderNode {
                 // FuturesOrderNodeAction::RegisterTask => {
                 //     tracing::info!("[{node_name}] registering heartbeat monitoring task");
                 //     let log_message = RegisterTaskMsg::new(node_name.clone());
-                //     NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state.to_string(), FuturesOrderNodeAction::RegisterTask.to_string(), &strategy_output_handle).await;
+                //     NodeUtils::send_success_status_event(strategy_id, node_id.clone(), node_name.clone(), log_message.to_string(), current_state, FuturesOrderNodeAction::RegisterTask.to_string(), &strategy_output_handle).await;
 
                 //     self.with_ctx_write_async(|ctx| {
                 //         Box::pin(async move {
@@ -149,13 +153,14 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] start to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::FuturesOrderNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        FuturesOrderNodeAction::ListenAndHandleNodeEvents.to_string(),
+                        current_state,
+                        FuturesOrderNodeAction::ListenAndHandleNodeEvents,
                         &strategy_output_handle,
                     )
                     .await;
@@ -164,13 +169,14 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::ListenAndHandleCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::FuturesOrderNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        FuturesOrderNodeAction::ListenAndHandleCommand.to_string(),
+                        current_state,
+                        FuturesOrderNodeAction::ListenAndHandleCommand,
                         &strategy_output_handle,
                     )
                     .await;
@@ -180,13 +186,14 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::ListenAndHandleVtsEvent => {
                     tracing::info!("[{node_name}] start to listen virtual trading system events");
                     let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::FuturesOrderNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        FuturesOrderNodeAction::ListenAndHandleVtsEvent.to_string(),
+                        current_state,
+                        FuturesOrderNodeAction::ListenAndHandleVtsEvent,
                         &strategy_output_handle,
                     )
                     .await;

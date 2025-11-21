@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use strategy_core::{
-    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
-    node::{
+    NodeType, event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent}, node::{
         context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-    },
+    }
 };
 
 use super::{StartNode, state_machine::StartNodeAction};
@@ -15,6 +14,7 @@ use crate::node::{
     node_state_machine::NodeStateTransTrigger,
     node_utils::NodeUtils,
 };
+
 
 #[async_trait]
 impl NodeLifecycle for StartNode {
@@ -62,27 +62,29 @@ impl NodeLifecycle for StartNode {
                 StartNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    let log_event: CommonEvent = NodeStateLogEvent::success(
-                        strategy_id.clone(),
+                    NodeUtils::send_info_status_event(
+                        strategy_id,
                         node_id.clone(),
                         node_name.clone(),
-                        current_state.to_string(),
-                        StartNodeAction::ListenAndHandleStrategyCommand.to_string(),
+                        NodeType::StartNode,
                         log_message.to_string(),
+                        current_state,
+                        StartNodeAction::ListenAndHandleStrategyCommand,
+                        &strategy_output_handle,
                     )
-                    .into();
-                    let _ = strategy_output_handle.send(log_event.into());
+                    .await;
                     self.listen_command().await;
                 }
                 StartNodeAction::ListenAndHandlePlayIndex => {
                     let log_message = ListenPlayIndexChangeMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::StartNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        StartNodeAction::ListenAndHandlePlayIndex.to_string(),
+                        current_state,
+                        StartNodeAction::ListenAndHandlePlayIndex,
                         &strategy_output_handle,
                     )
                     .await;
@@ -138,26 +140,28 @@ impl NodeLifecycle for StartNode {
                     })
                     .await;
                     let log_message = InitCustomVariableMsg::new(node_name.clone());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::StartNode,    
                         log_message.to_string(),
-                        current_state.to_string(),
-                        StartNodeAction::InitCustomVariables.to_string(),
+                        current_state,
+                        StartNodeAction::InitCustomVariables,
                         &strategy_output_handle,
                     )
                     .await;
                 }
                 StartNodeAction::LogNodeState => {
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_success_status_event(
+                    NodeUtils::send_info_status_event(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
+                        NodeType::StartNode,
                         log_message.to_string(),
-                        current_state.to_string(),
-                        StartNodeAction::LogNodeState.to_string(),
+                        current_state,
+                        StartNodeAction::LogNodeState,
                         &strategy_output_handle,
                     )
                     .await;

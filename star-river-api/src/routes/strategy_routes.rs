@@ -5,12 +5,13 @@ use axum::{
 
 use crate::{
     api::strategy_api::{
-        backtest::*, stop_strategy,update_strategy,
+        backtest::*,
         strategy_management::{
             create_strategy, 
             get_strategy_list, 
             get_strategy_by_id, 
-            delete_strategy
+            delete_strategy,
+            update_strategy
         },
     },
     star_river::StarRiver,
@@ -25,7 +26,6 @@ pub fn create_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}", post(update_strategy))
         .route("/{strategy_id}", delete(delete_strategy))
         // 策略生命周期管理
-        .route("/{strategy_id}/stop", post(stop_strategy))
         // 策略缓存
         .route("/{strategy_id}/cache-keys", get(get_strategy_keys))
 }
@@ -39,6 +39,7 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
     Router::new()
         // 策略控制 (实时/回测)
         .route("/{strategy_id}/init", post(init_strategy))
+        .route("/{strategy_id}/stop", post(stop_strategy))
         .route("/{strategy_id}/play", post(play))
         .route("/{strategy_id}/pause", post(pause))
         .route("/{strategy_id}/play-one", post(play_one))

@@ -14,7 +14,7 @@ use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     communication::strategy::StrategyResponse,
     event::{
-        log_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
         node_common_event::CommonEvent,
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
@@ -156,7 +156,7 @@ impl IfElseNodeContext {
             node_name: self.node_name().clone(),
         })?;
         let message = ConditionMatchedMsg::new(from_node_name.clone(), case.case_id);
-        let log_event: CommonEvent = StrategyRunningLogEvent::success(
+        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
             strategy_id,
             from_node_id.clone(),
             from_node_name.clone(),

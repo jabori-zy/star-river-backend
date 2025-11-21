@@ -181,7 +181,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             match signal_event {
                 // 执行结束
                 CommonEvent::ExecuteOver(execute_over_event) => {
-                    tracing::debug!("execute_over_event: {:#?}", execute_over_event);
+                    // tracing::debug!("execute_over_event: {:#?}", execute_over_event);
                     self.leaf_node_execution_completed(execute_over_event.from_node_id().clone());
                     let should_finalize = self.leaf_node_execution_tracker().is_all_completed();
 
@@ -242,6 +242,11 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                     let event: Event = backtest_strategy_event.into();
                     EventCenterSingleton::publish(event).await.unwrap();
                 }
+                CommonEvent::StateLog(state_log_event) => {
+                    let backtest_strategy_event: BacktestStrategyEvent = state_log_event.clone().into();
+                    let event: Event = backtest_strategy_event.into();
+                    EventCenterSingleton::publish(event).await.unwrap();
+                }
                 _ => {}
             }
         }
@@ -262,7 +267,6 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                     // 更新策略的全局时间
                     self.set_current_time(time_update_event.current_time).await;
                 }
-                _ => {}
             }
         }
 

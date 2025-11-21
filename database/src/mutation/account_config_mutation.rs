@@ -2,6 +2,7 @@ use ::entity::account_config;
 use chrono::Utc;
 use sea_orm::*;
 use star_river_core::{account::AccountConfig, exchange::Exchange};
+use crate::error::DatabaseError;
 
 pub struct AccountConfigMutation;
 
@@ -11,7 +12,7 @@ impl AccountConfigMutation {
         account_name: String,
         exchange: Exchange,
         account_config: serde_json::Value,
-    ) -> Result<AccountConfig, DbErr> {
+    ) -> Result<AccountConfig, DatabaseError> {
         // 获取最大sort_index
         let max_sort_index = account_config::Entity::find()
             .order_by(account_config::Column::SortIndex, Order::Desc)
@@ -42,12 +43,12 @@ impl AccountConfigMutation {
         account_config: serde_json::Value,
         is_available: bool,
         sort_index: i32,
-    ) -> Result<AccountConfig, DbErr> {
+    ) -> Result<AccountConfig, DatabaseError> {
         // 获取mt5账户配置
         let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .ok_or(DbErr::RecordNotFound("Cannot find account config.".to_owned()))
             .map(Into::into)?;
 
         let account_config_model = account_config::ActiveModel {
@@ -67,11 +68,11 @@ impl AccountConfigMutation {
         Ok(account_config_model.into())
     }
 
-    pub async fn delete_account_config(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    pub async fn delete_account_config(db: &DbConn, id: i32) -> Result<(), DatabaseError> {
         let account_config_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .ok_or(DbErr::Custom("Cannot find account config.".to_owned()))
             .map(Into::into)?;
 
         account_config::ActiveModel {
@@ -86,11 +87,11 @@ impl AccountConfigMutation {
     }
 
     // 更新账户配置的is_available
-    pub async fn update_account_config_is_available(db: &DbConn, id: i32, is_available: bool) -> Result<AccountConfig, DbErr> {
+    pub async fn update_account_config_is_available(db: &DbConn, id: i32, is_available: bool) -> Result<AccountConfig, DatabaseError> {
         let account_config_active_model: account_config::ActiveModel = account_config::Entity::find_by_id(id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find mt5 account config.".to_owned()))
+            .ok_or(DbErr::RecordNotFound("Cannot find account config.".to_owned()))
             .map(Into::into)?;
 
         let account_config_model = account_config::ActiveModel {

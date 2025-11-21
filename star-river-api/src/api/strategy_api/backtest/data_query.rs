@@ -13,7 +13,7 @@ use snafu::IntoError;
 use star_river_core::{custom_type::NodeId};
 use strategy_core::{
     benchmark::strategy_benchmark::StrategyPerformanceReport,
-    event::log_event::StrategyRunningLogEvent,
+    event::strategy_event::StrategyRunningLogEvent,
     strategy::context_trait::{StrategyBenchmarkExt, StrategyVariableExt},
     variable::StrategyVariable,
 };
