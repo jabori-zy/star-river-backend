@@ -5,9 +5,7 @@ use axum::{
 use database::{mutation::system_config_mutation::SystemConfigMutation, query::system_config_query::SystemConfigQuery};
 use serde::{Deserialize, Serialize};
 use snafu::{IntoError, Report};
-use star_river_core::{
-    system::system_config::{Localization, SystemConfig, SystemConfigManager},
-};
+use star_river_core::system::system_config::{Localization, SystemConfig, SystemConfigManager};
 use tracing::instrument;
 use utoipa::ToSchema;
 
@@ -69,7 +67,7 @@ pub async fn update_system_config(
         }
         Err(e) => {
             let report = Report::from_error(&e);
-            tracing::error!("{}",report);
+            tracing::error!("{}", report);
             (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e)))
         }
     }
@@ -94,7 +92,7 @@ pub async fn get_system_config(State(star_river): State<StarRiver>) -> (StatusCo
         Ok(system_config) => (StatusCode::OK, Json(NewApiResponse::success(system_config))),
         Err(e) => {
             let report = Report::from_error(&e);
-            tracing::error!("{}",report);
+            tracing::error!("{}", report);
             (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e)))
         }
     }

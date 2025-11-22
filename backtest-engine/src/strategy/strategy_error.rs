@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use database::error::DatabaseError;
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
     custom_type::{NodeId, NodeName},
@@ -8,7 +9,6 @@ use star_river_core::{
 use strategy_core::error::{StrategyError, strategy_state_machine_error::StrategyStateMachineError};
 
 use crate::node::node_error::BacktestNodeError;
-use database::error::DatabaseError;
 // use event_center::EventCenterError;
 
 #[derive(Debug, Snafu)]

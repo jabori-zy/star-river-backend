@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use star_river_core::{exchange::Exchange, kline::KlineInterval, system::TimeRange};
 use ta_lib::IndicatorConfig;
-use crate::error::{KeyError, InvalidKeyFormatSnafu, ParseExchangeFailedSnafu, ParseKlineIntervalFailedSnafu};
 
 use super::{Key, KeyTrait};
+use crate::error::{InvalidKeyFormatSnafu, KeyError, ParseExchangeFailedSnafu, ParseKlineIntervalFailedSnafu};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct KlineKey {

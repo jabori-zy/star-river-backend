@@ -1,10 +1,8 @@
 use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::Serialize;
-use utoipa::ToSchema;
 use star_river_core::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
-
-
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, ToSchema, From)]
 #[serde(tag = "logLevel")]
@@ -14,25 +12,69 @@ pub enum NodeStateLogEvent {
     Error(NodeStateErrorLog),
 }
 
-
-
-
-
 impl NodeStateLogEvent {
-    pub fn info(strategy_id: i32, node_id: String, node_name: String, node_type: String, node_state: String, node_state_action: String, message: String) -> Self {
-        Self::Info(NodeStateInfoLog::new(strategy_id, node_id, node_name, node_type, node_state, node_state_action, message))
+    pub fn info(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_type: String,
+        node_state: String,
+        node_state_action: String,
+        message: String,
+    ) -> Self {
+        Self::Info(NodeStateInfoLog::new(
+            strategy_id,
+            node_id,
+            node_name,
+            node_type,
+            node_state,
+            node_state_action,
+            message,
+        ))
     }
-    pub fn warn(strategy_id: i32, node_id: String, node_name: String, node_type: String, node_state: String, node_state_action: String, message: String, error_code: Option<String>, error_code_chain: Option<Vec<String>>) -> Self {
-        Self::Warn(NodeStateWarnLog::new(strategy_id, node_id, node_name, node_type, node_state, node_state_action, message, error_code, error_code_chain))
+    pub fn warn(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_type: String,
+        node_state: String,
+        node_state_action: String,
+        message: String,
+        error_code: Option<String>,
+        error_code_chain: Option<Vec<String>>,
+    ) -> Self {
+        Self::Warn(NodeStateWarnLog::new(
+            strategy_id,
+            node_id,
+            node_name,
+            node_type,
+            node_state,
+            node_state_action,
+            message,
+            error_code,
+            error_code_chain,
+        ))
     }
-    pub fn error(strategy_id: i32, node_id: String, node_name: String, node_type: String, node_state: String, node_state_action: String, error: &impl StarRiverErrorTrait) -> Self {
-        Self::Error(NodeStateErrorLog::new(strategy_id, node_id, node_name, node_type,node_state, node_state_action, error))
+    pub fn error(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_type: String,
+        node_state: String,
+        node_state_action: String,
+        error: &impl StarRiverErrorTrait,
+    ) -> Self {
+        Self::Error(NodeStateErrorLog::new(
+            strategy_id,
+            node_id,
+            node_name,
+            node_type,
+            node_state,
+            node_state_action,
+            error,
+        ))
     }
 }
-
-
-
-
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -48,11 +90,27 @@ pub struct NodeStateInfoLog {
 }
 
 impl NodeStateInfoLog {
-    pub fn new(strategy_id: i32, node_id: String, node_name: String, node_type: String, node_state: String, node_state_action: String, message: String) -> Self {
-        Self { strategy_id, node_id, node_name, node_type, node_state, node_state_action, message, datetime: Utc::now() }
+    pub fn new(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_type: String,
+        node_state: String,
+        node_state_action: String,
+        message: String,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            node_type,
+            node_state,
+            node_state_action,
+            message,
+            datetime: Utc::now(),
+        }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -71,14 +129,32 @@ pub struct NodeStateWarnLog {
     pub datetime: DateTime<Utc>,
 }
 
-
 impl NodeStateWarnLog {
-    pub fn new(strategy_id: i32, node_id: String, node_name: String, node_type: String, node_state: String, node_state_action: String, message: String, error_code: Option<String>, error_code_chain: Option<Vec<String>>) -> Self {
-        Self { strategy_id, node_id, node_name, node_type, node_state, node_state_action, message, error_code, error_code_chain, datetime: Utc::now() }
+    pub fn new(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_type: String,
+        node_state: String,
+        node_state_action: String,
+        message: String,
+        error_code: Option<String>,
+        error_code_chain: Option<Vec<String>>,
+    ) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            node_type,
+            node_state,
+            node_state_action,
+            message,
+            error_code,
+            error_code_chain,
+            datetime: Utc::now(),
+        }
     }
 }
-
-
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -95,23 +171,33 @@ pub struct NodeStateErrorLog {
     pub datetime: DateTime<Utc>,
 }
 
-
 impl NodeStateErrorLog {
-    pub fn new(strategy_id: i32, node_id: String, node_name: String, node_type: String, node_state: String, node_state_action: String, error: &impl StarRiverErrorTrait) -> Self {
+    pub fn new(
+        strategy_id: i32,
+        node_id: String,
+        node_name: String,
+        node_type: String,
+        node_state: String,
+        node_state_action: String,
+        error: &impl StarRiverErrorTrait,
+    ) -> Self {
         let message = error.error_message(ErrorLanguage::Chinese);
         let error_code = error.error_code().to_string();
         let error_code_chain = error.error_code_chain();
-        Self { strategy_id, node_id, node_name, node_type, node_state, node_state_action, message, error_code, error_code_chain, datetime: Utc::now() }
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            node_type,
+            node_state,
+            node_state_action,
+            message,
+            error_code,
+            error_code_chain,
+            datetime: Utc::now(),
+        }
     }
 }
-
-
-
-
-
-
-
-
 
 // #[derive(Debug, Clone, Serialize, Deserialize, From)]
 // #[serde(rename_all = "camelCase")]
@@ -183,4 +269,3 @@ impl NodeStateErrorLog {
 //         }
 //     }
 // }
-

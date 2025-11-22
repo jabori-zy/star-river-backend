@@ -8,7 +8,11 @@ use crate::error::DatabaseError;
 pub struct StrategyConfigMutation;
 
 impl StrategyConfigMutation {
-    pub async fn create_strategy(db: &DbConn, strategy_name: String, strategy_description: String) -> Result<StrategyConfig, DatabaseError> {
+    pub async fn create_strategy(
+        db: &DbConn,
+        strategy_name: String,
+        strategy_description: String,
+    ) -> Result<StrategyConfig, DatabaseError> {
         let strategy_config_model = strategy_config::ActiveModel {
             id: NotSet,
             name: Set(strategy_name),
@@ -97,7 +101,11 @@ impl StrategyConfigMutation {
     }
 
     pub async fn update_strategy_status(db: &DbConn, strategy_id: i32, strategy_status: String) -> Result<StrategyConfig, DatabaseError> {
-        tracing::info!("update strategy status: strategy_id: {}, strategy_status: {}", strategy_id, strategy_status);
+        tracing::info!(
+            "update strategy status: strategy_id: {}, strategy_status: {}",
+            strategy_id,
+            strategy_status
+        );
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?
@@ -139,11 +147,7 @@ impl StrategyConfigMutation {
         Ok(strategy_config_model.into())
     }
 
-    pub async fn update_strategy_trade_mode(
-        db: &DbConn,
-        strategy_id: i32,
-        trade_mode: String,
-    ) -> Result<StrategyConfig, DatabaseError> {
+    pub async fn update_strategy_trade_mode(db: &DbConn, strategy_id: i32, trade_mode: String) -> Result<StrategyConfig, DatabaseError> {
         let strategy: strategy_config::ActiveModel = StrategyConfigEntity::find_by_id(strategy_id)
             .one(db)
             .await?

@@ -79,7 +79,7 @@ pub enum Position {
     UnrealizedProfit, //未平仓利润
     Tp,
     Sl,
-    ExtraInfo,   // 额外信息
+    ExtraInfo,  // 额外信息
     CreateTime, //创建时间
     UpdateTime, //更新时间
 }

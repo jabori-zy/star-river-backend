@@ -110,18 +110,19 @@ impl IfElseNodeContext {
         }
 
         let all_output_handles = self.output_handles();
-        for (handle_id, handle) in all_output_handles.iter() {
-            if handle_id == &format!("{}_strategy_output", self.node_id()) {
-                continue;
-            }
+        for handle_id in all_output_handles.keys() {
+            self.send_trigger_event(handle_id).await.unwrap();
+            // if handle_id == &format!("{}_strategy_output", self.node_id()) {
+            //     continue;
+            // }
 
-            if handle.is_connected() {
-                let payload = TriggerPayload::new(self.play_index() as u64);
-                let trigger_event: CommonEvent =
-                    TriggerEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id.clone(), payload).into();
+            // if handle.is_connected() {
+            //     let payload = TriggerPayload::new(self.play_index() as u64);
+            //     let trigger_event: CommonEvent =
+            //         TriggerEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id.clone(), payload).into();
 
-                let _ = handle.send(trigger_event.into());
-            }
+            //     let _ = handle.send(trigger_event.into());
+            // }
         }
     }
 }

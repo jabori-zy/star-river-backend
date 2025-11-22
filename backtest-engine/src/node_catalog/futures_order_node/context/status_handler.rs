@@ -19,13 +19,13 @@ impl FuturesOrderNodeContext {
             let _ = EventCenterSingleton::send_command(cmd.into()).await;
             let response = rx.await.unwrap();
             match response {
-                Response::Success { payload, datetime } => {
+                Response::Success { payload, .. } => {
                     if self.symbol_info.contains(&payload.symbol) {
                         continue;
                     }
                     self.symbol_info.push(payload.symbol.clone());
                 }
-                Response::Fail { error, datetime } => {
+                Response::Fail { error, .. } => {
                     let e = GetSymbolInfoFailedSnafu {
                         symbol: order_cfg.symbol.clone(),
                     }

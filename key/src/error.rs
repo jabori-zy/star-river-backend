@@ -1,11 +1,12 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
-use star_river_core::core_error::CoreError;
+use star_river_core::{
+    core_error::CoreError,
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain},
+};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum KeyError {
-
     #[snafu(transparent)]
     CoreError { source: CoreError, backtrace: Backtrace },
 
@@ -38,7 +39,7 @@ impl StarRiverErrorTrait for KeyError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            KeyError::CoreError { .. } => 1000,               // 核心错误
+            KeyError::CoreError { .. } => 1000,                // 核心错误
             KeyError::InvalidKeyType { .. } => 1001,           // 无效的缓存键类型
             KeyError::InvalidIndicatorType { .. } => 1002,     // 无效的指标类型
             KeyError::InvalidKeyFormat { .. } => 1003,         // 无效的缓存键格式

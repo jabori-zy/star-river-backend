@@ -6,13 +6,7 @@ use axum::{
 use crate::{
     api::strategy_api::{
         backtest::*,
-        strategy_management::{
-            create_strategy, 
-            get_strategy_list, 
-            get_strategy_by_id, 
-            delete_strategy,
-            update_strategy
-        },
+        strategy_management::{create_strategy, delete_strategy, get_strategy_by_id, get_strategy_list, update_strategy},
     },
     star_river::StarRiver,
 };

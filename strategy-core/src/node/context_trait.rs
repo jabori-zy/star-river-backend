@@ -183,6 +183,11 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt {
     // 输出句柄管理
     // ------------------------------------------------------------------------
 
+    #[inline]
+    fn add_default_output_handle(&mut self, output_handle: NodeOutputHandle<Self::NodeEvent>) {
+        self.metadata_mut().add_output_handle(output_handle);
+    }
+
     /// 获取默认输出句柄
     #[inline]
     fn default_output_handle(&self) -> Result<&NodeOutputHandle<Self::NodeEvent>, NodeError> {
@@ -204,12 +209,13 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt {
 
     /// 添加输出句柄
     #[inline]
-    fn add_output_handle(&mut self, is_default: bool, handle_id: HandleId, sender: broadcast::Sender<Self::NodeEvent>) {
+    fn add_output_handle(&mut self, is_default: bool, config_id: i32, handle_id: HandleId, sender: broadcast::Sender<Self::NodeEvent>) {
         let node_id = self.node_id().clone();
-        let handle = NodeOutputHandle::new(node_id, is_default, handle_id, sender);
+        let handle = NodeOutputHandle::new(node_id, is_default, config_id, handle_id, sender);
         self.metadata_mut().add_output_handle(handle);
     }
 
+    #[inline]
     fn output_handles(&self) -> &HashMap<HandleId, NodeOutputHandle<Self::NodeEvent>> {
         self.metadata().output_handles()
     }
@@ -334,7 +340,11 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
                 .into_error(Arc::new(e))
             })?;
         } else {
-            // tracing::warn!("@[{}] output handle {} is not connected, skip sending event", self.node_name(), handle_id);
+            tracing::warn!(
+                "@[{}] output handle {} is not connected, skip sending event",
+                self.node_name(),
+                handle_id
+            );
         }
 
         Ok(())
@@ -411,12 +421,16 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
             handle_id: handle_id.to_string(),
         })?;
 
-        output_handle.send(trigger_event.into()).map_err(|e| {
-            NodeEventSendFailedSnafu {
-                handle_id: handle_id.to_string(),
-            }
-            .into_error(Arc::new(e))
-        })?;
+        if output_handle.is_connected() {
+            output_handle.send(trigger_event.into()).map_err(|e| {
+                NodeEventSendFailedSnafu {
+                    handle_id: handle_id.to_string(),
+                }
+                .into_error(Arc::new(e))
+            })?;
+        } else {
+            // tracing::warn!("@[{}] output handle {} is not connected, skip sending event", self.node_name(), handle_id);
+        }
 
         Ok(())
     }

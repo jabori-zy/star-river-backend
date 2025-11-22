@@ -10,7 +10,7 @@ use engine_core::EngineContextAccessor;
 use key::Key;
 use serde::{Deserialize, Serialize};
 use snafu::IntoError;
-use star_river_core::{custom_type::NodeId};
+use star_river_core::{custom_type::NodeId, error::StarRiverErrorTrait};
 use strategy_core::{
     benchmark::strategy_benchmark::StrategyPerformanceReport,
     event::strategy_event::StrategyRunningLogEvent,
@@ -22,8 +22,11 @@ use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 
-use crate::{api::response::NewApiResponse, error::{ApiError, ParseDataTimeFailedSnafu}, star_river::StarRiver};
-use star_river_core::error::StarRiverErrorTrait;
+use crate::{
+    api::response::NewApiResponse,
+    error::{ApiError, ParseDataTimeFailedSnafu},
+    star_river::StarRiver,
+};
 
 #[utoipa::path(
     get,
@@ -548,9 +551,6 @@ pub async fn get_strategy_keys(
             let keys_str = keys_map.keys().map(|cache_key| cache_key.get_key_str()).collect::<Vec<String>>();
             (StatusCode::OK, Json(NewApiResponse::success(keys_str)))
         }
-        Err(e) => {
-            
-            (e.http_status_code(), Json(NewApiResponse::error(e)))
-        }
+        Err(e) => (e.http_status_code(), Json(NewApiResponse::error(e))),
     }
 }

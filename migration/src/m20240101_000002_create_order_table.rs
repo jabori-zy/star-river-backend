@@ -79,6 +79,6 @@ pub enum Order {
     Tp,              // 止盈
     Sl,              // 止损
     ExtraInfo,       // 额外信息
-    CreateTime,     //创建时间
-    UpdateTime,     //更新时间
+    CreateTime,      //创建时间
+    UpdateTime,      //更新时间
 }

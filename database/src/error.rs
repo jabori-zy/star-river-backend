@@ -21,7 +21,7 @@ impl StarRiverErrorTrait for DatabaseError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            DatabaseError::SeaOrmError { .. } => 1001,            // sea-orm error
+            DatabaseError::SeaOrmError { .. } => 1001, // sea-orm error
         };
         format!("{}_{:04}", prefix, code)
     }

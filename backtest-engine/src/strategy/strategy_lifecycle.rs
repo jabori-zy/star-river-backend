@@ -4,7 +4,7 @@ use star_river_core::error::{ErrorLanguage, StarRiverErrorTrait};
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 use strategy_core::{
     error::strategy_error::WaitAllNodesStoppedTimeoutSnafu,
-    event::{strategy_event::{StrategyStateInfoLog, StrategyStateLogEvent}},
+    event::strategy_event::{StrategyStateInfoLog, StrategyStateLogEvent},
     strategy::{
         context_trait::{StrategyIdentityExt, StrategyStateMachineExt, StrategyWorkflowExt},
         state_machine::StrategyStateMachine,
@@ -17,9 +17,7 @@ use super::{
     BacktestStrategy,
     strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateAction, BacktestStrategyStateTransTrigger},
 };
-use crate::{
-    strategy::{strategy_error::BacktestStrategyError, strategy_log_message::StrategyStateLogMsg},
-};
+use crate::strategy::{strategy_error::BacktestStrategyError, strategy_log_message::StrategyStateLogMsg};
 
 #[async_trait::async_trait]
 impl StrategyLifecycle for BacktestStrategy {
@@ -31,20 +29,14 @@ impl StrategyLifecycle for BacktestStrategy {
         tracing::info!("[{}] starting init strategy", strategy_name);
 
         self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Initializing.to_string())
-                    .await
-            })
+            Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Initializing.to_string()).await })
         })
         .await?;
 
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::Initialize).await;
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
-                Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string())
-                        .await
-                })
+                Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string()).await })
             })
             .await?;
             return Err(e);
@@ -54,10 +46,7 @@ impl StrategyLifecycle for BacktestStrategy {
         // initializing => ready
         tracing::info!("[{}] init finished.", strategy_name);
         self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Ready.to_string())
-                    .await
-            })
+            Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Ready.to_string()).await })
         })
         .await?;
         let update_result = self
@@ -65,10 +54,7 @@ impl StrategyLifecycle for BacktestStrategy {
             .await;
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
-                Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string())
-                        .await
-                })
+                Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string()).await })
             })
             .await?;
             return Err(e);
@@ -89,19 +75,13 @@ impl StrategyLifecycle for BacktestStrategy {
         }
         tracing::info!("waiting for all nodes to stop...");
         self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Stopping.to_string())
-                    .await
-            })
+            Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Stopping.to_string()).await })
         })
         .await?;
         let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::Stop).await;
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
-                Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string())
-                        .await
-                })
+                Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string()).await })
             })
             .await?;
             return Err(e);
@@ -117,8 +97,7 @@ impl StrategyLifecycle for BacktestStrategy {
             self.with_ctx_write_async(|ctx| {
                 Box::pin(async move {
                     tracing::debug!("store strategy status to stopped");
-                    ctx.store_strategy_status(BacktestStrategyRunState::Stopped.to_string())
-                        .await
+                    ctx.store_strategy_status(BacktestStrategyRunState::Stopped.to_string()).await
                 })
             })
             .await?;
@@ -126,10 +105,7 @@ impl StrategyLifecycle for BacktestStrategy {
             let update_result = self.update_strategy_state(BacktestStrategyStateTransTrigger::StopComplete).await;
             if let Err(e) = update_result {
                 self.with_ctx_write_async(|ctx| {
-                    Box::pin(async move {
-                        ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string())
-                            .await
-                    })
+                    Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string()).await })
                 })
                 .await?;
                 return Err(e);
@@ -225,13 +201,8 @@ impl StrategyLifecycle for BacktestStrategy {
 
                 BacktestStrategyStateAction::StoreStrategyStatus => {
                     let current_state = state_machine.read().await.current_state().clone();
-                    self.with_ctx_write_async(|ctx| {
-                        Box::pin(async move {
-                            ctx.store_strategy_status(current_state.to_string())
-                                .await
-                        })
-                    })
-                    .await?;
+                    self.with_ctx_write_async(|ctx| Box::pin(async move { ctx.store_strategy_status(current_state.to_string()).await }))
+                        .await?;
                 }
 
                 BacktestStrategyStateAction::CheckNode => {
@@ -245,14 +216,15 @@ impl StrategyLifecycle for BacktestStrategy {
                     let handle_error = |e: BacktestStrategyError| -> BacktestStrategyError {
                         let error_message = e.error_message(ErrorLanguage::Chinese);
                         let log_event: BacktestStrategyEvent = StrategyStateLogEvent::error(
-                            strategy_id, 
-                            strategy_name_for_error.clone(), 
-                            current_state.to_string(), 
+                            strategy_id,
+                            strategy_name_for_error.clone(),
+                            current_state.to_string(),
                             BacktestStrategyStateAction::CheckNode.to_string(),
-                            Some(e.error_code()), 
+                            Some(e.error_code()),
                             Some(e.error_code_chain()),
-                            error_message
-                        ).into();
+                            error_message,
+                        )
+                        .into();
 
                         // let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event);
                         let _ = futures::executor::block_on(EventCenterSingleton::publish(log_event.into()));
@@ -314,13 +286,14 @@ impl StrategyLifecycle for BacktestStrategy {
                         .await;
 
                     let log_message = StrategyStateLogMsg::new(strategy_name.clone(), current_state.to_string());
-                    let log_event: BacktestStrategyEvent  = StrategyStateLogEvent::info(
-                        strategy_id, 
-                        strategy_name.clone(), 
-                        current_state.to_string(), 
-                        BacktestStrategyStateAction::LogStrategyState.to_string(), 
-                        log_message.to_string()
-                    ).into();
+                    let log_event: BacktestStrategyEvent = StrategyStateLogEvent::info(
+                        strategy_id,
+                        strategy_name.clone(),
+                        current_state.to_string(),
+                        BacktestStrategyStateAction::LogStrategyState.to_string(),
+                        log_message.to_string(),
+                    )
+                    .into();
                     let _ = EventCenterSingleton::publish(log_event.into()).await;
                 }
             };
@@ -336,10 +309,7 @@ impl BacktestStrategy {
         tracing::info!("[{}] starting check strategy", strategy_name);
 
         self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::Checking.to_string())
-                    .await
-            })
+            Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Checking.to_string()).await })
         })
         .await?;
 
@@ -347,10 +317,7 @@ impl BacktestStrategy {
 
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
-                Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string())
-                        .await
-                })
+                Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string()).await })
             })
             .await?;
             return Err(e);
@@ -358,10 +325,7 @@ impl BacktestStrategy {
 
         tracing::info!("[{}] check finished.", strategy_name);
         self.with_ctx_write_async(|ctx| {
-            Box::pin(async move {
-                ctx.store_strategy_status(BacktestStrategyRunState::CheckPassed.to_string())
-                    .await
-            })
+            Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::CheckPassed.to_string()).await })
         })
         .await?;
 
@@ -369,10 +333,7 @@ impl BacktestStrategy {
 
         if let Err(e) = update_result {
             self.with_ctx_write_async(|ctx| {
-                Box::pin(async move {
-                    ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string())
-                        .await
-                })
+                Box::pin(async move { ctx.store_strategy_status(BacktestStrategyRunState::Error.to_string()).await })
             })
             .await?;
             return Err(e);

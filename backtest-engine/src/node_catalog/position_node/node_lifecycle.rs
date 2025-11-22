@@ -1,9 +1,12 @@
 use async_trait::async_trait;
-use strategy_core::{NodeType, node::{
-    context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
-    node_state_machine::StateMachine,
-    node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-}};
+use strategy_core::{
+    NodeType,
+    node::{
+        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        node_state_machine::StateMachine,
+        node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
+    },
+};
 
 use super::PositionNode;
 use crate::{
@@ -131,7 +134,7 @@ impl NodeLifecycle for PositionNode {
                     )
                     .await;
 
-                    self.listen_source_node_events().await;
+                    self.listen_source_node_events_for_independent_position_op().await;
                 }
                 PositionNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");

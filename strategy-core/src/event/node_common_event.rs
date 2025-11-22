@@ -2,11 +2,7 @@ use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::CycleId;
 
-use crate::event::{
-    log_event::NodeStateLogEvent,
-    strategy_event::StrategyRunningLogEvent,
-    node::NodeEvent,
-};
+use crate::event::{log_event::NodeStateLogEvent, node::NodeEvent, strategy_event::StrategyRunningLogEvent};
 
 #[derive(Debug, Clone, Serialize, From)]
 #[serde(tag = "event_type")]

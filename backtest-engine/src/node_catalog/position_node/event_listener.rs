@@ -5,11 +5,10 @@ use strategy_core::node::{
 };
 use tokio_stream::wrappers::BroadcastStream;
 
-use super::FuturesOrderNode;
+use super::PositionNode;
 
-impl FuturesOrderNode {
-    // specific for futures order node
-    pub async fn listen_source_node_events_for_independent_order(&self) {
+impl PositionNode {
+    pub async fn listen_source_node_events_for_independent_position_op(&self) {
         let (input_handles, cancel_token, node_name) = self
             .with_ctx_read(|ctx| {
                 let input_handles = ctx.input_handles().to_vec();
@@ -24,20 +23,22 @@ impl FuturesOrderNode {
             return;
         }
 
-        // 为每个接收器独立创建监听任务
         for input_handle in input_handles {
             let context = self.context.clone();
             let cancel_token = cancel_token.clone();
             let node_name = node_name.clone();
             let input_handle_id = input_handle.input_handle_id.clone();
-            let order_config = input_handle_id.split("_").last().unwrap();
-            let order_config_id = order_config.parse::<i32>().unwrap();
+            let position_operation_id = input_handle_id.split("_").last().unwrap();
+            let position_operation_id = position_operation_id.parse::<i32>().unwrap();
 
             // 为每个接收器创建独立的监听流
             let mut stream = BroadcastStream::new(input_handle.receiver());
 
-            let context = context.clone();
-            tracing::debug!("@[{}] start to listen source node events for order {}", node_name, order_config_id);
+            tracing::debug!(
+                "@[{}] start to listen source node events for position operation {}",
+                node_name,
+                position_operation_id
+            );
             tokio::spawn(async move {
                 loop {
                     tokio::select! {
@@ -50,12 +51,9 @@ impl FuturesOrderNode {
                         receive_result = stream.next() => {
                             match receive_result {
                                 Some(Ok(node_event)) => {
-                                    // 根据订单配置处理特定订单的事件
+                                    // 根据仓位操作处理特定仓位操作的事件
                                     let mut context_guard = context.write().await;
-                                    context_guard.handle_node_event_for_independent_order(
-                                        node_event,
-                                        order_config_id
-                                    ).await;
+                                    context_guard.handle_node_event_for_independent_position_op(node_event, position_operation_id).await;
                                 }
                                 Some(Err(e)) => {
                                     tracing::error!("@[{}] input handle {} receive message error: {}", node_name, input_handle_id, e);

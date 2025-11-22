@@ -75,6 +75,6 @@ pub enum StrategyConfig {
     Edges,               //边
     LiveChartConfig,     //实盘图表配置
     BacktestChartConfig, //回测图表配置
-    CreateTime,         //创建时间
-    UpdateTime,         //更新时间
+    CreateTime,          //创建时间
+    UpdateTime,          //更新时间
 }

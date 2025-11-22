@@ -15,9 +15,7 @@ use crate::{
     strategy::strategy_error::{BacktestStrategyError, UpdateStrategyStatusFailedSnafu},
 };
 
-
-const INIT_NODE_INTERVAL: u64 = 2000;
-
+const INIT_NODE_INTERVAL: u64 = 0;
 
 #[async_trait]
 impl StrategyWorkflowExt for BacktestStrategyContext {

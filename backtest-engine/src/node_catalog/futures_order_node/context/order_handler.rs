@@ -1,8 +1,8 @@
 use snafu::{OptionExt, ResultExt};
 use strategy_core::{
     event::{
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
         node_common_event::CommonEvent,
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
     },
     node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
 };

@@ -1,11 +1,14 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use strategy_core::{NodeType, node::{
-    context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
-    node_state_machine::StateMachine,
-    node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-}};
+use strategy_core::{
+    NodeType,
+    node::{
+        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        node_state_machine::StateMachine,
+        node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
+    },
+};
 
 use super::IfElseNode;
 use crate::{

@@ -266,8 +266,7 @@ impl BacktestStrategyContext {
         }
 
         // 更新策略状态为playing
-        self.store_strategy_status(BacktestStrategyRunState::Playing.to_string())
-            .await?;
+        self.store_strategy_status(BacktestStrategyRunState::Playing.to_string()).await?;
 
         tokio::spawn(async move {
             Self::run_play_loop(play_context).await;
@@ -284,8 +283,7 @@ impl BacktestStrategyContext {
         }
         tracing::info!("[{}]: request pause play", self.strategy_name());
         // 更新策略状态为pausing
-        self.store_strategy_status(BacktestStrategyRunState::Pausing.to_string())
-            .await?;
+        self.store_strategy_status(BacktestStrategyRunState::Pausing.to_string()).await?;
 
         self.cancel_play_token.cancel();
         // 替换已经取消的令牌
@@ -296,8 +294,7 @@ impl BacktestStrategyContext {
     // 重置播放
     pub async fn reset(&mut self) -> Result<(), BacktestStrategyError> {
         // 更新策略状态为ready
-        self.store_strategy_status(BacktestStrategyRunState::Ready.to_string())
-            .await?;
+        self.store_strategy_status(BacktestStrategyRunState::Ready.to_string()).await?;
 
         // 清空日志
         self.clear_running_log().await;

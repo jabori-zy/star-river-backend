@@ -54,16 +54,24 @@ impl<E: Clone> Clone for NodeInputHandle<E> {
 pub struct NodeOutputHandle<E> {
     node_id: NodeId,
     is_default: bool,
+    config_id: i32,
     output_handle_id: HandleId,
     node_event_sender: broadcast::Sender<E>,
     subscriber: Vec<String>, // 订阅者（id）
 }
 
 impl<E> NodeOutputHandle<E> {
-    pub fn new(node_id: NodeId, is_default: bool, output_handle_id: HandleId, node_event_sender: broadcast::Sender<E>) -> Self {
+    pub fn new(
+        node_id: NodeId,
+        is_default: bool,
+        config_id: i32,
+        output_handle_id: HandleId,
+        node_event_sender: broadcast::Sender<E>,
+    ) -> Self {
         Self {
             node_id,
             is_default,
+            config_id,
             output_handle_id,
             node_event_sender,
             subscriber: vec![],
@@ -80,6 +88,10 @@ impl<E> NodeOutputHandle<E> {
 
     pub fn subscriber(&self) -> Vec<String> {
         self.subscriber.clone()
+    }
+
+    pub fn config_id(&self) -> i32 {
+        self.config_id
     }
 
     pub fn output_handle_id(&self) -> &HandleId {

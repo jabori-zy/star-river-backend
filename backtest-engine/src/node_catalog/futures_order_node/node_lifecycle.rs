@@ -1,9 +1,12 @@
 use async_trait::async_trait;
-use strategy_core::{NodeType, node::{
-    context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
-    node_state_machine::StateMachine,
-    node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-}};
+use strategy_core::{
+    NodeType,
+    node::{
+        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        node_state_machine::StateMachine,
+        node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
+    },
+};
 
 use super::FuturesOrderNode;
 use crate::{
@@ -11,8 +14,7 @@ use crate::{
         node_error::BacktestNodeError,
         node_message::{
             common_log_message::{
-                ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, ListenVirtualTradingSystemEventMsg,
-                NodeStateLogMsg, RegisterTaskMsg,
+                ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, ListenVirtualTradingSystemEventMsg, NodeStateLogMsg,
             },
             futures_order_node_log_message::{GetSymbolInfoMsg, GetSymbolInfoSuccessMsg},
         },
@@ -33,7 +35,7 @@ impl NodeLifecycle for FuturesOrderNode {
         NodeUtils::stop_node(self, Some(1000)).await
     }
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
-        let (strategy_id, node_id, node_name, strategy_output_handle, mut state_machine) = self
+        let (strategy_id, node_id, node_name, strategy_output_handle, state_machine) = self
             .with_ctx_read(|ctx| {
                 let strategy_id = ctx.strategy_id().clone();
                 let node_id = ctx.node_id().clone();
@@ -76,23 +78,6 @@ impl NodeLifecycle for FuturesOrderNode {
                     )
                     .await;
                 }
-                FuturesOrderNodeAction::ListenAndHandleExternalEvents => {
-                    tracing::info!("[{node_name}] start to listen external events");
-                    let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
-                        strategy_id,
-                        node_id.clone(),
-                        node_name.clone(),
-                        NodeType::FuturesOrderNode,
-                        log_message.to_string(),
-                        current_state,
-                        FuturesOrderNodeAction::ListenAndHandleExternalEvents,
-                        &strategy_output_handle,
-                    )
-                    .await;
-                    self.listen_engine_event().await;
-                }
-
                 FuturesOrderNodeAction::GetSymbolInfo => {
                     tracing::info!("[{node_name}] start to get symbol info");
                     let log_message = GetSymbolInfoMsg::new(node_name.clone());
@@ -151,7 +136,6 @@ impl NodeLifecycle for FuturesOrderNode {
                 //     }).await;
                 // }
                 FuturesOrderNodeAction::ListenAndHandleNodeEvents => {
-                    tracing::info!("[{node_name}] start to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
                     NodeUtils::send_info_status_event(
                         strategy_id,
@@ -164,7 +148,7 @@ impl NodeLifecycle for FuturesOrderNode {
                         &strategy_output_handle,
                     )
                     .await;
-                    self.listen_source_node_events_spec().await;
+                    self.listen_source_node_events_for_independent_order().await;
                 }
                 FuturesOrderNodeAction::ListenAndHandleCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");

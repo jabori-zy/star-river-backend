@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use strategy_core::node::{
     context_trait::{NodeHandleExt, NodeIdentityExt},
-    utils::generate_default_output_handle_id,
+    utils::generate_default_output_handle,
 };
-use tokio::sync::broadcast;
 
 use super::StartNodeContext;
 
@@ -11,12 +10,8 @@ use super::StartNodeContext;
 impl NodeHandleExt for StartNodeContext {
     fn set_output_handles(&mut self) {
         let node_id = self.node_id().clone();
-        let node_name = self.node_name().clone();
-
         // 添加默认出口
-        let (tx, _) = broadcast::channel::<Self::NodeEvent>(100);
-        let default_output_handle_id = generate_default_output_handle_id(&node_id);
-        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
-        self.add_output_handle(true, default_output_handle_id, tx);
+        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
+        self.add_default_output_handle(default_output_handle);
     }
 }

@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use strategy_core::{
-    NodeType, event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent}, node::{
+    NodeType,
+    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
+    node::{
         context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-    }
+    },
 };
 
 use super::{StartNode, state_machine::StartNodeAction};
@@ -14,7 +16,6 @@ use crate::node::{
     node_state_machine::NodeStateTransTrigger,
     node_utils::NodeUtils,
 };
-
 
 #[async_trait]
 impl NodeLifecycle for StartNode {
@@ -144,7 +145,7 @@ impl NodeLifecycle for StartNode {
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
-                        NodeType::StartNode,    
+                        NodeType::StartNode,
                         log_message.to_string(),
                         current_state,
                         StartNodeAction::InitCustomVariables,

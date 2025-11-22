@@ -1,6 +1,6 @@
 // pub mod cache_entry;
-pub mod key;
 pub mod error;
+pub mod key;
 
 use std::{fmt::Debug, hash::Hash, str::FromStr};
 
@@ -8,7 +8,8 @@ use std::{fmt::Debug, hash::Hash, str::FromStr};
 pub use key::{IndicatorKey, KlineKey};
 use serde::{Deserialize, Serialize};
 use star_river_core::{exchange::Exchange, kline::KlineInterval, system::TimeRange};
-use crate::error::{KeyError, InvalidKeyTypeSnafu};
+
+use crate::error::{InvalidKeyTypeSnafu, KeyError};
 
 pub trait KeyTrait: Clone + Debug {
     fn get_key_str(&self) -> String;

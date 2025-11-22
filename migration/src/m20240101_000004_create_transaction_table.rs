@@ -62,6 +62,6 @@ pub enum Transaction {
     TransactionSide,       // 交易方向
     Quantity,              // 数量
     Price,                 // 价格
-    CreateTime,           //创建时间
+    CreateTime,            //创建时间
     ExtraInfo,             // 额外信息
 }

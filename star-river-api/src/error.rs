@@ -1,14 +1,12 @@
 use snafu::{Backtrace, Snafu};
-
 use star_river_core::error::{
-    ErrorCode,StatusCode,
+    ErrorCode, StatusCode,
     error_trait::{ErrorLanguage, StarRiverErrorTrait},
 };
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum ApiError {
-
     #[snafu(display("parse datetime failed: {datetime}. reason: {source}"))]
     ParseDataTimeFailed {
         datetime: String,
@@ -30,12 +28,8 @@ pub enum ApiError {
         backtrace: Backtrace,
     },
 
-
     #[snafu(display("{name} is empty"))]
-    EmptyCharacter {
-        name: String,
-        backtrace: Backtrace,
-    },
+    EmptyCharacter { name: String, backtrace: Backtrace },
 
     #[snafu(display("page must be greater than one. requested page: {page}"))]
     PageMustGreaterThanOne { page: u64, backtrace: Backtrace },
@@ -44,10 +38,7 @@ pub enum ApiError {
     TooManyItemsPerPage { items_per_page: u64, backtrace: Backtrace },
 
     #[snafu(display("deserialize params failed. reason: {source}"))]
-    DeserializeParamsFailed {
-        source: serde_json::Error,
-        backtrace: Backtrace,
-    }
+    DeserializeParamsFailed { source: serde_json::Error, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for StarRiverError
@@ -59,14 +50,14 @@ impl StarRiverErrorTrait for ApiError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            ApiError::ParseDataTimeFailed { .. } => 1001, // 解析时间失败
-            ApiError::InvalidTimestamp { .. } => 1002, // 无效的时间戳
-            ApiError::TransformTimestampFailed { .. } => 1003, // 时间戳转换失败
+            ApiError::ParseDataTimeFailed { .. } => 1001,         // 解析时间失败
+            ApiError::InvalidTimestamp { .. } => 1002,            // 无效的时间戳
+            ApiError::TransformTimestampFailed { .. } => 1003,    // 时间戳转换失败
             ApiError::CharacterLengthExceedsLimit { .. } => 1004, // 字符长度超过最大限制
-            ApiError::EmptyCharacter { .. } => 1005, // 字符为空
-            ApiError::PageMustGreaterThanOne { .. } => 1006, // 页码必须大于等于1
-            ApiError::TooManyItemsPerPage { .. } => 1007, // 每页数量必须大于等于1且小于等于100
-            ApiError::DeserializeParamsFailed { .. } => 1008, // 解析参数失败
+            ApiError::EmptyCharacter { .. } => 1005,              // 字符为空
+            ApiError::PageMustGreaterThanOne { .. } => 1006,      // 页码必须大于等于1
+            ApiError::TooManyItemsPerPage { .. } => 1007,         // 每页数量必须大于等于1且小于等于100
+            ApiError::DeserializeParamsFailed { .. } => 1008,     // 解析参数失败
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -84,7 +75,9 @@ impl StarRiverErrorTrait for ApiError {
                 ApiError::TransformTimestampFailed { timestamp, .. } => {
                     format!("时间戳转换失败: {}", timestamp)
                 }
-                ApiError::CharacterLengthExceedsLimit { name, length, max_length, .. } => {
+                ApiError::CharacterLengthExceedsLimit {
+                    name, length, max_length, ..
+                } => {
                     format!("{name} 长度为 {length}，超过最大限制 {max_length}")
                 }
                 ApiError::EmptyCharacter { name, .. } => {
@@ -105,12 +98,12 @@ impl StarRiverErrorTrait for ApiError {
 
     fn http_status_code(&self) -> StatusCode {
         match self {
-            ApiError::ParseDataTimeFailed { .. } | 
-            ApiError::InvalidTimestamp { .. } |
-            ApiError::CharacterLengthExceedsLimit { .. } |
-            ApiError::EmptyCharacter { .. } |
-            ApiError::PageMustGreaterThanOne { .. } |
-            ApiError::TooManyItemsPerPage { .. } => StatusCode::BAD_REQUEST,
+            ApiError::ParseDataTimeFailed { .. }
+            | ApiError::InvalidTimestamp { .. }
+            | ApiError::CharacterLengthExceedsLimit { .. }
+            | ApiError::EmptyCharacter { .. }
+            | ApiError::PageMustGreaterThanOne { .. }
+            | ApiError::TooManyItemsPerPage { .. } => StatusCode::BAD_REQUEST,
             ApiError::TransformTimestampFailed { .. } => StatusCode::BAD_REQUEST,
             ApiError::DeserializeParamsFailed { .. } => StatusCode::BAD_REQUEST,
         }

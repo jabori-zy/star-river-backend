@@ -3,10 +3,7 @@ use sea_orm::*;
 use star_river_core::strategy::StrategyInfo;
 use strategy_core::strategy::StrategyConfig;
 
-use crate::{
-    error::DatabaseError,
-    page::PageResult,
-};
+use crate::{error::DatabaseError, page::PageResult};
 
 pub struct StrategyConfigQuery;
 
@@ -17,7 +14,6 @@ impl StrategyConfigQuery {
         page: u64,
         strategy_per_page: u64,
     ) -> Result<PageResult<StrategyInfo>, DatabaseError> {
-
         let paginator = StrategyConfigEntity::find()
             // Filter undeleted strategies
             .filter(strategy_config::Column::IsDeleted.eq(false))

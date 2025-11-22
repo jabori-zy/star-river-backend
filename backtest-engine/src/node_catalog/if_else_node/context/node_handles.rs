@@ -21,15 +21,18 @@ impl NodeHandleExt for IfElseNodeContext {
             self.node_name(),
             else_output_handle_id
         );
-        self.add_output_handle(true, else_output_handle_id, tx);
+        self.add_output_handle(true, -2, else_output_handle_id, tx);
 
         let cases = &self.node_config.cases;
-        let case_output_handle_ids = cases.iter().map(|case| case.output_handle_id.clone()).collect::<Vec<String>>();
+        let case_info = cases
+            .iter()
+            .map(|case| (case.case_id, case.output_handle_id.clone()))
+            .collect::<Vec<(i32, String)>>();
 
-        case_output_handle_ids.into_iter().for_each(|id| {
+        case_info.into_iter().for_each(|(case_id, output_handle_id)| {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            tracing::debug!("[{}] set case output handle: {}", self.node_name(), &id);
-            self.add_output_handle(false, id, tx);
+            tracing::debug!("[{}] set case output handle: {}", self.node_name(), &output_handle_id);
+            self.add_output_handle(false, case_id, output_handle_id, tx);
         });
     }
 

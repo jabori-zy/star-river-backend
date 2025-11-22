@@ -2,15 +2,21 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use database::{page::PageResult, query::strategy_config_query::StrategyConfigQuery};
+use database::{
+    mutation::strategy_config_mutation::StrategyConfigMutation, page::PageResult, query::strategy_config_query::StrategyConfigQuery,
+};
 use serde::{Deserialize, Serialize};
 use snafu::Report;
-use star_river_core::{error::{StarRiverErrorTrait}, strategy::StrategyInfo};
-use utoipa::{IntoParams, ToSchema};
+use star_river_core::{error::StarRiverErrorTrait, strategy::StrategyInfo};
 use strategy_core::strategy::StrategyConfig;
-use crate::{api::response::ApiResponseEnum, error::{CharacterLengthExceedsLimitSnafu, EmptyCharacterSnafu, PageMustGreaterThanOneSnafu, TooManyItemsPerPageSnafu}, star_river::StarRiver};
 use tracing::instrument;
-use database::mutation::strategy_config_mutation::StrategyConfigMutation;
+use utoipa::{IntoParams, ToSchema};
+
+use crate::{
+    api::response::ApiResponseEnum,
+    error::{CharacterLengthExceedsLimitSnafu, EmptyCharacterSnafu, PageMustGreaterThanOneSnafu, TooManyItemsPerPageSnafu},
+    star_river::StarRiver,
+};
 
 const STRATEGY_MANAGEMENT_TAG: &str = "Strategy Management";
 
@@ -49,22 +55,22 @@ pub async fn get_strategy_list(
     Query(params): Query<GetStrategyListQuery>,
 ) -> (StatusCode, Json<ApiResponseEnum<PageResult<StrategyInfo>>>) {
     if params.page == 0 {
-        let error = PageMustGreaterThanOneSnafu{
-            page: params.page,
-        }.build();
+        let error = PageMustGreaterThanOneSnafu { page: params.page }.build();
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
     if params.items_per_page == 0 || params.items_per_page > 100 {
-        let error = TooManyItemsPerPageSnafu{
+        let error = TooManyItemsPerPageSnafu {
             items_per_page: params.items_per_page,
-        }.build();
+        }
+        .build();
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
-    
+
     if params.items_per_page > 100 {
-        let error = TooManyItemsPerPageSnafu{
+        let error = TooManyItemsPerPageSnafu {
             items_per_page: params.items_per_page,
-        }.build();
+        }
+        .build();
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
 
@@ -83,8 +89,6 @@ pub async fn get_strategy_list(
         }
     }
 }
-
-
 
 #[axum::debug_handler]
 #[utoipa::path(
@@ -107,7 +111,7 @@ pub async fn get_strategy_by_id(
 ) -> (StatusCode, Json<ApiResponseEnum<StrategyConfig>>) {
     // 模拟加载状态，睡眠3秒
     // sleep(Duration::from_secs(3)).await;
-    
+
     let db = &star_river.database.lock().await.conn;
     let strategy = StrategyConfigQuery::get_strategy_by_id(db, strategy_id).await;
     match strategy {
@@ -122,9 +126,6 @@ pub async fn get_strategy_by_id(
         }
     }
 }
-
-
-
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -158,43 +159,37 @@ pub async fn create_strategy(
     State(star_river): State<StarRiver>,
     Json(params): Json<CreateStrategyParams>,
 ) -> (StatusCode, Json<ApiResponseEnum<StrategyConfig>>) {
-
-
     // check name character length
     if params.name.len() > 20 {
-        let error = CharacterLengthExceedsLimitSnafu{
+        let error = CharacterLengthExceedsLimitSnafu {
             name: "strategy name".to_string(),
             length: params.name.len() as i32,
             max_length: 20 as i32,
-        }.build();
+        }
+        .build();
         let report = Report::from_error(&error);
         tracing::error!("{}", report);
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
 
-
     if params.description.len() > 100 {
-        let error = CharacterLengthExceedsLimitSnafu{
+        let error = CharacterLengthExceedsLimitSnafu {
             name: "strategy description".to_string(),
             length: params.description.len() as i32,
             max_length: 100 as i32,
-        }.build();
+        }
+        .build();
         let report = Report::from_error(&error);
         tracing::error!("{}", report);
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
-
-
 
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match StrategyConfigMutation::create_strategy(conn, params.name, params.description).await {
         Ok(strategy) => {
             tracing::info!("strategy created successfully. strategy id: {}", strategy.id);
-            (
-                StatusCode::CREATED,
-                Json(ApiResponseEnum::success(strategy))
-            )
+            (StatusCode::CREATED, Json(ApiResponseEnum::success(strategy)))
         }
         Err(e) => {
             let report = Report::from_error(&e);
@@ -203,9 +198,6 @@ pub async fn create_strategy(
         }
     }
 }
-
-
-
 
 #[derive(Serialize, Deserialize, Debug, IntoParams, ToSchema)]
 #[schema(title = "Update strategy params", description = "Update strategy params")]
@@ -231,7 +223,7 @@ pub struct UpdateStrategyParams {
         UpdateStrategyParams
     ),
     responses(
-        (status = 200, body = ApiResponseEnum<StrategyConfig>),  
+        (status = 200, body = ApiResponseEnum<StrategyConfig>),
         (status = 400, body = ApiResponseEnum<StrategyConfig>)
     )
 )]
@@ -243,37 +235,39 @@ pub async fn update_strategy(
 ) -> (StatusCode, Json<ApiResponseEnum<StrategyConfig>>) {
     // check name character length
     if params.name.len() > 20 {
-        let error = CharacterLengthExceedsLimitSnafu{
+        let error = CharacterLengthExceedsLimitSnafu {
             name: "strategy name".to_string(),
             length: params.name.len() as i32,
             max_length: 20 as i32,
-        }.build();
+        }
+        .build();
         let report = Report::from_error(&error);
         tracing::error!("{}", report);
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
 
     if params.description.len() > 100 {
-        let error = CharacterLengthExceedsLimitSnafu{
+        let error = CharacterLengthExceedsLimitSnafu {
             name: "strategy description".to_string(),
             length: params.description.len() as i32,
             max_length: 100 as i32,
-        }.build();
+        }
+        .build();
         let report = Report::from_error(&error);
         tracing::error!("{}", report);
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
 
     if params.name.is_empty() {
-        let error = EmptyCharacterSnafu{
+        let error = EmptyCharacterSnafu {
             name: "strategy name".to_string(),
-        }.build();
+        }
+        .build();
         let report = Report::from_error(&error);
         tracing::error!("{}", report);
         return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
     }
 
-    
     let database = star_river.database.lock().await;
     let conn = &database.conn;
     match StrategyConfigMutation::update_strategy_by_id(
@@ -299,7 +293,6 @@ pub async fn update_strategy(
         }
     }
 }
-
 
 #[axum::debug_handler]
 #[utoipa::path(

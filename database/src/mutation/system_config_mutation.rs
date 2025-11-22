@@ -2,6 +2,7 @@ use ::entity::system_config;
 use chrono::Utc;
 use sea_orm::*;
 use star_river_core::system::system_config::{Localization, SystemConfig};
+
 use crate::error::DatabaseError;
 
 pub struct SystemConfigMutation;

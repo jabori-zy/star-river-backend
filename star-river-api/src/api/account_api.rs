@@ -1,24 +1,23 @@
-use crate::api::response::ApiResponse;
-use crate::error::DeserializeParamsFailedSnafu;
-use crate::star_river::StarRiver;
-use axum::extract::State;
-use axum::extract::{Path, Query};
-use axum::http::StatusCode;
-use axum::response::Json;
-use database::mutation::account_config_mutation::AccountConfigMutation;
-use database::query::account_config_query::AccountConfigQuery;
-use event_center::EventCenterSingleton;
-use event_center::event::Event;
-use serde::{Deserialize, Serialize};
-use star_river_core::account::AccountConfig;
-use star_river_core::engine::EngineName;
-use star_river_core::exchange::Exchange;
 use std::str::FromStr;
+
+use axum::{
+    extract::{Path, Query, State},
+    http::StatusCode,
+    response::Json,
+};
+use database::{mutation::account_config_mutation::AccountConfigMutation, query::account_config_query::AccountConfigQuery};
+use event_center::{EventCenterSingleton, event::Event};
+use serde::{Deserialize, Serialize};
+use snafu::{IntoError, Report};
+use star_river_core::{account::AccountConfig, engine::EngineName, error::StarRiverErrorTrait, exchange::Exchange};
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, ToSchema};
-use crate::api::response::ApiResponseEnum;
-use star_river_core::error::StarRiverErrorTrait;
-use snafu::{Report, IntoError};
+
+use crate::{
+    api::response::{ApiResponse, ApiResponseEnum},
+    error::DeserializeParamsFailedSnafu,
+    star_river::StarRiver,
+};
 
 // #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 // #[schema(title = "登录MT5账户参数", description = "登录指定MT5账户")]
@@ -61,7 +60,6 @@ use snafu::{Report, IntoError};
 //         }),
 //     )
 // }
-
 
 const ACCOUNT_MANAGEMENT_TAG: &str = "Account Management";
 
@@ -107,20 +105,14 @@ pub async fn get_account_config_list(
 ) -> (StatusCode, Json<ApiResponseEnum<Vec<AccountConfig>>>) {
     let db = &star_river.database.lock().await.conn;
     let account_config = match params.exchange {
-        Some(exchange) => AccountConfigQuery::get_account_config_list_by_exchange(db, exchange.to_string())
-            .await,
+        Some(exchange) => AccountConfigQuery::get_account_config_list_by_exchange(db, exchange.to_string()).await,
         None => AccountConfigQuery::get_all_account_config(db).await,
     };
     match account_config {
-        Ok(account_config) => {
-            (StatusCode::OK, Json(ApiResponseEnum::success(account_config)))
-        }
+        Ok(account_config) => (StatusCode::OK, Json(ApiResponseEnum::success(account_config))),
         Err(e) => (e.http_status_code(), Json(ApiResponseEnum::error(e))),
     }
 }
-
-
-
 
 #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 #[schema(
@@ -220,7 +212,7 @@ pub async fn add_account_config(
     let account_config_json = match serde_json::to_value(&request.account_config) {
         Ok(account_config_json) => account_config_json,
         Err(e) => {
-            let error = DeserializeParamsFailedSnafu{}.into_error(e);
+            let error = DeserializeParamsFailedSnafu {}.into_error(e);
             let report = Report::from_error(&error);
             tracing::error!("{}", report);
             return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
@@ -235,14 +227,7 @@ pub async fn add_account_config(
         }
     };
 
-    match AccountConfigMutation::insert_account_config(
-        conn,
-        request.account_name,
-        exchange,
-        account_config_json,
-    )
-    .await
-    {
+    match AccountConfigMutation::insert_account_config(conn, request.account_name, exchange, account_config_json).await {
         Ok(account_config) => {
             // 添加成功之后，发布账户配置已添加事件
             tracing::info!("account config added successfully. account config: {:?}", account_config);
@@ -252,10 +237,7 @@ pub async fn add_account_config(
         Err(e) => {
             let report = Report::from_error(&e);
             tracing::error!("add account config failed: {}", report);
-            (
-                e.http_status_code(),
-                Json(ApiResponseEnum::error(e))
-            )
+            (e.http_status_code(), Json(ApiResponseEnum::error(e)))
         }
     }
 }
@@ -283,10 +265,7 @@ pub async fn delete_account_config(
     match AccountConfigMutation::delete_account_config(conn, account_id).await {
         Ok(_) => {
             tracing::info!("account config deleted successfully. account id: {}", account_id);
-            (
-                StatusCode::OK,
-                Json(ApiResponseEnum::success(())),
-            )
+            (StatusCode::OK, Json(ApiResponseEnum::success(())))
         }
         Err(e) => {
             let report = Report::from_error(&e);
@@ -341,7 +320,7 @@ pub async fn update_account_config(
     let account_config_json = match account_config_json {
         Ok(account_config_json) => account_config_json,
         Err(e) => {
-            let error = DeserializeParamsFailedSnafu{}.into_error(e);
+            let error = DeserializeParamsFailedSnafu {}.into_error(e);
             let report = Report::from_error(&error);
             tracing::error!("{}", report);
             return (error.http_status_code(), Json(ApiResponseEnum::error(error)));
@@ -357,13 +336,7 @@ pub async fn update_account_config(
     )
     .await
     {
-        Ok(account_config) => {
-
-            (
-                StatusCode::OK,
-                Json(ApiResponseEnum::success(account_config))
-            )
-        }
+        Ok(account_config) => (StatusCode::OK, Json(ApiResponseEnum::success(account_config))),
         Err(e) => {
             let report = Report::from_error(&e);
             tracing::error!("{}", report);
@@ -404,11 +377,12 @@ pub async fn update_account_is_available(
     let conn = &database.conn;
     match AccountConfigMutation::update_account_config_is_available(conn, account_id, query.is_available).await {
         Ok(account_config) => {
-            tracing::info!("account is available updated successfully. account id: {}, is available: {}", account_id, query.is_available);
-            (
-                StatusCode::OK,
-                Json(ApiResponseEnum::success(account_config))
-            )
+            tracing::info!(
+                "account is available updated successfully. account id: {}, is available: {}",
+                account_id,
+                query.is_available
+            );
+            (StatusCode::OK, Json(ApiResponseEnum::success(account_config)))
         }
         Err(e) => {
             let report = Report::from_error(&e);

@@ -1,6 +1,6 @@
 use strategy_core::node::{
     context_trait::{NodeHandleExt, NodeIdentityExt},
-    utils::generate_default_output_handle_id,
+    utils::generate_default_output_handle,
 };
 use tokio::sync::broadcast;
 
@@ -14,18 +14,16 @@ impl NodeHandleExt for KlineNodeContext {
         let selected_symbols = self.node_config.exchange_mode_config.as_ref().unwrap().selected_symbols.clone();
 
         // 添加默认出口
-        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-        let default_output_handle_id = generate_default_output_handle_id(&node_id);
-        tracing::debug!("[{node_name}] set default output handle: {}", default_output_handle_id);
-
-        self.add_output_handle(true, default_output_handle_id, tx);
+        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
+        self.add_default_output_handle(default_output_handle);
 
         // 添加每一个symbol的出口
         for symbol in selected_symbols.iter() {
             let symbol_output_handle_id = symbol.output_handle_id.clone();
+            let config_id = symbol.config_id;
             tracing::debug!("[{node_name}] setting symbol output handle: {}", symbol_output_handle_id);
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            self.add_output_handle(false, symbol_output_handle_id, tx);
+            self.add_output_handle(false, config_id, symbol_output_handle_id, tx);
         }
     }
 }

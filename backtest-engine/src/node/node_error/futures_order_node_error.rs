@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use snafu::{Backtrace, Snafu};
 use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
@@ -16,8 +16,8 @@ pub enum FuturesOrderNodeError {
     #[snafu(display("cannot create order because current is processing order or unfilled order is not empty"))]
     CannotCreateOrder { backtrace: Backtrace },
 
-    #[snafu(display("order config not found for input handle id: {input_handle_id}"))]
-    OrderConfigNotFound { input_handle_id: String, backtrace: Backtrace },
+    #[snafu(display("order config not found for order config id: {order_config_id}"))]
+    OrderConfigNotFound { order_config_id: i32, backtrace: Backtrace },
 
     #[snafu(display("get symbol info failed for symbol: {symbol}"))]
     GetSymbolInfoFailed {
@@ -73,8 +73,8 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
                 FuturesOrderNodeError::CannotCreateOrder { .. } => {
                     format!("无法创建订单，因为当前正在处理订单或未成交订单不为空")
                 }
-                FuturesOrderNodeError::OrderConfigNotFound { input_handle_id, .. } => {
-                    format!("订单配置未找到: {}", input_handle_id)
+                FuturesOrderNodeError::OrderConfigNotFound { order_config_id, .. } => {
+                    format!("订单配置未找到: {}", order_config_id)
                 }
                 FuturesOrderNodeError::GetSymbolInfoFailed { symbol, .. } => {
                     format!("获取交易对信息失败: {}", symbol)

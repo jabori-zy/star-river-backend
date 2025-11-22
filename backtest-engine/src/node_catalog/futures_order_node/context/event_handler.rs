@@ -1,42 +1,31 @@
 use async_trait::async_trait;
 use event_center::Event;
-use star_river_core::{custom_type::InputHandleId, system::DateTimeUtc};
+use star_river_core::custom_type::InputHandleId;
 use star_river_event::backtest_strategy::node_event::{
     FuturesOrderNodeEvent, IfElseNodeEvent,
-    futures_order_node_event::{
-        FuturesOrderCanceledEvent, FuturesOrderCanceledPayload, FuturesOrderCreatedEvent, FuturesOrderCreatedPayload,
-        FuturesOrderFilledEvent, FuturesOrderFilledPayload, StopLossOrderCanceledEvent, StopLossOrderCanceledPayload,
-        StopLossOrderCreatedEvent, StopLossOrderCreatedPayload, StopLossOrderFilledEvent, StopLossOrderFilledPayload,
-        TakeProfitOrderCanceledEvent, TakeProfitOrderCanceledPayload, TakeProfitOrderCreatedEvent, TakeProfitOrderCreatedPayload,
-        TakeProfitOrderFilledEvent, TakeProfitOrderFilledPayload, TransactionCreatedEvent, TransactionCreatedPayload,
-    },
+    futures_order_node_event::{TransactionCreatedEvent, TransactionCreatedPayload},
 };
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
-    communication::strategy::StrategyResponse,
     event::{
+        node_common_event::CommonEvent,
         strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
-        node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
 };
-use tokio::sync::oneshot;
 use virtual_trading::{
     event::VtsEvent,
     types::{VirtualOrder, VirtualTransaction},
 };
 
 use super::FuturesOrderNodeContext;
-use crate::{
-    node::{
-        node_command::{
-            BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
-        },
-        node_error::futures_order_node_error::OrderConfigNotFoundSnafu,
-        node_event::BacktestNodeEvent,
-        node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
+use crate::node::{
+    node_command::{
+        BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
     },
-    strategy::strategy_command::{GetCurrentTimeCmdPayload, GetCurrentTimeCommand},
+    node_error::futures_order_node_error::OrderConfigNotFoundSnafu,
+    node_event::BacktestNodeEvent,
+    node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
 };
 
 #[async_trait]
@@ -81,43 +70,22 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
 
 impl FuturesOrderNodeContext {
     /// 使用第一个有连接的output_handle发送trigger事件
-    async fn send_trigger_event_spec(&self) {
-        if self.is_leaf_node() {
-            self.send_execute_over_event(self.play_index() as u64, None).unwrap();
-            return;
-        }
-        let all_output_handles = self.output_handles();
-        let strategy_output_handle_id = format!("{}_strategy_output", self.node_id());
 
-        // 使用filter过滤出连接数大于0的handle，然后取第一个
-        if let Some((handle_id, handle)) = all_output_handles
-            .iter()
-            .filter(|(handle_id, handle)| handle_id != &&strategy_output_handle_id && handle.is_connected())
-            .next()
-        {
-            let payload = TriggerPayload::new(self.play_index() as u64);
-            let trigger_event = TriggerEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id.clone(), payload);
-            let _ = handle.send(BacktestNodeEvent::Common(trigger_event.into()));
-        } else {
-            return;
-        }
-    }
-
-    pub async fn handle_node_event_for_specific_order(
-        &mut self,
-        node_event: BacktestNodeEvent,
-        input_handle_id: &InputHandleId,
-        order_config_id: i32,
-    ) {
+    pub async fn handle_node_event_for_independent_order(&mut self, node_event: BacktestNodeEvent, order_config_id: i32) {
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
-                CommonEvent::Trigger(trigger_evt) => {
+                CommonEvent::Trigger(_trigger_evt) => {
                     let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
                     let phase_name = format!("handle trigger event for specific order");
                     cycle_tracker.start_phase(&phase_name);
-                    if trigger_evt.cycle_id == self.play_index() as u64 {
-                        self.send_trigger_event_spec().await;
+
+                    if self.is_leaf_node() {
+                        self.send_execute_over_event(self.play_index() as u64, None).unwrap();
+                        return;
+                    } else {
+                        self.independent_order_send_trigger_event(order_config_id).await;
                     }
+
                     cycle_tracker.end_phase(&phase_name);
                     let completed_tracker = cycle_tracker.end();
                     self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
@@ -140,10 +108,10 @@ impl FuturesOrderNodeContext {
                             self.node_config
                                 .futures_order_configs
                                 .iter()
-                                .find(|config| config.input_handle_id == *input_handle_id)
+                                .find(|config| config.order_config_id == order_config_id)
                                 .ok_or(
                                     OrderConfigNotFoundSnafu {
-                                        input_handle_id: input_handle_id.to_string(),
+                                        order_config_id: order_config_id,
                                     }
                                     .build(),
                                 )
@@ -155,7 +123,7 @@ impl FuturesOrderNodeContext {
                         let create_order_result = self.create_order(&order_config).await;
                         if let Err(_) = create_order_result {
                             // 发送trigger事件
-                            self.send_trigger_event_spec().await;
+                            self.independent_order_send_trigger_event(order_config_id).await;
                             cycle_tracker.end_phase(&phase_name);
                             let completed_tracker = cycle_tracker.end();
                             self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
@@ -207,7 +175,7 @@ impl FuturesOrderNodeContext {
         // 如果总输出与订单状态输出都没有连接，则发送trigger事件
         if !config_all_status_output_handle.is_connected() && !order_status_output_handle.is_connected() {
             tracing::debug!("all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event");
-            self.send_trigger_event_spec().await;
+            self.independent_order_send_trigger_event(virtual_order.order_config_id).await;
             return;
         }
 
@@ -232,62 +200,6 @@ impl FuturesOrderNodeContext {
                 let _ = order_status_output_handle.send(order_event.into());
             }
         }
-    }
-
-    fn genarate_order_node_event(
-        &self,
-        output_handle_id: String,
-        virtual_order: VirtualOrder,
-        event_type: &VtsEvent,
-    ) -> Option<FuturesOrderNodeEvent> {
-        let node_id = self.node_id().clone();
-        let node_name = self.node_name().clone();
-
-        let order_event: Option<FuturesOrderNodeEvent> = match event_type {
-            // 期货订单事件
-            VtsEvent::FuturesOrderCreated(_) => {
-                let payload = FuturesOrderCreatedPayload::new(virtual_order.clone());
-                Some(FuturesOrderCreatedEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            VtsEvent::FuturesOrderFilled(_) => {
-                let payload = FuturesOrderFilledPayload::new(virtual_order.clone());
-                Some(FuturesOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            VtsEvent::FuturesOrderCanceled(_) => {
-                let payload = FuturesOrderCanceledPayload::new(virtual_order.clone());
-                Some(FuturesOrderCanceledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-
-            // 止盈订单事件
-            VtsEvent::TakeProfitOrderCreated(_) => {
-                let payload = TakeProfitOrderCreatedPayload::new(virtual_order.clone());
-                Some(TakeProfitOrderCreatedEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            VtsEvent::TakeProfitOrderFilled(_) => {
-                let payload = TakeProfitOrderFilledPayload::new(virtual_order.clone());
-                Some(TakeProfitOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            VtsEvent::TakeProfitOrderCanceled(_) => {
-                let payload = TakeProfitOrderCanceledPayload::new(virtual_order.clone());
-                Some(TakeProfitOrderCanceledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-
-            // 止损订单事件
-            VtsEvent::StopLossOrderCreated(_) => {
-                let payload = StopLossOrderCreatedPayload::new(virtual_order.clone());
-                Some(StopLossOrderCreatedEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            VtsEvent::StopLossOrderFilled(_) => {
-                let payload = StopLossOrderFilledPayload::new(virtual_order.clone());
-                Some(StopLossOrderFilledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            VtsEvent::StopLossOrderCanceled(_) => {
-                let payload = StopLossOrderCanceledPayload::new(virtual_order.clone());
-                Some(StopLossOrderCanceledEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into())
-            }
-            _ => None,
-        };
-        order_event
     }
 
     // 处理虚拟交易系统事件
@@ -405,22 +317,5 @@ impl FuturesOrderNodeContext {
         }
 
         Ok(())
-    }
-
-    pub(super) async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
-        let (tx, rx) = oneshot::channel();
-        let payload = GetCurrentTimeCmdPayload;
-        let cmd = GetCurrentTimeCommand::new(self.node_id().clone(), tx, payload);
-        self.send_strategy_command(cmd.into()).await.unwrap();
-
-        let response = rx.await.unwrap();
-        match response {
-            StrategyResponse::Success { payload, .. } => {
-                return Ok(payload.current_time.clone());
-            }
-            StrategyResponse::Fail { error, .. } => {
-                return Err(error.to_string());
-            }
-        }
     }
 }

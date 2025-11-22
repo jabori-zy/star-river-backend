@@ -1,13 +1,12 @@
 // External crate imports
 // Workspace crate imports
+use database::error::DatabaseError;
 use engine_core::state_machine_error::EngineStateMachineError;
-use sea_orm::error::DbErr;
 use snafu::{Backtrace, Snafu};
 use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
 
 // Current crate imports
 use crate::strategy::strategy_error::BacktestStrategyError;
-use database::error::DatabaseError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -25,10 +24,7 @@ pub enum BacktestEngineError {
     },
 
     #[snafu(transparent)]
-    Database { 
-        source: DatabaseError, 
-        backtrace: Backtrace 
-    },
+    Database { source: DatabaseError, backtrace: Backtrace },
 
     #[snafu(display("strategy type {} is unsupported", strategy_type))]
     UnsupportedStrategyType { strategy_type: String, backtrace: Backtrace },
@@ -38,8 +34,6 @@ pub enum BacktestEngineError {
 
     #[snafu(display("strategy instance not found: {}", strategy_id))]
     StrategyInstanceNotFound { strategy_id: i32, backtrace: Backtrace },
-
-    
 
     #[snafu(display("trade mode {} is unsupported", trade_mode))]
     UnsupportedTradeMode { trade_mode: String, backtrace: Backtrace },

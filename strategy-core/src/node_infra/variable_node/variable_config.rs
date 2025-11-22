@@ -102,6 +102,10 @@ pub mod get {
         pub fn config_id(&self) -> i32 {
             self.config_id
         }
+
+        pub fn output_handle_id(&self) -> &String {
+            &self.output_handle_id
+        }
     }
 
     /// 获取变量配置（系统变量或自定义变量）
@@ -149,6 +153,13 @@ pub mod get {
             match self {
                 GetVariableConfig::System(config) => &config.trigger_config,
                 GetVariableConfig::Custom(config) => &config.trigger_config,
+            }
+        }
+
+        pub fn output_handle_id(&self) -> &String {
+            match self {
+                GetVariableConfig::System(config) => config.output_handle_id(),
+                GetVariableConfig::Custom(config) => config.output_handle_id(),
             }
         }
     }
@@ -203,6 +214,10 @@ pub mod update {
         pub fn trigger_config(&self) -> &TriggerConfig {
             &self.trigger_config
         }
+
+        pub fn output_handle_id(&self) -> &String {
+            &self.output_handle_id
+        }
     }
 }
 
@@ -247,6 +262,10 @@ pub mod reset {
 
         pub fn trigger_config(&self) -> &TriggerConfig {
             &self.trigger_config
+        }
+
+        pub fn output_handle_id(&self) -> &String {
+            &self.output_handle_id
         }
     }
 }
@@ -313,6 +332,14 @@ impl VariableConfig {
             VariableConfig::Get(config) => config.trigger_config(),
             VariableConfig::Update(config) => config.trigger_config(),
             VariableConfig::Reset(config) => config.trigger_config(),
+        }
+    }
+
+    pub fn output_handle_id(&self) -> &String {
+        match self {
+            VariableConfig::Get(config) => config.output_handle_id(),
+            VariableConfig::Update(config) => config.output_handle_id(),
+            VariableConfig::Reset(config) => config.output_handle_id(),
         }
     }
 }

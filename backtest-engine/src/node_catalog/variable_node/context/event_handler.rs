@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use event_center::Event;
+use futures::stream::{self, StreamExt};
 use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent};
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
@@ -45,17 +46,30 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             .unwrap();
                     }
                     IfElseNodeEvent::CaseFalse(case_false_event) => {
+                        tracing::debug!(
+                            "@[{}] receive case false event for case {}",
+                            self.node_name(),
+                            case_false_event.case_id
+                        );
                         let configs = filter_case_trigger_configs(
                             self.node_config.variable_configs.iter(),
                             case_false_event.case_id,
                             case_false_event.from_node_id(),
                         );
+
                         if self.is_leaf_node() {
                             configs.iter().for_each(|config| {
                                 self.send_execute_over_event(self.play_index() as u64, Some(config.confing_id()))
                                     .unwrap()
                             });
+                            return;
                         }
+
+                        stream::iter(configs.iter())
+                            .for_each_concurrent(None, |config| async {
+                                self.send_trigger_event(&config.output_handle_id()).await.unwrap();
+                            })
+                            .await;
                     }
                     IfElseNodeEvent::ElseTrue(else_true) => {
                         let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);

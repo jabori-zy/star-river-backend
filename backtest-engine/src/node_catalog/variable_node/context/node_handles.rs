@@ -1,5 +1,8 @@
 // use star_river_core::order::OrderType;
-use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
+use strategy_core::node::{
+    context_trait::{NodeHandleExt, NodeIdentityExt},
+    utils::generate_default_output_handle,
+};
 use tokio::sync::broadcast;
 
 use super::VariableNodeContext;
@@ -17,16 +20,15 @@ impl NodeHandleExt for VariableNodeContext {
         // self.add_output_handle(false, strategy_output_handle_id, tx);
 
         // 添加默认出口
-        let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-        let default_output_handle_id = format!("{}_default_output", node_id);
-        tracing::debug!("[{node_name}] setting default output handle: {}", default_output_handle_id);
-        self.add_output_handle(true, default_output_handle_id, tx);
+        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
+        self.add_default_output_handle(default_output_handle);
 
         for variable in variable_configs {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-            let output_handle_id = format!("{}_output_{}", node_id, variable.config_id());
+            let output_handle_id = variable.output_handle_id().clone();
+            let config_id = variable.config_id();
             tracing::debug!("[{node_name}] setting variable output handle: {}", output_handle_id);
-            self.add_output_handle(false, output_handle_id, tx);
+            self.add_output_handle(false, config_id, output_handle_id, tx);
         }
     }
 }

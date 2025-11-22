@@ -10,8 +10,7 @@ use star_river_core::{custom_type::StrategyName, state_machine::Metadata};
 use strategy_core::{
     error::{StrategyStateMachineError, strategy_state_machine_error::StrategyStateTransFailedSnafu},
     strategy::state_machine::{
-        GenericStrategyStateMachine, StrategyRunState, StrategyStateAction, StrategyStateChangeActions,
-        StrategyStateTransTrigger,
+        GenericStrategyStateMachine, StrategyRunState, StrategyStateAction, StrategyStateChangeActions, StrategyStateTransTrigger,
     },
 };
 use strum::Display;
@@ -77,7 +76,6 @@ pub enum BacktestStrategyStateTransTrigger {
 
     /// Initialization completed
     InitializeComplete,
-
 
     /// Play strategy
     Play,
@@ -146,7 +144,6 @@ pub enum BacktestStrategyStateAction {
     /// Listen and handle strategy statistics events
     #[strum(serialize = "ListenAndHandleStrategyStatsEvent")]
     ListenAndHandleStrategyStatsEvent,
-
 
     /// Store strategy status
     #[strum(serialize = "StoreStrategyStatus")]
@@ -245,7 +242,6 @@ pub fn backtest_strategy_transition(
             ],
         )),
 
-
         (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Play) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Playing,
             vec![
@@ -263,7 +259,6 @@ pub fn backtest_strategy_transition(
                 BacktestStrategyStateAction::StoreStrategyStatus,
             ],
         )),
-
 
         (BacktestStrategyRunState::Playing, BacktestStrategyStateTransTrigger::PlayComplete) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::PlayComplete,

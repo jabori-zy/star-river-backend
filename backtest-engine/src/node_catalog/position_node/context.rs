@@ -1,3 +1,4 @@
+mod context_util;
 mod event_handler;
 mod node_handles;
 
@@ -62,6 +63,10 @@ impl PositionNodeContext {
 
     pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
         &self.play_index_watch_rx
+    }
+
+    pub fn node_config(&self) -> &PositionNodeBacktestConfig {
+        &self.node_config
     }
 }
 

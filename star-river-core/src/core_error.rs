@@ -15,12 +15,8 @@ pub enum CoreError {
     #[snafu(display("get system config failed. reason: [{source}]"))]
     GetSystemConfigFailed { source: DbErr, backtrace: Backtrace },
 
-
     #[snafu(display("parse exchange failed: {exchange}"))]
     ParseExchangeFailed { exchange: String, backtrace: Backtrace },
-
-
-
 }
 
 // Implement the StarRiverErrorTrait for StarRiverError

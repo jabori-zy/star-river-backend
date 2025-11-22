@@ -1,11 +1,13 @@
 use async_trait::async_trait;
 use snafu::{IntoError, Report};
 use strategy_core::{
-    NodeType, event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent}, node::{
+    NodeType,
+    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
+    node::{
         context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
-    }
+    },
 };
 
 use super::{KlineNode, state_machine::KlineNodeAction};
@@ -198,7 +200,7 @@ impl NodeLifecycle for KlineNode {
                             node_name: node_name.clone(),
                         }
                         .into_error(error.clone());
-                        
+
                         NodeUtils::send_error_status_event(
                             strategy_id,
                             node_id.clone(),

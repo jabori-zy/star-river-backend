@@ -10,7 +10,6 @@ use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
 pub enum DataProcessorError {
     // #[snafu(transparent)]
     // StarRiverError { source: StarRiverError, backtrace: Backtrace },
-
     #[snafu(display("JSON parsing failed"))]
     JsonParseFailed { source: serde_json::Error, backtrace: Backtrace },
 

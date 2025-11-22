@@ -181,12 +181,12 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             match signal_event {
                 // 执行结束
                 CommonEvent::ExecuteOver(execute_over_event) => {
-                    // tracing::debug!("execute_over_event: {:#?}", execute_over_event);
+                    tracing::debug!("execute_over_event: {:#?}", execute_over_event);
                     self.leaf_node_execution_completed(execute_over_event.from_node_id().clone());
                     let should_finalize = self.leaf_node_execution_tracker().is_all_completed();
 
-                    // tracing::debug!("{:#?}", self.leaf_node_execution_tracker());
-                    // tracing::debug!("should_finalize: {}", should_finalize);
+                    tracing::debug!("{:#?}", self.leaf_node_execution_tracker());
+                    tracing::debug!("should_finalize: {}", should_finalize);
 
                     // 第二步：如果所有叶子节点都完成，先执行清理和通知，再记录 benchmark
                     if should_finalize {

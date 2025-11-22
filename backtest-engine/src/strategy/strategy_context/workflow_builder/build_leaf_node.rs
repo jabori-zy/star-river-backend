@@ -5,7 +5,7 @@ use petgraph::graph::NodeIndex;
 use snafu::OptionExt;
 use strategy_core::{
     NodeType,
-    error::strategy_error::{NodeNotFoundByIndexSnafu, StrategyError},
+    error::strategy_error::NodeNotFoundByIndexSnafu,
     node::{
         NodeTrait,
         context_trait::{NodeHandleExt, NodeIdentityExt},
@@ -50,6 +50,25 @@ impl BacktestStrategyContext {
                             config_count
                         } else {
                             tracing::warn!("@[{node_name}] have {config_count} order configs, but only {input_handles_count} is connected");
+                            input_handles_count
+                        }
+                    }
+                    _ => 0,
+                }
+            } else if node.node_type().await == NodeType::PositionNode {
+                match node {
+                    BacktestNode::Position(position_node) => {
+                        let (node_name, node_config, input_handles) = position_node
+                            .with_ctx_read(|ctx| (ctx.node_name().to_string(), ctx.node_config().clone(), ctx.input_handles().to_vec()))
+                            .await;
+                        let config_count = node_config.position_operations.len();
+                        let input_handles_count = input_handles.len();
+                        if input_handles_count == config_count {
+                            config_count
+                        } else {
+                            tracing::warn!(
+                                "@[{node_name}] have {config_count} position operations, but only {input_handles_count} is connected"
+                            );
                             input_handles_count
                         }
                     }

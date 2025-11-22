@@ -21,16 +21,15 @@ pub type FuturesOrderNodeStateMachine = NodeStateMachine<NodeRunState, FuturesOr
 /// Actions to be executed after FuturesOrderNode state transitions
 #[derive(Debug, Clone, Display)]
 pub enum FuturesOrderNodeAction {
-    ListenAndHandleExternalEvents, // Handle external events (strategy signals)
-    ListenAndHandleNodeEvents,     // Listen and handle node messages
-    ListenAndHandleCommand,        // Handle strategy commands
-    ListenAndHandleVtsEvent,       // Handle virtual trading system events
-    GetSymbolInfo,                 // Get trading pair information
-    RegisterTask,                  // Register task
-    LogNodeState,                  // Log node state
-    LogTransition,                 // Log state transition
-    LogError(String),              // Log error
-    CancelAsyncTask,               // Cancel async task
+    ListenAndHandleNodeEvents, // Listen and handle node messages
+    ListenAndHandleCommand,    // Handle strategy commands
+    ListenAndHandleVtsEvent,   // Handle virtual trading system events
+    GetSymbolInfo,             // Get trading pair information
+    RegisterTask,              // Register task
+    LogNodeState,              // Log node state
+    LogTransition,             // Log state transition
+    LogError(String),          // Log error
+    CancelAsyncTask,           // Cancel async task
 }
 
 impl StateAction for FuturesOrderNodeAction {}
@@ -53,7 +52,6 @@ pub fn futures_order_node_transition(
             NodeRunState::Initializing,
             vec![
                 FuturesOrderNodeAction::LogTransition,
-                FuturesOrderNodeAction::ListenAndHandleExternalEvents,
                 FuturesOrderNodeAction::ListenAndHandleNodeEvents,
                 FuturesOrderNodeAction::ListenAndHandleCommand,
                 FuturesOrderNodeAction::ListenAndHandleVtsEvent,

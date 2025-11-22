@@ -1,4 +1,5 @@
 pub mod account;
+pub mod core_error;
 pub mod custom_type;
 pub mod engine;
 pub mod error;
@@ -11,4 +12,3 @@ pub mod state_machine;
 pub mod strategy;
 pub mod system;
 pub mod transaction;
-pub mod core_error;

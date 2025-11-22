@@ -14,8 +14,8 @@ use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     communication::strategy::StrategyResponse,
     event::{
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
         node_common_event::CommonEvent,
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
     node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},

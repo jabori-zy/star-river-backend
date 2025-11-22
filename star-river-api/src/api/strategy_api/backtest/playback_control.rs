@@ -4,16 +4,16 @@ use axum::{
 };
 use backtest_engine::engine_error::BacktestEngineError;
 use engine_core::EngineContextAccessor;
-
-use crate::{api::response::{NewApiResponse, ApiResponseEnum}, star_river::StarRiver};
-use tracing::instrument;
-use star_river_core::error::StarRiverErrorTrait;
 use snafu::Report;
+use star_river_core::error::StarRiverErrorTrait;
+use tracing::instrument;
 
+use crate::{
+    api::response::{ApiResponseEnum, NewApiResponse},
+    star_river::StarRiver,
+};
 
 const BACKTEST_CONTROL_TAG: &str = "Backtest Control";
-
-
 
 // 初始化策略
 #[utoipa::path(
@@ -48,8 +48,6 @@ pub async fn init_strategy(State(star_river): State<StarRiver>, Path(strategy_id
     }
 }
 
-
-
 #[utoipa::path(
     post,
     path = "/api/v1/strategy/backtest/{strategy_id}/stop",
@@ -82,10 +80,6 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
         (StatusCode::OK, Json(ApiResponseEnum::success(())))
     }
 }
-
-
-
-
 
 #[utoipa::path(
     post,
