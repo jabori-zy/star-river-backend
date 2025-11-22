@@ -8,7 +8,7 @@ edition.workspace = true
 [dependencies]
 event-center-core = { path = "../event-center-core" }
 star-river-core = { path = "../star-river-core" }
-strategy-stats = { path = "../strategy-stats" }
+strategy-stats = { path = "../../strategy-stats" }
 heartbeat = { path = "../heartbeat" }
 entity = { path = "../entity" }
 ta-lib = { path = "../ta-lib" }

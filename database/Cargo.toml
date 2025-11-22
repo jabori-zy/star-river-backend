@@ -16,11 +16,11 @@ tokio.workspace = true
 tracing.workspace = true
 sea-orm.workspace = true
 chrono.workspace = true
-migration = { path = "../migration" }
-entity = { path = "../entity" }
+migration = { path = "../core/migration" }
+entity = { path = "../core/entity" }
 sea-orm-migration.workspace = true
-star-river-core = { path = "../star-river-core" }
-strategy-core = { path = "../strategy-core" }
+star-river-core = { path = "../core/star-river-core" }
+strategy-core = { path = "../core/strategy-core" }
 log.workspace = true
 snafu.workspace = true
 utoipa.workspace = true

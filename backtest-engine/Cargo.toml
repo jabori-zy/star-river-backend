@@ -6,18 +6,18 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-engine-core = { path = "../engine-core" }
+engine-core = { path = "../core/engine-core" }
 event-center = { path = "../event-center" }
-event-center-core = { path = "../event-center-core" }
+event-center-core = { path = "../core/event-center-core" }
 star-river-event = { path = "../star-river-event" }
-star-river-core = { path = "../star-river-core" }
-strategy-core = { path = "../strategy-core" }
+star-river-core = { path = "../core/star-river-core" }
+strategy-core = { path = "../core/strategy-core" }
 database = { path = "../database" }
-heartbeat = { path = "../heartbeat" }
-virtual-trading = { path = "../virtual-trading"}
+heartbeat = { path = "../core/heartbeat" }
+virtual-trading = { path = "../core/virtual-trading"}
 strategy-stats = { path = "../strategy-stats"}
-ta-lib = { path = "../ta-lib" }
-key = { path = "../key" }
+ta-lib = { path = "../core/ta-lib" }
+key = { path = "../core/key" }
 tokio.workspace = true
 sea-orm.workspace = true
 async-trait.workspace = true

@@ -6,8 +6,8 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-star-river-core = { path = "../star-river-core" }
-virtual-trading = { path = "../virtual-trading"}
+star-river-core = { path = "../core/star-river-core" }
+virtual-trading = { path = "../core/virtual-trading"}
 tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true

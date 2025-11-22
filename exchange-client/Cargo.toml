@@ -6,11 +6,11 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-exchange-core = { path = "../exchange-core" }
-star-river-core = { path = "../star-river-core" }
+exchange-core = { path = "../core/exchange-core" }
+star-river-core = { path = "../core/star-river-core" }
 event-center = { path = "../event-center" }
 star-river-event = { path = "../star-river-event" }
-strategy-core = { path = "../strategy-core" }
+strategy-core = { path = "../core/strategy-core" }
 chrono.workspace = true
 snafu.workspace = true
 strum.workspace = true

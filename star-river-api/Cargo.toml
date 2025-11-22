@@ -28,21 +28,21 @@ utoipa-scalar = {version="0.3", features=["axum"]}
 strum.workspace = true
 snafu.workspace = true
 chrono-tz.workspace = true
-heartbeat = { path = "../heartbeat" }
-star-river-core = { path = "../star-river-core" }
+heartbeat = { path = "../core/heartbeat" }
+star-river-core = { path = "../core/star-river-core" }
 star-river-event = { path = "../star-river-event" }
 database = { path = "../database" }
-migration = { path = "../migration" }
+migration = { path = "../core/migration" }
 exchange-engine = { path = "../exchange-engine" }
 market-engine = { path = "../market-engine" }
 backtest-engine = { path = "../backtest-engine" }
-engine-core = { path = "../engine-core" }
+engine-core = { path = "../core/engine-core" }
 event-center = { path = "../event-center" }
-strategy-core = { path = "../strategy-core" }
-key = { path = "../key" }
-virtual-trading = { path = "../virtual-trading" }
+strategy-core = { path = "../core/strategy-core" }
+key = { path = "../core/key" }
+virtual-trading = { path = "../core/virtual-trading" }
 strategy-stats = { path = "../strategy-stats" }
-exchange-core = { path = "../exchange-core" }
+exchange-core = { path = "../core/exchange-core" }
 indicator-engine = { path = "../indicator-engine" }
 
 

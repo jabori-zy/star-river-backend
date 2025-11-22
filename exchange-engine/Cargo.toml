@@ -6,14 +6,14 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-engine-core = { path = "../engine-core" }
-exchange-core = { path = "../exchange-core" }
+engine-core = { path = "../core/engine-core" }
+exchange-core = { path = "../core/exchange-core" }
 event-center = { path = "../event-center" }
-star-river-core = { path = "../star-river-core" }
+star-river-core = { path = "../core/star-river-core" }
 star-river-event = { path = "../star-river-event" }
 exchange-client = { path = "../exchange-client" }
 database = { path = "../database" }
-strategy-core = { path = "../strategy-core" }
+strategy-core = { path = "../core/strategy-core" }
 tokio.workspace = true
 sea-orm.workspace = true
 async-trait.workspace = true

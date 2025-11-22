@@ -6,13 +6,13 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-event-center-core = { path = "../event-center-core" }
-star-river-core = { path = "../star-river-core" }
-strategy-core = { path = "../strategy-core" }
-virtual-trading = { path = "../virtual-trading" }
+event-center-core = { path = "../core/event-center-core" }
+star-river-core = { path = "../core/star-river-core" }
+strategy-core = { path = "../core/strategy-core" }
+virtual-trading = { path = "../core/virtual-trading" }
 strategy-stats = { path = "../strategy-stats" }
-ta-lib = { path = "../ta-lib" }
-key = { path = "../key" }
+ta-lib = { path = "../core/ta-lib" }
+key = { path = "../core/key" }
 derive_more.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
