@@ -15,7 +15,6 @@ use super::{
     },
     node_state_machine::StateTransTrigger,
 };
-use crate::error::NodeStateMachineError;
 
 #[async_trait]
 pub trait NodeTrait: Clone + Send + Sync + 'static {

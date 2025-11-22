@@ -36,7 +36,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         let configs = filter_case_trigger_configs(
                             self.node_config.variable_configs.iter(),
                             match_event.case_id,
-                            match_event.from_node_id(),
+                            match_event.node_id(),
                         );
                         self.handle_condition_trigger(&configs).await;
                         node_cycle_tracker.end_phase("handle_condition_trigger");
@@ -54,7 +54,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         let configs = filter_case_trigger_configs(
                             self.node_config.variable_configs.iter(),
                             case_false_event.case_id,
-                            case_false_event.from_node_id(),
+                            case_false_event.node_id(),
                         );
 
                         if self.is_leaf_node() {
@@ -75,7 +75,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
                         node_cycle_tracker.start_phase("handle_condition_trigger");
                         // 过滤出condition trigger caseid相同的变量配置
-                        let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_true.from_node_id());
+                        let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_true.node_id());
                         self.handle_condition_trigger(&configs).await;
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();
@@ -93,7 +93,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 // 过滤出dataflow trigger相同的变量配置
                 let dataflow_trigger_configs = filter_dataflow_trigger_configs(
                     self.node_config.variable_configs.iter(),
-                    kline_update_event.from_node_id(),
+                    kline_update_event.node_id(),
                     kline_update_event.config_id,
                 );
                 let dataflow = DataFlow::from(kline_update_event.kline.clone());
@@ -109,7 +109,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 node_cycle_tracker.start_phase("handle_dataflow_trigger");
                 let dataflow_trigger_configs = filter_dataflow_trigger_configs(
                     self.node_config.variable_configs.iter(),
-                    indicator_update_event.from_node_id(),
+                    indicator_update_event.node_id(),
                     indicator_update_event.config_id,
                 );
                 let dataflow = DataFlow::from(indicator_update_event.indicator_value.clone());

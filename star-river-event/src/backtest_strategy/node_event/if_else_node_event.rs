@@ -1,5 +1,6 @@
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 
@@ -10,6 +11,33 @@ pub enum IfElseNodeEvent {
     CaseFalse(CaseFalseEvent),
     ElseTrue(ElseTrueEvent),
     ElseFalse(ElseFalseEvent),
+}
+
+impl IfElseNodeEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            IfElseNodeEvent::CaseTrue(event) => event.node_id(),
+            IfElseNodeEvent::CaseFalse(event) => event.node_id(),
+            IfElseNodeEvent::ElseTrue(event) => event.node_id(),
+            IfElseNodeEvent::ElseFalse(event) => event.node_id(),
+        }
+    }
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            IfElseNodeEvent::CaseTrue(event) => event.node_name(),
+            IfElseNodeEvent::CaseFalse(event) => event.node_name(),
+            IfElseNodeEvent::ElseTrue(event) => event.node_name(),
+            IfElseNodeEvent::ElseFalse(event) => event.node_name(),
+        }
+    }
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            IfElseNodeEvent::CaseTrue(event) => event.output_handle_id(),
+            IfElseNodeEvent::CaseFalse(event) => event.output_handle_id(),
+            IfElseNodeEvent::ElseTrue(event) => event.output_handle_id(),
+            IfElseNodeEvent::ElseFalse(event) => event.output_handle_id(),
+        }
+    }
 }
 
 pub type CaseTrueEvent = NodeEvent<CaseTruePayload>;

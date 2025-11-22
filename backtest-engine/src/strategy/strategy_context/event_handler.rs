@@ -182,7 +182,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 // 执行结束
                 CommonEvent::ExecuteOver(execute_over_event) => {
                     tracing::debug!("execute_over_event: {:#?}", execute_over_event);
-                    self.leaf_node_execution_completed(execute_over_event.from_node_id().clone());
+                    self.leaf_node_execution_completed(execute_over_event.node_id().clone());
                     let should_finalize = self.leaf_node_execution_tracker().is_all_completed();
 
                     tracing::debug!("{:#?}", self.leaf_node_execution_tracker());

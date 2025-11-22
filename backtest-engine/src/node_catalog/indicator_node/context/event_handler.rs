@@ -110,7 +110,7 @@ impl IndicatorNodeContext {
             self.send_execute_over_event(self.play_index() as u64, Some(*config_id))?;
         } else {
             let event = generate_event(handle_id.clone());
-            self.output_handle_send(&handle_id, event)?;
+            self.output_handle_send(event)?;
         }
 
         // 渠道3: 发送到默认输出句柄

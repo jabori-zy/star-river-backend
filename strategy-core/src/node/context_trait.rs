@@ -327,24 +327,22 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     /// # Arguments
     /// - `handle_id` - 输出句柄 ID
     /// - `event` - 要发送的事件
-    fn output_handle_send(&self, handle_id: &str, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
-        let output_handle = self.output_handle(handle_id).context(OutputHandleNotFoundSnafu {
-            handle_id: handle_id.to_string(),
+    fn output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
+        let handle_id = event.output_handle_id().to_string();
+        let output_handle = self.output_handle(&handle_id).context(OutputHandleNotFoundSnafu {
+            handle_id: handle_id.clone(),
         })?;
 
         if output_handle.is_connected() {
-            output_handle.send(event).map_err(|e| {
-                NodeEventSendFailedSnafu {
-                    handle_id: handle_id.to_string(),
-                }
-                .into_error(Arc::new(e))
-            })?;
+            output_handle
+                .send(event)
+                .map_err(|e| NodeEventSendFailedSnafu { handle_id: handle_id }.into_error(Arc::new(e)))?;
         } else {
-            tracing::warn!(
-                "@[{}] output handle {} is not connected, skip sending event",
-                self.node_name(),
-                handle_id
-            );
+            // tracing::warn!(
+            //     "@[{}] output handle {} is not connected, skip sending event",
+            //     self.node_name(),
+            //     handle_id
+            // );
         }
 
         Ok(())

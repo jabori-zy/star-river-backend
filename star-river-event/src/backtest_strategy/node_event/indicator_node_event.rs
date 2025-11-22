@@ -5,7 +5,11 @@
 use derive_more::From;
 use key::{IndicatorKey, KeyTrait};
 use serde::{Deserialize, Serialize};
-use star_river_core::{exchange::Exchange, kline::KlineInterval};
+use star_river_core::{
+    custom_type::{HandleId, NodeId, NodeName},
+    exchange::Exchange,
+    kline::KlineInterval,
+};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 use ta_lib::{Indicator, IndicatorConfig};
@@ -15,6 +19,26 @@ pub enum IndicatorNodeEvent {
     #[strum(serialize = "indicator-update-event")]
     #[serde(rename = "indicator-update-event")]
     IndicatorUpdate(IndicatorUpdateEvent),
+}
+
+impl IndicatorNodeEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            IndicatorNodeEvent::IndicatorUpdate(event) => event.node_id(),
+        }
+    }
+
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            IndicatorNodeEvent::IndicatorUpdate(event) => event.node_name(),
+        }
+    }
+
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            IndicatorNodeEvent::IndicatorUpdate(event) => event.output_handle_id(),
+        }
+    }
 }
 
 // Type alias

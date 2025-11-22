@@ -1,7 +1,10 @@
 use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::Serialize;
-use star_river_core::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
+use star_river_core::{
+    custom_type::{HandleId, NodeId, NodeName},
+    error::error_trait::{ErrorLanguage, StarRiverErrorTrait},
+};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, ToSchema, From)]
@@ -10,6 +13,32 @@ pub enum NodeStateLogEvent {
     Info(NodeStateInfoLog),
     Warn(NodeStateWarnLog),
     Error(NodeStateErrorLog),
+}
+
+impl NodeStateLogEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            NodeStateLogEvent::Info(event) => &event.node_id,
+            NodeStateLogEvent::Warn(event) => &event.node_id,
+            NodeStateLogEvent::Error(event) => &event.node_id,
+        }
+    }
+
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            NodeStateLogEvent::Info(event) => &event.node_name,
+            NodeStateLogEvent::Warn(event) => &event.node_name,
+            NodeStateLogEvent::Error(event) => &event.node_name,
+        }
+    }
+
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            NodeStateLogEvent::Info(event) => &event.output_handle_id,
+            NodeStateLogEvent::Warn(event) => &event.output_handle_id,
+            NodeStateLogEvent::Error(event) => &event.output_handle_id,
+        }
+    }
 }
 
 impl NodeStateLogEvent {
@@ -82,6 +111,7 @@ pub struct NodeStateInfoLog {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
+    pub output_handle_id: HandleId,
     pub node_type: String,
     pub node_state: String,
     pub node_state_action: String,
@@ -101,8 +131,9 @@ impl NodeStateInfoLog {
     ) -> Self {
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
             node_name,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             node_type,
             node_state,
             node_state_action,
@@ -118,6 +149,7 @@ pub struct NodeStateWarnLog {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
+    pub output_handle_id: HandleId,
     pub node_type: String,
     pub node_state: String,
     pub node_state_action: String,
@@ -143,8 +175,9 @@ impl NodeStateWarnLog {
     ) -> Self {
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
             node_name,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             node_type,
             node_state,
             node_state_action,
@@ -162,6 +195,7 @@ pub struct NodeStateErrorLog {
     pub strategy_id: i32,
     pub node_id: String,
     pub node_name: String,
+    pub output_handle_id: HandleId,
     pub node_type: String,
     pub node_state: String,
     pub node_state_action: String,
@@ -186,7 +220,8 @@ impl NodeStateErrorLog {
         let error_code_chain = error.error_code_chain();
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             node_name,
             node_type,
             node_state,

@@ -126,7 +126,7 @@ impl KlineNodeContext {
             self.send_execute_over_event(self.play_index() as u64, Some(symbol_info.0))?;
         } else {
             let event = generate_event(symbol_handle_id.clone());
-            self.output_handle_send(&symbol_handle_id, event)?;
+            self.output_handle_send(event)?;
         }
 
         //

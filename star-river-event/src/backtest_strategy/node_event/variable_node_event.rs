@@ -1,5 +1,6 @@
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 use strategy_core::{
     event::node::NodeEvent,
     node_infra::variable_node::variable_operation::UpdateVarValueOperation,
@@ -20,6 +21,28 @@ pub enum VariableNodeEvent {
     #[strum(serialize = "custom-variable-update-event")]
     #[serde(rename = "custom-variable-update-event")]
     CustomVarUpdate(CustomVarUpdateEvent),
+}
+
+impl VariableNodeEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            VariableNodeEvent::SysVarUpdate(event) => event.node_id(),
+            VariableNodeEvent::CustomVarUpdate(event) => event.node_id(),
+        }
+    }
+
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            VariableNodeEvent::SysVarUpdate(event) => event.node_name(),
+            VariableNodeEvent::CustomVarUpdate(event) => event.node_name(),
+        }
+    }
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            VariableNodeEvent::SysVarUpdate(event) => event.output_handle_id(),
+            VariableNodeEvent::CustomVarUpdate(event) => event.output_handle_id(),
+        }
+    }
 }
 
 // Type aliases

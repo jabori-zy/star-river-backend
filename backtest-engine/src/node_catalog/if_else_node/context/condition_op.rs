@@ -140,8 +140,8 @@ impl IfElseNodeContext {
         current_time: DateTimeUtc,
     ) -> Result<(), IfElseNodeError> {
         let strategy_id = self.strategy_id().clone();
-        let from_node_id = self.node_id().clone();
-        let from_node_name = self.node_name().clone();
+        let node_id = self.node_id().clone();
+        let node_name = self.node_name().clone();
         let play_index = self.play_index();
 
         let case_output_handle_id = case.output_handle_id.clone();
@@ -149,17 +149,17 @@ impl IfElseNodeContext {
         // 创建条件匹配事件
         let payload = CaseTruePayload::new(play_index, case.case_id);
         let condition_match_event: IfElseNodeEvent =
-            CaseTrueEvent::new(from_node_id.clone(), from_node_name.clone(), case_output_handle_id.clone(), payload).into();
+            CaseTrueEvent::new(node_id.clone(), node_name.clone(), case_output_handle_id.clone(), payload).into();
 
         // 创建并发送日志事件
         let condition_result_json = serde_json::to_value(condition_results).context(EvaluateResultSerializationFailedSnafu {
-            node_name: self.node_name().clone(),
+            node_name: node_name.clone(),
         })?;
-        let message = ConditionMatchedMsg::new(from_node_name.clone(), case.case_id);
+        let message = ConditionMatchedMsg::new(node_name.clone(), case.case_id);
         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
             strategy_id,
-            from_node_id.clone(),
-            from_node_name.clone(),
+            node_id.clone(),
+            node_name.clone(),
             StrategyRunningLogSource::Node,
             StrategyRunningLogType::ConditionMatch,
             message.to_string(),
@@ -176,8 +176,7 @@ impl IfElseNodeContext {
             self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
         } else {
             // 非叶子节点：将事件传递给下游节点
-            self.output_handle_send(&case_output_handle_id, condition_match_event.into())
-                .unwrap();
+            self.output_handle_send(condition_match_event.into()).unwrap();
             // let _ = case_output_handle.send(condition_match_event.into());
         }
 
@@ -200,7 +199,7 @@ impl IfElseNodeContext {
         )
         .into();
         // tracing::debug!("@[{}] send case false event for case {}", self.node_name(), case.case_id);
-        self.output_handle_send(&case_output_handle_id, case_false_event.into()).unwrap();
+        self.output_handle_send(case_false_event.into()).unwrap();
     }
 
     // 处理else分支

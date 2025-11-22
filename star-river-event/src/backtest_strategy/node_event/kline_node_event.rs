@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use derive_more::From;
 use key::{KeyTrait, KlineKey};
 use serde::{Deserialize, Serialize};
-use star_river_core::kline::Kline;
+use star_river_core::{
+    custom_type::{HandleId, NodeId, NodeName},
+    kline::Kline,
+};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 
@@ -19,6 +22,27 @@ pub enum KlineNodeEvent {
     #[strum(serialize = "time-update-event")]
     #[serde(rename = "time-update-event")]
     TimeUpdate(TimeUpdateEvent),
+}
+
+impl KlineNodeEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            KlineNodeEvent::KlineUpdate(event) => event.node_id(),
+            KlineNodeEvent::TimeUpdate(event) => event.node_id(),
+        }
+    }
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            KlineNodeEvent::KlineUpdate(event) => event.node_name(),
+            KlineNodeEvent::TimeUpdate(event) => event.node_name(),
+        }
+    }
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            KlineNodeEvent::KlineUpdate(event) => event.output_handle_id(),
+            KlineNodeEvent::TimeUpdate(event) => event.output_handle_id(),
+        }
+    }
 }
 
 // Type aliases

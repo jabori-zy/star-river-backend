@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::Serialize;
 use star_river_core::{
-    custom_type::{NodeId, NodeName, StrategyId},
+    custom_type::{HandleId, NodeId, NodeName, StrategyId},
     error::error_trait::{ErrorLanguage, StarRiverErrorTrait},
 };
 use strum::Display;
@@ -236,6 +236,30 @@ pub enum StrategyRunningLogEvent {
 }
 
 impl StrategyRunningLogEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            StrategyRunningLogEvent::Info(event) => &event.node_id,
+            StrategyRunningLogEvent::Warn(event) => &event.node_id,
+            StrategyRunningLogEvent::Error(event) => &event.node_id,
+        }
+    }
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            StrategyRunningLogEvent::Info(event) => &event.node_name,
+            StrategyRunningLogEvent::Warn(event) => &event.node_name,
+            StrategyRunningLogEvent::Error(event) => &event.node_name,
+        }
+    }
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            StrategyRunningLogEvent::Info(event) => &event.output_handle_id,
+            StrategyRunningLogEvent::Warn(event) => &event.output_handle_id,
+            StrategyRunningLogEvent::Error(event) => &event.output_handle_id,
+        }
+    }
+}
+
+impl StrategyRunningLogEvent {
     pub fn info_with_time(
         strategy_id: StrategyId,
         node_id: NodeId,
@@ -388,6 +412,7 @@ pub struct StrategyRunningInfoLog {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub node_name: NodeName,
+    pub output_handle_id: HandleId,
     pub source: StrategyRunningLogSource,
     pub log_type: StrategyRunningLogType,
     pub message: String,
@@ -409,8 +434,9 @@ impl StrategyRunningInfoLog {
         let datetime = datetime.unwrap_or(Utc::now());
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
             node_name,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
             log_type,
             message,
@@ -426,6 +452,7 @@ pub struct StrategyRunningWarnLog {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub node_name: NodeName,
+    pub output_handle_id: HandleId,
     pub source: StrategyRunningLogSource,
     pub log_type: StrategyRunningLogType,
     pub message: String,
@@ -451,8 +478,9 @@ impl StrategyRunningWarnLog {
         let datetime = datetime.unwrap_or(Utc::now());
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
             node_name,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
             log_type,
             message,
@@ -495,8 +523,9 @@ impl StrategyRunningWarnLog {
 
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
             node_name,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
             log_type,
             message: final_message,
@@ -514,6 +543,7 @@ pub struct StrategyRunningErrorLog {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub node_name: NodeName,
+    pub output_handle_id: HandleId,
     pub source: StrategyRunningLogSource,
     pub log_type: StrategyRunningLogType,
     pub message: String,
@@ -539,7 +569,8 @@ impl StrategyRunningErrorLog {
         let datetime = datetime.unwrap_or(Utc::now());
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             node_name,
             source,
             log_type,
@@ -565,8 +596,9 @@ impl StrategyRunningErrorLog {
         let datetime = datetime.unwrap_or(Utc::now());
         Self {
             strategy_id,
-            node_id,
+            node_id: node_id.clone(),
             node_name,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
             log_type,
             message: error.error_message(language),

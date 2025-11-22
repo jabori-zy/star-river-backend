@@ -78,20 +78,20 @@ impl IfElseNodeContext {
         // tracing::debug!("接收到的变量消息: {:?}", received_event);
         let (from_node_id, from_variable_id) = match &received_event {
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
-                (indicator_update_event.from_node_id().clone(), indicator_update_event.config_id)
+                (indicator_update_event.node_id().clone(), indicator_update_event.config_id)
             }
             BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
                 VariableNodeEvent::SysVarUpdate(sys_variable_updated_event) => (
-                    sys_variable_updated_event.from_node_id().clone(),
+                    sys_variable_updated_event.node_id().clone(),
                     sys_variable_updated_event.variable_config_id,
                 ),
                 VariableNodeEvent::CustomVarUpdate(custom_variable_updated_event) => (
-                    custom_variable_updated_event.from_node_id().clone(),
+                    custom_variable_updated_event.node_id().clone(),
                     custom_variable_updated_event.variable_config_id,
                 ),
             },
             BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
-                (kline_update_event.from_node_id().clone(), kline_update_event.config_id)
+                (kline_update_event.node_id().clone(), kline_update_event.config_id)
             }
             _ => return,
         };
@@ -130,7 +130,7 @@ impl IfElseNodeContext {
             let payload = CaseFalsePayload::new(self.play_index(), id.0);
             let case_false_event: IfElseNodeEvent =
                 CaseFalseEvent::new(self.node_id().clone(), self.node_name().clone(), id.1.clone(), payload).into();
-            self.output_handle_send(&id.1, case_false_event.into()).unwrap();
+            self.output_handle_send(case_false_event.into()).unwrap();
         }
 
         let payload = ElseFalsePayload::new(self.play_index());

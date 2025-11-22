@@ -4,6 +4,7 @@
 
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 pub use star_river_event::backtest_strategy::node_event::{
     futures_order_node_event::FuturesOrderNodeEvent, if_else_node_event::IfElseNodeEvent, indicator_node_event::IndicatorNodeEvent,
     kline_node_event::KlineNodeEvent, position_node_event::PositionManagementNodeEvent, start_node_event::StartNodeEvent,
@@ -56,4 +57,41 @@ pub enum BacktestNodeEvent {
     IfElseNode(IfElseNodeEvent),
 }
 
-impl NodeEventTrait for BacktestNodeEvent {}
+impl NodeEventTrait for BacktestNodeEvent {
+    fn node_id(&self) -> &NodeId {
+        match self {
+            BacktestNodeEvent::StartNode(event) => event.node_id(),
+            BacktestNodeEvent::IndicatorNode(event) => event.node_id(),
+            BacktestNodeEvent::Common(event) => event.node_id(),
+            BacktestNodeEvent::VariableNode(event) => event.node_id(),
+            BacktestNodeEvent::KlineNode(event) => event.node_id(),
+            BacktestNodeEvent::FuturesOrderNode(event) => event.node_id(),
+            BacktestNodeEvent::PositionManagementNode(event) => event.node_id(),
+            BacktestNodeEvent::IfElseNode(event) => event.node_id(),
+        }
+    }
+    fn node_name(&self) -> &NodeName {
+        match self {
+            BacktestNodeEvent::StartNode(event) => event.node_name(),
+            BacktestNodeEvent::IndicatorNode(event) => event.node_name(),
+            BacktestNodeEvent::Common(event) => event.node_name(),
+            BacktestNodeEvent::VariableNode(event) => event.node_name(),
+            BacktestNodeEvent::KlineNode(event) => event.node_name(),
+            BacktestNodeEvent::FuturesOrderNode(event) => event.node_name(),
+            BacktestNodeEvent::PositionManagementNode(event) => event.node_name(),
+            BacktestNodeEvent::IfElseNode(event) => event.node_name(),
+        }
+    }
+    fn output_handle_id(&self) -> &HandleId {
+        match self {
+            BacktestNodeEvent::StartNode(event) => event.output_handle_id(),
+            BacktestNodeEvent::IndicatorNode(event) => event.output_handle_id(),
+            BacktestNodeEvent::Common(event) => event.output_handle_id(),
+            BacktestNodeEvent::VariableNode(event) => event.output_handle_id(),
+            BacktestNodeEvent::KlineNode(event) => event.output_handle_id(),
+            BacktestNodeEvent::FuturesOrderNode(event) => event.output_handle_id(),
+            BacktestNodeEvent::PositionManagementNode(event) => event.output_handle_id(),
+            BacktestNodeEvent::IfElseNode(event) => event.output_handle_id(),
+        }
+    }
+}

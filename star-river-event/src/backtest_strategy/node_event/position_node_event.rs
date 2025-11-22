@@ -1,5 +1,6 @@
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 use virtual_trading::types::VirtualPosition;
@@ -18,6 +19,32 @@ pub enum PositionManagementNodeEvent {
     #[strum(serialize = "position-closed-event")]
     #[serde(rename = "position-closed-event")]
     PositionClosed(PositionClosedEvent),
+}
+
+impl PositionManagementNodeEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            PositionManagementNodeEvent::PositionCreated(event) => event.node_id(),
+            PositionManagementNodeEvent::PositionUpdated(event) => event.node_id(),
+            PositionManagementNodeEvent::PositionClosed(event) => event.node_id(),
+        }
+    }
+
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            PositionManagementNodeEvent::PositionCreated(event) => event.node_name(),
+            PositionManagementNodeEvent::PositionUpdated(event) => event.node_name(),
+            PositionManagementNodeEvent::PositionClosed(event) => event.node_name(),
+        }
+    }
+
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            PositionManagementNodeEvent::PositionCreated(event) => event.output_handle_id(),
+            PositionManagementNodeEvent::PositionUpdated(event) => event.output_handle_id(),
+            PositionManagementNodeEvent::PositionClosed(event) => event.output_handle_id(),
+        }
+    }
 }
 
 // Type aliases

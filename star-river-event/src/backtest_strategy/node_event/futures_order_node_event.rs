@@ -1,5 +1,6 @@
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 use virtual_trading::types::{VirtualOrder, VirtualTransaction};
@@ -46,6 +47,51 @@ pub enum FuturesOrderNodeEvent {
     #[strum(serialize = "transaction-created-event")]
     #[serde(rename = "transaction-created-event")]
     TransactionCreated(TransactionCreatedEvent), // Transaction created
+}
+
+impl FuturesOrderNodeEvent {
+    pub fn node_id(&self) -> &NodeId {
+        match self {
+            FuturesOrderNodeEvent::FuturesOrderCreated(event) => event.node_id(),
+            FuturesOrderNodeEvent::FuturesOrderCanceled(event) => event.node_id(),
+            FuturesOrderNodeEvent::FuturesOrderFilled(event) => event.node_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderCreated(event) => event.node_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderFilled(event) => event.node_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderCanceled(event) => event.node_id(),
+            FuturesOrderNodeEvent::StopLossOrderCreated(event) => event.node_id(),
+            FuturesOrderNodeEvent::StopLossOrderFilled(event) => event.node_id(),
+            FuturesOrderNodeEvent::StopLossOrderCanceled(event) => event.node_id(),
+            FuturesOrderNodeEvent::TransactionCreated(event) => event.node_id(),
+        }
+    }
+    pub fn node_name(&self) -> &NodeName {
+        match self {
+            FuturesOrderNodeEvent::FuturesOrderCreated(event) => event.node_name(),
+            FuturesOrderNodeEvent::FuturesOrderCanceled(event) => event.node_name(),
+            FuturesOrderNodeEvent::FuturesOrderFilled(event) => event.node_name(),
+            FuturesOrderNodeEvent::TakeProfitOrderCreated(event) => event.node_name(),
+            FuturesOrderNodeEvent::TakeProfitOrderFilled(event) => event.node_name(),
+            FuturesOrderNodeEvent::TakeProfitOrderCanceled(event) => event.node_name(),
+            FuturesOrderNodeEvent::StopLossOrderCreated(event) => event.node_name(),
+            FuturesOrderNodeEvent::StopLossOrderFilled(event) => event.node_name(),
+            FuturesOrderNodeEvent::StopLossOrderCanceled(event) => event.node_name(),
+            FuturesOrderNodeEvent::TransactionCreated(event) => event.node_name(),
+        }
+    }
+    pub fn output_handle_id(&self) -> &HandleId {
+        match self {
+            FuturesOrderNodeEvent::FuturesOrderCreated(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::FuturesOrderCanceled(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::FuturesOrderFilled(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderCreated(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderFilled(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderCanceled(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::StopLossOrderCreated(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::StopLossOrderFilled(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::StopLossOrderCanceled(event) => event.output_handle_id(),
+            FuturesOrderNodeEvent::TransactionCreated(event) => event.output_handle_id(),
+        }
+    }
 }
 
 // Type aliases - each event has a unique payload type
