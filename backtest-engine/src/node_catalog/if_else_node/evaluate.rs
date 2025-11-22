@@ -26,7 +26,8 @@ impl IfElseNode {
 
                 let should_evaluate = {
                     let ctx_guard = context.read().await;
-                    ctx_guard.is_all_value_received()
+                    // if node is nested, and superior case is true, then should evaluate
+                    ctx_guard.is_all_value_received() && (!ctx_guard.is_nested() || ctx_guard.superior_case_is_true())
                 };
                 // tracing::info!("[{}] should evaluate: {:?}", node_id, should_evaluate);
 

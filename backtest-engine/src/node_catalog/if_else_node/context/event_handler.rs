@@ -1,8 +1,11 @@
 use async_trait::async_trait;
 use event_center::Event;
-use star_river_event::backtest_strategy::node_event::{IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent};
+use star_river_event::backtest_strategy::node_event::{
+    IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent,
+    if_else_node_event::{CaseFalseEvent, CaseFalsePayload, ElseFalseEvent, ElseFalsePayload},
+};
 use strategy_core::{
-    event::node_common_event::{CommonEvent, TriggerEvent, TriggerPayload},
+    event::node_common_event::CommonEvent,
     node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
 };
 
@@ -30,39 +33,38 @@ impl NodeEventHandlerExt for IfElseNodeContext {
     }
 
     async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) {
-        // tracing::debug!("{}: 收到节点事件: {:?}", self.get_node_id(), node_event);
-
-        // 检查是否需要更新接收事件(play_index相同)
-        let should_update = match &node_event {
-            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
-                self.play_index() == indicator_update_event.play_index
-            }
-            BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
-                self.play_index() == kline_update_event.play_index
-            }
-            BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
-                VariableNodeEvent::SysVarUpdate(sys_variable_updated_event) => self.play_index() == sys_variable_updated_event.play_index,
-                VariableNodeEvent::CustomVarUpdate(custom_variable_update_event) => {
-                    self.play_index() == custom_variable_update_event.play_index
-                }
-            },
-            _ => false,
-        };
-
-        if should_update {
+        if let BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(_))
+        | BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(_))
+        | BacktestNodeEvent::VariableNode(VariableNodeEvent::SysVarUpdate(_))
+        | BacktestNodeEvent::VariableNode(VariableNodeEvent::CustomVarUpdate(_)) = node_event
+        {
             self.update_received_event(node_event.clone());
         }
 
-        match &node_event {
-            BacktestNodeEvent::Common(signal_event) => match signal_event {
-                CommonEvent::Trigger(_) => {
-                    tracing::debug!("{}: 接收到trigger事件。 不需要逻辑判断", self.node_id());
+        if let BacktestNodeEvent::Common(signal_event) = node_event.clone() {
+            if let CommonEvent::Trigger(_) = signal_event {
+                self.handle_trigger_event().await;
+            }
+        }
 
-                    self.handle_trigger_event().await;
+        if let BacktestNodeEvent::IfElseNode(ifelse_event) = node_event {
+            match ifelse_event {
+                IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
+                    self.set_superior_case_is_true(true);
                 }
-                _ => {}
-            },
-            _ => {}
+                IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
+                    self.set_superior_case_is_true(false);
+                    self.clear_received_event();
+                    if self.is_leaf_node() {
+                        let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
+                        for id in config_ids {
+                            self.send_execute_over_event(self.play_index() as u64, Some(id)).unwrap();
+                        }
+                    } else {
+                        self.send_all_case_false_event();
+                    }
+                }
+            }
         }
     }
 
@@ -103,26 +105,43 @@ impl IfElseNodeContext {
         self.update_received_flag(from_node_id, from_variable_id, true);
     }
 
+    fn clear_received_event(&mut self) {
+        self.received_message.clear();
+    }
+
     pub(super) async fn handle_trigger_event(&mut self) {
         if self.is_leaf_node() {
-            self.send_execute_over_event(self.play_index() as u64, None).unwrap();
-            return;
+            let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
+            for id in config_ids {
+                self.send_execute_over_event(self.play_index() as u64, Some(id)).unwrap();
+            }
+        } else {
+            self.send_all_case_false_event();
+        }
+    }
+
+    fn send_all_case_false_event(&mut self) {
+        let ids = self
+            .output_handles()
+            .values()
+            .map(|handle| (handle.config_id(), handle.output_handle_id().clone()))
+            .collect::<Vec<(i32, String)>>();
+        for id in ids {
+            let payload = CaseFalsePayload::new(self.play_index(), id.0);
+            let case_false_event: IfElseNodeEvent =
+                CaseFalseEvent::new(self.node_id().clone(), self.node_name().clone(), id.1.clone(), payload).into();
+            self.output_handle_send(&id.1, case_false_event.into()).unwrap();
         }
 
-        let all_output_handles = self.output_handles();
-        for handle_id in all_output_handles.keys() {
-            self.send_trigger_event(handle_id).await.unwrap();
-            // if handle_id == &format!("{}_strategy_output", self.node_id()) {
-            //     continue;
-            // }
-
-            // if handle.is_connected() {
-            //     let payload = TriggerPayload::new(self.play_index() as u64);
-            //     let trigger_event: CommonEvent =
-            //         TriggerEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id.clone(), payload).into();
-
-            //     let _ = handle.send(trigger_event.into());
-            // }
-        }
+        let payload = ElseFalsePayload::new(self.play_index());
+        let else_false_event: IfElseNodeEvent = ElseFalseEvent::new(
+            self.node_id().clone(),
+            self.node_name().clone(),
+            self.default_output_handle().unwrap().output_handle_id().clone(),
+            payload,
+        )
+        .into();
+        let default_output_handle = self.default_output_handle().unwrap();
+        let _ = default_output_handle.send(else_false_event.into());
     }
 }

@@ -205,12 +205,6 @@ impl IfElseNodeContext {
 
     // 处理else分支
     async fn handle_else_true(&self) {
-        // if self.is_leaf_node() {
-        //     // 叶子节点：发送执行结束事件
-        //     self.send_execute_over_event(self.play_index() as u64, None).unwrap();
-        //     return;
-        // }
-
         let else_output_handle = self.default_output_handle().unwrap();
         tracing::debug!(
             "handle_else_branch, else_output_handle: {:?}",

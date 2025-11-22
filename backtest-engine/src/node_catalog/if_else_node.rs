@@ -69,7 +69,8 @@ impl IfElseNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = IfElseNodeContext::new(metadata, backtest_config, play_index_watch_rx);
+        let is_nested = backtest_config.is_nested;
+        let context = IfElseNodeContext::new(metadata, backtest_config, play_index_watch_rx, is_nested);
         Ok(Self {
             inner: NodeBase::new(context),
         })
@@ -88,6 +89,7 @@ impl IfElseNode {
                 .build()
             })?
             .to_owned();
+
         let node_data = node_config
             .get("data")
             .ok_or_else(|| {
@@ -97,6 +99,7 @@ impl IfElseNode {
                 .build()
             })?
             .to_owned();
+
         let node_name = node_data
             .get("nodeName")
             .and_then(|name| name.as_str())
@@ -107,6 +110,7 @@ impl IfElseNode {
                 .build()
             })?
             .to_owned();
+
         let strategy_id = node_data
             .get("strategyId")
             .and_then(|id| id.as_i64())
@@ -117,6 +121,13 @@ impl IfElseNode {
                 .build()
             })?
             .to_owned() as StrategyId;
+
+        let is_nested = node_data.get("isNested").and_then(|is_nested| is_nested.as_bool()).ok_or_else(|| {
+            ConfigFieldValueNullSnafu {
+                field_name: "isNested".to_string(),
+            }
+            .build()
+        })?;
 
         let backtest_config_json = node_data
             .get("backtestConfig")
@@ -138,7 +149,7 @@ impl IfElseNode {
             })?
             .to_owned();
         let cases = serde_json::from_value::<Vec<Case>>(cases_json).context(ConfigDeserializationFailedSnafu {})?;
-        let backtest_config = IfElseNodeBacktestConfig { cases };
+        let backtest_config = IfElseNodeBacktestConfig { cases, is_nested };
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 }

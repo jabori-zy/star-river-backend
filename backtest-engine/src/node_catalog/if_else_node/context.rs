@@ -31,6 +31,8 @@ pub struct IfElseNodeContext {
     received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
     received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+    is_nested: bool,
+    superior_case_is_true: bool,
 }
 
 impl IfElseNodeContext {
@@ -38,6 +40,7 @@ impl IfElseNodeContext {
         metadata: IfElseNodeMetadata,
         node_config: IfElseNodeBacktestConfig,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        is_nested: bool,
     ) -> Self {
         Self {
             metadata,
@@ -45,6 +48,8 @@ impl IfElseNodeContext {
             received_flag: HashMap::new(),
             received_message: HashMap::new(),
             play_index_watch_rx,
+            is_nested,
+            superior_case_is_true: false,
         }
     }
 }
@@ -56,6 +61,18 @@ impl IfElseNodeContext {
 
     pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
         &self.play_index_watch_rx
+    }
+
+    pub fn is_nested(&self) -> bool {
+        self.is_nested
+    }
+
+    pub fn superior_case_is_true(&self) -> bool {
+        self.superior_case_is_true
+    }
+
+    pub fn set_superior_case_is_true(&mut self, superior_case_is_true: bool) {
+        self.superior_case_is_true = superior_case_is_true;
     }
 }
 

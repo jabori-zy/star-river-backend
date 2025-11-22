@@ -183,16 +183,11 @@ pub enum LogicalSymbol {
 
 // 分支
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Case {
-    #[serde(rename = "caseId")]
     pub case_id: i32,
-    #[serde(rename = "outputHandleId")]
     pub output_handle_id: String,
-
-    #[serde(rename = "conditions")]
     pub conditions: Vec<Condition>,
-
-    #[serde(rename = "logicalSymbol")]
     pub logical_symbol: LogicalSymbol,
 }
 
