@@ -1,8 +1,7 @@
 use async_trait::async_trait;
-use snafu::{IntoError, Report};
+use star_river_core::exchange::Exchange;
 use strategy_core::{
     NodeType,
-    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
     node::{
         context_trait::{NodeHandleExt, NodeInfoExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
@@ -12,15 +11,15 @@ use strategy_core::{
 
 use super::{KlineNode, state_machine::KlineNodeAction};
 use crate::node::{
-    node_error::{BacktestNodeError, kline_node_error::RegisterExchangeFailedSnafu},
+    node_error::KlineNodeError,
     node_message::{common_log_message::*, kline_node_log_message::*},
-    node_state_machine::{NodeRunState, NodeStateTransTrigger},
+    node_state_machine::NodeStateTransTrigger,
     node_utils::NodeUtils,
 };
 
 #[async_trait]
 impl NodeLifecycle for KlineNode {
-    type Error = BacktestNodeError;
+    type Error = KlineNodeError;
 
     type Trigger = NodeStateTransTrigger;
 
@@ -28,12 +27,12 @@ impl NodeLifecycle for KlineNode {
         NodeUtils::init_node(self, None).await
     }
 
-    async fn stop(&self) -> Result<(), BacktestNodeError> {
+    async fn stop(&self) -> Result<(), Self::Error> {
         NodeUtils::stop_node(self, None).await
     }
 
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
-        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+        let (node_name, node_id, strategy_id, strategy_output_handle, state_machine) = self
             .with_ctx_read(|ctx| {
                 let node_name = ctx.node_name().to_string();
                 let node_id = ctx.node_id().clone();
@@ -63,7 +62,7 @@ impl NodeLifecycle for KlineNode {
                 }
                 KlineNodeAction::LogNodeState => {
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -78,7 +77,7 @@ impl NodeLifecycle for KlineNode {
                 KlineNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] starting to listen external events");
                     let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -95,7 +94,7 @@ impl NodeLifecycle for KlineNode {
                 KlineNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] starting to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -109,66 +108,52 @@ impl NodeLifecycle for KlineNode {
 
                     self.listen_source_node_events().await;
                 }
-                KlineNodeAction::GetMinIntervalSymbols => {
-                    tracing::info!("[{node_name}] start to get min interval symbols");
+                KlineNodeAction::InitMinIntervalSymbols => {
+                    tracing::info!("[{node_name}] start to init min interval symbols");
                     let result = self
-                        .with_ctx_write_async(|ctx| {
-                            Box::pin(async move {
-                                ctx.get_min_interval_symbols().await.map(|min_interval_symbols| {
-                                    ctx.set_min_interval_symbols(min_interval_symbols);
-                                })
-                            })
-                        })
+                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init_min_interval_symbols().await }))
                         .await;
 
                     match result {
                         Ok(()) => {
-                            let log_message = GetMinIntervalSymbolsSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_info_status_event(
+                            let log_message = InitMinIntervalSymbolsSuccessMsg::new(node_name.clone());
+                            NodeUtils::send_run_state_info(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
                                 NodeType::KlineNode,
                                 log_message.to_string(),
                                 current_state,
-                                KlineNodeAction::GetMinIntervalSymbols,
+                                KlineNodeAction::InitMinIntervalSymbols,
                                 &strategy_output_handle,
                             )
                             .await;
                         }
                         Err(err) => {
-                            tracing::warn!("[{node_name}] failed to get min interval symbols from strategy: {err}");
+                            NodeUtils::send_run_state_error(
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                NodeType::KlineNode,
+                                KlineNodeAction::InitMinIntervalSymbols,
+                                &err,
+                                &strategy_output_handle,
+                            )
+                            .await;
+                            return Err(err);
                         }
                     }
                 }
                 KlineNodeAction::RegisterExchange => {
                     tracing::info!("[{node_name}] start to register exchange");
 
-                    let (exchange, response) = self
-                        .with_ctx_write_async(|ctx| {
-                            Box::pin(async move {
-                                // 1. 获取交易所信息
-                                let exchange = ctx
-                                    .node_config
-                                    .exchange_mode_config
-                                    .as_ref()
-                                    .unwrap()
-                                    .selected_account
-                                    .exchange
-                                    .clone();
-
-                                // 2. register exchange
-                                let response = ctx.register_exchange().await.unwrap();
-
-                                // 返回结果供外部处理
-                                (exchange, response)
-                            })
-                        })
-                        .await;
+                    let exchange = self
+                        .with_ctx_read(|ctx| Ok::<Exchange, KlineNodeError>(ctx.node_config.account()?.exchange.clone()))
+                        .await?;
 
                     // 发送开始注册日志
                     let log_message = StartRegisterExchangeMsg::new(node_name.clone(), exchange.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -180,38 +165,38 @@ impl NodeLifecycle for KlineNode {
                     )
                     .await;
 
-                    if response.is_success() {
-                        let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
-                        NodeUtils::send_info_status_event(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            NodeType::KlineNode,
-                            log_message.to_string(),
-                            current_state,
-                            KlineNodeAction::RegisterExchange,
-                            &strategy_output_handle,
-                        )
+                    let result = self
+                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.register_exchange().await }))
                         .await;
-                    } else {
-                        // 转换状态 Failed
-                        let error = response.error().unwrap();
-                        let kline_error = RegisterExchangeFailedSnafu {
-                            node_name: node_name.clone(),
-                        }
-                        .into_error(error.clone());
 
-                        NodeUtils::send_error_status_event(
-                            strategy_id,
-                            node_id.clone(),
-                            node_name.clone(),
-                            NodeType::KlineNode,
-                            KlineNodeAction::RegisterExchange,
-                            &kline_error,
-                            &strategy_output_handle,
-                        )
-                        .await;
-                        return Err(kline_error.into());
+                    match result {
+                        Ok(()) => {
+                            let log_message = RegisterExchangeSuccessMsg::new(node_name.clone(), exchange);
+                            NodeUtils::send_run_state_info(
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                NodeType::KlineNode,
+                                log_message.to_string(),
+                                current_state,
+                                KlineNodeAction::RegisterExchange,
+                                &strategy_output_handle,
+                            )
+                            .await;
+                        }
+                        Err(err) => {
+                            NodeUtils::send_run_state_error(
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                NodeType::KlineNode,
+                                KlineNodeAction::RegisterExchange,
+                                &err,
+                                &strategy_output_handle,
+                            )
+                            .await;
+                            return Err(err);
+                        }
                     }
                 }
                 KlineNodeAction::LoadHistoryFromExchange => {
@@ -224,7 +209,7 @@ impl NodeLifecycle for KlineNode {
                         Ok(()) => {
                             tracing::info!("[{node_name}] load kline history from exchange success");
                             let log_message = LoadKlineDataSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_info_status_event(
+                            NodeUtils::send_run_state_info(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
@@ -237,9 +222,7 @@ impl NodeLifecycle for KlineNode {
                             .await;
                         }
                         Err(err) => {
-                            let report = snafu::Report::from_error(&err);
-                            tracing::error!("{}", report);
-                            NodeUtils::send_error_status_event(
+                            NodeUtils::send_run_state_error(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),

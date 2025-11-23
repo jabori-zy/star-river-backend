@@ -68,7 +68,7 @@ impl NodeLifecycle for VariableNode {
 
                     // Send node state log event
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -83,7 +83,7 @@ impl NodeLifecycle for VariableNode {
                 VariableNodeAction::RegisterTask => {
                     tracing::info!("[{node_name}] registering variable retrieval task");
                     let log_message = RegisterVariableRetrievalTaskMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -105,7 +105,7 @@ impl NodeLifecycle for VariableNode {
                 VariableNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] start to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -122,7 +122,7 @@ impl NodeLifecycle for VariableNode {
                 VariableNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),

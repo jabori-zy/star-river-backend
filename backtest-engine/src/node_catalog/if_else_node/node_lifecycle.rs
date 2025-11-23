@@ -68,7 +68,7 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::ListenAndHandleStrategySignal => {
                     tracing::info!("[{node_name}] starting to listen strategy signal");
                     let log_message = ListenStrategySignalMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -83,7 +83,7 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::LogNodeState => {
                     tracing::info!("[{node_name}] current state: {:?}", current_state);
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -99,7 +99,7 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] starting to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -116,7 +116,7 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::InitReceivedData => {
                     tracing::info!("[{node_name}] initializing received data flags");
                     let log_message = InitReceivedDataMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -134,7 +134,7 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::Evaluate => {
                     tracing::info!("[{node_name}] starting condition evaluation");
                     let log_message = StartConditionEvaluationMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -150,7 +150,7 @@ impl NodeLifecycle for IfElseNode {
                 IfElseNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),

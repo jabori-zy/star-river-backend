@@ -44,15 +44,12 @@ impl KlineNodeContext {
         metadata: KlineNodeMetadata,
         node_config: KlineNodeBacktestConfig,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Self {
-        let exchange = node_config.exchange_mode_config.as_ref().unwrap().selected_account.exchange.clone();
-        let time_range = node_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+    ) -> Result<Self, KlineNodeError> {
+        let exchange = node_config.account()?.exchange.clone();
+        let time_range = node_config.time_range()?.clone();
 
         let selected_symbol_keys = node_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_symbols
+            .symbols()
             .iter()
             .map(|symbol| {
                 let kline_key = KlineKey::new(
@@ -66,13 +63,13 @@ impl KlineNodeContext {
             })
             .collect();
 
-        Self {
+        Ok(Self {
             metadata,
             node_config,
             min_interval_symbols: vec![],
             selected_symbol_keys,
             play_index_watch_rx,
-        }
+        })
     }
 
     pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {

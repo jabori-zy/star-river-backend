@@ -23,3 +23,6 @@ tracing-appender.workspace = true
 
 # 时间处理
 time.workspace = true
+
+# 环境变量
+dotenvy.workspace = true

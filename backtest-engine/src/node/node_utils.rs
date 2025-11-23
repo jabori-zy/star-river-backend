@@ -77,7 +77,7 @@ impl NodeUtils {
         Ok(())
     }
 
-    pub async fn send_info_status_event(
+    pub async fn send_run_state_info(
         strategy_id: StrategyId,
         node_id: NodeId,
         node_name: NodeName,
@@ -100,7 +100,7 @@ impl NodeUtils {
         let _ = strategy_output_handle.send(log_event.into());
     }
 
-    pub async fn send_error_status_event(
+    pub async fn send_run_state_error(
         strategy_id: StrategyId,
         node_id: NodeId,
         node_name: NodeName,

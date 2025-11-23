@@ -68,7 +68,7 @@ impl NodeLifecycle for PositionNode {
 
                     // Send node state log event
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -83,7 +83,7 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleExternalEvents => {
                     tracing::info!("[{node_name}] start to listen external events");
                     let log_message = ListenExternalEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -100,7 +100,7 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::RegisterTask => {
                     tracing::info!("[{node_name}] registering position monitoring task");
                     let log_message = RegisterTaskMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -122,7 +122,7 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleNodeEvents => {
                     tracing::info!("[{node_name}] start to listen node events");
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -139,7 +139,7 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -156,7 +156,7 @@ impl NodeLifecycle for PositionNode {
                 PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent => {
                     tracing::info!("[{node_name}] start to listen virtual trading system events");
                     let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),

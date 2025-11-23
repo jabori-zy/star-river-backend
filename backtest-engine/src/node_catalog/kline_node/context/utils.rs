@@ -1,17 +1,8 @@
 // third-party
 use chrono::{Datelike, Timelike, Weekday};
-use key::KlineKey;
 // workspace crate
 use star_river_core::system::DateTimeUtc;
-use star_river_core::{
-    kline::{Kline, KlineInterval},
-    system::TimeRange,
-};
-use star_river_event::backtest_strategy::node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload};
-use strategy_core::node::context_trait::NodeInfoExt;
-
-// current crate
-use super::KlineNodeContext;
+use star_river_core::{kline::KlineInterval, system::TimeRange};
 
 // 判断当前最小周期时间点是否到达更大周期的起点
 // 例如：min_interval=1m, interval=1h
@@ -72,19 +63,4 @@ pub fn bar_number(time_range: &TimeRange, interval: &KlineInterval) -> i64 {
     }
 
     total_seconds / interval_seconds
-}
-
-impl KlineNodeContext {
-    pub(super) fn get_kline_update_event(
-        &self,
-        handle_id: String,
-        config_id: i32,
-        should_calculate: bool,
-        kline_key: &KlineKey,
-        index: i32, // 缓存索引
-        kline_data: Kline,
-    ) -> KlineNodeEvent {
-        let payload = KlineUpdatePayload::new(config_id, index, should_calculate, kline_key.clone(), kline_data);
-        KlineNodeEvent::KlineUpdate(KlineUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id, payload).into())
-    }
 }

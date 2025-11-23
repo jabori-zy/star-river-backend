@@ -134,7 +134,9 @@ impl StartNode {
             .to_owned();
 
         let backtest_strategy_config =
-            serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<BacktestStrategyConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {
+                node_name: node_name.clone(),
+            })?;
 
         // check initial balance (> 0)
         if backtest_strategy_config.initial_balance <= 0.0 {

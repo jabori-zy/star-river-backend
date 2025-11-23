@@ -20,7 +20,7 @@ pub enum KlineNodeAction {
     ListenAndHandleNodeEvents,      // 监听节点消息
     ListenAndHandleStrategyCommand, // 处理策略命令
     LogNodeState,                   // 记录节点状态
-    GetMinIntervalSymbols,          // 获取最小周期交易对
+    InitMinIntervalSymbols,         // 初始化最小周期交易对
     RegisterExchange,               // 注册交易所
     LoadHistoryFromExchange,        // 从交易所加载K线历史
     LoadHistoryFromFile,            // 从文件加载K线历史
@@ -65,7 +65,7 @@ pub fn kline_node_transition(
                     KlineNodeAction::ListenAndHandleExternalEvents,
                     KlineNodeAction::ListenAndHandleNodeEvents,
                     KlineNodeAction::ListenAndHandleStrategyCommand,
-                    KlineNodeAction::GetMinIntervalSymbols,
+                    KlineNodeAction::InitMinIntervalSymbols,
                     KlineNodeAction::RegisterExchange,
                     KlineNodeAction::LoadHistoryFromExchange,
                 ],
@@ -121,18 +121,4 @@ pub fn kline_node_transition(
         }
         .build()),
     }
-}
-
-// ============================================================================
-// Metadata 辅助函数
-// ============================================================================
-
-/// 创建 KlineNode 的 Metadata
-///
-/// # Arguments
-/// * `data_source` - 数据源类型（File 或 Exchange）
-pub fn create_kline_metadata(data_source: BacktestDataSource) -> Result<Metadata, serde_json::Error> {
-    let mut metadata_map = std::collections::HashMap::new();
-    metadata_map.insert("data_source".to_string(), serde_json::to_value(data_source)?);
-    Ok(Metadata::from_map(metadata_map))
 }

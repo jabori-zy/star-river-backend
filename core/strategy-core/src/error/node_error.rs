@@ -15,8 +15,12 @@ pub enum NodeError {
     #[snafu(display("config field value is null: {field_name}"))]
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
-    #[snafu(display("config deserialization failed. reason: {source}"))]
-    ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
+    #[snafu(display("@[{node_name}] config deserialization failed. reason: {source}"))]
+    ConfigDeserializationFailed {
+        node_name: String,
+        source: serde_json::Error,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("kline node [{node_id}] name is null"))]
     NodeNameIsNull { node_id: String, backtrace: Backtrace },
@@ -27,7 +31,7 @@ pub enum NodeError {
     #[snafu(display("kline node [{node_id}] data is null"))]
     NodeDataIsNull { node_id: String, backtrace: Backtrace },
 
-    #[snafu(display("[{node_name}] config {config_name} should be greater than or equal to(>= 0) zero, but got {config_value}"))]
+    #[snafu(display("@[{node_name}] config '{config_name}' should be greater than or equal to(>= 0) zero, but got {config_value}"))]
     ValueNotGreaterThanOrEqualToZero {
         node_name: String,
         config_name: String,
@@ -36,7 +40,7 @@ pub enum NodeError {
     },
 
     // > 0
-    #[snafu(display("[{node_name}] config {config_name} should be greater than(> 0) zero, but got {config_value}"))]
+    #[snafu(display("@[{node_name}] config '{config_name}' should be greater than(> 0) zero, but got {config_value}"))]
     ValueNotGreaterThanZero {
         node_name: String,
         config_name: String,
@@ -44,7 +48,7 @@ pub enum NodeError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("[{node_name}] mount node cycle tracker failed"))]
+    #[snafu(display("@[{node_name}] mount node cycle tracker failed"))]
     NodeCycleTrackerMountFailed { node_name: String, backtrace: Backtrace },
 
     #[snafu(display("output handle not found: {handle_id}"))]
@@ -141,8 +145,8 @@ impl StarRiverErrorTrait for NodeError {
                     NodeError::ConfigFieldValueNull { field_name, .. } => {
                         format!("节点配置字段值为空: {}", field_name)
                     }
-                    NodeError::ConfigDeserializationFailed { source, .. } => {
-                        format!("节点配置反序列化失败，原因: {}", source)
+                    NodeError::ConfigDeserializationFailed { node_name, source, .. } => {
+                        format!("@[{node_name}] 配置反序列化失败，原因: {}", source)
                     }
                     NodeError::NodeNameIsNull { node_id, .. } => {
                         format!("节点 [{node_id}] 名称是空")
@@ -159,7 +163,7 @@ impl StarRiverErrorTrait for NodeError {
                         config_value,
                         ..
                     } => {
-                        format!("[{node_name}] 配置 {config_name} 应该大于等于零(>= 0)，但值为 {config_value}")
+                        format!("@[{node_name}] 配置 '{config_name}' 应该大于等于零(>= 0)，但值为 {config_value}")
                     }
                     NodeError::ValueNotGreaterThanZero {
                         node_name,

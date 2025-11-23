@@ -62,7 +62,7 @@ impl NodeLifecycle for StartNode {
                 StartNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] starting to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -77,7 +77,7 @@ impl NodeLifecycle for StartNode {
                 }
                 StartNodeAction::ListenAndHandlePlayIndex => {
                     let log_message = ListenPlayIndexChangeMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -140,7 +140,7 @@ impl NodeLifecycle for StartNode {
                     })
                     .await;
                     let log_message = InitCustomVariableMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -154,7 +154,7 @@ impl NodeLifecycle for StartNode {
                 }
                 StartNodeAction::LogNodeState => {
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),

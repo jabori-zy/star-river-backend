@@ -66,7 +66,7 @@ impl NodeLifecycle for FuturesOrderNode {
 
                     // 发送节点状态日志事件
                     let log_message = NodeStateLogMsg::new(node_name.clone(), current_state.to_string());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -81,7 +81,7 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::GetSymbolInfo => {
                     tracing::info!("[{node_name}] start to get symbol info");
                     let log_message = GetSymbolInfoMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -98,7 +98,7 @@ impl NodeLifecycle for FuturesOrderNode {
                     match result {
                         Ok(_) => {
                             let log_message = GetSymbolInfoSuccessMsg::new(node_name.clone());
-                            NodeUtils::send_info_status_event(
+                            NodeUtils::send_run_state_info(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
@@ -111,7 +111,7 @@ impl NodeLifecycle for FuturesOrderNode {
                             .await;
                         }
                         Err(err) => {
-                            NodeUtils::send_error_status_event(
+                            NodeUtils::send_run_state_error(
                                 strategy_id,
                                 node_id.clone(),
                                 node_name.clone(),
@@ -137,7 +137,7 @@ impl NodeLifecycle for FuturesOrderNode {
                 // }
                 FuturesOrderNodeAction::ListenAndHandleNodeEvents => {
                     let log_message = ListenNodeEventsMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -153,7 +153,7 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::ListenAndHandleCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");
                     let log_message = ListenStrategyCommandMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -170,7 +170,7 @@ impl NodeLifecycle for FuturesOrderNode {
                 FuturesOrderNodeAction::ListenAndHandleVtsEvent => {
                     tracing::info!("[{node_name}] start to listen virtual trading system events");
                     let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
-                    NodeUtils::send_info_status_event(
+                    NodeUtils::send_run_state_info(
                         strategy_id,
                         node_id.clone(),
                         node_name.clone(),

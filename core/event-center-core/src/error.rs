@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use snafu::{Backtrace, Snafu};
 use star_river_core::error::{
     ErrorCode,
@@ -29,6 +31,24 @@ pub enum EventCenterError {
 
     #[snafu(display("EventCenter not initialized"))]
     InstanceNotInit { backtrace: Backtrace },
+
+    #[snafu(display("Event send failed: {source}"))]
+    EventSendFailed {
+        source: Arc<dyn std::error::Error + Send + Sync + 'static>,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Command send failed: {source}"))]
+    CmdSendFailed {
+        source: Arc<dyn std::error::Error + Send + Sync + 'static>,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("Command response receive failed: {source}"))]
+    CmdRespRecvFailed {
+        source: tokio::sync::oneshot::error::RecvError,
+        backtrace: Backtrace,
+    },
 }
 
 impl StarRiverErrorTrait for EventCenterError {
@@ -45,6 +65,9 @@ impl StarRiverErrorTrait for EventCenterError {
             EventCenterError::CommandSenderNotFound { .. } => 1004,
             EventCenterError::InstanceAlreadyInit { .. } => 1005,
             EventCenterError::InstanceNotInit { .. } => 1006,
+            EventCenterError::EventSendFailed { .. } => 1007,
+            EventCenterError::CmdSendFailed { .. } => 1008,
+            EventCenterError::CmdRespRecvFailed { .. } => 1009,
         };
 
         format!("{}_{:04}", prefix, code)
@@ -68,6 +91,15 @@ impl StarRiverErrorTrait for EventCenterError {
                 }
                 EventCenterError::InstanceAlreadyInit { .. } => "事件中心实例已初始化".to_string(),
                 EventCenterError::InstanceNotInit { .. } => "事件中心实例未初始化".to_string(),
+                EventCenterError::EventSendFailed { source, .. } => {
+                    format!("事件发送失败: {}", source)
+                }
+                EventCenterError::CmdSendFailed { source, .. } => {
+                    format!("命令发送失败: {}", source)
+                }
+                EventCenterError::CmdRespRecvFailed { source, .. } => {
+                    format!("命令响应接收失败: {}", source)
+                }
             },
         }
     }

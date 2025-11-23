@@ -148,7 +148,9 @@ impl IfElseNode {
                 .build()
             })?
             .to_owned();
-        let cases = serde_json::from_value::<Vec<Case>>(cases_json).context(ConfigDeserializationFailedSnafu {})?;
+        let cases = serde_json::from_value::<Vec<Case>>(cases_json).context(ConfigDeserializationFailedSnafu {
+            node_name: node_name.clone(),
+        })?;
         let backtest_config = IfElseNodeBacktestConfig { cases, is_nested };
         Ok((strategy_id, node_id, node_name, backtest_config))
     }

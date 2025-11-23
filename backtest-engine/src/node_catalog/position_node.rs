@@ -136,7 +136,9 @@ impl PositionNode {
             .to_owned();
 
         let backtest_config =
-            serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {
+                node_name: node_name.clone(),
+            })?;
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 }

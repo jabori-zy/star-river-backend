@@ -149,7 +149,9 @@ impl FuturesOrderNode {
             .to_owned();
 
         let node_config =
-            serde_json::from_value::<FuturesOrderNodeConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<FuturesOrderNodeConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {
+                node_name: node_name.clone(),
+            })?;
         Ok((strategy_id, node_id, node_name, node_config))
     }
 

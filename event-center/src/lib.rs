@@ -1,11 +1,12 @@
 pub mod communication;
-pub mod error;
+// pub mod error;
 pub mod event;
 pub mod singleton;
 
 pub use communication::{CommandTargetEngine, EngineCommand};
 pub use event::Event;
 use event_center_core::EventCenterBase;
+pub use event_center_core::error::*;
 pub use singleton::EventCenterSingleton;
 
 use crate::event::Channel;

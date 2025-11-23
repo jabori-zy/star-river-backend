@@ -20,7 +20,13 @@ use tokio::sync::{Mutex, RwLock, mpsc};
 
 use crate::{
     node::{
-        node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_event::BacktestNodeEvent, node_state_machine::NodeRunState,
+        node_command::BacktestNodeCommand,
+        node_error::{
+            KlineNodeError,
+            kline_node_error::{DataSourceAccountIsNotConfiguredSnafu, SymbolsIsNotConfiguredSnafu},
+        },
+        node_event::BacktestNodeEvent,
+        node_state_machine::NodeRunState,
     },
     node_catalog::kline_node::state_machine::{KlineNodeStateMachine, kline_node_transition},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
@@ -52,7 +58,7 @@ impl KlineNode {
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
         play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    ) -> Result<Self, BacktestNodeError> {
+    ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_kline_node_config(node_config)?;
 
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
@@ -79,7 +85,7 @@ impl KlineNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = KlineNodeContext::new(metadata, node_config, play_index_watch_rx);
+        let context = KlineNodeContext::new(metadata, node_config, play_index_watch_rx)?;
         Ok(Self {
             inner: NodeBase::new(context),
         })
@@ -87,7 +93,7 @@ impl KlineNode {
 
     fn check_kline_node_config(
         node_config: serde_json::Value,
-    ) -> Result<(StrategyId, NodeId, NodeName, KlineNodeBacktestConfig), BacktestNodeError> {
+    ) -> Result<(StrategyId, NodeId, NodeName, KlineNodeBacktestConfig), KlineNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
@@ -118,15 +124,48 @@ impl KlineNode {
                 field_name: "strategyId".to_string(),
             })?
             .to_owned() as StrategyId;
-        let kline_node_backtest_config = node_data
+
+        let mut kline_node_backtest_config = node_data
             .get("backtestConfig")
             .context(ConfigFieldValueNullSnafu {
                 field_name: "backtestConfig".to_string(),
             })?
             .to_owned();
 
+        tracing::debug!(kline_node_backtest_config = %kline_node_backtest_config, "kline node backtest config");
+        // check data source account is configured
+
+        kline_node_backtest_config
+            .get("exchangeModeConfig")
+            .and_then(|config| config.get("selectedAccount"))
+            .context(DataSourceAccountIsNotConfiguredSnafu {
+                node_name: node_name.clone(),
+            })?;
+
+        let result = kline_node_backtest_config
+            .get("exchangeModeConfig")
+            .and_then(|config| config.get("selectedSymbols"))
+            .and_then(|symbols| symbols.as_array())
+            .context(SymbolsIsNotConfiguredSnafu {
+                node_name: node_name.clone(),
+            })?;
+
+        if result.len() == 0 {
+            return Err(SymbolsIsNotConfiguredSnafu {
+                node_name: node_name.clone(),
+            }
+            .build());
+        }
+
+        // Add nodeName to the backtest config
+        if let Some(obj) = kline_node_backtest_config.as_object_mut() {
+            obj.insert("nodeName".to_string(), serde_json::Value::String(node_name.clone()));
+        }
+
         let node_config =
-            serde_json::from_value::<KlineNodeBacktestConfig>(kline_node_backtest_config).context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<KlineNodeBacktestConfig>(kline_node_backtest_config).context(ConfigDeserializationFailedSnafu {
+                node_name: node_name.clone(),
+            })?;
 
         Ok((strategy_id, node_id, node_name, node_config))
     }

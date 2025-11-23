@@ -2,7 +2,7 @@
 use async_trait::async_trait;
 use event_center::Event;
 use key::{KeyTrait, KlineKey};
-use snafu::{IntoError, Report};
+use snafu::{IntoError, Report, ResultExt};
 use star_river_core::kline::Kline;
 use star_river_event::backtest_strategy::node_event::{
     kline_node_event::{KlineUpdateEvent, KlineUpdatePayload, TimeUpdateEvent, TimeUpdatePayload},
@@ -10,6 +10,8 @@ use star_river_event::backtest_strategy::node_event::{
 };
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
+    communication::strategy::StrategyResponse,
+    error::node_error::StrategyCmdRespRecvFailedSnafu,
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 use tokio::sync::oneshot;
@@ -17,7 +19,13 @@ use tokio::sync::oneshot;
 // current crate
 use super::{KlineNodeContext, utils::is_cross_interval};
 // workspace crate
-use crate::{node::node_error::BacktestNodeError, strategy::PlayIndex};
+use crate::{
+    node::node_error::{
+        BacktestNodeError,
+        kline_node_error::{GetMinIntervalSymbolsFailedSnafu, MinIntervalSymbolIsNoneSnafu},
+    },
+    strategy::PlayIndex,
+};
 use crate::{
     node::{
         node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
@@ -35,8 +43,6 @@ use crate::{
 impl KlineNodeContext {
     pub(super) async fn send_kline(&mut self, play_event: KlinePlayEvent) {
         let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
-        // 提前获取配置信息，统一错误处理
-        let exchange_mode_config = self.node_config.exchange_mode_config.as_ref().unwrap();
 
         // 获取当前play_index
         let current_play_index = play_event.play_index;
@@ -45,7 +51,7 @@ impl KlineNodeContext {
         // 上一根k线的时间戳
         let mut pre_kline_timestamp = 0;
 
-        for (index, (symbol_key, symbol_info)) in self.selected_symbol_keys.iter().enumerate() {
+        for (symbol_key, symbol_info) in self.selected_symbol_keys.iter() {
             // 获取k线缓存值
             // 1. 如果是在最小周期交易对列表中，则从策略中获取k线数据
             if self.min_interval_symbols.contains(symbol_key) {
@@ -338,18 +344,33 @@ impl KlineNodeContext {
         Ok(())
     }
 
-    pub async fn get_min_interval_symbols(&mut self) -> Result<Vec<KlineKey>, String> {
+    pub async fn init_min_interval_symbols(&mut self) -> Result<(), KlineNodeError> {
         let (tx, rx) = oneshot::channel();
         let payload = GetMinIntervalSymbolsCmdPayload {};
         let cmd = GetMinIntervalSymbolsCommand::new(self.node_id().clone(), tx, payload);
 
-        self.strategy_command_sender().send(cmd.into()).await.unwrap();
+        self.send_strategy_command(cmd.into()).await?;
 
-        let response = rx.await.unwrap();
-        if response.is_success() {
-            return Ok(response.into_payload().unwrap().keys.clone());
-        } else {
-            return Err("获取最小周期交易对失败".to_string());
+        let response = rx.await.context(StrategyCmdRespRecvFailedSnafu {
+            node_name: self.node_name().clone(),
+        })?;
+        match response {
+            StrategyResponse::Success { payload, .. } => {
+                if payload.keys.is_empty() {
+                    return Err(MinIntervalSymbolIsNoneSnafu {
+                        node_name: self.node_name().clone(),
+                    }
+                    .build());
+                }
+                self.set_min_interval_symbols(payload.keys.clone());
+                return Ok(());
+            }
+            StrategyResponse::Fail { error, .. } => {
+                return Err(GetMinIntervalSymbolsFailedSnafu {
+                    node_name: self.node_name().clone(),
+                }
+                .into_error(error));
+            }
         }
     }
 }

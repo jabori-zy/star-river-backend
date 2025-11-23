@@ -6,7 +6,7 @@ use crate::{EngineCommand, Event};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
-pub enum EventCenterErrorBasic {
+pub enum EventCenterError {
     #[snafu(transparent)]
     EventCenterCommonError {
         source: EventCenterCommonError,
@@ -26,7 +26,7 @@ pub enum EventCenterErrorBasic {
     },
 }
 
-impl StarRiverErrorTrait for EventCenterErrorBasic {
+impl StarRiverErrorTrait for EventCenterError {
     fn get_prefix(&self) -> &'static str {
         "EVENT_CENTER"
     }
@@ -35,9 +35,9 @@ impl StarRiverErrorTrait for EventCenterErrorBasic {
         let prefix = self.get_prefix();
         let code = match self {
             // HTTP and JSON errors (1001-1004)
-            EventCenterErrorBasic::EventCenterCommonError { .. } => 1001,
-            EventCenterErrorBasic::EventSendFailed { .. } => 1002,
-            EventCenterErrorBasic::CommandSendFailed { .. } => 1003,
+            EventCenterError::EventCenterCommonError { .. } => 1001,
+            EventCenterError::EventSendFailed { .. } => 1002,
+            EventCenterError::CommandSendFailed { .. } => 1003,
         };
 
         format!("{}_{:04}", prefix, code)
@@ -45,9 +45,9 @@ impl StarRiverErrorTrait for EventCenterErrorBasic {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            EventCenterErrorBasic::EventCenterCommonError { source, .. } => generate_error_code_chain(source),
-            EventCenterErrorBasic::EventSendFailed { .. } => vec![self.error_code()],
-            EventCenterErrorBasic::CommandSendFailed { .. } => vec![self.error_code()],
+            EventCenterError::EventCenterCommonError { source, .. } => generate_error_code_chain(source),
+            EventCenterError::EventSendFailed { .. } => vec![self.error_code()],
+            EventCenterError::CommandSendFailed { .. } => vec![self.error_code()],
         }
     }
 
@@ -55,11 +55,11 @@ impl StarRiverErrorTrait for EventCenterErrorBasic {
         match language {
             ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
-                EventCenterErrorBasic::EventCenterCommonError { source, .. } => source.error_message(language),
-                EventCenterErrorBasic::EventSendFailed { source, .. } => {
+                EventCenterError::EventCenterCommonError { source, .. } => source.error_message(language),
+                EventCenterError::EventSendFailed { source, .. } => {
                     format!("事件发送失败: {}", source)
                 }
-                EventCenterErrorBasic::CommandSendFailed { source, .. } => {
+                EventCenterError::CommandSendFailed { source, .. } => {
                     format!("命令发送失败: {}", source)
                 }
             },

@@ -1,12 +1,12 @@
 // third-party
-use event_center::EventCenterSingleton;
+use event_center::{CmdRespRecvFailedSnafu, EventCenterSingleton};
 use event_center_core::communication::response::Response;
 use key::{KeyTrait, KlineKey};
-use snafu::IntoError;
+use snafu::{IntoError, ResultExt};
 use star_river_core::{custom_type::AccountId, exchange::Exchange, kline::Kline};
 use star_river_event::communication::{
     ExchangeEngineCommand, GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand, RegisterExchangeCmdPayload,
-    RegisterExchangeCommand, RegisterExchangeRespPayload,
+    RegisterExchangeCommand,
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
@@ -18,7 +18,9 @@ use tracing::instrument;
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
 use crate::{
-    node::node_error::kline_node_error::{AppendKlineDataFailedSnafu, InitKlineDataFailedSnafu, LoadKlineFromExchangeFailedSnafu},
+    node::node_error::kline_node_error::{
+        AppendKlineDataFailedSnafu, InitKlineDataFailedSnafu, LoadKlineFromExchangeFailedSnafu, RegisterExchangeFailedSnafu,
+    },
     strategy::strategy_command::{AppendKlineDataCmdPayload, AppendKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand},
 };
 
@@ -26,31 +28,15 @@ impl KlineNodeContext {
     // 从交易所获取k线历史(仅获取最小interval的k线)
     #[instrument(target = "backtest::kline::binance", skip(self))]
     pub async fn load_kline_history_from_exchange(&self) -> Result<(), KlineNodeError> {
-        tracing::info!("[{}] start to load backtest kline data from exchange", self.node_name());
+        let account_id = self.node_config.account()?.account_id;
 
-        let account_id = self
-            .node_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .account_id
-            .clone();
+        let exchange = self.node_config.account()?.exchange.clone();
 
-        let exchange = self
-            .node_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .exchange
-            .clone();
-
-        let time_range = self.node_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+        let time_range = self.node_config.time_range()?;
 
         match exchange {
-            Exchange::Metatrader5(_) => self.get_mt5_kline_history(account_id.clone(), &time_range).await?,
-            Exchange::Binance => self.get_binance_kline_history(account_id.clone(), &time_range).await?,
+            Exchange::Metatrader5(_) => self.get_mt5_kline_history(account_id, &time_range).await?,
+            Exchange::Binance => self.get_binance_kline_history(account_id, &time_range).await?,
             _ => {
                 return Ok(());
             }
@@ -123,23 +109,9 @@ impl KlineNodeContext {
 
     // 注册交易所
     #[instrument(skip(self))]
-    pub async fn register_exchange(&self) -> Result<Response<RegisterExchangeRespPayload>, String> {
-        let account_id = self
-            .node_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .account_id
-            .clone();
-        let exchange = self
-            .node_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .exchange
-            .clone();
+    pub async fn register_exchange(&self) -> Result<(), KlineNodeError> {
+        let account_id = self.node_config.account()?.account_id;
+        let exchange = self.node_config.account()?.exchange.clone();
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
 
@@ -149,10 +121,20 @@ impl KlineNodeContext {
         let payload = RegisterExchangeCmdPayload::new(account_id, exchange);
         let cmd: ExchangeEngineCommand = RegisterExchangeCommand::new(node_id, resp_tx, payload).into();
 
-        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+        EventCenterSingleton::send_command(cmd.into()).await?;
 
         // 等待响应
-        let response = resp_rx.await.unwrap();
-        Ok(response)
+        let response = resp_rx.await.context(CmdRespRecvFailedSnafu {})?;
+        match response {
+            Response::Success { .. } => {
+                return Ok(());
+            }
+            Response::Fail { error, .. } => {
+                return Err(RegisterExchangeFailedSnafu {
+                    node_name: node_name.clone(),
+                }
+                .into_error(error));
+            }
+        }
     }
 }

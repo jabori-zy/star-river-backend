@@ -157,7 +157,9 @@ impl IndicatorNode {
             })?
             .to_owned();
         let selected_account =
-            serde_json::from_value::<SelectedAccount>(selected_account_json).context(ConfigDeserializationFailedSnafu {})?;
+            serde_json::from_value::<SelectedAccount>(selected_account_json).context(ConfigDeserializationFailedSnafu {
+                node_name: node_name.clone(),
+            })?;
 
         let selected_symbol_json = backtest_config_json
             .get("exchangeModeConfig")
@@ -169,8 +171,9 @@ impl IndicatorNode {
                 .build()
             })?
             .to_owned();
-        let selected_symbol =
-            serde_json::from_value::<SelectedSymbol>(selected_symbol_json).context(ConfigDeserializationFailedSnafu {})?;
+        let selected_symbol = serde_json::from_value::<SelectedSymbol>(selected_symbol_json).context(ConfigDeserializationFailedSnafu {
+            node_name: node_name.clone(),
+        })?;
 
         let time_range_json = backtest_config_json
             .get("exchangeModeConfig")
@@ -183,7 +186,9 @@ impl IndicatorNode {
             })?
             .to_owned();
         tracing::debug!("time_range_json: {:?}", time_range_json);
-        let time_range = deserialize_time_range(time_range_json.into_deserializer()).context(ConfigDeserializationFailedSnafu {})?;
+        let time_range = deserialize_time_range(time_range_json.into_deserializer()).context(ConfigDeserializationFailedSnafu {
+            node_name: node_name.clone(),
+        })?;
         tracing::debug!("time_range: {:?}", time_range);
 
         let data_source = backtest_config_json
