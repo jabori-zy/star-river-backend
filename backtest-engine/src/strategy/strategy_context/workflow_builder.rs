@@ -18,7 +18,7 @@ use strategy_core::{
     error::strategy_error::{EdgeConfigNullSnafu, NodeConfigNullSnafu},
     node::{
         NodeTrait, NodeType,
-        context_trait::{NodeHandleExt, NodeIdentityExt},
+        context_trait::{NodeHandleExt, NodeInfoExt},
         node_trait::NodeContextAccessor,
     },
     strategy::context_trait::{StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyInfraExt, StrategyWorkflowExt},
@@ -30,7 +30,10 @@ use virtual_trading::vts_trait::VtsCtxAccessor;
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::{node::node_command::BacktestNodeCommand, strategy::strategy_error::BacktestStrategyError};
+use crate::{
+    node::node_command::BacktestNodeCommand,
+    strategy::strategy_error::{BacktestStrategyError, MissingDataSourceSnafu, MissingStartNodeSnafu},
+};
 
 impl BacktestStrategyContext {
     pub async fn build_workflow(&mut self) -> Result<(), BacktestStrategyError> {
@@ -45,6 +48,30 @@ impl BacktestStrategyContext {
                 strategy_name: self.strategy_name().clone(),
             })?
             .clone(); // 克隆以释放对 self 的借用
+
+        // check node count, if only have one node(start node), throw error
+        if node_config_list.len() == 1 {
+            let node_config = node_config_list[0].clone();
+            let node_type_str = node_config["type"].as_str().unwrap();
+            let node_type = NodeType::from_str(node_type_str).unwrap();
+            match node_type {
+                NodeType::StartNode => {
+                    let error = MissingDataSourceSnafu {
+                        strategy_name: self.strategy_name().clone(),
+                    }
+                    .build();
+                    return Err(error);
+                }
+
+                _ => {
+                    let error = MissingStartNodeSnafu {
+                        strategy_name: self.strategy_name().clone(),
+                    }
+                    .build();
+                    return Err(error);
+                }
+            }
+        }
 
         tracing::debug!("workflow build phase 1: build nodes");
         for node_config in node_config_list {

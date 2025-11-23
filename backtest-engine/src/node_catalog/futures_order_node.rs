@@ -19,7 +19,7 @@ use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
     node::{
         NodeBase, NodeType,
-        context_trait::{NodeIdentityExt, NodeTaskControlExt},
+        context_trait::{NodeInfoExt, NodeTaskControlExt},
         metadata::NodeMetadata,
         node_trait::NodeContextAccessor,
         utils::generate_strategy_output_handle,

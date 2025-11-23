@@ -1,10 +1,13 @@
 // std
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
+use snafu::IntoError;
 // workspace crate
 use star_river_core::custom_type::NodeId;
 // third-party
 use tokio::sync::broadcast;
+
+use crate::error::{NodeError, node_error::NodeEventSendFailedSnafu};
 
 pub type HandleId = String;
 
@@ -98,8 +101,20 @@ impl<E> NodeOutputHandle<E> {
         &self.output_handle_id
     }
 
-    pub fn send(&self, event: E) -> Result<usize, tokio::sync::broadcast::error::SendError<E>> {
-        self.node_event_sender.send(event)
+    pub fn send(&self, event: E) -> Result<(), NodeError>
+    where
+        E: Debug + Send + Sync + 'static,
+    {
+        let result = self.node_event_sender.send(event).map_err(|e| {
+            NodeEventSendFailedSnafu {
+                handle_id: self.output_handle_id.clone(),
+            }
+            .into_error(Arc::new(e))
+        });
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn subscribe(&mut self, subscriber_id: String) -> broadcast::Receiver<E> {

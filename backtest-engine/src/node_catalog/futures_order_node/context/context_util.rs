@@ -11,7 +11,7 @@ use star_river_event::backtest_strategy::node_event::{
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
-    node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 use tokio::sync::oneshot;
 use virtual_trading::{event::VtsEvent, types::VirtualOrder};

@@ -1,10 +1,11 @@
-use chrono::Utc;
+use std::time::Duration;
+
 use event_center::EventCenterSingleton;
-use star_river_core::error::{ErrorLanguage, StarRiverErrorTrait};
+use star_river_core::error::StarRiverErrorTrait;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 use strategy_core::{
     error::strategy_error::WaitAllNodesStoppedTimeoutSnafu,
-    event::strategy_event::{StrategyStateInfoLog, StrategyStateLogEvent},
+    event::strategy_event::StrategyStateLogEvent,
     strategy::{
         context_trait::{StrategyIdentityExt, StrategyStateMachineExt, StrategyWorkflowExt},
         state_machine::StrategyStateMachine,
@@ -118,11 +119,12 @@ impl StrategyLifecycle for BacktestStrategy {
 
     async fn update_strategy_state(&mut self, trigger: Self::Trigger) -> Result<(), Self::Error> {
         // 提前获取所有需要的数据，避免在循环中持有引用
-        let (strategy_name, state_machine) = self
+        let (strategy_id, strategy_name, state_machine) = self
             .with_ctx_read(|ctx| {
+                let strategy_id = ctx.strategy_id();
                 let strategy_name = ctx.strategy_name().clone();
                 let state_machine = ctx.state_machine().clone();
-                (strategy_name, state_machine)
+                (strategy_id, strategy_name, state_machine)
             })
             .await;
 
@@ -206,34 +208,21 @@ impl StrategyLifecycle for BacktestStrategy {
                 }
 
                 BacktestStrategyStateAction::CheckNode => {
-                    tracing::info!("[{}] start check node", &strategy_name);
-                    let (strategy_id, current_state) = self
-                        .with_ctx_read_async(|ctx| Box::pin(async move { (ctx.strategy_id(), ctx.run_state().await) }))
-                        .await;
-
-                    // 辅助函数：处理检查步骤错误
-                    let strategy_name_for_error = strategy_name.clone();
-                    let handle_error = |e: BacktestStrategyError| -> BacktestStrategyError {
-                        let error_message = e.error_message(ErrorLanguage::Chinese);
+                    // 按顺序执行检查步骤
+                    let build_result = self.with_ctx_write_async(|ctx| Box::pin(ctx.build_workflow())).await;
+                    if let Err(e) = build_result {
                         let log_event: BacktestStrategyEvent = StrategyStateLogEvent::error(
                             strategy_id,
-                            strategy_name_for_error.clone(),
-                            current_state.to_string(),
+                            strategy_name.clone(),
+                            BacktestStrategyRunState::Error.to_string(),
                             BacktestStrategyStateAction::CheckNode.to_string(),
-                            Some(e.error_code()),
-                            Some(e.error_code_chain()),
-                            error_message,
+                            &e,
                         )
                         .into();
-
-                        // let backtest_strategy_event = BacktestStrategyEvent::StrategyStateLog(log_event);
-                        let _ = futures::executor::block_on(EventCenterSingleton::publish(log_event.into()));
-                        e
-                    };
-
-                    // 按顺序执行检查步骤
-                    if let Err(e) = self.with_ctx_write_async(|ctx| Box::pin(ctx.build_workflow())).await {
-                        return Err(handle_error(e));
+                        // sleep 500 milliseconds
+                        tokio::time::sleep(Duration::from_millis(2000)).await;
+                        let _ = EventCenterSingleton::publish(log_event.into()).await;
+                        return Err(e);
                     }
                 }
 
@@ -294,6 +283,8 @@ impl StrategyLifecycle for BacktestStrategy {
                         log_message.to_string(),
                     )
                     .into();
+                    // sleep 500 milliseconds
+                    tokio::time::sleep(Duration::from_millis(500)).await;
                     let _ = EventCenterSingleton::publish(log_event.into()).await;
                 }
             };

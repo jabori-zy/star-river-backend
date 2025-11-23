@@ -1,6 +1,6 @@
 use futures::StreamExt;
 use strategy_core::node::{
-    context_trait::{NodeHandleExt, NodeIdentityExt, NodeTaskControlExt},
+    context_trait::{NodeHandleExt, NodeInfoExt, NodeTaskControlExt},
     node_trait::NodeContextAccessor,
 };
 use tokio_stream::wrappers::BroadcastStream;

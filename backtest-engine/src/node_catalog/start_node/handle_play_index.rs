@@ -1,6 +1,15 @@
-use strategy_core::node::{
-    context_trait::{NodeIdentityExt, NodeTaskControlExt},
-    node_trait::NodeContextAccessor,
+use std::sync::Arc;
+
+use star_river_core::error::StarRiverErrorTrait;
+use strategy_core::{
+    event::{
+        node_common_event::CommonEvent,
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+    },
+    node::{
+        context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
+        node_trait::NodeContextAccessor,
+    },
 };
 
 use super::StartNode;
@@ -16,7 +25,7 @@ impl StartNode {
             })
             .await;
 
-        let start_node = self.clone();
+        let context = Arc::clone(self.context());
 
         tracing::info!("[{}]: start to listen play index change", node_name);
         // 节点接收播放索引变化
@@ -32,11 +41,27 @@ impl StartNode {
                     receive_result = play_index_watch_rx.changed() => {
                         match receive_result {
                             Ok(_) => {
-                                start_node.with_ctx_write_async(|ctx| {
-                                    Box::pin(async move {
-                                        ctx.send_play_signal().await;
-                                    })
-                                }).await;
+                                let context_guard = context.write().await;
+                                let result = context_guard.send_play_signal().await;
+
+                                if let Err(e) = result {
+                                    let current_time = context_guard.current_time().await;
+                                    if let Ok(current_time) = current_time {
+                                        let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                            context_guard.strategy_id().clone(),
+                                            context_guard.node_id().clone(),
+                                            context_guard.node_name().clone(),
+                                            StrategyRunningLogSource::Node,
+                                            &e,
+                                            current_time,
+                                        ).into();
+
+                                        if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
+                                            e.report();
+                                        };
+                                    }
+
+                                }
                             }
                             Err(e) => {
                                 tracing::error!("[{}]: listen play index error: {}", node_name, e);

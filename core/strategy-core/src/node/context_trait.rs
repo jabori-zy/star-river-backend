@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 // third-party
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use event_center_core::event::EventTrait;
 use snafu::{IntoError, OptionExt};
 use star_river_core::{
@@ -59,7 +60,7 @@ pub trait NodeMetaDataExt: Debug + Send + Sync + 'static {
 /// 节点身份信息扩展
 ///
 /// 提供节点 ID、名称、类型等只读信息的访问
-pub trait NodeIdentityExt: NodeMetaDataExt {
+pub trait NodeInfoExt: NodeMetaDataExt {
     /// 获取周期 ID
     #[inline]
     fn cycle_id(&self) -> CycleId {
@@ -89,16 +90,10 @@ pub trait NodeIdentityExt: NodeMetaDataExt {
     fn strategy_id(&self) -> StrategyId {
         self.metadata().strategy_id()
     }
-
-    // /// 获取策略名称
-    // #[inline]
-    // fn strategy_name(&self) -> &StrategyName {
-    //     self.metadata().strategy_name()
-    // }
 }
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeIdentity
-impl<Ctx> NodeIdentityExt for Ctx where Ctx: NodeMetaDataExt {}
+impl<Ctx> NodeInfoExt for Ctx where Ctx: NodeMetaDataExt {}
 
 // ============================================================================
 // 扩展 Trait 2: NodeRelation - 节点关系管理
@@ -155,7 +150,7 @@ impl<Ctx> NodeRelationExt for Ctx where Ctx: NodeMetaDataExt {}
 /// 节点句柄管理扩展
 ///
 /// 管理节点的输入/输出句柄和策略输出句柄
-pub trait NodeHandleExt: NodeMetaDataExt + NodeIdentityExt {
+pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
     fn set_output_handles(&mut self);
 
     /// 添加输入句柄
@@ -299,17 +294,17 @@ impl<Ctx> NodeStateMachineExt for Ctx where Ctx: NodeMetaDataExt {}
 ///
 /// 管理与策略和其他节点的通信，包括命令收发和事件发送
 #[async_trait]
-pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelationExt + NodeHandleExt {
+pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt + NodeHandleExt {
     /// 获取策略命令发送器
     #[inline]
     fn strategy_command_sender(&self) -> &mpsc::Sender<Self::StrategyCommand> {
         self.metadata().strategy_command_sender()
     }
 
-    async fn send_strategy_command(&self, command: Self::StrategyCommand) -> Result<(), crate::error::NodeError> {
+    async fn send_strategy_command(&self, command: Self::StrategyCommand) -> Result<(), NodeError> {
         self.strategy_command_sender().send(command).await.map_err(|e| {
             StrategyCommandSendFailedSnafu {
-                node_id: self.node_id().clone(),
+                node_name: self.node_name().clone(),
             }
             .into_error(Arc::new(e))
         })?;
@@ -352,17 +347,10 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     ///
     /// # Arguments
     /// - `event` - 要发送的事件
-    fn strategy_bound_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
+    fn strategy_bound_handle_send(&self, event: Self::NodeEvent) -> Result<(), NodeError> {
         let strategy_handle = self.strategy_bound_handle();
 
-        strategy_handle.send(event).map_err(|e| {
-            NodeEventSendFailedSnafu {
-                handle_id: strategy_handle.output_handle_id().to_string(),
-            }
-            .into_error(Arc::new(e))
-        })?;
-
-        Ok(())
+        strategy_handle.send(event)
     }
 
     /// 发送事件到默认输出句柄
@@ -373,18 +361,13 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         let default_handle = self.default_output_handle()?;
 
         if default_handle.is_connected() {
-            default_handle.send(event).map_err(|e| {
-                NodeEventSendFailedSnafu {
-                    handle_id: default_handle.output_handle_id().clone(),
-                }
-                .into_error(Arc::new(e))
-            })?;
+            default_handle.send(event)
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 
-    fn send_execute_over_event(&self, cycle_id: CycleId, config_id: Option<i32>) -> Result<(), crate::error::NodeError> {
+    fn send_execute_over_event(&self, cycle_id: CycleId, config_id: Option<i32>) -> Result<(), NodeError> {
         if !self.is_leaf_node() {
             return Ok(());
         }
@@ -404,7 +387,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
     }
 
     // send trigger event to downstream node. if current node is leaf node, send execute over event instead.
-    async fn send_trigger_event(&self, handle_id: &str) -> Result<(), crate::error::NodeError> {
+    async fn send_trigger_event(&self, handle_id: &str) -> Result<(), NodeError> {
         // 叶子节点不发送触发事件
         if self.is_leaf_node() {
             // self.send_execute_over_event()?;
@@ -420,22 +403,16 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeIdentityExt + NodeRelation
         })?;
 
         if output_handle.is_connected() {
-            output_handle.send(trigger_event.into()).map_err(|e| {
-                NodeEventSendFailedSnafu {
-                    handle_id: handle_id.to_string(),
-                }
-                .into_error(Arc::new(e))
-            })?;
+            output_handle.send(trigger_event.into())
         } else {
             // tracing::warn!("@[{}] output handle {} is not connected, skip sending event", self.node_name(), handle_id);
+            Ok(())
         }
-
-        Ok(())
     }
 }
 
 // 自动为所有实现 NodeMetaDataTrait 的类型实现 NodeControl
-impl<Ctx> NodeCommunicationExt for Ctx where Ctx: NodeMetaDataExt + NodeIdentityExt + NodeRelationExt + NodeHandleExt {}
+impl<Ctx> NodeCommunicationExt for Ctx where Ctx: NodeMetaDataExt + NodeInfoExt + NodeRelationExt + NodeHandleExt {}
 
 // ============================================================================
 // 扩展 Trait 6: NodeControl - 节点运行控制
@@ -500,7 +477,7 @@ pub trait NodeEventHandlerExt: NodeMetaDataExt {
 ///
 /// 提供向策略发送性能统计数据的功能
 #[async_trait]
-pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeIdentityExt + NodeCommunicationExt {
+pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeInfoExt + NodeCommunicationExt {
     type Error: StarRiverErrorTrait;
 
     /// 挂载节点周期追踪数据
@@ -509,8 +486,14 @@ pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeIdentityExt + NodeCommunicatio
     ///
     /// # Arguments
     /// - `node_id` - 节点 ID
+    /// - `node_name` - 节点名称
     /// - `cycle_tracker` - 周期追踪数据
-    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error>;
+    async fn mount_node_cycle_tracker(
+        &self,
+        node_id: NodeId,
+        node_name: NodeName,
+        cycle_tracker: CompletedCycle,
+    ) -> Result<(), Self::Error>;
 }
 
 // ============================================================================
@@ -522,7 +505,7 @@ pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeIdentityExt + NodeCommunicatio
 /// 组合了所有节点上下文需要的功能，为节点提供完整的能力集
 pub trait NodeContextExt:
     NodeMetaDataExt
-    + NodeIdentityExt
+    + NodeInfoExt
     + NodeRelationExt
     + NodeHandleExt
     + NodeStateMachineExt
@@ -536,7 +519,7 @@ pub trait NodeContextExt:
 // 自动为所有满足所有约束的类型实现 StrategyNodeContext
 impl<Ctx> NodeContextExt for Ctx where
     Ctx: NodeMetaDataExt
-        + NodeIdentityExt
+        + NodeInfoExt
         + NodeRelationExt
         + NodeHandleExt
         + NodeStateMachineExt

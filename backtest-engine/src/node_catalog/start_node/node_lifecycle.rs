@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use strategy_core::{
     NodeType,
-    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
     node::{
-        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        context_trait::{NodeHandleExt, NodeInfoExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
     },
@@ -11,7 +10,7 @@ use strategy_core::{
 
 use super::{StartNode, state_machine::StartNodeAction};
 use crate::node::{
-    node_error::BacktestNodeError,
+    node_error::StartNodeError,
     node_message::{common_log_message::*, start_node_log_message::*},
     node_state_machine::NodeStateTransTrigger,
     node_utils::NodeUtils,
@@ -19,7 +18,7 @@ use crate::node::{
 
 #[async_trait]
 impl NodeLifecycle for StartNode {
-    type Error = BacktestNodeError;
+    type Error = StartNodeError;
 
     type Trigger = NodeStateTransTrigger;
 
@@ -27,7 +26,7 @@ impl NodeLifecycle for StartNode {
         NodeUtils::init_node(self, None).await
     }
 
-    async fn stop(&self) -> Result<(), BacktestNodeError> {
+    async fn stop(&self) -> Result<(), Self::Error> {
         NodeUtils::stop_node(self, None).await
     }
 

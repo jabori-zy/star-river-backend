@@ -1,5 +1,5 @@
 use strategy_core::node::{
-    context_trait::{NodeIdentityExt, NodeTaskControlExt},
+    context_trait::{NodeInfoExt, NodeTaskControlExt},
     node_trait::NodeContextAccessor,
 };
 

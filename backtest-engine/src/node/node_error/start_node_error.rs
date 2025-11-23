@@ -1,31 +1,21 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
+use strategy_core::error::{NodeError, NodeStateMachineError};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum StartNodeError {
-    Empty { backtrace: Backtrace }, // >= 0
-                                    // #[snafu(display("[{node_name}] config {config_name} should be greater than or equal to(>= 0) zero, but got [{config_value}]"))]
-                                    // ValueNotGreaterThanOrEqualToZero {
-                                    //     node_name: String,
-                                    //     config_name: String,
-                                    //     config_value: f64,
-                                    //     backtrace: Backtrace,
-                                    // },
+    #[snafu(transparent)]
+    NodeError { source: NodeError, backtrace: Backtrace },
 
-                                    // // > 0
-                                    // #[snafu(display(
-                                    //     "[{node_name}] config [{config_name}] should be greater than(> 0) zero, but got [{config_value}]"
-                                    // ))]
-                                    // ValueNotGreaterThanZero {
-                                    //     node_name: String,
-                                    //     config_name: String,
-                                    //     config_value: f64,
-                                    //     backtrace: Backtrace,
-                                    // },
+    #[snafu(transparent)]
+    StateMachineError {
+        source: NodeStateMachineError,
+        backtrace: Backtrace,
+    },
 }
 
-// Implement the StarRiverErrorTrait for Mt5Error
+// Implement the StarRiverErrorTrait for StartNodeError
 impl StarRiverErrorTrait for StartNodeError {
     fn get_prefix(&self) -> &'static str {
         "START_NODE"
@@ -34,7 +24,8 @@ impl StarRiverErrorTrait for StartNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            StartNodeError::Empty { .. } => 1001, // empty
+            StartNodeError::NodeError { .. } => 1001,         // node error
+            StartNodeError::StateMachineError { .. } => 1002, // state machine error
         };
 
         format!("{}_{:04}", prefix, code)
@@ -42,25 +33,25 @@ impl StarRiverErrorTrait for StartNodeError {
 
     fn http_status_code(&self) -> StatusCode {
         match self {
-            StartNodeError::Empty { .. } => StatusCode::BAD_REQUEST, // 400 Bad Request
+            StartNodeError::NodeError { source, .. } => source.http_status_code(),
+            StartNodeError::StateMachineError { source, .. } => source.http_status_code(),
         }
     }
 
     fn error_message(&self, language: ErrorLanguage) -> String {
         match language {
-            ErrorLanguage::English => {
-                // 直接使用 Display trait 中定义的英文消息
-                self.to_string()
-            }
+            ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
-                StartNodeError::Empty { .. } => {
-                    format!("开始节点是空的")
-                }
+                StartNodeError::NodeError { source, .. } => source.error_message(language),
+                StartNodeError::StateMachineError { source, .. } => source.error_message(language),
             },
         }
     }
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
-        vec![self.error_code()]
+        match self {
+            StartNodeError::NodeError { source, .. } => generate_error_code_chain(source),
+            StartNodeError::StateMachineError { source, .. } => generate_error_code_chain(source),
+        }
     }
 }

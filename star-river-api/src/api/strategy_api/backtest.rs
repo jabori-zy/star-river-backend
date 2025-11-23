@@ -6,3 +6,5 @@ pub mod playback_control;
 pub use chart_config::*;
 pub use data_query::*;
 pub use playback_control::*;
+
+const BACKTEST_CONTROL_TAG: &str = "Backtest";

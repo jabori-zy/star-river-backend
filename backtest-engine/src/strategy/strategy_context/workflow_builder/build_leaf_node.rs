@@ -8,7 +8,7 @@ use strategy_core::{
     error::strategy_error::NodeNotFoundByIndexSnafu,
     node::{
         NodeTrait,
-        context_trait::{NodeHandleExt, NodeIdentityExt},
+        context_trait::{NodeHandleExt, NodeInfoExt},
         node_trait::NodeContextAccessor,
     },
     strategy::{

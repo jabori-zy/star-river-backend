@@ -22,9 +22,10 @@ use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 
+use super::BACKTEST_CONTROL_TAG;
 use crate::{
-    api::response::NewApiResponse,
-    error::{ApiError, ParseDataTimeFailedSnafu},
+    api::response::{ApiResponseEnum, NewApiResponse},
+    error::ParseDataTimeFailedSnafu,
     star_river::StarRiver,
 };
 
@@ -232,32 +233,35 @@ pub async fn get_history_positions(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/strategy/backtest/{strategy_id}/status",
-    tag = "Backtest Strategy",
-    summary = "Get strategy status",
+    path = "/api/v1/strategy/backtest/{strategy_id}/run-state",
+    tag = BACKTEST_CONTROL_TAG,
+    summary = "Get strategy run state",
     params(
-        ("strategy_id" = i32, Path, description = "The ID of the strategy to get status")
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get run state")
     ),
     responses(
-        (status = 200, description = "Get strategy status successfully", body = NewApiResponse<String>),
-        (status = 400, description = "Get strategy status failed", body = NewApiResponse<String>)
+        (status = 200, description = "Get strategy run state successfully", body = ApiResponseEnum<String>),
+        (status = 400, description = "Get strategy run state failed", body = ApiResponseEnum<String>)
     )
 )]
-pub async fn get_strategy_status(
+pub async fn get_strategy_run_state(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<NewApiResponse<String>>) {
+) -> (StatusCode, Json<ApiResponseEnum<String>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<String, BacktestEngineError> = engine_guard
-        .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_strategy_status(strategy_id).await }))
+    let result = engine_guard
+        .with_ctx_read_async(|ctx| Box::pin(async move { ctx.get_strategy_run_state(strategy_id).await }))
         .await;
 
     match result {
-        Ok(status) => (StatusCode::OK, Json(NewApiResponse::success(status))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(NewApiResponse::error(e))),
+        Ok(status) => (StatusCode::OK, Json(ApiResponseEnum::success(status))),
+        Err(e) => {
+            e.report();
+            (e.http_status_code(), Json(ApiResponseEnum::error(e)))
+        }
     }
 }
 

@@ -22,8 +22,8 @@ pub struct NodeEvent<T: Debug + Send + Sync + Clone> {
 }
 
 impl<T: Debug + Send + Sync + Clone> NodeEvent<T> {
-    pub fn new(from_node_id: String, from_node_name: String, from_node_handle_id: String, payload: T) -> Self {
-        let node_event_base = NodeEventBase::new(from_node_id, from_node_name, from_node_handle_id);
+    pub fn new(node_id: NodeId, node_name: NodeName, output_handle_id: HandleId, payload: T) -> Self {
+        let node_event_base = NodeEventBase::new(node_id, node_name, output_handle_id);
         Self { node_event_base, payload }
     }
 }

@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode};
+use star_river_core::{
+    custom_type::NodeName,
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode},
+};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -9,10 +12,10 @@ pub enum NodeError {
     #[snafu(display("unsupported backtest node type: {node_type}"))]
     UnsupportedNodeType { node_type: String, backtrace: Backtrace },
 
-    #[snafu(display("backtest node config field value is null: {field_name}"))]
+    #[snafu(display("config field value is null: {field_name}"))]
     ConfigFieldValueNull { field_name: String, backtrace: Backtrace },
 
-    #[snafu(display("backtest node config deserialization failed. reason: {source}"))]
+    #[snafu(display("config deserialization failed. reason: {source}"))]
     ConfigDeserializationFailed { source: serde_json::Error, backtrace: Backtrace },
 
     #[snafu(display("kline node [{node_id}] name is null"))]
@@ -55,25 +58,25 @@ pub enum NodeError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("strategy command send failed: {node_id}, reason: {source}"))]
+    #[snafu(display("@[{node_name}] strategy command send failed, reason: {source}"))]
     StrategyCommandSendFailed {
-        node_id: String,
+        node_name: NodeName,
         #[snafu(source(true))]
         source: Arc<dyn std::error::Error + Send + Sync + 'static>,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("node command send failed: {node_id}, reason: {source}"))]
+    #[snafu(display("@[{node_name}] node command send failed, reason: {source}"))]
     NodeCommandSendFailed {
-        node_id: String,
+        node_name: NodeName,
         #[snafu(source(true))]
         source: Arc<dyn std::error::Error + Send + Sync + 'static>,
         backtrace: Backtrace,
     },
 
-    #[snafu(display("strategy command response receive failed: {node_id}, reason: {source}"))]
-    StrategyCommandRespRecvFailed {
-        node_id: String,
+    #[snafu(display("@[{node_name}] strategy command response receive failed, reason: {source}"))]
+    StrategyCmdRespRecvFailed {
+        node_name: NodeName,
         #[snafu(source(true))]
         source: tokio::sync::oneshot::error::RecvError,
         backtrace: Backtrace,
@@ -89,20 +92,20 @@ impl StarRiverErrorTrait for NodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            NodeError::UnsupportedNodeType { .. } => 1002,              // unsupported node type
-            NodeError::ConfigFieldValueNull { .. } => 1003,             // node config field value is null
-            NodeError::ConfigDeserializationFailed { .. } => 1004,      // node config deserialization failed
-            NodeError::NodeNameIsNull { .. } => 1005,                   // node name is null
-            NodeError::NodeIdIsNull { .. } => 1006,                     // node id is null
-            NodeError::NodeDataIsNull { .. } => 1007,                   // node data is null
-            NodeError::ValueNotGreaterThanOrEqualToZero { .. } => 1008, // value not greater than or equal to zero (>= 0)
-            NodeError::ValueNotGreaterThanZero { .. } => 1009,          // value not greater than zero (> 0)
-            NodeError::NodeCycleTrackerMountFailed { .. } => 1010,      // node cycle tracker mount failed
-            NodeError::OutputHandleNotFound { .. } => 1011,             // output handle not found
-            NodeError::NodeEventSendFailed { .. } => 1012,              // node event send failed
-            NodeError::StrategyCommandSendFailed { .. } => 1013,        // strategy command send failed
-            NodeError::NodeCommandSendFailed { .. } => 1014,            // node command send failed.
-            NodeError::StrategyCommandRespRecvFailed { .. } => 1015,    // strategy command response receive failed.
+            NodeError::UnsupportedNodeType { .. } => 1001,              // unsupported node type
+            NodeError::ConfigFieldValueNull { .. } => 1002,             // node config field value is null
+            NodeError::ConfigDeserializationFailed { .. } => 1003,      // node config deserialization failed
+            NodeError::NodeNameIsNull { .. } => 1004,                   // node name is null
+            NodeError::NodeIdIsNull { .. } => 1005,                     // node id is null
+            NodeError::NodeDataIsNull { .. } => 1006,                   // node data is null
+            NodeError::ValueNotGreaterThanOrEqualToZero { .. } => 1007, // value not greater than or equal to zero (>= 0)
+            NodeError::ValueNotGreaterThanZero { .. } => 1008,          // value not greater than zero (> 0)
+            NodeError::NodeCycleTrackerMountFailed { .. } => 1009,      // node cycle tracker mount failed
+            NodeError::OutputHandleNotFound { .. } => 1010,             // output handle not found
+            NodeError::NodeEventSendFailed { .. } => 1011,              // node event send failed
+            NodeError::StrategyCommandSendFailed { .. } => 1012,        // strategy command send failed
+            NodeError::NodeCommandSendFailed { .. } => 1013,            // node command send failed.
+            NodeError::StrategyCmdRespRecvFailed { .. } => 1014,        // strategy command response receive failed.
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -122,7 +125,7 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::NodeEventSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::StrategyCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::NodeCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            NodeError::StrategyCommandRespRecvFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            NodeError::StrategyCmdRespRecvFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -176,14 +179,14 @@ impl StarRiverErrorTrait for NodeError {
                     NodeError::NodeEventSendFailed { handle_id, source, .. } => {
                         format!("节点事件发送失败: {}, 原因: {}", handle_id, source)
                     }
-                    NodeError::StrategyCommandSendFailed { node_id, source, .. } => {
-                        format!("策略命令发送失败: [{node_id}], 原因: {}", source)
+                    NodeError::StrategyCommandSendFailed { node_name, source, .. } => {
+                        format!("@[{node_name}] 策略命令发送失败, 原因: {}", source)
                     }
-                    NodeError::NodeCommandSendFailed { node_id, source, .. } => {
-                        format!("节点命令发送失败: [{node_id}], 原因: {}", source)
+                    NodeError::NodeCommandSendFailed { node_name, source, .. } => {
+                        format!("@[{node_name}] 节点命令发送失败, 原因: {}", source)
                     }
-                    NodeError::StrategyCommandRespRecvFailed { node_id, source, .. } => {
-                        format!("策略命令响应接收失败: [{node_id}], 原因: {}", source)
+                    NodeError::StrategyCmdRespRecvFailed { node_name, source, .. } => {
+                        format!("@[{node_name}] 策略命令响应接收失败, 原因: {}", source)
                     }
                 }
             }

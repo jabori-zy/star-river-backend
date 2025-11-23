@@ -14,7 +14,7 @@ use star_river_core::{
     system::TimeRange,
 };
 use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
-use strategy_core::node::context_trait::NodeIdentityExt;
+use strategy_core::node::context_trait::NodeInfoExt;
 use tokio::sync::{Semaphore, oneshot};
 
 // current crate

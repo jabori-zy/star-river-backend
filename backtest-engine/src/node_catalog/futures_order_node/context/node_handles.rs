@@ -1,5 +1,5 @@
 use star_river_core::order::OrderType;
-use strategy_core::node::context_trait::{NodeHandleExt, NodeIdentityExt};
+use strategy_core::node::context_trait::{NodeHandleExt, NodeInfoExt};
 use tokio::sync::broadcast;
 
 use super::FuturesOrderNodeContext;

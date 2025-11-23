@@ -11,7 +11,7 @@ use strategy_core::{
         node_common_event::CommonEvent,
         strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
     },
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 use virtual_trading::{
     event::VtsEvent,
@@ -88,7 +88,7 @@ impl FuturesOrderNodeContext {
 
                     cycle_tracker.end_phase(&phase_name);
                     let completed_tracker = cycle_tracker.end();
-                    self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                         .await
                         .unwrap();
                 }
@@ -126,14 +126,14 @@ impl FuturesOrderNodeContext {
                             self.independent_order_send_trigger_event(order_config_id).await;
                             cycle_tracker.end_phase(&phase_name);
                             let completed_tracker = cycle_tracker.end();
-                            self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                            self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                                 .await
                                 .unwrap();
                             return;
                         }
                         cycle_tracker.end_phase(&phase_name);
                         let completed_tracker = cycle_tracker.end();
-                        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                             .await
                             .unwrap();
                     }

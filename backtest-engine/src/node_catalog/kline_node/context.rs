@@ -13,7 +13,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
 use key::KlineKey;
-use star_river_core::custom_type::NodeId;
+use star_river_core::custom_type::{NodeId, NodeName};
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
     node::{
@@ -114,8 +114,14 @@ impl NodeMetaDataExt for KlineNodeContext {
 impl NodeBenchmarkExt for KlineNodeContext {
     type Error = crate::node::node_error::BacktestNodeError;
 
-    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
-        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+    async fn mount_node_cycle_tracker(
+        &self,
+        node_id: NodeId,
+        node_name: NodeName,
+        cycle_tracker: CompletedCycle,
+    ) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, node_name, cycle_tracker, self.strategy_command_sender())
+            .await?;
         Ok(())
     }
 }

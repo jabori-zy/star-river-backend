@@ -3,7 +3,7 @@ use event_center::Event;
 use star_river_event::backtest_strategy::node_event::IfElseNodeEvent;
 use strategy_core::{
     event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload},
-    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 
 use super::PositionNodeContext;

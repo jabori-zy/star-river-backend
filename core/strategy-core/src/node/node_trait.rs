@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 // current crate
 use super::{
     context_trait::{
-        NodeCommunicationExt, NodeContextExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeMetaDataExt, NodeTaskControlExt,
+        NodeCommunicationExt, NodeContextExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeMetaDataExt, NodeTaskControlExt,
     },
     node_state_machine::StateTransTrigger,
 };

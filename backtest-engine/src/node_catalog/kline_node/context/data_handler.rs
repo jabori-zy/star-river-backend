@@ -3,7 +3,7 @@ use snafu::IntoError;
 use star_river_core::kline::Kline;
 use strategy_core::{
     communication::strategy::StrategyResponse,
-    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+    node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 // third-party
 use tokio::sync::oneshot;

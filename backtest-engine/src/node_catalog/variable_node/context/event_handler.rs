@@ -4,7 +4,7 @@ use futures::stream::{self, StreamExt};
 use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent};
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeInfoExt, NodeRelationExt},
     node_infra::variable_node::trigger::dataflow::DataFlow,
 };
 
@@ -41,7 +41,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         self.handle_condition_trigger(&configs).await;
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();
-                        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                             .await
                             .unwrap();
                     }
@@ -79,7 +79,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         self.handle_condition_trigger(&configs).await;
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();
-                        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                             .await
                             .unwrap();
                     }
@@ -100,7 +100,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await.unwrap();
                 node_cycle_tracker.end_phase("handle_dataflow_trigger");
                 let completed_tracker = node_cycle_tracker.end();
-                self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                     .await
                     .unwrap();
             }
@@ -116,7 +116,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await.unwrap();
                 node_cycle_tracker.end_phase("handle_dataflow_trigger");
                 let completed_tracker = node_cycle_tracker.end();
-                self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                     .await
                     .unwrap();
             }

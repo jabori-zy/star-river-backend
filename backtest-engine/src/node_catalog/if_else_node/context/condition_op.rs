@@ -17,7 +17,7 @@ use strategy_core::{
         node_common_event::CommonEvent,
         strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
     },
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
     node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},
 };
 use tokio::sync::oneshot;
@@ -126,7 +126,7 @@ impl IfElseNodeContext {
             cycle_tracker.end_phase(&phase_name);
         }
         let completed_tracker = cycle_tracker.end();
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
             .await
             .unwrap();
         Ok(())

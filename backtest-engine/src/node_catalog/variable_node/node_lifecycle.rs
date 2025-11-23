@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use strategy_core::{
     NodeType,
     node::{
-        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        context_trait::{NodeHandleExt, NodeInfoExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
     },

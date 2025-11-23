@@ -9,7 +9,7 @@ use star_river_event::backtest_strategy::node_event::{
 use strategy_core::{
     communication::strategy::StrategyResponse,
     event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
-    node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
     node_infra::variable_node::{
         VariableConfig,
         trigger::{

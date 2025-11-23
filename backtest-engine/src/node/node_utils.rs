@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use snafu::{IntoError, ResultExt};
 use star_river_core::{
     custom_type::{NodeId, NodeName, StrategyId},
@@ -8,21 +9,27 @@ use star_river_core::{
 use strategy_core::{
     NodeType,
     benchmark::node_benchmark::CompletedCycle,
-    error::node_error::{NodeError, StrategyCommandRespRecvFailedSnafu, StrategyCommandSendFailedSnafu},
+    communication::strategy::StrategyResponse,
+    error::node_error::{NodeError, StrategyCmdRespRecvFailedSnafu, StrategyCommandSendFailedSnafu},
     event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
     node::{
-        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt},
+        context_trait::{NodeInfoExt, NodeStateMachineExt},
         node_handles::NodeOutputHandle,
         node_state_machine::StateAction,
         node_trait::{NodeContextAccessor, NodeLifecycle},
     },
 };
-use tokio::{sync::mpsc, time::Duration};
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::Duration,
+};
 
 use super::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 use crate::{
     node::node_event::BacktestNodeEvent,
-    strategy::strategy_command::{AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestStrategyCommand},
+    strategy::strategy_command::{
+        AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestStrategyCommand, GetCurrentTimeCmdPayload, GetCurrentTimeCommand,
+    },
 };
 
 // current crate
@@ -48,6 +55,7 @@ impl NodeUtils {
     /// - `Err`: Failed to send command or receive response
     pub async fn mount_node_cycle_tracker(
         node_id: NodeId,
+        node_name: NodeName,
         cycle_tracker: CompletedCycle,
         strategy_command_sender: &mpsc::Sender<BacktestStrategyCommand>,
     ) -> Result<(), NodeError> {
@@ -57,13 +65,13 @@ impl NodeUtils {
 
         strategy_command_sender.send(command).await.map_err(|e| {
             StrategyCommandSendFailedSnafu {
-                node_id: node_id.to_string(),
+                node_name: node_name.clone(),
             }
             .into_error(Arc::new(e))
         })?;
 
-        resp_rx.await.context(StrategyCommandRespRecvFailedSnafu {
-            node_id: node_id.to_string(),
+        resp_rx.await.context(StrategyCmdRespRecvFailedSnafu {
+            node_name: node_name.clone(),
         })?;
 
         Ok(())
@@ -135,7 +143,7 @@ impl NodeUtils {
     pub async fn init_node<N>(node: &N, sleep_duration: Option<u64>) -> Result<(), N::Error>
     where
         N: NodeLifecycle<Trigger = NodeStateTransTrigger> + NodeContextAccessor,
-        N::Context: NodeIdentityExt + NodeStateMachineExt,
+        N::Context: NodeInfoExt + NodeStateMachineExt,
     {
         let node_name = node.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
         tracing::info!("================={}====================", node_name);
@@ -180,7 +188,7 @@ impl NodeUtils {
     pub async fn stop_node<N>(node: &N, sleep_duration: Option<u64>) -> Result<(), N::Error>
     where
         N: NodeLifecycle<Trigger = NodeStateTransTrigger> + NodeContextAccessor,
-        N::Context: NodeIdentityExt,
+        N::Context: NodeInfoExt,
     {
         let node_name = node.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
         tracing::info!("[{node_name}] start stop");
@@ -197,5 +205,34 @@ impl NodeUtils {
         node.update_node_state(NodeStateTransTrigger::FinishStop).await?;
 
         Ok(())
+    }
+
+    pub async fn get_current_time_from_strategy(
+        node_id: NodeId,
+        node_name: NodeName,
+        strategy_command_sender: &mpsc::Sender<BacktestStrategyCommand>,
+    ) -> Result<DateTime<Utc>, NodeError> {
+        let (tx, rx) = oneshot::channel();
+
+        let payload = GetCurrentTimeCmdPayload;
+        let cmd = GetCurrentTimeCommand::new(node_id.clone(), tx, payload);
+        strategy_command_sender.send(cmd.into()).await.map_err(|e| {
+            StrategyCommandSendFailedSnafu {
+                node_name: node_name.clone(),
+            }
+            .into_error(Arc::new(e))
+        })?;
+
+        let response = rx.await.context(StrategyCmdRespRecvFailedSnafu {
+            node_name: node_name.clone(),
+        })?;
+        match response {
+            StrategyResponse::Success { payload, .. } => {
+                return Ok(payload.current_time.clone());
+            }
+            StrategyResponse::Fail { .. } => {
+                return Ok(Utc::now());
+            }
+        }
     }
 }

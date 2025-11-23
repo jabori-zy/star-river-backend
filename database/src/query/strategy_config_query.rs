@@ -79,31 +79,23 @@ impl StrategyConfigQuery {
         Ok(strategy_model.into())
     }
 
-    pub async fn get_backtest_chart_config_by_strategy_id(db: &DbConn, strategy_id: i32) -> Result<JsonValue, DbErr> {
-        let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
-            .filter(strategy_config::Column::IsDeleted.eq(false))
-            .one(db)
-            .await?;
-
-        if let Some(config) = strategy_config {
-            Ok(config.backtest_chart_config.unwrap_or(JsonValue::Null))
-        } else {
-            Ok(JsonValue::Null)
-        }
-    }
-
-    pub async fn get_strategy_status_by_strategy_id(db: &DbConn, strategy_id: i32) -> Result<String, DatabaseError> {
+    pub async fn get_backtest_chart_config_by_strategy_id(db: &DbConn, strategy_id: i32) -> Result<JsonValue, DatabaseError> {
         let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
             .filter(strategy_config::Column::IsDeleted.eq(false))
             .one(db)
             .await?
-            .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))
-            .map(Into::into)?;
+            .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))?;
 
-        if let Some(config) = strategy_config {
-            Ok(config.status)
-        } else {
-            Ok("stopped".to_string())
-        }
+        Ok(strategy_config.backtest_chart_config.unwrap_or(JsonValue::Null))
+    }
+
+    pub async fn get_strategy_run_state(db: &DbConn, strategy_id: i32) -> Result<String, DatabaseError> {
+        let strategy_config = StrategyConfigEntity::find_by_id(strategy_id)
+            .filter(strategy_config::Column::IsDeleted.eq(false))
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("Cannot find strategy.".to_owned()))?;
+
+        Ok(strategy_config.status)
     }
 }

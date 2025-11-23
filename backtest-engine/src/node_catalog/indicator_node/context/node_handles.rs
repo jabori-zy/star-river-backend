@@ -1,5 +1,5 @@
 use strategy_core::node::{
-    context_trait::{NodeHandleExt, NodeIdentityExt},
+    context_trait::{NodeHandleExt, NodeInfoExt},
     utils::generate_default_output_handle,
 };
 use tokio::sync::broadcast;

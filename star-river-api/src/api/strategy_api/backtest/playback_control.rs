@@ -8,12 +8,11 @@ use snafu::Report;
 use star_river_core::error::StarRiverErrorTrait;
 use tracing::instrument;
 
+use super::BACKTEST_CONTROL_TAG;
 use crate::{
     api::response::{ApiResponseEnum, NewApiResponse},
     star_river::StarRiver,
 };
-
-const BACKTEST_CONTROL_TAG: &str = "Backtest Control";
 
 // 初始化策略
 #[utoipa::path(

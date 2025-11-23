@@ -10,7 +10,7 @@ use star_river_event::communication::{
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
-    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+    node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 use tokio::sync::oneshot;
 use tracing::instrument;

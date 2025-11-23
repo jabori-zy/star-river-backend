@@ -77,10 +77,11 @@ impl StrategyStateLogEvent {
         strategy_name: String,
         strategy_state: String,
         strategy_state_action: String,
-        error_code: Option<String>,
-        error_code_chain: Option<Vec<String>>,
-        message: String,
+        error: &impl StarRiverErrorTrait,
     ) -> Self {
+        let error_code = error.error_code().to_string();
+        let error_code_chain = error.error_code_chain();
+        let message = error.error_message(ErrorLanguage::Chinese);
         Self::Error(StrategyStateErrorLog {
             strategy_id,
             strategy_name,
@@ -168,8 +169,8 @@ pub struct StrategyStateErrorLog {
     pub strategy_name: String,
     pub strategy_state: String,
     pub strategy_state_action: String,
-    pub error_code: Option<String>,
-    pub error_code_chain: Option<Vec<String>>,
+    pub error_code: String,
+    pub error_code_chain: Vec<String>,
     pub message: String,
     pub datetime: DateTime<Utc>,
 }
@@ -180,8 +181,8 @@ impl StrategyStateErrorLog {
         strategy_name: String,
         strategy_state: String,
         strategy_state_action: String,
-        error_code: Option<String>,
-        error_code_chain: Option<Vec<String>>,
+        error_code: String,
+        error_code_chain: Vec<String>,
         message: String,
     ) -> Self {
         Self {
@@ -287,11 +288,9 @@ impl StrategyRunningLogEvent {
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         message: String,
         error_code: Option<String>,
         error_code_chain: Option<Vec<String>>,
-        detail: serde_json::Value,
         datetime: DateTime<Utc>,
     ) -> Self {
         Self::Warn(StrategyRunningWarnLog::new(
@@ -299,11 +298,9 @@ impl StrategyRunningLogEvent {
             node_id,
             node_name,
             source,
-            log_type,
             message,
             error_code,
             error_code_chain,
-            detail,
             Some(datetime),
         ))
     }
@@ -313,24 +310,17 @@ impl StrategyRunningLogEvent {
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
-        message: String,
-        error_code: Option<String>,
-        error_code_chain: Option<Vec<String>>,
-        detail: serde_json::Value,
+        error: &impl StarRiverErrorTrait,
         datetime: DateTime<Utc>,
     ) -> Self {
-        Self::Error(StrategyRunningErrorLog::new(
+        Self::Error(StrategyRunningErrorLog::new_with_time(
             strategy_id,
             node_id,
             node_name,
             source,
-            log_type,
-            message,
-            error_code,
-            error_code_chain,
-            detail,
-            Some(datetime),
+            ErrorLanguage::English,
+            error,
+            datetime,
         ))
     }
 
@@ -338,8 +328,8 @@ impl StrategyRunningLogEvent {
         strategy_id: StrategyId,
         node_id: NodeId,
         node_name: NodeName,
-        source: StrategyRunningLogSource,
         log_type: StrategyRunningLogType,
+        source: StrategyRunningLogSource,
         message: String,
         detail: serde_json::Value,
     ) -> Self {
@@ -360,22 +350,18 @@ impl StrategyRunningLogEvent {
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         message: String,
         error_code: Option<String>,
         error_code_chain: Option<Vec<String>>,
-        detail: serde_json::Value,
     ) -> Self {
         Self::Warn(StrategyRunningWarnLog::new(
             strategy_id,
             node_id,
             node_name,
             source,
-            log_type,
             message,
             error_code,
             error_code_chain,
-            detail,
             None,
         ))
     }
@@ -385,24 +371,9 @@ impl StrategyRunningLogEvent {
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
-        message: String,
-        error_code: Option<String>,
-        error_code_chain: Option<Vec<String>>,
-        detail: serde_json::Value,
+        error: &impl StarRiverErrorTrait,
     ) -> Self {
-        Self::Error(StrategyRunningErrorLog::new(
-            strategy_id,
-            node_id,
-            node_name,
-            source,
-            log_type,
-            message,
-            error_code,
-            error_code_chain,
-            detail,
-            None,
-        ))
+        Self::Error(StrategyRunningErrorLog::new(strategy_id, node_id, node_name, source, error, None))
     }
 }
 
@@ -452,13 +423,11 @@ pub struct StrategyRunningWarnLog {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub node_name: NodeName,
-    pub output_handle_id: HandleId,
     pub source: StrategyRunningLogSource,
-    pub log_type: StrategyRunningLogType,
+    pub output_handle_id: HandleId,
     pub message: String,
     pub error_code: Option<String>,
     pub error_code_chain: Option<Vec<String>>,
-    pub detail: serde_json::Value,
     pub datetime: DateTime<Utc>,
 }
 
@@ -468,11 +437,9 @@ impl StrategyRunningWarnLog {
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         message: String,
         error_code: Option<String>,
         error_code_chain: Option<Vec<String>>,
-        detail: serde_json::Value,
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
@@ -480,27 +447,23 @@ impl StrategyRunningWarnLog {
             strategy_id,
             node_id: node_id.clone(),
             node_name,
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
-            log_type,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             message,
             error_code,
             error_code_chain,
-            detail,
             datetime,
         }
     }
 
-    pub fn new_with_error(
+    pub fn new_with_time(
         strategy_id: StrategyId,
         node_id: NodeId,
         node_name: NodeName,
-        source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         language: Option<ErrorLanguage>,
+        source: StrategyRunningLogSource,
         message: Option<String>,
         error: Option<&impl StarRiverErrorTrait>,
-        detail: serde_json::Value,
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
@@ -525,13 +488,11 @@ impl StrategyRunningWarnLog {
             strategy_id,
             node_id: node_id.clone(),
             node_name,
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
-            log_type,
+            output_handle_id: format!("{}_strategy_output_handle", node_id),
             message: final_message,
             error_code,
             error_code_chain,
-            detail,
             datetime,
         }
     }
@@ -545,11 +506,9 @@ pub struct StrategyRunningErrorLog {
     pub node_name: NodeName,
     pub output_handle_id: HandleId,
     pub source: StrategyRunningLogSource,
-    pub log_type: StrategyRunningLogType,
     pub message: String,
-    pub detail: serde_json::Value,
-    pub error_code: Option<String>,
-    pub error_code_chain: Option<Vec<String>>,
+    pub error_code: String,
+    pub error_code_chain: Vec<String>,
     pub datetime: DateTime<Utc>,
 }
 
@@ -559,52 +518,44 @@ impl StrategyRunningErrorLog {
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
-        message: String,
-        error_code: Option<String>,
-        error_code_chain: Option<Vec<String>>,
-        detail: serde_json::Value,
+        error: &impl StarRiverErrorTrait,
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
+        let message = error.error_message(ErrorLanguage::Chinese);
+        let error_code = error.error_code().to_string();
+        let error_code_chain = error.error_code_chain();
         Self {
             strategy_id,
             node_id: node_id.clone(),
             output_handle_id: format!("{}_strategy_output_handle", node_id),
-            node_name,
             source,
-            log_type,
+            node_name,
             message,
             error_code,
             error_code_chain,
-            detail,
             datetime,
         }
     }
 
-    pub fn new_with_error(
+    pub fn new_with_time(
         strategy_id: StrategyId,
         node_id: NodeId,
         node_name: NodeName,
         source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         language: ErrorLanguage,
         error: &impl StarRiverErrorTrait,
-        detail: serde_json::Value,
-        datetime: Option<DateTime<Utc>>,
+        datetime: DateTime<Utc>,
     ) -> Self {
-        let datetime = datetime.unwrap_or(Utc::now());
         Self {
             strategy_id,
             node_id: node_id.clone(),
             node_name,
             output_handle_id: format!("{}_strategy_output_handle", node_id),
             source,
-            log_type,
             message: error.error_message(language),
-            error_code: Some(error.error_code().to_string()),
-            error_code_chain: Some(error.error_code_chain()),
-            detail,
+            error_code: error.error_code().to_string(),
+            error_code_chain: error.error_code_chain(),
             datetime,
         }
     }

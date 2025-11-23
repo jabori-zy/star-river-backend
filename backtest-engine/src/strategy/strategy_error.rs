@@ -96,6 +96,12 @@ pub enum BacktestStrategyError {
         play_index: u32,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("#[{strategy_name}] missing data source. try to add a kline node to get data"))]
+    MissingDataSource { strategy_name: String, backtrace: Backtrace },
+
+    #[snafu(display("#[{strategy_name}] missing start node"))]
+    MissingStartNode { strategy_name: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -122,6 +128,8 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::KlineKeyNotFound { .. } => 1013,           // kline key未找到
             BacktestStrategyError::PlayIndexOutOfRange { .. } => 1014,        // 播放索引超出范围
             BacktestStrategyError::GetNodeConfigFailed { .. } => 1015,        // 获取节点配置失败
+            BacktestStrategyError::MissingDataSource { .. } => 1016,          // 缺少数据源
+            BacktestStrategyError::MissingStartNode { .. } => 1017,           // 缺少开始节点
         };
         format!("{prefix}_{code:04}")
     }
@@ -156,6 +164,10 @@ impl StarRiverErrorTrait for BacktestStrategyError {
 
             // 服务不可用 (503)
             BacktestStrategyError::UpdateStrategyStatusFailed { .. } => StatusCode::SERVICE_UNAVAILABLE,
+
+            // 客户端错误 - 配置/数据问题 (400)
+            BacktestStrategyError::MissingDataSource { .. } => StatusCode::BAD_REQUEST,
+            BacktestStrategyError::MissingStartNode { .. } => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -222,6 +234,12 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                     strategy_name, node_name, ..
                 } => {
                     format!("#[{strategy_name}] 获取节点 @[{node_name}] 配置失败")
+                }
+                BacktestStrategyError::MissingDataSource { strategy_name, .. } => {
+                    format!("#[{strategy_name}] 缺少数据源. 尝试添加一个k线节点来获取数据")
+                }
+                BacktestStrategyError::MissingStartNode { strategy_name, .. } => {
+                    format!("#[{strategy_name}] 缺少开始节点")
                 }
             },
         }

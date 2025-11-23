@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use axum::http::StatusCode;
+use snafu::Report;
 use strum::Display;
 
 use super::ErrorCode;
@@ -49,5 +50,10 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         // Default implementation for leaf errors (no source)
         vec![self.error_code()]
+    }
+
+    fn report(&self) {
+        let report = Report::from_error(self);
+        tracing::error!("{}", report.to_string());
     }
 }

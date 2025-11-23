@@ -2,7 +2,7 @@ use snafu::OptionExt;
 use strategy_core::{
     error::{NodeError, node_error::OutputHandleNotFoundSnafu},
     node::{
-        context_trait::{NodeHandleExt, NodeIdentityExt},
+        context_trait::{NodeHandleExt, NodeInfoExt},
         node_handles::NodeOutputHandle,
     },
 };

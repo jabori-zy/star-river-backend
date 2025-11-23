@@ -18,7 +18,7 @@ use node_event::BacktestNodeEvent;
 use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 use strategy_core::node::{
     NodeTrait, NodeType,
-    context_trait::{NodeHandleExt, NodeIdentityExt, NodeRelationExt, NodeStateMachineExt, NodeTaskControlExt},
+    context_trait::{NodeHandleExt, NodeInfoExt, NodeRelationExt, NodeStateMachineExt, NodeTaskControlExt},
     node_handles::{NodeInputHandle, NodeOutputHandle},
     node_trait::{NodeContextAccessor, NodeLifecycle},
 };
@@ -261,7 +261,7 @@ impl BacktestNode {
 
     pub async fn init(&self) -> Result<(), BacktestNodeError> {
         match self {
-            BacktestNode::Start(node) => node.init().await,
+            BacktestNode::Start(node) => node.init().await.map_err(BacktestNodeError::from),
             BacktestNode::Kline(node) => node.init().await,
             BacktestNode::Indicator(node) => node.init().await,
             BacktestNode::IfElse(node) => node.init().await,
@@ -273,7 +273,7 @@ impl BacktestNode {
 
     pub async fn stop(&self) -> Result<(), BacktestNodeError> {
         match self {
-            BacktestNode::Start(node) => node.stop().await,
+            BacktestNode::Start(node) => node.stop().await.map_err(BacktestNodeError::from),
             BacktestNode::Kline(node) => node.stop().await,
             BacktestNode::Indicator(node) => node.stop().await,
             BacktestNode::IfElse(node) => node.stop().await,

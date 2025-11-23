@@ -14,7 +14,7 @@ use star_river_event::{
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     communication::strategy::StrategyResponse,
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 use ta_lib::{Indicator, IndicatorConfig};
 use tokio::sync::oneshot;
@@ -222,7 +222,7 @@ impl IndicatorNodeContext {
         // 结束周期追踪并记录到 benchmark
         let completed_tracker = cycle_tracker.end();
         // tracing::debug!("{}", completed_tracker.get_cycle_report());
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
             .await
             .unwrap();
         // tracing::debug!("{}", self.benchmark.report());

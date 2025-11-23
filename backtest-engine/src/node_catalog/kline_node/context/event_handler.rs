@@ -10,7 +10,7 @@ use star_river_event::backtest_strategy::node_event::{
 };
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 use tokio::sync::oneshot;
 
@@ -88,7 +88,7 @@ impl KlineNodeContext {
             // }
         }
         let completed_tracker = cycle_tracker.end();
-        self.mount_node_cycle_tracker(self.node_id().clone(), completed_tracker)
+        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
             .await
             .unwrap();
     }

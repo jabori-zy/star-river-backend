@@ -6,7 +6,7 @@ use star_river_core::kline::Kline;
 use star_river_event::communication::{CalculateHistoryIndicatorCmdPayload, CalculateHistoryIndicatorCommand, IndicatorEngineCommand};
 use strategy_core::{
     communication::strategy::StrategyResponse,
-    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+    node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 use ta_lib::{Indicator, IndicatorConfig};
 use tokio::sync::oneshot;

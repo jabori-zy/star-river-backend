@@ -6,7 +6,7 @@ use star_river_event::backtest_strategy::node_event::{
 };
 use strategy_core::{
     event::node_common_event::CommonEvent,
-    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeIdentityExt, NodeRelationExt},
+    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 
 use super::IfElseNodeContext;

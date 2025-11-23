@@ -31,7 +31,7 @@ use crate::api::{response::ApiResponse, system_api::SystemConfigUpdateParams};
         crate::api::strategy_api::backtest::get_history_positions,
         crate::api::strategy_api::backtest::get_stats_history,
         crate::api::strategy_api::backtest::get_virtual_transactions,
-        crate::api::strategy_api::backtest::get_strategy_status,
+        crate::api::strategy_api::backtest::get_strategy_run_state,
         crate::api::strategy_api::backtest::get_running_log,
         crate::api::strategy_api::backtest::get_strategy_data,
         crate::api::strategy_api::backtest::get_strategy_data_by_datetime,

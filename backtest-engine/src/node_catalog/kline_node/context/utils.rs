@@ -8,7 +8,7 @@ use star_river_core::{
     system::TimeRange,
 };
 use star_river_event::backtest_strategy::node_event::kline_node_event::{KlineNodeEvent, KlineUpdateEvent, KlineUpdatePayload};
-use strategy_core::node::context_trait::NodeIdentityExt;
+use strategy_core::node::context_trait::NodeInfoExt;
 
 // current crate
 use super::KlineNodeContext;

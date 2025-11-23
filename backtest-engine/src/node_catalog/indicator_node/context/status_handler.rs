@@ -1,7 +1,7 @@
 use event_center::EventCenterSingleton;
 use event_center_core::communication::Response;
 use star_river_event::communication::{GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand, IndicatorEngineCommand};
-use strategy_core::node::context_trait::NodeIdentityExt;
+use strategy_core::node::context_trait::NodeInfoExt;
 use tokio::sync::oneshot;
 
 use super::IndicatorNodeContext;

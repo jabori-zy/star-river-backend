@@ -1,4 +1,5 @@
 use snafu::Report;
+use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::strategy::{StrategyConfig, TradeMode, strategy_trait::StrategyLifecycle};
 use tokio::time::Duration;
 
@@ -35,14 +36,12 @@ impl BacktestEngineContext {
                 tokio::time::sleep(Duration::from_millis(500)).await;
 
                 if let Err(e) = strategy.check_strategy().await {
-                    let report = Report::from_error(&e);
-                    tracing::error!("{}", report);
+                    e.report();
                     return Err(e);
                 }
 
                 if let Err(e) = strategy.init_strategy().await {
-                    let report = Report::from_error(&e);
-                    tracing::error!("{}", report);
+                    e.report();
                     return Err(e);
                 }
 

@@ -5,7 +5,7 @@ pub(crate) mod strategy_error;
 mod strategy_evt_listener;
 mod strategy_lifecycle;
 mod strategy_log_message;
-mod strategy_state_machine;
+pub(crate) mod strategy_state_machine;
 
 // Standard library imports
 use std::sync::Arc;

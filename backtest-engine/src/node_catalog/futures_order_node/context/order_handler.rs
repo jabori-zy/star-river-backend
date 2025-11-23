@@ -2,9 +2,9 @@ use snafu::{OptionExt, ResultExt};
 use strategy_core::{
     event::{
         node_common_event::CommonEvent,
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
     },
-    node::context_trait::{NodeCommunicationExt, NodeIdentityExt},
+    node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 use tokio::sync::oneshot;
 use virtual_trading::{
@@ -34,11 +34,9 @@ impl FuturesOrderNodeContext {
                 self.node_id().clone(),
                 self.node_name().clone(),
                 StrategyRunningLogSource::Node,
-                StrategyRunningLogType::ProcessingOrder,
                 message.to_string(),
                 None,
                 None,
-                serde_json::Value::Null,
                 current_time,
             )
             .into();

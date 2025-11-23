@@ -4,7 +4,7 @@ use strategy_core::{
     NodeType,
     event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
     node::{
-        context_trait::{NodeHandleExt, NodeIdentityExt, NodeStateMachineExt, NodeTaskControlExt},
+        context_trait::{NodeHandleExt, NodeInfoExt, NodeStateMachineExt, NodeTaskControlExt},
         node_state_machine::StateMachine,
         node_trait::{NodeContextAccessor, NodeEventListener, NodeLifecycle},
     },

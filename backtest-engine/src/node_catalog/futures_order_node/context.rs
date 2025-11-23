@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::{
-    custom_type::{InputHandleId, NodeId, OrderId},
+    custom_type::{InputHandleId, NodeId, NodeName, OrderId},
     instrument::Symbol,
     order::OrderStatus,
 };
@@ -114,8 +114,14 @@ impl NodeMetaDataExt for FuturesOrderNodeContext {
 impl NodeBenchmarkExt for FuturesOrderNodeContext {
     type Error = crate::node::node_error::BacktestNodeError;
 
-    async fn mount_node_cycle_tracker(&self, node_id: NodeId, cycle_tracker: CompletedCycle) -> Result<(), Self::Error> {
-        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, cycle_tracker, self.strategy_command_sender()).await?;
+    async fn mount_node_cycle_tracker(
+        &self,
+        node_id: NodeId,
+        node_name: NodeName,
+        cycle_tracker: CompletedCycle,
+    ) -> Result<(), Self::Error> {
+        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, node_name, cycle_tracker, self.strategy_command_sender())
+            .await?;
         Ok(())
     }
 }
