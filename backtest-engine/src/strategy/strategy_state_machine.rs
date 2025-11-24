@@ -1,11 +1,3 @@
-// ============================================================================
-// Backtest Strategy State Machine - Generic Implementation
-// ============================================================================
-//
-// This module implements a generic backtest strategy state machine based on
-// the strategy-core generic state machine framework. It references the original
-// BacktestStrategyStateMachine design while providing better type safety and extensibility.
-
 use star_river_core::{custom_type::StrategyName, state_machine::Metadata};
 use strategy_core::{
     error::{StrategyStateMachineError, strategy_state_machine_error::StrategyStateTransFailedSnafu},
@@ -14,10 +6,6 @@ use strategy_core::{
     },
 };
 use strum::Display;
-
-// ============================================================================
-// State Definitions
-// ============================================================================
 
 /// Backtest strategy run states
 #[derive(Debug, Clone, PartialEq, Display)]

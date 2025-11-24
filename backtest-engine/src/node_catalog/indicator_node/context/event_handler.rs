@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use event_center::{Event, EventCenterSingleton};
 use event_center_core::communication::Response;
 use key::{IndicatorKey, KeyTrait, KlineKey};
-use star_river_core::kline::Kline;
+use star_river_core::kline::{Kline, KlineInterval};
 use star_river_event::{
     backtest_strategy::node_event::{
         IndicatorNodeEvent, KlineNodeEvent,
@@ -23,18 +23,20 @@ use super::IndicatorNodeContext;
 use crate::{
     node::{
         node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+        node_error::IndicatorNodeError,
         node_event::BacktestNodeEvent,
     },
     strategy::strategy_command::{
-        GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsCommand, UpdateIndicatorDataCmdPayload, UpdateIndicatorDataCommand,
+        GetMinIntervalCmdPayload, GetMinIntervalCommand, UpdateIndicatorDataCmdPayload, UpdateIndicatorDataCommand,
     },
 };
 
 #[async_trait]
 impl NodeEventHandlerExt for IndicatorNodeContext {
     type EngineEvent = Event;
+    type Error = IndicatorNodeError;
 
-    async fn handle_command(&mut self, node_command: Self::NodeCommand) {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), IndicatorNodeError> {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -42,31 +44,37 @@ impl NodeEventHandlerExt for IndicatorNodeContext {
                     let payload = NodeResetRespPayload {};
                     let response = NodeResetResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
+                    Ok(())
+                } else {
+                    Ok(())
                 }
             }
-            _ => {}
+            _ => Ok(()),
         }
     }
 
-    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), IndicatorNodeError> {
         match node_event {
             BacktestNodeEvent::KlineNode(kline_event) => {
                 if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_event {
                     let config_kline = self.node_config.exchange_mode_config.as_ref().unwrap().selected_symbol.clone();
-                    if config_kline.symbol != kline_update_event.kline_key.get_symbol()
-                        || config_kline.interval != kline_update_event.kline_key.get_interval()
+                    if config_kline.symbol != kline_update_event.kline_key.symbol()
+                        || config_kline.interval != kline_update_event.kline_key.interval()
                     {
-                        return;
+                        return Ok(());
                     }
                     self.handle_kline_update(kline_update_event).await;
+                    Ok(())
+                } else {
+                    Ok(())
                 }
             }
-            _ => {}
+            _ => Ok(()),
         }
     }
 
-    async fn handle_engine_event(&mut self, event: Self::EngineEvent) {
-        tracing::info!("[{}] received engine event: {:?}", self.node_name(), event);
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), IndicatorNodeError> {
+        Ok(())
     }
 }
 
@@ -85,9 +93,9 @@ impl IndicatorNodeContext {
         // 事件生成闭包
         let generate_event = |target_handle_id: String| {
             let payload = IndicatorUpdatePayload::new(
-                indicator_key.get_exchange(),
-                indicator_key.get_symbol(),
-                indicator_key.get_interval(),
+                indicator_key.exchange(),
+                indicator_key.symbol(),
+                indicator_key.interval(),
                 config_id.clone(),
                 indicator_key.get_indicator_config(),
                 indicator_key.clone(),
@@ -228,17 +236,17 @@ impl IndicatorNodeContext {
         // tracing::debug!("{}", self.benchmark.report());
     }
 
-    pub async fn get_min_interval_symbols_from_strategy(&mut self) -> Result<Vec<KlineKey>, String> {
+    pub async fn init_min_interval_from_strategy(&mut self) -> Result<KlineInterval, String> {
         let (tx, rx) = oneshot::channel();
-        let payload = GetMinIntervalSymbolsCmdPayload {};
-        let cmd = GetMinIntervalSymbolsCommand::new(self.node_id().clone(), tx, payload);
+        let payload = GetMinIntervalCmdPayload {};
+        let cmd = GetMinIntervalCommand::new(self.node_id().clone(), tx, payload);
 
         let _ = self.send_strategy_command(cmd.into()).await;
 
         let response = rx.await.unwrap();
         match response {
             StrategyResponse::Success { payload, .. } => {
-                return Ok(payload.keys.clone());
+                return Ok(payload.interval);
             }
             StrategyResponse::Fail { .. } => {
                 return Err("获取最小周期交易对失败".to_string());

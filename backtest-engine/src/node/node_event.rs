@@ -3,7 +3,7 @@
 // ============================================================================
 
 use derive_more::From;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use star_river_core::custom_type::{HandleId, NodeId, NodeName};
 pub use star_river_event::backtest_strategy::node_event::{
     futures_order_node_event::FuturesOrderNodeEvent, if_else_node_event::IfElseNodeEvent, indicator_node_event::IndicatorNodeEvent,

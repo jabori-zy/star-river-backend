@@ -14,18 +14,20 @@ use super::{
 };
 use crate::node::{
     node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+    node_error::VariableNodeError,
     node_event::BacktestNodeEvent,
 };
 
 #[async_trait]
 impl NodeEventHandlerExt for VariableNodeContext {
     type EngineEvent = Event;
+    type Error = VariableNodeError;
 
-    async fn handle_engine_event(&mut self, event: Self::EngineEvent) {
-        tracing::info!("[{}] received engine event: {:?}", self.node_name(), event);
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), VariableNodeError> {
+        Ok(())
     }
 
-    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), VariableNodeError> {
         match node_event {
             BacktestNodeEvent::IfElseNode(if_else_node_event) => {
                 match if_else_node_event {
@@ -44,6 +46,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                             .await
                             .unwrap();
+                        Ok(())
                     }
                     IfElseNodeEvent::CaseFalse(case_false_event) => {
                         tracing::debug!(
@@ -62,7 +65,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                                 self.send_execute_over_event(self.play_index() as u64, Some(config.confing_id()))
                                     .unwrap()
                             });
-                            return;
+                            return Ok(());
                         }
 
                         stream::iter(configs.iter())
@@ -70,6 +73,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                                 self.send_trigger_event(&config.output_handle_id()).await.unwrap();
                             })
                             .await;
+                        Ok(())
                     }
                     IfElseNodeEvent::ElseTrue(else_true) => {
                         let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
@@ -82,8 +86,9 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                             .await
                             .unwrap();
+                        Ok(())
                     }
-                    _ => {}
+                    _ => Ok(()),
                 }
             }
             // k线更新，处理dataflow
@@ -103,6 +108,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                     .await
                     .unwrap();
+                Ok(())
             }
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
                 let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
@@ -119,21 +125,25 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                     .await
                     .unwrap();
+                Ok(())
             }
-            _ => {}
+            _ => Ok(()),
         }
     }
 
-    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) -> Result<(), VariableNodeError> {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let paylod = NodeResetRespPayload;
                     let response = NodeResetResponse::success(self.node_id().clone(), paylod);
                     cmd.respond(response);
+                    Ok(())
+                } else {
+                    Ok(())
                 }
             }
-            _ => {}
+            _ => Ok(()),
         }
     }
 }

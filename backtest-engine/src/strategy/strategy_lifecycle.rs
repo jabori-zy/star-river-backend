@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use event_center::EventCenterSingleton;
-use star_river_core::error::StarRiverErrorTrait;
 use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 use strategy_core::{
     error::strategy_error::WaitAllNodesStoppedTimeoutSnafu,

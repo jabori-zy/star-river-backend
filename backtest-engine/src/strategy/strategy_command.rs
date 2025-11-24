@@ -2,7 +2,11 @@
 use derive_more::From;
 // Current crate imports
 use key::{IndicatorKey, Key, KlineKey};
-use star_river_core::{custom_type::NodeId, kline::Kline, system::DateTimeUtc};
+use star_river_core::{
+    custom_type::NodeId,
+    kline::{Kline, KlineInterval},
+    system::DateTimeUtc,
+};
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
     communication::{
@@ -17,7 +21,7 @@ use ta_lib::Indicator;
 #[derive(Debug, From)]
 pub enum BacktestStrategyCommand {
     GetStrategyKeys(GetStrategyKeysCommand),
-    GetMinIntervalSymbols(GetMinIntervalSymbolsCommand),
+    GetMinInterval(GetMinIntervalCommand),
     GetCurrentTime(GetCurrentTimeCommand),
     InitKlineData(InitKlineDataCommand),
     AppendKlineData(AppendKlineDataCommand),
@@ -38,7 +42,7 @@ impl BacktestStrategyCommand {
     pub fn node_id(&self) -> NodeId {
         match self {
             BacktestStrategyCommand::GetStrategyKeys(command) => command.node_id(),
-            BacktestStrategyCommand::GetMinIntervalSymbols(command) => command.node_id(),
+            BacktestStrategyCommand::GetMinInterval(command) => command.node_id(),
             BacktestStrategyCommand::GetCurrentTime(command) => command.node_id(),
             BacktestStrategyCommand::InitKlineData(command) => command.node_id(),
             BacktestStrategyCommand::AppendKlineData(command) => command.node_id(),
@@ -63,9 +67,9 @@ impl StrategyCommandTrait for BacktestStrategyCommand {}
 // get strategy keys
 pub type GetStrategyKeysCommand = StrategyCommand<GetStrategyKeysCmdPayload, GetStrategyKeysRespPayload>;
 pub type GetStrategyKeysResponse = StrategyResponse<GetStrategyKeysRespPayload>;
-// get min interval symbols
-pub type GetMinIntervalSymbolsCommand = StrategyCommand<GetMinIntervalSymbolsCmdPayload, GetMinIntervalSymbolsRespPayload>;
-pub type GetMinIntervalSymbolsResponse = StrategyResponse<GetMinIntervalSymbolsRespPayload>;
+// get min interval
+pub type GetMinIntervalCommand = StrategyCommand<GetMinIntervalCmdPayload, GetMinIntervalRespPayload>;
+pub type GetMinIntervalResponse = StrategyResponse<GetMinIntervalRespPayload>;
 // get current time
 pub type GetCurrentTimeCommand = StrategyCommand<GetCurrentTimeCmdPayload, GetCurrentTimeRespPayload>;
 pub type GetCurrentTimeResponse = StrategyResponse<GetCurrentTimeRespPayload>;
@@ -129,16 +133,16 @@ impl GetStrategyKeysRespPayload {
 
 // ============ Get Min Interval Symbols ============
 #[derive(Debug)]
-pub struct GetMinIntervalSymbolsCmdPayload;
+pub struct GetMinIntervalCmdPayload;
 
 #[derive(Debug)]
-pub struct GetMinIntervalSymbolsRespPayload {
-    pub keys: Vec<KlineKey>,
+pub struct GetMinIntervalRespPayload {
+    pub interval: KlineInterval,
 }
 
-impl GetMinIntervalSymbolsRespPayload {
-    pub fn new(keys: Vec<KlineKey>) -> Self {
-        Self { keys }
+impl GetMinIntervalRespPayload {
+    pub fn new(interval: KlineInterval) -> Self {
+        Self { interval }
     }
 }
 

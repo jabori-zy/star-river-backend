@@ -118,8 +118,8 @@ where
 
     pub fn get_kline_price(&self, kline_key: &KlineKey) -> Result<&Kline, VirtualTradingSystemError> {
         self.kline_price.get(kline_key).context(KlineKeyNotFoundSnafu {
-            exchange: kline_key.get_exchange().to_string(),
-            symbol: kline_key.get_symbol(),
+            exchange: kline_key.exchange().to_string(),
+            symbol: kline_key.symbol(),
         })
     }
 

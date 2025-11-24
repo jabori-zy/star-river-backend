@@ -8,12 +8,13 @@ mod workflow_builder;
 
 use std::{collections::HashMap, sync::Arc};
 
+use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use key::{IndicatorKey, Key, KlineKey};
 use sea_orm::DatabaseConnection;
 use star_river_core::{
-    custom_type::{NodeId, NodeName, StrategyName},
-    kline::Kline,
+    custom_type::NodeId,
+    kline::{Kline, KlineInterval},
 };
 use strategy_core::{
     event::strategy_event::StrategyRunningLogEvent,
@@ -48,7 +49,8 @@ pub struct BacktestStrategyContext {
     running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>,
     execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,
     execute_over_notify: Arc<Notify>,
-    min_interval_symbols: Vec<KlineKey>,
+    min_interval: KlineInterval,
+    base_timeline: Arc<RwLock<Vec<DateTime<Utc>>>>, // base timeline for backtest
     kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,
     indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>,
     keys: Arc<RwLock<HashMap<Key, NodeId>>>,
@@ -83,7 +85,8 @@ impl BacktestStrategyContext {
             running_log: Arc::new(RwLock::new(vec![])),
             execute_over_node_ids: Arc::new(RwLock::new(vec![])),
             execute_over_notify: Arc::new(Notify::new()),
-            min_interval_symbols: vec![],
+            min_interval: KlineInterval::Minutes1,
+            base_timeline: Arc::new(RwLock::new(vec![])),
             kline_data: Arc::new(RwLock::new(HashMap::new())),
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
             keys: Arc::new(RwLock::new(HashMap::new())),
@@ -241,14 +244,14 @@ impl BacktestStrategyContext {
     // 9. 交易对管理 (Symbol Management)
     // ========================================================================
 
-    /// 获取最小周期交易对列表
-    pub fn min_interval_symbols(&self) -> &[KlineKey] {
-        &self.min_interval_symbols
+    /// 获取最小周期
+    pub fn min_interval(&self) -> &KlineInterval {
+        &self.min_interval
     }
 
-    /// 设置最小周期交易对列表
-    pub fn set_min_interval_symbols(&mut self, symbols: Vec<KlineKey>) {
-        self.min_interval_symbols = symbols;
+    /// 设置最小周期
+    pub fn set_min_interval(&mut self, interval: KlineInterval) {
+        self.min_interval = interval;
     }
 
     // ========================================================================

@@ -12,12 +12,15 @@ mod utils;
 use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
-use key::KlineKey;
-use star_river_core::custom_type::{NodeId, NodeName};
+use key::{KeyTrait, KlineKey};
+use star_river_core::{
+    custom_type::{NodeId, NodeName},
+    kline::KlineInterval,
+};
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
     node::{
-        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeInfoExt, NodeMetaDataExt},
         metadata::NodeMetadata,
     },
 };
@@ -34,7 +37,7 @@ pub type KlineNodeMetadata = NodeMetadata<KlineNodeStateMachine, BacktestNodeEve
 pub struct KlineNodeContext {
     pub metadata: KlineNodeMetadata,
     pub node_config: KlineNodeBacktestConfig,
-    min_interval_symbols: Vec<KlineKey>,
+    min_interval: KlineInterval,
     selected_symbol_keys: HashMap<KlineKey, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }
@@ -66,15 +69,14 @@ impl KlineNodeContext {
         Ok(Self {
             metadata,
             node_config,
-            min_interval_symbols: vec![],
+            min_interval: KlineInterval::Minutes1,
             selected_symbol_keys,
             play_index_watch_rx,
         })
     }
 
-    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
-        // tracing::debug!("set min interval symbols: {:?}", min_interval_symbols);
-        self.min_interval_symbols = min_interval_symbols;
+    pub fn set_min_interval(&mut self, interval: KlineInterval) {
+        self.min_interval = interval;
     }
 
     pub fn selected_symbol_keys(&self) -> &HashMap<KlineKey, (i32, String)> {
@@ -109,7 +111,7 @@ impl NodeMetaDataExt for KlineNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for KlineNodeContext {
-    type Error = crate::node::node_error::BacktestNodeError;
+    type Error = KlineNodeError;
 
     async fn mount_node_cycle_tracker(
         &self,

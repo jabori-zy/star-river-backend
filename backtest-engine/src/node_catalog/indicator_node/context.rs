@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use key::{IndicatorKey, KlineKey};
 use star_river_core::{
     custom_type::{NodeId, NodeName},
-    kline::Kline,
+    kline::{Kline, KlineInterval},
 };
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
@@ -40,6 +40,7 @@ pub struct IndicatorNodeContext {
     kline_value: HashMap<IndicatorKey, Vec<Kline>>,       // Indicator key -> kline values
     indicator_lookback: HashMap<IndicatorKey, usize>,     // Indicator key -> lookback
     min_interval_symbols: Vec<KlineKey>,
+    min_interval: KlineInterval,
     play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
 }
 
@@ -59,12 +60,17 @@ impl IndicatorNodeContext {
             kline_value: HashMap::new(),
             indicator_lookback: HashMap::new(),
             min_interval_symbols: vec![],
+            min_interval: KlineInterval::Minutes1,
             play_index_watch_rx,
         }
     }
 
     pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
         self.min_interval_symbols = min_interval_symbols;
+    }
+
+    pub fn set_min_interval(&mut self, interval: KlineInterval) {
+        self.min_interval = interval;
     }
 
     pub fn min_interval_symbols(&self) -> &Vec<KlineKey> {

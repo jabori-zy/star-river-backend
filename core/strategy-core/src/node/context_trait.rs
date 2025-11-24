@@ -454,17 +454,18 @@ impl<Ctx> NodeTaskControlExt for Ctx where Ctx: NodeMetaDataExt {}
 #[async_trait]
 pub trait NodeEventHandlerExt: NodeMetaDataExt {
     type EngineEvent: EventTrait;
+    type Error: StarRiverErrorTrait;
 
-    async fn handle_engine_event(&mut self, event: Self::EngineEvent);
+    async fn handle_engine_event(&mut self, event: Self::EngineEvent) -> Result<(), Self::Error>;
     /// 处理节点事件
     ///
     /// 默认实现仅记录日志，具体节点应该覆盖此方法
-    async fn handle_source_node_event(&mut self, node_event: Self::NodeEvent);
+    async fn handle_source_node_event(&mut self, node_event: Self::NodeEvent) -> Result<(), Self::Error>;
 
     /// 处理节点命令
     ///
     /// 默认实现仅记录日志，具体节点应该覆盖此方法
-    async fn handle_command(&mut self, node_command: Self::NodeCommand);
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), Self::Error>;
 }
 
 // 注意：NodeEventHandler 不提供自动实现，因为它需要具体节点类型根据业务逻辑来实现

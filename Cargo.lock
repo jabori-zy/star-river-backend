@@ -943,11 +943,9 @@ dependencies = [
  "snafu",
  "star-river-core",
  "star-river-event",
- "strategy-stats",
  "strum 0.27.2",
  "strum_macros",
  "tokio",
- "virtual-trading",
 ]
 
 [[package]]
@@ -1688,7 +1686,6 @@ dependencies = [
  "chrono",
  "engine-core",
  "event-center",
- "exchange-engine",
  "key",
  "paste",
  "snafu",

@@ -242,3 +242,9 @@ impl BacktestStrategyContext {
         Ok(())
     }
 }
+
+impl BacktestStrategyContext {
+    // pub async fn generate_base_timeline(&mut self) -> Result<(), BacktestStrategyError> {
+
+    // }
+}

@@ -69,7 +69,7 @@ pub fn get_required_f64_param(params: &HashMap<String, String>, key: &str) -> Re
 }
 
 /// 从参数HashMap中获取必需的f32浮点数参数
-pub fn get_required_f32_param(params: &HashMap<String, String>, key: &str) -> Result<f32, TaLibError> {
+pub fn _get_required_f32_param(params: &HashMap<String, String>, key: &str) -> Result<f32, TaLibError> {
     let value = params.get(key).ok_or(ConfigMissParamSnafu { param: key.to_string() }.build())?;
     value.parse::<f32>().context(ParseFloatParamFailedSnafu { param: key.to_string() })
 }

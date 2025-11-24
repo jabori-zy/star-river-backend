@@ -38,10 +38,10 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 cmd.respond(resp);
             }
             // 获取最小时间间隔的symbol
-            BacktestStrategyCommand::GetMinIntervalSymbols(cmd) => {
-                let min_interval_symbols = self.min_interval_symbols().to_vec();
-                let payload = GetMinIntervalSymbolsRespPayload::new(min_interval_symbols);
-                let resp = GetMinIntervalSymbolsResponse::success(payload);
+            BacktestStrategyCommand::GetMinInterval(cmd) => {
+                let min_interval = self.min_interval().clone();
+                let payload = GetMinIntervalRespPayload::new(min_interval);
+                let resp = GetMinIntervalResponse::success(payload);
                 cmd.respond(resp);
             }
             BacktestStrategyCommand::InitKlineData(cmd) => {

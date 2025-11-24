@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use event_center::Event;
-use star_river_core::custom_type::InputHandleId;
 use star_river_event::backtest_strategy::node_event::{
     FuturesOrderNodeEvent, IfElseNodeEvent,
     futures_order_node_event::{TransactionCreatedEvent, TransactionCreatedPayload},
@@ -23,7 +22,7 @@ use crate::node::{
     node_command::{
         BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
     },
-    node_error::futures_order_node_error::OrderConfigNotFoundSnafu,
+    node_error::{FuturesOrderNodeError, futures_order_node_error::OrderConfigNotFoundSnafu},
     node_event::BacktestNodeEvent,
     node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
 };
@@ -31,12 +30,17 @@ use crate::node::{
 #[async_trait]
 impl NodeEventHandlerExt for FuturesOrderNodeContext {
     type EngineEvent = Event;
+    type Error = FuturesOrderNodeError;
 
-    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) {}
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
-    async fn handle_source_node_event(&mut self, _node_event: BacktestNodeEvent) {}
+    async fn handle_source_node_event(&mut self, _node_event: BacktestNodeEvent) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
-    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) -> Result<(), Self::Error> {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -52,6 +56,9 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
                     let payload = NodeResetRespPayload;
                     let response = NodeResetResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
+                    Ok(())
+                } else {
+                    Ok(())
                 }
             }
             BacktestNodeCommand::GetFuturesOrderConfig(cmd) => {
@@ -61,9 +68,12 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
                     let payload = GetFuturesOrderConfigRespPayload::new(futures_order_node_config);
                     let response = GetFuturesOrderConfigResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
+                    Ok(())
+                } else {
+                    Ok(())
                 }
             }
-            _ => {}
+            _ => Ok(()),
         }
     }
 }

@@ -103,7 +103,7 @@ fn serialize_indicator_cache_key<'de, S>(indicator_cache_key: &IndicatorKey, ser
 where
     S: serde::Serializer,
 {
-    let indicator_cache_key_str = indicator_cache_key.get_key_str();
+    let indicator_cache_key_str = indicator_cache_key.key_str();
     serializer.serialize_str(&indicator_cache_key_str)
 }
 

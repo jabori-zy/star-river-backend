@@ -28,6 +28,14 @@ pub enum KeyError {
         source: strum::ParseError,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("time range is not set for {exchange}-{symbol}-{interval}"))]
+    TimeRangeNotSet {
+        exchange: String,
+        symbol: String,
+        interval: String,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for KeyError
@@ -45,6 +53,7 @@ impl StarRiverErrorTrait for KeyError {
             KeyError::InvalidKeyFormat { .. } => 1003,         // 无效的缓存键格式
             KeyError::ParseExchangeFailed { .. } => 1004,      // 解析交易所失败
             KeyError::ParseKlineIntervalFailed { .. } => 1005, // 解析K线周期失败
+            KeyError::TimeRangeNotSet { .. } => 1006,          // 时间范围未设置
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -69,6 +78,14 @@ impl StarRiverErrorTrait for KeyError {
                 KeyError::ParseKlineIntervalFailed { interval, .. } => {
                     format!("解析K线周期失败: {}", interval)
                 }
+                KeyError::TimeRangeNotSet {
+                    exchange,
+                    symbol,
+                    interval,
+                    ..
+                } => {
+                    format!("时间范围未设置: {exchange}-{symbol}-{interval}")
+                }
             },
         }
     }
@@ -80,7 +97,8 @@ impl StarRiverErrorTrait for KeyError {
             | KeyError::InvalidIndicatorType { .. }
             | KeyError::InvalidKeyFormat { .. }
             | KeyError::ParseExchangeFailed { .. }
-            | KeyError::ParseKlineIntervalFailed { .. } => vec![self.error_code()],
+            | KeyError::ParseKlineIntervalFailed { .. }
+            | KeyError::TimeRangeNotSet { .. } => vec![self.error_code()],
         }
     }
 }

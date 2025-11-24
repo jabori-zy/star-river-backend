@@ -9,37 +9,68 @@ use super::BacktestStrategyContext;
 use crate::strategy::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu};
 
 mod kline {
+    use std::collections::hash_map::Entry;
 
     use super::*;
+    use crate::strategy::strategy_error::SymbolIsNotMinIntervalSnafu;
 
     impl BacktestStrategyContext {
-        pub async fn init_kline_data(&mut self, kline_key: &KlineKey, init_kline_data: Vec<Kline>) {
-            // 初始化k线数据
-            let mut kline_data_guard = self.kline_data.write().await;
-            if let Some(kline_data) = kline_data_guard.get(kline_key) {
-                if kline_data.len() == 0 {
-                    kline_data_guard.insert(kline_key.clone(), init_kline_data);
+        pub async fn init_kline_data(&mut self, kline_key: &KlineKey, init_kline_data: Vec<Kline>) -> Result<(), BacktestStrategyError> {
+            // check if kline_key is in min_interval_symbols
+            if kline_key.interval() != self.min_interval {
+                return Err(SymbolIsNotMinIntervalSnafu {
+                    strategy_name: self.strategy_name().clone(),
+                    symbol: kline_key.symbol().clone(),
+                    interval: kline_key.interval().to_string(),
                 }
-            } else {
-                kline_data_guard.insert(kline_key.clone(), init_kline_data);
+                .build());
+            };
+
+            // init kline data
+            let mut kline_data_guard = self.kline_data.write().await;
+            match kline_data_guard.entry(kline_key.clone()) {
+                Entry::Vacant(e) => {
+                    e.insert(init_kline_data);
+                }
+                Entry::Occupied(mut e) => {
+                    if e.get().is_empty() {
+                        e.insert(init_kline_data);
+                    }
+                }
             }
+            Ok(())
         }
 
-        pub async fn append_kline_data(&mut self, kline_key: &KlineKey, kline_series: Vec<Kline>) {
+        pub async fn append_kline_data(&mut self, kline_key: &KlineKey, kline_series: Vec<Kline>) -> Result<(), BacktestStrategyError> {
+            // check if kline_key is in min_interval_symbols
+            if kline_key.interval() != self.min_interval {
+                return Err(SymbolIsNotMinIntervalSnafu {
+                    strategy_name: self.strategy_name().clone(),
+                    symbol: kline_key.symbol().clone(),
+                    interval: kline_key.interval().to_string(),
+                }
+                .build());
+            };
+
             let mut kline_data_guard = self.kline_data.write().await;
-            if let Some(kline_data) = kline_data_guard.get_mut(kline_key) {
-                kline_data.extend(kline_series);
-                // 按时间戳排序，确保K线数据的时序正确性
-                kline_data.sort_by(|a, b| a.datetime().cmp(&b.datetime()));
-                // 去重：移除相同datetime的重复数据，保留最后一个
-                kline_data.dedup_by(|a, b| a.datetime() == b.datetime());
-            } else {
-                // 新插入的数据也需要排序和去重
-                let mut sorted_series = kline_series;
-                sorted_series.sort_by(|a, b| a.datetime().cmp(&b.datetime()));
-                sorted_series.dedup_by(|a, b| a.datetime() == b.datetime());
-                kline_data_guard.insert(kline_key.clone(), sorted_series);
+            match kline_data_guard.entry(kline_key.clone()) {
+                Entry::Occupied(mut e) => {
+                    let kline_data = e.get_mut();
+                    kline_data.extend(kline_series);
+                    // Sort by timestamp to ensure correct time order
+                    kline_data.sort_by(|a, b| a.datetime().cmp(&b.datetime()));
+                    // Deduplicate: remove duplicates with same datetime, keep the last one
+                    kline_data.dedup_by(|a, b| a.datetime() == b.datetime());
+                }
+                Entry::Vacant(e) => {
+                    // New data also needs sorting and deduplication
+                    let mut sorted_series = kline_series;
+                    sorted_series.sort_by(|a, b| a.datetime().cmp(&b.datetime()));
+                    sorted_series.dedup_by(|a, b| a.datetime() == b.datetime());
+                    e.insert(sorted_series);
+                }
             }
+            Ok(())
         }
 
         pub async fn get_kline_slice(
@@ -104,7 +135,7 @@ mod kline {
             } else {
                 Err(KlineKeyNotFoundSnafu {
                     strategy_name: self.strategy_name().clone(),
-                    kline_key: kline_key.get_key_str(),
+                    kline_key: kline_key.key_str(),
                 }
                 .build())
             }

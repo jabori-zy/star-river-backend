@@ -4,26 +4,25 @@ use std::sync::Arc;
 // third-party
 use chrono::{Duration, Utc};
 // workspace crate
-use event_center::EventCenterSingleton;
+use event_center::{CmdRespRecvFailedSnafu, EventCenterSingleton};
 use event_center_core::communication::response::Response;
-use key::{KeyTrait, KlineKey};
-use snafu::IntoError;
-use star_river_core::{
-    custom_type::AccountId,
-    kline::{Kline, KlineInterval},
-    system::TimeRange,
-};
+use key::{KeyTrait, KlineKey, error::TimeRangeNotSetSnafu};
+use snafu::{IntoError, OptionExt, ResultExt};
+use star_river_core::{custom_type::AccountId, kline::KlineInterval, system::TimeRange};
 use star_river_event::communication::{GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand};
 use strategy_core::node::context_trait::NodeInfoExt;
 use tokio::sync::{Semaphore, oneshot};
 
 // current crate
 use super::{KlineNodeContext, KlineNodeError, utils::bar_number};
-use crate::node::node_error::kline_node_error::{InsufficientMetaTrader5KlineDataSnafu, LoadKlineFromExchangeFailedSnafu};
+use crate::node::node_error::kline_node_error::{
+    AcquireSemaphoreFailedSnafu, FetchKlineDataTaskFailedSnafu, FirstKlineIsEmptySnafu, InsufficientBacktestDataSnafu,
+    LoadKlineFromExchangeFailedSnafu,
+};
 
 impl KlineNodeContext {
     pub(super) async fn get_binance_kline_history(&self, account_id: AccountId, time_range: &TimeRange) -> Result<(), KlineNodeError> {
-        let bar_number = bar_number(&time_range, &self.min_interval_symbols[0].get_interval());
+        let bar_number = bar_number(&time_range, &self.min_interval);
 
         // Binance API limit is 1000 bars per request, use concurrent loading if > 1000
         if bar_number >= 1000 {
@@ -32,31 +31,22 @@ impl KlineNodeContext {
                 self.node_name(),
                 bar_number
             );
-            tracing::debug!("min interval symbols: {:?}", self.min_interval_symbols);
 
             for (symbol_key, _) in self.selected_symbol_keys.iter() {
                 tracing::debug!("selected symbol key: {:?}", symbol_key);
-                if !self.min_interval_symbols.contains(&symbol_key) {
+                if symbol_key.interval() != self.min_interval {
                     tracing::debug!(
                         "[{}] symbol: {}-{}, is not min interval, skip",
                         self.node_name(),
-                        symbol_key.get_symbol(),
-                        symbol_key.get_interval()
+                        symbol_key.symbol(),
+                        symbol_key.interval()
                     );
                     continue;
                 }
 
-                let first_kline = self.request_first_kline_binance(account_id.clone(), &symbol_key).await?;
-                let first_kline_datetime = first_kline.first().unwrap().datetime();
-                let start_time = time_range.start_date;
-                if first_kline_datetime > start_time {
-                    InsufficientMetaTrader5KlineDataSnafu {
-                        first_kline_datetime: first_kline_datetime.to_string(),
-                        start_time: start_time.to_string(),
-                        end_time: time_range.end_date.to_string(),
-                    }
-                    .fail()?;
-                }
+                // Validate data availability before concurrent loading
+                self.validate_binance_data_availability(account_id.clone(), &symbol_key, time_range)
+                    .await?;
                 // Use concurrent loading
                 self.load_binance_symbol_concurrently(account_id.clone(), symbol_key.clone())
                     .await?;
@@ -64,27 +54,20 @@ impl KlineNodeContext {
         } else {
             // Sequential loading for small datasets
             for (symbol_key, _) in self.selected_symbol_keys.iter() {
-                if !self.min_interval_symbols.contains(&symbol_key) {
+                if symbol_key.interval() != self.min_interval {
                     tracing::warn!(
                         "[{}] symbol: {}-{}, is not min interval, skip",
                         self.node_name(),
-                        symbol_key.get_symbol(),
-                        symbol_key.get_interval()
+                        symbol_key.symbol(),
+                        symbol_key.interval()
                     );
                     continue;
                 }
-                let first_kline = self.request_first_kline_binance(account_id.clone(), &symbol_key).await?;
-                let first_kline_datetime = first_kline.first().unwrap().datetime();
-                let start_time = time_range.start_date;
-                if first_kline_datetime > start_time {
-                    InsufficientMetaTrader5KlineDataSnafu {
-                        first_kline_datetime: first_kline_datetime.to_string(),
-                        start_time: start_time.to_string(),
-                        end_time: time_range.end_date.to_string(),
-                    }
-                    .fail()?;
-                }
+                // Validate data availability
+                self.validate_binance_data_availability(account_id.clone(), &symbol_key, time_range)
+                    .await?;
 
+                // Fetch and initialize kline data
                 let kline_history = self.request_kline_history(account_id.clone(), symbol_key).await?;
                 self.init_strategy_kline_data(symbol_key, &kline_history).await?;
             }
@@ -94,49 +77,81 @@ impl KlineNodeContext {
     }
 
     // Get the first kline to validate data availability for Binance
-    async fn request_first_kline_binance(&self, account_id: AccountId, kline_key: &KlineKey) -> Result<Vec<Kline>, KlineNodeError> {
+    async fn validate_binance_data_availability(
+        &self,
+        account_id: AccountId,
+        kline_key: &KlineKey,
+        time_range: &TimeRange,
+    ) -> Result<(), KlineNodeError> {
         let node_id = self.node_id().clone();
 
-        let time_range = TimeRange::new("2017-01-01 00:00:00".to_string(), Utc::now().to_string());
+        let query_time_range = TimeRange::new("2017-01-01 00:00:00".to_string(), Utc::now().to_string());
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = GetKlineHistoryCmdPayload::new(
             self.strategy_id().clone(),
             node_id.clone(),
             account_id.clone(),
-            kline_key.get_exchange(),
-            kline_key.get_symbol(),
-            kline_key.get_interval(),
-            time_range,
+            kline_key.exchange(),
+            kline_key.symbol(),
+            kline_key.interval(),
+            query_time_range,
         );
         let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(), resp_tx, payload).into();
-        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+        EventCenterSingleton::send_command(cmd.into()).await?;
 
-        let response = resp_rx.await.unwrap();
-        match response {
-            Response::Success { payload, .. } => {
-                return Ok(payload.kline_history.clone());
-            }
+        let response = resp_rx.await.context(CmdRespRecvFailedSnafu {})?;
+        let kline_history = match response {
+            Response::Success { payload, .. } => payload.kline_history.clone(),
             Response::Fail { error, .. } => {
                 return Err(LoadKlineFromExchangeFailedSnafu {
-                    exchange: kline_key.get_exchange().to_string(),
+                    exchange: kline_key.exchange().to_string(),
                 }
                 .into_error(error));
             }
+        };
+
+        // Validate that we have at least one kline
+        let first_kline = kline_history.first().context(FirstKlineIsEmptySnafu {
+            node_name: self.node_name().clone(),
+            exchange: kline_key.exchange().to_string(),
+            symbol: kline_key.symbol().to_string(),
+            interval: kline_key.interval().to_string(),
+        })?;
+
+        // Validate that the first kline covers the requested start time
+        let first_kline_datetime = first_kline.datetime();
+        let start_time = time_range.start_date;
+        if first_kline_datetime > start_time {
+            InsufficientBacktestDataSnafu {
+                first_kline_datetime: first_kline_datetime.to_string(),
+                symbol: kline_key.symbol().to_string(),
+                interval: kline_key.interval().to_string(),
+                exchange: kline_key.exchange().to_string(),
+                start_time: start_time.to_string(),
+                end_time: time_range.end_date.to_string(),
+            }
+            .fail()?;
         }
+
+        Ok(())
     }
 
     async fn load_binance_symbol_concurrently(&self, account_id: AccountId, symbol_key: KlineKey) -> Result<(), KlineNodeError> {
-        let time_range = symbol_key.get_time_range().unwrap();
+        let time_range = symbol_key.time_range().context(TimeRangeNotSetSnafu {
+            exchange: symbol_key.exchange().to_string(),
+            symbol: symbol_key.symbol().to_string(),
+            interval: symbol_key.interval().to_string(),
+        })?;
 
         // Split time range ensuring each chunk has < 1000 bars
-        let chunks = self.split_time_range_for_binance(&time_range, &symbol_key.get_interval());
+        let chunks = self.split_time_range_for_binance(&time_range, &symbol_key.interval());
 
         // Limit concurrency to avoid overload
         let semaphore = Arc::new(Semaphore::new(5)); // Max 5 concurrent requests
         let mut handles = Vec::new();
 
         for chunk in chunks {
-            let permit = semaphore.clone().acquire_owned().await.unwrap();
+            let permit = semaphore.clone().acquire_owned().await.context(AcquireSemaphoreFailedSnafu {})?;
             let account_id_clone = account_id.clone();
             let mut chunk_key = symbol_key.clone();
             chunk_key.replace_time_range(chunk);
@@ -153,20 +168,24 @@ impl KlineNodeContext {
                     strategy_id,
                     node_id.clone(),
                     account_id_clone,
-                    chunk_key.get_exchange(),
-                    chunk_key.get_symbol(),
-                    chunk_key.get_interval(),
-                    chunk_key.get_time_range().unwrap(),
+                    chunk_key.exchange(),
+                    chunk_key.symbol(),
+                    chunk_key.interval(),
+                    chunk_key.time_range().context(TimeRangeNotSetSnafu {
+                        exchange: chunk_key.exchange().to_string(),
+                        symbol: chunk_key.symbol().to_string(),
+                        interval: chunk_key.interval().to_string(),
+                    })?,
                 );
                 let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id, resp_tx, payload).into();
-                EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+                EventCenterSingleton::send_command(cmd.into()).await?;
 
-                let response = resp_rx.await.unwrap();
+                let response = resp_rx.await.context(CmdRespRecvFailedSnafu {})?;
                 match response {
                     Response::Success { payload, .. } => Ok(payload.kline_history.clone()),
                     Response::Fail { error, .. } => {
                         return Err(LoadKlineFromExchangeFailedSnafu {
-                            exchange: chunk_key.get_exchange().to_string(),
+                            exchange: chunk_key.exchange().to_string(),
                         }
                         .into_error(error));
                     }
@@ -178,7 +197,12 @@ impl KlineNodeContext {
 
         // Append kline data as each handle completes
         for handle in handles {
-            let chunk_klines = handle.await.unwrap()?;
+            let chunk_klines = handle.await.context(FetchKlineDataTaskFailedSnafu {
+                node_name: self.node_name().clone(),
+                exchange: symbol_key.exchange().to_string(),
+                symbol: symbol_key.symbol().to_string(),
+                interval: symbol_key.interval().to_string(),
+            })??;
             self.append_kline_data(&symbol_key, &chunk_klines).await?;
         }
 

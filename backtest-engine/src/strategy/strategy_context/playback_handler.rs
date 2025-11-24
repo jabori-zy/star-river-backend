@@ -99,12 +99,7 @@ impl BacktestStrategyContext {
             if play_index < total_signal_count {
                 // 因为从-1开始，所以先+1，再发送信号
                 let new_play_index = Self::increment_played_signal_count(&context).await;
-                // tracing::debug!(
-                //     "[{}]: start play kline. total_signal_count: {}, current_play_index: {}",
-                //     context.strategy_name.clone(),
-                //     total_signal_count,
-                //     new_play_index
-                // );
+
                 // 单次逻辑开始
                 let mut strategy_cycle_tracker = StrategyCycleTracker::new(new_play_index as u32);
                 strategy_cycle_tracker.start_phase("increment play index");

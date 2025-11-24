@@ -87,7 +87,7 @@ fn serialize_kline_key<'de, S>(kline_key: &KlineKey, serializer: S) -> Result<S:
 where
     S: serde::Serializer,
 {
-    let kline_key_str = kline_key.get_key_str();
+    let kline_key_str = kline_key.key_str();
     serializer.serialize_str(&kline_key_str)
 }
 

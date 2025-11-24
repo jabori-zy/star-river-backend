@@ -14,7 +14,7 @@ use crate::{
         node_error::BacktestNodeError,
         node_message::{
             common_log_message::{
-                InitMinIntervalSymbolsSuccessMsg, ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg,
+                InitMinIntervalSuccessMsg, ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg,
             },
             indicator_node_log_message::{CalculateIndicatorMsg, CalculateIndicatorSuccessMsg},
         },
@@ -145,28 +145,28 @@ impl NodeLifecycle for IndicatorNode {
                 }
 
                 IndicatorNodeAction::GetMinIntervalSymbols => {
-                    let _ = self
-                        .with_ctx_write_async(|ctx| {
-                            Box::pin(async move {
-                                ctx.get_min_interval_symbols_from_strategy().await.map(|min_interval_symbols| {
-                                    ctx.set_min_interval_symbols(min_interval_symbols);
-                                })
-                            })
-                        })
-                        .await;
+                    // let _ = self
+                    //     .with_ctx_write_async(|ctx| {
+                    //         Box::pin(async move {
+                    //             ctx.init_min_interval_from_strategy().await.map(|min_interval_symbols| {
+                    //                 ctx.set_min_interval_symbols(min_interval_symbols);
+                    //             })
+                    //         })
+                    //     })
+                    //     .await;
 
-                    let log_message = InitMinIntervalSymbolsSuccessMsg::new(node_name.clone());
-                    NodeUtils::send_run_state_info(
-                        strategy_id,
-                        node_id.clone(),
-                        node_name.clone(),
-                        NodeType::IndicatorNode,
-                        log_message.to_string(),
-                        current_state,
-                        IndicatorNodeAction::GetMinIntervalSymbols,
-                        &strategy_output_handle,
-                    )
-                    .await;
+                    // let log_message = InitMinIntervalSymbolsSuccessMsg::new(node_name.clone());
+                    // NodeUtils::send_run_state_info(
+                    //     strategy_id,
+                    //     node_id.clone(),
+                    //     node_name.clone(),
+                    //     NodeType::IndicatorNode,
+                    //     log_message.to_string(),
+                    //     current_state,
+                    //     IndicatorNodeAction::GetMinIntervalSymbols,
+                    //     &strategy_output_handle,
+                    // )
+                    // .await;
                 }
 
                 IndicatorNodeAction::CalculateIndicator => {

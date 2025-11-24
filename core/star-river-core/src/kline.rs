@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -75,7 +77,7 @@ pub enum KlineInterval {
 }
 
 impl KlineInterval {
-    pub fn to_seconds(&self) -> i64 {
+    pub fn to_seconds(&self) -> u64 {
         match self {
             KlineInterval::Minutes1 => 60,
             KlineInterval::Minutes2 => 120,
@@ -99,6 +101,10 @@ impl KlineInterval {
             KlineInterval::Weeks1 => 604800,
             KlineInterval::Months1 => 2629746,
         }
+    }
+
+    pub fn to_duration(&self) -> Duration {
+        Duration::from_secs(self.to_seconds())
     }
 }
 

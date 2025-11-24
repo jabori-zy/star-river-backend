@@ -155,22 +155,22 @@ pub mod common_log_message {
     );
 
     log_message!(
-        InitMinIntervalSymbolsSuccessMsg,
+        InitMinIntervalSuccessMsg,
         params: (
             node_name: String
         ),
-        en: "@[{node_name}] min interval symbols initialization successful",
-        zh: "@[{node_name}] 最小周期交易对初始化成功"
+        en: "@[{node_name}] min interval initialization successful",
+        zh: "@[{node_name}] 最小周期初始化成功"
     );
 
     log_message!(
-        InitMinIntervalSymbolsFailedMsg,
+        InitMinIntervalFailedMsg,
         params: (
             node_name: String,
             error: String
         ),
-        en: "@[{node_name}] min interval symbols initialization failed: {error}",
-        zh: "@[{node_name}] 最小周期交易对初始化失败: {error}"
+        en: "@[{node_name}] min interval initialization failed: {error}",
+        zh: "@[{node_name}] 最小周期初始化失败: {error}"
     );
 }
 

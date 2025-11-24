@@ -10,6 +10,7 @@ use star_river_event::communication::{
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
+    error::node_error::StrategyCmdRespRecvFailedSnafu,
     node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 use tokio::sync::oneshot;
@@ -18,9 +19,7 @@ use tracing::instrument;
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
 use crate::{
-    node::node_error::kline_node_error::{
-        AppendKlineDataFailedSnafu, InitKlineDataFailedSnafu, LoadKlineFromExchangeFailedSnafu, RegisterExchangeFailedSnafu,
-    },
+    node::node_error::kline_node_error::{BacktestStrategySnafu, LoadKlineFromExchangeFailedSnafu, RegisterExchangeFailedSnafu},
     strategy::strategy_command::{AppendKlineDataCmdPayload, AppendKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand},
 };
 
@@ -53,10 +52,10 @@ impl KlineNodeContext {
             self.strategy_id().clone(),
             node_id.clone(),
             account_id.clone(),
-            kline_key.get_exchange(),
-            kline_key.get_symbol(),
-            kline_key.get_interval(),
-            kline_key.get_time_range().unwrap(),
+            kline_key.exchange(),
+            kline_key.symbol(),
+            kline_key.interval(),
+            kline_key.time_range().unwrap(),
         );
         let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(), resp_tx, payload).into();
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();
@@ -68,7 +67,7 @@ impl KlineNodeContext {
             }
             Response::Fail { error, .. } => {
                 return Err(LoadKlineFromExchangeFailedSnafu {
-                    exchange: kline_key.get_exchange().to_string(),
+                    exchange: kline_key.exchange().to_string(),
                 }
                 .into_error(error));
             }
@@ -79,15 +78,13 @@ impl KlineNodeContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = InitKlineDataCmdPayload::new(symbol_key.clone(), kline_history.clone());
         let init_kline_data_command = InitKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
-        self.strategy_command_sender().send(init_kline_data_command.into()).await.unwrap();
-        let response = resp_rx.await.unwrap();
+        self.send_strategy_command(init_kline_data_command.into()).await?;
+        let response = resp_rx.await.context(StrategyCmdRespRecvFailedSnafu {
+            node_name: self.node_name().clone(),
+        })?;
         match response {
-            StrategyResponse::Success { .. } => {
-                return Ok(());
-            }
-            StrategyResponse::Fail { error, .. } => {
-                return Err(InitKlineDataFailedSnafu {}.into_error(error));
-            }
+            StrategyResponse::Success { .. } => Ok(()),
+            StrategyResponse::Fail { error, .. } => Err(BacktestStrategySnafu {}.into_error(error)),
         }
     }
 
@@ -95,14 +92,16 @@ impl KlineNodeContext {
         let (resp_tx, resp_rx) = oneshot::channel();
         let payload = AppendKlineDataCmdPayload::new(symbol_key.clone(), kline_series.clone());
         let append_kline_data_command = AppendKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
-        self.strategy_command_sender().send(append_kline_data_command.into()).await.unwrap();
-        let response = resp_rx.await.unwrap();
+        self.send_strategy_command(append_kline_data_command.into()).await?;
+        let response = resp_rx.await.context(StrategyCmdRespRecvFailedSnafu {
+            node_name: self.node_name().clone(),
+        })?;
         match response {
             StrategyResponse::Success { .. } => {
                 return Ok(());
             }
             StrategyResponse::Fail { error, .. } => {
-                return Err(AppendKlineDataFailedSnafu {}.into_error(error));
+                return Err(BacktestStrategySnafu {}.into_error(error));
             }
         }
     }

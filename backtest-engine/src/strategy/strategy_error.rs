@@ -102,6 +102,17 @@ pub enum BacktestStrategyError {
 
     #[snafu(display("#[{strategy_name}] missing start node"))]
     MissingStartNode { strategy_name: String, backtrace: Backtrace },
+
+    #[snafu(display("#[{strategy_name}] {symbol}-{interval} is not min interval symbol"))]
+    SymbolIsNotMinInterval {
+        strategy_name: String,
+        symbol: String,
+        interval: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("#[{strategy_name}] no symbol configured"))]
+    NoSymbolConfigured { strategy_name: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -130,6 +141,8 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::GetNodeConfigFailed { .. } => 1015,        // 获取节点配置失败
             BacktestStrategyError::MissingDataSource { .. } => 1016,          // 缺少数据源
             BacktestStrategyError::MissingStartNode { .. } => 1017,           // 缺少开始节点
+            BacktestStrategyError::SymbolIsNotMinInterval { .. } => 1018,     // kline key 不是最小周期symbol
+            BacktestStrategyError::NoSymbolConfigured { .. } => 1019,         // 没有symbol配置
         };
         format!("{prefix}_{code:04}")
     }
@@ -168,6 +181,8 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             // 客户端错误 - 配置/数据问题 (400)
             BacktestStrategyError::MissingDataSource { .. } => StatusCode::BAD_REQUEST,
             BacktestStrategyError::MissingStartNode { .. } => StatusCode::BAD_REQUEST,
+            BacktestStrategyError::SymbolIsNotMinInterval { .. } => StatusCode::BAD_REQUEST,
+            BacktestStrategyError::NoSymbolConfigured { .. } => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -240,6 +255,17 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 }
                 BacktestStrategyError::MissingStartNode { strategy_name, .. } => {
                     format!("#[{strategy_name}] 缺少开始节点")
+                }
+                BacktestStrategyError::SymbolIsNotMinInterval {
+                    strategy_name,
+                    symbol,
+                    interval,
+                    ..
+                } => {
+                    format!("#[{strategy_name}] {symbol}-{interval} 不是最小周期交易对")
+                }
+                BacktestStrategyError::NoSymbolConfigured { strategy_name, .. } => {
+                    format!("#[{strategy_name}] 未配置交易对")
                 }
             },
         }

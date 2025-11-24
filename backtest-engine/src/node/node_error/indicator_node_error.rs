@@ -51,7 +51,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
     fn http_status_code(&self) -> StatusCode {
         match self {
             // transparent errors - return source http status code
-            IndicatorNodeError::TaLibError { source, .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            IndicatorNodeError::TaLibError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             IndicatorNodeError::GetKlineDataFailed { source, .. } => source.http_status_code(),
             IndicatorNodeError::CalculateIndicatorFailed { source, .. } => source.http_status_code(),
 

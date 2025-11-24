@@ -12,11 +12,11 @@ use star_river_core::{exchange::Exchange, kline::KlineInterval, system::TimeRang
 use crate::error::{InvalidKeyTypeSnafu, KeyError};
 
 pub trait KeyTrait: Clone + Debug {
-    fn get_key_str(&self) -> String;
-    fn get_exchange(&self) -> Exchange;
-    fn get_symbol(&self) -> String;
-    fn get_interval(&self) -> KlineInterval;
-    fn get_time_range(&self) -> Option<TimeRange>;
+    fn key_str(&self) -> String;
+    fn exchange(&self) -> Exchange;
+    fn symbol(&self) -> String;
+    fn interval(&self) -> KlineInterval;
+    fn time_range(&self) -> Option<TimeRange>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -49,8 +49,8 @@ impl FromStr for Key {
 impl Key {
     pub fn get_key_str(&self) -> String {
         match self {
-            Key::Kline(key) => key.get_key_str(),
-            Key::Indicator(key) => key.get_key_str(),
+            Key::Kline(key) => key.key_str(),
+            Key::Indicator(key) => key.key_str(),
         }
     }
 

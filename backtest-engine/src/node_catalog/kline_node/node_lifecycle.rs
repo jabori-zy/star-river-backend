@@ -111,12 +111,12 @@ impl NodeLifecycle for KlineNode {
                 KlineNodeAction::InitMinIntervalSymbols => {
                     tracing::info!("[{node_name}] start to init min interval symbols");
                     let result = self
-                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init_min_interval_symbols().await }))
+                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init_min_interval().await }))
                         .await;
 
                     match result {
                         Ok(()) => {
-                            let log_message = InitMinIntervalSymbolsSuccessMsg::new(node_name.clone());
+                            let log_message = InitMinIntervalSuccessMsg::new(node_name.clone());
                             NodeUtils::send_run_state_info(
                                 strategy_id,
                                 node_id.clone(),

@@ -1,5 +1,6 @@
 use std::{env, path::PathBuf};
 
+#[cfg(target_os = "windows")]
 fn build_ta_lib_windows() {
     println!("=== Build Script Starting ===");
 

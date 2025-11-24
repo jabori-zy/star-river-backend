@@ -29,6 +29,7 @@ pub struct Heartbeat {
     running: Arc<AtomicBool>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum Task {
     NormalTask(NormalTaskConfig),

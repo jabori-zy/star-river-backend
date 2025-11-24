@@ -19,11 +19,11 @@ use tokio::sync::{Semaphore, oneshot};
 
 // current crate
 use super::{KlineNodeContext, KlineNodeError, utils::bar_number};
-use crate::node::node_error::kline_node_error::{InsufficientMetaTrader5KlineDataSnafu, LoadKlineFromExchangeFailedSnafu};
+use crate::node::node_error::kline_node_error::{InsufficientBacktestDataForMetaTrader5Snafu, LoadKlineFromExchangeFailedSnafu};
 
 impl KlineNodeContext {
     pub(super) async fn get_mt5_kline_history(&self, account_id: AccountId, time_range: &TimeRange) -> Result<(), KlineNodeError> {
-        let bar_number = bar_number(&time_range, &self.min_interval_symbols[0].get_interval());
+        let bar_number = bar_number(&time_range, &self.min_interval);
         tracing::debug!("[{}] bar number: {}", self.node_name(), bar_number);
 
         // 如果大于2000条, 则开启多线程加载
@@ -35,12 +35,12 @@ impl KlineNodeContext {
             );
 
             for (symbol_key, _) in self.selected_symbol_keys.iter() {
-                if !self.min_interval_symbols.contains(&symbol_key) {
+                if symbol_key.interval() != self.min_interval {
                     tracing::warn!(
                         "[{}] symbol: {}-{}, is not min interval, skip",
                         self.node_name(),
-                        symbol_key.get_symbol(),
-                        symbol_key.get_interval()
+                        symbol_key.symbol(),
+                        symbol_key.interval()
                     );
                     continue;
                 }
@@ -51,7 +51,7 @@ impl KlineNodeContext {
                 // 如果第一根k线的时间小于start_time，则报错
                 let start_time = time_range.start_date;
                 if first_kline_datetime > start_time {
-                    InsufficientMetaTrader5KlineDataSnafu {
+                    InsufficientBacktestDataForMetaTrader5Snafu {
                         first_kline_datetime: first_kline_datetime.to_string(),
                         start_time: start_time.to_string(),
                         end_time: time_range.end_date.to_string(),
@@ -66,12 +66,12 @@ impl KlineNodeContext {
             // 遍历每一个symbol，从交易所获取k线历史
             for (symbol_key, _) in self.selected_symbol_keys.iter() {
                 // 如果key不在最小周期交易对列表中，则跳过
-                if !self.min_interval_symbols.contains(&symbol_key) {
+                if symbol_key.interval() != self.min_interval {
                     tracing::warn!(
                         "[{}] symbol: {}-{}, is not min interval, skip",
                         self.node_name(),
-                        symbol_key.get_symbol(),
-                        symbol_key.get_interval()
+                        symbol_key.symbol(),
+                        symbol_key.interval()
                     );
                     continue;
                 }
@@ -79,7 +79,7 @@ impl KlineNodeContext {
                 let first_kline_datetime = first_kline.first().unwrap().datetime();
                 let start_time = time_range.start_date;
                 if first_kline_datetime > start_time {
-                    InsufficientMetaTrader5KlineDataSnafu {
+                    InsufficientBacktestDataForMetaTrader5Snafu {
                         first_kline_datetime: first_kline_datetime.to_string(),
                         start_time: start_time.to_string(),
                         end_time: time_range.end_date.to_string(),
@@ -105,9 +105,9 @@ impl KlineNodeContext {
             self.strategy_id().clone(),
             node_id.clone(),
             account_id.clone(),
-            kline_key.get_exchange(),
-            kline_key.get_symbol(),
-            kline_key.get_interval(),
+            kline_key.exchange(),
+            kline_key.symbol(),
+            kline_key.interval(),
             time_range,
         );
         let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(), resp_tx, payload).into();
@@ -120,7 +120,7 @@ impl KlineNodeContext {
             }
             Response::Fail { error, .. } => {
                 return Err(LoadKlineFromExchangeFailedSnafu {
-                    exchange: kline_key.get_exchange().to_string(),
+                    exchange: kline_key.exchange().to_string(),
                 }
                 .into_error(error));
             }
@@ -128,10 +128,10 @@ impl KlineNodeContext {
     }
 
     async fn load_symbol_concurrently_from_mt5(&self, account_id: AccountId, symbol_key: KlineKey) -> Result<(), KlineNodeError> {
-        let time_range = symbol_key.get_time_range().unwrap();
+        let time_range = symbol_key.time_range().unwrap();
 
         // 根据时间范围大小决定分片策略
-        let chunks = self.split_time_range_for_mt5(&time_range, &symbol_key.get_interval());
+        let chunks = self.split_time_range_for_mt5(&time_range, &symbol_key.interval());
 
         // 限制并发数量，避免过载
         let semaphore = Arc::new(Semaphore::new(5)); // 最多5个并发请求
@@ -155,10 +155,10 @@ impl KlineNodeContext {
                     strategy_id,
                     node_id.clone(),
                     account_id_clone,
-                    chunk_key.get_exchange(),
-                    chunk_key.get_symbol(),
-                    chunk_key.get_interval(),
-                    chunk_key.get_time_range().unwrap(),
+                    chunk_key.exchange(),
+                    chunk_key.symbol(),
+                    chunk_key.interval(),
+                    chunk_key.time_range().unwrap(),
                 );
                 let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id, resp_tx, payload).into();
                 EventCenterSingleton::send_command(cmd.into()).await.unwrap();
@@ -168,7 +168,7 @@ impl KlineNodeContext {
                     Response::Success { payload, .. } => Ok(payload.kline_history.clone()),
                     Response::Fail { error, .. } => {
                         return Err(LoadKlineFromExchangeFailedSnafu {
-                            exchange: chunk_key.get_exchange().to_string(),
+                            exchange: chunk_key.exchange().to_string(),
                         }
                         .into_error(error));
                     }

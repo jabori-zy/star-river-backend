@@ -62,5 +62,5 @@ pub fn bar_number(time_range: &TimeRange, interval: &KlineInterval) -> i64 {
         return 0;
     }
 
-    total_seconds / interval_seconds
+    total_seconds / interval_seconds as i64
 }

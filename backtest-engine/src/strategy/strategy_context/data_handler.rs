@@ -1,5 +1,5 @@
 // workspace crate
-use key::Key;
+use key::{Key, KeyTrait};
 use star_river_core::system::DateTimeUtc;
 use strategy_core::strategy::context_trait::StrategyIdentityExt;
 use strategy_stats::StatsSnapshot;
@@ -89,7 +89,7 @@ impl BacktestStrategyContext {
 
         let index = match &key {
             Key::Kline(kline_key) => {
-                if self.min_interval_symbols.contains(kline_key) {
+                if kline_key.interval() == self.min_interval {
                     if play_index == -1 { Some(0) } else { Some(play_index) }
                 } else {
                     None
@@ -97,7 +97,7 @@ impl BacktestStrategyContext {
             }
             Key::Indicator(indicator_key) => {
                 let kline_key = indicator_key.get_kline_key();
-                if self.min_interval_symbols.contains(&kline_key) {
+                if kline_key.interval() == self.min_interval {
                     if play_index == -1 { Some(0) } else { Some(play_index) }
                 } else {
                     None
@@ -169,15 +169,14 @@ impl BacktestStrategyContext {
         let mut kline_data_guard = self.kline_data.write().await;
         kline_data_guard.iter_mut().for_each(|(key, kline_data)| {
             // 如果key不在min_interval_symbols中，则清空数据
-            if !self.min_interval_symbols.contains(key) {
+            if key.interval() != self.min_interval {
                 kline_data.clear();
             }
         });
         let mut indicator_data_guard = self.indicator_data.write().await;
         indicator_data_guard.iter_mut().for_each(|(key, indicator_data)| {
-            let kline_key = key.get_kline_key();
             // 如果kline_key不在min_interval_symbols中，则清空数据
-            if !self.min_interval_symbols.contains(&kline_key) {
+            if key.interval() != self.min_interval {
                 indicator_data.clear();
             }
         });

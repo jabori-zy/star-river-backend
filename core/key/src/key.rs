@@ -6,7 +6,7 @@ use star_river_core::{exchange::Exchange, kline::KlineInterval, system::TimeRang
 use ta_lib::IndicatorConfig;
 
 use super::{Key, KeyTrait};
-use crate::error::{InvalidKeyFormatSnafu, KeyError, ParseExchangeFailedSnafu, ParseKlineIntervalFailedSnafu};
+use crate::error::{InvalidKeyFormatSnafu, KeyError, ParseKlineIntervalFailedSnafu};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct KlineKey {
@@ -64,7 +64,7 @@ impl KlineKey {
 }
 
 impl KeyTrait for KlineKey {
-    fn get_key_str(&self) -> String {
+    fn key_str(&self) -> String {
         match (&self.start_time, &self.end_time) {
             (Some(start_time), Some(end_time)) => {
                 format!(
@@ -81,16 +81,16 @@ impl KeyTrait for KlineKey {
             }
         }
     }
-    fn get_exchange(&self) -> Exchange {
+    fn exchange(&self) -> Exchange {
         self.exchange.clone()
     }
-    fn get_symbol(&self) -> String {
+    fn symbol(&self) -> String {
         self.symbol.clone()
     }
-    fn get_interval(&self) -> KlineInterval {
+    fn interval(&self) -> KlineInterval {
         self.interval.clone()
     }
-    fn get_time_range(&self) -> Option<TimeRange> {
+    fn time_range(&self) -> Option<TimeRange> {
         match (&self.start_time, &self.end_time) {
             (Some(start_time), Some(end_time)) => Some(TimeRange::new(start_time.clone(), end_time.clone())),
             _ => None,
@@ -164,7 +164,7 @@ impl IndicatorKey {
 }
 
 impl KeyTrait for IndicatorKey {
-    fn get_key_str(&self) -> String {
+    fn key_str(&self) -> String {
         match (&self.start_time, &self.end_time) {
             (Some(start_time), Some(end_time)) => {
                 format!(
@@ -188,16 +188,16 @@ impl KeyTrait for IndicatorKey {
             }
         }
     }
-    fn get_exchange(&self) -> Exchange {
+    fn exchange(&self) -> Exchange {
         self.exchange.clone()
     }
-    fn get_symbol(&self) -> String {
+    fn symbol(&self) -> String {
         self.symbol.clone()
     }
-    fn get_interval(&self) -> KlineInterval {
+    fn interval(&self) -> KlineInterval {
         self.interval.clone()
     }
-    fn get_time_range(&self) -> Option<TimeRange> {
+    fn time_range(&self) -> Option<TimeRange> {
         match (&self.start_time, &self.end_time) {
             (Some(start_time), Some(end_time)) => Some(TimeRange::new(start_time.clone(), end_time.clone())),
             _ => None,
