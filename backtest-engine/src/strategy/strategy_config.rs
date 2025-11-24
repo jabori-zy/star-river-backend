@@ -1,4 +1,5 @@
 // External crate imports
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 // Current crate imports
 use star_river_core::{
@@ -38,6 +39,16 @@ pub struct BacktestStrategyConfig {
 
     #[serde(rename = "customVariables")]
     pub custom_variables: Vec<CustomVariable>, // 变量 var_name -> Variable
+}
+
+impl BacktestStrategyConfig {
+    pub fn start_time(&self) -> Option<DateTime<Utc>> {
+        self.exchange_mode_config.as_ref().map(|config| config.time_range.start_date)
+    }
+
+    pub fn end_time(&self) -> Option<DateTime<Utc>> {
+        self.exchange_mode_config.as_ref().map(|config| config.time_range.end_date)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

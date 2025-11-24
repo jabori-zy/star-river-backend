@@ -3,7 +3,7 @@ use std::sync::Arc;
 use database::error::DatabaseError;
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
-    custom_type::{NodeId, NodeName},
+    custom_type::NodeName,
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
 };
 use strategy_core::error::{StrategyError, strategy_state_machine_error::StrategyStateMachineError};
@@ -113,6 +113,9 @@ pub enum BacktestStrategyError {
 
     #[snafu(display("#[{strategy_name}] no symbol configured"))]
     NoSymbolConfigured { strategy_name: String, backtrace: Backtrace },
+
+    #[snafu(display("#[{strategy_name}] time range not configured"))]
+    TimeRangeNotConfigured { strategy_name: String, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -143,6 +146,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::MissingStartNode { .. } => 1017,           // 缺少开始节点
             BacktestStrategyError::SymbolIsNotMinInterval { .. } => 1018,     // kline key 不是最小周期symbol
             BacktestStrategyError::NoSymbolConfigured { .. } => 1019,         // 没有symbol配置
+            BacktestStrategyError::TimeRangeNotConfigured { .. } => 1020,     // 时间范围未配置
         };
         format!("{prefix}_{code:04}")
     }
@@ -179,10 +183,11 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::UpdateStrategyStatusFailed { .. } => StatusCode::SERVICE_UNAVAILABLE,
 
             // 客户端错误 - 配置/数据问题 (400)
-            BacktestStrategyError::MissingDataSource { .. } => StatusCode::BAD_REQUEST,
-            BacktestStrategyError::MissingStartNode { .. } => StatusCode::BAD_REQUEST,
-            BacktestStrategyError::SymbolIsNotMinInterval { .. } => StatusCode::BAD_REQUEST,
-            BacktestStrategyError::NoSymbolConfigured { .. } => StatusCode::BAD_REQUEST,
+            BacktestStrategyError::MissingDataSource { .. }
+            | BacktestStrategyError::TimeRangeNotConfigured { .. }
+            | BacktestStrategyError::MissingStartNode { .. }
+            | BacktestStrategyError::SymbolIsNotMinInterval { .. }
+            | BacktestStrategyError::NoSymbolConfigured { .. } => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -266,6 +271,9 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 }
                 BacktestStrategyError::NoSymbolConfigured { strategy_name, .. } => {
                     format!("#[{strategy_name}] 未配置交易对")
+                }
+                BacktestStrategyError::TimeRangeNotConfigured { strategy_name, .. } => {
+                    format!("#[{strategy_name}] 回测时间范围未配置")
                 }
             },
         }

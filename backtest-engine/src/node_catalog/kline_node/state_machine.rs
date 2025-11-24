@@ -20,7 +20,7 @@ pub enum KlineNodeAction {
     ListenAndHandleNodeEvents,      // 监听节点消息
     ListenAndHandleStrategyCommand, // 处理策略命令
     LogNodeState,                   // 记录节点状态
-    InitMinIntervalSymbols,         // 初始化最小周期交易对
+    InitMinInterval,                // 初始化最小周期交易对
     RegisterExchange,               // 注册交易所
     LoadHistoryFromExchange,        // 从交易所加载K线历史
     LoadHistoryFromFile,            // 从文件加载K线历史
@@ -65,7 +65,7 @@ pub fn kline_node_transition(
                     KlineNodeAction::ListenAndHandleExternalEvents,
                     KlineNodeAction::ListenAndHandleNodeEvents,
                     KlineNodeAction::ListenAndHandleStrategyCommand,
-                    KlineNodeAction::InitMinIntervalSymbols,
+                    KlineNodeAction::InitMinInterval,
                     KlineNodeAction::RegisterExchange,
                     KlineNodeAction::LoadHistoryFromExchange,
                 ],

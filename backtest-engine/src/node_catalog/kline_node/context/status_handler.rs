@@ -57,12 +57,18 @@ impl KlineNodeContext {
             kline_key.interval(),
             kline_key.time_range().unwrap(),
         );
+        tracing::debug!(
+            "请求的k线timeRange: {:?}, interval: {:?}",
+            kline_key.time_range().unwrap(),
+            kline_key.interval()
+        );
         let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(), resp_tx, payload).into();
         EventCenterSingleton::send_command(cmd.into()).await.unwrap();
 
         let response = resp_rx.await.unwrap();
         match response {
             Response::Success { payload, .. } => {
+                tracing::debug!("请求的k线历史: {:#?}", payload.kline_history);
                 return Ok(payload.kline_history.clone());
             }
             Response::Fail { error, .. } => {

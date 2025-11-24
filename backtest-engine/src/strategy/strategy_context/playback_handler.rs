@@ -12,14 +12,17 @@ use strategy_core::{
     },
 };
 // third-party
-use tokio::sync::{Notify, RwLock, oneshot};
+use tokio::sync::{Mutex, Notify, RwLock, oneshot};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // current crate
 use super::BacktestStrategyContext;
 // workspace crate
-use crate::{node::BacktestNode, strategy::PlayIndex};
+use crate::{
+    node::BacktestNode,
+    strategy::{PlayIndex, signal_generator::SignalGenerator},
+};
 use crate::{
     node::node_command::{NodeResetCmdPayload, NodeResetCommand},
     strategy::{
@@ -42,6 +45,7 @@ struct PlayContext {
     play_index_watch_tx: tokio::sync::watch::Sender<PlayIndex>,
     strategy_benchmark: Arc<RwLock<StrategyBenchmark>>,
     cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
+    signal_generator: Arc<Mutex<SignalGenerator>>,
 }
 
 impl BacktestStrategyContext {
@@ -71,6 +75,7 @@ impl BacktestStrategyContext {
             play_index_watch_tx: self.play_index_watch_tx.clone(),
             strategy_benchmark: self.benchmark().clone(),
             cycle_tracker: self.cycle_tracker().clone(),
+            signal_generator: self.signal_generator.clone(),
         }
     }
 
@@ -93,52 +98,74 @@ impl BacktestStrategyContext {
 
             // 获取播放速度
             let play_speed = Self::get_play_speed(&context).await;
-            let (total_signal_count, play_index) = Self::get_context_play_index(&context).await;
 
-            // 处理信号发送
-            if play_index < total_signal_count {
-                // 因为从-1开始，所以先+1，再发送信号
-                let new_play_index = Self::increment_played_signal_count(&context).await;
+            // Check if signal generator has finished
+            let mut signal_generator_guard = context.signal_generator.lock().await;
+            let is_finished = signal_generator_guard.is_finished();
 
-                // 单次逻辑开始
-                let mut strategy_cycle_tracker = StrategyCycleTracker::new(new_play_index as u32);
-                strategy_cycle_tracker.start_phase("increment play index");
-
-                context.play_index_watch_tx.send(new_play_index).unwrap();
-
-                // 显式释放 cycle_tracker 锁，避免在等待 notify 时持有锁
-                strategy_cycle_tracker.end_phase("increment play index");
-                {
-                    let mut cycle_tracker_guard = context.cycle_tracker.write().await;
-                    *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
-                }
-                // 发送后，等待所有叶子节点执行完毕
-                context.execute_over_notify.notified().await;
-
-                // Self::send_play_signal(&context, new_play_index).await;
-
-                // 检查播放完毕
-                if new_play_index == total_signal_count - 1 {
-                    Self::handle_play_finished(&context, &context.strategy_name, new_play_index).await;
-                    break;
-                }
-
-                // 播放延迟
-                if Self::handle_play_delay(&context, &context.strategy_name, play_speed).await {
-                    break;
-                }
+            if is_finished {
+                drop(signal_generator_guard);
+                tracing::info!("[{}]: all signals played, exit play task", context.strategy_name);
+                *context.is_playing.write().await = false;
+                break;
             }
+
+            // Get next signal
+            let (signal_index, signal_time) = signal_generator_guard.next().unwrap();
+            let is_finished_after_next = signal_generator_guard.is_finished();
+            let progress = signal_generator_guard.progress();
+            drop(signal_generator_guard);
+
+            tracing::debug!(
+                "[{}]: playing signal_index: {}, signal_time: {}, progress: {}",
+                context.strategy_name,
+                signal_index,
+                signal_time,
+                progress
+            );
+
+            // 单次逻辑开始
+            let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index as u32);
+            strategy_cycle_tracker.start_phase("increment play index");
+
+            context.play_index_watch_tx.send(signal_index as i32).unwrap();
+
+            // 显式释放 cycle_tracker 锁，避免在等待 notify 时持有锁
+            strategy_cycle_tracker.end_phase("increment play index");
+            {
+                let mut cycle_tracker_guard = context.cycle_tracker.write().await;
+                *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
+            }
+            // 发送后，等待所有叶子节点执行完毕
+            context.execute_over_notify.notified().await;
+
+            // 检查播放完毕
+            if is_finished_after_next {
+                Self::handle_play_finished(&context, &context.strategy_name, signal_index as i32).await;
+                break;
+            }
+
+            // 播放延迟
+            // play_speed代表1秒播放多少根k线， 100代表1秒播放100根k线
+            // 1000 / 100 = 10ms
+            let delay_millis = 1000 / play_speed as u64;
+            tokio::time::sleep(tokio::time::Duration::from_millis(delay_millis)).await;
         }
     }
 
     // 处理暂停状态
     async fn handle_pause_state(context: &PlayContext, strategy_name: &str) -> Option<bool> {
         if !*context.is_playing.read().await {
+            let signal_generator_guard = context.signal_generator.lock().await;
+            let total_count = signal_generator_guard.total_signal_count();
+            let current_index = signal_generator_guard.current_index();
+            drop(signal_generator_guard);
+
             tracing::info!(
-                "[{}]: pause play, signal_count: {}, played_signal_count: {}",
+                "[{}]: pause play, total_signal_count: {}, current_index: {}",
                 context.node.node_id().await,
-                *context.signal_count.read().await,
-                *context.play_index.read().await
+                total_count,
+                current_index
             );
 
             tokio::select! {
@@ -167,13 +194,6 @@ impl BacktestStrategyContext {
         }
     }
 
-    // 获取信号计数
-    async fn get_context_play_index(context: &PlayContext) -> (i32, PlayIndex) {
-        let total_signal_count = *context.signal_count.read().await;
-        let play_index = *context.play_index.read().await;
-        (total_signal_count, play_index)
-    }
-
     // 发送播放信号
     // async fn send_play_signal(context: &PlayContext, play_index: PlayIndex) {
     // tracing::info!("=========== 发送信号 ===========");
@@ -200,13 +220,6 @@ impl BacktestStrategyContext {
     // tracing::info!("节点索引更新完毕");
     // }
 
-    // 增加已播放信号计数
-    async fn increment_played_signal_count(context: &PlayContext) -> i32 {
-        let mut play_index = context.play_index.write().await;
-        *play_index += 1;
-        *play_index
-    }
-
     // 处理播放完毕, 发送播放完毕事件
     async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: PlayIndex) {
         let finish_event: BacktestStrategyEvent =
@@ -217,31 +230,15 @@ impl BacktestStrategyContext {
         *context.is_playing.write().await = false;
     }
 
-    // 处理播放延迟
-    // true 退出循环
-    // false 继续循环
-    async fn handle_play_delay(context: &PlayContext, strategy_name: &str, play_speed: u32) -> bool {
-        // play_speed代表1秒播放多少根k线， 100代表1秒播放100根k线
-        // 1000 / 100 = 10ms
-        let delay_millis = 1000 / play_speed as u64;
-        // tracing::info!("{}: 播放速度: {}, 播放延迟: {}ms", strategy_name, play_speed, delay_millis);
-        tokio::select! {
-
-            _ = tokio::time::sleep(tokio::time::Duration::from_millis(delay_millis)) => {
-                false // 继续循环
-            }
-            _ = context.child_cancel_play_token.cancelled() => {
-                tracing::info!("{}: 在播放过程中收到取消信号，优雅退出播放任务", strategy_name);
-                *context.is_playing.write().await = false;
-                true // 退出循环
-            }
-        }
-    }
-
     // 播放k线
     pub async fn play(&mut self) -> Result<(), BacktestStrategyError> {
         // 判断是否已播放完毕
-        if *self.play_index.read().await == *self.total_signal_count.read().await - 1 {
+        let signal_generator_guard = self.signal_generator.lock().await;
+        let is_finished = signal_generator_guard.is_finished();
+        let current_index = signal_generator_guard.current_index();
+        drop(signal_generator_guard);
+
+        if is_finished {
             tracing::warn!("[{}]: already played finished, cannot play more kline", self.strategy_name());
             return Err(PlayFinishedSnafu {
                 strategy_name: self.strategy_name().clone(),
@@ -256,7 +253,7 @@ impl BacktestStrategyContext {
 
         let play_context = self.create_play_context().await;
         // 说明策略刚启动，重置batch_id
-        if *play_context.play_index.read().await == -1 {
+        if current_index == 0 {
             self.batch_id = Uuid::new_v4();
         }
 
@@ -317,6 +314,10 @@ impl BacktestStrategyContext {
         *self.play_index.write().await = -1; // 重置为-1，表示未播放
         // 重置播放状态
         *self.is_playing.write().await = false;
+
+        let mut signal_generator_guard = self.signal_generator.lock().await;
+        signal_generator_guard.reset();
+
         // 替换已经取消的令牌
         self.cancel_play_token = CancellationToken::new();
         Ok(())
@@ -328,32 +329,19 @@ impl BacktestStrategyContext {
             tracing::warn!("[{}] is playing, cannot play one kline", self.strategy_name());
             return false;
         }
-
-        if *self.play_index.read().await > *self.total_signal_count.read().await {
-            tracing::warn!("[{}] already played finished, cannot play more kline", self.strategy_name());
-            return false;
-        }
-
         true
-    }
-
-    // 获取当前信号计数
-    async fn current_play_index(&self) -> (i32, i32) {
-        let total_signal_count = *self.total_signal_count.read().await;
-        let play_index = *self.play_index.read().await;
-        (total_signal_count, play_index)
-    }
-
-    // 增加单次播放计数
-    async fn increment_single_play_count(&self) -> PlayIndex {
-        let mut play_index = self.play_index.write().await;
-        *play_index += 1;
-        *play_index
     }
 
     // 播放单根k线
     pub async fn play_one(&mut self) -> Result<PlayIndex, BacktestStrategyError> {
-        if *self.play_index.read().await == *self.total_signal_count.read().await - 1 {
+        if !self.can_play_one_kline().await {
+            return Err(AlreadyPlayingSnafu {}.build());
+        }
+
+        let mut signal_generator_guard = self.signal_generator.lock().await;
+        let is_finished = signal_generator_guard.is_finished();
+
+        if is_finished {
             tracing::warn!("[{}] already played finished", self.strategy_name());
             return Err(PlayFinishedSnafu {
                 strategy_name: self.strategy_name().clone(),
@@ -361,13 +349,16 @@ impl BacktestStrategyContext {
             .build());
         }
 
-        if !self.can_play_one_kline().await {
-            return Err(AlreadyPlayingSnafu {}.build());
-        }
+        let (signal_index, signal_time) = signal_generator_guard.next().unwrap();
+        let is_finished_after_next = signal_generator_guard.is_finished();
+        let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index as u32);
+        strategy_cycle_tracker.start_phase("increment play index");
+        drop(signal_generator_guard);
+        tracing::debug!("signal_index: {}, signal_time: {}", signal_index, signal_time);
 
         let before_reset_batch_id = self.batch_id;
         // 说明策略刚启动，重置batch_id
-        if *self.play_index.read().await == -1 {
+        if signal_index == 0 {
             self.batch_id = Uuid::new_v4();
             tracing::info!(
                 "[{}]: play started, reset batch_id: {}, before batch_id: {}",
@@ -377,42 +368,22 @@ impl BacktestStrategyContext {
             );
         }
 
-        let (total_signal_count, play_index) = self.current_play_index().await;
+        // 单次逻辑开始
+        self.play_index_watch_tx.send(signal_index as i32).unwrap();
+        if is_finished_after_next {
+            let finish_event: BacktestStrategyEvent =
+                PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), signal_index as i32).into();
+            let _ = EventCenterSingleton::publish(finish_event.into()).await;
 
-        if play_index < total_signal_count {
-            // 先增加单次播放计数
-            let play_index = self.increment_single_play_count().await;
-            tracing::info!(
-                "[{}]: start play one kline. total_signal_count: {}, current_play_index: {}",
-                self.strategy_name(),
-                total_signal_count,
-                play_index
-            );
-            // 再执行单根k线播放
-            // 单次逻辑开始
-            let mut strategy_cycle_tracker = StrategyCycleTracker::new(play_index as u32);
-            strategy_cycle_tracker.start_phase("increment play index");
-
-            self.play_index_watch_tx.send(play_index).unwrap();
-
-            strategy_cycle_tracker.end_phase("increment play index");
-
-            let mut cycle_tracker_guard = self.cycle_tracker().write().await;
-            *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
-
-            tracing::warn!("play_index: {}, total_signal_count: {}", play_index, total_signal_count);
-            if play_index == total_signal_count - 1 {
-                let finish_event: BacktestStrategyEvent =
-                    PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), play_index).into();
-                let _ = EventCenterSingleton::publish(finish_event.into()).await;
-
-                tracing::info!("[{}]: kline played finished, exit play task", self.strategy_name());
-                self.set_is_playing(false).await;
-                return Ok(play_index);
-            }
+            tracing::info!("[{}]: kline played finished, exit play task", self.strategy_name());
+            self.set_is_playing(false).await;
         }
 
-        Ok(play_index)
+        strategy_cycle_tracker.end_phase("increment play index");
+        let mut cycle_tracker_guard = self.cycle_tracker().write().await;
+        *cycle_tracker_guard = Some(strategy_cycle_tracker); // 共享到策略上下文中
+
+        Ok(signal_index as i32)
     }
 
     // 发送播放索引更新事件

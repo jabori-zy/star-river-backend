@@ -1,3 +1,4 @@
+mod signal_generator;
 pub(crate) mod strategy_command;
 pub(crate) mod strategy_config;
 pub(crate) mod strategy_context;
@@ -6,7 +7,6 @@ mod strategy_evt_listener;
 mod strategy_lifecycle;
 mod strategy_log_message;
 pub(crate) mod strategy_state_machine;
-mod signal_generator;
 
 // Standard library imports
 use std::sync::Arc;

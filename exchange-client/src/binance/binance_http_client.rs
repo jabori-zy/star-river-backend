@@ -104,14 +104,14 @@ impl BinanceHttpClient {
             )
         } else {
             format!(
-                "{}{}?symbol={}&interval={}&limit={}&startTime={}",
+                "{}{}?symbol={}&interval={}&limit={}&startTime={}&endTime={}",
                 BinanceHttpUrl::BaseUrl,
                 BinanceHttpUrl::Kline,
                 symbol,
                 interval,
                 limit,
                 start_time.unwrap(),
-                // end_time.unwrap()
+                end_time.unwrap()
             )
         };
 

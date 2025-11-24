@@ -108,7 +108,7 @@ impl NodeLifecycle for KlineNode {
 
                     self.listen_source_node_events().await;
                 }
-                KlineNodeAction::InitMinIntervalSymbols => {
+                KlineNodeAction::InitMinInterval => {
                     tracing::info!("[{node_name}] start to init min interval symbols");
                     let result = self
                         .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init_min_interval().await }))
@@ -124,7 +124,7 @@ impl NodeLifecycle for KlineNode {
                                 NodeType::KlineNode,
                                 log_message.to_string(),
                                 current_state,
-                                KlineNodeAction::InitMinIntervalSymbols,
+                                KlineNodeAction::InitMinInterval,
                                 &strategy_output_handle,
                             )
                             .await;
@@ -135,7 +135,7 @@ impl NodeLifecycle for KlineNode {
                                 node_id.clone(),
                                 node_name.clone(),
                                 NodeType::KlineNode,
-                                KlineNodeAction::InitMinIntervalSymbols,
+                                KlineNodeAction::InitMinInterval,
                                 &err,
                                 &strategy_output_handle,
                             )

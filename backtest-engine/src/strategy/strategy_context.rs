@@ -25,7 +25,10 @@ use tokio::sync::{Mutex, Notify, RwLock, watch};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use super::strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateMachine, backtest_strategy_transition};
+use super::{
+    signal_generator::SignalGenerator,
+    strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateMachine, backtest_strategy_transition},
+};
 use crate::{
     node::{BacktestNode, node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
@@ -50,11 +53,11 @@ pub struct BacktestStrategyContext {
     execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,
     execute_over_notify: Arc<Notify>,
     min_interval: KlineInterval,
-    base_timeline: Arc<RwLock<Vec<DateTime<Utc>>>>, // base timeline for backtest
     kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,
     indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>,
     keys: Arc<RwLock<HashMap<Key, NodeId>>>,
     virtual_trading_system: Arc<Mutex<BacktestVts>>,
+    pub(crate) signal_generator: Arc<Mutex<SignalGenerator>>,
 }
 
 impl BacktestStrategyContext {
@@ -86,11 +89,11 @@ impl BacktestStrategyContext {
             execute_over_node_ids: Arc::new(RwLock::new(vec![])),
             execute_over_notify: Arc::new(Notify::new()),
             min_interval: KlineInterval::Minutes1,
-            base_timeline: Arc::new(RwLock::new(vec![])),
             kline_data: Arc::new(RwLock::new(HashMap::new())),
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
             keys: Arc::new(RwLock::new(HashMap::new())),
             virtual_trading_system: Arc::new(Mutex::new(virtual_trading_system)),
+            signal_generator: Arc::new(Mutex::new(SignalGenerator::new())),
         }
     }
 }

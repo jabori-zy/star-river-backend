@@ -105,6 +105,10 @@ pub enum BacktestStrategyStateAction {
     #[strum(serialize = "InitVirtualTradingSystem")]
     InitVirtualTradingSystem,
 
+    /// Initialize signal generator
+    #[strum(serialize = "InitSignalGenerator")]
+    InitSignalGenerator,
+
     /// Initialize strategy statistics
     #[strum(serialize = "InitStrategyStats")]
     InitStrategyStats,
@@ -205,6 +209,7 @@ pub fn backtest_strategy_transition(
                 BacktestStrategyStateAction::InitSignalCount,
                 BacktestStrategyStateAction::InitInitialPlaySpeed,
                 BacktestStrategyStateAction::InitVirtualTradingSystem,
+                BacktestStrategyStateAction::InitSignalGenerator,
                 BacktestStrategyStateAction::InitStrategyStats,
             ],
         )),

@@ -481,6 +481,7 @@ impl Mt5HttpClient {
         let start_time = time_range.start_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string();
         let end_time = time_range.end_date.to_utc().format("%Y-%m-%d %H:%M:%S").to_string();
 
+        tracing::debug!("start_time: {}, end_time: {}", start_time, end_time);
         let url = format!(
             "{}?symbol={}&interval={}&start_time={}&end_time={}",
             url, symbol, interval, start_time, end_time

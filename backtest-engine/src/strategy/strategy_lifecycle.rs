@@ -17,7 +17,10 @@ use super::{
     BacktestStrategy,
     strategy_state_machine::{BacktestStrategyRunState, BacktestStrategyStateAction, BacktestStrategyStateTransTrigger},
 };
-use crate::strategy::{strategy_error::BacktestStrategyError, strategy_log_message::StrategyStateLogMsg};
+use crate::strategy::{
+    strategy_error::{BacktestStrategyError, TimeRangeNotConfiguredSnafu},
+    strategy_log_message::StrategyStateLogMsg,
+};
 
 #[async_trait::async_trait]
 impl StrategyLifecycle for BacktestStrategy {
@@ -165,6 +168,28 @@ impl StrategyLifecycle for BacktestStrategy {
                         })
                     })
                     .await;
+                }
+                BacktestStrategyStateAction::InitSignalGenerator => {
+                    self.with_ctx_write_async(|ctx| {
+                        Box::pin(async move {
+                            let strategy_config = ctx.get_strategy_config().await?;
+                            let start_time = strategy_config.start_time();
+                            let end_time = strategy_config.end_time();
+                            if let (Some(start_time), Some(end_time)) = (start_time, end_time) {
+                                ctx.signal_generator
+                                    .lock()
+                                    .await
+                                    .init(start_time, end_time, ctx.min_interval().clone());
+                                Ok::<(), BacktestStrategyError>(())
+                            } else {
+                                return Err(TimeRangeNotConfiguredSnafu {
+                                    strategy_name: ctx.strategy_name().clone(),
+                                }
+                                .build());
+                            }
+                        })
+                    })
+                    .await?;
                 }
                 BacktestStrategyStateAction::InitVirtualTradingSystem => {
                     self.with_ctx_write_async(|ctx| {
