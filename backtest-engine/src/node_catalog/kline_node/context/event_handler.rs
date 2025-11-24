@@ -4,9 +4,8 @@ use event_center::Event;
 use key::{KeyTrait, KlineKey};
 use snafu::{IntoError, ResultExt};
 use star_river_core::kline::Kline;
-use star_river_event::backtest_strategy::node_event::{
-    kline_node_event::{KlineUpdateEvent, KlineUpdatePayload, TimeUpdateEvent, TimeUpdatePayload},
-    start_node_event::KlinePlayEvent,
+use star_river_event::backtest_strategy::node_event::kline_node_event::{
+    KlineUpdateEvent, KlineUpdatePayload, TimeUpdateEvent, TimeUpdatePayload,
 };
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
@@ -19,10 +18,7 @@ use tokio::sync::oneshot;
 // current crate
 use super::{KlineNodeContext, utils::is_cross_interval};
 // workspace crate
-use crate::{
-    node::node_error::kline_node_error::{BacktestStrategySnafu, GetMinIntervalFromStrategyFailedSnafu},
-    strategy::PlayIndex,
-};
+use crate::node::node_error::kline_node_error::{BacktestStrategySnafu, GetMinIntervalFromStrategyFailedSnafu};
 use crate::{
     node::{
         node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
@@ -33,11 +29,8 @@ use crate::{
 };
 
 impl KlineNodeContext {
-    pub(super) async fn send_kline(&mut self, play_event: KlinePlayEvent) -> Result<(), KlineNodeError> {
-        let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
-
-        // 获取当前play_index
-        let current_play_index = play_event.play_index;
+    pub(super) async fn send_kline(&mut self) -> Result<(), KlineNodeError> {
+        let mut cycle_tracker = CycleTracker::new(self.cycle_id());
 
         // 循环处理所有交易对
         // 上一根k线的时间戳
@@ -50,7 +43,7 @@ impl KlineNodeContext {
                 let phase_name = format!("get min interval kline {}", symbol_info.0);
                 cycle_tracker.start_phase(&phase_name);
                 if let Err(e) = self
-                    .handle_min_interval_kline(symbol_key, symbol_info, current_play_index, &mut pre_kline_timestamp)
+                    .handle_min_interval_kline(symbol_key, symbol_info, &mut pre_kline_timestamp)
                     .await
                 {
                     tracing::error!(
@@ -67,7 +60,7 @@ impl KlineNodeContext {
                 let phase_name = format!("handle interpolated kline {}", symbol_info.0);
                 cycle_tracker.start_phase(&phase_name);
                 // 2. 如果不是最小周期的symbol，使用插值算法处理
-                if let Err(e) = self.handle_interpolated_kline(symbol_key, symbol_info, current_play_index).await {
+                if let Err(e) = self.handle_interpolated_kline(symbol_key, symbol_info).await {
                     tracing::error!(
                         node_id = %self.node_id(),
                         node_name = %self.node_name(),
@@ -91,19 +84,19 @@ impl KlineNodeContext {
         symbol_info: &(i32, String),
         kline_key: &KlineKey,
         should_calculate: bool,
-        play_index: PlayIndex,
         kline_data: Kline,
     ) -> Result<(), KlineNodeError> {
         let generate_event = |handle_id: String| {
-            let payload = KlineUpdatePayload::new(
-                symbol_info.0.clone(),
-                play_index,
-                should_calculate,
-                kline_key.clone(),
-                kline_data.clone(),
-            );
-            let kline_update_event: KlineNodeEvent =
-                KlineUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), handle_id, payload).into();
+            let payload = KlineUpdatePayload::new(symbol_info.0.clone(), should_calculate, kline_key.clone(), kline_data.clone());
+            let kline_update_event: KlineNodeEvent = KlineUpdateEvent::new_with_time(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().clone(),
+                handle_id,
+                self.current_time(),
+                payload,
+            )
+            .into();
             let backtest_node_event: BacktestNodeEvent = kline_update_event.into();
             backtest_node_event
         };
@@ -115,7 +108,7 @@ impl KlineNodeContext {
 
         let symbol_handle_id = symbol_info.1.clone();
         if self.is_leaf_node() {
-            self.send_execute_over_event(self.play_index() as u64, Some(symbol_info.0))?;
+            self.send_execute_over_event(Some(symbol_info.0), Some(self.current_time()))?;
         } else {
             let event = generate_event(symbol_handle_id.clone());
             self.output_handle_send(event)?;
@@ -129,25 +122,20 @@ impl KlineNodeContext {
     }
 
     // 处理插值算法的独立方法
-    async fn handle_interpolated_kline(
-        &self,
-        symbol_key: &KlineKey,
-        symbol_info: &(i32, String),
-        current_play_index: PlayIndex,
-    ) -> Result<(), KlineNodeError> {
+    async fn handle_interpolated_kline(&self, symbol_key: &KlineKey, symbol_info: &(i32, String)) -> Result<(), KlineNodeError> {
         // 克隆kline_key，并设置为最小周期
         let mut kline_key_clone = symbol_key.clone();
         kline_key_clone.interval = self.min_interval.clone();
 
         // 从策略中获取k线数据
         let min_interval_kline_data = self
-            .get_single_kline_from_strategy(&kline_key_clone, Some(current_play_index))
+            .get_single_kline_from_strategy(&kline_key_clone, Some(self.cycle_id() as i32))
             .await?;
 
         // 判断当前play_index
-        if current_play_index == 0 {
+        if self.cycle_id() == 0 {
             // 如果play_index为0，则向缓存引擎插入新的k线
-            self.insert_new_kline_to_strategy(symbol_key, symbol_info, current_play_index, &min_interval_kline_data)
+            self.insert_new_kline_to_strategy(symbol_key, symbol_info, &min_interval_kline_data)
                 .await
         } else {
             // 核心步骤（插值算法）
@@ -156,12 +144,11 @@ impl KlineNodeContext {
 
             if is_cross_interval {
                 // 如果当前是新的周期，则向缓存引擎插入新的k线
-                self.insert_new_kline_to_strategy(symbol_key, symbol_info, current_play_index, &min_interval_kline_data)
+                self.insert_new_kline_to_strategy(symbol_key, symbol_info, &min_interval_kline_data)
                     .await
             } else {
                 // 如果当前不是新的周期，则更新缓存引擎中的值
-                self.update_existing_kline(symbol_key, symbol_info, current_play_index, &min_interval_kline_data)
-                    .await
+                self.update_existing_kline(symbol_key, symbol_info, &min_interval_kline_data).await
             }
         }
     }
@@ -171,7 +158,6 @@ impl KlineNodeContext {
         &self,
         symbol_key: &KlineKey,
         symbol_info: &(i32, String),
-        current_play_index: PlayIndex,
         min_interval_kline: &Kline,
     ) -> Result<(), KlineNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -186,7 +172,7 @@ impl KlineNodeContext {
         match response {
             StrategyResponse::Success { .. } => {
                 // 发送K线事件
-                self.send_kline_events(symbol_info, symbol_key, true, current_play_index, min_interval_kline.clone())?;
+                self.send_kline_events(symbol_info, symbol_key, true, min_interval_kline.clone())?;
                 Ok(())
             }
             StrategyResponse::Fail { error, .. } => {
@@ -200,7 +186,6 @@ impl KlineNodeContext {
         &self,
         symbol_key: &KlineKey,
         symbol_info: &(i32, String),
-        current_play_index: PlayIndex,
         min_interval_kline: &Kline,
     ) -> Result<(), KlineNodeError> {
         let last_kline = self.get_single_kline_from_strategy(symbol_key, None).await?;
@@ -234,7 +219,7 @@ impl KlineNodeContext {
         match response {
             StrategyResponse::Success { .. } => {
                 // 使用通用方法发送K线事件
-                self.send_kline_events(symbol_info, symbol_key, true, current_play_index, new_kline)?;
+                self.send_kline_events(symbol_info, symbol_key, true, new_kline)?;
                 Ok(())
             }
             StrategyResponse::Fail { error, .. } => {
@@ -248,10 +233,11 @@ impl KlineNodeContext {
         &self,
         symbol_key: &KlineKey,
         symbol_info: &(i32, String),
-        current_play_index: PlayIndex,
         pre_kline_timestamp: &mut i64,
     ) -> Result<(), KlineNodeError> {
-        let kline = self.get_single_kline_from_strategy(symbol_key, Some(current_play_index)).await?;
+        let kline = self
+            .get_single_kline_from_strategy(symbol_key, Some(self.cycle_id() as i32))
+            .await?;
         let kline_timestamp = kline.datetime().timestamp_millis();
 
         // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳为0， 初始值，则发送时间更新事件
@@ -260,8 +246,14 @@ impl KlineNodeContext {
 
             let kline_datetime = kline.datetime();
             let payload = TimeUpdatePayload::new(kline_datetime);
-            let time_update_event: KlineNodeEvent =
-                TimeUpdateEvent::new(self.node_id().clone(), self.node_name().clone(), self.node_id().clone(), payload).into();
+            let time_update_event: KlineNodeEvent = TimeUpdateEvent::new(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().clone(),
+                self.node_id().clone(),
+                payload,
+            )
+            .into();
             self.strategy_bound_handle().send(time_update_event.into())?;
         }
         // 如果时间戳不等于上一根k线的时间戳，并且上一根k线的时间戳不为0，说明有错误，同一批k线的时间戳不一致
@@ -269,13 +261,13 @@ impl KlineNodeContext {
             return Err(KlineTimestampNotEqualSnafu {
                 node_name: self.node_name().clone(),
                 kline_key: symbol_key.key_str(),
-                play_index: Some(current_play_index),
+                play_index: Some(self.cycle_id() as i32),
             }
             .build());
         }
 
         // 使用通用方法发送K线事件
-        self.send_kline_events(symbol_info, symbol_key, false, current_play_index, kline.clone())?;
+        self.send_kline_events(symbol_info, symbol_key, false, kline.clone())?;
 
         Ok(())
     }
@@ -329,9 +321,9 @@ impl NodeEventHandlerExt for KlineNodeContext {
     async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), KlineNodeError> {
         match node_event {
             BacktestNodeEvent::StartNode(start_node_event) => match start_node_event {
-                StartNodeEvent::KlinePlay(play_event) => {
+                StartNodeEvent::KlinePlay(_) => {
                     // tracing::info!("{}: 收到KlinePlay事件: {:?}", self.node_id(), play_event);
-                    self.send_kline(play_event).await
+                    self.send_kline().await
                 }
             },
             _ => Ok(()),

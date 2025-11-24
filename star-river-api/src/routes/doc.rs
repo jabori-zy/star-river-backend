@@ -25,7 +25,7 @@ use crate::api::{response::ApiResponse, system_api::SystemConfigUpdateParams};
         crate::api::strategy_api::backtest::play_one,
         crate::api::strategy_api::backtest::update_backtest_chart_config,
         crate::api::strategy_api::backtest::get_backtest_chart_config,
-        crate::api::strategy_api::backtest::get_play_index,
+        crate::api::strategy_api::backtest::get_cycle_id,
         crate::api::strategy_api::backtest::get_virtual_orders,
         crate::api::strategy_api::backtest::get_current_positions,
         crate::api::strategy_api::backtest::get_history_positions,

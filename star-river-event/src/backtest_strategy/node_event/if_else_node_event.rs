@@ -1,6 +1,7 @@
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::{HandleId, NodeId, NodeName};
+use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 
@@ -14,6 +15,23 @@ pub enum IfElseNodeEvent {
 }
 
 impl IfElseNodeEvent {
+    pub fn cycle_id(&self) -> CycleId {
+        match self {
+            IfElseNodeEvent::CaseTrue(event) => event.cycle_id(),
+            IfElseNodeEvent::CaseFalse(event) => event.cycle_id(),
+            IfElseNodeEvent::ElseTrue(event) => event.cycle_id(),
+            IfElseNodeEvent::ElseFalse(event) => event.cycle_id(),
+        }
+    }
+
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            IfElseNodeEvent::CaseTrue(event) => event.datetime(),
+            IfElseNodeEvent::CaseFalse(event) => event.datetime(),
+            IfElseNodeEvent::ElseTrue(event) => event.datetime(),
+            IfElseNodeEvent::ElseFalse(event) => event.datetime(),
+        }
+    }
     pub fn node_id(&self) -> &NodeId {
         match self {
             IfElseNodeEvent::CaseTrue(event) => event.node_id(),
@@ -47,50 +65,28 @@ pub type ElseFalseEvent = NodeEvent<ElseFalsePayload>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaseTruePayload {
-    #[serde(rename = "playIndex")]
-    pub play_index: i32,
     pub case_id: i32,
 }
 
 impl CaseTruePayload {
-    pub fn new(play_index: i32, case_id: i32) -> Self {
-        Self { play_index, case_id }
+    pub fn new(case_id: i32) -> Self {
+        Self { case_id }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaseFalsePayload {
-    #[serde(rename = "playIndex")]
-    pub play_index: i32,
     pub case_id: i32,
 }
 
 impl CaseFalsePayload {
-    pub fn new(play_index: i32, case_id: i32) -> Self {
-        Self { play_index, case_id }
+    pub fn new(case_id: i32) -> Self {
+        Self { case_id }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElseTruePayload {
-    #[serde(rename = "playIndex")]
-    pub play_index: i32,
-}
-
-impl ElseTruePayload {
-    pub fn new(play_index: i32) -> Self {
-        Self { play_index }
-    }
-}
+pub struct ElseTruePayload;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElseFalsePayload {
-    #[serde(rename = "playIndex")]
-    pub play_index: i32,
-}
-
-impl ElseFalsePayload {
-    pub fn new(play_index: i32) -> Self {
-        Self { play_index }
-    }
-}
+pub struct ElseFalsePayload;

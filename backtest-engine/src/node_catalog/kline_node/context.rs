@@ -12,6 +12,7 @@ mod utils;
 use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use key::{KeyTrait, KlineKey};
 use star_river_core::{
     custom_type::{NodeId, NodeName},
@@ -28,7 +29,7 @@ use strategy_core::{
 use super::{kline_node_type::KlineNodeBacktestConfig, state_machine::KlineNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::kline_node_error::*, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 pub type KlineNodeMetadata = NodeMetadata<KlineNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
@@ -39,14 +40,14 @@ pub struct KlineNodeContext {
     pub node_config: KlineNodeBacktestConfig,
     min_interval: KlineInterval,
     selected_symbol_keys: HashMap<KlineKey, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl KlineNodeContext {
     pub fn new(
         metadata: KlineNodeMetadata,
         node_config: KlineNodeBacktestConfig,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, KlineNodeError> {
         let exchange = node_config.account()?.exchange.clone();
         let time_range = node_config.time_range()?.clone();
@@ -71,7 +72,7 @@ impl KlineNodeContext {
             node_config,
             min_interval: KlineInterval::Minutes1,
             selected_symbol_keys,
-            play_index_watch_rx,
+            current_time_watch_rx,
         })
     }
 
@@ -85,12 +86,8 @@ impl KlineNodeContext {
 }
 
 impl KlineNodeContext {
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 }
 

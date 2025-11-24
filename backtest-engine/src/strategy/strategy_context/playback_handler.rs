@@ -1,18 +1,19 @@
 // std
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use event_center::EventCenterSingleton;
-use star_river_core::custom_type::StrategyId;
+use star_river_core::custom_type::{CycleId, StrategyId};
 use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent, PlayFinishedEvent};
 use strategy_core::{
     benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker},
     node::NodeTrait,
-    strategy::context_trait::{
-        StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyVariableExt, StrategyWorkflowExt,
-    },
+    strategy::{context_trait::{
+        StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
+    }, cycle::Cycle},
 };
 // third-party
-use tokio::sync::{Mutex, Notify, RwLock, oneshot};
+use tokio::sync::{Mutex, Notify, RwLock, oneshot, watch};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -36,16 +37,15 @@ struct PlayContext {
     strategy_id: StrategyId,
     strategy_name: String,
     node: BacktestNode,
-    play_index: Arc<RwLock<PlayIndex>>,
-    signal_count: Arc<RwLock<i32>>,
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     child_cancel_play_token: CancellationToken,
     execute_over_notify: Arc<Notify>,
-    play_index_watch_tx: tokio::sync::watch::Sender<PlayIndex>,
     strategy_benchmark: Arc<RwLock<StrategyBenchmark>>,
     cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
     signal_generator: Arc<Mutex<SignalGenerator>>,
+    current_time_watch_tx: watch::Sender<DateTime<Utc>>,
+    cycle_watch_tx: watch::Sender<Cycle>,
 }
 
 impl BacktestStrategyContext {
@@ -66,16 +66,15 @@ impl BacktestStrategyContext {
             strategy_id: self.strategy_id(),
             strategy_name: self.strategy_name().clone(),
             node: node.clone(),
-            play_index: self.play_index.clone(),
-            signal_count: self.total_signal_count.clone(),
             is_playing: self.is_playing.clone(),
             initial_play_speed: self.initial_play_speed.clone(),
             child_cancel_play_token: self.cancel_play_token.child_token(),
             execute_over_notify: self.execute_over_notify.clone(),
-            play_index_watch_tx: self.play_index_watch_tx.clone(),
             strategy_benchmark: self.benchmark().clone(),
             cycle_tracker: self.cycle_tracker().clone(),
             signal_generator: self.signal_generator.clone(),
+            current_time_watch_tx: self.current_time_watch_tx.clone(),
+            cycle_watch_tx: self.cycle_watch_tx().clone(),
         }
     }
 
@@ -125,10 +124,11 @@ impl BacktestStrategyContext {
             );
 
             // 单次逻辑开始
-            let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index as u32);
+            let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index);
             strategy_cycle_tracker.start_phase("increment play index");
 
-            context.play_index_watch_tx.send(signal_index as i32).unwrap();
+            context.current_time_watch_tx.send(signal_time).unwrap();
+            context.cycle_watch_tx.send(Cycle::Id(signal_index)).unwrap();
 
             // 显式释放 cycle_tracker 锁，避免在等待 notify 时持有锁
             strategy_cycle_tracker.end_phase("increment play index");
@@ -193,32 +193,6 @@ impl BacktestStrategyContext {
             speed
         }
     }
-
-    // 发送播放信号
-    // async fn send_play_signal(context: &PlayContext, play_index: PlayIndex) {
-    // tracing::info!("=========== 发送信号 ===========");
-
-    // Self::send_play_index_update_event(
-    //     play_index,
-    //     total_signal_count,
-    //     context.strategy_inner_event_publisher.clone()
-    // ).await;
-    // 通过watch发送play_index
-    // context.play_index_watch_tx.send(play_index).unwrap();
-
-    // let node_clone = context.node.clone();
-    // let virtual_trading_system_clone = context.virtual_trading_system.clone();
-    // let updated_play_index_notify = context.updated_play_index_notify.clone();
-    // tracing::info!("等待节点索引更新完毕");
-    // let start_node = node_clone.as_any().downcast_ref::<StartNode>().unwrap();
-    // updated_play_index_notify.notified().await;
-
-    // let mut virtual_trading_system_guard = virtual_trading_system_clone.lock().await;
-    // virtual_trading_system_guard.set_play_index(play_index).await;
-
-    // start_node.send_play_signal().await;
-    // tracing::info!("节点索引更新完毕");
-    // }
 
     // 处理播放完毕, 发送播放完毕事件
     async fn handle_play_finished(context: &PlayContext, strategy_name: &str, play_index: PlayIndex) {
@@ -310,10 +284,10 @@ impl BacktestStrategyContext {
         }
 
         self.cancel_play_token.cancel();
-        // 重置信号计数
-        *self.play_index.write().await = -1; // 重置为-1，表示未播放
         // 重置播放状态
         *self.is_playing.write().await = false;
+
+        self.cycle_watch_tx().send(Cycle::Reset).unwrap();
 
         let mut signal_generator_guard = self.signal_generator.lock().await;
         signal_generator_guard.reset();
@@ -351,7 +325,8 @@ impl BacktestStrategyContext {
 
         let (signal_index, signal_time) = signal_generator_guard.next().unwrap();
         let is_finished_after_next = signal_generator_guard.is_finished();
-        let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index as u32);
+        let progress = signal_generator_guard.progress();
+        let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index);
         strategy_cycle_tracker.start_phase("increment play index");
         drop(signal_generator_guard);
         tracing::debug!("signal_index: {}, signal_time: {}", signal_index, signal_time);
@@ -367,9 +342,16 @@ impl BacktestStrategyContext {
                 before_reset_batch_id
             );
         }
+        tracing::debug!(
+            "playing signal_index: {}, signal_time: {}, progress: {}",
+            signal_index,
+            signal_time,
+            progress
+        );
 
         // 单次逻辑开始
-        self.play_index_watch_tx.send(signal_index as i32).unwrap();
+        self.cycle_watch_tx().send(Cycle::Id(signal_index)).unwrap();
+        self.current_time_watch_tx.send(signal_time).unwrap();
         if is_finished_after_next {
             let finish_event: BacktestStrategyEvent =
                 PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), signal_index as i32).into();
@@ -385,20 +367,6 @@ impl BacktestStrategyContext {
 
         Ok(signal_index as i32)
     }
-
-    // 发送播放索引更新事件
-    // async fn send_play_index_update_event(
-    //     play_index: i32,
-    //     total_signal_count: i32,
-    //     strategy_inner_event_publisher: StrategyInnerEventPublisher,
-    // ){
-    //     let event = StrategyInnerEvent::PlayIndexUpdate(PlayIndexUpdateEvent {
-    //         play_index,
-    //         total_signal_count,
-    //         timestamp: get_utc8_timestamp_millis(),
-    //     });
-    //     strategy_inner_event_publisher.send(event).unwrap();
-    // }
 
     pub async fn send_reset_node_event(&self) {
         let nodes = self.topological_sort().unwrap();

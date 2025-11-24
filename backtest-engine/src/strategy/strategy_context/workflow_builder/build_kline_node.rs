@@ -1,7 +1,7 @@
 // std
 use std::sync::Arc;
 
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+use strategy_core::strategy::context_trait::{StrategyCommunicationExt, StrategyInfoExt};
 // third-party
 use tokio::sync::{Mutex, mpsc};
 
@@ -19,13 +19,14 @@ impl BacktestStrategyContext {
         node_command_rx: mpsc::Receiver<BacktestNodeCommand>,
     ) -> Result<KlineNode, BacktestNodeError> {
         let strategy_command_sender = self.strategy_command_sender().clone();
-        let play_index_watch_rx = self.play_index_watch_rx();
+        let current_time_watch_rx = self.current_time_watch_rx();
 
         let node = KlineNode::new(
+            self.cycle_watch_rx(),
             node_config,
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
-            play_index_watch_rx,
+            current_time_watch_rx,
         )?;
         Ok(node)
     }

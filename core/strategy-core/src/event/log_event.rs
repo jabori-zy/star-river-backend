@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::Serialize;
 use star_river_core::{
-    custom_type::{HandleId, NodeId, NodeName},
+    custom_type::{CycleId, HandleId, NodeId, NodeName},
     error::error_trait::{ErrorLanguage, StarRiverErrorTrait},
 };
 use utoipa::ToSchema;
@@ -37,6 +37,13 @@ impl NodeStateLogEvent {
             NodeStateLogEvent::Info(event) => &event.output_handle_id,
             NodeStateLogEvent::Warn(event) => &event.output_handle_id,
             NodeStateLogEvent::Error(event) => &event.output_handle_id,
+        }
+    }
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            NodeStateLogEvent::Info(event) => event.datetime,
+            NodeStateLogEvent::Warn(event) => event.datetime,
+            NodeStateLogEvent::Error(event) => event.datetime,
         }
     }
 }
@@ -233,74 +240,3 @@ impl NodeStateErrorLog {
         }
     }
 }
-
-// #[derive(Debug, Clone, Serialize, Deserialize, From)]
-// #[serde(rename_all = "camelCase")]
-// pub struct NodeStateLogEvent {
-//     pub strategy_id: i32,
-
-//     pub node_id: String,
-
-//     pub node_name: String,
-
-//     pub node_state: String,
-
-//     pub node_state_action: String,
-
-//     pub log_level: LogLevel,
-
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub error_code: Option<String>,
-
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub error_code_chain: Option<Vec<String>>,
-
-//     pub message: String,
-//     pub datetime: DateTime<Utc>,
-// }
-
-// impl NodeStateLogEvent {
-//     pub fn success(
-//         strategy_id: i32,
-//         node_id: String,
-//         node_name: String,
-//         node_state: String,
-//         node_state_action: String,
-//         message: String,
-//     ) -> Self {
-//         Self {
-//             strategy_id,
-//             node_id,
-//             node_name,
-//             node_state,
-//             node_state_action,
-//             log_level: LogLevel::Info,
-//             message,
-//             error_code: None,
-//             error_code_chain: None,
-//             datetime: Utc::now(),
-//         }
-//     }
-
-//     pub fn error(
-//         strategy_id: i32,
-//         node_id: String,
-//         node_name: String,
-//         node_state: String,
-//         node_state_action: String,
-//         error: &impl StarRiverErrorTrait,
-//     ) -> Self {
-//         Self {
-//             strategy_id,
-//             node_id,
-//             node_name,
-//             node_state,
-//             node_state_action,
-//             log_level: LogLevel::Error,
-//             message: error.error_message(ErrorLanguage::Chinese),
-//             error_code: Some(error.error_code().to_string()),
-//             error_code_chain: Some(error.error_code_chain()),
-//             datetime: Utc::now(),
-//         }
-//     }
-// }

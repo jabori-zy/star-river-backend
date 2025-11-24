@@ -5,6 +5,7 @@ mod node_handles;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::{NodeId, NodeName};
@@ -20,7 +21,7 @@ use tokio::sync::Mutex;
 use super::{position_node_types::PositionNodeBacktestConfig, state_machine::PositionNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::BacktestVts,
 };
 
@@ -30,39 +31,35 @@ pub type PositionNodeMetadata = NodeMetadata<PositionNodeStateMachine, BacktestN
 pub struct PositionNodeContext {
     metadata: PositionNodeMetadata,
     node_config: PositionNodeBacktestConfig,
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     database: DatabaseConnection,
     heartbeat: Arc<Mutex<Heartbeat>>,
     virtual_trading_system: Arc<Mutex<BacktestVts>>,
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl PositionNodeContext {
     pub fn new(
         metadata: PositionNodeMetadata,
         node_config: PositionNodeBacktestConfig,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
             node_config,
-            play_index_watch_rx,
             database,
             heartbeat,
             virtual_trading_system,
+            current_time_watch_rx,
         }
     }
 }
 
 impl PositionNodeContext {
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 
     pub fn node_config(&self) -> &PositionNodeBacktestConfig {

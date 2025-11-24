@@ -10,7 +10,7 @@ use star_river_core::{
     custom_type::{CycleId, NodeId, NodeName, StrategyId},
     error::StarRiverErrorTrait,
 };
-use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 // current crate
@@ -30,7 +30,7 @@ use crate::{
         NodeType,
         node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
         node_state_machine::{StateChangeActions, StateMachine},
-    },
+    }, strategy::cycle::Cycle,
 };
 
 // ============================================================================
@@ -65,6 +65,11 @@ pub trait NodeInfoExt: NodeMetaDataExt {
     #[inline]
     fn cycle_id(&self) -> CycleId {
         self.metadata().cycle_id()
+    }
+
+    #[inline]
+    fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
+        self.metadata().cycle_watch_rx()
     }
 
     /// 获取节点 ID
@@ -367,19 +372,32 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
         }
     }
 
-    fn send_execute_over_event(&self, cycle_id: CycleId, config_id: Option<i32>) -> Result<(), NodeError> {
+    fn send_execute_over_event(&self, config_id: Option<i32>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
         if !self.is_leaf_node() {
             return Ok(());
         }
 
-        let payload = ExecuteOverPayload::new(cycle_id, config_id);
-        let execute_over_event: CommonEvent = ExecuteOverEvent::new(
-            self.node_id().clone(),
-            self.node_name().to_string(),
-            self.strategy_bound_handle().output_handle_id().clone(),
-            payload,
-        )
-        .into();
+        let payload = ExecuteOverPayload::new(config_id);
+        let execute_over_event: CommonEvent = if let Some(datetime) = datetime {
+            ExecuteOverEvent::new_with_time(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().to_string(),
+                self.strategy_bound_handle().output_handle_id().clone(),
+                datetime,
+                payload,
+            )
+            .into()
+        } else {
+            ExecuteOverEvent::new(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().to_string(),
+                self.strategy_bound_handle().output_handle_id().clone(),
+                payload,
+            )
+            .into()
+        };
 
         self.strategy_bound_handle_send(execute_over_event.into())?;
 
@@ -387,16 +405,35 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
     }
 
     // send trigger event to downstream node. if current node is leaf node, send execute over event instead.
-    async fn send_trigger_event(&self, handle_id: &str) -> Result<(), NodeError> {
+    async fn send_trigger_event(&self, handle_id: &str, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
         // 叶子节点不发送触发事件
         if self.is_leaf_node() {
             // self.send_execute_over_event()?;
             return Ok(());
         }
 
-        let payload = TriggerPayload::new(self.cycle_id());
-        let trigger_event: CommonEvent =
-            TriggerEvent::new(self.node_id().clone(), self.node_name().to_string(), handle_id.to_string(), payload).into();
+        let payload = TriggerPayload;
+
+        let trigger_event: CommonEvent = if let Some(datetime) = datetime {
+            TriggerEvent::new_with_time(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().to_string(),
+                handle_id.to_string(),
+                datetime,
+                payload,
+            )
+            .into()
+        } else {
+            TriggerEvent::new(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().to_string(),
+                handle_id.to_string(),
+                payload,
+            )
+            .into()
+        };
 
         let output_handle = self.output_handle(handle_id).context(OutputHandleNotFoundSnafu {
             handle_id: handle_id.to_string(),

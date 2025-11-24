@@ -42,9 +42,7 @@ pub type BacktestStrategyMetadata =
 pub struct BacktestStrategyContext {
     metadata: BacktestStrategyMetadata,
     total_signal_count: Arc<RwLock<i32>>,
-    play_index: Arc<RwLock<PlayIndex>>,
-    play_index_watch_tx: watch::Sender<PlayIndex>,
-    play_index_watch_rx: watch::Receiver<PlayIndex>,
+    current_time_watch_tx: watch::Sender<DateTime<Utc>>,
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     cancel_play_token: CancellationToken,
@@ -71,16 +69,14 @@ impl BacktestStrategyContext {
 
         let metadata = BacktestStrategyMetadata::new("backtest", strategy_config, state_machine, database, heartbeat);
 
-        let (play_index_watch_tx, play_index_watch_rx) = watch::channel::<PlayIndex>(-1);
-
         let virtual_trading_system = BacktestVts::new(BacktestVtsContext::new());
+
+        let (current_time_watch_tx, _) = watch::channel::<DateTime<Utc>>(DateTime::<Utc>::MIN_UTC);
 
         Self {
             metadata,
             total_signal_count: Arc::new(RwLock::new(0)),
-            play_index: Arc::new(RwLock::new(-1)),
-            play_index_watch_tx,
-            play_index_watch_rx,
+            current_time_watch_tx,
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token: CancellationToken::new(),
@@ -154,28 +150,8 @@ impl BacktestStrategyContext {
         self.execute_over_notify.clone()
     }
 
-    // ========================================================================
-    // 3. 播放控制 - 索引 (Playback Index)
-    // ========================================================================
-
-    /// 获取播放索引
-    pub async fn play_index(&self) -> PlayIndex {
-        *self.play_index.read().await
-    }
-
-    /// 设置播放索引
-    pub async fn set_play_index(&self, index: PlayIndex) {
-        *self.play_index.write().await = index;
-    }
-
-    /// 获取播放索引监听发送器
-    pub fn play_index_watch_tx(&self) -> &watch::Sender<PlayIndex> {
-        &self.play_index_watch_tx
-    }
-
-    /// 获取播放索引监听接收器克隆
-    pub fn play_index_watch_rx(&self) -> watch::Receiver<PlayIndex> {
-        self.play_index_watch_rx.clone()
+    pub fn current_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
+        self.current_time_watch_tx.subscribe()
     }
 
     // ========================================================================

@@ -1,0 +1,87 @@
+use std::sync::Arc;
+
+use star_river_core::error::StarRiverErrorTrait;
+use strategy_core::{
+    event::{
+        node_common_event::CommonEvent,
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+    },
+    node::{
+        context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
+        node_trait::NodeContextAccessor,
+    }, strategy::cycle::Cycle,
+};
+
+use super::StartNode;
+
+impl StartNode {
+    pub async fn listen_cycle_id_change(&self) {
+        let (mut cycle_id_watch_rx, cancel_token, node_name) = self
+            .with_ctx_read(|ctx| {
+                let cycle_id_watch_rx = ctx.cycle_watch_rx();
+                let cancel_token = ctx.cancel_token().clone();
+                let node_name = ctx.node_name().to_string();
+                (cycle_id_watch_rx, cancel_token, node_name)
+            })
+            .await;
+
+        let context = Arc::clone(self.context());
+
+        tracing::info!("[{}]: start to listen play index change", node_name);
+        // 节点接收播放索引变化
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // 如果取消信号被触发，则中止任务
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("[{}]: play index listen task stopped", node_name);
+                        break;
+                    }
+                    // 监听播放索引变化
+                    receive_result = cycle_id_watch_rx.changed() => {
+                        match receive_result {
+                            Ok(_) => {
+                                let context_guard = context.write().await;
+
+                                let cycle = context_guard.cycle_watch_rx().borrow().clone();
+
+                                match cycle {
+                                    Cycle::Id(_) => {
+                                        let result = context_guard.send_play_signal().await;
+
+                                        if let Err(e) = result {
+                                            let current_time = context_guard.current_time();
+                                            let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                                context_guard.cycle_id().clone(),
+                                                context_guard.strategy_id().clone(),
+                                                context_guard.node_id().clone(),
+                                                context_guard.node_name().clone(),
+                                                StrategyRunningLogSource::Node,
+                                                &e,
+                                                current_time,
+                                            ).into();
+        
+                                            if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
+                                                e.report();
+                                            };
+        
+        
+                                        }
+                                    }
+                                    Cycle::Reset => {}
+                                }
+
+
+
+                            }
+                            Err(e) => {
+                                tracing::error!("[{}]: listen play index error: {}", node_name, e);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}

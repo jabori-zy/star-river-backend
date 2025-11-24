@@ -6,6 +6,7 @@ mod state_machine;
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use context::FuturesOrderNodeContext;
 use futures::StreamExt;
 pub use futures_order_node_types::FuturesOrderNodeConfig;
@@ -23,9 +24,9 @@ use strategy_core::{
         metadata::NodeMetadata,
         node_trait::NodeContextAccessor,
         utils::generate_strategy_output_handle,
-    },
+    }, strategy::cycle::Cycle,
 };
-use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::{command::VtsCommand, event::VtsEvent};
 
@@ -33,7 +34,7 @@ use crate::{
     node::{
         node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_event::BacktestNodeEvent, node_state_machine::NodeRunState,
     },
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 #[derive(Debug, Clone)]
@@ -58,20 +59,22 @@ impl NodeContextAccessor for FuturesOrderNode {
 
 impl FuturesOrderNode {
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         vts_command_sender: mpsc::Sender<VtsCommand>,
         vts_event_receiver: broadcast::Receiver<VtsEvent>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_futures_order_node_config(node_config)?;
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
         let state_machine = FuturesOrderNodeStateMachine::new(node_name.clone(), NodeRunState::Created, futures_order_node_transition);
 
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id,
             node_name,
@@ -84,11 +87,11 @@ impl FuturesOrderNode {
         let context = FuturesOrderNodeContext::new(
             metadata,
             node_config,
-            play_index_watch_rx,
             database,
             heartbeat,
             vts_command_sender,
             vts_event_receiver,
+            current_time_watch_rx,
         );
         Ok(Self {
             inner: NodeBase::new(context),

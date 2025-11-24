@@ -5,7 +5,8 @@ use axum::{
 use backtest_engine::engine_error::BacktestEngineError;
 use engine_core::EngineContextAccessor;
 use snafu::Report;
-use star_river_core::error::StarRiverErrorTrait;
+use star_river_core::{custom_type::CycleId, error::StarRiverErrorTrait};
+use strategy_core::strategy::context_trait::StrategyInfoExt;
 use tracing::instrument;
 
 use super::BACKTEST_CONTROL_TAG;
@@ -206,7 +207,7 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
         (status = 400, description = "获取播放索引失败")
     )
 )]
-pub async fn get_play_index(
+pub async fn get_cycle_id(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
 ) -> (StatusCode, Json<NewApiResponse<serde_json::Value>>) {
@@ -214,13 +215,11 @@ pub async fn get_play_index(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<i32, BacktestEngineError> = engine_guard
+    let result: Result<CycleId, BacktestEngineError> = engine_guard
         .with_ctx_read_async(|ctx| {
             Box::pin(async move {
-                let play_index = ctx
-                    .with_strategy_ctx_read_async(strategy_id, move |ctx| Box::pin(async move { ctx.play_index().await }))
-                    .await?;
-                Ok(play_index)
+                let cycle_id = ctx.with_strategy_ctx_read(strategy_id, move |ctx| ctx.cycle_id()).await?;
+                Ok(cycle_id)
             })
         })
         .await;

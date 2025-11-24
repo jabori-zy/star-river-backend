@@ -1,13 +1,14 @@
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::{HandleId, NodeId, NodeName};
+use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 use virtual_trading::types::VirtualPosition;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
-#[serde(tag = "event_type")]
-pub enum PositionManagementNodeEvent {
+#[serde(tag = "event")]
+pub enum PositionNodeEvent {
     #[strum(serialize = "position-created-event")]
     #[serde(rename = "position-created-event")]
     PositionCreated(PositionCreatedEvent),
@@ -21,28 +22,44 @@ pub enum PositionManagementNodeEvent {
     PositionClosed(PositionClosedEvent),
 }
 
-impl PositionManagementNodeEvent {
+impl PositionNodeEvent {
+    pub fn cycle_id(&self) -> CycleId {
+        match self {
+            PositionNodeEvent::PositionCreated(event) => event.cycle_id(),
+            PositionNodeEvent::PositionUpdated(event) => event.cycle_id(),
+            PositionNodeEvent::PositionClosed(event) => event.cycle_id(),
+        }
+    }
+
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            PositionNodeEvent::PositionCreated(event) => event.datetime(),
+            PositionNodeEvent::PositionUpdated(event) => event.datetime(),
+            PositionNodeEvent::PositionClosed(event) => event.datetime(),
+        }
+    }
+
     pub fn node_id(&self) -> &NodeId {
         match self {
-            PositionManagementNodeEvent::PositionCreated(event) => event.node_id(),
-            PositionManagementNodeEvent::PositionUpdated(event) => event.node_id(),
-            PositionManagementNodeEvent::PositionClosed(event) => event.node_id(),
+            PositionNodeEvent::PositionCreated(event) => event.node_id(),
+            PositionNodeEvent::PositionUpdated(event) => event.node_id(),
+            PositionNodeEvent::PositionClosed(event) => event.node_id(),
         }
     }
 
     pub fn node_name(&self) -> &NodeName {
         match self {
-            PositionManagementNodeEvent::PositionCreated(event) => event.node_name(),
-            PositionManagementNodeEvent::PositionUpdated(event) => event.node_name(),
-            PositionManagementNodeEvent::PositionClosed(event) => event.node_name(),
+            PositionNodeEvent::PositionCreated(event) => event.node_name(),
+            PositionNodeEvent::PositionUpdated(event) => event.node_name(),
+            PositionNodeEvent::PositionClosed(event) => event.node_name(),
         }
     }
 
     pub fn output_handle_id(&self) -> &HandleId {
         match self {
-            PositionManagementNodeEvent::PositionCreated(event) => event.output_handle_id(),
-            PositionManagementNodeEvent::PositionUpdated(event) => event.output_handle_id(),
-            PositionManagementNodeEvent::PositionClosed(event) => event.output_handle_id(),
+            PositionNodeEvent::PositionCreated(event) => event.output_handle_id(),
+            PositionNodeEvent::PositionUpdated(event) => event.output_handle_id(),
+            PositionNodeEvent::PositionClosed(event) => event.output_handle_id(),
         }
     }
 }

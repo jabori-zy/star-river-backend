@@ -65,9 +65,6 @@ impl BacktestEngineContext {
         let is_initializing = self.initializing_strategies.lock().await.contains(&strategy_id);
         let has_instance = self.strategy_list.lock().await.contains_key(&strategy_id);
         let strategy_status = StrategyConfigQuery::get_strategy_run_state(&self.database, strategy_id).await?;
-        tracing::info!("is_initializing: {}", is_initializing);
-        tracing::info!("has_instance: {}", has_instance);
-        tracing::info!("strategy run state: {}", strategy_status);
 
         if is_initializing || has_instance {
             // 正在初始化或有实例，返回数据库中的状态

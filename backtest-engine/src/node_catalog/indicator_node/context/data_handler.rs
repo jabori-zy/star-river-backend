@@ -55,9 +55,9 @@ impl IndicatorNodeContext {
     }
 
     // 获取已经计算好的回测指标数据
-    pub(super) async fn get_indicator_data(&self, indicator_key: &IndicatorKey, play_index: i32) -> Result<Indicator, String> {
+    pub(super) async fn get_indicator_data(&self, indicator_key: &IndicatorKey) -> Result<Indicator, String> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetIndicatorDataCmdPayload::new(indicator_key.clone(), Some(play_index), Some(1));
+        let payload = GetIndicatorDataCmdPayload::new(indicator_key.clone(), Some(self.cycle_id() as i32), Some(1));
         let get_indicator_cmd = GetIndicatorDataCommand::new(self.node_id().clone(), resp_tx, payload);
 
         self.send_strategy_command(get_indicator_cmd.into()).await.unwrap();

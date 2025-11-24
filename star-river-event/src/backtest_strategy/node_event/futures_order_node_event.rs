@@ -1,12 +1,13 @@
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::{HandleId, NodeId, NodeName};
+use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
 use virtual_trading::types::{VirtualOrder, VirtualTransaction};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
-#[serde(tag = "event_type")]
+#[serde(tag = "event")]
 pub enum FuturesOrderNodeEvent {
     #[strum(serialize = "futures-order-created-event")]
     #[serde(rename = "futures-order-created-event")]
@@ -50,6 +51,36 @@ pub enum FuturesOrderNodeEvent {
 }
 
 impl FuturesOrderNodeEvent {
+    pub fn cycle_id(&self) -> CycleId {
+        match self {
+            FuturesOrderNodeEvent::FuturesOrderCreated(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::FuturesOrderCanceled(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::FuturesOrderFilled(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderCreated(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderFilled(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::TakeProfitOrderCanceled(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::StopLossOrderCreated(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::StopLossOrderFilled(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::StopLossOrderCanceled(event) => event.cycle_id(),
+            FuturesOrderNodeEvent::TransactionCreated(event) => event.cycle_id(),
+        }
+    }
+
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            FuturesOrderNodeEvent::FuturesOrderCreated(event) => event.datetime(),
+            FuturesOrderNodeEvent::FuturesOrderCanceled(event) => event.datetime(),
+            FuturesOrderNodeEvent::FuturesOrderFilled(event) => event.datetime(),
+            FuturesOrderNodeEvent::TakeProfitOrderCreated(event) => event.datetime(),
+            FuturesOrderNodeEvent::TakeProfitOrderFilled(event) => event.datetime(),
+            FuturesOrderNodeEvent::TakeProfitOrderCanceled(event) => event.datetime(),
+            FuturesOrderNodeEvent::StopLossOrderCreated(event) => event.datetime(),
+            FuturesOrderNodeEvent::StopLossOrderFilled(event) => event.datetime(),
+            FuturesOrderNodeEvent::StopLossOrderCanceled(event) => event.datetime(),
+            FuturesOrderNodeEvent::TransactionCreated(event) => event.datetime(),
+        }
+    }
+
     pub fn node_id(&self) -> &NodeId {
         match self {
             FuturesOrderNodeEvent::FuturesOrderCreated(event) => event.node_id(),

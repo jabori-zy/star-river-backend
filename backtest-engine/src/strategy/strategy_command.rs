@@ -5,7 +5,6 @@ use key::{IndicatorKey, Key, KlineKey};
 use star_river_core::{
     custom_type::NodeId,
     kline::{Kline, KlineInterval},
-    system::DateTimeUtc,
 };
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
@@ -22,7 +21,6 @@ use ta_lib::Indicator;
 pub enum BacktestStrategyCommand {
     GetStrategyKeys(GetStrategyKeysCommand),
     GetMinInterval(GetMinIntervalCommand),
-    GetCurrentTime(GetCurrentTimeCommand),
     InitKlineData(InitKlineDataCommand),
     AppendKlineData(AppendKlineDataCommand),
     InitIndicatorData(InitIndicatorDataCommand),
@@ -43,7 +41,6 @@ impl BacktestStrategyCommand {
         match self {
             BacktestStrategyCommand::GetStrategyKeys(command) => command.node_id(),
             BacktestStrategyCommand::GetMinInterval(command) => command.node_id(),
-            BacktestStrategyCommand::GetCurrentTime(command) => command.node_id(),
             BacktestStrategyCommand::InitKlineData(command) => command.node_id(),
             BacktestStrategyCommand::AppendKlineData(command) => command.node_id(),
             BacktestStrategyCommand::InitIndicatorData(command) => command.node_id(),
@@ -70,9 +67,6 @@ pub type GetStrategyKeysResponse = StrategyResponse<GetStrategyKeysRespPayload>;
 // get min interval
 pub type GetMinIntervalCommand = StrategyCommand<GetMinIntervalCmdPayload, GetMinIntervalRespPayload>;
 pub type GetMinIntervalResponse = StrategyResponse<GetMinIntervalRespPayload>;
-// get current time
-pub type GetCurrentTimeCommand = StrategyCommand<GetCurrentTimeCmdPayload, GetCurrentTimeRespPayload>;
-pub type GetCurrentTimeResponse = StrategyResponse<GetCurrentTimeRespPayload>;
 // init kline data
 pub type InitKlineDataCommand = StrategyCommand<InitKlineDataCmdPayload, InitKlineDataRespPayload>;
 pub type InitKlineDataResponse = StrategyResponse<InitKlineDataRespPayload>;
@@ -143,21 +137,6 @@ pub struct GetMinIntervalRespPayload {
 impl GetMinIntervalRespPayload {
     pub fn new(interval: KlineInterval) -> Self {
         Self { interval }
-    }
-}
-
-// ============ Get Current Time ============
-#[derive(Debug)]
-pub struct GetCurrentTimeCmdPayload;
-
-#[derive(Debug)]
-pub struct GetCurrentTimeRespPayload {
-    pub current_time: DateTimeUtc,
-}
-
-impl GetCurrentTimeRespPayload {
-    pub fn new(current_time: DateTimeUtc) -> Self {
-        Self { current_time }
     }
 }
 

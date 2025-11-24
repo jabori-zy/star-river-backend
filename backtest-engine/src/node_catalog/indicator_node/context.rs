@@ -8,6 +8,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 // External project crates
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use key::{IndicatorKey, KlineKey};
 use star_river_core::{
     custom_type::{NodeId, NodeName},
@@ -26,7 +27,7 @@ use super::{indicator_node_type::IndicatorNodeBacktestConfig, state_machine::Ind
 // Crate imports
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 pub type IndicatorNodeMetadata = NodeMetadata<IndicatorNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
@@ -41,16 +42,16 @@ pub struct IndicatorNodeContext {
     indicator_lookback: HashMap<IndicatorKey, usize>,     // Indicator key -> lookback
     min_interval_symbols: Vec<KlineKey>,
     min_interval: KlineInterval,
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl IndicatorNodeContext {
     pub fn new(
         metadata: IndicatorNodeMetadata,
         node_config: IndicatorNodeBacktestConfig,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         selected_kline_key: KlineKey,
         indicator_keys: HashMap<IndicatorKey, (i32, String)>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
@@ -61,7 +62,7 @@ impl IndicatorNodeContext {
             indicator_lookback: HashMap::new(),
             min_interval_symbols: vec![],
             min_interval: KlineInterval::Minutes1,
-            play_index_watch_rx,
+            current_time_watch_rx,
         }
     }
 
@@ -83,12 +84,8 @@ impl IndicatorNodeContext {
 }
 
 impl IndicatorNodeContext {
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 }
 

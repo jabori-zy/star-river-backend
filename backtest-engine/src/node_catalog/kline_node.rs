@@ -5,18 +5,19 @@ mod state_machine;
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use context::KlineNodeContext;
 use kline_node_type::KlineNodeBacktestConfig;
 use snafu::{OptionExt, ResultExt};
 use star_river_core::{
-    custom_type::{NodeId, NodeName, StrategyId},
+    custom_type::{CycleId, NodeId, NodeName, StrategyId},
     state_machine::Metadata,
 };
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
 };
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
 use crate::{
     node::{
@@ -29,7 +30,7 @@ use crate::{
         node_state_machine::NodeRunState,
     },
     node_catalog::kline_node::state_machine::{KlineNodeStateMachine, kline_node_transition},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 #[derive(Debug, Clone)]
@@ -54,10 +55,11 @@ impl NodeContextAccessor for KlineNode {
 
 impl KlineNode {
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_kline_node_config(node_config)?;
 
@@ -76,6 +78,7 @@ impl KlineNode {
         );
 
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id,
             node_name,
@@ -85,7 +88,8 @@ impl KlineNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = KlineNodeContext::new(metadata, node_config, play_index_watch_rx)?;
+
+        let context = KlineNodeContext::new(metadata, node_config, current_time_watch_rx)?;
         Ok(Self {
             inner: NodeBase::new(context),
         })

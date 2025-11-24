@@ -12,7 +12,6 @@ use star_river_event::backtest_strategy::node_event::{
 // Current crate imports - strategy_core
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
-    communication::strategy::StrategyResponse,
     event::{
         node_common_event::CommonEvent,
         strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
@@ -20,7 +19,6 @@ use strategy_core::{
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
     node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},
 };
-use tokio::sync::oneshot;
 
 // Relative imports
 use super::{ConfigId, IfElseNodeContext};
@@ -31,7 +29,6 @@ use crate::{
         node_message::if_else_node_log_message::ConditionMatchedMsg,
     },
     node_catalog::if_else_node::utils::{compare, parse_condition_left_value, parse_condition_right_value},
-    strategy::strategy_command::{GetCurrentTimeCmdPayload, GetCurrentTimeCommand},
 };
 
 impl IfElseNodeContext {
@@ -76,10 +73,10 @@ impl IfElseNodeContext {
 
     // Start evaluating all branches
     pub async fn evaluate(&mut self) -> Result<(), IfElseNodeError> {
-        let mut cycle_tracker: CycleTracker = CycleTracker::new(self.play_index() as u32);
+        let mut cycle_tracker: CycleTracker = CycleTracker::new(self.cycle_id());
 
         let mut have_true_case = false; // Track whether any case has matched
-        let current_time = self.get_current_time().await.unwrap();
+        let current_time = self.current_time();
 
         // Iterate through all cases for condition evaluation
         for case in self.node_config.cases.iter() {
@@ -142,14 +139,20 @@ impl IfElseNodeContext {
         let strategy_id = self.strategy_id().clone();
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
-        let play_index = self.play_index();
 
         let case_output_handle_id = case.output_handle_id.clone();
 
         // 创建条件匹配事件
-        let payload = CaseTruePayload::new(play_index, case.case_id);
-        let condition_match_event: IfElseNodeEvent =
-            CaseTrueEvent::new(node_id.clone(), node_name.clone(), case_output_handle_id.clone(), payload).into();
+        let payload = CaseTruePayload::new(case.case_id);
+        let condition_match_event: IfElseNodeEvent = CaseTrueEvent::new_with_time(
+            self.cycle_id(),
+            node_id.clone(),
+            node_name.clone(),
+            case_output_handle_id.clone(),
+            self.current_time(),
+            payload,
+        )
+        .into();
 
         // 创建并发送日志事件
         let condition_result_json = serde_json::to_value(condition_results).context(EvaluateResultSerializationFailedSnafu {
@@ -157,6 +160,7 @@ impl IfElseNodeContext {
         })?;
         let message = ConditionMatchedMsg::new(node_name.clone(), case.case_id);
         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+            self.cycle_id(),
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -173,7 +177,7 @@ impl IfElseNodeContext {
         // 根据节点类型处理事件发送
         if self.is_leaf_node() {
             // 叶子节点：发送执行结束事件
-            self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
+            self.send_execute_over_event(Some(case.case_id), Some(self.current_time())).unwrap();
         } else {
             // 非叶子节点：将事件传递给下游节点
             self.output_handle_send(condition_match_event.into()).unwrap();
@@ -185,20 +189,21 @@ impl IfElseNodeContext {
 
     async fn handle_case_false(&self, case: &Case) {
         if self.is_leaf_node() {
-            self.send_execute_over_event(self.play_index() as u64, Some(case.case_id)).unwrap();
+            self.send_execute_over_event(Some(case.case_id), Some(self.current_time())).unwrap();
             return;
         }
 
         let case_output_handle_id = case.output_handle_id.clone();
-        let payload = CaseFalsePayload::new(self.play_index(), case.case_id);
-        let case_false_event: IfElseNodeEvent = CaseFalseEvent::new(
+        let payload = CaseFalsePayload::new(case.case_id);
+        let case_false_event: IfElseNodeEvent = CaseFalseEvent::new_with_time(
+            self.cycle_id(),
             self.node_id().clone(),
             self.node_name().clone(),
             case_output_handle_id.clone(),
+            self.current_time(),
             payload,
         )
         .into();
-        // tracing::debug!("@[{}] send case false event for case {}", self.node_name(), case.case_id);
         self.output_handle_send(case_false_event.into()).unwrap();
     }
 
@@ -209,11 +214,13 @@ impl IfElseNodeContext {
             "handle_else_branch, else_output_handle: {:?}",
             else_output_handle.output_handle_id()
         );
-        let payload = ElseTruePayload::new(self.play_index());
-        let else_event: IfElseNodeEvent = ElseTrueEvent::new(
+        let payload = ElseTruePayload;
+        let else_event: IfElseNodeEvent = ElseTrueEvent::new_with_time(
+            self.cycle_id(),
             self.node_id().clone(),
             self.node_name().clone(),
             else_output_handle.output_handle_id().clone(),
+            self.current_time(),
             payload,
         )
         .into();
@@ -222,25 +229,21 @@ impl IfElseNodeContext {
 
     // 处理else分支
     async fn handle_else_false(&self) {
-        // if self.is_leaf_node() {
-        //     // 叶子节点：发送执行结束事件
-        //     self.send_execute_over_event(self.play_index() as u64, None).unwrap();
-        //     return;
-        // }
 
         let else_output_handle = self.default_output_handle().unwrap();
         tracing::debug!("handle_else_false, else_output_handle: {:?}", else_output_handle.output_handle_id());
-        let payload = ElseFalsePayload::new(self.play_index());
-        let else_event: IfElseNodeEvent = ElseFalseEvent::new(
+        let payload = ElseFalsePayload;
+        let else_event: IfElseNodeEvent = ElseFalseEvent::new_with_time(
+            self.cycle_id(),
             self.node_id().clone(),
             self.node_name().clone(),
             else_output_handle.output_handle_id().clone(),
+            self.current_time(),
             payload,
         )
         .into();
-        let _ = else_output_handle.send(else_event.into());
+        let _ = else_output_handle.send(else_event.into()).unwrap();
     }
-
     pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
         match case.logical_symbol {
             LogicalSymbol::And => self.evaluate_and_conditions(&case.conditions).await,
@@ -275,10 +278,10 @@ impl IfElseNodeContext {
             // );
         } else {
             tracing::warn!(
-                "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前play_index: {}",
+                "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前cycle_id: {}",
                 left_value,
                 right_value,
-                self.play_index()
+                self.cycle_id()
             );
         }
 
@@ -318,23 +321,5 @@ impl IfElseNodeContext {
             result
         });
         (result, condition_results)
-    }
-
-    async fn get_current_time(&self) -> Result<DateTimeUtc, String> {
-        let (tx, rx) = oneshot::channel();
-
-        let payload = GetCurrentTimeCmdPayload;
-        let cmd = GetCurrentTimeCommand::new(self.node_id().clone(), tx, payload);
-        self.send_strategy_command(cmd.into()).await.unwrap();
-
-        let response = rx.await.unwrap();
-        match response {
-            StrategyResponse::Success { payload, .. } => {
-                return Ok(payload.current_time.clone());
-            }
-            StrategyResponse::Fail { error, .. } => {
-                return Err(error.to_string());
-            }
-        }
     }
 }

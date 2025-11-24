@@ -61,11 +61,7 @@ impl PositionNodeContext {
                         trigger_event
                     );
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(self.play_index() as u64, None).unwrap();
-                        let payload = ExecuteOverPayload::new(self.play_index() as u64, None);
-                        let execute_over_event: CommonEvent =
-                            ExecuteOverEvent::new(self.node_id().clone(), self.node_name().clone(), self.node_id().clone(), payload).into();
-                        self.strategy_bound_handle().send(execute_over_event.into()).unwrap();
+                        self.send_execute_over_event(None, Some(self.current_time())).unwrap();
                     }
                     Ok(())
                 }
@@ -75,10 +71,7 @@ impl PositionNodeContext {
             BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
                 tracing::debug!("{}: 收到订单事件: {:?}", self.node_name(), futures_order_node_event);
                 if self.is_leaf_node() {
-                    let payload = ExecuteOverPayload::new(self.play_index() as u64, None);
-                    let execute_over_event: CommonEvent =
-                        ExecuteOverEvent::new(self.node_id().clone(), self.node_name().clone(), self.node_id().clone(), payload).into();
-                    self.strategy_bound_handle().send(execute_over_event.into()).unwrap();
+                    self.send_execute_over_event(None, Some(self.current_time())).unwrap();
                     Ok(())
                 } else {
                     Ok(())
@@ -87,7 +80,7 @@ impl PositionNodeContext {
             BacktestNodeEvent::IfElseNode(ifelse_event) => match ifelse_event {
                 IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(self.play_index() as u64, Some(config_id)).unwrap();
+                        self.send_execute_over_event(Some(config_id), Some(self.current_time())).unwrap();
                         Ok(())
                     } else {
                         self.independent_position_op_send_trigger_event(config_id).await;
@@ -96,7 +89,7 @@ impl PositionNodeContext {
                 }
                 IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(self.play_index() as u64, Some(config_id)).unwrap();
+                        self.send_execute_over_event(Some(config_id), Some(self.current_time())).unwrap();
                         Ok(())
                     } else {
                         self.independent_position_op_send_trigger_event(config_id).await;

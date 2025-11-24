@@ -7,6 +7,7 @@ mod status_handler;
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::{
@@ -41,7 +42,6 @@ pub type FuturesOrderNodeMetadata =
 pub struct FuturesOrderNodeContext {
     metadata: FuturesOrderNodeMetadata,
     node_config: FuturesOrderNodeConfig,
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     is_processing_order: Arc<RwLock<HashMap<InputHandleId, bool>>>, // 是否正在处理订单 input_handle_id -> is_processing_order
     database: DatabaseConnection,                                   // 数据库连接
     heartbeat: Arc<Mutex<Heartbeat>>,                               // 心跳
@@ -52,22 +52,22 @@ pub struct FuturesOrderNodeContext {
     virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
     symbol_info: Vec<Symbol>,                                                                  // 交易对信息
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl FuturesOrderNodeContext {
     pub fn new(
         metadata: FuturesOrderNodeMetadata,
         node_config: FuturesOrderNodeConfig,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         vts_command_sender: mpsc::Sender<VtsCommand>,
         vts_event_receiver: broadcast::Receiver<VtsEvent>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
             node_config,
-            play_index_watch_rx,
             is_processing_order: Arc::new(RwLock::new(HashMap::new())),
             database,
             heartbeat,
@@ -77,17 +77,14 @@ impl FuturesOrderNodeContext {
             virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
             virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
             symbol_info: vec![],
+            current_time_watch_rx,
         }
     }
 }
 
 impl FuturesOrderNodeContext {
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 
     pub fn node_config(&self) -> &FuturesOrderNodeConfig {

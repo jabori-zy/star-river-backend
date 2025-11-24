@@ -114,9 +114,9 @@ impl VariableNodeContext {
                     Some(val) => val,
                     None => {
                         if self.is_leaf_node() {
-                            self.send_execute_over_event(self.play_index() as u64, Some(config.config_id()))?
+                            self.send_execute_over_event(Some(config.config_id()), Some(self.current_time()))?
                         } else {
-                            self.send_trigger_event(&output_handle_id).await?;
+                            self.send_trigger_event(&output_handle_id, Some(self.current_time())).await?;
                         }
                         continue;
                     } // 如果返回 None，跳过当前迭代
@@ -149,7 +149,8 @@ impl VariableNodeContext {
         // 在循环外提前克隆共享数据，避免重复克隆
         let node_id = self.node_id();
         let node_name = self.node_name();
-        let play_index = self.play_index();
+        let cycle_id = self.cycle_id();
+        let current_time = self.current_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();
@@ -159,7 +160,8 @@ impl VariableNodeContext {
                 GetVariableConfig::Custom(custom_config) => {
                     let output_handle_id = custom_config.output_handle_id.clone();
                     let handle = Self::create_get_custom_var_handle(
-                        play_index,
+                        cycle_id,
+                        current_time,
                         node_id.clone(),
                         node_name.clone(),
                         custom_config.config_id(),
@@ -210,15 +212,14 @@ impl VariableNodeContext {
         // 在循环外提前克隆共享数据，避免重复克隆
         let node_id = self.node_id();
         let node_name = self.node_name();
-        let play_index = self.play_index();
+        let cycle_id = self.cycle_id();
+        let current_time = self.current_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();
 
         for config in update_var_configs {
             // 只克隆配置特定的字段
-            let var_name = config.var_name().to_string();
-            let var_display_name = config.var_display_name.clone();
             let var_op = "update".to_string();
             let update_var_value_operation = config.update_var_value_operation().clone();
             let update_operation_value = config.update_operation_value().cloned();
@@ -244,7 +245,7 @@ impl VariableNodeContext {
                 match response {
                     StrategyResponse::Success { payload, .. } => {
                         let payload = CustomVarUpdatePayload::new(
-                            play_index,
+                            cycle_id,
                             config_id,
                             var_op,
                             Some(update_var_value_operation),
@@ -252,6 +253,7 @@ impl VariableNodeContext {
                             payload.custom_variable.clone(),
                         );
                         let var_event: VariableNodeEvent = CustomVarUpdateEvent::new(
+                            cycle_id,
                             node_id_clone.clone(),
                             node_name_clone.clone(),
                             output_handle_id_clone.clone(),
@@ -260,9 +262,16 @@ impl VariableNodeContext {
                         .into();
                         let _ = strategy_output_handle_clone.send(var_event.clone().into());
                         if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(play_index as u64, None);
-                            let execute_over_event: CommonEvent =
-                                ExecuteOverEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
+                            let payload = ExecuteOverPayload::new(None);
+                            let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
+                                cycle_id,
+                                node_id_clone,
+                                node_name_clone,
+                                output_handle_id_clone,
+                                current_time,
+                                payload,
+                            )
+                            .into();
                             let _ = strategy_output_handle_clone.send(execute_over_event.into());
                         } else {
                             let _ = output_handle.send(var_event.into());
@@ -270,9 +279,16 @@ impl VariableNodeContext {
                     }
                     StrategyResponse::Fail { error, .. } => {
                         tracing::error!("update_variable failed: {:?}", error);
-                        let payload = TriggerPayload::new(play_index as u64);
-                        let trigger_event: CommonEvent =
-                            TriggerEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
+                        let payload = TriggerPayload;
+                        let trigger_event: CommonEvent = TriggerEvent::new_with_time(
+                            cycle_id,
+                            node_id_clone,
+                            node_name_clone,
+                            output_handle_id_clone,
+                            current_time,
+                            payload,
+                        )
+                        .into();
                         let _ = output_handle.send(trigger_event.into());
                     }
                 }
@@ -291,7 +307,8 @@ impl VariableNodeContext {
         // 在循环外提前克隆共享数据，避免重复克隆
         let node_id = self.node_id();
         let node_name = self.node_name();
-        let play_index = self.play_index();
+        let cycle_id = self.cycle_id();
+        let current_time = self.current_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();
@@ -320,20 +337,28 @@ impl VariableNodeContext {
                 let response = resp_rx.await.unwrap();
                 match response {
                     StrategyResponse::Success { payload, .. } => {
-                        let payload =
-                            CustomVarUpdatePayload::new(play_index, config_id, var_op, None, None, payload.custom_variable.clone());
-                        let var_event: VariableNodeEvent = CustomVarUpdateEvent::new(
+                        let payload = CustomVarUpdatePayload::new(cycle_id, config_id, var_op, None, None, payload.custom_variable.clone());
+                        let var_event: VariableNodeEvent = CustomVarUpdateEvent::new_with_time(
+                            cycle_id,
                             node_id_clone.clone(),
                             node_name_clone.clone(),
                             output_handle_id_clone.clone(),
+                            current_time,
                             payload,
                         )
                         .into();
                         let _ = strategy_output_handle_clone.send(var_event.clone().into());
                         if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(play_index as u64, None);
-                            let execute_over_event: CommonEvent =
-                                ExecuteOverEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
+                            let payload = ExecuteOverPayload::new(None);
+                            let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
+                                cycle_id,
+                                node_id_clone,
+                                node_name_clone,
+                                output_handle_id_clone,
+                                current_time,
+                                payload,
+                            )
+                            .into();
                             let _ = strategy_output_handle_clone.send(execute_over_event.into());
                         } else {
                             let _ = output_handle.send(var_event.into());
@@ -341,9 +366,16 @@ impl VariableNodeContext {
                     }
                     StrategyResponse::Fail { error, .. } => {
                         tracing::error!("reset_variable failed: {:?}", error);
-                        let payload = TriggerPayload::new(play_index as u64);
-                        let trigger_event: CommonEvent =
-                            TriggerEvent::new(node_id_clone, node_name_clone, output_handle_id_clone, payload).into();
+                        let payload = TriggerPayload;
+                        let trigger_event: CommonEvent = TriggerEvent::new_with_time(
+                            cycle_id,
+                            node_id_clone,
+                            node_name_clone,
+                            output_handle_id_clone,
+                            current_time,
+                            payload,
+                        )
+                        .into();
                         let _ = output_handle.send(trigger_event.into());
                     }
                 }

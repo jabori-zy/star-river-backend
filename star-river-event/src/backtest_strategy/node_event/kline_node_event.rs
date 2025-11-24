@@ -3,14 +3,11 @@ use derive_more::From;
 use key::{KeyTrait, KlineKey};
 use serde::{Deserialize, Serialize};
 use star_river_core::{
-    custom_type::{HandleId, NodeId, NodeName},
+    custom_type::{CycleId, HandleId, NodeId, NodeName},
     kline::Kline,
 };
 use strategy_core::event::node::NodeEvent;
 use strum::Display;
-
-// TODO: Need to define NodeStateLogEvent and StrategyRunningLogEvent
-// use super::super::super::strategy_event::{NodeStateLogEvent, StrategyRunningLogEvent};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
 #[serde(tag = "event")]
@@ -25,6 +22,20 @@ pub enum KlineNodeEvent {
 }
 
 impl KlineNodeEvent {
+    pub fn cycle_id(&self) -> CycleId {
+        match self {
+            KlineNodeEvent::KlineUpdate(event) => event.cycle_id(),
+            KlineNodeEvent::TimeUpdate(event) => event.cycle_id(),
+        }
+    }
+
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            KlineNodeEvent::KlineUpdate(event) => event.datetime(),
+            KlineNodeEvent::TimeUpdate(event) => event.datetime(),
+        }
+    }
+
     pub fn node_id(&self) -> &NodeId {
         match self {
             KlineNodeEvent::KlineUpdate(event) => event.node_id(),
@@ -51,31 +62,19 @@ pub type TimeUpdateEvent = NodeEvent<TimeUpdatePayload>;
 
 // Payload type definitions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KlineUpdatePayload {
-    #[serde(rename = "configId")]
     pub config_id: i32,
-
-    #[serde(rename = "playIndex")]
-    pub play_index: i32,
-
-    #[serde(rename = "shouldCalculate")]
     pub should_calculate: bool, // Whether calculation is needed
-
     #[serde(serialize_with = "serialize_kline_key")]
-    #[serde(rename = "klineKey")]
     pub kline_key: KlineKey,
-
-    // #[serde(serialize_with = "serialize_kline_data")]
-    // #[serde(deserialize_with = "deserialize_cache_value_vec")]
-    #[serde(rename = "kline")]
     pub kline: Kline,
 }
 
 impl KlineUpdatePayload {
-    pub fn new(config_id: i32, play_index: i32, should_calculate: bool, kline_key: KlineKey, kline: Kline) -> Self {
+    pub fn new(config_id: i32, should_calculate: bool, kline_key: KlineKey, kline: Kline) -> Self {
         Self {
             config_id,
-            play_index,
             should_calculate,
             kline_key,
             kline,
@@ -89,34 +88,6 @@ where
 {
     let kline_key_str = kline_key.key_str();
     serializer.serialize_str(&kline_key_str)
-}
-
-fn serialize_kline_data<S>(kline_data: &Vec<Kline>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    use serde::ser::SerializeSeq;
-
-    let mut seq = serializer.serialize_seq(Some(kline_data.len()))?;
-    kline_data
-        .iter()
-        .map(|v| {
-            let json_value = v.to_json();
-            seq.serialize_element(&json_value)
-        })
-        .collect::<Result<(), S::Error>>()?;
-    seq.end()
-}
-
-// Deserialization function
-fn deserialize_cache_value_vec<'de, D>(deserializer: D) -> Result<Vec<Kline>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-
-    let _: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
-    Ok(Vec::new())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

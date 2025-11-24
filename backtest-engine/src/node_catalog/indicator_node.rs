@@ -6,6 +6,7 @@ mod state_machine;
 // Standard library imports
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+use chrono::{DateTime, Utc};
 // Local module imports
 use context::IndicatorNodeContext;
 use indicator_node_type::{ExchangeModeConfig, IndicatorNodeBacktestConfig};
@@ -15,7 +16,7 @@ use key::{IndicatorKey, KlineKey};
 use serde::de::IntoDeserializer;
 use snafu::ResultExt;
 use star_river_core::{
-    custom_type::{NodeId, NodeName, StrategyId},
+    custom_type::{CycleId, NodeId, NodeName, StrategyId},
     system::deserialize_time_range,
 };
 use state_machine::{IndicatorNodeStateMachine, indicator_node_transition};
@@ -23,10 +24,10 @@ use strategy_core::{
     NodeType,
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
     node::{NodeBase, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
-    strategy::{SelectedAccount, SelectedIndicator, SelectedSymbol},
+    strategy::{SelectedAccount, SelectedIndicator, SelectedSymbol, cycle::Cycle},
 };
 use ta_lib::IndicatorConfig;
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
 // Crate imports
 use crate::{
@@ -36,7 +37,7 @@ use crate::{
         node_event::BacktestNodeEvent,
         node_state_machine::NodeRunState,
     },
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand, strategy_config::BacktestDataSource},
+    strategy::{strategy_command::BacktestStrategyCommand, strategy_config::BacktestDataSource},
 };
 
 #[derive(Debug, Clone)]
@@ -61,10 +62,11 @@ impl NodeContextAccessor for IndicatorNode {
 
 impl IndicatorNode {
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_indicator_node_config(node_config)?;
 
@@ -73,6 +75,7 @@ impl IndicatorNode {
         let state_machine = IndicatorNodeStateMachine::new(node_name.clone(), NodeRunState::Created, indicator_node_transition);
 
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id,
             node_name,
@@ -87,7 +90,7 @@ impl IndicatorNode {
         // 通过配置，获取回测K线缓存键
         let selected_kline_key = Self::get_kline_key(&node_config);
 
-        let context = IndicatorNodeContext::new(metadata, node_config, play_index_watch_rx, selected_kline_key, indicator_keys);
+        let context = IndicatorNodeContext::new(metadata, node_config, selected_kline_key, indicator_keys, current_time_watch_rx);
         Ok(Self {
             inner: NodeBase::new(context),
         })

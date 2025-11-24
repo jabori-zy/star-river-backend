@@ -32,7 +32,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
             BacktestNodeEvent::IfElseNode(if_else_node_event) => {
                 match if_else_node_event {
                     IfElseNodeEvent::CaseTrue(match_event) => {
-                        let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
+                        let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
                         node_cycle_tracker.start_phase("handle_condition_trigger");
                         // 过滤出condition trigger caseid相同的变量配置
                         let configs = filter_case_trigger_configs(
@@ -62,7 +62,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
 
                         if self.is_leaf_node() {
                             configs.iter().for_each(|config| {
-                                self.send_execute_over_event(self.play_index() as u64, Some(config.confing_id()))
+                                self.send_execute_over_event(Some(config.confing_id()), Some(self.current_time()))
                                     .unwrap()
                             });
                             return Ok(());
@@ -70,13 +70,15 @@ impl NodeEventHandlerExt for VariableNodeContext {
 
                         stream::iter(configs.iter())
                             .for_each_concurrent(None, |config| async {
-                                self.send_trigger_event(&config.output_handle_id()).await.unwrap();
+                                self.send_trigger_event(&config.output_handle_id(), Some(self.current_time()))
+                                    .await
+                                    .unwrap();
                             })
                             .await;
                         Ok(())
                     }
                     IfElseNodeEvent::ElseTrue(else_true) => {
-                        let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
+                        let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
                         node_cycle_tracker.start_phase("handle_condition_trigger");
                         // 过滤出condition trigger caseid相同的变量配置
                         let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_true.node_id());
@@ -93,7 +95,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
             }
             // k线更新，处理dataflow
             BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
-                let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
+                let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
                 node_cycle_tracker.start_phase("handle_dataflow_trigger");
                 // 过滤出dataflow trigger相同的变量配置
                 let dataflow_trigger_configs = filter_dataflow_trigger_configs(
@@ -111,7 +113,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 Ok(())
             }
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
-                let mut node_cycle_tracker = CycleTracker::new(self.play_index() as u32);
+                let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
                 node_cycle_tracker.start_phase("handle_dataflow_trigger");
                 let dataflow_trigger_configs = filter_dataflow_trigger_configs(
                     self.node_config.variable_configs.iter(),

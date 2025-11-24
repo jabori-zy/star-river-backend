@@ -5,21 +5,22 @@ mod variable_node_type;
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use context::VariableNodeContext;
 use serde_json;
 use snafu::ResultExt;
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 use state_machine::{VariableNodeStateMachine, variable_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
 };
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use variable_node_type::VariableNodeBacktestConfig;
 
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_state_machine::NodeRunState},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::BacktestVts,
 };
 
@@ -45,16 +46,18 @@ impl NodeContextAccessor for VariableNode {
 
 impl VariableNode {
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_variable_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id);
         let state_machine = VariableNodeStateMachine::new(node_name.clone(), NodeRunState::Created, variable_node_transition);
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id,
             node_name,
@@ -64,7 +67,7 @@ impl VariableNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = VariableNodeContext::new(metadata, node_config, play_index_watch_rx, virtual_trading_system);
+        let context = VariableNodeContext::new(metadata, node_config, virtual_trading_system, current_time_watch_rx);
         Ok(Self {
             inner: NodeBase::new(context),
         })

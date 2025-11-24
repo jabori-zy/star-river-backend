@@ -11,6 +11,6 @@ pub use futures_order_node_event::FuturesOrderNodeEvent;
 pub use if_else_node_event::IfElseNodeEvent;
 pub use indicator_node_event::IndicatorNodeEvent;
 pub use kline_node_event::KlineNodeEvent;
-pub use position_node_event::PositionManagementNodeEvent;
+pub use position_node_event::PositionNodeEvent;
 pub use start_node_event::StartNodeEvent;
 pub use variable_node_event::VariableNodeEvent;

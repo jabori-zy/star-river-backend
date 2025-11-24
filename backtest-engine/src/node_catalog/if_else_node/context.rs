@@ -5,6 +5,7 @@ mod node_handles;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use star_river_core::custom_type::{NodeId, NodeName};
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
@@ -30,16 +31,16 @@ pub struct IfElseNodeContext {
     node_config: IfElseNodeBacktestConfig,
     received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
     received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
     is_nested: bool,
     superior_case_is_true: bool,
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl IfElseNodeContext {
     pub fn new(
         metadata: IfElseNodeMetadata,
         node_config: IfElseNodeBacktestConfig,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
         is_nested: bool,
     ) -> Self {
         Self {
@@ -47,20 +48,16 @@ impl IfElseNodeContext {
             node_config,
             received_flag: HashMap::new(),
             received_message: HashMap::new(),
-            play_index_watch_rx,
             is_nested,
             superior_case_is_true: false,
+            current_time_watch_rx,
         }
     }
 }
 
 impl IfElseNodeContext {
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 
     pub fn is_nested(&self) -> bool {

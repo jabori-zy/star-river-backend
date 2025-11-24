@@ -109,6 +109,25 @@ impl BacktestEngineContext {
         Ok(f(strategy).await)
     }
 
+    /// 以读锁方式访问策略上下文（同步闭包）
+    ///
+    /// 这是一个辅助方法，直接访问策略的上下文，减少嵌套层级
+    ///
+    /// # 示例
+    /// ```rust
+    /// context.with_strategy_ctx_read(strategy_id, |ctx| {
+    ///     ctx.cycle_id()
+    /// }).await?;
+    /// ```
+    pub async fn with_strategy_ctx_read<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::engine_error::BacktestEngineError>
+    where
+        F: for<'a> FnOnce(&'a BacktestStrategyContext) -> R + Send + 'static,
+        R: Send,
+    {
+        self.with_strategy_async(strategy_id, |strategy| Box::pin(async move { strategy.with_ctx_read(f).await }))
+            .await
+    }
+
     /// 以读锁方式访问策略上下文（异步闭包）
     ///
     /// 这是一个辅助方法，直接访问策略的上下文，减少嵌套层级
@@ -135,6 +154,25 @@ impl BacktestEngineContext {
             Box::pin(async move { strategy.with_ctx_read_async(f).await })
         })
         .await
+    }
+
+    /// 以写锁方式访问策略上下文（同步闭包）
+    ///
+    /// 这是一个辅助方法，直接访问策略的上下文，减少嵌套层级
+    ///
+    /// # 示例
+    /// ```rust
+    /// context.with_strategy_ctx_write(strategy_id, |ctx| {
+    ///     ctx.set_something(value)
+    /// }).await?;
+    /// ```
+    pub async fn with_strategy_ctx_write<R, F>(&self, strategy_id: StrategyId, f: F) -> Result<R, crate::engine_error::BacktestEngineError>
+    where
+        F: for<'a> FnOnce(&'a mut BacktestStrategyContext) -> R + Send + 'static,
+        R: Send,
+    {
+        self.with_strategy_mut_async(strategy_id, |strategy| Box::pin(async move { strategy.with_ctx_write(f).await }))
+            .await
     }
 
     /// 以写锁方式访问策略上下文（异步闭包）

@@ -1,6 +1,7 @@
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::custom_type::{HandleId, NodeId, NodeName};
+use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 use strategy_core::{
     event::node::NodeEvent,
     node_infra::variable_node::variable_operation::UpdateVarValueOperation,
@@ -12,7 +13,7 @@ use strategy_core::{
 use strum::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display, From)]
-#[serde(tag = "event_type")]
+#[serde(tag = "event")]
 pub enum VariableNodeEvent {
     #[strum(serialize = "sys-variable-update-event")]
     #[serde(rename = "sys-variable-update-event")]
@@ -24,6 +25,20 @@ pub enum VariableNodeEvent {
 }
 
 impl VariableNodeEvent {
+    pub fn cycle_id(&self) -> CycleId {
+        match self {
+            VariableNodeEvent::SysVarUpdate(event) => event.cycle_id(),
+            VariableNodeEvent::CustomVarUpdate(event) => event.cycle_id(),
+        }
+    }
+
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            VariableNodeEvent::SysVarUpdate(event) => event.datetime(),
+            VariableNodeEvent::CustomVarUpdate(event) => event.datetime(),
+        }
+    }
+
     pub fn node_id(&self) -> &NodeId {
         match self {
             VariableNodeEvent::SysVarUpdate(event) => event.node_id(),
@@ -53,15 +68,15 @@ pub type CustomVarUpdateEvent = NodeEvent<CustomVarUpdatePayload>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SysVarUpdatePayload {
-    pub play_index: i32,
+    pub cycle_id: CycleId,
     pub variable_config_id: i32, // Variable config ID
     pub sys_variable: SysVariable,
 }
 
 impl SysVarUpdatePayload {
-    pub fn new(play_index: i32, variable_config_id: i32, sys_variable: SysVariable) -> Self {
+    pub fn new(cycle_id: CycleId, variable_config_id: i32, sys_variable: SysVariable) -> Self {
         Self {
-            play_index,
+            cycle_id,
             variable_config_id,
             sys_variable,
         }
@@ -71,7 +86,7 @@ impl SysVarUpdatePayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomVarUpdatePayload {
-    pub play_index: i32,
+    pub cycle_id: CycleId,
     pub variable_config_id: i32,
     pub var_operation: String,                             // get, update, reset
     pub update_operation: Option<UpdateVarValueOperation>, // Update operation, if empty, it means getting variable value
@@ -81,7 +96,7 @@ pub struct CustomVarUpdatePayload {
 
 impl CustomVarUpdatePayload {
     pub fn new(
-        play_index: i32,
+        cycle_id: CycleId,
         variable_config_id: i32,
         var_op: String,
         update_operation: Option<UpdateVarValueOperation>,
@@ -89,7 +104,7 @@ impl CustomVarUpdatePayload {
         custom_variable: CustomVariable,
     ) -> Self {
         Self {
-            play_index,
+            cycle_id,
             variable_config_id,
             var_operation: var_op,
             update_operation,

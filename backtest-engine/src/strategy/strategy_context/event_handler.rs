@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use event_center::{EventCenterSingleton, event::Event};
 use star_river_event::backtest_strategy::{
-    node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, PositionManagementNodeEvent, VariableNodeEvent},
+    node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, PositionNodeEvent, VariableNodeEvent},
     strategy_event::BacktestStrategyEvent,
 };
 use strategy_core::{
@@ -30,14 +30,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 let resp = GetStrategyKeysResponse::success(payload);
                 cmd.respond(resp);
             }
-            // 获取当前时间
-            BacktestStrategyCommand::GetCurrentTime(cmd) => {
-                let current_time = self.current_time().await;
-                let payload = GetCurrentTimeRespPayload::new(current_time);
-                let resp = GetCurrentTimeResponse::success(payload);
-                cmd.respond(resp);
-            }
-            // 获取最小时间间隔的symbol
+            // 获取最小interval
             BacktestStrategyCommand::GetMinInterval(cmd) => {
                 let min_interval = self.min_interval().clone();
                 let payload = GetMinIntervalRespPayload::new(min_interval);
@@ -342,15 +335,15 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
 
         if let BacktestNodeEvent::PositionManagementNode(position_management_node_event) = &node_event {
             match position_management_node_event {
-                PositionManagementNodeEvent::PositionCreated(position_created_event) => {
+                PositionNodeEvent::PositionCreated(position_created_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::PositionCreated(position_created_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
-                PositionManagementNodeEvent::PositionUpdated(position_updated_event) => {
+                PositionNodeEvent::PositionUpdated(position_updated_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::PositionUpdated(position_updated_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }
-                PositionManagementNodeEvent::PositionClosed(position_closed_event) => {
+                PositionNodeEvent::PositionClosed(position_closed_event) => {
                     let backtest_strategy_event = BacktestStrategyEvent::PositionClosed(position_closed_event.clone());
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
                 }

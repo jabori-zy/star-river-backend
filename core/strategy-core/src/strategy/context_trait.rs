@@ -11,10 +11,10 @@ use petgraph::{Directed, Direction, Graph, graph::NodeIndex};
 use sea_orm::DatabaseConnection;
 use snafu::OptionExt;
 use star_river_core::{
-    custom_type::{NodeId, NodeName, StrategyId, StrategyName},
+    custom_type::{CycleId, NodeId, NodeName, StrategyId, StrategyName},
     error::StarRiverErrorTrait,
 };
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 // current crate
@@ -22,6 +22,7 @@ use super::{
     leaf_node_execution_tracker::{LeafNodeExecutionInfo, LeafNodeExecutionTracker},
     metadata::StrategyMetadata,
 };
+use crate::strategy::cycle::Cycle;
 use crate::{
     benchmark::{
         StrategyBenchmark,
@@ -109,6 +110,18 @@ pub trait StrategyInfoExt: StrategyMetaDataExt {
 
     async fn set_current_time(&mut self, current_time: DateTime<Utc>) {
         self.metadata_mut().set_current_time(current_time).await;
+    }
+
+    fn cycle_id(&self) -> CycleId {
+        self.metadata().cycle_id()
+    }
+
+    fn cycle_watch_tx(&self) -> &watch::Sender<Cycle> {
+        self.metadata().cycle_watch_tx()
+    }
+
+    fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
+        self.metadata().cycle_watch_rx()
     }
 }
 

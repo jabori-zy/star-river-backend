@@ -2,12 +2,13 @@
 // Import all node event types
 // ============================================================================
 
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::Serialize;
-use star_river_core::custom_type::{HandleId, NodeId, NodeName};
+use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 pub use star_river_event::backtest_strategy::node_event::{
     futures_order_node_event::FuturesOrderNodeEvent, if_else_node_event::IfElseNodeEvent, indicator_node_event::IndicatorNodeEvent,
-    kline_node_event::KlineNodeEvent, position_node_event::PositionManagementNodeEvent, start_node_event::StartNodeEvent,
+    kline_node_event::KlineNodeEvent, position_node_event::PositionNodeEvent, start_node_event::StartNodeEvent,
     variable_node_event::VariableNodeEvent,
 };
 use strategy_core::event::node::NodeEventTrait;
@@ -50,7 +51,7 @@ pub enum BacktestNodeEvent {
 
     #[strum(serialize = "position_management_node")]
     #[serde(rename = "position_management_node")]
-    PositionManagementNode(PositionManagementNodeEvent),
+    PositionManagementNode(PositionNodeEvent),
 
     #[strum(serialize = "if_else_node")]
     #[serde(rename = "if_else_node")]
@@ -58,6 +59,32 @@ pub enum BacktestNodeEvent {
 }
 
 impl NodeEventTrait for BacktestNodeEvent {
+    fn cycle_id(&self) -> CycleId {
+        match self {
+            BacktestNodeEvent::StartNode(event) => event.cycle_id(),
+            BacktestNodeEvent::IndicatorNode(event) => event.cycle_id(),
+            BacktestNodeEvent::Common(event) => event.cycle_id(),
+            BacktestNodeEvent::VariableNode(event) => event.cycle_id(),
+            BacktestNodeEvent::KlineNode(event) => event.cycle_id(),
+            BacktestNodeEvent::FuturesOrderNode(event) => event.cycle_id(),
+            BacktestNodeEvent::PositionManagementNode(event) => event.cycle_id(),
+            BacktestNodeEvent::IfElseNode(event) => event.cycle_id(),
+        }
+    }
+
+    fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            BacktestNodeEvent::StartNode(event) => event.datetime(),
+            BacktestNodeEvent::IndicatorNode(event) => event.datetime(),
+            BacktestNodeEvent::Common(event) => event.datetime(),
+            BacktestNodeEvent::VariableNode(event) => event.datetime(),
+            BacktestNodeEvent::KlineNode(event) => event.datetime(),
+            BacktestNodeEvent::FuturesOrderNode(event) => event.datetime(),
+            BacktestNodeEvent::PositionManagementNode(event) => event.datetime(),
+            BacktestNodeEvent::IfElseNode(event) => event.datetime(),
+        }
+    }
+
     fn node_id(&self) -> &NodeId {
         match self {
             BacktestNodeEvent::StartNode(event) => event.node_id(),

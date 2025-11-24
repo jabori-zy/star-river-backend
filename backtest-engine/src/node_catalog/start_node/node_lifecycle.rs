@@ -88,7 +88,7 @@ impl NodeLifecycle for StartNode {
                         &strategy_output_handle,
                     )
                     .await;
-                    self.listen_play_index_change().await;
+                    self.listen_cycle_id_change().await;
                 }
                 // StartNodeAction::InitVirtualTradingSystem => {
                 //     tracing::info!("[{node_name}] start to init virtual trading system");

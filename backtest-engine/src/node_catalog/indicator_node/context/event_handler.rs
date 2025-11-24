@@ -86,7 +86,6 @@ impl IndicatorNodeContext {
         indicator_key: &IndicatorKey,
         config_id: &i32,
         indicator_value: Indicator,
-        play_index: i32,
         node_id: &String,
         node_name: &String,
     ) -> Result<(), crate::node::node_error::BacktestNodeError> {
@@ -100,10 +99,16 @@ impl IndicatorNodeContext {
                 indicator_key.get_indicator_config(),
                 indicator_key.clone(),
                 indicator_value.clone(),
-                play_index,
             );
-            let indicator_update_event: IndicatorNodeEvent =
-                IndicatorUpdateEvent::new(node_id.clone(), node_name.clone(), target_handle_id, payload).into();
+            let indicator_update_event: IndicatorNodeEvent = IndicatorUpdateEvent::new_with_time(
+                self.cycle_id(),
+                node_id.clone(),
+                node_name.clone(),
+                target_handle_id,
+                self.current_time(),
+                payload,
+            )
+            .into();
             let backtest_node_event: BacktestNodeEvent = indicator_update_event.into();
             backtest_node_event
         };
@@ -115,7 +120,7 @@ impl IndicatorNodeContext {
 
         // 渠道2: 根据节点类型发送到符号特定输出句柄
         if self.is_leaf_node() {
-            self.send_execute_over_event(self.play_index() as u64, Some(*config_id))?;
+            self.send_execute_over_event(Some(*config_id), Some(self.current_time()))?;
         } else {
             let event = generate_event(handle_id.clone());
             self.output_handle_send(event)?;
@@ -131,7 +136,7 @@ impl IndicatorNodeContext {
 
     // 处理k线更新事件
     pub(super) async fn handle_kline_update(&mut self, kline_update_event: KlineUpdateEvent) {
-        let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
+        let mut cycle_tracker = CycleTracker::new(self.cycle_id());
 
         // 提取公共数据
         let node_id = self.node_id().clone();
@@ -154,9 +159,9 @@ impl IndicatorNodeContext {
                 let lookback = self.indicator_lookback.get(indicator_key).unwrap();
                 if kline_series.len() < *lookback + 1 {
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(self.play_index() as u64, Some(*config_id)).unwrap();
+                        self.send_execute_over_event(Some(*config_id), Some(self.current_time())).unwrap();
                     } else {
-                        self.send_trigger_event(output_handle_id).await.unwrap();
+                        self.send_trigger_event(output_handle_id, Some(self.current_time())).await.unwrap();
                     }
                     cycle_tracker.end_phase(&phase_name);
                     continue;
@@ -175,7 +180,6 @@ impl IndicatorNodeContext {
                             &indicator_key,
                             &config_id,
                             last_indicator.clone(),
-                            kline_update_event.play_index,
                             &node_id,
                             &node_name,
                         ) {
@@ -188,7 +192,7 @@ impl IndicatorNodeContext {
                     }
                 } else {
                     // 发送触发事件
-                    self.send_trigger_event(output_handle_id).await.unwrap();
+                    self.send_trigger_event(output_handle_id, Some(self.current_time())).await.unwrap();
                 }
 
                 // 结束当前指标的追踪
@@ -202,7 +206,7 @@ impl IndicatorNodeContext {
                 let phase_name = format!("get indicator data {}", config_id);
                 cycle_tracker.start_phase(&phase_name);
                 // 获取指标缓存数据，增加错误处理
-                let indicator_data = match self.get_indicator_data(&indicator_key, kline_update_event.play_index).await {
+                let indicator_data = match self.get_indicator_data(&indicator_key).await {
                     Ok(data) => data,
                     Err(_) => continue,
                 };
@@ -213,7 +217,6 @@ impl IndicatorNodeContext {
                     &indicator_key,
                     &config_id,
                     indicator_data,
-                    kline_update_event.play_index,
                     &node_id,
                     &node_name,
                 ) {

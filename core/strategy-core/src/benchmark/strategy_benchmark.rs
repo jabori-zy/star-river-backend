@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use serde::Serialize;
 use snafu::{Backtrace, OptionExt, Snafu};
 use star_river_core::{
-    custom_type::{NodeId, StrategyId, StrategyName},
+    custom_type::{CycleId, NodeId, StrategyId, StrategyName},
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode},
 };
 use tokio::time::{Duration, Instant};
@@ -18,13 +18,13 @@ use super::node_benchmark::{CompletedCycle, NodeBenchmark, NodeCycleReport, Node
 /// 策略单周期追踪器（支持 phase 追踪）
 #[derive(Debug)]
 pub struct StrategyCycleTracker {
-    cycle_id: u32,
+    cycle_id: CycleId,
     start_time: Instant,
     phase_durations: Vec<(String, Duration)>, // 使用 String 支持动态内容
 }
 
 impl StrategyCycleTracker {
-    pub fn new(cycle_id: u32) -> Self {
+    pub fn new(cycle_id: CycleId) -> Self {
         Self {
             cycle_id,
             start_time: Instant::now(),
@@ -71,7 +71,7 @@ impl StrategyCycleTracker {
 /// 已完成的策略周期追踪器（不可变）
 #[derive(Debug, Clone)]
 pub struct CompletedStrategyCycle {
-    cycle_id: u32,
+    cycle_id: CycleId,
     total_duration: Duration,
     phase_durations: Vec<(String, Duration)>,
 }
@@ -81,7 +81,7 @@ impl CompletedStrategyCycle {
         self.total_duration
     }
 
-    pub fn get_cycle_id(&self) -> u32 {
+    pub fn get_cycle_id(&self) -> CycleId {
         self.cycle_id
     }
 
@@ -116,7 +116,7 @@ impl CompletedStrategyCycle {
 /// 策略单个周期的详细报告
 #[derive(Debug, Clone)]
 pub struct StrategyCycleReport {
-    pub cycle_id: u32,
+    pub cycle_id: CycleId,
     pub total_duration: Duration,
     pub phase_durations: Vec<(String, Duration)>,
     pub node_cycle_reports: Vec<NodeCycleReport>,    // 该周期内所有节点的周期报告
@@ -124,16 +124,16 @@ pub struct StrategyCycleReport {
 }
 
 impl StrategyCycleReport {
-    pub fn get_total_duration(&self) -> Duration {
+    pub fn total_duration(&self) -> Duration {
         self.total_duration
     }
 
-    pub fn get_cycle_id(&self) -> u32 {
+    pub fn cycle_id(&self) -> CycleId {
         self.cycle_id
     }
 
     /// 获取某个阶段的耗时占比
-    pub fn get_phase_percentage(&self, phase_name: &str) -> f64 {
+    pub fn phase_percentage(&self, phase_name: &str) -> f64 {
         if self.total_duration.is_zero() {
             return 0.0;
         }
@@ -148,7 +148,7 @@ impl StrategyCycleReport {
     }
 
     /// 获取最耗时的阶段
-    pub fn get_slowest_phase(&self) -> Option<(&String, Duration)> {
+    pub fn slowest_phase(&self) -> Option<(&String, Duration)> {
         self.phase_durations
             .iter()
             .max_by_key(|(_, duration)| duration)
@@ -177,7 +177,7 @@ impl std::fmt::Display for StrategyCycleReport {
             }
         }
 
-        if let Some((slowest_name, slowest_duration)) = self.get_slowest_phase() {
+        if let Some((slowest_name, slowest_duration)) = self.slowest_phase() {
             writeln!(f, "├─ Slowest Strategy Phase: {} ({:?})", slowest_name, slowest_duration)?;
         }
 
@@ -642,7 +642,7 @@ impl StrategyBenchmark {
 
                 for (node_id, node_benchmark) in &self.node_benchmarks {
                     // 从节点的历史数据中查找匹配 cycle_id 的报告
-                    if let Some(node_report) = node_benchmark.get_cycle_report_by_cycle_id(cycle_id) {
+                    if let Some(node_report) = node_benchmark.cycle_report_by_cycle_id(cycle_id) {
                         // 计算节点执行占比
                         let percentage = if !strategy_total_duration.is_zero() {
                             (node_report.duration.as_nanos() as f64 / strategy_total_duration.as_nanos() as f64) * 100.0
@@ -678,7 +678,7 @@ impl StrategyBenchmark {
 
         for (node_id, node_benchmark) in &self.node_benchmarks {
             // 从节点的历史数据中查找匹配 cycle_id 的报告
-            if let Some(node_report) = node_benchmark.get_cycle_report_by_cycle_id(cycle_id) {
+            if let Some(node_report) = node_benchmark.cycle_report_by_cycle_id(cycle_id) {
                 // 计算节点执行占比
                 let percentage = if !strategy_total_duration.is_zero() {
                     (node_report.duration.as_nanos() as f64 / strategy_total_duration.as_nanos() as f64) * 100.0

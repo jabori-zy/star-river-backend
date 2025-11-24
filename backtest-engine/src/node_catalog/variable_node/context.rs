@@ -8,18 +8,18 @@ mod variable_handler;
 
 use std::{collections::HashMap, sync::Arc};
 
+use chrono::{DateTime, Utc};
 use star_river_core::custom_type::NodeId;
 use strategy_core::{
     node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata},
     variable::custom_variable::VariableValue,
 };
-use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
-use virtual_trading::{command::VtsCommand, event::VtsEvent};
+use tokio::sync::{Mutex, RwLock};
 
 use super::{state_machine::VariableNodeStateMachine, variable_node_type::VariableNodeBacktestConfig};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::BacktestVts,
 };
 
@@ -29,41 +29,31 @@ pub type VariableNodeMetadata = NodeMetadata<VariableNodeStateMachine, BacktestN
 pub struct VariableNodeContext {
     metadata: VariableNodeMetadata,
     node_config: VariableNodeBacktestConfig,
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
-    // vts_command_sender: mpsc::Sender<VtsCommand>,
-    // vts_event_receiver: broadcast::Receiver<VtsEvent>,
     virtual_trading_system: Arc<Mutex<BacktestVts>>,
     variable_cache_value: Arc<RwLock<HashMap<(NodeId, i32, String), VariableValue>>>,
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl VariableNodeContext {
     pub fn new(
         metadata: VariableNodeMetadata,
         node_config: VariableNodeBacktestConfig,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
-        // vts_command_sender: mpsc::Sender<VtsCommand>,
-        // vts_event_receiver: broadcast::Receiver<VtsEvent>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
             node_config,
-            play_index_watch_rx,
-            // vts_command_sender,
-            // vts_event_receiver,
             virtual_trading_system,
             variable_cache_value: Arc::new(RwLock::new(HashMap::new())),
+            current_time_watch_rx,
         }
     }
 }
 
 impl VariableNodeContext {
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 }
 

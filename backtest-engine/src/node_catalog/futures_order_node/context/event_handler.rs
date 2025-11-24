@@ -85,12 +85,12 @@ impl FuturesOrderNodeContext {
         match node_event {
             BacktestNodeEvent::Common(common_evt) => match common_evt {
                 CommonEvent::Trigger(_trigger_evt) => {
-                    let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
+                    let mut cycle_tracker = CycleTracker::new(self.cycle_id());
                     let phase_name = format!("handle trigger event for specific order");
                     cycle_tracker.start_phase(&phase_name);
 
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(self.play_index() as u64, None).unwrap();
+                        self.send_execute_over_event(None, Some(self.current_time())).unwrap();
                         return;
                     } else {
                         self.independent_order_send_trigger_event(order_config_id).await;
@@ -108,7 +108,7 @@ impl FuturesOrderNodeContext {
             BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
                 match ifelse_node_event {
                     IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
-                        let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
+                        let mut cycle_tracker = CycleTracker::new(self.cycle_id());
 
                         let phase_name = format!("handle condition match event for order {}", order_config_id);
                         cycle_tracker.start_phase(&phase_name);
@@ -150,7 +150,7 @@ impl FuturesOrderNodeContext {
                     IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
                         tracing::debug!("@[{}] receive event {}", self.node_name(), order_config_id);
                         if self.is_leaf_node() {
-                            self.send_execute_over_event(self.play_index() as u64, Some(order_config_id))
+                            self.send_execute_over_event(Some(order_config_id), Some(self.current_time()))
                                 .unwrap();
                         }
                     }
@@ -242,6 +242,7 @@ impl FuturesOrderNodeContext {
                             order.order_side.to_string(),
                         );
                         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+                            self.cycle_id(),
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
@@ -262,6 +263,7 @@ impl FuturesOrderNodeContext {
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                         let message = OrderFilledMsg::new(self.node_name().clone(), order.order_id, order.quantity, order.open_price);
                         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+                            self.cycle_id(),
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
@@ -282,6 +284,7 @@ impl FuturesOrderNodeContext {
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
                         let message = OrderCanceledMsg::new(self.node_name().clone(), order.order_id);
                         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+                            self.cycle_id(),
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
@@ -320,8 +323,15 @@ impl FuturesOrderNodeContext {
                 let input_handle_id = format!("{}_input_{}", self.node_id(), transaction.order_config_id);
                 self.add_virtual_transaction_history(&input_handle_id, transaction.clone()).await;
                 let payload = TransactionCreatedPayload::new(transaction.clone());
-                let transaction_event: FuturesOrderNodeEvent =
-                    TransactionCreatedEvent::new(self.node_id().clone(), self.node_name().clone(), input_handle_id.clone(), payload).into();
+                let transaction_event: FuturesOrderNodeEvent = TransactionCreatedEvent::new_with_time(
+                    self.cycle_id(),
+                    self.node_id().clone(),
+                    self.node_name().clone(),
+                    input_handle_id.clone(),
+                    self.current_time(),
+                    payload,
+                )
+                .into();
                 let _ = self.strategy_bound_handle_send(transaction_event.into());
             }
         }

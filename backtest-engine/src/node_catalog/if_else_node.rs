@@ -7,24 +7,25 @@ mod utils;
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use context::IfElseNodeContext;
 use if_else_node_type::IfElseNodeBacktestConfig;
 use snafu::ResultExt;
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 use state_machine::{IfElseNodeStateMachine, if_else_node_transition};
 use strategy_core::{
     NodeType,
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
     node::{NodeBase, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
-    node_infra::if_else_node::Case,
+    node_infra::if_else_node::Case, strategy::cycle::Cycle,
 };
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
 use crate::{
     node::{
         node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_event::BacktestNodeEvent, node_state_machine::NodeRunState,
     },
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 #[derive(Debug, Clone)]
@@ -49,10 +50,11 @@ impl NodeContextAccessor for IfElseNode {
 
 impl IfElseNode {
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
 
@@ -60,6 +62,7 @@ impl IfElseNode {
 
         let state_machine = IfElseNodeStateMachine::new(node_name.clone(), NodeRunState::Created, if_else_node_transition);
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id,
             node_name,
@@ -70,7 +73,7 @@ impl IfElseNode {
             node_command_receiver,
         );
         let is_nested = backtest_config.is_nested;
-        let context = IfElseNodeContext::new(metadata, backtest_config, play_index_watch_rx, is_nested);
+        let context = IfElseNodeContext::new(metadata, backtest_config, current_time_watch_rx, is_nested);
         Ok(Self {
             inner: NodeBase::new(context),
         })

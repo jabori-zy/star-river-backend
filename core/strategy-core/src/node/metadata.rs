@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 // third-party
-use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 use super::{node_state_machine::StateMachine, utils::generate_default_output_handle_id};
@@ -12,7 +12,7 @@ use crate::{
     node::{
         NodeType,
         node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
-    },
+    }, strategy::cycle::Cycle,
 };
 
 /// M: Node State Machine
@@ -28,7 +28,7 @@ where
     C: NodeCommandTrait,
     X: StrategyCommandTrait,
 {
-    cycle_id: CycleId,
+    cycle: watch::Receiver<Cycle>,
     strategy_id: StrategyId,
     // strategy_name: StrategyName,
     node_id: NodeId,
@@ -53,6 +53,7 @@ where
     X: StrategyCommandTrait,
 {
     pub fn new(
+        cycle: watch::Receiver<Cycle>,
         strategy_id: StrategyId,
         // strategy_name: StrategyName,
         node_id: NodeId,
@@ -64,7 +65,7 @@ where
         node_command_receiver: Arc<Mutex<mpsc::Receiver<C>>>,
     ) -> Self {
         Self {
-            cycle_id: 0,
+            cycle,
             strategy_id,
             // strategy_name,
             node_id,
@@ -91,15 +92,11 @@ where
     X: StrategyCommandTrait,
 {
     pub fn cycle_id(&self) -> CycleId {
-        self.cycle_id
+        self.cycle.borrow().id()
     }
 
-    pub fn set_cycle_id(&mut self, cycle_id: CycleId) {
-        self.cycle_id = cycle_id;
-    }
-
-    pub fn increment_cycle_id(&mut self) {
-        self.cycle_id += 1;
+    pub fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
+        self.cycle.clone()
     }
 
     /// Get node id

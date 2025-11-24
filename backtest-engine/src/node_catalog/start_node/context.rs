@@ -23,9 +23,8 @@ use tokio::sync::RwLock;
 
 use super::state_machine::StartNodeStateMachine;
 use crate::{
-    node::{node_command::BacktestNodeCommand, node_error::StartNodeError, node_event::BacktestNodeEvent, node_utils::NodeUtils},
+    node::{node_command::BacktestNodeCommand, node_error::StartNodeError, node_event::BacktestNodeEvent},
     strategy::{
-        PlayIndex,
         strategy_command::{BacktestStrategyCommand, InitCustomVarCmdPayload, InitCustomVarValueCommand},
         strategy_config::BacktestStrategyConfig,
     },
@@ -37,38 +36,33 @@ pub type StartNodeMetadata = NodeMetadata<StartNodeStateMachine, BacktestNodeEve
 pub struct StartNodeContext {
     pub metadata: StartNodeMetadata,
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
-    play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl StartNodeContext {
     pub fn new(
         metadata: StartNodeMetadata,
         node_config: Arc<RwLock<BacktestStrategyConfig>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
             node_config,
-            play_index_watch_rx,
+            current_time_watch_rx,
         }
     }
 
-    pub fn play_index_watch_rx(&self) -> &tokio::sync::watch::Receiver<PlayIndex> {
-        &self.play_index_watch_rx
-    }
-
-    pub fn play_index(&self) -> PlayIndex {
-        *self.play_index_watch_rx.borrow()
-    }
-
     pub async fn send_play_signal(&self) -> Result<(), StartNodeError> {
-        let mut cycle_tracker = CycleTracker::new(self.play_index() as u32);
+        let mut cycle_tracker = CycleTracker::new(self.cycle_id());
         cycle_tracker.start_phase("send_play_signal");
-        let payload = KlinePlayPayload::new(self.play_index());
-        let kline_play_event: StartNodeEvent = KlinePlayEvent::new(
+        tracing::debug!("cycle_id: {}, current_time: {}", self.cycle_id(), self.current_time());
+        let payload = KlinePlayPayload;
+        let kline_play_event: StartNodeEvent = KlinePlayEvent::new_with_time(
+            self.cycle_id().clone(),
             self.node_id().clone(),
             self.node_name().clone(),
             self.default_output_handle()?.output_handle_id().clone(),
+            self.current_time(),
             payload,
         )
         .into();
@@ -98,10 +92,8 @@ impl StartNodeContext {
         Ok(())
     }
 
-    pub async fn current_time(&self) -> Result<DateTime<Utc>, StartNodeError> {
-        NodeUtils::get_current_time_from_strategy(self.node_id().clone(), self.node_name().clone(), self.strategy_command_sender())
-            .await
-            .map_err(StartNodeError::from)
+    pub fn current_time(&self) -> DateTime<Utc> {
+        *self.current_time_watch_rx.borrow()
     }
 }
 

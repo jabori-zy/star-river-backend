@@ -28,7 +28,7 @@ use super::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 use crate::{
     node::node_event::BacktestNodeEvent,
     strategy::strategy_command::{
-        AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestStrategyCommand, GetCurrentTimeCmdPayload, GetCurrentTimeCommand,
+        AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestStrategyCommand,
     },
 };
 
@@ -205,34 +205,5 @@ impl NodeUtils {
         node.update_node_state(NodeStateTransTrigger::FinishStop).await?;
 
         Ok(())
-    }
-
-    pub async fn get_current_time_from_strategy(
-        node_id: NodeId,
-        node_name: NodeName,
-        strategy_command_sender: &mpsc::Sender<BacktestStrategyCommand>,
-    ) -> Result<DateTime<Utc>, NodeError> {
-        let (tx, rx) = oneshot::channel();
-
-        let payload = GetCurrentTimeCmdPayload;
-        let cmd = GetCurrentTimeCommand::new(node_id.clone(), tx, payload);
-        strategy_command_sender.send(cmd.into()).await.map_err(|e| {
-            StrategyCommandSendFailedSnafu {
-                node_name: node_name.clone(),
-            }
-            .into_error(Arc::new(e))
-        })?;
-
-        let response = rx.await.context(StrategyCmdRespRecvFailedSnafu {
-            node_name: node_name.clone(),
-        })?;
-        match response {
-            StrategyResponse::Success { payload, .. } => {
-                return Ok(payload.current_time.clone());
-            }
-            StrategyResponse::Fail { .. } => {
-                return Ok(Utc::now());
-            }
-        }
     }
 }

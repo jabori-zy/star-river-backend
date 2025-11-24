@@ -1,5 +1,5 @@
 mod context;
-mod handle_play_index;
+mod handle_cycle;
 mod node_lifecycle;
 mod state_machine;
 
@@ -12,18 +12,19 @@ mod state_machine;
 // ============================================================================
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 pub use context::StartNodeContext;
 use snafu::{OptionExt, ResultExt};
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 pub use state_machine::{StartNodeStateMachine, start_node_transition};
 use strategy_core::{
     error::node_error::{
         ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu, ValueNotGreaterThanOrEqualToZeroSnafu, ValueNotGreaterThanZeroSnafu,
     },
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
 };
 // use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
 // ============================================================================
 // 外部 crate 导入
@@ -37,7 +38,7 @@ use crate::strategy::strategy_config::BacktestStrategyConfig;
 // ============================================================================
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent, node_state_machine::NodeRunState},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 // ============================================================================
@@ -68,10 +69,11 @@ impl NodeContextAccessor for StartNode {
 impl StartNode {
     /// 创建新的 StartNode 实例
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
@@ -79,6 +81,7 @@ impl StartNode {
         let state_machine = StartNodeStateMachine::new(node_name.clone(), NodeRunState::Created, start_node_transition);
 
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -89,7 +92,7 @@ impl StartNode {
             node_command_receiver,
         );
 
-        let context = StartNodeContext::new(metadata, Arc::new(RwLock::new(backtest_strategy_config)), play_index_watch_rx);
+        let context = StartNodeContext::new(metadata, Arc::new(RwLock::new(backtest_strategy_config)), current_time_watch_rx);
 
         Ok(Self {
             inner: NodeBase::new(context),

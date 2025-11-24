@@ -4,9 +4,9 @@ use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use petgraph::{Directed, Graph, graph::NodeIndex};
 use sea_orm::DatabaseConnection;
-use star_river_core::custom_type::{NodeId, StrategyId, StrategyName};
+use star_river_core::custom_type::{CycleId, NodeId, StrategyId, StrategyName};
 use strategy_stats::StrategyStats;
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 use super::leaf_node_execution_tracker::LeafNodeExecutionInfo;
@@ -15,7 +15,7 @@ use crate::{
     communication::{NodeCommandTrait, StrategyCommandTrait},
     event::node::NodeEventTrait,
     node::NodeTrait,
-    strategy::{StrategyConfig, leaf_node_execution_tracker::LeafNodeExecutionTracker, state_machine::StrategyStateMachine},
+    strategy::{StrategyConfig, cycle::Cycle, leaf_node_execution_tracker::LeafNodeExecutionTracker, state_machine::StrategyStateMachine},
     variable::{
         custom_variable::CustomVariable,
         sys_varibale::{SysVariable, SysVariableType},
@@ -31,6 +31,7 @@ where
     Y: NodeCommandTrait,
     E: NodeEventTrait,
 {
+    cycle: watch::Sender<Cycle>,
     strategy_config: StrategyConfig,
     current_time: Arc<RwLock<DateTime<Utc>>>,
     graph: Graph<N, (), Directed>,
@@ -70,8 +71,10 @@ where
         let strategy_name = strategy_config.name.clone();
 
         let strategy_stats = Arc::new(RwLock::new(StrategyStats::new(mode, strategy_id)));
+        let (cycle_watch_tx, _) = watch::channel::<Cycle>(Cycle::new());
 
         Self {
+            cycle: cycle_watch_tx,
             strategy_config,
             graph: Graph::new(),
             node_indices: HashMap::new(),
@@ -146,6 +149,18 @@ where
     Y: NodeCommandTrait,
     E: NodeEventTrait,
 {
+    pub fn cycle_id(&self) -> CycleId {
+        self.cycle.borrow().id()
+    }
+
+    pub fn cycle_watch_tx(&self) -> &watch::Sender<Cycle> {
+        &self.cycle
+    }
+
+    pub fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
+        self.cycle.subscribe()
+    }
+
     /// Get reference to graph
     pub fn graph(&self) -> &Graph<N, (), Directed> {
         &self.graph

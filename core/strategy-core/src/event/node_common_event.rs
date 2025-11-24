@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
@@ -5,7 +6,7 @@ use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 use crate::event::{log_event::NodeStateLogEvent, node::NodeEvent, strategy_event::StrategyRunningLogEvent};
 
 #[derive(Debug, Clone, Serialize, From)]
-#[serde(tag = "event_type")]
+#[serde(tag = "event")]
 pub enum CommonEvent {
     Trigger(TriggerEvent),               // Trigger event
     ExecuteOver(ExecuteOverEvent),       // Execute over
@@ -14,6 +15,24 @@ pub enum CommonEvent {
 }
 
 impl CommonEvent {
+    pub fn cycle_id(&self) -> CycleId {
+        match self {
+            CommonEvent::Trigger(event) => event.cycle_id(),
+            CommonEvent::ExecuteOver(event) => event.cycle_id(),
+            CommonEvent::RunningLog(event) => event.cycle_id(),
+            CommonEvent::StateLog(_) => 0,
+        }
+    }
+
+    pub fn datetime(&self) -> DateTime<Utc> {
+        match self {
+            CommonEvent::Trigger(event) => event.datetime(),
+            CommonEvent::ExecuteOver(event) => event.datetime(),
+            CommonEvent::RunningLog(event) => event.datetime(),
+            CommonEvent::StateLog(event) => event.datetime(),
+        }
+    }
+
     pub fn node_id(&self) -> &NodeId {
         match self {
             CommonEvent::Trigger(event) => event.node_id(),
@@ -48,28 +67,15 @@ pub type TriggerEvent = NodeEvent<TriggerPayload>;
 pub type ExecuteOverEvent = NodeEvent<ExecuteOverPayload>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TriggerPayload {
-    #[serde(rename = "cycleId")]
-    pub cycle_id: CycleId,
-}
-
-impl TriggerPayload {
-    pub fn new(cycle_id: CycleId) -> Self {
-        Self { cycle_id }
-    }
-}
+pub struct TriggerPayload;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecuteOverPayload {
-    #[serde(rename = "cycleId")]
-    pub cycle_id: CycleId,
-
-    #[serde(rename = "configId")]
     pub config_id: Option<i32>,
 }
 
 impl ExecuteOverPayload {
-    pub fn new(cycle_id: CycleId, config_id: Option<i32>) -> Self {
-        Self { cycle_id, config_id }
+    pub fn new(config_id: Option<i32>) -> Self {
+        Self { config_id }
     }
 }

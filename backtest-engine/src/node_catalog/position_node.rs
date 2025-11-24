@@ -6,23 +6,24 @@ mod state_machine;
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use context::PositionNodeContext;
 use heartbeat::Heartbeat;
 use position_node_types::PositionNodeBacktestConfig;
 use sea_orm::DatabaseConnection;
 use serde_json;
 use snafu::ResultExt;
-use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 use state_machine::{PositionNodeStateMachine, position_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
 };
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_state_machine::NodeRunState},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::BacktestVts,
 };
 
@@ -48,18 +49,20 @@ impl NodeContextAccessor for PositionNode {
 
 impl PositionNode {
     pub fn new(
+        cycle_rx: watch::Receiver<Cycle>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        play_index_watch_rx: tokio::sync::watch::Receiver<PlayIndex>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_position_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id);
         let state_machine = PositionNodeStateMachine::new(node_name.clone(), NodeRunState::Created, position_node_transition);
         let metadata = NodeMetadata::new(
+            cycle_rx,
             strategy_id,
             node_id,
             node_name,
@@ -72,10 +75,10 @@ impl PositionNode {
         let context = PositionNodeContext::new(
             metadata,
             node_config,
-            play_index_watch_rx,
             database,
             heartbeat,
             virtual_trading_system,
+            current_time_watch_rx,
         );
         Ok(Self {
             inner: NodeBase::new(context),

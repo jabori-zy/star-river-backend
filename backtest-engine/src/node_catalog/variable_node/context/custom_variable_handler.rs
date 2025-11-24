@@ -1,4 +1,5 @@
-use star_river_core::custom_type::NodeId;
+use chrono::{DateTime, Utc};
+use star_river_core::custom_type::{CycleId, NodeId};
 use star_river_event::backtest_strategy::node_event::{
     VariableNodeEvent,
     variable_node_event::{CustomVarUpdateEvent, CustomVarUpdatePayload},
@@ -13,16 +14,14 @@ use tokio::sync::{mpsc, oneshot};
 use super::VariableNodeContext;
 use crate::{
     node_catalog::variable_node::context::BacktestNodeEvent,
-    strategy::{
-        PlayIndex,
-        strategy_command::{BacktestStrategyCommand, GetCustomVarCmdPayload, GetCustomVarValueCommand},
-    },
+    strategy::strategy_command::{BacktestStrategyCommand, GetCustomVarCmdPayload, GetCustomVarValueCommand},
 };
 
 impl VariableNodeContext {
     /// 创建获取自定义变量的异步任务 Handle
     pub(super) async fn create_get_custom_var_handle(
-        play_index: PlayIndex,
+        cycle_id: CycleId,
+        current_time: DateTime<Utc>,
         node_id: NodeId,
         node_name: String,
         config_id: i32,
@@ -45,14 +44,22 @@ impl VariableNodeContext {
                 StrategyResponse::Success { payload, .. } => {
                     let var_op = "get".to_string();
                     let custom_variable = payload.custom_variable;
-                    let payload = CustomVarUpdatePayload::new(play_index, config_id, var_op, None, None, custom_variable.clone());
-                    let var_event: VariableNodeEvent =
-                        CustomVarUpdateEvent::new(node_id.clone(), node_name.clone(), output_handle_id.clone(), payload).into();
+                    let payload = CustomVarUpdatePayload::new(cycle_id, config_id, var_op, None, None, custom_variable.clone());
+                    let var_event: VariableNodeEvent = CustomVarUpdateEvent::new_with_time(
+                        cycle_id,
+                        node_id.clone(),
+                        node_name.clone(),
+                        output_handle_id.clone(),
+                        current_time,
+                        payload,
+                    )
+                    .into();
                     let _ = strategy_output_handle.send(var_event.clone().into());
                     if is_leaf_node {
-                        let payload = ExecuteOverPayload::new(play_index as u64, Some(config_id));
+                        let payload = ExecuteOverPayload::new(Some(config_id));
                         let execute_over_event: CommonEvent =
-                            ExecuteOverEvent::new(node_id, node_name, output_handle_id.clone(), payload).into();
+                            ExecuteOverEvent::new_with_time(cycle_id, node_id, node_name, output_handle_id.clone(), current_time, payload)
+                                .into();
                         let _ = strategy_output_handle.send(execute_over_event.into());
                     } else {
                         let _ = output_handle.send(var_event.clone().into());
@@ -60,8 +67,9 @@ impl VariableNodeContext {
                 }
                 StrategyResponse::Fail { error, .. } => {
                     tracing::error!("get_variable failed: {:?}", error);
-                    let payload = TriggerPayload::new(play_index as u64);
-                    let trigger_event: CommonEvent = TriggerEvent::new(node_id, node_name, output_handle_id.clone(), payload).into();
+                    let payload = TriggerPayload;
+                    let trigger_event: CommonEvent =
+                        TriggerEvent::new_with_time(cycle_id, node_id, node_name, output_handle_id.clone(), current_time, payload).into();
                     let backtest_trigger_event: BacktestNodeEvent = trigger_event.into();
                     let _ = output_handle.send(backtest_trigger_event);
                 }

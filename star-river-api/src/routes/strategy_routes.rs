@@ -40,7 +40,7 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/reset", post(reset))
         .route("/{strategy_id}/chart_config", post(update_backtest_chart_config))
         .route("/{strategy_id}/chart_config", get(get_backtest_chart_config))
-        .route("/{strategy_id}/play-index", get(get_play_index))
+        .route("/{strategy_id}/play-index", get(get_cycle_id))
         .route("/{strategy_id}/virtual-orders", get(get_virtual_orders))
         .route("/{strategy_id}/current-positions", get(get_current_positions))
         .route("/{strategy_id}/history-positions", get(get_history_positions))

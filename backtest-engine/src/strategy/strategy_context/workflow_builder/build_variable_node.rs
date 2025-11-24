@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use strategy_core::strategy::context_trait::StrategyCommunicationExt;
+use strategy_core::strategy::context_trait::{StrategyCommunicationExt, StrategyInfoExt};
 use tokio::sync::{Mutex, mpsc};
 
 use super::BacktestStrategyContext;
@@ -18,14 +18,14 @@ impl BacktestStrategyContext {
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
     ) -> Result<VariableNode, BacktestNodeError> {
         let strategy_command_sender = self.strategy_command_sender().clone();
-        let play_index_watch_rx = self.play_index_watch_rx();
-
+        let current_time_watch_rx = self.current_time_watch_rx();
         let node = VariableNode::new(
+            self.cycle_watch_rx(),
             node_config,
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
-            play_index_watch_rx,
             virtual_trading_system,
+            current_time_watch_rx,
         )?;
         Ok(node)
     }

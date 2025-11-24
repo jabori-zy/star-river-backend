@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use serde::Serialize;
-use star_river_core::custom_type::NodeId;
+use star_river_core::custom_type::{CycleId, NodeId};
 use tokio::time::{Duration, Instant};
 use utoipa::ToSchema;
 
@@ -11,13 +11,13 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct CycleTracker {
-    cycle_id: u32,
+    cycle_id: CycleId,
     start_time: Instant,
     phase_durations: Vec<(String, Duration)>, // 使用 String 支持动态内容
 }
 
 impl CycleTracker {
-    pub fn new(cycle_id: u32) -> Self {
+    pub fn new(cycle_id: CycleId) -> Self {
         Self {
             cycle_id,
             start_time: Instant::now(),
@@ -57,7 +57,7 @@ impl CycleTracker {
 /// 已完成的周期（不可变）
 #[derive(Debug, Clone)]
 pub struct CompletedCycle {
-    cycle_id: u32,
+    cycle_id: CycleId,
     duration: Duration,                       // 单次循环的总耗时
     phase_durations: Vec<(String, Duration)>, // 各阶段的耗时
 }
@@ -79,7 +79,7 @@ impl CompletedCycle {
         &self.phase_durations
     }
 
-    pub fn get_cycle_id(&self) -> u32 {
+    pub fn get_cycle_id(&self) -> CycleId {
         self.cycle_id
     }
 
@@ -100,7 +100,7 @@ impl CompletedCycle {
 pub struct NodeCycleReport {
     pub node_id: NodeId,
     pub node_name: String,
-    pub cycle_id: u32,
+    pub cycle_id: CycleId,
     pub duration: Duration,
     pub phase_durations: Vec<(String, Duration)>,
 }
@@ -529,7 +529,7 @@ impl NodeBenchmark {
     }
 
     /// 获取最近N个周期的详细报告
-    pub fn get_recent_cycle_reports(&self, n: usize) -> Vec<NodeCycleReport> {
+    pub fn recent_cycle_reports(&self, n: usize) -> Vec<NodeCycleReport> {
         self.all_cycles
             .iter()
             .rev()
@@ -539,19 +539,19 @@ impl NodeBenchmark {
     }
 
     /// 获取最近一个周期的报告
-    pub fn get_last_cycle_report(&self) -> Option<NodeCycleReport> {
+    pub fn last_cycle_report(&self) -> Option<NodeCycleReport> {
         self.all_cycles
             .back()
             .map(|tracker| tracker.get_cycle_report(self.node_id.clone(), self.node_name.clone()))
     }
 
     /// 获取总周期数
-    pub fn get_total_cycles(&self) -> usize {
+    pub fn total_cycles(&self) -> usize {
         self.total_cycles
     }
 
     /// 根据 play_index 查找对应的周期报告
-    pub fn get_cycle_report_by_cycle_id(&self, cycle_id: u32) -> Option<NodeCycleReport> {
+    pub fn cycle_report_by_cycle_id(&self, cycle_id: CycleId) -> Option<NodeCycleReport> {
         self.all_cycles
             .iter()
             .find(|tracker| tracker.get_cycle_id() == cycle_id)
