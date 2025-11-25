@@ -31,7 +31,6 @@ pub struct VariableNodeContext {
     node_config: VariableNodeBacktestConfig,
     virtual_trading_system: Arc<Mutex<BacktestVts>>,
     variable_cache_value: Arc<RwLock<HashMap<(NodeId, i32, String), VariableValue>>>,
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl VariableNodeContext {
@@ -39,21 +38,13 @@ impl VariableNodeContext {
         metadata: VariableNodeMetadata,
         node_config: VariableNodeBacktestConfig,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
             node_config,
             virtual_trading_system,
             variable_cache_value: Arc::new(RwLock::new(HashMap::new())),
-            current_time_watch_rx,
         }
-    }
-}
-
-impl VariableNodeContext {
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
     }
 }
 

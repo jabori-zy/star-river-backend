@@ -90,7 +90,7 @@ impl FuturesOrderNodeContext {
                     cycle_tracker.start_phase(&phase_name);
 
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(None, Some(self.current_time())).unwrap();
+                        self.send_execute_over_event(None, Some(self.strategy_time())).unwrap();
                         return;
                     } else {
                         self.independent_order_send_trigger_event(order_config_id).await;
@@ -150,7 +150,7 @@ impl FuturesOrderNodeContext {
                     IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
                         tracing::debug!("@[{}] receive event {}", self.node_name(), order_config_id);
                         if self.is_leaf_node() {
-                            self.send_execute_over_event(Some(order_config_id), Some(self.current_time()))
+                            self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))
                                 .unwrap();
                         }
                     }
@@ -328,7 +328,7 @@ impl FuturesOrderNodeContext {
                     self.node_id().clone(),
                     self.node_name().clone(),
                     input_handle_id.clone(),
-                    self.current_time(),
+                    self.strategy_time(),
                     payload,
                 )
                 .into();

@@ -1,4 +1,4 @@
-use strategy_core::node::context_trait::{NodeCommunicationExt, NodeHandleExt};
+use strategy_core::node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt};
 
 use super::PositionNodeContext;
 
@@ -9,7 +9,7 @@ impl PositionNodeContext {
         let futures = all_output_handles
             .values()
             .filter(|handle| handle.config_id() == config_id)
-            .map(|handle| self.send_trigger_event(handle.output_handle_id(), Some(self.current_time())));
+            .map(|handle| self.send_trigger_event(handle.output_handle_id(), Some(self.strategy_time())));
 
         futures::future::join_all(futures).await;
     }

@@ -28,7 +28,7 @@ impl FuturesOrderNodeContext {
         if !self.can_create_order(&order_config.input_handle_id).await {
             tracing::warn!("{}: 当前正在处理订单, 跳过", self.node_name());
             let message = ProcessingOrderMsg::new(order_config.order_config_id);
-            let current_time = self.current_time();
+            let current_time = self.strategy_time();
             let log_event: CommonEvent = StrategyRunningLogEvent::warn_with_time(
                 self.cycle_id(),
                 self.strategy_id().clone(),

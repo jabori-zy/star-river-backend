@@ -66,7 +66,7 @@ impl IndicatorNode {
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_indicator_node_config(node_config)?;
 
@@ -76,6 +76,7 @@ impl IndicatorNode {
 
         let metadata = NodeMetadata::new(
             cycle_rx,
+            strategy_time_watch_rx,
             strategy_id,
             node_id,
             node_name,
@@ -90,7 +91,7 @@ impl IndicatorNode {
         // 通过配置，获取回测K线缓存键
         let selected_kline_key = Self::get_kline_key(&node_config);
 
-        let context = IndicatorNodeContext::new(metadata, node_config, selected_kline_key, indicator_keys, current_time_watch_rx);
+        let context = IndicatorNodeContext::new(metadata, node_config, selected_kline_key, indicator_keys);
         Ok(Self {
             inner: NodeBase::new(context),
         })

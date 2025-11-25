@@ -13,7 +13,8 @@ use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 use state_machine::{VariableNodeStateMachine, variable_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    strategy::cycle::Cycle,
 };
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use variable_node_type::VariableNodeBacktestConfig;
@@ -51,13 +52,14 @@ impl VariableNode {
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_variable_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id);
         let state_machine = VariableNodeStateMachine::new(node_name.clone(), NodeRunState::Created, variable_node_transition);
         let metadata = NodeMetadata::new(
             cycle_rx,
+            strategy_time_watch_rx,
             strategy_id,
             node_id,
             node_name,
@@ -67,7 +69,7 @@ impl VariableNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = VariableNodeContext::new(metadata, node_config, virtual_trading_system, current_time_watch_rx);
+        let context = VariableNodeContext::new(metadata, node_config, virtual_trading_system);
         Ok(Self {
             inner: NodeBase::new(context),
         })

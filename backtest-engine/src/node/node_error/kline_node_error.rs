@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use event_center::EventCenterError;
 use key::error::KeyError;
 use snafu::{Backtrace, Snafu};
@@ -38,24 +39,6 @@ pub enum KlineNodeError {
         node_name: String,
         #[snafu(source)]
         source: Arc<dyn StarRiverErrorTrait>,
-        backtrace: Backtrace,
-    },
-
-    #[snafu(display("@[{node_name}] get play kline data failed. kline key: [{kline_key}], play index: [{play_index:?}]"))]
-    GetPlayKlineDataFailed {
-        node_name: String,
-        kline_key: String,
-        play_index: Option<i32>,
-        #[snafu(source)]
-        source: Arc<dyn StarRiverErrorTrait>,
-        backtrace: Backtrace,
-    },
-
-    #[snafu(display("@[{node_name}] kline timestamp not equal. kline key: [{kline_key}], play index: [{play_index:?}]"))]
-    KlineTimestampNotEqual {
-        node_name: String,
-        kline_key: String,
-        play_index: Option<i32>,
         backtrace: Backtrace,
     },
 
@@ -131,11 +114,10 @@ pub enum KlineNodeError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("@[{node_name}] strategyreturn empty kline. kline key: [{kline_key}], play index: [{play_index:?}]"))]
-    ReturnEmptyKline {
-        node_name: NodeName,
-        kline_key: String,
-        play_index: Option<i32>,
+    #[snafu(display("pending update kline not exist for {symbol}-{interval}"))]
+    PendingUpdateKlineNotExist {
+        symbol: String,
+        interval: String,
         backtrace: Backtrace,
     },
 }
@@ -155,19 +137,17 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::KeyError { .. } => 1004,                               // key error
             KlineNodeError::BacktestStrategy { .. } => 1005,                       // strategy error
             KlineNodeError::RegisterExchangeFailed { .. } => 1006,                 // register exchange failed
-            KlineNodeError::GetPlayKlineDataFailed { .. } => 1007,                 // get play kline data failed
-            KlineNodeError::KlineTimestampNotEqual { .. } => 1008,                 // kline timestamp not equal
-            KlineNodeError::LoadKlineFromExchangeFailed { .. } => 1010,            // load kline from exchange failed
-            KlineNodeError::InsufficientBacktestDataForMetaTrader5 { .. } => 1011, // insufficient meta trader 5 kline data
-            KlineNodeError::DataSourceAccountIsNotConfigured { .. } => 1012,       // data source account is not configured
-            KlineNodeError::SymbolsIsNotConfigured { .. } => 1013,                 // selected symbols is not configured
-            KlineNodeError::TimeRangeIsNotConfigured { .. } => 1014,               // time range is not configured
-            KlineNodeError::GetMinIntervalFromStrategyFailed { .. } => 1015,       // get min interval symbols from strategy failed
-            KlineNodeError::FirstKlineIsEmpty { .. } => 1017,                      // first kline is empty
-            KlineNodeError::AcquireSemaphoreFailed { .. } => 1018,                 // acquire semaphore failed
-            KlineNodeError::FetchKlineDataTaskFailed { .. } => 1019,               // fetch kline data task failed
-            KlineNodeError::InsufficientBacktestData { .. } => 1020,               // insufficient backtest data for exchange
-            KlineNodeError::ReturnEmptyKline { .. } => 1021,                       // return empty kline
+            KlineNodeError::LoadKlineFromExchangeFailed { .. } => 1007,            // load kline from exchange failed
+            KlineNodeError::InsufficientBacktestDataForMetaTrader5 { .. } => 1008, // insufficient meta trader 5 kline data
+            KlineNodeError::DataSourceAccountIsNotConfigured { .. } => 1009,       // data source account is not configured
+            KlineNodeError::SymbolsIsNotConfigured { .. } => 1010,                 // selected symbols is not configured
+            KlineNodeError::TimeRangeIsNotConfigured { .. } => 1011,               // time range is not configured
+            KlineNodeError::GetMinIntervalFromStrategyFailed { .. } => 1012,       // get min interval symbols from strategy failed
+            KlineNodeError::FirstKlineIsEmpty { .. } => 1013,                      // first kline is empty
+            KlineNodeError::AcquireSemaphoreFailed { .. } => 1014,                 // acquire semaphore failed
+            KlineNodeError::FetchKlineDataTaskFailed { .. } => 1015,               // fetch kline data task failed
+            KlineNodeError::InsufficientBacktestData { .. } => 1016,               // insufficient backtest data for exchange
+            KlineNodeError::PendingUpdateKlineNotExist { .. } => 1017,             // pending update kline not exist
         };
 
         format!("{}_{:04}", prefix, code)
@@ -184,18 +164,16 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::LoadKlineFromExchangeFailed { source, .. } => source.http_status_code(),
 
             // 服务器内部错误
-            KlineNodeError::GetPlayKlineDataFailed { .. } | // 500 - get play kline data failed
-            KlineNodeError::KlineTimestampNotEqual { .. } => StatusCode::INTERNAL_SERVER_ERROR, // 500 - kline timestamp not equal
             KlineNodeError::InsufficientBacktestDataForMetaTrader5 { .. } => StatusCode::BAD_REQUEST, // 400 - insufficient meta trader 5 kline data
             KlineNodeError::DataSourceAccountIsNotConfigured { .. } => StatusCode::BAD_REQUEST, // 400 - data source account is not configured
-            KlineNodeError::SymbolsIsNotConfigured { .. } => StatusCode::BAD_REQUEST, // 400 - selected symbols is not configured
-            KlineNodeError::TimeRangeIsNotConfigured { .. } => StatusCode::BAD_REQUEST, // 400 - time range is not configured
+            KlineNodeError::SymbolsIsNotConfigured { .. } => StatusCode::BAD_REQUEST,           // 400 - selected symbols is not configured
+            KlineNodeError::TimeRangeIsNotConfigured { .. } => StatusCode::BAD_REQUEST,         // 400 - time range is not configured
             KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. } => source.http_status_code(), // 400 - get min interval symbols failed
-            KlineNodeError::FirstKlineIsEmpty { .. } => StatusCode::INTERNAL_SERVER_ERROR, // 500 - first kline is empty
-            KlineNodeError::AcquireSemaphoreFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR, // 500 - acquire semaphore failed
+            KlineNodeError::FirstKlineIsEmpty { .. } => StatusCode::INTERNAL_SERVER_ERROR,                // 500 - first kline is empty
+            KlineNodeError::AcquireSemaphoreFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,           // 500 - acquire semaphore failed
             KlineNodeError::FetchKlineDataTaskFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR, // 500 - fetch kline data task failed
             KlineNodeError::InsufficientBacktestData { .. } => StatusCode::BAD_REQUEST, // 400 - insufficient backtest data for exchange
-            KlineNodeError::ReturnEmptyKline { .. } => StatusCode::BAD_REQUEST, // 400 - return empty kline
+            KlineNodeError::PendingUpdateKlineNotExist { .. } => StatusCode::BAD_REQUEST, // 400 - pending update kline not exist
         }
     }
 
@@ -208,7 +186,6 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::KeyError { source, .. } => generate_error_code_chain(source),
             KlineNodeError::RegisterExchangeFailed { source, .. }
             | KlineNodeError::LoadKlineFromExchangeFailed { source, .. }
-            | KlineNodeError::GetPlayKlineDataFailed { source, .. }
             | KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. }
             | KlineNodeError::BacktestStrategy { source, .. } => generate_error_code_chain(source.as_ref()),
 
@@ -227,22 +204,6 @@ impl StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::BacktestStrategy { source, .. } => source.error_message(language),
                 KlineNodeError::RegisterExchangeFailed { node_name, .. } => {
                     format!("[{}] 注册交易所错误", node_name)
-                }
-                KlineNodeError::GetPlayKlineDataFailed {
-                    node_name,
-                    kline_key,
-                    play_index,
-                    ..
-                } => {
-                    format!("@[{node_name}] 获取K线数据失败，K线键: [{kline_key}]，播放索引: [{:?}]", play_index)
-                }
-                KlineNodeError::KlineTimestampNotEqual {
-                    node_name,
-                    kline_key,
-                    play_index,
-                    ..
-                } => {
-                    format!("@[{node_name}] K线时间戳不一致，K线键: [{kline_key}]，播放索引: [{:?}]", play_index)
                 }
                 KlineNodeError::LoadKlineFromExchangeFailed { source, .. } => {
                     format!("从交易所加载K线历史失败。原因: [{}]", source)
@@ -307,13 +268,8 @@ impl StarRiverErrorTrait for KlineNodeError {
                         "回测时间范围从{start_time}到{end_time}，但{exchange}-{symbol}-{interval}的第一根K线的时间为{first_kline_datetime}"
                     )
                 }
-                KlineNodeError::ReturnEmptyKline {
-                    node_name,
-                    kline_key,
-                    play_index,
-                    ..
-                } => {
-                    format!("@[{node_name}] 策略返回空K线。K线键: [{kline_key}]，播放索引: [{:?}]", play_index)
+                KlineNodeError::PendingUpdateKlineNotExist { symbol, interval, .. } => {
+                    format!("待更新K线不存在: {symbol}-{interval}")
                 }
             },
         }

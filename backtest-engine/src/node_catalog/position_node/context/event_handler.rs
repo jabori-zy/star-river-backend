@@ -61,7 +61,7 @@ impl PositionNodeContext {
                         trigger_event
                     );
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(None, Some(self.current_time())).unwrap();
+                        self.send_execute_over_event(None, Some(self.strategy_time())).unwrap();
                     }
                     Ok(())
                 }
@@ -71,7 +71,7 @@ impl PositionNodeContext {
             BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) => {
                 tracing::debug!("{}: 收到订单事件: {:?}", self.node_name(), futures_order_node_event);
                 if self.is_leaf_node() {
-                    self.send_execute_over_event(None, Some(self.current_time())).unwrap();
+                    self.send_execute_over_event(None, Some(self.strategy_time())).unwrap();
                     Ok(())
                 } else {
                     Ok(())
@@ -80,7 +80,7 @@ impl PositionNodeContext {
             BacktestNodeEvent::IfElseNode(ifelse_event) => match ifelse_event {
                 IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(Some(config_id), Some(self.current_time())).unwrap();
+                        self.send_execute_over_event(Some(config_id), Some(self.strategy_time())).unwrap();
                         Ok(())
                     } else {
                         self.independent_position_op_send_trigger_event(config_id).await;
@@ -89,7 +89,7 @@ impl PositionNodeContext {
                 }
                 IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(Some(config_id), Some(self.current_time())).unwrap();
+                        self.send_execute_over_event(Some(config_id), Some(self.strategy_time())).unwrap();
                         Ok(())
                     } else {
                         self.independent_position_op_send_trigger_event(config_id).await;

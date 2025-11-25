@@ -30,7 +30,8 @@ use crate::{
         NodeType,
         node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
         node_state_machine::{StateChangeActions, StateMachine},
-    }, strategy::cycle::Cycle,
+    },
+    strategy::cycle::Cycle,
 };
 
 // ============================================================================
@@ -70,6 +71,16 @@ pub trait NodeInfoExt: NodeMetaDataExt {
     #[inline]
     fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
         self.metadata().cycle_watch_rx()
+    }
+
+    #[inline]
+    fn strategy_time(&self) -> DateTime<Utc> {
+        self.metadata().strategy_time()
+    }
+
+    #[inline]
+    fn strategy_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
+        self.metadata().strategy_time_watch_rx()
     }
 
     /// 获取节点 ID

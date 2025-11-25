@@ -18,7 +18,7 @@ use strategy_core::{
 use super::{if_else_node_type::IfElseNodeBacktestConfig, state_machine::IfElseNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 pub type ConfigId = i32;
@@ -33,16 +33,10 @@ pub struct IfElseNodeContext {
     received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     is_nested: bool,
     superior_case_is_true: bool,
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl IfElseNodeContext {
-    pub fn new(
-        metadata: IfElseNodeMetadata,
-        node_config: IfElseNodeBacktestConfig,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
-        is_nested: bool,
-    ) -> Self {
+    pub fn new(metadata: IfElseNodeMetadata, node_config: IfElseNodeBacktestConfig, is_nested: bool) -> Self {
         Self {
             metadata,
             node_config,
@@ -50,16 +44,11 @@ impl IfElseNodeContext {
             received_message: HashMap::new(),
             is_nested,
             superior_case_is_true: false,
-            current_time_watch_rx,
         }
     }
 }
 
 impl IfElseNodeContext {
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
-    }
-
     pub fn is_nested(&self) -> bool {
         self.is_nested
     }

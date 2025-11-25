@@ -21,7 +21,7 @@ impl BacktestStrategyContext {
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
     ) -> Result<PositionNode, BacktestStrategyError> {
         let strategy_command_sender = self.strategy_command_sender().clone();
-        let current_time_watch_rx = self.current_time_watch_rx();
+        let strategy_time_watch_rx = self.strategy_time_watch_rx();
 
         let node = PositionNode::new(
             self.cycle_watch_rx(),
@@ -31,7 +31,7 @@ impl BacktestStrategyContext {
             database,
             heartbeat,
             virtual_trading_system,
-            current_time_watch_rx,
+            strategy_time_watch_rx,
         )?;
         Ok(node)
     }

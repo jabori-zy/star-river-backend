@@ -23,10 +23,11 @@ impl BacktestStrategyContext {
         vts_event_receiver: broadcast::Receiver<VtsEvent>,
     ) -> Result<FuturesOrderNode, BacktestNodeError> {
         let strategy_command_sender = self.strategy_command_sender().clone();
-        let current_time_watch_rx = self.current_time_watch_rx();
+        let strategy_time_watch_rx = self.strategy_time_watch_rx();
 
         let node = FuturesOrderNode::new(
             self.cycle_watch_rx(),
+            strategy_time_watch_rx,
             node_config,
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
@@ -34,7 +35,6 @@ impl BacktestStrategyContext {
             heartbeat,
             vts_command_sender,
             vts_event_receiver,
-            current_time_watch_rx,
         )?;
         Ok(node)
     }

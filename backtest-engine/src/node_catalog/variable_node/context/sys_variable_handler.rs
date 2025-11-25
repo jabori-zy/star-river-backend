@@ -122,7 +122,7 @@ impl VariableNodeContext {
     /// 创建获取总持仓数量的 Handle
     pub(super) async fn create_total_position_number_handle(&self, system_var_config: GetSystemVariableConfig) -> JoinHandle<()> {
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
         self.create_sys_variable_handle(cycle_id, current_time, node_id, system_var_config, |vts| {
@@ -139,7 +139,7 @@ impl VariableNodeContext {
     /// 创建获取总成交订单数量的 Handle
     pub(super) async fn create_total_filled_order_number_handle(&self, system_var_config: GetSystemVariableConfig) -> JoinHandle<()> {
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
         self.create_sys_variable_handle(cycle_id, current_time, node_id, system_var_config, |vts| {
@@ -163,7 +163,7 @@ impl VariableNodeContext {
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<()>, VariableNodeError> {
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let node_id = self.node_id().clone();
 
         // 验证 symbol 不为空
@@ -198,7 +198,7 @@ impl VariableNodeContext {
 
     pub(super) async fn create_current_time_handle(&self, system_var_config: GetSystemVariableConfig) -> JoinHandle<()> {
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let node_id = self.node_id().clone();
 
         let var_display_name = system_var_config.var_display_name().clone();

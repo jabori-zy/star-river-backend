@@ -31,9 +31,9 @@ where
     Y: NodeCommandTrait,
     E: NodeEventTrait,
 {
-    cycle: watch::Sender<Cycle>,
+    cycle_watch_tx: watch::Sender<Cycle>,
+    strategy_time_watch_tx: watch::Sender<DateTime<Utc>>,
     strategy_config: StrategyConfig,
-    current_time: Arc<RwLock<DateTime<Utc>>>,
     graph: Graph<N, (), Directed>,
     node_indices: HashMap<NodeId, NodeIndex>,
     database: DatabaseConnection,
@@ -72,9 +72,10 @@ where
 
         let strategy_stats = Arc::new(RwLock::new(StrategyStats::new(mode, strategy_id)));
         let (cycle_watch_tx, _) = watch::channel::<Cycle>(Cycle::new());
-
+        let (strategy_time_watch_tx, _) = watch::channel::<DateTime<Utc>>(Utc::now());
         Self {
-            cycle: cycle_watch_tx,
+            cycle_watch_tx,
+            strategy_time_watch_tx,
             strategy_config,
             graph: Graph::new(),
             node_indices: HashMap::new(),
@@ -84,7 +85,6 @@ where
             state_machine: Arc::new(RwLock::new(state_machine)),
             strategy_command_transceiver: (strategy_command_tx, Arc::new(Mutex::new(strategy_command_rx))),
             node_command_sender: HashMap::new(),
-            current_time: Arc::new(RwLock::new(Utc::now())),
             custom_variable: Arc::new(RwLock::new(HashMap::new())),
             sys_variable: Arc::new(RwLock::new(HashMap::new())),
             benchmark: Arc::new(RwLock::new(StrategyBenchmark::new(strategy_id, strategy_name))),
@@ -150,15 +150,27 @@ where
     E: NodeEventTrait,
 {
     pub fn cycle_id(&self) -> CycleId {
-        self.cycle.borrow().id()
+        self.cycle_watch_tx.borrow().id()
     }
 
     pub fn cycle_watch_tx(&self) -> &watch::Sender<Cycle> {
-        &self.cycle
+        &self.cycle_watch_tx
     }
 
     pub fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
-        self.cycle.subscribe()
+        self.cycle_watch_tx.subscribe()
+    }
+
+    pub fn strategy_time(&self) -> DateTime<Utc> {
+        *self.strategy_time_watch_tx.borrow()
+    }
+
+    pub fn strategy_time_watch_tx(&self) -> &watch::Sender<DateTime<Utc>> {
+        &self.strategy_time_watch_tx
+    }
+
+    pub fn strategy_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
+        self.strategy_time_watch_tx.subscribe()
     }
 
     /// Get reference to graph
@@ -325,13 +337,5 @@ where
     /// Get database
     pub fn database(&self) -> &DatabaseConnection {
         &self.database
-    }
-
-    pub async fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time.read().await
-    }
-
-    pub async fn set_current_time(&self, time: DateTime<Utc>) {
-        *self.current_time.write().await = time;
     }
 }

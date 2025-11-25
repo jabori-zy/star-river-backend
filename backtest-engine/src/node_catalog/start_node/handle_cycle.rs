@@ -9,7 +9,8 @@ use strategy_core::{
     node::{
         context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
         node_trait::NodeContextAccessor,
-    }, strategy::cycle::Cycle,
+    },
+    strategy::cycle::Cycle,
 };
 
 use super::StartNode;
@@ -50,7 +51,7 @@ impl StartNode {
                                         let result = context_guard.send_play_signal().await;
 
                                         if let Err(e) = result {
-                                            let current_time = context_guard.current_time();
+                                            let current_time = context_guard.strategy_time();
                                             let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
                                                 context_guard.cycle_id().clone(),
                                                 context_guard.strategy_id().clone(),
@@ -60,12 +61,12 @@ impl StartNode {
                                                 &e,
                                                 current_time,
                                             ).into();
-        
+
                                             if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
                                                 e.report();
                                             };
-        
-        
+
+
                                         }
                                     }
                                     Cycle::Reset => {}

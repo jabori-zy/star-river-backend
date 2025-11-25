@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
 };
 use backtest_engine::engine_error::BacktestEngineError;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime};
 use engine_core::EngineContextAccessor;
 use key::Key;
 use serde::{Deserialize, Serialize};
@@ -306,12 +306,12 @@ pub async fn get_running_log(
     title = "get strategy data",
     description = "get strategy data",
     example = json!({
-        "play_index": 1,
+        "datetime": "2024-01-01T00:00:00.000Z",
         "key": ""
     })
 )]
 pub struct GetStrategyDataQuery {
-    pub play_index: i32,
+    pub datetime: Option<String>,
     pub key: String,
     pub limit: Option<i32>,
 }
@@ -322,9 +322,7 @@ pub struct GetStrategyDataQuery {
     tag = "Backtest Strategy",
     summary = "Get strategy data",
     params(
-        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy data"),
-        ("play_index" = i32, Query, description = "The play index to get strategy data"),
-        ("key" = String, Query, description = "The key to get strategy data")
+        GetStrategyDataQuery
     ),
     responses(
         (status = 200, description = "Get strategy data successfully", body = NewApiResponse<Vec<utoipa::openapi::Object>>),
@@ -345,84 +343,10 @@ pub async fn get_strategy_data(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let play_index = params.play_index;
-    let limit = params.limit;
-    let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard
-        .with_ctx_read_async(|ctx| {
-            Box::pin(async move {
-                let data = ctx
-                    .with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                        Box::pin(async move { ctx.get_strategy_data(play_index, key, limit).await })
-                    })
-                    .await?
-                    .map_err(BacktestEngineError::from)?;
-                Ok(data)
-            })
-        })
-        .await;
-
-    match result {
-        Ok(data) => (StatusCode::OK, Json(NewApiResponse::success(data))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
-    }
-}
-
-#[derive(Serialize, Deserialize, IntoParams, ToSchema, Debug)]
-#[schema(
-    title = "get strategy data by datetime",
-    description = "get strategy data by datetime",
-    example = json!({
-        "key": "",
-        "datetime": "2024-01-01T00:00:00.000Z",
-        "limit": 100
-    })
-)]
-pub struct GetStrategyDataByDatetimeQuery {
-    pub key: String,
-    pub datetime: String,
-    pub limit: Option<i32>,
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/v1/strategy/backtest/{strategy_id}/data-by-datetime",
-    tag = "Backtest Strategy",
-    summary = "Get strategy data by datetime",
-    params(
-        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy data by datetime"),
-        ("key" = String, Query, description = "The key to get strategy data by datetime"),
-        ("datetime" = String, Query, description = "The datetime to get strategy data by datetime"),
-        ("limit" = Option<i32>, Query, description = "The limit to get strategy data by datetime")
-    ),
-    responses(
-        (status = 200, description = "Get strategy data by datetime successfully", body = NewApiResponse<Vec<utoipa::openapi::Object>>),
-        (status = 400, description = "Get strategy data by datetime failed", body = NewApiResponse<Vec<utoipa::openapi::Object>>)
-    )
-)]
-#[axum::debug_handler]
-pub async fn get_strategy_data_by_datetime(
-    State(star_river): State<StarRiver>,
-    Path(strategy_id): Path<i32>,
-    Query(params): Query<GetStrategyDataByDatetimeQuery>,
-) -> (StatusCode, Json<NewApiResponse<Vec<serde_json::Value>>>) {
-    let key = match Key::from_str(&params.key) {
-        Ok(key) => key,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    let datetime = match params.datetime {
+        Some(dt) => Some(DateTime::parse_from_rfc3339(&dt).unwrap().to_utc()),
+        None => None,
     };
-
-    let datetime = match NaiveDateTime::parse_from_str(&params.datetime, "%Y-%m-%dT%H:%M:%S%.fZ") {
-        Ok(dt) => dt.and_utc(),
-        Err(e) => {
-            return {
-                let error = ParseDataTimeFailedSnafu { datetime: params.datetime }.into_error(e);
-                (error.http_status_code(), Json(NewApiResponse::error(error)))
-            };
-        }
-    };
-
-    let engine_manager = star_river.engine_manager.lock().await;
-    let engine = engine_manager.backtest_engine().await;
-    let engine_guard: tokio::sync::MutexGuard<'_, backtest_engine::BacktestEngine> = engine.lock().await;
 
     let limit = params.limit;
     let result: Result<Vec<serde_json::Value>, BacktestEngineError> = engine_guard
@@ -430,7 +354,7 @@ pub async fn get_strategy_data_by_datetime(
             Box::pin(async move {
                 let data = ctx
                     .with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                        Box::pin(async move { ctx.get_strategy_data_by_datetime(key, datetime, limit).await })
+                        Box::pin(async move { ctx.get_strategy_data(datetime, None, key, limit).await })
                     })
                     .await?
                     .map_err(BacktestEngineError::from)?;

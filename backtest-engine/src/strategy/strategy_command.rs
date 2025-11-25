@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 // External crate imports
 use derive_more::From;
 // Current crate imports
@@ -198,15 +199,17 @@ pub struct AppendKlineDataRespPayload;
 #[derive(Debug)]
 pub struct GetKlineDataCmdPayload {
     pub kline_key: KlineKey,
-    pub play_index: Option<i32>,
+    pub datetime: Option<DateTime<Utc>>,
+    pub index: Option<u64>,
     pub limit: Option<i32>,
 }
 
 impl GetKlineDataCmdPayload {
-    pub fn new(kline_key: KlineKey, play_index: Option<i32>, limit: Option<i32>) -> Self {
+    pub fn new(kline_key: KlineKey, datetime: Option<DateTime<Utc>>, index: Option<u64>, limit: Option<i32>) -> Self {
         Self {
             kline_key,
-            play_index,
+            datetime,
+            index,
             limit,
         }
     }
@@ -215,11 +218,15 @@ impl GetKlineDataCmdPayload {
 #[derive(Debug)]
 pub struct GetKlineDataRespPayload {
     pub kline_series: Vec<Kline>,
+    pub correct_index: Option<u64>,
 }
 
 impl GetKlineDataRespPayload {
-    pub fn new(kline_series: Vec<Kline>) -> Self {
-        Self { kline_series }
+    pub fn new(kline_series: Vec<Kline>, correct_index: Option<u64>) -> Self {
+        Self {
+            kline_series,
+            correct_index,
+        }
     }
 }
 

@@ -9,7 +9,7 @@ use star_river_event::backtest_strategy::{
 use strategy_core::{
     event::{node_common_event::CommonEvent, strategy_event::StrategyPerformanceUpdateEvent},
     strategy::context_trait::{
-        StrategyBenchmarkExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
+        StrategyBenchmarkExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyVariableExt, StrategyWorkflowExt,
     },
 };
 
@@ -52,10 +52,11 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             }
 
             BacktestStrategyCommand::GetKlineData(cmd) => {
-                let result = self.get_kline_slice(&cmd.kline_key, cmd.play_index, cmd.limit).await;
+                let result = self.get_kline_slice(cmd.datetime, cmd.index, &cmd.kline_key, cmd.limit).await;
+
                 match result {
                     Ok(data) => {
-                        let payload = GetKlineDataRespPayload::new(data);
+                        let payload = GetKlineDataRespPayload::new(data.0, data.1);
                         let response = GetKlineDataResponse::success(payload);
                         cmd.respond(response);
                     }
@@ -251,14 +252,6 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                     // tracing::debug!("backtest-strategy-context: {:?}", serde_json::to_string(&backtest_strategy_event).unwrap());
                     // let _ = self.event_publisher.publish(backtest_strategy_event.into()).await;
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-                }
-                // KlineNodeEvent::StateLog(log_event) => {
-                //     let backtest_strategy_event = BacktestStrategyEvent::NodeStateLog(log_event.clone());
-                //     EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-                // }
-                KlineNodeEvent::TimeUpdate(time_update_event) => {
-                    // 更新策略的全局时间
-                    self.set_current_time(time_update_event.current_time).await;
                 }
             }
         }

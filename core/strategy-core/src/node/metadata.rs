@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
+use chrono::{DateTime, Utc};
 use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 // third-party
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
@@ -12,7 +13,8 @@ use crate::{
     node::{
         NodeType,
         node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
-    }, strategy::cycle::Cycle,
+    },
+    strategy::cycle::Cycle,
 };
 
 /// M: Node State Machine
@@ -28,9 +30,9 @@ where
     C: NodeCommandTrait,
     X: StrategyCommandTrait,
 {
-    cycle: watch::Receiver<Cycle>,
+    cycle_watch_rx: watch::Receiver<Cycle>,
+    strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     strategy_id: StrategyId,
-    // strategy_name: StrategyName,
     node_id: NodeId,
     node_name: NodeName,
     node_type: NodeType,
@@ -54,8 +56,8 @@ where
 {
     pub fn new(
         cycle: watch::Receiver<Cycle>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
         strategy_id: StrategyId,
-        // strategy_name: StrategyName,
         node_id: NodeId,
         node_name: NodeName,
         node_type: NodeType,
@@ -65,9 +67,9 @@ where
         node_command_receiver: Arc<Mutex<mpsc::Receiver<C>>>,
     ) -> Self {
         Self {
-            cycle,
+            cycle_watch_rx: cycle,
+            strategy_time_watch_rx,
             strategy_id,
-            // strategy_name,
             node_id,
             node_name,
             node_type,
@@ -92,11 +94,19 @@ where
     X: StrategyCommandTrait,
 {
     pub fn cycle_id(&self) -> CycleId {
-        self.cycle.borrow().id()
+        self.cycle_watch_rx.borrow().id()
     }
 
     pub fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
-        self.cycle.clone()
+        self.cycle_watch_rx.clone()
+    }
+
+    pub fn strategy_time(&self) -> DateTime<Utc> {
+        *self.strategy_time_watch_rx.borrow()
+    }
+
+    pub fn strategy_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
+        self.strategy_time_watch_rx.clone()
     }
 
     /// Get node id

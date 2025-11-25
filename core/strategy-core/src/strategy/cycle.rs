@@ -1,7 +1,5 @@
 use star_river_core::custom_type::CycleId;
 
-
-
 #[derive(Debug, Clone)]
 pub enum Cycle {
     Id(CycleId),
@@ -9,11 +7,9 @@ pub enum Cycle {
 }
 
 impl Cycle {
-
     pub fn new() -> Self {
         Cycle::Reset
     }
-
 
     pub fn id(&self) -> CycleId {
         match self {
@@ -21,6 +17,4 @@ impl Cycle {
             Cycle::Reset => 0,
         }
     }
-
-
 }

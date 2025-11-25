@@ -52,7 +52,6 @@ pub struct FuturesOrderNodeContext {
     virtual_order_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 虚拟订单历史列表 input_handle_id -> virtual_order_history
     virtual_transaction_history: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualTransaction>>>>, // 虚拟交易明细历史列表 input_handle_id -> virtual_transaction_history
     symbol_info: Vec<Symbol>,                                                                  // 交易对信息
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl FuturesOrderNodeContext {
@@ -63,7 +62,6 @@ impl FuturesOrderNodeContext {
         heartbeat: Arc<Mutex<Heartbeat>>,
         vts_command_sender: mpsc::Sender<VtsCommand>,
         vts_event_receiver: broadcast::Receiver<VtsEvent>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
@@ -77,16 +75,11 @@ impl FuturesOrderNodeContext {
             virtual_order_history: Arc::new(RwLock::new(HashMap::new())),
             virtual_transaction_history: Arc::new(RwLock::new(HashMap::new())),
             symbol_info: vec![],
-            current_time_watch_rx,
         }
     }
 }
 
 impl FuturesOrderNodeContext {
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
-    }
-
     pub fn node_config(&self) -> &FuturesOrderNodeConfig {
         &self.node_config
     }

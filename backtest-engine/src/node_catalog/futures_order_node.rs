@@ -24,7 +24,8 @@ use strategy_core::{
         metadata::NodeMetadata,
         node_trait::NodeContextAccessor,
         utils::generate_strategy_output_handle,
-    }, strategy::cycle::Cycle,
+    },
+    strategy::cycle::Cycle,
 };
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
 use tokio_stream::wrappers::BroadcastStream;
@@ -60,6 +61,7 @@ impl NodeContextAccessor for FuturesOrderNode {
 impl FuturesOrderNode {
     pub fn new(
         cycle_rx: watch::Receiver<Cycle>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
@@ -67,7 +69,6 @@ impl FuturesOrderNode {
         heartbeat: Arc<Mutex<Heartbeat>>,
         vts_command_sender: mpsc::Sender<VtsCommand>,
         vts_event_receiver: broadcast::Receiver<VtsEvent>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_futures_order_node_config(node_config)?;
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
@@ -75,6 +76,7 @@ impl FuturesOrderNode {
 
         let metadata = NodeMetadata::new(
             cycle_rx,
+            strategy_time_watch_rx,
             strategy_id,
             node_id,
             node_name,
@@ -84,15 +86,7 @@ impl FuturesOrderNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = FuturesOrderNodeContext::new(
-            metadata,
-            node_config,
-            database,
-            heartbeat,
-            vts_command_sender,
-            vts_event_receiver,
-            current_time_watch_rx,
-        );
+        let context = FuturesOrderNodeContext::new(metadata, node_config, database, heartbeat, vts_command_sender, vts_event_receiver);
         Ok(Self {
             inner: NodeBase::new(context),
         })

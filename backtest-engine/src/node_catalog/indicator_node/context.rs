@@ -42,7 +42,6 @@ pub struct IndicatorNodeContext {
     indicator_lookback: HashMap<IndicatorKey, usize>,     // Indicator key -> lookback
     min_interval_symbols: Vec<KlineKey>,
     min_interval: KlineInterval,
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl IndicatorNodeContext {
@@ -51,7 +50,6 @@ impl IndicatorNodeContext {
         node_config: IndicatorNodeBacktestConfig,
         selected_kline_key: KlineKey,
         indicator_keys: HashMap<IndicatorKey, (i32, String)>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
@@ -62,7 +60,6 @@ impl IndicatorNodeContext {
             indicator_lookback: HashMap::new(),
             min_interval_symbols: vec![],
             min_interval: KlineInterval::Minutes1,
-            current_time_watch_rx,
         }
     }
 
@@ -80,12 +77,6 @@ impl IndicatorNodeContext {
 
     pub fn indicator_keys(&self) -> &HashMap<IndicatorKey, (i32, String)> {
         &self.indicator_keys
-    }
-}
-
-impl IndicatorNodeContext {
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
     }
 }
 

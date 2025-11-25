@@ -85,7 +85,7 @@ pub async fn stop_strategy(State(star_river): State<StarRiver>, Path(strategy_id
     post,
     path = "/api/v1/strategy/backtest/{strategy_id}/play",
     tag = BACKTEST_CONTROL_TAG,
-    summary = "播放k线",
+    summary = "Play kline",
     params(
         ("strategy_id" = i32, Path, description = "The ID of the strategy to play")
     ),
@@ -118,14 +118,14 @@ pub async fn play(State(star_river): State<StarRiver>, Path(strategy_id): Path<i
 #[utoipa::path(
     post,
     path = "/api/v1/strategy/backtest/{strategy_id}/play-one",
-    tag = "回测策略",
-    summary = "播放单个K线",
+    tag = BACKTEST_CONTROL_TAG,
+    summary = "Play one kline",
     params(
-        ("strategy_id" = i32, Path, description = "要播放单个K线的策略ID")
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to play one kline")
     ),
     responses(
-        (status = 200, description = "播放单个K线成功"),
-        (status = 400, description = "播放单个K线失败")
+        (status = 200, description = "Play one kline successfully"),
+        (status = 400, description = "Play one kline failed")
     )
 )]
 pub async fn play_one(
@@ -162,14 +162,14 @@ pub async fn play_one(
 #[utoipa::path(
     post,
     path = "/api/v1/strategy/backtest/{strategy_id}/pause",
-    tag = "回测策略",
-    summary = "暂停播放k线",
+    tag = BACKTEST_CONTROL_TAG,
+    summary = "Pause",
     params(
-        ("strategy_id" = i32, Path, description = "要暂停的策略ID")
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to pause")
     ),
     responses(
-        (status = 200, description = "暂停策略成功"),
-        (status = 400, description = "暂停策略失败")
+        (status = 200, description = "Pause strategy successfully"),
+        (status = 400, description = "Pause strategy failed")
     )
 )]
 pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<i32>) -> (StatusCode, Json<NewApiResponse<()>>) {
@@ -197,7 +197,7 @@ pub async fn pause(State(star_river): State<StarRiver>, Path(strategy_id): Path<
 #[utoipa::path(
     get,
     path = "/api/v1/strategy/backtest/{strategy_id}/play-index",
-    tag = "回测策略",
+    tag = BACKTEST_CONTROL_TAG,
     summary = "获取播放索引",
     params(
         ("strategy_id" = i32, Path, description = "要获取播放索引的策略ID")
@@ -267,5 +267,46 @@ pub async fn reset(State(star_river): State<StarRiver>, Path(strategy_id): Path<
     match result {
         Ok(()) => (StatusCode::OK, Json(NewApiResponse::success(()))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(NewApiResponse::error(e))),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/strategy/backtest/{strategy_id}/strategy-datetime",
+    tag = BACKTEST_CONTROL_TAG,
+    summary = "Get strategy datetime",
+    params(
+        ("strategy_id" = i32, Path, description = "The ID of the strategy to get strategy datetime")
+    ),
+    responses(
+        (status = 200, description = "Get strategy datetime successfully"),
+        (status = 400, description = "Get strategy datetime failed")
+    )
+)]
+pub async fn get_strategy_datetime(
+    State(star_river): State<StarRiver>,
+    Path(strategy_id): Path<i32>,
+) -> (StatusCode, Json<ApiResponseEnum<serde_json::Value>>) {
+    let engine_manager = star_river.engine_manager.lock().await;
+    let engine = engine_manager.backtest_engine().await;
+    let engine_guard = engine.lock().await;
+
+    let result: Result<String, BacktestEngineError> = engine_guard
+        .with_ctx_read_async(|ctx| {
+            Box::pin(async move {
+                let datetime = ctx.with_strategy_ctx_read(strategy_id, move |ctx| ctx.strategy_time()).await?;
+                Ok(datetime.to_rfc3339())
+            })
+        })
+        .await;
+
+    match result {
+        Ok(datetime) => (
+            StatusCode::OK,
+            Json(ApiResponseEnum::success(serde_json::json!({
+                "strategyDatetime": datetime
+            }))),
+        ),
+        Err(e) => (StatusCode::NOT_FOUND, Json(ApiResponseEnum::error(e))),
     }
 }

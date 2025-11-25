@@ -17,7 +17,8 @@ use strategy_core::{
     NodeType,
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
     node::{NodeBase, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
-    node_infra::if_else_node::Case, strategy::cycle::Cycle,
+    node_infra::if_else_node::Case,
+    strategy::cycle::Cycle,
 };
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
@@ -51,10 +52,10 @@ impl NodeContextAccessor for IfElseNode {
 impl IfElseNode {
     pub fn new(
         cycle_rx: watch::Receiver<Cycle>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
 
@@ -63,6 +64,7 @@ impl IfElseNode {
         let state_machine = IfElseNodeStateMachine::new(node_name.clone(), NodeRunState::Created, if_else_node_transition);
         let metadata = NodeMetadata::new(
             cycle_rx,
+            strategy_time_watch_rx,
             strategy_id,
             node_id,
             node_name,
@@ -73,7 +75,7 @@ impl IfElseNode {
             node_command_receiver,
         );
         let is_nested = backtest_config.is_nested;
-        let context = IfElseNodeContext::new(metadata, backtest_config, current_time_watch_rx, is_nested);
+        let context = IfElseNodeContext::new(metadata, backtest_config, is_nested);
         Ok(Self {
             inner: NodeBase::new(context),
         })

@@ -48,11 +48,11 @@ pub enum BacktestStrategyError {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("[{strategy_name}] get data failed. key: {key}, play index: {play_index}"))]
+    #[snafu(display("[{strategy_name}] get data failed. key: {key}, datetime: {datetime:?}"))]
     GetDataFailed {
         strategy_name: String,
         key: String,
-        play_index: u32,
+        datetime: Option<String>,
         backtrace: Backtrace,
     },
 
@@ -218,10 +218,10 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::GetDataFailed {
                     strategy_name,
                     key,
-                    play_index,
+                    datetime,
                     ..
                 } => {
-                    format!("策略 [{strategy_name}] 获取数据失败: 数据键: {key}, 缓存索引: {play_index}")
+                    format!("策略 [{strategy_name}] 获取数据失败: 数据键: {key}, 时间: {datetime:?}")
                 }
                 BacktestStrategyError::GetDataByDatetimeFailed {
                     strategy_name,

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use key::{KeyTrait, KlineKey};
 use snafu::{IntoError, OptionExt, ResultExt};
 use star_river_core::kline::Kline;
@@ -12,22 +13,28 @@ use tokio::sync::oneshot;
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
 use crate::{
-    node::node_error::kline_node_error::{GetPlayKlineDataFailedSnafu, ReturnEmptyKlineSnafu},
-    strategy::{
-        PlayIndex,
-        strategy_command::{GetKlineDataCmdPayload, GetKlineDataCommand},
-    },
+    node::node_error::kline_node_error::BacktestStrategySnafu,
+    strategy::strategy_command::{GetKlineDataCmdPayload, GetKlineDataCommand},
 };
 
 impl KlineNodeContext {
     // 从策略中获取k线数据
     pub async fn get_single_kline_from_strategy(
-        &self,
+        &mut self,
         kline_key: &KlineKey,
-        play_index: Option<PlayIndex>, // 播放索引
-    ) -> Result<Kline, KlineNodeError> {
+        datetime: Option<DateTime<Utc>>,
+    ) -> Result<Option<Kline>, KlineNodeError> {
+        // Calculate index hint based on correct_index
+        // If cycle_id is sequential (correct_index + 1), use cycle_id for fast path
+        // Otherwise, use correct_index + 1 to recover from index drift
+        let index = if self.cycle_id() == self.correct_index + 1 {
+            Some(self.cycle_id()) // Sequential playback, use cycle_id directly
+        } else {
+            Some(self.correct_index + 1) // Index drift detected, use corrected value
+        };
+
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetKlineDataCmdPayload::new(kline_key.clone(), play_index, Some(1));
+        let payload = GetKlineDataCmdPayload::new(kline_key.clone(), datetime, index, Some(1));
         let get_kline_cmd = GetKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
         self.send_strategy_command(get_kline_cmd.into()).await?;
 
@@ -37,20 +44,13 @@ impl KlineNodeContext {
         })?;
         match response {
             StrategyResponse::Success { payload, .. } => {
-                let kline = payload.kline_series.first().context(ReturnEmptyKlineSnafu {
-                    node_name: self.node_name().clone(),
-                    kline_key: kline_key.key_str(),
-                    play_index: play_index,
-                })?;
-                return Ok(kline.clone());
+                if let Some(correct_index) = payload.correct_index {
+                    self.correct_index = correct_index;
+                }
+                return Ok(payload.kline_series.first().cloned());
             }
             StrategyResponse::Fail { error, .. } => {
-                return Err(GetPlayKlineDataFailedSnafu {
-                    node_name: self.node_name().clone(),
-                    kline_key: kline_key.key_str(),
-                    play_index: play_index,
-                }
-                .into_error(error));
+                return Err(BacktestStrategySnafu {}.into_error(error));
             }
         }
     }

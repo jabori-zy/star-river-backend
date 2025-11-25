@@ -6,10 +6,13 @@ use ta_lib::Indicator;
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::strategy::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu, PlayIndexOutOfRangeSnafu};
+use crate::strategy::strategy_error::{BacktestStrategyError, KlineKeyNotFoundSnafu};
 
 mod kline {
     use std::collections::hash_map::Entry;
+
+    use chrono::{DateTime, Utc};
+    use snafu::OptionExt;
 
     use super::*;
     use crate::strategy::strategy_error::SymbolIsNotMinIntervalSnafu;
@@ -75,69 +78,116 @@ mod kline {
 
         pub async fn get_kline_slice(
             &self,
+            datetime: Option<DateTime<Utc>>,
+            index: Option<u64>,
             kline_key: &KlineKey,
-            play_index: Option<i32>,
             limit: Option<i32>,
-        ) -> Result<Vec<Kline>, BacktestStrategyError> {
-            let kline_data = self.get_kline_data(kline_key).await;
-            if let Some(data) = kline_data {
-                let kline_data_length = data.len() as u32;
-                match (play_index, limit) {
-                    // 有index，有limit
-                    (Some(play_index), Some(limit)) => {
-                        // 如果索引超出范围，返回空
-                        if play_index as u32 >= kline_data_length {
-                            Err(PlayIndexOutOfRangeSnafu {
-                                strategy_name: self.strategy_name().clone(),
-                                kline_data_length: kline_data_length,
-                                play_index: play_index as u32,
+        ) -> Result<(Vec<Kline>, Option<u64>), BacktestStrategyError> {
+            let kline_data_guard = self.kline_data.read().await;
+            let data = kline_data_guard.get(kline_key).context(KlineKeyNotFoundSnafu {
+                strategy_name: self.strategy_name(),
+                kline_key: kline_key.key_str(),
+            })?;
+
+            let kline_data_length = data.len();
+
+            match (datetime, limit) {
+                // Both datetime and limit are provided
+                (Some(datetime), Some(limit)) => {
+                    // Try fast path first if index hint is provided
+                    let target_index = if let Some(hint_index) = index {
+                        let hint_idx = hint_index as usize;
+                        // Fast path: O(1) check if index hint matches datetime
+                        if hint_idx < kline_data_length && data[hint_idx].datetime() == datetime {
+                            // ⚡ Fast path hit! Index matches datetime
+                            hint_idx
+                        } else {
+                            // Index hint didn't match, fallback to binary search
+                            let search_result = data.binary_search_by(|k| k.datetime().cmp(&datetime));
+                            match search_result {
+                                Ok(exact_index) => exact_index,
+                                Err(insert_pos) => {
+                                    if insert_pos == 0 {
+                                        return Ok((Vec::new(), None));
+                                    }
+                                    insert_pos - 1
+                                }
                             }
-                            .build())
-                        } else {
-                            // 计算从索引开始向前取limit个元素
-                            let end = play_index as usize + 1;
-                            let start = if limit as usize >= end { 0 } else { end - limit as usize };
-                            Ok(data[start..end].to_vec())
                         }
-                    }
-                    // 有index，无limit
-                    (Some(play_index), None) => {
-                        // 如果索引超出范围，返回空
-                        if play_index as u32 >= kline_data_length {
-                            Err(PlayIndexOutOfRangeSnafu {
-                                strategy_name: self.strategy_name().clone(),
-                                kline_data_length: kline_data_length,
-                                play_index: play_index as u32,
+                    } else {
+                        // No index hint, use binary search directly
+                        let search_result = data.binary_search_by(|k| k.datetime().cmp(&datetime));
+                        match search_result {
+                            Ok(exact_index) => exact_index,
+                            Err(insert_pos) => {
+                                if insert_pos == 0 {
+                                    return Ok((Vec::new(), None));
+                                }
+                                insert_pos - 1
                             }
-                            .build())
-                        } else {
-                            // 从索引开始向前取所有元素（到开头）
-                            let end = play_index as usize + 1;
-                            Ok(data[0..end].to_vec())
                         }
-                    }
-                    // 无index，有limit
-                    (None, Some(limit)) => {
-                        // 从后往前取limit条数据
-                        if limit as u32 >= kline_data_length {
-                            Ok(data.clone())
+                    };
+
+                    // Calculate slice: take `limit` items up to and including target_index
+                    let end = target_index + 1;
+                    let start = if limit as usize >= end { 0 } else { end - limit as usize };
+                    Ok((data[start..end].to_vec(), Some(target_index as u64)))
+                }
+                // datetime provided, no limit
+                (Some(datetime), None) => {
+                    // Try fast path first if index hint is provided
+                    let target_index = if let Some(hint_index) = index {
+                        let hint_idx = hint_index as usize;
+                        // Fast path: O(1) check if index hint matches datetime
+                        if hint_idx < kline_data_length && data[hint_idx].datetime() == datetime {
+                            // ⚡ Fast path hit! Index matches datetime
+                            hint_idx
                         } else {
-                            let start = (kline_data_length as usize).saturating_sub(limit as usize);
-                            Ok(data[start..].to_vec())
+                            // Index hint didn't match, fallback to binary search
+                            let search_result = data.binary_search_by(|k| k.datetime().cmp(&datetime));
+                            match search_result {
+                                Ok(exact_index) => exact_index,
+                                Err(insert_pos) => {
+                                    if insert_pos == 0 {
+                                        return Ok((Vec::new(), None));
+                                    }
+                                    insert_pos - 1
+                                }
+                            }
                         }
-                    }
-                    // 无index，无limit
-                    (None, None) => {
-                        // 如果limit和index都为None，则返回所有数据
-                        Ok(data.clone())
+                    } else {
+                        // No index hint, use binary search directly
+                        let search_result = data.binary_search_by(|k| k.datetime().cmp(&datetime));
+                        match search_result {
+                            Ok(exact_index) => exact_index,
+                            Err(insert_pos) => {
+                                if insert_pos == 0 {
+                                    return Ok((Vec::new(), None));
+                                }
+                                insert_pos - 1
+                            }
+                        }
+                    };
+
+                    // Return all data from start to target_index (inclusive)
+                    let end = target_index + 1;
+                    Ok((data[0..end].to_vec(), Some(target_index as u64)))
+                }
+                // No datetime, but limit provided
+                (None, Some(limit)) => {
+                    // Take last `limit` items from the data
+                    if limit as usize >= kline_data_length {
+                        Ok((data.clone(), None))
+                    } else {
+                        let start = kline_data_length.saturating_sub(limit as usize);
+                        Ok((data[start..].to_vec(), None))
                     }
                 }
-            } else {
-                Err(KlineKeyNotFoundSnafu {
-                    strategy_name: self.strategy_name().clone(),
-                    kline_key: kline_key.key_str(),
+                // Neither datetime nor limit provided
+                (None, None) => {
+                    // Return all data
+                    Ok((data.clone(), None))
                 }
-                .build())
             }
         }
 

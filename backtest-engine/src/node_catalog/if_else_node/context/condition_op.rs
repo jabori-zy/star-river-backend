@@ -76,7 +76,7 @@ impl IfElseNodeContext {
         let mut cycle_tracker: CycleTracker = CycleTracker::new(self.cycle_id());
 
         let mut have_true_case = false; // Track whether any case has matched
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
 
         // Iterate through all cases for condition evaluation
         for case in self.node_config.cases.iter() {
@@ -149,7 +149,7 @@ impl IfElseNodeContext {
             node_id.clone(),
             node_name.clone(),
             case_output_handle_id.clone(),
-            self.current_time(),
+            self.strategy_time(),
             payload,
         )
         .into();
@@ -177,7 +177,8 @@ impl IfElseNodeContext {
         // 根据节点类型处理事件发送
         if self.is_leaf_node() {
             // 叶子节点：发送执行结束事件
-            self.send_execute_over_event(Some(case.case_id), Some(self.current_time())).unwrap();
+            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))
+                .unwrap();
         } else {
             // 非叶子节点：将事件传递给下游节点
             self.output_handle_send(condition_match_event.into()).unwrap();
@@ -189,7 +190,8 @@ impl IfElseNodeContext {
 
     async fn handle_case_false(&self, case: &Case) {
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(case.case_id), Some(self.current_time())).unwrap();
+            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))
+                .unwrap();
             return;
         }
 
@@ -200,7 +202,7 @@ impl IfElseNodeContext {
             self.node_id().clone(),
             self.node_name().clone(),
             case_output_handle_id.clone(),
-            self.current_time(),
+            self.strategy_time(),
             payload,
         )
         .into();
@@ -220,7 +222,7 @@ impl IfElseNodeContext {
             self.node_id().clone(),
             self.node_name().clone(),
             else_output_handle.output_handle_id().clone(),
-            self.current_time(),
+            self.strategy_time(),
             payload,
         )
         .into();
@@ -229,7 +231,6 @@ impl IfElseNodeContext {
 
     // 处理else分支
     async fn handle_else_false(&self) {
-
         let else_output_handle = self.default_output_handle().unwrap();
         tracing::debug!("handle_else_false, else_output_handle: {:?}", else_output_handle.output_handle_id());
         let payload = ElseFalsePayload;
@@ -238,7 +239,7 @@ impl IfElseNodeContext {
             self.node_id().clone(),
             self.node_name().clone(),
             else_output_handle.output_handle_id().clone(),
-            self.current_time(),
+            self.strategy_time(),
             payload,
         )
         .into();

@@ -68,7 +68,7 @@ impl NodeEventHandlerExt for IfElseNodeContext {
                     if self.is_leaf_node() {
                         let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
                         for id in config_ids {
-                            self.send_execute_over_event(Some(id), Some(self.current_time())).unwrap();
+                            self.send_execute_over_event(Some(id), Some(self.strategy_time())).unwrap();
                         }
                     } else {
                         self.send_all_case_false_event();
@@ -126,7 +126,7 @@ impl IfElseNodeContext {
         if self.is_leaf_node() {
             let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
             for id in config_ids {
-                self.send_execute_over_event(Some(id), Some(self.current_time())).unwrap();
+                self.send_execute_over_event(Some(id), Some(self.strategy_time())).unwrap();
             }
         } else {
             self.send_all_case_false_event();
@@ -146,7 +146,7 @@ impl IfElseNodeContext {
                 self.node_id().clone(),
                 self.node_name().clone(),
                 id.1.clone(),
-                self.current_time(),
+                self.strategy_time(),
                 payload,
             )
             .into();
@@ -159,7 +159,7 @@ impl IfElseNodeContext {
             self.node_id().clone(),
             self.node_name().clone(),
             self.default_output_handle().unwrap().output_handle_id().clone(),
-            self.current_time(),
+            self.strategy_time(),
             payload,
         )
         .into();

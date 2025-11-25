@@ -15,7 +15,8 @@ use star_river_core::{
 };
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    strategy::cycle::Cycle,
 };
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
 
@@ -59,7 +60,7 @@ impl KlineNode {
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_kline_node_config(node_config)?;
 
@@ -79,6 +80,7 @@ impl KlineNode {
 
         let metadata = NodeMetadata::new(
             cycle_rx,
+            strategy_time_watch_rx,
             strategy_id,
             node_id,
             node_name,
@@ -89,7 +91,7 @@ impl KlineNode {
             node_command_receiver,
         );
 
-        let context = KlineNodeContext::new(metadata, node_config, current_time_watch_rx)?;
+        let context = KlineNodeContext::new(metadata, node_config)?;
         Ok(Self {
             inner: NodeBase::new(context),
         })

@@ -21,7 +21,8 @@ use strategy_core::{
     error::node_error::{
         ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu, ValueNotGreaterThanOrEqualToZeroSnafu, ValueNotGreaterThanZeroSnafu,
     },
-    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle}, strategy::cycle::Cycle,
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
+    strategy::cycle::Cycle,
 };
 // use strategy_stats::backtest_strategy_stats::BacktestStrategyStats;
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
@@ -73,7 +74,7 @@ impl StartNode {
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
+        strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
@@ -82,6 +83,7 @@ impl StartNode {
 
         let metadata = NodeMetadata::new(
             cycle_rx,
+            strategy_time_watch_rx,
             strategy_id,
             node_id.clone(),
             node_name.clone(),
@@ -92,7 +94,7 @@ impl StartNode {
             node_command_receiver,
         );
 
-        let context = StartNodeContext::new(metadata, Arc::new(RwLock::new(backtest_strategy_config)), current_time_watch_rx);
+        let context = StartNodeContext::new(metadata, Arc::new(RwLock::new(backtest_strategy_config)));
 
         Ok(Self {
             inner: NodeBase::new(context),

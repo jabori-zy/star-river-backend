@@ -3,14 +3,17 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use event_center::EventCenterSingleton;
-use star_river_core::custom_type::{CycleId, StrategyId};
+use star_river_core::custom_type::StrategyId;
 use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent, PlayFinishedEvent};
 use strategy_core::{
     benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker},
     node::NodeTrait,
-    strategy::{context_trait::{
-        StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
-    }, cycle::Cycle},
+    strategy::{
+        context_trait::{
+            StrategyBenchmarkExt, StrategyCommunicationExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
+        },
+        cycle::Cycle,
+    },
 };
 // third-party
 use tokio::sync::{Mutex, Notify, RwLock, oneshot, watch};
@@ -73,7 +76,7 @@ impl BacktestStrategyContext {
             strategy_benchmark: self.benchmark().clone(),
             cycle_tracker: self.cycle_tracker().clone(),
             signal_generator: self.signal_generator.clone(),
-            current_time_watch_tx: self.current_time_watch_tx.clone(),
+            current_time_watch_tx: self.strategy_time_watch_tx().clone(),
             cycle_watch_tx: self.cycle_watch_tx().clone(),
         }
     }
@@ -351,7 +354,7 @@ impl BacktestStrategyContext {
 
         // 单次逻辑开始
         self.cycle_watch_tx().send(Cycle::Id(signal_index)).unwrap();
-        self.current_time_watch_tx.send(signal_time).unwrap();
+        self.strategy_time_watch_tx().send(signal_time).unwrap();
         if is_finished_after_next {
             let finish_event: BacktestStrategyEvent =
                 PlayFinishedEvent::new(self.strategy_id(), self.strategy_name().clone(), signal_index as i32).into();

@@ -40,15 +40,11 @@ pub struct KlineNodeContext {
     pub node_config: KlineNodeBacktestConfig,
     min_interval: KlineInterval,
     selected_symbol_keys: HashMap<KlineKey, (i32, String)>, // 已配置的symbol键 -> (配置id, 输出句柄id)
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
+    correct_index: u64,                                     // 正确的索引(如果索引不正确，则需要修正)
 }
 
 impl KlineNodeContext {
-    pub fn new(
-        metadata: KlineNodeMetadata,
-        node_config: KlineNodeBacktestConfig,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
-    ) -> Result<Self, KlineNodeError> {
+    pub fn new(metadata: KlineNodeMetadata, node_config: KlineNodeBacktestConfig) -> Result<Self, KlineNodeError> {
         let exchange = node_config.account()?.exchange.clone();
         let time_range = node_config.time_range()?.clone();
 
@@ -72,7 +68,7 @@ impl KlineNodeContext {
             node_config,
             min_interval: KlineInterval::Minutes1,
             selected_symbol_keys,
-            current_time_watch_rx,
+            correct_index: 0,
         })
     }
 
@@ -82,12 +78,6 @@ impl KlineNodeContext {
 
     pub fn selected_symbol_keys(&self) -> &HashMap<KlineKey, (i32, String)> {
         &self.selected_symbol_keys
-    }
-}
-
-impl KlineNodeContext {
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
     }
 }
 

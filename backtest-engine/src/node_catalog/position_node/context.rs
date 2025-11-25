@@ -34,7 +34,6 @@ pub struct PositionNodeContext {
     database: DatabaseConnection,
     heartbeat: Arc<Mutex<Heartbeat>>,
     virtual_trading_system: Arc<Mutex<BacktestVts>>,
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl PositionNodeContext {
@@ -44,7 +43,6 @@ impl PositionNodeContext {
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
         virtual_trading_system: Arc<Mutex<BacktestVts>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
     ) -> Self {
         Self {
             metadata,
@@ -52,16 +50,11 @@ impl PositionNodeContext {
             database,
             heartbeat,
             virtual_trading_system,
-            current_time_watch_rx,
         }
     }
 }
 
 impl PositionNodeContext {
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
-    }
-
     pub fn node_config(&self) -> &PositionNodeBacktestConfig {
         &self.node_config
     }

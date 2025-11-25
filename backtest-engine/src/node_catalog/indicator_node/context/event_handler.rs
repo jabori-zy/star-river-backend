@@ -105,7 +105,7 @@ impl IndicatorNodeContext {
                 node_id.clone(),
                 node_name.clone(),
                 target_handle_id,
-                self.current_time(),
+                self.strategy_time(),
                 payload,
             )
             .into();
@@ -120,7 +120,7 @@ impl IndicatorNodeContext {
 
         // 渠道2: 根据节点类型发送到符号特定输出句柄
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(*config_id), Some(self.current_time()))?;
+            self.send_execute_over_event(Some(*config_id), Some(self.strategy_time()))?;
         } else {
             let event = generate_event(handle_id.clone());
             self.output_handle_send(event)?;
@@ -159,9 +159,9 @@ impl IndicatorNodeContext {
                 let lookback = self.indicator_lookback.get(indicator_key).unwrap();
                 if kline_series.len() < *lookback + 1 {
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(Some(*config_id), Some(self.current_time())).unwrap();
+                        self.send_execute_over_event(Some(*config_id), Some(self.strategy_time())).unwrap();
                     } else {
-                        self.send_trigger_event(output_handle_id, Some(self.current_time())).await.unwrap();
+                        self.send_trigger_event(output_handle_id, Some(self.strategy_time())).await.unwrap();
                     }
                     cycle_tracker.end_phase(&phase_name);
                     continue;
@@ -192,7 +192,7 @@ impl IndicatorNodeContext {
                     }
                 } else {
                     // 发送触发事件
-                    self.send_trigger_event(output_handle_id, Some(self.current_time())).await.unwrap();
+                    self.send_trigger_event(output_handle_id, Some(self.strategy_time())).await.unwrap();
                 }
 
                 // 结束当前指标的追踪

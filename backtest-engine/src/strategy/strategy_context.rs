@@ -8,7 +8,6 @@ mod workflow_builder;
 
 use std::{collections::HashMap, sync::Arc};
 
-use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use key::{IndicatorKey, Key, KlineKey};
 use sea_orm::DatabaseConnection;
@@ -21,7 +20,7 @@ use strategy_core::{
     strategy::{StrategyConfig, context_trait::StrategyMetaDataExt, metadata::StrategyMetadata},
 };
 use ta_lib::indicator::Indicator;
-use tokio::sync::{Mutex, Notify, RwLock, watch};
+use tokio::sync::{Mutex, Notify, RwLock};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -31,7 +30,7 @@ use super::{
 };
 use crate::{
     node::{BacktestNode, node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::{BacktestVts, BacktestVtsContext},
 };
 
@@ -42,7 +41,6 @@ pub type BacktestStrategyMetadata =
 pub struct BacktestStrategyContext {
     metadata: BacktestStrategyMetadata,
     total_signal_count: Arc<RwLock<i32>>,
-    current_time_watch_tx: watch::Sender<DateTime<Utc>>,
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     cancel_play_token: CancellationToken,
@@ -51,8 +49,8 @@ pub struct BacktestStrategyContext {
     execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,
     execute_over_notify: Arc<Notify>,
     min_interval: KlineInterval,
-    kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,
-    indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>,
+    pub(crate) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,
+    pub(crate) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>,
     keys: Arc<RwLock<HashMap<Key, NodeId>>>,
     virtual_trading_system: Arc<Mutex<BacktestVts>>,
     pub(crate) signal_generator: Arc<Mutex<SignalGenerator>>,
@@ -71,12 +69,9 @@ impl BacktestStrategyContext {
 
         let virtual_trading_system = BacktestVts::new(BacktestVtsContext::new());
 
-        let (current_time_watch_tx, _) = watch::channel::<DateTime<Utc>>(DateTime::<Utc>::MIN_UTC);
-
         Self {
             metadata,
             total_signal_count: Arc::new(RwLock::new(0)),
-            current_time_watch_tx,
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token: CancellationToken::new(),
@@ -148,10 +143,6 @@ impl BacktestStrategyContext {
     /// 获取执行完毕通知器
     pub fn execute_over_notify(&self) -> Arc<Notify> {
         self.execute_over_notify.clone()
-    }
-
-    pub fn current_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
-        self.current_time_watch_tx.subscribe()
     }
 
     // ========================================================================
@@ -237,24 +228,9 @@ impl BacktestStrategyContext {
     // 10. K线数据管理 (Kline Data)
     // ========================================================================
 
-    /// 获取所有K线数据
-    pub async fn kline_data(&self) -> HashMap<KlineKey, Vec<Kline>> {
-        self.kline_data.read().await.clone()
-    }
-
-    /// 获取指定K线数据
-    pub async fn get_kline_data(&self, key: &KlineKey) -> Option<Vec<Kline>> {
-        self.kline_data.read().await.get(key).cloned()
-    }
-
     /// 设置K线数据
     pub async fn set_kline_data(&self, key: KlineKey, data: Vec<Kline>) {
         self.kline_data.write().await.insert(key, data);
-    }
-
-    /// 获取K线数据的Arc引用
-    pub fn kline_data_arc(&self) -> Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>> {
-        self.kline_data.clone()
     }
 
     // ========================================================================

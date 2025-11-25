@@ -27,9 +27,7 @@ use tokio::{
 use super::node_state_machine::{NodeRunState, NodeStateTransTrigger};
 use crate::{
     node::node_event::BacktestNodeEvent,
-    strategy::strategy_command::{
-        AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestStrategyCommand,
-    },
+    strategy::strategy_command::{AddNodeCycleTrackerCmdPayload, AddNodeCycleTrackerCommand, BacktestStrategyCommand},
 };
 
 // current crate

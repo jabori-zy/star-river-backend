@@ -114,9 +114,9 @@ impl VariableNodeContext {
                     Some(val) => val,
                     None => {
                         if self.is_leaf_node() {
-                            self.send_execute_over_event(Some(config.config_id()), Some(self.current_time()))?
+                            self.send_execute_over_event(Some(config.config_id()), Some(self.strategy_time()))?
                         } else {
-                            self.send_trigger_event(&output_handle_id, Some(self.current_time())).await?;
+                            self.send_trigger_event(&output_handle_id, Some(self.strategy_time())).await?;
                         }
                         continue;
                     } // 如果返回 None，跳过当前迭代
@@ -150,7 +150,7 @@ impl VariableNodeContext {
         let node_id = self.node_id();
         let node_name = self.node_name();
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();
@@ -213,7 +213,7 @@ impl VariableNodeContext {
         let node_id = self.node_id();
         let node_name = self.node_name();
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();
@@ -308,7 +308,7 @@ impl VariableNodeContext {
         let node_id = self.node_id();
         let node_name = self.node_name();
         let cycle_id = self.cycle_id();
-        let current_time = self.current_time();
+        let current_time = self.strategy_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let is_leaf_node = self.is_leaf_node();

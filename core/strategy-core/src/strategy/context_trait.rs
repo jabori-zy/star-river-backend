@@ -22,7 +22,6 @@ use super::{
     leaf_node_execution_tracker::{LeafNodeExecutionInfo, LeafNodeExecutionTracker},
     metadata::StrategyMetadata,
 };
-use crate::strategy::cycle::Cycle;
 use crate::{
     benchmark::{
         StrategyBenchmark,
@@ -39,6 +38,7 @@ use crate::{
     node_infra::variable_node::variable_operation::UpdateVarValueOperation,
     strategy::{
         StrategyConfig,
+        cycle::Cycle,
         state_machine::{StrategyStateChangeActions, StrategyStateMachine},
     },
     variable::{
@@ -104,14 +104,6 @@ impl<Ctx> StrategyIdentityExt for Ctx where Ctx: StrategyMetaDataExt {}
 
 #[async_trait]
 pub trait StrategyInfoExt: StrategyMetaDataExt {
-    async fn current_time(&self) -> DateTime<Utc> {
-        self.metadata().current_time().await
-    }
-
-    async fn set_current_time(&mut self, current_time: DateTime<Utc>) {
-        self.metadata_mut().set_current_time(current_time).await;
-    }
-
     fn cycle_id(&self) -> CycleId {
         self.metadata().cycle_id()
     }
@@ -122,6 +114,18 @@ pub trait StrategyInfoExt: StrategyMetaDataExt {
 
     fn cycle_watch_rx(&self) -> watch::Receiver<Cycle> {
         self.metadata().cycle_watch_rx()
+    }
+
+    fn strategy_time(&self) -> DateTime<Utc> {
+        self.metadata().strategy_time()
+    }
+
+    fn strategy_time_watch_tx(&self) -> &watch::Sender<DateTime<Utc>> {
+        self.metadata().strategy_time_watch_tx()
+    }
+
+    fn strategy_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
+        self.metadata().strategy_time_watch_rx()
     }
 }
 

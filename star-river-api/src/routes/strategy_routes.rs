@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    routing::{delete, get, patch, post},
+    routing::{delete, get, post},
 };
 
 use crate::{
@@ -24,14 +24,8 @@ pub fn create_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/cache-keys", get(get_strategy_keys))
 }
 
-// pub fn create_live_strategy_routes() -> Router<StarRiver> {
-//     Router::new()
-//         .route("/{strategy_id}/run", post(run_strategy))
-// }
-
 pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
     Router::new()
-        // 策略控制 (实时/回测)
         .route("/{strategy_id}/init", post(init_strategy))
         .route("/{strategy_id}/stop", post(stop_strategy))
         .route("/{strategy_id}/play", post(play))
@@ -41,6 +35,7 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/chart_config", post(update_backtest_chart_config))
         .route("/{strategy_id}/chart_config", get(get_backtest_chart_config))
         .route("/{strategy_id}/play-index", get(get_cycle_id))
+        .route("/{strategy_id}/strategy-datetime", get(get_strategy_datetime))
         .route("/{strategy_id}/virtual-orders", get(get_virtual_orders))
         .route("/{strategy_id}/current-positions", get(get_current_positions))
         .route("/{strategy_id}/history-positions", get(get_history_positions))
@@ -49,7 +44,6 @@ pub fn create_backtest_strategy_routes() -> Router<StarRiver> {
         .route("/{strategy_id}/run-state", get(get_strategy_run_state))
         .route("/{strategy_id}/running-log", get(get_running_log))
         .route("/{strategy_id}/data", get(get_strategy_data))
-        .route("/{strategy_id}/data-by-datetime", get(get_strategy_data_by_datetime))
         .route("/{strategy_id}/variable", get(get_strategy_variable))
         .route("/{strategy_id}/performance-report", get(get_strategy_performance_report))
 }

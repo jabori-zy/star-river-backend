@@ -19,7 +19,7 @@ impl BacktestStrategyContext {
     ) -> Result<StartNode, BacktestNodeError> {
         // let virtual_trading_system = self.virtual_trading_system().clone();
         // let strategy_stats = self.strategy_stats();
-        let current_time_watch_rx = self.current_time_watch_rx();
+        let strategy_time_watch_rx = self.strategy_time_watch_rx();
         let strategy_command_sender = self.strategy_command_sender().clone();
 
         let node = StartNode::new(
@@ -27,7 +27,7 @@ impl BacktestStrategyContext {
             node_config,
             strategy_command_sender,
             Arc::new(Mutex::new(node_command_rx)),
-            current_time_watch_rx,
+            strategy_time_watch_rx,
         )?;
         Ok(node)
     }

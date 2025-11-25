@@ -76,7 +76,7 @@ impl IndicatorNodeContext {
 
     pub(super) async fn get_kline_data(&self) -> Result<Vec<Kline>, IndicatorNodeError> {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let payload = GetKlineDataCmdPayload::new(self.selected_kline_key.clone(), None, None);
+        let payload = GetKlineDataCmdPayload::new(self.selected_kline_key.clone(), None, Some(self.cycle_id()), None);
         // 获取所有K线
         let get_kline_series_cmd = GetKlineDataCommand::new(self.node_id().clone(), resp_tx, payload);
 

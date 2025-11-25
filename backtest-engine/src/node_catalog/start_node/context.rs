@@ -36,33 +36,24 @@ pub type StartNodeMetadata = NodeMetadata<StartNodeStateMachine, BacktestNodeEve
 pub struct StartNodeContext {
     pub metadata: StartNodeMetadata,
     pub node_config: Arc<RwLock<BacktestStrategyConfig>>,
-    current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
 }
 
 impl StartNodeContext {
-    pub fn new(
-        metadata: StartNodeMetadata,
-        node_config: Arc<RwLock<BacktestStrategyConfig>>,
-        current_time_watch_rx: tokio::sync::watch::Receiver<DateTime<Utc>>,
-    ) -> Self {
-        Self {
-            metadata,
-            node_config,
-            current_time_watch_rx,
-        }
+    pub fn new(metadata: StartNodeMetadata, node_config: Arc<RwLock<BacktestStrategyConfig>>) -> Self {
+        Self { metadata, node_config }
     }
 
     pub async fn send_play_signal(&self) -> Result<(), StartNodeError> {
         let mut cycle_tracker = CycleTracker::new(self.cycle_id());
         cycle_tracker.start_phase("send_play_signal");
-        tracing::debug!("cycle_id: {}, current_time: {}", self.cycle_id(), self.current_time());
+        tracing::debug!("cycle_id: {}, current_time: {}", self.cycle_id(), self.strategy_time());
         let payload = KlinePlayPayload;
         let kline_play_event: StartNodeEvent = KlinePlayEvent::new_with_time(
             self.cycle_id().clone(),
             self.node_id().clone(),
             self.node_name().clone(),
             self.default_output_handle()?.output_handle_id().clone(),
-            self.current_time(),
+            self.strategy_time(),
             payload,
         )
         .into();
@@ -90,10 +81,6 @@ impl StartNodeContext {
             return Ok(());
         }
         Ok(())
-    }
-
-    pub fn current_time(&self) -> DateTime<Utc> {
-        *self.current_time_watch_rx.borrow()
     }
 }
 

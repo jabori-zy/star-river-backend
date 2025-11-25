@@ -62,7 +62,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
 
                         if self.is_leaf_node() {
                             configs.iter().for_each(|config| {
-                                self.send_execute_over_event(Some(config.confing_id()), Some(self.current_time()))
+                                self.send_execute_over_event(Some(config.confing_id()), Some(self.strategy_time()))
                                     .unwrap()
                             });
                             return Ok(());
@@ -70,7 +70,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
 
                         stream::iter(configs.iter())
                             .for_each_concurrent(None, |config| async {
-                                self.send_trigger_event(&config.output_handle_id(), Some(self.current_time()))
+                                self.send_trigger_event(&config.output_handle_id(), Some(self.strategy_time()))
                                     .await
                                     .unwrap();
                             })
